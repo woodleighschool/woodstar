@@ -1,0 +1,20 @@
+export const queryKeys = {
+  version: ["version"] as const,
+  setupStatus: ["setup", "status"] as const,
+  authMe: ["auth", "me"] as const,
+  hosts: (params?: Record<string, unknown>) =>
+    params ? (["hosts", params] as const) : (["hosts"] as const),
+  host: (id: string) => ["host", id] as const,
+  hostSoftware: (id: string) => ["host", id, "software"] as const,
+  hostMunkiIssues: (id: string) => ["host", id, "munki-issues"] as const,
+  hostReports: (id: string) => ["host", id, "reports"] as const,
+  hostChecks: (id: string) => ["host", id, "checks"] as const,
+  enrollSecrets: ["orbit", "enroll-secrets"] as const,
+  santaTokens: ["santa", "tokens"] as const,
+  santaProfiles: ["santa", "profiles"] as const,
+  munkiTokens: ["munki", "tokens"] as const,
+  munkiManifestProfiles: ["munki", "manifest-profiles"] as const,
+  settingsOidc: ["settings", "oidc"] as const,
+  settingsDirectory: ["settings", "directory"] as const,
+  settingsTeam: ["settings", "team"] as const,
+};
