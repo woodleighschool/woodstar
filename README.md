@@ -15,5 +15,6 @@ Run locally with Postgres:
 
 ```bash
 WOODSTAR_DATABASE_URL='postgres://woodstar:woodstar@localhost:5432/woodstar?sslmode=disable' \
+WOODSTAR_SESSION_SECRET='replace-with-at-least-32-characters' \
   go run ./cmd/woodstar serve
 ```

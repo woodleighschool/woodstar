@@ -1,22 +1,42 @@
+CREATE TYPE user_role AS ENUM ('admin', 'viewer');
+CREATE TYPE secret_kind AS ENUM ('orbit', 'santa', 'munki');
+
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL DEFAULT '',
-    password_hash TEXT,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'viewer')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE deployment_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    kind TEXT NOT NULL CHECK (kind IN ('orbit_enroll_secret', 'santa_sync_token', 'munki_repo_token')),
-    token_hash TEXT NOT NULL UNIQUE,
-    last_four TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role user_role NOT NULL DEFAULT 'viewer',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
 );
+
+CREATE TABLE sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_seen_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX sessions_user_active_idx
+    ON sessions (user_id, expires_at DESC)
+    WHERE revoked_at IS NULL;
+
+CREATE TABLE secrets (
+    id BIGSERIAL PRIMARY KEY,
+    kind secret_kind NOT NULL,
+    value TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX secrets_kind_active_idx
+    ON secrets (kind, created_at DESC)
+    WHERE deleted_at IS NULL;
 
 CREATE TABLE hosts (
     id BIGSERIAL PRIMARY KEY,

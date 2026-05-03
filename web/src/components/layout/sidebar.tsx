@@ -44,14 +44,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   <Icon className="size-4 shrink-0" aria-hidden />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.pending ? (
-                    <span
-                      className="rounded-sm bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground"
-                      title="Backend endpoint pending"
-                    >
-                      pending
-                    </span>
-                  ) : null}
                 </Link>
               );
             })}

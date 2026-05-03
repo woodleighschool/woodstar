@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { CurrentUser } from "@/lib/types";
+import type { CurrentUser } from "@/hooks/use-auth";
 
 export interface TopbarProps {
   user: CurrentUser | null;

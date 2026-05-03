@@ -1,3 +1,34 @@
+import createClient, { type Middleware } from "openapi-fetch";
+
+import type { components, paths } from "@/lib/api-schema";
+
+export type Schemas = components["schemas"];
+
+declare global {
+  interface Window {
+    __WOODSTAR__?: {
+      apiBaseURL?: string;
+      baseURL?: string;
+      version?: string;
+    };
+  }
+}
+
+const baseURL = window.__WOODSTAR__?.apiBaseURL ?? window.__WOODSTAR__?.baseURL ?? "";
+
+const credentialsMiddleware: Middleware = {
+  async onRequest({ request }) {
+    request.headers.set("Accept", "application/json");
+    return request;
+  },
+};
+
+export const apiClient = createClient<paths>({
+  baseUrl: baseURL,
+  credentials: "same-origin",
+});
+apiClient.use(credentialsMiddleware);
+
 export class ApiError extends Error {
   readonly status: number;
   readonly body?: unknown;
@@ -10,59 +41,37 @@ export class ApiError extends Error {
   }
 }
 
-export interface FetchJsonOptions extends Omit<RequestInit, "body"> {
-  body?: unknown;
+interface HumaError {
+  title?: string;
+  detail?: string;
+  errors?: Array<{ message?: string; location?: string }>;
 }
 
-export async function fetchJson<T = unknown>(
-  path: string,
-  { body, headers, ...init }: FetchJsonOptions = {},
-): Promise<T> {
-  const finalHeaders = new Headers(headers);
-  let serializedBody: BodyInit | undefined;
-
-  if (body !== undefined && body !== null) {
-    if (
-      body instanceof FormData ||
-      body instanceof URLSearchParams ||
-      body instanceof Blob ||
-      typeof body === "string"
-    ) {
-      serializedBody = body as BodyInit;
-    } else {
-      serializedBody = JSON.stringify(body);
-      if (!finalHeaders.has("Content-Type")) {
-        finalHeaders.set("Content-Type", "application/json");
-      }
+function describeError(body: unknown, status: number): string {
+  if (body && typeof body === "object") {
+    const huma = body as HumaError;
+    if (huma.detail) return huma.detail;
+    if (huma.title) return huma.title;
+    if (huma.errors?.length) {
+      return huma.errors
+        .map((e) => (e.location ? `${e.location}: ${e.message ?? ""}` : e.message ?? ""))
+        .filter(Boolean)
+        .join("; ");
     }
   }
+  return `request failed (${status})`;
+}
 
-  if (!finalHeaders.has("Accept")) {
-    finalHeaders.set("Accept", "application/json");
+export async function unwrap<T>(
+  pending: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T> {
+  const result = await pending;
+  if (result.error !== undefined || !result.response.ok) {
+    throw new ApiError(
+      result.response.status,
+      describeError(result.error, result.response.status),
+      result.error,
+    );
   }
-
-  const response = await fetch(path, {
-    ...init,
-    headers: finalHeaders,
-    body: serializedBody,
-    credentials: init.credentials ?? "same-origin",
-  });
-
-  const contentType = response.headers.get("content-type") ?? "";
-  const isJson = contentType.includes("application/json");
-
-  if (!response.ok) {
-    const errorBody = isJson ? await response.json().catch(() => null) : null;
-    const message =
-      (errorBody && typeof errorBody === "object" && "message" in errorBody
-        ? String((errorBody as { message: unknown }).message)
-        : null) ?? response.statusText ?? "request failed";
-    throw new ApiError(response.status, message, errorBody);
-  }
-
-  if (response.status === 204 || !isJson) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return result.data as T;
 }

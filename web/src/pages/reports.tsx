@@ -1,4 +1,3 @@
-import { PendingBanner } from "@/components/feedback/pending-banner";
 import { PageHeader } from "@/components/ui/page-header";
 
 export function ReportsPage() {
@@ -6,11 +5,8 @@ export function ReportsPage() {
     <div className="flex flex-col">
       <PageHeader
         title="Reports"
-        description="Saved query outputs and rollups. Reports surface state without making automation decisions."
+        description="Saved query outputs and rollups."
       />
-      <div className="p-6">
-        <PendingBanner endpoint="/api/v1/reports" />
-      </div>
     </div>
   );
 }

@@ -3,10 +3,13 @@ module github.com/woodleighschool/woodstar
 go 1.26
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1
+	github.com/danielgtaylor/huma/v2 v2.37.3
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/crypto v0.50.0
 )
 
 require (

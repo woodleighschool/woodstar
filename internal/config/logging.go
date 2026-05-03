@@ -9,8 +9,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// InitLogger configures the process logger with build metadata.
 func InitLogger(version string) {
+	//nolint:reassign // Zerolog exposes process-wide logger knobs for this setup path.
 	zerolog.TimeFieldFormat = time.RFC3339Nano
+	//nolint:reassign // The application logger is intentionally configured once at startup.
 	log.Logger = log.Output(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		TimeFormat: time.RFC3339,
@@ -20,6 +23,7 @@ func InitLogger(version string) {
 	ConfigureLogger("info")
 }
 
+// ConfigureLogger sets the global zerolog level.
 func ConfigureLogger(level string) {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "trace":

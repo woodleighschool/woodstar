@@ -9,9 +9,11 @@ import (
 )
 
 var (
+	// Dist embeds the built Vite bundle.
 	//go:embed all:dist
 	Dist embed.FS
 
+	// DistDirFS exposes the built Vite bundle rooted at dist.
 	DistDirFS = MustSubFS(Dist, "dist")
 )
 
@@ -27,6 +29,7 @@ func (f defaultFS) Open(name string) (fs.File, error) {
 	return f.fs.Open(name)
 }
 
+// MustSubFS returns fsRoot as a sub-filesystem or panics.
 func MustSubFS(currentFS fs.FS, fsRoot string) fs.FS {
 	subFS, err := subFS(currentFS, fsRoot)
 	if err != nil {

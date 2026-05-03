@@ -13,7 +13,9 @@ WEB_DIR = web
 
 LDFLAGS = -ldflags "-X github.com/woodleighschool/woodstar/internal/buildinfo.Version=$(VERSION) -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit=$(GIT_COMMIT) -X github.com/woodleighschool/woodstar/internal/buildinfo.Date=$(BUILD_DATE)"
 
-.PHONY: all build backend frontend dev dev-backend dev-frontend test test-openapi lint fmt precommit clean deps
+OPENAPI_FILE = $(WEB_DIR)/openapi.yaml
+
+.PHONY: all build backend frontend dev dev-backend dev-frontend test test-openapi openapi openapi-types lint fmt precommit clean deps
 
 all: build
 
@@ -37,8 +39,22 @@ dev-frontend:
 test:
 	go test -race -count=1 -v ./...
 
+openapi:
+	go run $(LDFLAGS) ./cmd/woodstar openapi --output $(OPENAPI_FILE)
+
+openapi-types: openapi
+	cd $(WEB_DIR) && pnpm openapi:types
+
 test-openapi:
-	@echo "OpenAPI validation is not wired yet."
+	@tmp=$$(mktemp); \
+	go run $(LDFLAGS) ./cmd/woodstar openapi --output $$tmp; \
+	if ! diff -q $(OPENAPI_FILE) $$tmp >/dev/null; then \
+		echo "ERROR: $(OPENAPI_FILE) is out of date. Run 'make openapi-types' and commit the result."; \
+		diff -u $(OPENAPI_FILE) $$tmp; \
+		rm -f $$tmp; \
+		exit 1; \
+	fi; \
+	rm -f $$tmp
 
 lint:
 	golangci-lint run --timeout=5m

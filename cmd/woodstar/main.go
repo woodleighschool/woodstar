@@ -29,6 +29,7 @@ func main() {
 	rootCmd.Version = buildinfo.Version
 	rootCmd.AddCommand(runServeCommand())
 	rootCmd.AddCommand(runVersionCommand())
+	rootCmd.AddCommand(runOpenAPICommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -42,11 +43,13 @@ func runServeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start the Woodstar server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			config.ApplyEnvironment(&cfg)
+			if err := config.ApplyEnvironment(&cfg); err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
 			config.ConfigureLogger(cfg.LogLevel)
 
 			db, err := database.Open(ctx, cfg.DatabaseURL)
@@ -55,11 +58,15 @@ func runServeCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			server := api.NewServer(api.Dependencies{
-				Config:     cfg,
-				DB:         db,
-				Version:    buildinfo.Version,
-				WebHandler: web.NewHandler(web.Options{FS: webfs.DistDirFS}),
+			server := api.NewServer(api.ServerDependencies{
+				Config:  cfg,
+				DB:      db,
+				Version: buildinfo.Version,
+				WebHandler: web.NewHandler(web.HandlerOptions{
+					FS:      webfs.DistDirFS,
+					BaseURL: cfg.BaseURL,
+					Version: buildinfo.Version,
+				}),
 			})
 
 			errCh := make(chan error, 1)
@@ -78,10 +85,12 @@ func runServeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&cfg.Host, "host", "0.0.0.0", "HTTP listen host")
-	cmd.Flags().IntVar(&cfg.Port, "port", 8080, "HTTP listen port")
+	cmd.Flags().StringVar(&cfg.Host, "host", "", "HTTP listen host")
+	cmd.Flags().IntVar(&cfg.Port, "port", 0, "HTTP listen port")
+	cmd.Flags().StringVar(&cfg.BaseURL, "base-url", "", "Public base URL")
 	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
-	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "info", "log level")
+	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "log level")
+	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
 
 	return cmd
 }
@@ -90,9 +99,9 @@ func runVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print build version",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			log.Debug().Msg("printing version")
-			fmt.Print(buildinfo.String())
+			_, _ = cmd.OutOrStdout().Write([]byte(buildinfo.String()))
 		},
 	}
 }

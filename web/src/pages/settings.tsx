@@ -1,8 +1,6 @@
-import { PendingBanner } from "@/components/feedback/pending-banner";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVersion } from "@/hooks/use-version";
-import { endpoints } from "@/lib/endpoints";
 
 function DefinitionList({
   rows,
@@ -17,7 +15,7 @@ function DefinitionList({
           className="grid grid-cols-[10rem_1fr] gap-3 px-4 py-2 text-sm"
         >
           <dt className="text-muted-foreground">{label}</dt>
-          <dd className="font-medium break-all">{value ?? "—"}</dd>
+          <dd className="font-medium break-all">{value ?? "-"}</dd>
         </div>
       ))}
     </dl>
@@ -59,18 +57,6 @@ export function SettingsPage() {
                 ["Frontend mode", import.meta.env.MODE],
               ]}
             />
-          </TabsContent>
-
-          <TabsContent value="team">
-            <PendingBanner endpoint={endpoints.settingsTeam.path} />
-          </TabsContent>
-
-          <TabsContent value="oidc">
-            <PendingBanner endpoint={endpoints.settingsOidc.path} />
-          </TabsContent>
-
-          <TabsContent value="directory">
-            <PendingBanner endpoint={endpoints.settingsDirectory.path} />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 
-import { CredentialTable } from "@/components/credentials/credential-table";
+import { SecretTable } from "@/components/secrets/secret-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,20 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useResourceList } from "@/hooks/use-pending-list";
-import { endpoints } from "@/lib/endpoints";
-import { queryKeys } from "@/lib/query-keys";
-import type { MunkiToken } from "@/lib/types";
+import { useCreateMunkiToken, useMunkiTokens } from "@/hooks/use-secrets";
 
 export function MunkiTokensDialog({
   trigger,
 }: {
   trigger: React.ReactNode;
 }) {
-  const { data, query, isPending } = useResourceList<MunkiToken>(
-    endpoints.munkiTokens,
-    queryKeys.munkiTokens,
-  );
+  const query = useMunkiTokens();
+  const create = useCreateMunkiToken();
+  const data = query.data ?? [];
 
   return (
     <Dialog>
@@ -39,25 +35,26 @@ export function MunkiTokensDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <CredentialTable
-          endpoint={endpoints.munkiTokens}
+        <SecretTable
           data={data.map((row) => ({
             id: row.id,
-            label: row.label,
-            preview: row.preview,
+            value: row.value,
             created_at: row.created_at,
-            last_used_at: row.last_used_at,
           }))}
-          isPending={isPending}
           isLoading={query.isLoading}
-          error={query.error}
+          error={query.error ?? null}
           onRetry={() => query.refetch()}
           emptyTitle="No Munki repo tokens"
           emptyDescription="Create a token, then ship it inside ManagedInstalls AdditionalHttpHeaders alongside the serial header."
         />
 
         <DialogFooter>
-          <Button size="sm" disabled={isPending} className="gap-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            disabled={create.isPending}
+            onClick={() => create.mutate()}
+          >
             <Plus className="size-4" /> New repo token
           </Button>
         </DialogFooter>

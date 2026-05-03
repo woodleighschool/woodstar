@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 
-import { CredentialTable } from "@/components/credentials/credential-table";
+import { SecretTable } from "@/components/secrets/secret-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,20 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useResourceList } from "@/hooks/use-pending-list";
-import { endpoints } from "@/lib/endpoints";
-import { queryKeys } from "@/lib/query-keys";
-import type { EnrollSecret } from "@/lib/types";
+import { useCreateEnrollSecret, useEnrollSecrets } from "@/hooks/use-secrets";
 
 export function OrbitEnrollSecretsDialog({
   trigger,
 }: {
   trigger: React.ReactNode;
 }) {
-  const { data, query, isPending } = useResourceList<EnrollSecret>(
-    endpoints.enrollSecrets,
-    queryKeys.enrollSecrets,
-  );
+  const query = useEnrollSecrets();
+  const create = useCreateEnrollSecret();
+  const data = query.data ?? [];
 
   return (
     <Dialog>
@@ -39,30 +35,26 @@ export function OrbitEnrollSecretsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <CredentialTable
-          endpoint={endpoints.enrollSecrets}
+        <SecretTable
           data={data.map((row) => ({
             id: row.id,
-            preview: row.secret_preview,
+            value: row.value,
             created_at: row.created_at,
-            last_used_at: row.rotated_at,
-            trailing: (
-              <span className="text-xs text-muted-foreground">
-                {row.host_count} hosts
-              </span>
-            ),
           }))}
-          isPending={isPending}
           isLoading={query.isLoading}
-          error={query.error}
+          error={query.error ?? null}
           onRetry={() => query.refetch()}
           emptyTitle="No enroll secrets yet"
           emptyDescription="Create a secret to allow Orbit to enroll Macs against this Woodstar deployment."
-          trailingHeader="Hosts"
         />
 
         <DialogFooter>
-          <Button size="sm" disabled={isPending} className="gap-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            disabled={create.isPending}
+            onClick={() => create.mutate()}
+          >
             <Plus className="size-4" /> New enroll secret
           </Button>
         </DialogFooter>

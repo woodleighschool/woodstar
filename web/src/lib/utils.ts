@@ -14,8 +14,8 @@ export function formatBytes(bytes: number, decimals = 1): string {
 }
 
 export function formatRelative(input: string | number | Date | null | undefined): string {
-  if (input === null || input === undefined) return "—";
+  if (input === null || input === undefined) return "-";
   const date = input instanceof Date ? input : new Date(input);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return formatDistanceToNow(date, { addSuffix: true });
 }

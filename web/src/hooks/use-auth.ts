@@ -1,45 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiError, fetchJson } from "@/lib/api";
-import { endpoints } from "@/lib/endpoints";
+import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { CurrentUser } from "@/lib/types";
 
-export interface AuthState {
-  user: CurrentUser | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  isPending: boolean;
-}
+export type CurrentUser = Schemas["UserBody"];
 
-export function useAuth(): AuthState {
-  const { data, error, isLoading, fetchStatus } = useQuery<
-    CurrentUser | null,
-    ApiError
-  >({
+export function useAuth(): { user: CurrentUser | null } {
+  const { data } = useQuery<CurrentUser | null, ApiError>({
     queryKey: queryKeys.authMe,
-    queryFn: async () => {
-      try {
-        return await fetchJson<CurrentUser>(endpoints.authMe.path);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          return null;
-        }
-        throw err;
+    queryFn: async ({ signal }) => {
+      const result = await apiClient.GET("/api/auth/me", { signal });
+      if (result.response.status === 401) {
+        return null;
       }
+      return unwrap(Promise.resolve(result));
     },
-    enabled: endpoints.authMe.implemented,
     retry: false,
     staleTime: 30_000,
   });
 
-  if (!endpoints.authMe.implemented) {
-    return { user: null, isLoading: false, isAuthenticated: false, isPending: true };
-  }
-
-  const user = data ?? null;
-  const isAuthenticated = !!user && !error;
-  const loading = isLoading && fetchStatus !== "idle";
-
-  return { user, isLoading: loading, isAuthenticated, isPending: false };
+  return { user: data ?? null };
 }
