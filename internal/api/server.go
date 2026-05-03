@@ -146,6 +146,7 @@ func registerAdminAPI(
 
 	handlers.RegisterSystem(api, db, version, started)
 	handlers.RegisterAuth(api, authService, cookies)
+	handlers.RegisterUsers(api, authService)
 	handlers.RegisterSecrets(api, models.NewSecretStore(db))
 
 	return api

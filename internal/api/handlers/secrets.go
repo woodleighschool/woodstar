@@ -68,7 +68,11 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		Path:        route.path,
 		Tags:        []string{route.tag},
 		Summary:     "List " + route.name + "s",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, _ *struct{}) (*secretListOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
 		secrets, err := store.List(ctx, kind)
 		if err != nil {
 			return nil, err
@@ -83,7 +87,11 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		Tags:          []string{route.tag},
 		Summary:       "Create " + route.name,
 		DefaultStatus: http.StatusCreated,
+		Errors:        []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, _ *struct{}) (*secretCreateOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
 		secret, err := store.Create(ctx, kind)
 		if err != nil {
 			return nil, err
@@ -97,8 +105,11 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		Path:        route.path + "/{id}",
 		Tags:        []string{route.tag},
 		Summary:     "Delete " + route.name,
-		Errors:      []int{http.StatusNotFound},
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *secretDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
 		err := store.Delete(ctx, kind, input.ID)
 		if errors.Is(err, models.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")

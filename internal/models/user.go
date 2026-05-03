@@ -45,6 +45,14 @@ type CreateUserParams struct {
 	Role         UserRole
 }
 
+// UpdateUserParams contains the optional fields an admin can change on a user.
+// Nil fields are left untouched.
+type UpdateUserParams struct {
+	Name         *string
+	Role         *UserRole
+	PasswordHash *string
+}
+
 // NewUserStore returns a user store backed by db.
 func NewUserStore(db *database.DB) *UserStore {
 	return &UserStore{db: db}
@@ -88,6 +96,102 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 // GetByID returns an active user by database ID.
 func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
 	return s.get(ctx, "id = $1", id)
+}
+
+// List returns active users ordered by creation time.
+func (s *UserStore) List(ctx context.Context) ([]User, error) {
+	rows, err := s.db.Query(ctx, `
+SELECT id, email, name, password_hash, role, created_at, updated_at
+FROM users
+WHERE deleted_at IS NULL
+ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := make([]User, 0)
+	for rows.Next() {
+		var user User
+		var role string
+		if err := rows.Scan(
+			&user.ID,
+			&user.Email,
+			&user.Name,
+			&user.PasswordHash,
+			&role,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		user.Role = UserRole(role)
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
+// Update applies the non-nil fields of params to the user with id and returns the row.
+func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParams) (*User, error) {
+	var nameArg any
+	if params.Name != nil {
+		nameArg = strings.TrimSpace(*params.Name)
+	}
+	var roleArg any
+	if params.Role != nil {
+		roleArg = string(*params.Role)
+	}
+	var passwordArg any
+	if params.PasswordHash != nil {
+		passwordArg = *params.PasswordHash
+	}
+
+	user := &User{}
+	var role string
+	err := s.db.QueryRow(ctx, `
+UPDATE users
+SET name          = COALESCE($2, name),
+    role          = COALESCE($3::user_role, role),
+    password_hash = COALESCE($4, password_hash),
+    updated_at    = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, email, name, password_hash, role, created_at, updated_at`,
+		id, nameArg, roleArg, passwordArg,
+	).Scan(&user.ID, &user.Email, &user.Name, &user.PasswordHash, &role, &user.CreatedAt, &user.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, ErrAlreadyExists
+		}
+		return nil, err
+	}
+	user.Role = UserRole(role)
+	return user, nil
+}
+
+// SoftDelete marks the user with id as deleted.
+func (s *UserStore) SoftDelete(ctx context.Context, id int64) error {
+	var deletedID int64
+	err := s.db.QueryRow(ctx, `
+UPDATE users
+SET deleted_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id`, id).Scan(&deletedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}
+
+// CountAdmins returns the number of active admin users.
+func (s *UserStore) CountAdmins(ctx context.Context) (int, error) {
+	var count int
+	err := s.db.QueryRow(ctx,
+		`SELECT count(*) FROM users WHERE role = 'admin' AND deleted_at IS NULL`,
+	).Scan(&count)
+	return count, err
 }
 
 func (s *UserStore) get(ctx context.Context, where string, arg any) (*User, error) {

@@ -21,12 +21,13 @@ func RequireAuth(basePath string, authService *auth.Service) func(http.Handler) 
 				writeUnauthorized(w)
 				return
 			}
-			if _, err := authService.CurrentUser(r.Context(), cookie.Value); err != nil {
+			user, err := authService.CurrentUser(r.Context(), cookie.Value)
+			if err != nil {
 				writeUnauthorized(w)
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(auth.ContextWithUser(r.Context(), user)))
 		})
 	}
 }

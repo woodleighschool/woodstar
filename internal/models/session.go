@@ -78,3 +78,11 @@ UPDATE sessions
 SET revoked_at = now()
 WHERE token_hash = $1 AND revoked_at IS NULL`, tokenHash)
 }
+
+// RevokeAllForUser marks every active session belonging to userID as revoked.
+func (s *SessionStore) RevokeAllForUser(ctx context.Context, userID int64) error {
+	return s.db.Exec(ctx, `
+UPDATE sessions
+SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL`, userID)
+}

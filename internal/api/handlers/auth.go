@@ -14,10 +14,11 @@ import (
 )
 
 type userBody struct {
-	ID    string          `json:"id"`
-	Email string          `json:"email"`
-	Name  string          `json:"name"`
-	Role  models.UserRole `json:"role"`
+	ID        string          `json:"id"`
+	Email     string          `json:"email"`
+	Name      string          `json:"name"`
+	Role      models.UserRole `json:"role"`
+	CreatedAt time.Time       `json:"created_at"`
 }
 
 type setupStatusOutput struct {
@@ -168,11 +169,25 @@ func sessionOutput(result *auth.LoginResult, cookies CookieSettings) *authSessio
 
 func userResponse(user *models.User) userBody {
 	return userBody{
-		ID:    models.UserIDString(user.ID),
-		Email: user.Email,
-		Name:  user.Name,
-		Role:  user.Role,
+		ID:        models.UserIDString(user.ID),
+		Email:     user.Email,
+		Name:      user.Name,
+		Role:      user.Role,
+		CreatedAt: user.CreatedAt,
 	}
+}
+
+// requireAdmin returns the authenticated admin user from ctx.
+// It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
+func requireAdmin(ctx context.Context) (*models.User, error) {
+	user, ok := auth.UserFromContext(ctx)
+	if !ok {
+		return nil, huma.Error401Unauthorized("not authenticated")
+	}
+	if user.Role != models.RoleAdmin {
+		return nil, huma.Error403Forbidden("admin role required")
+	}
+	return user, nil
 }
 
 func sessionCookie(token string, expiresAt time.Time, cookies CookieSettings) http.Cookie {
