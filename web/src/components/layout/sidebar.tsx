@@ -2,12 +2,22 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 
 import { navSections } from "@/components/layout/nav-config";
+import { useAuth } from "@/hooks/use-auth";
 import { useVersion } from "@/hooks/use-version";
 import { cn } from "@/lib/utils";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { location } = useRouterState();
   const { data: version } = useVersion();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.adminOnly || isAdmin),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <nav className="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -17,7 +27,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-        {navSections.map((section, index) => (
+        {visibleSections.map((section, index) => (
           <div key={section.label ?? `section-${index}`} className="space-y-0.5">
             {section.label ? (
               <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">

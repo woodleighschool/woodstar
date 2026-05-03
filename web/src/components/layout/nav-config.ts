@@ -7,6 +7,7 @@ import {
   Settings as SettingsIcon,
   Shield,
   Tag,
+  Users as UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -14,6 +15,7 @@ export interface NavItem {
   label: string;
   to: string;
   icon: LucideIcon;
+  adminOnly?: boolean;
 }
 
 export interface NavSection {
@@ -39,6 +41,9 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    items: [{ label: "Settings", to: "/settings", icon: SettingsIcon }],
+    items: [
+      { label: "Users", to: "/users", icon: UsersIcon, adminOnly: true },
+      { label: "Settings", to: "/settings", icon: SettingsIcon },
+    ],
   },
 ];

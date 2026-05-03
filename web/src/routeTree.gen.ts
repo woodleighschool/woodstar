@@ -13,6 +13,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedUsersRouteImport } from './routes/_authed/users'
 import { Route as AuthedSoftwareRouteImport } from './routes/_authed/software'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as AuthedSantaRouteImport } from './routes/_authed/santa'
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedUsersRoute = AuthedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedSoftwareRoute = AuthedSoftwareRouteImport.update({
   id: '/software',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/santa': typeof AuthedSantaRoute
   '/settings': typeof AuthedSettingsRoute
   '/software': typeof AuthedSoftwareRoute
+  '/users': typeof AuthedUsersRoute
   '/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/hosts/': typeof AuthedHostsIndexRoute
 }
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/santa': typeof AuthedSantaRoute
   '/settings': typeof AuthedSettingsRoute
   '/software': typeof AuthedSoftwareRoute
+  '/users': typeof AuthedUsersRoute
   '/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/hosts': typeof AuthedHostsIndexRoute
 }
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/_authed/santa': typeof AuthedSantaRoute
   '/_authed/settings': typeof AuthedSettingsRoute
   '/_authed/software': typeof AuthedSoftwareRoute
+  '/_authed/users': typeof AuthedUsersRoute
   '/_authed/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/_authed/hosts/': typeof AuthedHostsIndexRoute
 }
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/santa'
     | '/settings'
     | '/software'
+    | '/users'
     | '/hosts/$hostId'
     | '/hosts/'
   fileRoutesByTo: FileRoutesByTo
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/santa'
     | '/settings'
     | '/software'
+    | '/users'
     | '/hosts/$hostId'
     | '/hosts'
   id:
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authed/santa'
     | '/_authed/settings'
     | '/_authed/software'
+    | '/_authed/users'
     | '/_authed/hosts/$hostId'
     | '/_authed/hosts/'
   fileRoutesById: FileRoutesById
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/users': {
+      id: '/_authed/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthedUsersRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/software': {
       id: '/_authed/software'
@@ -289,6 +308,7 @@ interface AuthedRouteChildren {
   AuthedSantaRoute: typeof AuthedSantaRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
   AuthedSoftwareRoute: typeof AuthedSoftwareRoute
+  AuthedUsersRoute: typeof AuthedUsersRoute
   AuthedHostsHostIdRoute: typeof AuthedHostsHostIdRoute
   AuthedHostsIndexRoute: typeof AuthedHostsIndexRoute
 }
@@ -301,6 +321,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSantaRoute: AuthedSantaRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
   AuthedSoftwareRoute: AuthedSoftwareRoute,
+  AuthedUsersRoute: AuthedUsersRoute,
   AuthedHostsHostIdRoute: AuthedHostsHostIdRoute,
   AuthedHostsIndexRoute: AuthedHostsIndexRoute,
 }

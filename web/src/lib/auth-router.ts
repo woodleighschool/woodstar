@@ -34,6 +34,19 @@ export async function requireUser() {
   }
 }
 
+// Viewers are bounced to /hosts; non-authenticated users to /login (via requireUser).
+export async function requireAdmin() {
+  await requireSetup();
+
+  const me = await apiClient.GET("/api/auth/me");
+  if (me.response.status === 401 || me.error || !me.data) {
+    throw redirect({ to: "/login" });
+  }
+  if (me.data.role !== "admin") {
+    throw redirect({ to: "/hosts" });
+  }
+}
+
 export async function redirectAuthenticatedFromLogin() {
   const setup = await apiClient.GET("/api/setup/status");
   if (setup.error || !setup.data?.complete) {
