@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 const (
@@ -24,12 +25,12 @@ type HostDeviceMapping struct {
 
 // DeviceMappingStore persists host device mappings.
 type DeviceMappingStore struct {
-	db *database.DB
+	q *sqlc.Queries
 }
 
 // NewDeviceMappingStore returns a device mapping store backed by db.
 func NewDeviceMappingStore(db *database.DB) *DeviceMappingStore {
-	return &DeviceMappingStore{db: db}
+	return &DeviceMappingStore{q: db.Queries()}
 }
 
 // Upsert stores the latest email for a source.
@@ -37,42 +38,34 @@ func (s *DeviceMappingStore) Upsert(ctx context.Context, hostID int64, email, so
 	if email == "" || source == "" {
 		return nil
 	}
-	return s.db.Exec(ctx, `
-INSERT INTO host_emails (host_id, email, source)
-VALUES ($1, $2, $3)
-ON CONFLICT (host_id, source) DO UPDATE SET
-    email = EXCLUDED.email,
-    updated_at = now()`,
-		hostID, email, source,
-	)
+	return s.q.UpsertHostDeviceMapping(ctx, sqlc.UpsertHostDeviceMappingParams{
+		HostID: hostID,
+		Email:  email,
+		Source: source,
+	})
 }
 
 // ListForHost returns mappings in stable source order.
 func (s *DeviceMappingStore) ListForHost(ctx context.Context, hostID int64) ([]HostDeviceMapping, error) {
-	rows, err := s.db.Query(ctx, `
-SELECT id, host_id, email, source, created_at, updated_at
-FROM host_emails
-WHERE host_id = $1
-ORDER BY source`, hostID)
+	rows, err := s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: hostID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	mappings := make([]HostDeviceMapping, 0)
-	for rows.Next() {
-		var mapping HostDeviceMapping
-		if err := rows.Scan(
-			&mapping.ID,
-			&mapping.HostID,
-			&mapping.Email,
-			&mapping.Source,
-			&mapping.CreatedAt,
-			&mapping.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		mappings = append(mappings, mapping)
+	mappings := make([]HostDeviceMapping, 0, len(rows))
+	for _, row := range rows {
+		mappings = append(mappings, mappingFromRecord(row))
 	}
-	return mappings, rows.Err()
+	return mappings, nil
+}
+
+func mappingFromRecord(row sqlc.HostEmail) HostDeviceMapping {
+	return HostDeviceMapping{
+		ID:        row.ID,
+		HostID:    row.HostID,
+		Email:     row.Email,
+		Source:    row.Source,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+	}
 }

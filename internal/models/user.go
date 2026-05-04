@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // UserRole controls application permissions.
@@ -34,7 +35,7 @@ type User struct {
 
 // UserStore persists local accounts.
 type UserStore struct {
-	db *database.DB
+	q *sqlc.Queries
 }
 
 // CreateUserParams contains fields needed to create a local account.
@@ -55,109 +56,92 @@ type UpdateUserParams struct {
 
 // NewUserStore returns a user store backed by db.
 func NewUserStore(db *database.DB) *UserStore {
-	return &UserStore{db: db}
+	return &UserStore{q: db.Queries()}
 }
 
 // Exists reports whether any active local user exists.
 func (s *UserStore) Exists(ctx context.Context) (bool, error) {
-	var exists bool
-	err := s.db.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM users WHERE deleted_at IS NULL)").Scan(&exists)
-	return exists, err
+	return s.q.UserExists(ctx)
 }
 
 // Create inserts a local user.
 func (s *UserStore) Create(ctx context.Context, params CreateUserParams) (*User, error) {
-	user := &User{}
-	var role string
-	err := s.db.QueryRow(ctx, `
-INSERT INTO users (email, name, password_hash, role)
-VALUES ($1, $2, $3, $4)
-RETURNING id, email, name, password_hash, role, created_at, updated_at`,
-		normalizeEmail(params.Email),
-		strings.TrimSpace(params.Name),
-		params.PasswordHash,
-		string(params.Role),
-	).Scan(&user.ID, &user.Email, &user.Name, &user.PasswordHash, &role, &user.CreatedAt, &user.UpdatedAt)
+	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
+		Email:        normalizeEmail(params.Email),
+		Name:         strings.TrimSpace(params.Name),
+		PasswordHash: params.PasswordHash,
+		Role:         sqlc.UserRole(params.Role),
+	})
 	if err != nil {
 		if isUniqueViolation(err) {
 			return nil, ErrAlreadyExists
 		}
 		return nil, err
 	}
-	user.Role = UserRole(role)
-	return user, nil
+	return userFromRecord(row), nil
 }
 
 // GetByEmail returns an active user by email.
 func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
-	return s.get(ctx, "email = $1", normalizeEmail(email))
+	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: normalizeEmail(email)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userFromRecord(row), nil
 }
 
 // GetByID returns an active user by database ID.
 func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
-	return s.get(ctx, "id = $1", id)
+	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return userFromRecord(row), nil
 }
 
 // List returns active users ordered by creation time.
 func (s *UserStore) List(ctx context.Context) ([]User, error) {
-	rows, err := s.db.Query(ctx, `
-SELECT id, email, name, password_hash, role, created_at, updated_at
-FROM users
-WHERE deleted_at IS NULL
-ORDER BY created_at`)
+	rows, err := s.q.ListUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	users := make([]User, 0)
-	for rows.Next() {
-		var user User
-		var role string
-		if err := rows.Scan(
-			&user.ID,
-			&user.Email,
-			&user.Name,
-			&user.PasswordHash,
-			&role,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		user.Role = UserRole(role)
-		users = append(users, user)
+	users := make([]User, 0, len(rows))
+	for _, row := range rows {
+		users = append(users, *userFromRecord(row))
 	}
-	return users, rows.Err()
+	return users, nil
 }
 
 // Update applies the non-nil fields of params to the user with id and returns the row.
 func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParams) (*User, error) {
-	var nameArg any
+	var nameArg *string
 	if params.Name != nil {
-		nameArg = strings.TrimSpace(*params.Name)
+		name := strings.TrimSpace(*params.Name)
+		nameArg = &name
 	}
-	var roleArg any
+	var roleArg *sqlc.UserRole
 	if params.Role != nil {
-		roleArg = string(*params.Role)
+		role := sqlc.UserRole(*params.Role)
+		roleArg = &role
 	}
-	var passwordArg any
+	var passwordArg *string
 	if params.PasswordHash != nil {
-		passwordArg = *params.PasswordHash
+		passwordArg = params.PasswordHash
 	}
 
-	user := &User{}
-	var role string
-	err := s.db.QueryRow(ctx, `
-UPDATE users
-SET name          = COALESCE($2, name),
-    role          = COALESCE($3::user_role, role),
-    password_hash = COALESCE($4, password_hash),
-    updated_at    = now()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, email, name, password_hash, role, created_at, updated_at`,
-		id, nameArg, roleArg, passwordArg,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.PasswordHash, &role, &user.CreatedAt, &user.UpdatedAt)
+	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
+		Name:         nameArg,
+		Role:         roleArg,
+		PasswordHash: passwordArg,
+		ID:           id,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -167,18 +151,12 @@ RETURNING id, email, name, password_hash, role, created_at, updated_at`,
 		}
 		return nil, err
 	}
-	user.Role = UserRole(role)
-	return user, nil
+	return userFromRecord(row), nil
 }
 
 // SoftDelete marks the user with id as deleted.
 func (s *UserStore) SoftDelete(ctx context.Context, id int64) error {
-	var deletedID int64
-	err := s.db.QueryRow(ctx, `
-UPDATE users
-SET deleted_at = now(), updated_at = now()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id`, id).Scan(&deletedID)
+	_, err := s.q.SoftDeleteUser(ctx, sqlc.SoftDeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -187,30 +165,20 @@ RETURNING id`, id).Scan(&deletedID)
 
 // CountAdmins returns the number of active admin users.
 func (s *UserStore) CountAdmins(ctx context.Context) (int, error) {
-	var count int
-	err := s.db.QueryRow(ctx,
-		`SELECT count(*) FROM users WHERE role = 'admin' AND deleted_at IS NULL`,
-	).Scan(&count)
-	return count, err
+	count, err := s.q.CountAdminUsers(ctx)
+	return int(count), err
 }
 
-func (s *UserStore) get(ctx context.Context, where string, arg any) (*User, error) {
-	user := &User{}
-	var role string
-	err := s.db.QueryRow(ctx, `
-SELECT id, email, name, password_hash, role, created_at, updated_at
-FROM users
-WHERE `+where+` AND deleted_at IS NULL`,
-		arg,
-	).Scan(&user.ID, &user.Email, &user.Name, &user.PasswordHash, &role, &user.CreatedAt, &user.UpdatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+func userFromRecord(row sqlc.User) *User {
+	return &User{
+		ID:           row.ID,
+		Email:        row.Email,
+		Name:         row.Name,
+		PasswordHash: row.PasswordHash,
+		Role:         UserRole(row.Role),
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
 	}
-	if err != nil {
-		return nil, err
-	}
-	user.Role = UserRole(role)
-	return user, nil
 }
 
 func normalizeEmail(email string) string {

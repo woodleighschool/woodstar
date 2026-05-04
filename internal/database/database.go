@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // DB wraps the Postgres connection pool used by stores.
@@ -63,29 +65,12 @@ func (db *DB) Ping(ctx context.Context) error {
 	return db.pool.Ping(ctx)
 }
 
-// Query runs sql and returns rows from the underlying pool.
-func (db *DB) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+// Queries returns generated database queries backed by this connection pool.
+func (db *DB) Queries() *sqlc.Queries {
 	if db == nil || db.pool == nil {
-		return nil, errDatabaseClosed()
+		return nil
 	}
-	return db.pool.Query(ctx, sql, args...)
-}
-
-// QueryRow runs sql and returns a single row from the underlying pool.
-func (db *DB) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
-	if db == nil || db.pool == nil {
-		return errorRow{err: errDatabaseClosed()}
-	}
-	return db.pool.QueryRow(ctx, sql, args...)
-}
-
-// Exec runs sql without returning rows.
-func (db *DB) Exec(ctx context.Context, sql string, args ...any) error {
-	if db == nil || db.pool == nil {
-		return errDatabaseClosed()
-	}
-	_, err := db.pool.Exec(ctx, sql, args...)
-	return err
+	return sqlc.New(db.pool)
 }
 
 // WithTx runs fn inside a database transaction.
@@ -104,14 +89,6 @@ func (db *DB) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
 		return err
 	}
 	return tx.Commit(ctx)
-}
-
-type errorRow struct {
-	err error
-}
-
-func (r errorRow) Scan(...any) error {
-	return r.err
 }
 
 func errDatabaseClosed() error {

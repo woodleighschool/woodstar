@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // SecretKind identifies the subsystem that accepts a shared secret.
@@ -34,12 +35,12 @@ type Secret struct {
 
 // SecretStore persists reusable shared credentials.
 type SecretStore struct {
-	db *database.DB
+	q *sqlc.Queries
 }
 
 // NewSecretStore returns a secret store backed by db.
 func NewSecretStore(db *database.DB) *SecretStore {
-	return &SecretStore{db: db}
+	return &SecretStore{q: db.Queries()}
 }
 
 // List returns active secrets of kind ordered newest first.
@@ -48,28 +49,16 @@ func (s *SecretStore) List(ctx context.Context, kind SecretKind) ([]Secret, erro
 		return nil, err
 	}
 
-	rows, err := s.db.Query(ctx, `
-SELECT id, value, created_at
-FROM secrets
-WHERE kind = $1 AND deleted_at IS NULL
-ORDER BY created_at DESC`, string(kind))
+	rows, err := s.q.ListSecrets(ctx, sqlc.ListSecretsParams{Kind: sqlc.SecretKind(kind)})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	secrets := make([]Secret, 0)
-	for rows.Next() {
-		var secret Secret
-		var id int64
-		if err := rows.Scan(&id, &secret.Value, &secret.CreatedAt); err != nil {
-			return nil, err
-		}
-		secret.ID = strconv.FormatInt(id, 10)
-		secrets = append(secrets, secret)
+	secrets := make([]Secret, 0, len(rows))
+	for _, row := range rows {
+		secrets = append(secrets, secretFromRecord(row))
 	}
-
-	return secrets, rows.Err()
+	return secrets, nil
 }
 
 // Create generates and stores a new secret of kind.
@@ -83,18 +72,15 @@ func (s *SecretStore) Create(ctx context.Context, kind SecretKind) (*Secret, err
 		return nil, err
 	}
 
-	secret := &Secret{Value: value}
-	var id int64
-	err = s.db.QueryRow(ctx, `
-INSERT INTO secrets (kind, value)
-VALUES ($1, $2)
-RETURNING id, created_at`, string(kind), value).Scan(&id, &secret.CreatedAt)
+	row, err := s.q.CreateSecret(ctx, sqlc.CreateSecretParams{
+		Kind:  sqlc.SecretKind(kind),
+		Value: value,
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	secret.ID = strconv.FormatInt(id, 10)
-	return secret, nil
+	secret := secretFromRecord(row)
+	return &secret, nil
 }
 
 // ValidateActive reports whether value matches an active secret of kind.
@@ -107,12 +93,10 @@ func (s *SecretStore) ValidateActive(ctx context.Context, kind SecretKind, value
 		return false, nil
 	}
 
-	var exists bool
-	err := s.db.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM secrets WHERE kind = $1 AND value = $2 AND deleted_at IS NULL)`,
-		string(kind), value,
-	).Scan(&exists)
-	return exists, err
+	return s.q.HasActiveSecret(ctx, sqlc.HasActiveSecretParams{
+		Kind:  sqlc.SecretKind(kind),
+		Value: value,
+	})
 }
 
 // Delete soft-deletes a secret by kind and API ID.
@@ -126,11 +110,10 @@ func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id string) er
 		return ErrNotFound
 	}
 
-	err = s.db.QueryRow(ctx, `
-UPDATE secrets
-SET deleted_at = now()
-WHERE id = $1 AND kind = $2 AND deleted_at IS NULL
-RETURNING id`, parsedID, string(kind)).Scan(&parsedID)
+	_, err = s.q.DeleteSecret(ctx, sqlc.DeleteSecretParams{
+		ID:   parsedID,
+		Kind: sqlc.SecretKind(kind),
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -144,6 +127,14 @@ func (k SecretKind) Valid() error {
 		return nil
 	default:
 		return fmt.Errorf("unknown secret kind %q", k)
+	}
+}
+
+func secretFromRecord(row sqlc.Secret) Secret {
+	return Secret{
+		ID:        strconv.FormatInt(row.ID, 10),
+		Value:     row.Value,
+		CreatedAt: row.CreatedAt,
 	}
 }
 

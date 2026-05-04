@@ -10,3 +10,25 @@ sql:
         sql_package: pgx/v5
         emit_json_tags: true
         emit_empty_slices: true
+        emit_pointers_for_null_types: true
+        query_parameter_limit: 0
+        initialisms:
+          - id
+          - uuid
+          - os
+          - cpu
+          - api
+          - url
+        overrides:
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              import: time
+              type: Time
+              pointer: true
+          - column: hosts.cpu_logical_cores
+            go_type: int
+          - column: hosts.cpu_physical_cores
+            go_type: int
