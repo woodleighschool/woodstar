@@ -12,7 +12,7 @@ import (
 // without a database.
 
 func TestUpdateUserRejectsOwnRoleChange(t *testing.T) {
-	svc := NewService(&models.UserStore{}, nil, 0, "")
+	svc := NewService(&models.UserStore{}, nil)
 	role := models.RoleViewer
 
 	_, err := svc.UpdateUser(context.Background(), 5, 5, UpdateUserParams{Role: &role})
@@ -22,7 +22,7 @@ func TestUpdateUserRejectsOwnRoleChange(t *testing.T) {
 }
 
 func TestDeleteUserRejectsSelf(t *testing.T) {
-	svc := NewService(&models.UserStore{}, &models.SessionStore{}, 0, "")
+	svc := NewService(&models.UserStore{}, nil)
 
 	err := svc.DeleteUser(context.Background(), 9, 9)
 	if !errors.Is(err, ErrCannotDeleteSelf) {
@@ -31,7 +31,7 @@ func TestDeleteUserRejectsSelf(t *testing.T) {
 }
 
 func TestDeleteUserRequiresStores(t *testing.T) {
-	svc := NewService(nil, nil, 0, "")
+	svc := NewService(nil, nil)
 
 	err := svc.DeleteUser(context.Background(), 1, 2)
 	if !errors.Is(err, ErrNotSetup) {

@@ -8,7 +8,7 @@ import (
 func TestApplyEnvironmentDefaultsRequireSessionSecret(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
-	t.Setenv("WOODSTAR_BASE_URL", "")
+	t.Setenv("WOODSTAR_PUBLIC_URL", "")
 	t.Setenv("WOODSTAR_SESSION_SECRET", "")
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
@@ -24,7 +24,7 @@ func TestApplyEnvironmentDefaultsRequireSessionSecret(t *testing.T) {
 func TestApplyEnvironmentDefaults(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
-	t.Setenv("WOODSTAR_BASE_URL", "")
+	t.Setenv("WOODSTAR_PUBLIC_URL", "")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
@@ -41,11 +41,11 @@ func TestApplyEnvironmentDefaults(t *testing.T) {
 	if cfg.Port != 8080 {
 		t.Fatalf("Port = %d, want 8080", cfg.Port)
 	}
-	if cfg.BaseURL != "http://localhost:8080" {
-		t.Fatalf("BaseURL = %q, want http://localhost:8080", cfg.BaseURL)
+	if cfg.PublicURL != "http://localhost:8080" {
+		t.Fatalf("PublicURL = %q, want http://localhost:8080", cfg.PublicURL)
 	}
-	if cfg.BasePath() != "/" {
-		t.Fatalf("BasePath = %q, want /", cfg.BasePath())
+	if cfg.IsHTTPS() {
+		t.Fatalf("IsHTTPS = true, want false for http URL")
 	}
 	if len(cfg.SessionSecret) < minSessionSecretLength {
 		t.Fatalf("SessionSecret length = %d, want at least %d", len(cfg.SessionSecret), minSessionSecretLength)
@@ -58,7 +58,7 @@ func TestApplyEnvironmentDefaults(t *testing.T) {
 func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "127.0.0.1")
 	t.Setenv("WOODSTAR_PORT", "9090")
-	t.Setenv("WOODSTAR_BASE_URL", "https://Woodstar.example.edu/woodstar/")
+	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
 	t.Setenv("WOODSTAR_DATABASE_URL", "postgres://example")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "debug")
@@ -76,14 +76,24 @@ func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {
 	if cfg.Port != 9090 {
 		t.Fatalf("Port = %d", cfg.Port)
 	}
-	if cfg.BaseURL != "https://Woodstar.example.edu/woodstar" {
-		t.Fatalf("BaseURL = %q, want https://Woodstar.example.edu/woodstar", cfg.BaseURL)
+	if cfg.PublicURL != "https://example.com" {
+		t.Fatalf("PublicURL = %q, want https://example.com", cfg.PublicURL)
 	}
-	if cfg.BasePath() != "/woodstar" {
-		t.Fatalf("BasePath = %q, want /woodstar", cfg.BasePath())
+	if !cfg.IsHTTPS() {
+		t.Fatalf("IsHTTPS = false, want true for https URL")
 	}
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Fatalf("DatabaseURL = %q", cfg.DatabaseURL)
+	}
+}
+
+func TestApplyEnvironmentRejectsURLWithPath(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "https://example.com/woodstar")
+	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+
+	err := ApplyEnvironment(&Config{})
+	if err == nil {
+		t.Fatal("ApplyEnvironment returned nil error, want path rejection")
 	}
 }
 

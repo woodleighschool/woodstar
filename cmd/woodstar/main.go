@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/alexedwards/scs/pgxstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/gorilla/csrf"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
@@ -62,14 +66,16 @@ func runServeCommand() *cobra.Command {
 			}
 			defer db.Close()
 
+			sessionManager, sessionStore := newSessionManager(db, cfg)
+			defer sessionStore.StopCleanup()
+
 			users := models.NewUserStore(db)
-			sessions := models.NewSessionStore(db)
 			hosts := models.NewHostStore(db)
 			deviceMappings := models.NewDeviceMappingStore(db)
 			secrets := models.NewSecretStore(db)
 			software := models.NewSoftwareStore(db)
 
-			authService := auth.NewService(users, sessions, api.SessionTTL, cfg.SessionSecret)
+			authService := auth.NewService(users, sessionManager)
 			orbitService := orbit.NewService(hosts, secrets, deviceMappings)
 			osqueryService := osquery.NewService(hosts, software, secrets)
 
@@ -78,6 +84,7 @@ func runServeCommand() *cobra.Command {
 				DB:             db,
 				Version:        buildinfo.Version,
 				AuthService:    authService,
+				SessionManager: sessionManager,
 				HostStore:      hosts,
 				DeviceMappings: deviceMappings,
 				SecretStore:    secrets,
@@ -85,9 +92,10 @@ func runServeCommand() *cobra.Command {
 				OrbitService:   orbitService,
 				OsqueryService: osqueryService,
 				WebHandler: web.NewHandler(web.HandlerOptions{
-					FS:      webfs.DistDirFS,
-					BaseURL: cfg.BaseURL,
-					Version: buildinfo.Version,
+					FS:        webfs.DistDirFS,
+					PublicURL: cfg.PublicURL,
+					Version:   buildinfo.Version,
+					CSRFToken: csrf.Token,
 				}),
 			})
 
@@ -109,12 +117,26 @@ func runServeCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&cfg.Host, "host", "", "HTTP listen host")
 	cmd.Flags().IntVar(&cfg.Port, "port", 0, "HTTP listen port")
-	cmd.Flags().StringVar(&cfg.BaseURL, "base-url", "", "Public base URL")
+	cmd.Flags().StringVar(&cfg.PublicURL, "public-url", "", "Public base URL")
 	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
 	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "log level")
 	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
 
 	return cmd
+}
+
+func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+	store := pgxstore.New(db.Pool())
+	sm := scs.New()
+	sm.Store = store
+	sm.Lifetime = api.SessionLifetime
+	sm.Cookie.Name = "woodstar_session"
+	sm.Cookie.Path = "/"
+	sm.Cookie.HttpOnly = true
+	sm.Cookie.Secure = cfg.IsHTTPS()
+	sm.Cookie.SameSite = http.SameSiteLaxMode
+	sm.Cookie.Persist = true
+	return sm, store
 }
 
 func runVersionCommand() *cobra.Command {

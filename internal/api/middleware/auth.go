@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -8,22 +9,22 @@ import (
 )
 
 // RequireAuth protects admin API routes while leaving setup, login, and docs public.
-func RequireAuth(basePath string, authService *auth.Service) func(http.Handler) http.Handler {
+// scs.LoadAndSave must run earlier in the chain so the session is loaded into ctx.
+func RequireAuth(authService *auth.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodOptions || publicPath(basePath, r.URL.Path) {
+			if r.Method == http.MethodOptions || publicPath(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			cookie, err := r.Cookie(auth.SessionCookieName)
+			user, err := authService.CurrentUser(r.Context())
 			if err != nil {
-				writeUnauthorized(w)
-				return
-			}
-			user, err := authService.CurrentUser(r.Context(), cookie.Value)
-			if err != nil {
-				writeUnauthorized(w)
+				if errors.Is(err, auth.ErrNotAuthenticated) {
+					writeUnauthorized(w)
+					return
+				}
+				http.Error(w, "internal server error", http.StatusInternalServerError)
 				return
 			}
 
@@ -32,10 +33,7 @@ func RequireAuth(basePath string, authService *auth.Service) func(http.Handler) 
 	}
 }
 
-func publicPath(basePath string, path string) bool {
-	if basePath != "" && basePath != "/" {
-		path = strings.TrimPrefix(path, basePath)
-	}
+func publicPath(path string) bool {
 	if !strings.HasPrefix(path, "/api/") {
 		return true
 	}

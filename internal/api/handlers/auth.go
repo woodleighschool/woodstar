@@ -31,11 +31,6 @@ type authUserOutput struct {
 	Body userBody
 }
 
-type authSessionOutput struct {
-	SetCookie http.Cookie `header:"Set-Cookie"`
-	Body      userBody
-}
-
 type setupInput struct {
 	Body struct {
 		Email    string `json:"email" format:"email"`
@@ -51,28 +46,19 @@ type loginInput struct {
 	}
 }
 
-type sessionInput struct {
-	Session string `cookie:"woodstar_session"`
-}
-
 const (
 	authTag  = "Auth"
 	setupTag = "Setup"
 )
 
-// CookieSettings control how browser sessions are scoped.
-type CookieSettings struct {
-	CookiePath   string
-	SecureCookie bool
-}
-
 // RegisterAuth registers setup and browser session endpoints.
-func RegisterAuth(api huma.API, authService *auth.Service, cookies CookieSettings) {
-	registerSetup(api, authService, cookies)
-	registerSessions(api, authService, cookies)
+// The session cookie is owned by alexedwards/scs middleware and is written automatically.
+func RegisterAuth(api huma.API, authService *auth.Service) {
+	registerSetup(api, authService)
+	registerSessions(api, authService)
 }
 
-func registerSetup(api huma.API, authService *auth.Service, cookies CookieSettings) {
+func registerSetup(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-setup-status",
 		Method:      http.MethodGet,
@@ -97,8 +83,8 @@ func registerSetup(api huma.API, authService *auth.Service, cookies CookieSettin
 		Summary:       "Create the first administrator account",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusConflict},
-	}, func(ctx context.Context, input *setupInput) (*authSessionOutput, error) {
-		result, err := authService.Setup(ctx, auth.SetupParams{
+	}, func(ctx context.Context, input *setupInput) (*authUserOutput, error) {
+		user, err := authService.Setup(ctx, auth.SetupParams{
 			Email:    input.Body.Email,
 			Name:     input.Body.Name,
 			Password: input.Body.Password,
@@ -106,11 +92,11 @@ func registerSetup(api huma.API, authService *auth.Service, cookies CookieSettin
 		if err != nil {
 			return nil, authError(err)
 		}
-		return sessionOutput(result, cookies), nil
+		return &authUserOutput{Body: userResponse(user)}, nil
 	})
 }
 
-func registerSessions(api huma.API, authService *auth.Service, cookies CookieSettings) {
+func registerSessions(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      http.MethodPost,
@@ -118,12 +104,12 @@ func registerSessions(api huma.API, authService *auth.Service, cookies CookieSet
 		Tags:        []string{authTag},
 		Summary:     "Create a local admin session",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
-	}, func(ctx context.Context, input *loginInput) (*authSessionOutput, error) {
-		result, err := authService.Login(ctx, input.Body.Email, input.Body.Password)
+	}, func(ctx context.Context, input *loginInput) (*authUserOutput, error) {
+		user, err := authService.Login(ctx, input.Body.Email, input.Body.Password)
 		if err != nil {
 			return nil, authError(err)
 		}
-		return sessionOutput(result, cookies), nil
+		return &authUserOutput{Body: userResponse(user)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -132,16 +118,11 @@ func registerSessions(api huma.API, authService *auth.Service, cookies CookieSet
 		Path:        "/api/auth/logout",
 		Tags:        []string{authTag},
 		Summary:     "Revoke the current session",
-	}, func(ctx context.Context, input *sessionInput) (*struct {
-		SetCookie http.Cookie `header:"Set-Cookie"`
-	}, error,
-	) {
-		if err := authService.Logout(ctx, input.Session); err != nil {
+	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
+		if err := authService.Logout(ctx); err != nil {
 			return nil, err
 		}
-		return &struct {
-			SetCookie http.Cookie `header:"Set-Cookie"`
-		}{SetCookie: clearSessionCookie(cookies)}, nil
+		return &struct{}{}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -151,20 +132,13 @@ func registerSessions(api huma.API, authService *auth.Service, cookies CookieSet
 		Tags:        []string{authTag},
 		Summary:     "Get the current signed-in user",
 		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, input *sessionInput) (*authUserOutput, error) {
-		user, err := authService.CurrentUser(ctx, input.Session)
+	}, func(ctx context.Context, _ *struct{}) (*authUserOutput, error) {
+		user, err := authService.CurrentUser(ctx)
 		if err != nil {
 			return nil, authError(err)
 		}
 		return &authUserOutput{Body: userResponse(user)}, nil
 	})
-}
-
-func sessionOutput(result *auth.LoginResult, cookies CookieSettings) *authSessionOutput {
-	return &authSessionOutput{
-		SetCookie: sessionCookie(result.Token, result.ExpiresAt, cookies),
-		Body:      userResponse(result.User),
-	}
 }
 
 func userResponse(user *models.User) userBody {
@@ -188,40 +162,6 @@ func requireAdmin(ctx context.Context) (*models.User, error) {
 		return nil, huma.Error403Forbidden("admin role required")
 	}
 	return user, nil
-}
-
-func sessionCookie(token string, expiresAt time.Time, cookies CookieSettings) http.Cookie {
-	//nolint:gosec // Secure is derived from WOODSTAR_BASE_URL so local HTTP and HTTPS reverse-proxy deployments both work.
-	return http.Cookie{
-		Name:     auth.SessionCookieName,
-		Value:    token,
-		Path:     cookiePath(cookies.CookiePath),
-		Expires:  expiresAt,
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   cookies.SecureCookie,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func clearSessionCookie(cookies CookieSettings) http.Cookie {
-	//nolint:gosec // Secure is derived from WOODSTAR_BASE_URL so local HTTP and HTTPS reverse-proxy deployments both work.
-	return http.Cookie{
-		Name:     auth.SessionCookieName,
-		Value:    "",
-		Path:     cookiePath(cookies.CookiePath),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   cookies.SecureCookie,
-		SameSite: http.SameSiteLaxMode,
-	}
-}
-
-func cookiePath(path string) string {
-	if strings.TrimSpace(path) == "" {
-		return "/"
-	}
-	return path
 }
 
 func authError(err error) error {

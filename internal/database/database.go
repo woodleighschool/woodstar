@@ -73,6 +73,14 @@ func (db *DB) Queries() *sqlc.Queries {
 	return sqlc.New(db.pool)
 }
 
+// Pool returns the underlying pgxpool.Pool for callers that need raw access (e.g. scs pgxstore).
+func (db *DB) Pool() *pgxpool.Pool {
+	if db == nil {
+		return nil
+	}
+	return db.pool
+}
+
 // WithTx runs fn inside a database transaction.
 func (db *DB) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
 	if db == nil || db.pool == nil {

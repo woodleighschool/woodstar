@@ -149,13 +149,9 @@ type Secret struct {
 }
 
 type Session struct {
-	ID         int64      `json:"id"`
-	UserID     int64      `json:"user_id"`
-	TokenHash  string     `json:"token_hash"`
-	ExpiresAt  time.Time  `json:"expires_at"`
-	LastSeenAt *time.Time `json:"last_seen_at"`
-	CreatedAt  time.Time  `json:"created_at"`
-	RevokedAt  *time.Time `json:"revoked_at"`
+	Token  string    `json:"token"`
+	Data   []byte    `json:"data"`
+	Expiry time.Time `json:"expiry"`
 }
 
 type Software struct {

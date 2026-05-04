@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE secret_kind AS ENUM ('orbit', 'santa', 'munki');
 
@@ -12,19 +13,14 @@ CREATE TABLE users (
     deleted_at TIMESTAMPTZ
 );
 
+-- Owned by alexedwards/scs/pgxstore: token, gob-encoded data, expiry.
 CREATE TABLE sessions (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL,
-    last_seen_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    revoked_at TIMESTAMPTZ
+    token TEXT PRIMARY KEY,
+    data BYTEA NOT NULL,
+    expiry TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX sessions_user_active_idx
-    ON sessions (user_id, expires_at DESC)
-    WHERE revoked_at IS NULL;
+CREATE INDEX sessions_expiry_idx ON sessions (expiry);
 
 CREATE TABLE secrets (
     id BIGSERIAL PRIMARY KEY,
@@ -55,3 +51,11 @@ CREATE TABLE hosts (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
 );
+
+-- +goose Down
+DROP TABLE hosts;
+DROP TABLE secrets;
+DROP TABLE sessions;
+DROP TABLE users;
+DROP TYPE secret_kind;
+DROP TYPE user_role;

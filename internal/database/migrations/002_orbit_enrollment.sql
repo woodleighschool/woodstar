@@ -1,3 +1,4 @@
+-- +goose Up
 ALTER TABLE hosts
     ADD COLUMN orbit_node_key     TEXT UNIQUE,
     ADD COLUMN osquery_node_key   TEXT UNIQUE,
@@ -53,3 +54,22 @@ CREATE TABLE host_software (
 );
 
 CREATE INDEX host_software_software_idx ON host_software (software_id);
+
+-- +goose Down
+DROP TABLE host_software;
+DROP TABLE software;
+DROP TABLE host_emails;
+DROP INDEX hosts_detail_stale_idx;
+DROP INDEX hosts_active_seen_idx;
+ALTER TABLE hosts
+    DROP COLUMN kernel_version,
+    DROP COLUMN hardware_vendor,
+    DROP COLUMN physical_memory,
+    DROP COLUMN cpu_physical_cores,
+    DROP COLUMN cpu_logical_cores,
+    DROP COLUMN cpu_brand,
+    DROP COLUMN enrolled_at,
+    DROP COLUMN platform_like,
+    DROP COLUMN platform,
+    DROP COLUMN osquery_node_key,
+    DROP COLUMN orbit_node_key;

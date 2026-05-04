@@ -93,10 +93,12 @@ func (s *Service) UpdateUser(
 	return s.users.Update(ctx, targetID, storeParams)
 }
 
-// DeleteUser soft-deletes targetID and revokes all of their sessions.
+// DeleteUser soft-deletes targetID. Active sessions in pgxstore are not removed
+// here; CurrentUser denies them on the next request because users.GetByID
+// filters deleted_at, and the rows expire on their own.
 // actorID may not equal targetID, and the last active admin cannot be removed.
 func (s *Service) DeleteUser(ctx context.Context, actorID int64, targetID int64) error {
-	if s.users == nil || s.sessions == nil {
+	if s.users == nil {
 		return ErrNotSetup
 	}
 	if actorID == targetID {
@@ -117,9 +119,6 @@ func (s *Service) DeleteUser(ctx context.Context, actorID int64, targetID int64)
 		}
 	}
 
-	if err := s.sessions.RevokeAllForUser(ctx, targetID); err != nil {
-		return fmt.Errorf("revoke sessions: %w", err)
-	}
 	if err := s.users.SoftDelete(ctx, targetID); err != nil {
 		return fmt.Errorf("soft delete user: %w", err)
 	}

@@ -594,7 +594,6 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -653,16 +652,13 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                woodstar_session?: string;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description No Content */
             204: {
                 headers: {
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -683,9 +679,7 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                woodstar_session?: string;
-            };
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -700,15 +694,6 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1441,7 +1426,6 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
-                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {

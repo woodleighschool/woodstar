@@ -2,18 +2,16 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
-	"time"
+
+	"github.com/alexedwards/scs/v2"
 
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
-// SessionCookieName is the admin session cookie.
-const SessionCookieName = "woodstar_session"
+const sessionUserKey = "user_id"
 
 // Auth errors describe expected setup and login failures.
 var (
@@ -26,10 +24,8 @@ var (
 
 // Service owns local setup, login, and session lookup behavior.
 type Service struct {
-	users         *models.UserStore
-	sessions      *models.SessionStore
-	sessionTTL    time.Duration
-	sessionSecret string
+	users    *models.UserStore
+	sessions *scs.SessionManager
 }
 
 // SetupParams contains the first administrator account fields.
@@ -39,29 +35,9 @@ type SetupParams struct {
 	Password string
 }
 
-// LoginResult contains the authenticated user and browser session token.
-type LoginResult struct {
-	User      *models.User
-	Token     string
-	ExpiresAt time.Time
-}
-
-// NewService creates an auth service backed by user and session stores.
-func NewService(
-	users *models.UserStore,
-	sessions *models.SessionStore,
-	sessionTTL time.Duration,
-	sessionSecret string,
-) *Service {
-	if sessionTTL <= 0 {
-		sessionTTL = 14 * 24 * time.Hour
-	}
-	return &Service{
-		users:         users,
-		sessions:      sessions,
-		sessionTTL:    sessionTTL,
-		sessionSecret: sessionSecret,
-	}
+// NewService creates an auth service backed by a user store and an scs session manager.
+func NewService(users *models.UserStore, sessions *scs.SessionManager) *Service {
+	return &Service{users: users, sessions: sessions}
 }
 
 // SetupComplete reports whether the initial administrator account exists.
@@ -72,8 +48,8 @@ func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
 	return s.users.Exists(ctx)
 }
 
-// Setup creates the first administrator account and returns a session.
-func (s *Service) Setup(ctx context.Context, params SetupParams) (*LoginResult, error) {
+// Setup creates the first administrator account and starts a session.
+func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, error) {
 	if s.users == nil || s.sessions == nil {
 		return nil, ErrNotSetup
 	}
@@ -85,7 +61,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*LoginResult, 
 		return nil, ErrAlreadySetup
 	}
 
-	passwordHash, err := HashPassword(params.Password)
+	hash, err := HashPassword(params.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -93,18 +69,21 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*LoginResult, 
 	user, err := s.users.Create(ctx, models.CreateUserParams{
 		Email:        params.Email,
 		Name:         fallbackName(params.Name, params.Email),
-		PasswordHash: passwordHash,
+		PasswordHash: hash,
 		Role:         models.RoleAdmin,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create setup user: %w", err)
 	}
 
-	return s.createSession(ctx, user)
+	if err := s.startSession(ctx, user.ID); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-// Login checks local credentials and returns a session.
-func (s *Service) Login(ctx context.Context, email string, password string) (*LoginResult, error) {
+// Login checks local credentials and starts a session.
+func (s *Service) Login(ctx context.Context, email string, password string) (*models.User, error) {
 	if s.users == nil || s.sessions == nil {
 		return nil, ErrNotSetup
 	}
@@ -132,18 +111,25 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*Lo
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.createSession(ctx, user)
+	if err := s.startSession(ctx, user.ID); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-// CurrentUser returns the user attached to an active session token.
-func (s *Service) CurrentUser(ctx context.Context, token string) (*models.User, error) {
-	token = strings.TrimSpace(token)
-	if token == "" || s.sessions == nil {
+// CurrentUser returns the user attached to the session loaded into ctx by scs middleware.
+func (s *Service) CurrentUser(ctx context.Context) (*models.User, error) {
+	if s.users == nil || s.sessions == nil {
 		return nil, ErrNotAuthenticated
 	}
-
-	user, err := s.sessions.UserByTokenHash(ctx, s.tokenHash(token), time.Now().UTC())
+	id := s.sessions.GetInt64(ctx, sessionUserKey)
+	if id == 0 {
+		return nil, ErrNotAuthenticated
+	}
+	user, err := s.users.GetByID(ctx, id)
 	if errors.Is(err, models.ErrNotFound) {
+		// Session pointed at a deleted user; clear it.
+		_ = s.sessions.Destroy(ctx)
 		return nil, ErrNotAuthenticated
 	}
 	if err != nil {
@@ -152,44 +138,24 @@ func (s *Service) CurrentUser(ctx context.Context, token string) (*models.User, 
 	return user, nil
 }
 
-// Logout revokes a session token.
-func (s *Service) Logout(ctx context.Context, token string) error {
-	token = strings.TrimSpace(token)
-	if token == "" || s.sessions == nil {
+// Logout revokes the active session.
+func (s *Service) Logout(ctx context.Context) error {
+	if s.sessions == nil {
 		return nil
 	}
-	if err := s.sessions.Revoke(ctx, s.tokenHash(token)); err != nil {
-		return fmt.Errorf("revoke session: %w", err)
+	if err := s.sessions.Destroy(ctx); err != nil {
+		return fmt.Errorf("destroy session: %w", err)
 	}
 	return nil
 }
 
-func (s *Service) createSession(ctx context.Context, user *models.User) (*LoginResult, error) {
-	token, err := sessionToken()
-	if err != nil {
-		return nil, err
+// startSession rotates the session ID (CSRF defense on privilege change) and binds the user.
+func (s *Service) startSession(ctx context.Context, userID int64) error {
+	if err := s.sessions.RenewToken(ctx); err != nil {
+		return fmt.Errorf("renew session: %w", err)
 	}
-	expiresAt := time.Now().UTC().Add(s.sessionTTL)
-	if err := s.sessions.Create(ctx, user.ID, s.tokenHash(token), expiresAt); err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
-	}
-	return &LoginResult{
-		User:      user,
-		Token:     token,
-		ExpiresAt: expiresAt,
-	}, nil
-}
-
-func (s *Service) tokenHash(token string) string {
-	return hashToken(s.sessionSecret, token)
-}
-
-func sessionToken() (string, error) {
-	var b [32]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b[:]), nil
+	s.sessions.Put(ctx, sessionUserKey, userID)
+	return nil
 }
 
 func fallbackName(name string, email string) string {

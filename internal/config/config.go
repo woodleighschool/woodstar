@@ -15,7 +15,7 @@ const minSessionSecretLength = 32
 type Config struct {
 	Host          string `env:"HOST"                             envDefault:"0.0.0.0"`
 	Port          int    `env:"PORT"                             envDefault:"8080"`
-	BaseURL       string `env:"BASE_URL"                         envDefault:"http://localhost:8080"`
+	PublicURL     string `env:"PUBLIC_URL"                       envDefault:"http://localhost:8080"`
 	SessionSecret string `env:"SESSION_SECRET,required,notEmpty"`
 	DatabaseURL   string `env:"DATABASE_URL"`
 	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
@@ -33,11 +33,11 @@ func ApplyEnvironment(cfg *Config) error {
 }
 
 func (cfg *Config) normalize() error {
-	baseURL, err := normalizeBaseURL(cfg.BaseURL)
+	publicURL, err := normalizePublicURL(cfg.PublicURL)
 	if err != nil {
 		return err
 	}
-	cfg.BaseURL = baseURL
+	cfg.PublicURL = publicURL
 	if len(cfg.SessionSecret) < minSessionSecretLength {
 		return fmt.Errorf("WOODSTAR_SESSION_SECRET must be at least %d characters", minSessionSecretLength)
 	}
@@ -45,33 +45,30 @@ func (cfg *Config) normalize() error {
 	return nil
 }
 
-func normalizeBaseURL(value string) (string, error) {
+func normalizePublicURL(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		value = "http://localhost:8080"
 	}
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return "", errors.New("invalid WOODSTAR_BASE_URL")
+		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", errors.New("invalid WOODSTAR_BASE_URL")
+		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
 	}
 	if parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", errors.New("invalid WOODSTAR_BASE_URL")
+		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
 	}
+	if path := strings.Trim(parsed.Path, "/"); path != "" {
+		return "", errors.New("WOODSTAR_PUBLIC_URL must not include a path; use a reverse proxy if you need a sub-path")
+	}
+	parsed.Path = ""
 	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
-// BasePath returns the mount path from BaseURL.
-func (cfg *Config) BasePath() string {
-	parsed, err := url.Parse(cfg.BaseURL)
-	if err != nil || parsed.Path == "" {
-		return "/"
-	}
-	path := strings.TrimRight(parsed.Path, "/")
-	if path == "" {
-		return "/"
-	}
-	return path
+// IsHTTPS reports whether PublicURL uses the https scheme.
+func (cfg *Config) IsHTTPS() bool {
+	parsed, err := url.Parse(cfg.PublicURL)
+	return err == nil && parsed.Scheme == "https"
 }
