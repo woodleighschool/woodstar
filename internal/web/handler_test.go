@@ -10,10 +10,9 @@ import (
 	"testing/fstest"
 )
 
-func TestInjectRuntimeIncludesPublicURLAndCSRF(t *testing.T) {
+func TestInjectRuntimeIncludesVersionAndCSRF(t *testing.T) {
 	handler := NewHandler(HandlerOptions{
 		FS:        testFS(),
-		PublicURL: "https://example.com",
 		Version:   "test",
 		CSRFToken: func(*http.Request) string { return "csrf-token-value" },
 	})
@@ -24,9 +23,6 @@ func TestInjectRuntimeIncludesPublicURLAndCSRF(t *testing.T) {
 	handler.serveIndex(rec, req)
 
 	body := rec.Body.String()
-	if !strings.Contains(body, `"apiBaseURL":"https://example.com"`) {
-		t.Fatalf("runtime config missing apiBaseURL: %s", body)
-	}
 	if !strings.Contains(body, `"csrfToken":"csrf-token-value"`) {
 		t.Fatalf("runtime config missing csrfToken: %s", body)
 	}
@@ -37,9 +33,8 @@ func TestInjectRuntimeIncludesPublicURLAndCSRF(t *testing.T) {
 
 func TestServeAssetReturnsAsset(t *testing.T) {
 	handler := NewHandler(HandlerOptions{
-		FS:        testFS(),
-		PublicURL: "https://example.com",
-		Version:   "test",
+		FS:      testFS(),
+		Version: "test",
 	})
 
 	rec := httptest.NewRecorder()

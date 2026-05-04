@@ -14,15 +14,13 @@ import (
 )
 
 type runtimeConfig struct {
-	APIBaseURL string `json:"apiBaseURL"`
-	Version    string `json:"version"`
-	CSRFToken  string `json:"csrfToken"`
+	Version   string `json:"version"`
+	CSRFToken string `json:"csrfToken"`
 }
 
 // HandlerOptions configures the embedded web UI handler.
 type HandlerOptions struct {
 	FS        fs.FS
-	PublicURL string
 	Version   string
 	CSRFToken func(*http.Request) string
 }
@@ -30,7 +28,6 @@ type HandlerOptions struct {
 // Handler serves the embedded frontend bundle and runtime config.
 type Handler struct {
 	fs        fs.FS
-	publicURL string
 	version   string
 	csrfToken func(*http.Request) string
 	assets    http.Handler
@@ -40,7 +37,6 @@ type Handler struct {
 func NewHandler(opts HandlerOptions) *Handler {
 	h := &Handler{
 		fs:        opts.FS,
-		publicURL: strings.TrimRight(opts.PublicURL, "/"),
 		version:   opts.Version,
 		csrfToken: opts.CSRFToken,
 	}
@@ -102,9 +98,8 @@ func (h *Handler) injectRuntime(r *http.Request, content []byte) []byte {
 	}
 
 	data, err := json.Marshal(runtimeConfig{
-		APIBaseURL: h.publicURL,
-		Version:    h.version,
-		CSRFToken:  csrf,
+		Version:   h.version,
+		CSRFToken: csrf,
 	})
 	if err != nil {
 		return content

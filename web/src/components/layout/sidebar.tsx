@@ -3,12 +3,11 @@ import { Star } from "lucide-react";
 
 import { navSections } from "@/components/layout/nav-config";
 import { useAuth } from "@/hooks/use-auth";
-import { useVersion } from "@/hooks/use-version";
+import { runtime } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { location } = useRouterState();
-  const { data: version } = useVersion();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -60,12 +59,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="border-t border-sidebar-border px-3 py-2 text-[11px] text-muted-foreground">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate" title={version?.version}>
-            {version ? `v${version.version}` : "version unknown"}
-          </span>
-          <span className="font-mono">macadmin</span>
-        </div>
+        <span className="truncate" title={runtime.version}>
+          {runtime.version ? `v${runtime.version}` : "version unknown"}
+        </span>
       </div>
     </nav>
   );

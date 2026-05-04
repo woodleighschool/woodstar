@@ -93,7 +93,6 @@ func runServeCommand() *cobra.Command {
 				OsqueryService: osqueryService,
 				WebHandler: web.NewHandler(web.HandlerOptions{
 					FS:        webfs.DistDirFS,
-					PublicURL: cfg.PublicURL,
 					Version:   buildinfo.Version,
 					CSRFToken: csrf.Token,
 				}),
