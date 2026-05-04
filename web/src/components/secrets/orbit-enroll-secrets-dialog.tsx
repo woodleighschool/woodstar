@@ -13,11 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateEnrollSecret, useEnrollSecrets } from "@/hooks/use-secrets";
 
-export function OrbitEnrollSecretsDialog({
-  trigger,
-}: {
-  trigger: React.ReactNode;
-}) {
+export function OrbitEnrollSecretsDialog({ trigger }: { trigger: React.ReactNode }) {
   const query = useEnrollSecrets();
   const create = useCreateEnrollSecret();
   const data = query.data ?? [];
@@ -29,9 +25,8 @@ export function OrbitEnrollSecretsDialog({
         <DialogHeader>
           <DialogTitle>Manage enroll secrets</DialogTitle>
           <DialogDescription>
-            Reusable shared secrets for Orbit/osquery enrollment. Minimum 32
-            characters. Deleting a secret does not invalidate already-enrolled
-            hosts.
+            Reusable shared secrets for Orbit/osquery enrollment. Minimum 32 characters. Deleting a secret does not
+            invalidate already-enrolled hosts.
           </DialogDescription>
         </DialogHeader>
 
@@ -49,12 +44,7 @@ export function OrbitEnrollSecretsDialog({
         />
 
         <DialogFooter>
-          <Button
-            size="sm"
-            className="gap-2"
-            disabled={create.isPending}
-            onClick={() => create.mutate()}
-          >
+          <Button size="sm" className="gap-2" disabled={create.isPending} onClick={() => create.mutate()}>
             <Plus className="size-4" /> New enroll secret
           </Button>
         </DialogFooter>

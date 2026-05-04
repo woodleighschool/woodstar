@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
+import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type Host = Schemas["HostBody"];
@@ -9,8 +9,7 @@ export type HostSoftware = Schemas["HostSoftwareBody"];
 export function useHosts() {
   return useQuery<Host[], ApiError>({
     queryKey: queryKeys.hosts,
-    queryFn: async ({ signal }) =>
-      (await unwrap(apiClient.GET("/api/hosts", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/hosts", { signal }))) ?? [],
   });
 }
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
+import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 type SetupInput = Schemas["SetupInputBody"];
@@ -19,8 +19,7 @@ export function SetupPage() {
   const [error, setError] = useState<string | null>(null);
 
   const setup = useMutation<UserBody, ApiError, SetupInput>({
-    mutationFn: (body) =>
-      unwrap(apiClient.POST("/api/setup", { body })),
+    mutationFn: (body) => unwrap(apiClient.POST("/api/setup", { body })),
     onSuccess: async (user) => {
       setError(null);
       queryClient.setQueryData(queryKeys.authMe, user);
@@ -40,8 +39,8 @@ export function SetupPage() {
           </div>
           <CardTitle>Set up Woodstar</CardTitle>
           <CardDescription>
-            Create the first administrator account. Subsequent accounts can be
-            invited or provisioned via OIDC after sign-in.
+            Create the first administrator account. Subsequent accounts can be invited or provisioned via OIDC after
+            sign-in.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -70,13 +69,7 @@ export function SetupPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="setup-name">Display name</Label>
-              <Input
-                id="setup-name"
-                name="name"
-                autoComplete="name"
-                placeholder="Site administrator"
-                required
-              />
+              <Input id="setup-name" name="name" autoComplete="name" placeholder="Site administrator" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="setup-password">Password</Label>
@@ -91,9 +84,7 @@ export function SetupPage() {
               />
             </div>
 
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <Button type="submit" className="w-full" disabled={setup.isPending}>
               {setup.isPending ? "Creating account…" : "Create admin account"}

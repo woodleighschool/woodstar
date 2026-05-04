@@ -4,14 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -79,12 +72,7 @@ function DetailsTab({ host }: { host: Host }) {
         ["Hardware UUID", <span className="font-mono text-xs">{host.hardware_uuid}</span>],
         ["Vendor", host.hardware_vendor || "-"],
         ["Model", host.hardware_model || "-"],
-        [
-          "CPU",
-          host.cpu_brand
-            ? `${host.cpu_brand} (${host.cpu_logical_cores} logical cores)`
-            : "-",
-        ],
+        ["CPU", host.cpu_brand ? `${host.cpu_brand} (${host.cpu_logical_cores} logical cores)` : "-"],
         ["Memory", host.physical_memory > 0 ? formatBytes(host.physical_memory) : "-"],
         ["Hostname", host.hostname || "-"],
         ["Computer name", host.computer_name || "-"],
@@ -98,9 +86,7 @@ function DetailsTab({ host }: { host: Host }) {
         [
           "Enrolled",
           host.enrolled_at ? (
-            <span title={new Date(host.enrolled_at).toLocaleString()}>
-              {formatRelative(host.enrolled_at)}
-            </span>
+            <span title={new Date(host.enrolled_at).toLocaleString()}>{formatRelative(host.enrolled_at)}</span>
           ) : (
             "-"
           ),
@@ -108,9 +94,7 @@ function DetailsTab({ host }: { host: Host }) {
         [
           "Last seen",
           host.last_seen_at ? (
-            <span title={new Date(host.last_seen_at).toLocaleString()}>
-              {formatRelative(host.last_seen_at)}
-            </span>
+            <span title={new Date(host.last_seen_at).toLocaleString()}>{formatRelative(host.last_seen_at)}</span>
           ) : (
             "-"
           ),
@@ -150,9 +134,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
     return (
       <div className="rounded-md border border-dashed bg-muted/30 px-4 py-6 text-sm">
         <p className="font-medium">No software inventory yet</p>
-        <p className="text-muted-foreground">
-          osquery will populate this on next detail refresh.
-        </p>
+        <p className="text-muted-foreground">osquery will populate this on next detail refresh.</p>
       </div>
     );
   }
@@ -173,10 +155,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
             <TableRow key={row.id}>
               <TableCell className="font-medium">{row.name}</TableCell>
               <TableCell className="text-muted-foreground">{row.version || "-"}</TableCell>
-              <TableCell
-                className="text-muted-foreground"
-                title={row.source}
-              >
+              <TableCell className="text-muted-foreground" title={row.source}>
                 {softwareSourceLabel(row.source)}
               </TableCell>
               <TableCell
@@ -197,10 +176,7 @@ function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return (
     <dl className="rounded-lg border bg-card divide-y">
       {rows.map(([label, value]) => (
-        <div
-          key={label}
-          className="grid grid-cols-[10rem_1fr] gap-3 px-4 py-2 text-sm"
-        >
+        <div key={label} className="grid grid-cols-[10rem_1fr] gap-3 px-4 py-2 text-sm">
           <dt className="text-muted-foreground">{label}</dt>
           <dd className="font-medium break-all">{value ?? "-"}</dd>
         </div>

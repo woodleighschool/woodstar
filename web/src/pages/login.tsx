@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
+import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 type LoginInput = Schemas["LoginInputBody"];
@@ -20,8 +20,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const login = useMutation<UserBody, ApiError, LoginInput>({
-    mutationFn: (body) =>
-      unwrap(apiClient.POST("/api/auth/login", { body })),
+    mutationFn: (body) => unwrap(apiClient.POST("/api/auth/login", { body })),
     onSuccess: async (user) => {
       setError(null);
       queryClient.setQueryData(queryKeys.authMe, user);
@@ -40,9 +39,7 @@ export function LoginPage() {
             <Star className="size-5" />
           </div>
           <CardTitle>Sign in to Woodstar</CardTitle>
-          <CardDescription>
-            Local administrator sign-in or OIDC, when configured.
-          </CardDescription>
+          <CardDescription>Local administrator sign-in or OIDC, when configured.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <form
@@ -58,28 +55,14 @@ export function LoginPage() {
           >
             <div className="space-y-1.5">
               <Label htmlFor="login-email">Email</Label>
-              <Input
-                id="login-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-              />
+              <Input id="login-email" name="email" type="email" autoComplete="email" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="login-password">Password</Label>
-              <Input
-                id="login-password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
+              <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
             </div>
 
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <Button type="submit" className="w-full" disabled={login.isPending}>
               {login.isPending ? "Signing in…" : "Sign in"}

@@ -12,13 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  useCreateUser,
-  useUpdateUser,
-  type User,
-  type UserCreateBody,
-  type UserUpdateBody,
-} from "@/hooks/use-users";
+import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 
 type Role = "admin" | "viewer";
@@ -154,17 +148,11 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
             <option value="admin">admin</option>
             <option value="viewer">viewer</option>
           </select>
-          {!canChangeRole ? (
-            <p className="text-xs text-muted-foreground">
-              You cannot change your own role.
-            </p>
-          ) : null}
+          {!canChangeRole ? <p className="text-xs text-muted-foreground">You cannot change your own role.</p> : null}
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="user-password">
-            Password{mode === "edit" ? " (leave blank to keep current)" : ""}
-          </Label>
+          <Label htmlFor="user-password">Password{mode === "edit" ? " (leave blank to keep current)" : ""}</Label>
           <Input
             id="user-password"
             type="password"
@@ -177,9 +165,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
           />
         </div>
 
-        {submitError ? (
-          <p className="text-sm text-destructive">{submitError.message}</p>
-        ) : null}
+        {submitError ? <p className="text-sm text-destructive">{submitError.message}</p> : null}
 
         <DialogFooter className="pt-2">
           <DialogClose asChild>

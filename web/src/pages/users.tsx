@@ -4,14 +4,7 @@ import { useState } from "react";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,19 +41,10 @@ export function UsersPage() {
       />
 
       <div className="p-6">
-        <UsersTable
-          query={query}
-          currentUserId={currentUser?.id ?? null}
-          onEdit={setEditing}
-          onDelete={setDeleting}
-        />
+        <UsersTable query={query} currentUserId={currentUser?.id ?? null} onEdit={setEditing} onDelete={setDeleting} />
       </div>
 
-      <UserFormDialog
-        mode="create"
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-      />
+      <UserFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
 
       {editing ? (
         <UserFormDialog
@@ -135,38 +119,24 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
               <TableRow key={row.id}>
                 <TableCell className="font-medium">
                   {row.email}
-                  {isSelf ? (
-                    <span className="text-muted-foreground"> (you)</span>
-                  ) : null}
+                  {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{row.name || "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={row.role === "admin" ? "default" : "muted"}>
-                    {row.role}
-                  </Badge>
+                  <Badge variant={row.role === "admin" ? "default" : "muted"}>{row.role}</Badge>
                 </TableCell>
-                <TableCell
-                  className="text-muted-foreground"
-                  title={new Date(row.created_at).toLocaleString()}
-                >
+                <TableCell className="text-muted-foreground" title={new Date(row.created_at).toLocaleString()}>
                   {formatRelative(row.created_at)}
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label={`Actions for ${row.email}`}
-                      >
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${row.email}`}>
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onSelect={() => onEdit(row)}>
-                        Edit
-                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
                       {!isSelf ? (
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"

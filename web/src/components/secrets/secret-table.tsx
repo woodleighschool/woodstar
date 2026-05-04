@@ -1,16 +1,9 @@
-import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
 import { Spinner } from "@/components/ui/spinner";
 import type { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
@@ -30,14 +23,7 @@ export interface SecretTableProps {
   emptyDescription: string;
 }
 
-export function SecretTable({
-  data,
-  isLoading,
-  error,
-  onRetry,
-  emptyTitle,
-  emptyDescription,
-}: SecretTableProps) {
+export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, emptyDescription }: SecretTableProps) {
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
   if (error) {
@@ -76,9 +62,7 @@ export function SecretTable({
             const shown = visible[row.id] ?? false;
             return (
               <TableRow key={row.id}>
-                <TableCell className="font-mono text-xs">
-                  {shown ? row.value : "••••••••••••••••"}
-                </TableCell>
+                <TableCell className="font-mono text-xs">{shown ? row.value : "••••••••••••••••"}</TableCell>
                 <TableCell>{formatRelative(row.created_at)}</TableCell>
                 <TableCell className="text-right">
                   <Button

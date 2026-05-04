@@ -1,14 +1,7 @@
 import { Package } from "lucide-react";
 
 import { ErrorState } from "@/components/feedback/error-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,10 +13,7 @@ export function SoftwarePage() {
 
   return (
     <div className="flex flex-col">
-      <PageHeader
-        title="Software"
-        description="Apps and packages discovered across enrolled hosts."
-      />
+      <PageHeader title="Software" description="Apps and packages discovered across enrolled hosts." />
 
       <div className="p-6">
         <SoftwareTable query={query} />

@@ -54,7 +54,7 @@ function describeError(body: unknown, status: number): string {
     if (huma.title) return huma.title;
     if (huma.errors?.length) {
       return huma.errors
-        .map((e) => (e.location ? `${e.location}: ${e.message ?? ""}` : e.message ?? ""))
+        .map((e) => (e.location ? `${e.location}: ${e.message ?? ""}` : (e.message ?? "")))
         .filter(Boolean)
         .join("; ");
     }
@@ -62,16 +62,10 @@ function describeError(body: unknown, status: number): string {
   return `request failed (${status})`;
 }
 
-export async function unwrap<T>(
-  pending: Promise<{ data?: T; error?: unknown; response: Response }>,
-): Promise<T> {
+export async function unwrap<T>(pending: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   const result = await pending;
   if (result.error !== undefined || !result.response.ok) {
-    throw new ApiError(
-      result.response.status,
-      describeError(result.error, result.response.status),
-      result.error,
-    );
+    throw new ApiError(result.response.status, describeError(result.error, result.response.status), result.error);
   }
   return result.data as T;
 }

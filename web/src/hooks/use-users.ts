@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
+import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type User = Schemas["UserBody"];
@@ -10,8 +10,7 @@ export type UserUpdateBody = Schemas["UserUpdateInputBody"];
 export function useUsers() {
   return useQuery<User[], ApiError>({
     queryKey: queryKeys.users,
-    queryFn: async ({ signal }) =>
-      (await unwrap(apiClient.GET("/api/users", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/users", { signal }))) ?? [],
   });
 }
 

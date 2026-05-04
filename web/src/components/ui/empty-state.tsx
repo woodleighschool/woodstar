@@ -10,14 +10,7 @@ export interface EmptyStateProps extends React.ComponentProps<"div"> {
   action?: React.ReactNode;
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
-  className,
-  ...props
-}: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, className, ...props }: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -33,9 +26,7 @@ export function EmptyState({
       ) : null}
       <div className="space-y-1">
         <p className="text-sm font-medium">{title}</p>
-        {description ? (
-          <p className="text-muted-foreground text-sm max-w-md">{description}</p>
-        ) : null}
+        {description ? <p className="text-muted-foreground text-sm max-w-md">{description}</p> : null}
       </div>
       {action ? <div className="pt-1">{action}</div> : null}
     </div>

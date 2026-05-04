@@ -37,23 +37,16 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
         <DialogHeader>
           <DialogTitle>Delete user</DialogTitle>
           <DialogDescription>
-            This soft-deletes the user and revokes all of their sessions. They will
-            be signed out immediately.
+            This soft-deletes the user and revokes all of their sessions. They will be signed out immediately.
           </DialogDescription>
         </DialogHeader>
 
         <p className="text-sm">
-          Delete{" "}
-          <span className="font-medium">{user?.name || user?.email || ""}</span>
-          {user?.name ? (
-            <span className="text-muted-foreground"> ({user.email})</span>
-          ) : null}
-          ?
+          Delete <span className="font-medium">{user?.name || user?.email || ""}</span>
+          {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
         </p>
 
-        {remove.error ? (
-          <p className="text-sm text-destructive">{remove.error.message}</p>
-        ) : null}
+        {remove.error ? <p className="text-sm text-destructive">{remove.error.message}</p> : null}
 
         <DialogFooter>
           <DialogClose asChild>
@@ -61,13 +54,7 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
               Cancel
             </Button>
           </DialogClose>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={remove.isPending}
-            onClick={handleConfirm}
-          >
+          <Button type="button" variant="destructive" size="sm" disabled={remove.isPending} onClick={handleConfirm}>
             Delete
           </Button>
         </DialogFooter>

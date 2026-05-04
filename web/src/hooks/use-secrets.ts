@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiClient, type Schemas, unwrap } from "@/lib/api";
+import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type Secret = Schemas["Secret"];
@@ -8,8 +8,7 @@ export type Secret = Schemas["Secret"];
 export function useEnrollSecrets() {
   return useQuery<Secret[], ApiError>({
     queryKey: queryKeys.enrollSecrets,
-    queryFn: async ({ signal }) =>
-      (await unwrap(apiClient.GET("/api/orbit/enroll-secrets", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/orbit/enroll-secrets", { signal }))) ?? [],
   });
 }
 
@@ -42,8 +41,7 @@ export function useDeleteEnrollSecret() {
 export function useSantaTokens() {
   return useQuery<Secret[], ApiError>({
     queryKey: queryKeys.santaTokens,
-    queryFn: async ({ signal }) =>
-      (await unwrap(apiClient.GET("/api/santa/tokens", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/santa/tokens", { signal }))) ?? [],
   });
 }
 
@@ -76,8 +74,7 @@ export function useDeleteSantaToken() {
 export function useMunkiTokens() {
   return useQuery<Secret[], ApiError>({
     queryKey: queryKeys.munkiTokens,
-    queryFn: async ({ signal }) =>
-      (await unwrap(apiClient.GET("/api/munki/tokens", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/munki/tokens", { signal }))) ?? [],
   });
 }
 

@@ -13,11 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateSantaToken, useSantaTokens } from "@/hooks/use-secrets";
 
-export function SantaTokensDialog({
-  trigger,
-}: {
-  trigger: React.ReactNode;
-}) {
+export function SantaTokensDialog({ trigger }: { trigger: React.ReactNode }) {
   const query = useSantaTokens();
   const create = useCreateSantaToken();
   const data = query.data ?? [];
@@ -29,8 +25,8 @@ export function SantaTokensDialog({
         <DialogHeader>
           <DialogTitle>Manage Santa sync tokens</DialogTitle>
           <DialogDescription>
-            Bearer tokens delivered via Santa configuration profile. Tokens gate
-            sync access; host identity still comes from the Santa payload.
+            Bearer tokens delivered via Santa configuration profile. Tokens gate sync access; host identity still comes
+            from the Santa payload.
           </DialogDescription>
         </DialogHeader>
 
@@ -48,12 +44,7 @@ export function SantaTokensDialog({
         />
 
         <DialogFooter>
-          <Button
-            size="sm"
-            className="gap-2"
-            disabled={create.isPending}
-            onClick={() => create.mutate()}
-          >
+          <Button size="sm" className="gap-2" disabled={create.isPending} onClick={() => create.mutate()}>
             <Plus className="size-4" /> New sync token
           </Button>
         </DialogFooter>

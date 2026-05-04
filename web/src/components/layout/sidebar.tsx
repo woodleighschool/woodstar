@@ -36,9 +36,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             ) : null}
             {section.items.map((item) => {
               const Icon = item.icon;
-              const active =
-                location.pathname === item.to ||
-                location.pathname.startsWith(`${item.to}/`);
+              const active = location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
 
               return (
                 <Link

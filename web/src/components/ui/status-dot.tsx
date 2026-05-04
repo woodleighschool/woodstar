@@ -8,17 +8,6 @@ const colors: Record<HostStatus, string> = {
   error: "bg-status-error",
 };
 
-export function StatusDot({
-  status,
-  className,
-}: {
-  status: HostStatus;
-  className?: string;
-}) {
-  return (
-    <span
-      className={cn("inline-block size-2 rounded-full", colors[status], className)}
-      aria-label={status}
-    />
-  );
+export function StatusDot({ status, className }: { status: HostStatus; className?: string }) {
+  return <span className={cn("inline-block size-2 rounded-full", colors[status], className)} aria-label={status} />;
 }

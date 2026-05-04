@@ -8,11 +8,7 @@ export interface ErrorStateProps {
   onRetry?: () => void;
 }
 
-export function ErrorState({
-  title = "Couldn't load this view",
-  message,
-  onRetry,
-}: ErrorStateProps) {
+export function ErrorState({ title = "Couldn't load this view", message, onRetry }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
       <div className="flex items-start gap-2">

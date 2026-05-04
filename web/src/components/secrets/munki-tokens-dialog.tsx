@@ -13,11 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useCreateMunkiToken, useMunkiTokens } from "@/hooks/use-secrets";
 
-export function MunkiTokensDialog({
-  trigger,
-}: {
-  trigger: React.ReactNode;
-}) {
+export function MunkiTokensDialog({ trigger }: { trigger: React.ReactNode }) {
   const query = useMunkiTokens();
   const create = useCreateMunkiToken();
   const data = query.data ?? [];
@@ -29,9 +25,8 @@ export function MunkiTokensDialog({
         <DialogHeader>
           <DialogTitle>Manage Munki repo tokens</DialogTitle>
           <DialogDescription>
-            Bearer tokens delivered via Munki AdditionalHttpHeaders. Munki
-            requests must also include an MDM-expanded serial header to bind to
-            an existing Woodstar host.
+            Bearer tokens delivered via Munki AdditionalHttpHeaders. Munki requests must also include an MDM-expanded
+            serial header to bind to an existing Woodstar host.
           </DialogDescription>
         </DialogHeader>
 
@@ -49,12 +44,7 @@ export function MunkiTokensDialog({
         />
 
         <DialogFooter>
-          <Button
-            size="sm"
-            className="gap-2"
-            disabled={create.isPending}
-            onClick={() => create.mutate()}
-          >
+          <Button size="sm" className="gap-2" disabled={create.isPending} onClick={() => create.mutate()}>
             <Plus className="size-4" /> New repo token
           </Button>
         </DialogFooter>

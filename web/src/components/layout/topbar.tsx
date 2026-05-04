@@ -20,13 +20,7 @@ export interface TopbarProps {
 export function Topbar({ user, onOpenMobileNav }: TopbarProps) {
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden"
-        onClick={onOpenMobileNav}
-        aria-label="Open navigation"
-      >
+      <Button variant="ghost" size="icon" className="lg:hidden" onClick={onOpenMobileNav} aria-label="Open navigation">
         <Menu className="size-5" />
       </Button>
 
@@ -38,15 +32,11 @@ export function Topbar({ user, onOpenMobileNav }: TopbarProps) {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gap-2">
             <UserCircle2 className="size-5" />
-            <span className="hidden sm:inline text-sm font-medium">
-              {user?.name ?? user?.email ?? "Signed out"}
-            </span>
+            <span className="hidden sm:inline text-sm font-medium">{user?.name ?? user?.email ?? "Signed out"}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>
-            {user ? user.email : "Not signed in"}
-          </DropdownMenuLabel>
+          <DropdownMenuLabel>{user ? user.email : "Not signed in"}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled>Profile</DropdownMenuItem>
           <DropdownMenuItem disabled>Sign out</DropdownMenuItem>

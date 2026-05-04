@@ -1,18 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { KeyRound, ServerCog } from "lucide-react";
 
-import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
 import { ErrorState } from "@/components/feedback/error-state";
+import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/data-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Spinner } from "@/components/ui/spinner";
@@ -92,21 +85,14 @@ function HostsTable({ query }: { query: ReturnType<typeof useHosts> }) {
                     {row.display_name || row.hardware_uuid}
                   </Link>
                 </TableCell>
-                <TableCell
-                  className="text-muted-foreground max-w-[16rem] truncate"
-                  title={primaryEmail || ""}
-                >
+                <TableCell className="text-muted-foreground max-w-[16rem] truncate" title={primaryEmail || ""}>
                   {primaryEmail || "-"}
                 </TableCell>
                 <TableCell>
                   <PlatformBadge platform={row.platform} />
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {row.hardware_serial || "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {row.os_version || "-"}
-                </TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{row.hardware_serial || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{row.os_version || "-"}</TableCell>
                 <TableCell
                   className="text-muted-foreground"
                   title={row.last_seen_at ? new Date(row.last_seen_at).toLocaleString() : ""}
