@@ -7,6 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
+
+	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
 )
 
 const (
@@ -14,11 +16,8 @@ const (
 	orbitCapabilities  = "orbit_endpoints,end_user_email"
 )
 
-// RegisterRoutes mounts the Orbit agent endpoints on r.
-// Routes are unauthenticated by session cookie — agents present
-// either an enroll secret (for enrollment) or an orbit_node_key (for everything
-// else) inside the request body.
-func RegisterRoutes(r chi.Router, svc *Service) {
+// RegisterRoutes mounts Orbit agent endpoints on r.
+func RegisterRoutes(r chi.Router, svc *coreorbit.Service) {
 	r.Post("/api/fleet/orbit/enroll", enrollHandler(svc))
 	r.Post("/api/fleet/orbit/config", configHandler(svc))
 	r.Put("/api/fleet/orbit/device_mapping", deviceMappingHandler(svc))
@@ -26,9 +25,9 @@ func RegisterRoutes(r chi.Router, svc *Service) {
 	registerStubs(r, svc)
 }
 
-func enrollHandler(svc *Service) http.HandlerFunc {
+func enrollHandler(svc *coreorbit.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req EnrollRequest
+		var req coreorbit.EnrollRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -36,10 +35,10 @@ func enrollHandler(svc *Service) http.HandlerFunc {
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, ErrMissingHardwareUUID):
+		case errors.Is(err, coreorbit.ErrMissingHardwareUUID):
 			writeAgentError(w, http.StatusBadRequest, err.Error())
 			return
-		case errors.Is(err, ErrInvalidEnrollSecret):
+		case errors.Is(err, coreorbit.ErrInvalidEnrollSecret):
 			// Do not reveal whether the secret was malformed vs unknown.
 			writeAgentError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
@@ -55,13 +54,13 @@ func enrollHandler(svc *Service) http.HandlerFunc {
 			Str("display_name", host.DisplayName).
 			Msg("orbit host enrolled")
 
-		writeAgentJSON(w, http.StatusOK, EnrollResponse{OrbitNodeKey: nodeKey})
+		writeAgentJSON(w, http.StatusOK, coreorbit.EnrollResponse{OrbitNodeKey: nodeKey})
 	}
 }
 
-func configHandler(svc *Service) http.HandlerFunc {
+func configHandler(svc *coreorbit.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req ConfigRequest
+		var req coreorbit.ConfigRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -75,9 +74,9 @@ func configHandler(svc *Service) http.HandlerFunc {
 	}
 }
 
-func deviceMappingHandler(svc *Service) http.HandlerFunc {
+func deviceMappingHandler(svc *coreorbit.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req DeviceMappingRequest
+		var req coreorbit.DeviceMappingRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -108,4 +107,8 @@ func writeOrbitHeaders(w http.ResponseWriter) {
 
 func writeAgentError(w http.ResponseWriter, status int, message string) {
 	writeAgentJSON(w, status, errorResponse{Error: message})
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
 }

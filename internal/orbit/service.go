@@ -89,6 +89,12 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 	}, nil
 }
 
+// ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
+func (s *Service) ValidateNodeKey(ctx context.Context, nodeKey string) error {
+	_, err := s.hosts.GetByOrbitNodeKey(ctx, nodeKey)
+	return err
+}
+
 // SetDeviceMapping records a profile-provided email for the host.
 func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) error {
 	if s.deviceMappings == nil {

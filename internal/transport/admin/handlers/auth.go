@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
 type userBody struct {
@@ -51,11 +52,15 @@ const (
 	setupTag = "Setup"
 )
 
-// RegisterAuth registers setup and browser session endpoints.
-// The session cookie is owned by alexedwards/scs middleware and is written automatically.
-func RegisterAuth(api huma.API, authService *auth.Service) {
+// RegisterPublicAuth registers setup and browser session endpoints.
+func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
 	registerSessions(api, authService)
+}
+
+// RegisterProtectedAuth registers authenticated browser session endpoints.
+func RegisterProtectedAuth(api huma.API, authService *auth.Service) {
+	registerCurrentUser(api, authService)
 }
 
 func registerSetup(api huma.API, authService *auth.Service) {
@@ -111,7 +116,6 @@ func registerSessions(api huma.API, authService *auth.Service) {
 		}
 		return &authUserOutput{Body: userResponse(user)}, nil
 	})
-
 	huma.Register(api, huma.Operation{
 		OperationID: "logout",
 		Method:      http.MethodPost,
@@ -124,7 +128,9 @@ func registerSessions(api huma.API, authService *auth.Service) {
 		}
 		return &struct{}{}, nil
 	})
+}
 
+func registerCurrentUser(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-current-user",
 		Method:      http.MethodGet,
@@ -133,6 +139,9 @@ func registerSessions(api huma.API, authService *auth.Service) {
 		Summary:     "Get the current signed-in user",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*authUserOutput, error) {
+		if user, ok := adminctx.UserFromContext(ctx); ok {
+			return &authUserOutput{Body: userResponse(user)}, nil
+		}
 		user, err := authService.CurrentUser(ctx)
 		if err != nil {
 			return nil, authError(err)
@@ -154,7 +163,7 @@ func userResponse(user *models.User) userBody {
 // requireAdmin returns the authenticated admin user from ctx.
 // It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
 func requireAdmin(ctx context.Context) (*models.User, error) {
-	user, ok := auth.UserFromContext(ctx)
+	user, ok := adminctx.UserFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}

@@ -1,4 +1,4 @@
-package auth
+package adminctx
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 func TestUserFromContextRoundTrip(t *testing.T) {
 	user := &models.User{ID: 7, Role: models.RoleAdmin}
-	ctx := ContextWithUser(context.Background(), user)
+	ctx := WithUser(context.Background(), user)
 
 	got, ok := UserFromContext(ctx)
 	if !ok {
@@ -27,7 +27,7 @@ func TestUserFromContextEmpty(t *testing.T) {
 }
 
 func TestUserFromContextRejectsNilUser(t *testing.T) {
-	ctx := ContextWithUser(context.Background(), nil)
+	ctx := WithUser(context.Background(), nil)
 	if _, ok := UserFromContext(ctx); ok {
 		t.Fatal("expected ok=false when nil user is stored")
 	}

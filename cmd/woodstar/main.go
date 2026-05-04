@@ -15,7 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -23,6 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/transport"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
 )
@@ -79,7 +79,7 @@ func runServeCommand() *cobra.Command {
 			orbitService := orbit.NewService(hosts, secrets, deviceMappings)
 			osqueryService := osquery.NewService(hosts, software, secrets)
 
-			server := api.NewServer(api.ServerDependencies{
+			server := transport.NewServer(transport.Dependencies{
 				Config:         cfg,
 				DB:             db,
 				Version:        buildinfo.Version,
@@ -128,7 +128,7 @@ func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager,
 	store := pgxstore.New(db.Pool())
 	sm := scs.New()
 	sm.Store = store
-	sm.Lifetime = api.SessionLifetime
+	sm.Lifetime = transport.SessionLifetime
 	sm.Cookie.Name = "woodstar_session"
 	sm.Cookie.Path = "/"
 	sm.Cookie.HttpOnly = true

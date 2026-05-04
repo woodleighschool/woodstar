@@ -7,10 +7,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
+
+	coreosquery "github.com/woodleighschool/woodstar/internal/osquery"
 )
 
 // RegisterRoutes mounts osquery TLS-plugin endpoints on r.
-func RegisterRoutes(r chi.Router, svc *Service) {
+func RegisterRoutes(r chi.Router, svc *coreosquery.Service) {
 	for _, prefix := range []string{"/api/osquery", "/api/v1/osquery"} {
 		r.Post(prefix+"/enroll", enrollHandler(svc))
 		r.Post(prefix+"/config", configHandler(svc))
@@ -22,19 +24,19 @@ func RegisterRoutes(r chi.Router, svc *Service) {
 	}
 }
 
-func enrollHandler(svc *Service) http.HandlerFunc {
+func enrollHandler(svc *coreosquery.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req EnrollRequest
+		var req coreosquery.EnrollRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, ErrInvalidEnrollSecret):
+		case errors.Is(err, coreosquery.ErrInvalidEnrollSecret):
 			writeAgentError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
-		case errors.Is(err, ErrMissingHardwareUUID):
+		case errors.Is(err, coreosquery.ErrMissingHardwareUUID):
 			writeAgentError(w, http.StatusBadRequest, err.Error())
 			return
 		case err != nil:
@@ -42,13 +44,13 @@ func enrollHandler(svc *Service) http.HandlerFunc {
 			writeAgentError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
-		writeAgentJSON(w, http.StatusOK, EnrollResponse{NodeKey: nodeKey})
+		writeAgentJSON(w, http.StatusOK, coreosquery.EnrollResponse{NodeKey: nodeKey})
 	}
 }
 
-func configHandler(svc *Service) http.HandlerFunc {
+func configHandler(svc *coreosquery.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req ConfigRequest
+		var req coreosquery.ConfigRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -58,9 +60,9 @@ func configHandler(svc *Service) http.HandlerFunc {
 	}
 }
 
-func distributedReadHandler(svc *Service) http.HandlerFunc {
+func distributedReadHandler(svc *coreosquery.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req DistributedReadRequest
+		var req coreosquery.DistributedReadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -70,9 +72,9 @@ func distributedReadHandler(svc *Service) http.HandlerFunc {
 	}
 }
 
-func distributedWriteHandler(svc *Service) http.HandlerFunc {
+func distributedWriteHandler(svc *coreosquery.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req DistributedWriteRequest
+		var req coreosquery.DistributedWriteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -82,9 +84,9 @@ func distributedWriteHandler(svc *Service) http.HandlerFunc {
 	}
 }
 
-func logHandler(svc *Service) http.HandlerFunc {
+func logHandler(svc *coreosquery.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req LogRequest
+		var req coreosquery.LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -111,6 +113,10 @@ func writeAgentJSON(w http.ResponseWriter, status int, body any) {
 
 func writeAgentError(w http.ResponseWriter, status int, message string) {
 	writeAgentJSON(w, status, errorResponse{Error: message})
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
 }
 
 func emptyJSONHandler(w http.ResponseWriter, _ *http.Request) {

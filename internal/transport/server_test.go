@@ -1,4 +1,4 @@
-package api
+package transport
 
 import (
 	"context"
@@ -41,6 +41,19 @@ func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 	}
 }
 
+func TestAgentRoutesBypassBrowserAuth(t *testing.T) {
+	server := NewServer(testDependencies(testConfig()))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/osquery/carve/begin", nil)
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
 func testConfig() config.Config {
 	return config.Config{
 		PublicURL:     "http://localhost:8080",
@@ -48,7 +61,7 @@ func testConfig() config.Config {
 	}
 }
 
-func testDependencies(cfg config.Config) ServerDependencies {
+func testDependencies(cfg config.Config) Dependencies {
 	users := models.NewUserStore(nil)
 	hosts := models.NewHostStore(nil)
 	deviceMappings := models.NewDeviceMappingStore(nil)
@@ -58,7 +71,7 @@ func testDependencies(cfg config.Config) ServerDependencies {
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
 
-	return ServerDependencies{
+	return Dependencies{
 		Config:         cfg,
 		Version:        "test",
 		AuthService:    auth.NewService(users, sessionManager),

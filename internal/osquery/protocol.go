@@ -1,4 +1,4 @@
-// Package osquery implements osquery TLS-plugin endpoints used by Orbit.
+// Package osquery implements service behavior for Orbit-managed osquery.
 package osquery
 
 import "encoding/json"
@@ -65,8 +65,4 @@ type LogRequest struct {
 // LogResponse acknowledges osquery logs.
 type LogResponse struct {
 	NodeInvalid bool `json:"node_invalid"`
-}
-
-type errorResponse struct {
-	Error string `json:"error"`
 }

@@ -5,11 +5,13 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
 )
 
-func registerStubs(r chi.Router, svc *Service) {
+func registerStubs(r chi.Router, svc *coreorbit.Service) {
 	r.Post("/api/fleet/orbit/scripts/request", requireNodeKey(svc, func(w http.ResponseWriter, _ *http.Request) {
-		writeAgentJSON(w, http.StatusOK, ScriptsRequestResponse{Scripts: []any{}})
+		writeAgentJSON(w, http.StatusOK, scriptsRequestResponse{Scripts: []any{}})
 	}))
 	r.Post("/api/fleet/orbit/scripts/result", requireNodeKey(svc, noContentHandler))
 	r.Post("/api/fleet/orbit/software_install/details", requireNodeKey(svc, emptyObjectHandler))
@@ -22,7 +24,7 @@ func registerStubs(r chi.Router, svc *Service) {
 	r.Post("/api/fleet/orbit/luks_data", requireNodeKey(svc, noContentHandler))
 }
 
-func requireNodeKey(svc *Service, next http.HandlerFunc) http.HandlerFunc {
+func requireNodeKey(svc *coreorbit.Service, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			OrbitNodeKey string `json:"orbit_node_key"`
@@ -31,12 +33,16 @@ func requireNodeKey(svc *Service, next http.HandlerFunc) http.HandlerFunc {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		if _, err := svc.hosts.GetByOrbitNodeKey(r.Context(), req.OrbitNodeKey); err != nil {
+		if err := svc.ValidateNodeKey(r.Context(), req.OrbitNodeKey); err != nil {
 			writeAgentError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
 		next(w, r)
 	}
+}
+
+type scriptsRequestResponse struct {
+	Scripts []any `json:"scripts"`
 }
 
 func emptyObjectHandler(w http.ResponseWriter, _ *http.Request) {

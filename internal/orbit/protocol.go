@@ -41,13 +41,3 @@ type DeviceMappingRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 	Email        string `json:"email"`
 }
-
-// ScriptsRequestResponse is the empty script queue Orbit expects.
-type ScriptsRequestResponse struct {
-	Scripts []any `json:"scripts"`
-}
-
-// errorResponse matches the Orbit error shape.
-type errorResponse struct {
-	Error string `json:"error"`
-}

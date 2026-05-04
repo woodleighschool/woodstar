@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
 func TestRequireAdmin(t *testing.T) {
@@ -20,13 +21,13 @@ func TestRequireAdmin(t *testing.T) {
 	}{
 		{
 			name:       "admin in context",
-			ctx:        auth.ContextWithUser(context.Background(), &models.User{ID: 1, Role: models.RoleAdmin}),
+			ctx:        adminctx.WithUser(context.Background(), &models.User{ID: 1, Role: models.RoleAdmin}),
 			wantStatus: 0,
 			wantOK:     true,
 		},
 		{
 			name:       "viewer is forbidden",
-			ctx:        auth.ContextWithUser(context.Background(), &models.User{ID: 2, Role: models.RoleViewer}),
+			ctx:        adminctx.WithUser(context.Background(), &models.User{ID: 2, Role: models.RoleViewer}),
 			wantStatus: 403,
 		},
 		{
