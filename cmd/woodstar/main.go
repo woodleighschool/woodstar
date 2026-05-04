@@ -12,9 +12,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/api"
+	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/orbit"
+	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
 )
@@ -58,10 +62,28 @@ func runServeCommand() *cobra.Command {
 			}
 			defer db.Close()
 
+			users := models.NewUserStore(db)
+			sessions := models.NewSessionStore(db)
+			hosts := models.NewHostStore(db)
+			deviceMappings := models.NewDeviceMappingStore(db)
+			secrets := models.NewSecretStore(db)
+			software := models.NewSoftwareStore(db)
+
+			authService := auth.NewService(users, sessions, api.SessionTTL, cfg.SessionSecret)
+			orbitService := orbit.NewService(hosts, secrets, deviceMappings)
+			osqueryService := osquery.NewService(hosts, software, secrets)
+
 			server := api.NewServer(api.ServerDependencies{
-				Config:  cfg,
-				DB:      db,
-				Version: buildinfo.Version,
+				Config:         cfg,
+				DB:             db,
+				Version:        buildinfo.Version,
+				AuthService:    authService,
+				HostStore:      hosts,
+				DeviceMappings: deviceMappings,
+				SecretStore:    secrets,
+				SoftwareStore:  software,
+				OrbitService:   orbitService,
+				OsqueryService: osqueryService,
 				WebHandler: web.NewHandler(web.HandlerOptions{
 					FS:      webfs.DistDirFS,
 					BaseURL: cfg.BaseURL,

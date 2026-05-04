@@ -15,7 +15,7 @@ var (
 	ErrCannotRemoveLastAdmin = errors.New("cannot remove the last admin")
 )
 
-// CreateUserParams contains fields needed to create a Woodstar user.
+// CreateUserParams contains fields needed to create a user.
 type CreateUserParams struct {
 	Email    string
 	Name     string
@@ -31,7 +31,7 @@ type UpdateUserParams struct {
 	Password *string
 }
 
-// ListUsers returns every active Woodstar user.
+// ListUsers returns every active user.
 func (s *Service) ListUsers(ctx context.Context) ([]models.User, error) {
 	if s.users == nil {
 		return nil, ErrNotSetup
@@ -39,7 +39,7 @@ func (s *Service) ListUsers(ctx context.Context) ([]models.User, error) {
 	return s.users.List(ctx)
 }
 
-// CreateUser provisions a new Woodstar user with a local password.
+// CreateUser provisions a local user.
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (*models.User, error) {
 	if s.users == nil {
 		return nil, ErrNotSetup

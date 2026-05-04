@@ -12,16 +12,16 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 )
 
-// UserRole controls a Woodstar user's application permissions.
+// UserRole controls application permissions.
 type UserRole string
 
-// User roles are intentionally small for MVP.
+// User roles are intentionally small.
 const (
 	RoleAdmin  UserRole = "admin"
 	RoleViewer UserRole = "viewer"
 )
 
-// User is a local Woodstar account.
+// User is a local account.
 type User struct {
 	ID           int64
 	Email        string
@@ -32,7 +32,7 @@ type User struct {
 	UpdatedAt    time.Time
 }
 
-// UserStore persists local Woodstar accounts.
+// UserStore persists local accounts.
 type UserStore struct {
 	db *database.DB
 }

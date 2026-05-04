@@ -88,6 +88,24 @@ func (db *DB) Exec(ctx context.Context, sql string, args ...any) error {
 	return err
 }
 
+// WithTx runs fn inside a database transaction.
+func (db *DB) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
+	if db == nil || db.pool == nil {
+		return errDatabaseClosed()
+	}
+	tx, err := db.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 type errorRow struct {
 	err error
 }

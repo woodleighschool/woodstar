@@ -11,7 +11,7 @@ import (
 
 const minSessionSecretLength = 32
 
-// Config is Woodstar's runtime configuration loaded from WOODSTAR_* variables.
+// Config contains runtime settings.
 type Config struct {
 	Host          string `env:"HOST"                             envDefault:"0.0.0.0"`
 	Port          int    `env:"PORT"                             envDefault:"8080"`
@@ -63,7 +63,7 @@ func normalizeBaseURL(value string) (string, error) {
 	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
-// BasePath returns the URL path Woodstar should mount under.
+// BasePath returns the mount path from BaseURL.
 func (cfg *Config) BasePath() string {
 	parsed, err := url.Parse(cfg.BaseURL)
 	if err != nil || parsed.Path == "" {

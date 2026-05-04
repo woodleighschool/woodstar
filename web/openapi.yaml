@@ -1,5 +1,16 @@
 components:
   schemas:
+    DeviceMappingBody:
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+        source:
+          type: string
+      required:
+        - email
+        - source
+      type: object
     ErrorDetail:
       additionalProperties: false
       properties:
@@ -73,6 +84,126 @@ components:
           type: string
       required:
         - status
+      type: object
+    HostBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - //api/schemas/HostBody.json
+          format: uri
+          readOnly: true
+          type: string
+        computer_name:
+          type: string
+        cpu_brand:
+          type: string
+        cpu_logical_cores:
+          format: int64
+          type: integer
+        cpu_physical_cores:
+          format: int64
+          type: integer
+        created_at:
+          format: date-time
+          type: string
+        detail_updated_at:
+          format: date-time
+          type: string
+        device_mappings:
+          items:
+            $ref: "#/components/schemas/DeviceMappingBody"
+          type:
+            - array
+            - "null"
+        display_name:
+          type: string
+        enrolled_at:
+          format: date-time
+          type: string
+        hardware_model:
+          type: string
+        hardware_serial:
+          type: string
+        hardware_uuid:
+          type: string
+        hardware_vendor:
+          type: string
+        hostname:
+          type: string
+        id:
+          type: string
+        kernel_version:
+          type: string
+        last_seen_at:
+          format: date-time
+          type: string
+        orbit_version:
+          type: string
+        os_version:
+          type: string
+        osquery_version:
+          type: string
+        physical_memory:
+          format: int64
+          type: integer
+        platform:
+          type: string
+        platform_like:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - hardware_uuid
+        - display_name
+        - hostname
+        - computer_name
+        - hardware_serial
+        - hardware_model
+        - platform
+        - platform_like
+        - os_version
+        - osquery_version
+        - orbit_version
+        - cpu_brand
+        - cpu_logical_cores
+        - cpu_physical_cores
+        - physical_memory
+        - hardware_vendor
+        - kernel_version
+        - device_mappings
+        - created_at
+        - updated_at
+      type: object
+    HostSoftwareBody:
+      additionalProperties: false
+      properties:
+        bundle_identifier:
+          type: string
+        id:
+          type: string
+        last_opened_at:
+          format: date-time
+          type: string
+        last_seen_at:
+          format: date-time
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+        version:
+          type: string
+      required:
+        - id
+        - name
+        - version
+        - source
+        - bundle_identifier
+        - last_seen_at
       type: object
     LoginInputBody:
       additionalProperties: false
@@ -152,6 +283,34 @@ components:
           type: boolean
       required:
         - complete
+      type: object
+    SoftwareTitleBody:
+      additionalProperties: false
+      properties:
+        bundle_identifier:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        host_count:
+          format: int64
+          type: integer
+        id:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+        version:
+          type: string
+      required:
+        - id
+        - name
+        - version
+        - source
+        - bundle_identifier
+        - host_count
+        - created_at
       type: object
     UserBody:
       additionalProperties: false
@@ -249,11 +408,11 @@ components:
         - started_at
       type: object
 info:
-  description: Typed admin and frontend API for Woodstar. Agent compatibility endpoints (Orbit/osquery, Santa sync, Munki repo) are deliberately not part of this document.
+  description: Typed admin and frontend API.
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: ce79494-dirty
+  version: 0.0.0-dev
 openapi: 3.1.0
 paths:
   /api/auth/login:
@@ -388,6 +547,125 @@ paths:
       summary: Liveness check
       tags:
         - System
+  /api/hosts:
+    get:
+      operationId: list-hosts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/HostBody"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List enrolled hosts
+      tags:
+        - Hosts
+  /api/hosts/{id}:
+    get:
+      operationId: get-host
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get an enrolled host
+      tags:
+        - Hosts
+  /api/hosts/{id}/software:
+    get:
+      operationId: list-host-software
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/HostSoftwareBody"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List software installed on a host
+      tags:
+        - Hosts
   /api/munki/tokens:
     get:
       operationId: list-munki-tokens
@@ -809,6 +1087,35 @@ paths:
       summary: Check whether initial setup is complete
       tags:
         - Setup
+  /api/software:
+    get:
+      operationId: list-software
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/SoftwareTitleBody"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List software titles
+      tags:
+        - Software
   /api/users:
     get:
       operationId: list-users

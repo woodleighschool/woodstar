@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,7 +18,7 @@ import (
 // SecretKind identifies the subsystem that accepts a shared secret.
 type SecretKind string
 
-// Secret kinds map to the three first-class Woodstar agents.
+// Secret kinds map to agent-facing credentials.
 const (
 	SecretOrbit SecretKind = "orbit"
 	SecretSanta SecretKind = "santa"
@@ -94,6 +95,24 @@ RETURNING id, created_at`, string(kind), value).Scan(&id, &secret.CreatedAt)
 
 	secret.ID = strconv.FormatInt(id, 10)
 	return secret, nil
+}
+
+// ValidateActive reports whether value matches an active secret of kind.
+// Comparison is plaintext because admins can view and reuse these secrets.
+func (s *SecretStore) ValidateActive(ctx context.Context, kind SecretKind, value string) (bool, error) {
+	if err := kind.Valid(); err != nil {
+		return false, err
+	}
+	if strings.TrimSpace(value) == "" {
+		return false, nil
+	}
+
+	var exists bool
+	err := s.db.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM secrets WHERE kind = $1 AND value = $2 AND deleted_at IS NULL)`,
+		string(kind), value,
+	).Scan(&exists)
+	return exists, err
 }
 
 // Delete soft-deletes a secret by kind and API ID.

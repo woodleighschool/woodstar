@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
-// SessionCookieName is the browser cookie used for Woodstar admin sessions.
+// SessionCookieName is the admin session cookie.
 const SessionCookieName = "woodstar_session"
 
 // Auth errors describe expected setup and login failures.

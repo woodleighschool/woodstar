@@ -20,30 +20,47 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/orbit"
+	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
-const sessionTTL = 14 * 24 * time.Hour
+// SessionTTL is the browser session lifetime.
+const SessionTTL = 14 * 24 * time.Hour
 
-// ServerDependencies are the external pieces needed to build a Server.
+// ServerDependencies contains runtime dependencies for Server.
 type ServerDependencies struct {
-	Config     config.Config
-	DB         *database.DB
-	Version    string
-	WebHandler *web.Handler
+	Config         config.Config
+	DB             *database.DB
+	Version        string
+	WebHandler     *web.Handler
+	AuthService    *auth.Service
+	HostStore      *models.HostStore
+	DeviceMappings *models.DeviceMappingStore
+	SecretStore    *models.SecretStore
+	SoftwareStore  *models.SoftwareStore
+	OrbitService   *orbit.Service
+	OsqueryService *osquery.Service
 }
 
-// Server owns the Woodstar HTTP listener and router.
+// Server owns the HTTP listener and router.
 type Server struct {
-	httpServer *http.Server
-	config     config.Config
-	db         *database.DB
-	version    string
-	webHandler *web.Handler
-	started    time.Time
+	httpServer     *http.Server
+	config         config.Config
+	db             *database.DB
+	version        string
+	webHandler     *web.Handler
+	authService    *auth.Service
+	hostStore      *models.HostStore
+	deviceMappings *models.DeviceMappingStore
+	secretStore    *models.SecretStore
+	softwareStore  *models.SoftwareStore
+	orbitService   *orbit.Service
+	osqueryService *osquery.Service
+	started        time.Time
 }
 
-// NewServer wires the HTTP server with the provided runtime dependencies.
+// NewServer returns an HTTP server.
 func NewServer(deps ServerDependencies) *Server {
 	return &Server{
 		httpServer: &http.Server{
@@ -52,11 +69,18 @@ func NewServer(deps ServerDependencies) *Server {
 			WriteTimeout:      120 * time.Second,
 			IdleTimeout:       180 * time.Second,
 		},
-		config:     deps.Config,
-		db:         deps.DB,
-		version:    deps.Version,
-		webHandler: deps.WebHandler,
-		started:    time.Now().UTC(),
+		config:         deps.Config,
+		db:             deps.DB,
+		version:        deps.Version,
+		webHandler:     deps.WebHandler,
+		authService:    deps.AuthService,
+		hostStore:      deps.HostStore,
+		deviceMappings: deps.DeviceMappings,
+		secretStore:    deps.SecretStore,
+		softwareStore:  deps.SoftwareStore,
+		orbitService:   deps.OrbitService,
+		osqueryService: deps.OsqueryService,
+		started:        time.Now().UTC(),
 	}
 }
 
@@ -88,20 +112,22 @@ func (s *Server) routes() http.Handler {
 
 	app := chi.NewRouter()
 
-	authService := auth.NewService(
-		models.NewUserStore(s.db),
-		models.NewSessionStore(s.db),
-		sessionTTL,
-		s.config.SessionSecret,
-	)
-
 	app.Group(func(r chi.Router) {
-		r.Use(apimiddleware.RequireAuth(s.basePath(), authService))
-		registerAdminAPI(r, s.db, s.version, s.started, authService, handlers.CookieSettings{
+		r.Use(apimiddleware.RequireAuth(s.basePath(), s.authService))
+		registerAdminAPI(r, s.db, s.version, s.started, s.authService, adminStores{
+			Hosts:          s.hostStore,
+			DeviceMappings: s.deviceMappings,
+			Secrets:        s.secretStore,
+			Software:       s.softwareStore,
+		}, handlers.CookieSettings{
 			CookiePath:   s.basePath(),
 			SecureCookie: secureCookie(s.config.BaseURL),
 		})
 	})
+
+	// Agent endpoints authenticate with enroll secrets or node keys.
+	orbit.RegisterRoutes(app, s.orbitService)
+	osquery.RegisterRoutes(app, s.osqueryService)
 
 	if s.webHandler != nil {
 		s.webHandler.RegisterRoutes(app)
@@ -119,12 +145,10 @@ func (s *Server) routes() http.Handler {
 	return r
 }
 
-// adminConfig is the canonical Huma config used for the Woodstar admin API.
-// Kept in one place so the running server and the openapi command stay in sync.
+// adminConfig returns the Huma config shared by serve and openapi.
 func adminConfig(version string) huma.Config {
 	cfg := huma.DefaultConfig("Woodstar API", version)
-	cfg.Info.Description = "Typed admin and frontend API for Woodstar." +
-		" Agent compatibility endpoints (Orbit/osquery, Santa sync, Munki repo) are deliberately not part of this document."
+	cfg.Info.Description = "Typed admin and frontend API."
 	cfg.Info.License = &huma.License{Name: "Apache-2.0"}
 	cfg.DocsPath = "/api/docs"
 	cfg.OpenAPIPath = "/api/openapi"
@@ -133,13 +157,14 @@ func adminConfig(version string) huma.Config {
 	return cfg
 }
 
-// registerAdminAPI builds and attaches the admin Huma API to the given router.
+// registerAdminAPI attaches admin routes to r.
 func registerAdminAPI(
 	r chi.Router,
 	db *database.DB,
 	version string,
 	started time.Time,
 	authService *auth.Service,
+	stores adminStores,
 	cookies handlers.CookieSettings,
 ) huma.API {
 	api := humachi.New(r, adminConfig(version))
@@ -147,19 +172,30 @@ func registerAdminAPI(
 	handlers.RegisterSystem(api, db, version, started)
 	handlers.RegisterAuth(api, authService, cookies)
 	handlers.RegisterUsers(api, authService)
-	handlers.RegisterSecrets(api, models.NewSecretStore(db))
+	handlers.RegisterHosts(api, stores.Hosts, stores.DeviceMappings, stores.Software)
+	handlers.RegisterSoftware(api, stores.Software)
+	handlers.RegisterSecrets(api, stores.Secrets)
 
 	return api
 }
 
-// BuildAdminAPI returns a populated Huma API without starting the HTTP server.
-// The openapi command uses this to dump the spec without standing up the rest
-// of the runtime. Handlers are registered but never invoked, so a nil DB is
-// safe.
+type adminStores struct {
+	Hosts          *models.HostStore
+	DeviceMappings *models.DeviceMappingStore
+	Secrets        *models.SecretStore
+	Software       *models.SoftwareStore
+}
+
+// BuildAdminAPI returns the admin API without starting the server.
 func BuildAdminAPI(version string) huma.API {
 	r := chi.NewRouter()
-	authService := auth.NewService(nil, nil, sessionTTL, "openapi-only-session-secret")
-	return registerAdminAPI(r, nil, version, time.Now().UTC(), authService, handlers.CookieSettings{CookiePath: "/"})
+	authService := auth.NewService(nil, nil, SessionTTL, "openapi-only-session-secret")
+	return registerAdminAPI(r, nil, version, time.Now().UTC(), authService, adminStores{
+		Hosts:          models.NewHostStore(nil),
+		DeviceMappings: models.NewDeviceMappingStore(nil),
+		Secrets:        models.NewSecretStore(nil),
+		Software:       models.NewSoftwareStore(nil),
+	}, handlers.CookieSettings{CookiePath: "/"})
 }
 
 func (s *Server) basePath() string {
