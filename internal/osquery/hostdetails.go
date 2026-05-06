@@ -26,6 +26,9 @@ func ParseHostDetails(details map[string]map[string]string) models.HostDetailUpd
 	if row := details["osquery_info"]; row != nil {
 		update.OsqueryVersion = strings.TrimSpace(row["version"])
 	}
+	if row := details["orbit_info"]; row != nil {
+		update.OrbitVersion = strings.TrimSpace(row["version"])
+	}
 	if row := details["os_version"]; row != nil {
 		update.OSVersion = osVersion(row)
 		update.Platform = strings.TrimSpace(row["platform"])

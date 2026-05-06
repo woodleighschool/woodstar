@@ -20,9 +20,12 @@ import { Route as AuthedSantaRouteImport } from './routes/_authed/santa'
 import { Route as AuthedReportsRouteImport } from './routes/_authed/reports'
 import { Route as AuthedMunkiRouteImport } from './routes/_authed/munki'
 import { Route as AuthedLabelsRouteImport } from './routes/_authed/labels'
+import { Route as AuthedHostsRouteImport } from './routes/_authed/hosts'
 import { Route as AuthedChecksRouteImport } from './routes/_authed/checks'
-import { Route as AuthedHostsIndexRouteImport } from './routes/_authed/hosts/index'
-import { Route as AuthedHostsHostIdRouteImport } from './routes/_authed/hosts/$hostId'
+import { Route as AuthedSoftwareIndexRouteImport } from './routes/_authed/software.index'
+import { Route as AuthedHostsIndexRouteImport } from './routes/_authed/hosts.index'
+import { Route as AuthedHostsHostIdRouteImport } from './routes/_authed/hosts.$hostId'
+import { Route as AuthedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authed/software.titles.$softwareId'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -78,36 +81,55 @@ const AuthedLabelsRoute = AuthedLabelsRouteImport.update({
   path: '/labels',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedHostsRoute = AuthedHostsRouteImport.update({
+  id: '/hosts',
+  path: '/hosts',
+  getParentRoute: () => AuthedRoute,
+} as any)
 const AuthedChecksRoute = AuthedChecksRouteImport.update({
   id: '/checks',
   path: '/checks',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedSoftwareIndexRoute = AuthedSoftwareIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedSoftwareRoute,
+} as any)
 const AuthedHostsIndexRoute = AuthedHostsIndexRouteImport.update({
-  id: '/hosts/',
-  path: '/hosts/',
-  getParentRoute: () => AuthedRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedHostsRoute,
 } as any)
 const AuthedHostsHostIdRoute = AuthedHostsHostIdRouteImport.update({
-  id: '/hosts/$hostId',
-  path: '/hosts/$hostId',
-  getParentRoute: () => AuthedRoute,
+  id: '/$hostId',
+  path: '/$hostId',
+  getParentRoute: () => AuthedHostsRoute,
 } as any)
+const AuthedSoftwareTitlesSoftwareIdRoute =
+  AuthedSoftwareTitlesSoftwareIdRouteImport.update({
+    id: '/titles/$softwareId',
+    path: '/titles/$softwareId',
+    getParentRoute: () => AuthedSoftwareRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/checks': typeof AuthedChecksRoute
+  '/hosts': typeof AuthedHostsRouteWithChildren
   '/labels': typeof AuthedLabelsRoute
   '/munki': typeof AuthedMunkiRoute
   '/reports': typeof AuthedReportsRoute
   '/santa': typeof AuthedSantaRoute
   '/settings': typeof AuthedSettingsRoute
-  '/software': typeof AuthedSoftwareRoute
+  '/software': typeof AuthedSoftwareRouteWithChildren
   '/users': typeof AuthedUsersRoute
   '/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/hosts/': typeof AuthedHostsIndexRoute
+  '/software/': typeof AuthedSoftwareIndexRoute
+  '/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,10 +141,11 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthedReportsRoute
   '/santa': typeof AuthedSantaRoute
   '/settings': typeof AuthedSettingsRoute
-  '/software': typeof AuthedSoftwareRoute
   '/users': typeof AuthedUsersRoute
   '/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/hosts': typeof AuthedHostsIndexRoute
+  '/software': typeof AuthedSoftwareIndexRoute
+  '/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,15 +154,18 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_authed/checks': typeof AuthedChecksRoute
+  '/_authed/hosts': typeof AuthedHostsRouteWithChildren
   '/_authed/labels': typeof AuthedLabelsRoute
   '/_authed/munki': typeof AuthedMunkiRoute
   '/_authed/reports': typeof AuthedReportsRoute
   '/_authed/santa': typeof AuthedSantaRoute
   '/_authed/settings': typeof AuthedSettingsRoute
-  '/_authed/software': typeof AuthedSoftwareRoute
+  '/_authed/software': typeof AuthedSoftwareRouteWithChildren
   '/_authed/users': typeof AuthedUsersRoute
   '/_authed/hosts/$hostId': typeof AuthedHostsHostIdRoute
   '/_authed/hosts/': typeof AuthedHostsIndexRoute
+  '/_authed/software/': typeof AuthedSoftwareIndexRoute
+  '/_authed/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,6 +174,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/checks'
+    | '/hosts'
     | '/labels'
     | '/munki'
     | '/reports'
@@ -157,6 +184,8 @@ export interface FileRouteTypes {
     | '/users'
     | '/hosts/$hostId'
     | '/hosts/'
+    | '/software/'
+    | '/software/titles/$softwareId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -168,10 +197,11 @@ export interface FileRouteTypes {
     | '/reports'
     | '/santa'
     | '/settings'
-    | '/software'
     | '/users'
     | '/hosts/$hostId'
     | '/hosts'
+    | '/software'
+    | '/software/titles/$softwareId'
   id:
     | '__root__'
     | '/'
@@ -179,6 +209,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_authed/checks'
+    | '/_authed/hosts'
     | '/_authed/labels'
     | '/_authed/munki'
     | '/_authed/reports'
@@ -188,6 +219,8 @@ export interface FileRouteTypes {
     | '/_authed/users'
     | '/_authed/hosts/$hostId'
     | '/_authed/hosts/'
+    | '/_authed/software/'
+    | '/_authed/software/titles/$softwareId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -276,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedLabelsRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/hosts': {
+      id: '/_authed/hosts'
+      path: '/hosts'
+      fullPath: '/hosts'
+      preLoaderRoute: typeof AuthedHostsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/_authed/checks': {
       id: '/_authed/checks'
       path: '/checks'
@@ -283,47 +323,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedChecksRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/software/': {
+      id: '/_authed/software/'
+      path: '/'
+      fullPath: '/software/'
+      preLoaderRoute: typeof AuthedSoftwareIndexRouteImport
+      parentRoute: typeof AuthedSoftwareRoute
+    }
     '/_authed/hosts/': {
       id: '/_authed/hosts/'
-      path: '/hosts'
+      path: '/'
       fullPath: '/hosts/'
       preLoaderRoute: typeof AuthedHostsIndexRouteImport
-      parentRoute: typeof AuthedRoute
+      parentRoute: typeof AuthedHostsRoute
     }
     '/_authed/hosts/$hostId': {
       id: '/_authed/hosts/$hostId'
-      path: '/hosts/$hostId'
+      path: '/$hostId'
       fullPath: '/hosts/$hostId'
       preLoaderRoute: typeof AuthedHostsHostIdRouteImport
-      parentRoute: typeof AuthedRoute
+      parentRoute: typeof AuthedHostsRoute
+    }
+    '/_authed/software/titles/$softwareId': {
+      id: '/_authed/software/titles/$softwareId'
+      path: '/titles/$softwareId'
+      fullPath: '/software/titles/$softwareId'
+      preLoaderRoute: typeof AuthedSoftwareTitlesSoftwareIdRouteImport
+      parentRoute: typeof AuthedSoftwareRoute
     }
   }
 }
 
+interface AuthedHostsRouteChildren {
+  AuthedHostsHostIdRoute: typeof AuthedHostsHostIdRoute
+  AuthedHostsIndexRoute: typeof AuthedHostsIndexRoute
+}
+
+const AuthedHostsRouteChildren: AuthedHostsRouteChildren = {
+  AuthedHostsHostIdRoute: AuthedHostsHostIdRoute,
+  AuthedHostsIndexRoute: AuthedHostsIndexRoute,
+}
+
+const AuthedHostsRouteWithChildren = AuthedHostsRoute._addFileChildren(
+  AuthedHostsRouteChildren,
+)
+
+interface AuthedSoftwareRouteChildren {
+  AuthedSoftwareIndexRoute: typeof AuthedSoftwareIndexRoute
+  AuthedSoftwareTitlesSoftwareIdRoute: typeof AuthedSoftwareTitlesSoftwareIdRoute
+}
+
+const AuthedSoftwareRouteChildren: AuthedSoftwareRouteChildren = {
+  AuthedSoftwareIndexRoute: AuthedSoftwareIndexRoute,
+  AuthedSoftwareTitlesSoftwareIdRoute: AuthedSoftwareTitlesSoftwareIdRoute,
+}
+
+const AuthedSoftwareRouteWithChildren = AuthedSoftwareRoute._addFileChildren(
+  AuthedSoftwareRouteChildren,
+)
+
 interface AuthedRouteChildren {
   AuthedChecksRoute: typeof AuthedChecksRoute
+  AuthedHostsRoute: typeof AuthedHostsRouteWithChildren
   AuthedLabelsRoute: typeof AuthedLabelsRoute
   AuthedMunkiRoute: typeof AuthedMunkiRoute
   AuthedReportsRoute: typeof AuthedReportsRoute
   AuthedSantaRoute: typeof AuthedSantaRoute
   AuthedSettingsRoute: typeof AuthedSettingsRoute
-  AuthedSoftwareRoute: typeof AuthedSoftwareRoute
+  AuthedSoftwareRoute: typeof AuthedSoftwareRouteWithChildren
   AuthedUsersRoute: typeof AuthedUsersRoute
-  AuthedHostsHostIdRoute: typeof AuthedHostsHostIdRoute
-  AuthedHostsIndexRoute: typeof AuthedHostsIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedChecksRoute: AuthedChecksRoute,
+  AuthedHostsRoute: AuthedHostsRouteWithChildren,
   AuthedLabelsRoute: AuthedLabelsRoute,
   AuthedMunkiRoute: AuthedMunkiRoute,
   AuthedReportsRoute: AuthedReportsRoute,
   AuthedSantaRoute: AuthedSantaRoute,
   AuthedSettingsRoute: AuthedSettingsRoute,
-  AuthedSoftwareRoute: AuthedSoftwareRoute,
+  AuthedSoftwareRoute: AuthedSoftwareRouteWithChildren,
   AuthedUsersRoute: AuthedUsersRoute,
-  AuthedHostsHostIdRoute: AuthedHostsHostIdRoute,
-  AuthedHostsIndexRoute: AuthedHostsIndexRoute,
 }
 
 const AuthedRouteWithChildren =

@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -44,12 +45,22 @@ type Host struct {
 
 // HostStore persists Orbit-managed Macs.
 type HostStore struct {
-	q *sqlc.Queries
+	db *database.DB
+	q  *sqlc.Queries
+}
+
+// HostListParams filters host list results.
+type HostListParams struct {
+	ListParams
+
+	Platform        string
+	SoftwareTitleID int64
+	SoftwareID      int64
 }
 
 // NewHostStore returns a host store backed by db.
 func NewHostStore(db *database.DB) *HostStore {
-	return &HostStore{q: db.Queries()}
+	return &HostStore{db: db, q: db.Queries()}
 }
 
 // EnrollParams holds the fields supplied by an Orbit enrollment request.
@@ -77,6 +88,7 @@ type HostDetailUpdate struct {
 	PlatformLike     string
 	KernelVersion    string
 	HardwareVendor   string
+	OrbitVersion     string
 	CPUBrand         string
 	CPULogicalCores  int
 	CPUPhysicalCores int
@@ -114,18 +126,168 @@ func (s *HostStore) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetail
 	return hostFromRecord(hostRecord(row)), nil
 }
 
-// List returns all active hosts ordered most-recently-seen first.
-func (s *HostStore) List(ctx context.Context) ([]Host, error) {
-	rows, err := s.q.ListHosts(ctx)
-	if err != nil {
-		return nil, err
+// List returns active hosts and the total count matching params.
+func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
+	params = cleanHostListParams(params)
+	whereSQL, args := hostWhere(params)
+
+	countSQL := `SELECT count(*) FROM hosts h` + whereSQL
+	var total int
+	if err := s.db.Pool().QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
+		return nil, 0, err
 	}
 
-	hosts := make([]Host, 0, len(rows))
-	for _, row := range rows {
-		hosts = append(hosts, *hostFromRecord(hostRecord(row)))
+	orderSQL := hostOrder(params.OrderKey, params.OrderDirection)
+	limitIndex := len(args) + 1
+	args = append(args, int32(params.PerPage), int32(params.Page*params.PerPage))
+	rows, err := s.db.Pool().Query(ctx, hostListSQL(whereSQL, orderSQL, limitIndex), args...)
+	if err != nil {
+		return nil, 0, err
 	}
-	return hosts, nil
+	defer rows.Close()
+
+	hosts := make([]Host, 0)
+	for rows.Next() {
+		var row hostRecord
+		if err := rows.Scan(
+			&row.ID,
+			&row.HardwareUUID,
+			&row.DisplayName,
+			&row.Hostname,
+			&row.ComputerName,
+			&row.HardwareSerial,
+			&row.HardwareModel,
+			&row.Platform,
+			&row.PlatformLike,
+			&row.OSVersion,
+			&row.OsqueryVersion,
+			&row.OrbitVersion,
+			&row.OrbitNodeKey,
+			&row.OsqueryNodeKey,
+			&row.CPUBrand,
+			&row.CPULogicalCores,
+			&row.CPUPhysicalCores,
+			&row.PhysicalMemory,
+			&row.HardwareVendor,
+			&row.KernelVersion,
+			&row.EnrolledAt,
+			&row.LastSeenAt,
+			&row.DetailUpdatedAt,
+			&row.CreatedAt,
+			&row.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		hosts = append(hosts, *hostFromRecord(row))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return hosts, total, nil
+}
+
+func cleanHostListParams(params HostListParams) HostListParams {
+	params.ListParams = CleanListParams(params.ListParams)
+	params.Platform = strings.TrimSpace(params.Platform)
+	return params
+}
+
+func hostWhere(params HostListParams) (string, []any) {
+	clauses := []string{"h.deleted_at IS NULL"}
+	args := make([]any, 0)
+
+	if params.Q != "" {
+		args = append(args, "%"+params.Q+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, `(
+			h.display_name ILIKE `+placeholder+`
+			OR h.hostname ILIKE `+placeholder+`
+			OR h.computer_name ILIKE `+placeholder+`
+			OR h.hardware_serial ILIKE `+placeholder+`
+			OR h.hardware_uuid ILIKE `+placeholder+`
+			OR h.hardware_model ILIKE `+placeholder+`
+			OR h.os_version ILIKE `+placeholder+`
+			OR EXISTS (
+				SELECT 1 FROM host_emails he
+				WHERE he.host_id = h.id AND he.email ILIKE `+placeholder+`
+			)
+		)`)
+	}
+	if params.Platform != "" {
+		args = append(args, params.Platform)
+		clauses = append(clauses, fmt.Sprintf("h.platform = $%d", len(args)))
+	}
+	if params.SoftwareID > 0 {
+		args = append(args, params.SoftwareID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1 FROM host_software hs
+			WHERE hs.host_id = h.id AND hs.software_id = $%d
+		)`, len(args)))
+	}
+	if params.SoftwareTitleID > 0 {
+		args = append(args, params.SoftwareTitleID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1
+			FROM host_software hs
+			JOIN software s ON s.id = hs.software_id
+			WHERE hs.host_id = h.id AND s.title_id = $%d
+		)`, len(args)))
+	}
+
+	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+func hostOrder(orderKey string, direction string) string {
+	directionSQL := "ASC"
+	if direction == "desc" {
+		directionSQL = "DESC"
+	}
+	switch orderKey {
+	case "platform":
+		return "ORDER BY lower(h.platform) " + directionSQL + ", lower(h.display_name), h.id"
+	case "hardware_serial":
+		return "ORDER BY lower(h.hardware_serial) " + directionSQL + ", lower(h.display_name), h.id"
+	case "os_version":
+		return "ORDER BY lower(h.os_version) " + directionSQL + ", lower(h.display_name), h.id"
+	case "last_seen_at":
+		return "ORDER BY h.last_seen_at " + directionSQL + " NULLS LAST, lower(h.display_name), h.id"
+	default:
+		return "ORDER BY lower(h.display_name) " + directionSQL + ", h.id"
+	}
+}
+
+func hostListSQL(whereSQL string, orderSQL string, limitIndex int) string {
+	return `
+SELECT
+	h.id,
+	h.hardware_uuid,
+	h.display_name,
+	h.hostname,
+	h.computer_name,
+	h.hardware_serial,
+	h.hardware_model,
+	h.platform,
+	h.platform_like,
+	h.os_version,
+	h.osquery_version,
+	h.orbit_version,
+	h.orbit_node_key,
+	h.osquery_node_key,
+	h.cpu_brand,
+	h.cpu_logical_cores,
+	h.cpu_physical_cores,
+	h.physical_memory,
+	h.hardware_vendor,
+	h.kernel_version,
+	h.enrolled_at,
+	h.last_seen_at,
+	h.detail_updated_at,
+	h.created_at,
+	h.updated_at
+FROM hosts h
+` + whereSQL + `
+` + orderSQL + `
+LIMIT $` + strconv.Itoa(limitIndex) + ` OFFSET $` + strconv.Itoa(limitIndex+1)
 }
 
 // GetByID returns a single active host by database ID.
@@ -188,6 +350,7 @@ func (s *HostStore) ApplyDetail(ctx context.Context, hostID int64, update HostDe
 		Platform:         update.Platform,
 		PlatformLike:     update.PlatformLike,
 		OsqueryVersion:   update.OsqueryVersion,
+		OrbitVersion:     update.OrbitVersion,
 		CPUBrand:         update.CPUBrand,
 		CPULogicalCores:  int32(update.CPULogicalCores),
 		CPUPhysicalCores: int32(update.CPUPhysicalCores),
@@ -253,6 +416,7 @@ func upsertOsqueryEnrollParams(update HostDetailUpdate) sqlc.UpsertHostOnOsquery
 		PlatformLike:     update.PlatformLike,
 		OsqueryVersion:   update.OsqueryVersion,
 		OsqueryNodeKey:   update.OsqueryNodeKey,
+		OrbitVersion:     update.OrbitVersion,
 		CPUBrand:         update.CPUBrand,
 		CPULogicalCores:  update.CPULogicalCores,
 		CPUPhysicalCores: update.CPUPhysicalCores,

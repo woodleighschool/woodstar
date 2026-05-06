@@ -1,8 +1,8 @@
 import { KeyRound } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/page-header";
 import { MunkiTokensDialog } from "@/components/secrets/munki-tokens-dialog";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 
 export function MunkiHomePage() {
   return (

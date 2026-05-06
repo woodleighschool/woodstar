@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -47,17 +48,36 @@ type deviceMappingBody struct {
 }
 
 type hostSoftwareBody struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	Version          string     `json:"version"`
-	Source           string     `json:"source"`
-	BundleIdentifier string     `json:"bundle_identifier"`
-	LastSeenAt       time.Time  `json:"last_seen_at"`
-	LastOpenedAt     *time.Time `json:"last_opened_at,omitempty"`
+	ID                string                             `json:"id"`
+	Name              string                             `json:"name"`
+	DisplayName       string                             `json:"display_name"`
+	IconURL           *string                            `json:"icon_url"`
+	Source            string                             `json:"source"`
+	ExtensionFor      string                             `json:"extension_for"`
+	Status            any                                `json:"status"`
+	InstalledVersions []hostSoftwareInstalledVersionBody `json:"installed_versions"`
+	SoftwarePackage   any                                `json:"software_package"`
+	AppStoreApp       any                                `json:"app_store_app"`
+}
+
+type hostSoftwareInstalledVersionBody struct {
+	Version              string                         `json:"version"`
+	BundleIdentifier     string                         `json:"bundle_identifier"`
+	InstalledPaths       []string                       `json:"installed_paths"`
+	SignatureInformation []pathSignatureInformationBody `json:"signature_information"`
+	LastOpenedAt         *time.Time                     `json:"last_opened_at,omitempty"`
+}
+
+type pathSignatureInformationBody struct {
+	InstalledPath    string `json:"installed_path"`
+	TeamIdentifier   string `json:"team_identifier"`
+	CDHashSHA256     string `json:"hash_sha256"`
+	ExecutableSHA256 string `json:"executable_sha256"`
+	ExecutablePath   string `json:"executable_path"`
 }
 
 type hostListOutput struct {
-	Body []hostBody
+	Body hostListBody
 }
 
 type hostOutput struct {
@@ -65,11 +85,84 @@ type hostOutput struct {
 }
 
 type hostSoftwareOutput struct {
-	Body []hostSoftwareBody
+	Body hostSoftwareListBody
+}
+
+type hostListBody struct {
+	Items []hostBody `json:"items"`
+	Count int        `json:"count"`
+}
+
+type hostSoftwareListBody struct {
+	Items []hostSoftwareBody `json:"items"`
+	Count int                `json:"count"`
 }
 
 type hostGetInput struct {
 	ID string `path:"id"`
+}
+
+type hostListInput struct {
+	Q               string `query:"q,omitempty"`
+	Page            int    `query:"page,omitempty"`
+	PerPage         int    `query:"per_page,omitempty"`
+	OrderKey        string `query:"order_key,omitempty"`
+	OrderDirection  string `query:"order_direction,omitempty"`
+	Platform        string `query:"platform,omitempty"`
+	SoftwareTitleID string `query:"software_title_id,omitempty"`
+	SoftwareID      string `query:"software_id,omitempty"`
+}
+
+func (i hostListInput) params() (models.HostListParams, error) {
+	titleID, err := parseOptionalPositiveID(i.SoftwareTitleID, "software_title_id")
+	if err != nil {
+		return models.HostListParams{}, err
+	}
+	softwareID, err := parseOptionalPositiveID(i.SoftwareID, "software_id")
+	if err != nil {
+		return models.HostListParams{}, err
+	}
+	listParams := models.CleanListParams(models.ListParams{
+		Q:              i.Q,
+		Page:           i.Page,
+		PerPage:        i.PerPage,
+		OrderKey:       i.OrderKey,
+		OrderDirection: i.OrderDirection,
+	})
+	return models.HostListParams{
+		ListParams:      listParams,
+		Platform:        strings.TrimSpace(i.Platform),
+		SoftwareTitleID: titleID,
+		SoftwareID:      softwareID,
+	}, nil
+}
+
+type hostSoftwareInput struct {
+	ID             string   `path:"id"`
+	Q              string   `          query:"q,omitempty"`
+	Page           int      `          query:"page,omitempty"`
+	PerPage        int      `          query:"per_page,omitempty"`
+	OrderKey       string   `          query:"order_key,omitempty"`
+	OrderDirection string   `          query:"order_direction,omitempty"`
+	Source         []string `          query:"source,omitempty"`
+}
+
+func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error) {
+	id, err := parseHostID(i.ID)
+	if err != nil {
+		return 0, models.HostSoftwareListParams{}, err
+	}
+	listParams := models.CleanListParams(models.ListParams{
+		Q:              i.Q,
+		Page:           i.Page,
+		PerPage:        i.PerPage,
+		OrderKey:       i.OrderKey,
+		OrderDirection: i.OrderDirection,
+	})
+	return id, models.HostSoftwareListParams{
+		ListParams:      listParams,
+		SoftwareSources: models.SplitListValues(i.Source),
+	}, nil
 }
 
 // RegisterHosts registers admin host inventory endpoints.
@@ -93,18 +186,22 @@ func registerListHosts(api huma.API, store *models.HostStore, mappings *models.D
 		Tags:        []string{hostsTag},
 		Summary:     "List enrolled hosts",
 		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*hostListOutput, error) {
-		hosts, err := store.List(ctx)
+	}, func(ctx context.Context, input *hostListInput) (*hostListOutput, error) {
+		params, err := input.params()
 		if err != nil {
 			return nil, err
 		}
-		out := &hostListOutput{Body: make([]hostBody, 0, len(hosts))}
+		hosts, count, err := store.List(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hosts)), Count: count}}
 		for i := range hosts {
 			body, err := hostResponse(ctx, &hosts[i], mappings)
 			if err != nil {
 				return nil, err
 			}
-			out.Body = append(out.Body, body)
+			out.Body.Items = append(out.Body.Items, body)
 		}
 		return out, nil
 	})
@@ -146,8 +243,8 @@ func registerHostSoftware(api huma.API, hosts *models.HostStore, software *model
 		Tags:        []string{hostsTag},
 		Summary:     "List software installed on a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostSoftwareOutput, error) {
-		id, err := parseHostID(input.ID)
+	}, func(ctx context.Context, input *hostSoftwareInput) (*hostSoftwareOutput, error) {
+		id, params, err := input.params()
 		if err != nil {
 			return nil, err
 		}
@@ -156,13 +253,15 @@ func registerHostSoftware(api huma.API, hosts *models.HostStore, software *model
 		} else if err != nil {
 			return nil, err
 		}
-		rows, err := software.ListForHost(ctx, id)
+		rows, count, err := software.ListForHost(ctx, id, params)
 		if err != nil {
 			return nil, err
 		}
-		out := &hostSoftwareOutput{Body: make([]hostSoftwareBody, 0, len(rows))}
+		out := &hostSoftwareOutput{
+			Body: hostSoftwareListBody{Items: make([]hostSoftwareBody, 0, len(rows)), Count: count},
+		}
 		for _, row := range rows {
-			out.Body = append(out.Body, hostSoftwareResponse(row))
+			out.Body.Items = append(out.Body.Items, hostSoftwareResponse(row))
 		}
 		return out, nil
 	})
@@ -206,14 +305,37 @@ func hostResponse(ctx context.Context, host *models.Host, mappings *models.Devic
 }
 
 func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
+	versions := make([]hostSoftwareInstalledVersionBody, 0, len(row.InstalledVersions))
+	for _, version := range row.InstalledVersions {
+		signatures := make([]pathSignatureInformationBody, 0, len(version.SignatureInformation))
+		for _, signature := range version.SignatureInformation {
+			signatures = append(signatures, pathSignatureInformationBody{
+				InstalledPath:    signature.InstalledPath,
+				TeamIdentifier:   signature.TeamIdentifier,
+				CDHashSHA256:     signature.CDHashSHA256,
+				ExecutableSHA256: signature.ExecutableSHA256,
+				ExecutablePath:   signature.ExecutablePath,
+			})
+		}
+		versions = append(versions, hostSoftwareInstalledVersionBody{
+			Version:              version.Version,
+			BundleIdentifier:     version.BundleIdentifier,
+			InstalledPaths:       version.InstalledPaths,
+			SignatureInformation: signatures,
+			LastOpenedAt:         version.LastOpenedAt,
+		})
+	}
 	return hostSoftwareBody{
-		ID:               models.HostIDString(row.ID),
-		Name:             row.Name,
-		Version:          row.Version,
-		Source:           row.Source,
-		BundleIdentifier: row.BundleIdentifier,
-		LastSeenAt:       row.LastSeenAt,
-		LastOpenedAt:     row.LastOpenedAt,
+		ID:                models.HostIDString(row.ID),
+		Name:              row.Name,
+		DisplayName:       row.DisplayName,
+		IconURL:           row.IconURL,
+		Source:            row.Source,
+		ExtensionFor:      row.ExtensionFor,
+		Status:            nil,
+		InstalledVersions: versions,
+		SoftwarePackage:   nil,
+		AppStoreApp:       nil,
 	}
 }
 
@@ -221,6 +343,17 @@ func parseHostID(id string) (int64, error) {
 	parsed, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || parsed <= 0 {
 		return 0, huma.Error404NotFound("host not found")
+	}
+	return parsed, nil
+}
+
+func parseOptionalPositiveID(id string, name string) (int64, error) {
+	if id == "" {
+		return 0, nil
+	}
+	parsed, err := strconv.ParseInt(id, 10, 64)
+	if err != nil || parsed <= 0 {
+		return 0, huma.Error400BadRequest(name + " must be a positive integer")
 	}
 	return parsed, nil
 }

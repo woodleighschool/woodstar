@@ -2,9 +2,9 @@ import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 import { ErrorState } from "@/components/feedback/error-state";
+import { Spinner } from "@/components/feedback/spinner";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/data-table";
-import { Spinner } from "@/components/ui/spinner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 

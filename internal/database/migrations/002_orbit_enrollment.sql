@@ -33,17 +33,53 @@ CREATE TABLE host_emails (
 CREATE INDEX host_emails_host_idx ON host_emails (host_id);
 CREATE INDEX host_emails_email_idx ON host_emails (email);
 
+CREATE TABLE software_titles (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    icon_url TEXT,
+    source TEXT NOT NULL DEFAULT '',
+    extension_for TEXT NOT NULL DEFAULT '',
+    bundle_identifier TEXT NOT NULL DEFAULT '',
+    vendor TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (name, source, extension_for, bundle_identifier)
+);
+
+CREATE UNIQUE INDEX software_titles_bundle_idx
+    ON software_titles (bundle_identifier, source, extension_for)
+    WHERE bundle_identifier <> '';
+
 CREATE TABLE software (
     id BIGSERIAL PRIMARY KEY,
+    title_id BIGINT NOT NULL REFERENCES software_titles (id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     version TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT '',
     bundle_identifier TEXT NOT NULL DEFAULT '',
+    extension_id TEXT NOT NULL DEFAULT '',
+    extension_for TEXT NOT NULL DEFAULT '',
+    vendor TEXT NOT NULL DEFAULT '',
+    arch TEXT NOT NULL DEFAULT '',
+    release TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (name, version, source, bundle_identifier)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (
+        title_id,
+        version,
+        source,
+        bundle_identifier,
+        extension_id,
+        extension_for,
+        vendor,
+        arch,
+        release
+    )
 );
 
 CREATE INDEX software_name_idx ON software (name);
+CREATE INDEX software_title_idx ON software (title_id);
 
 CREATE TABLE host_software (
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
@@ -55,9 +91,27 @@ CREATE TABLE host_software (
 
 CREATE INDEX host_software_software_idx ON host_software (software_id);
 
+CREATE TABLE host_software_installed_paths (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    software_id BIGINT NOT NULL REFERENCES software (id) ON DELETE CASCADE,
+    installed_path TEXT NOT NULL,
+    team_identifier TEXT NOT NULL DEFAULT '',
+    cdhash_sha256 TEXT,
+    executable_sha256 TEXT,
+    executable_path TEXT,
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, software_id, installed_path)
+);
+
+CREATE INDEX host_software_installed_paths_host_software_idx
+    ON host_software_installed_paths (host_id, software_id);
+
 -- +goose Down
+DROP TABLE host_software_installed_paths;
 DROP TABLE host_software;
 DROP TABLE software;
+DROP TABLE software_titles;
 DROP TABLE host_emails;
 DROP INDEX hosts_detail_stale_idx;
 DROP INDEX hosts_active_seen_idx;

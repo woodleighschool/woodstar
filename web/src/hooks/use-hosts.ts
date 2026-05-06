@@ -1,15 +1,49 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type Host = Schemas["HostBody"];
 export type HostSoftware = Schemas["HostSoftwareBody"];
+export type HostListResult = Schemas["HostListBody"];
+export type HostSoftwareListResult = Schemas["HostSoftwareListBody"];
 
-export function useHosts() {
-  return useQuery<Host[], ApiError>({
-    queryKey: queryKeys.hosts,
-    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/hosts", { signal }))) ?? [],
+export interface ListParams {
+  q?: string;
+  page?: number;
+  per_page?: number;
+  order_key?: string;
+  order_direction?: string;
+}
+
+export interface HostListParams extends ListParams {
+  platform?: string;
+  software_title_id?: string;
+  software_id?: string;
+}
+
+export function useHosts(params: HostListParams = {}) {
+  const queryParams = {
+    q: params.q?.trim() || undefined,
+    page: Math.max(0, params.page ?? 0),
+    per_page: params.per_page ?? 50,
+    order_key: params.order_key || undefined,
+    order_direction: params.order_direction || undefined,
+    platform: params.platform || undefined,
+    software_title_id: params.software_title_id || undefined,
+    software_id: params.software_id || undefined,
+  };
+
+  return useQuery<HostListResult, ApiError>({
+    queryKey: queryKeys.hosts(queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/hosts", {
+          params: { query: queryParams },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -27,16 +61,30 @@ export function useHost(id: string) {
   });
 }
 
-export function useHostSoftware(id: string) {
-  return useQuery<HostSoftware[], ApiError>({
-    queryKey: queryKeys.hostSoftware(id),
-    queryFn: async ({ signal }) =>
-      (await unwrap(
+export interface HostSoftwareListParams extends ListParams {
+  source?: string[];
+}
+
+export function useHostSoftware(id: string, params: HostSoftwareListParams = {}) {
+  const queryParams = {
+    q: params.q?.trim() || undefined,
+    page: Math.max(0, params.page ?? 0),
+    per_page: params.per_page ?? 50,
+    order_key: params.order_key || undefined,
+    order_direction: params.order_direction || undefined,
+    source: params.source && params.source.length > 0 ? params.source : undefined,
+  };
+
+  return useQuery<HostSoftwareListResult, ApiError>({
+    queryKey: queryKeys.hostSoftware(id, queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
         apiClient.GET("/api/hosts/{id}/software", {
-          params: { path: { id } },
+          params: { path: { id }, query: queryParams },
           signal,
         }),
-      )) ?? [],
+      ),
     enabled: id !== "",
+    placeholderData: keepPreviousData,
   });
 }

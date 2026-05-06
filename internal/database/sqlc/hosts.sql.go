@@ -22,14 +22,15 @@ SET
     platform = COALESCE(NULLIF($6::text, ''), platform),
     platform_like = COALESCE(NULLIF($7::text, ''), platform_like),
     osquery_version = COALESCE(NULLIF($8::text, ''), osquery_version),
-    cpu_brand = COALESCE(NULLIF($9::text, ''), cpu_brand),
-    cpu_logical_cores = CASE WHEN $10::integer > 0 THEN $10::integer ELSE cpu_logical_cores END,
-    cpu_physical_cores = CASE WHEN $11::integer > 0 THEN $11::integer ELSE cpu_physical_cores END,
-    physical_memory = CASE WHEN $12::bigint > 0 THEN $12::bigint ELSE physical_memory END,
-    hardware_vendor = COALESCE(NULLIF($13::text, ''), hardware_vendor),
-    kernel_version = COALESCE(NULLIF($14::text, ''), kernel_version),
+    orbit_version = COALESCE(NULLIF($9::text, ''), orbit_version),
+    cpu_brand = COALESCE(NULLIF($10::text, ''), cpu_brand),
+    cpu_logical_cores = CASE WHEN $11::integer > 0 THEN $11::integer ELSE cpu_logical_cores END,
+    cpu_physical_cores = CASE WHEN $12::integer > 0 THEN $12::integer ELSE cpu_physical_cores END,
+    physical_memory = CASE WHEN $13::bigint > 0 THEN $13::bigint ELSE physical_memory END,
+    hardware_vendor = COALESCE(NULLIF($14::text, ''), hardware_vendor),
+    kernel_version = COALESCE(NULLIF($15::text, ''), kernel_version),
     updated_at = now()
-WHERE id = $15 AND deleted_at IS NULL
+WHERE id = $16 AND deleted_at IS NULL
 `
 
 type ApplyHostDetailParams struct {
@@ -41,6 +42,7 @@ type ApplyHostDetailParams struct {
 	Platform         string `json:"platform"`
 	PlatformLike     string `json:"platform_like"`
 	OsqueryVersion   string `json:"osquery_version"`
+	OrbitVersion     string `json:"orbit_version"`
 	CPUBrand         string `json:"cpu_brand"`
 	CPULogicalCores  int32  `json:"cpu_logical_cores"`
 	CPUPhysicalCores int32  `json:"cpu_physical_cores"`
@@ -60,6 +62,7 @@ func (q *Queries) ApplyHostDetail(ctx context.Context, arg ApplyHostDetailParams
 		arg.Platform,
 		arg.PlatformLike,
 		arg.OsqueryVersion,
+		arg.OrbitVersion,
 		arg.CPUBrand,
 		arg.CPULogicalCores,
 		arg.CPUPhysicalCores,
@@ -236,6 +239,237 @@ func (q *Queries) ListHosts(ctx context.Context) ([]ListHostsRow, error) {
 	items := []ListHostsRow{}
 	for rows.Next() {
 		var i ListHostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HardwareUUID,
+			&i.DisplayName,
+			&i.Hostname,
+			&i.ComputerName,
+			&i.HardwareSerial,
+			&i.HardwareModel,
+			&i.Platform,
+			&i.PlatformLike,
+			&i.OSVersion,
+			&i.OsqueryVersion,
+			&i.OrbitVersion,
+			&i.OrbitNodeKey,
+			&i.OsqueryNodeKey,
+			&i.CPUBrand,
+			&i.CPULogicalCores,
+			&i.CPUPhysicalCores,
+			&i.PhysicalMemory,
+			&i.HardwareVendor,
+			&i.KernelVersion,
+			&i.EnrolledAt,
+			&i.LastSeenAt,
+			&i.DetailUpdatedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHostsBySoftware = `-- name: ListHostsBySoftware :many
+SELECT
+    id,
+    hardware_uuid,
+    display_name,
+    hostname,
+    computer_name,
+    hardware_serial,
+    hardware_model,
+    platform,
+    platform_like,
+    os_version,
+    osquery_version,
+    orbit_version,
+    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
+    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
+    cpu_brand,
+    cpu_logical_cores,
+    cpu_physical_cores,
+    physical_memory,
+    hardware_vendor,
+    kernel_version,
+    enrolled_at,
+    last_seen_at,
+    detail_updated_at,
+    created_at,
+    updated_at
+FROM hosts
+WHERE deleted_at IS NULL
+    AND EXISTS (
+        SELECT 1
+        FROM host_software hs
+        WHERE hs.host_id = hosts.id AND hs.software_id = $1
+    )
+ORDER BY last_seen_at DESC NULLS LAST, created_at DESC
+`
+
+type ListHostsBySoftwareParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+type ListHostsBySoftwareRow struct {
+	ID               int64      `json:"id"`
+	HardwareUUID     string     `json:"hardware_uuid"`
+	DisplayName      string     `json:"display_name"`
+	Hostname         string     `json:"hostname"`
+	ComputerName     string     `json:"computer_name"`
+	HardwareSerial   string     `json:"hardware_serial"`
+	HardwareModel    string     `json:"hardware_model"`
+	Platform         string     `json:"platform"`
+	PlatformLike     string     `json:"platform_like"`
+	OSVersion        string     `json:"os_version"`
+	OsqueryVersion   string     `json:"osquery_version"`
+	OrbitVersion     string     `json:"orbit_version"`
+	OrbitNodeKey     string     `json:"orbit_node_key"`
+	OsqueryNodeKey   string     `json:"osquery_node_key"`
+	CPUBrand         string     `json:"cpu_brand"`
+	CPULogicalCores  int        `json:"cpu_logical_cores"`
+	CPUPhysicalCores int        `json:"cpu_physical_cores"`
+	PhysicalMemory   int64      `json:"physical_memory"`
+	HardwareVendor   string     `json:"hardware_vendor"`
+	KernelVersion    string     `json:"kernel_version"`
+	EnrolledAt       *time.Time `json:"enrolled_at"`
+	LastSeenAt       *time.Time `json:"last_seen_at"`
+	DetailUpdatedAt  *time.Time `json:"detail_updated_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+func (q *Queries) ListHostsBySoftware(ctx context.Context, arg ListHostsBySoftwareParams) ([]ListHostsBySoftwareRow, error) {
+	rows, err := q.db.Query(ctx, listHostsBySoftware, arg.SoftwareID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostsBySoftwareRow{}
+	for rows.Next() {
+		var i ListHostsBySoftwareRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HardwareUUID,
+			&i.DisplayName,
+			&i.Hostname,
+			&i.ComputerName,
+			&i.HardwareSerial,
+			&i.HardwareModel,
+			&i.Platform,
+			&i.PlatformLike,
+			&i.OSVersion,
+			&i.OsqueryVersion,
+			&i.OrbitVersion,
+			&i.OrbitNodeKey,
+			&i.OsqueryNodeKey,
+			&i.CPUBrand,
+			&i.CPULogicalCores,
+			&i.CPUPhysicalCores,
+			&i.PhysicalMemory,
+			&i.HardwareVendor,
+			&i.KernelVersion,
+			&i.EnrolledAt,
+			&i.LastSeenAt,
+			&i.DetailUpdatedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHostsBySoftwareTitle = `-- name: ListHostsBySoftwareTitle :many
+SELECT
+    id,
+    hardware_uuid,
+    display_name,
+    hostname,
+    computer_name,
+    hardware_serial,
+    hardware_model,
+    platform,
+    platform_like,
+    os_version,
+    osquery_version,
+    orbit_version,
+    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
+    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
+    cpu_brand,
+    cpu_logical_cores,
+    cpu_physical_cores,
+    physical_memory,
+    hardware_vendor,
+    kernel_version,
+    enrolled_at,
+    last_seen_at,
+    detail_updated_at,
+    created_at,
+    updated_at
+FROM hosts
+WHERE deleted_at IS NULL
+    AND EXISTS (
+        SELECT 1
+        FROM host_software hs
+        JOIN software s ON s.id = hs.software_id
+        WHERE hs.host_id = hosts.id AND s.title_id = $1
+    )
+ORDER BY last_seen_at DESC NULLS LAST, created_at DESC
+`
+
+type ListHostsBySoftwareTitleParams struct {
+	SoftwareTitleID int64 `json:"software_title_id"`
+}
+
+type ListHostsBySoftwareTitleRow struct {
+	ID               int64      `json:"id"`
+	HardwareUUID     string     `json:"hardware_uuid"`
+	DisplayName      string     `json:"display_name"`
+	Hostname         string     `json:"hostname"`
+	ComputerName     string     `json:"computer_name"`
+	HardwareSerial   string     `json:"hardware_serial"`
+	HardwareModel    string     `json:"hardware_model"`
+	Platform         string     `json:"platform"`
+	PlatformLike     string     `json:"platform_like"`
+	OSVersion        string     `json:"os_version"`
+	OsqueryVersion   string     `json:"osquery_version"`
+	OrbitVersion     string     `json:"orbit_version"`
+	OrbitNodeKey     string     `json:"orbit_node_key"`
+	OsqueryNodeKey   string     `json:"osquery_node_key"`
+	CPUBrand         string     `json:"cpu_brand"`
+	CPULogicalCores  int        `json:"cpu_logical_cores"`
+	CPUPhysicalCores int        `json:"cpu_physical_cores"`
+	PhysicalMemory   int64      `json:"physical_memory"`
+	HardwareVendor   string     `json:"hardware_vendor"`
+	KernelVersion    string     `json:"kernel_version"`
+	EnrolledAt       *time.Time `json:"enrolled_at"`
+	LastSeenAt       *time.Time `json:"last_seen_at"`
+	DetailUpdatedAt  *time.Time `json:"detail_updated_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+func (q *Queries) ListHostsBySoftwareTitle(ctx context.Context, arg ListHostsBySoftwareTitleParams) ([]ListHostsBySoftwareTitleRow, error) {
+	rows, err := q.db.Query(ctx, listHostsBySoftwareTitle, arg.SoftwareTitleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostsBySoftwareTitleRow{}
+	for rows.Next() {
+		var i ListHostsBySoftwareTitleRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.HardwareUUID,
@@ -645,6 +879,7 @@ INSERT INTO hosts (
     platform,
     platform_like,
     osquery_version,
+    orbit_version,
     osquery_node_key,
     cpu_brand,
     cpu_logical_cores,
@@ -666,13 +901,14 @@ VALUES (
     $8,
     $9,
     $10,
-    $11::text,
-    $12,
+    $11,
+    $12::text,
     $13,
     $14,
     $15,
     $16,
     $17,
+    $18,
     now(),
     NULL
 )
@@ -686,6 +922,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     platform = EXCLUDED.platform,
     platform_like = EXCLUDED.platform_like,
     osquery_version = EXCLUDED.osquery_version,
+    orbit_version = COALESCE(NULLIF(EXCLUDED.orbit_version, ''), hosts.orbit_version),
     osquery_node_key = EXCLUDED.osquery_node_key,
     cpu_brand = EXCLUDED.cpu_brand,
     cpu_logical_cores = EXCLUDED.cpu_logical_cores,
@@ -736,6 +973,7 @@ type UpsertHostOnOsqueryEnrollParams struct {
 	Platform         string `json:"platform"`
 	PlatformLike     string `json:"platform_like"`
 	OsqueryVersion   string `json:"osquery_version"`
+	OrbitVersion     string `json:"orbit_version"`
 	OsqueryNodeKey   string `json:"osquery_node_key"`
 	CPUBrand         string `json:"cpu_brand"`
 	CPULogicalCores  int    `json:"cpu_logical_cores"`
@@ -785,6 +1023,7 @@ func (q *Queries) UpsertHostOnOsqueryEnroll(ctx context.Context, arg UpsertHostO
 		arg.Platform,
 		arg.PlatformLike,
 		arg.OsqueryVersion,
+		arg.OrbitVersion,
 		arg.OsqueryNodeKey,
 		arg.CPUBrand,
 		arg.CPULogicalCores,

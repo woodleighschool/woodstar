@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
 
+import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 
 export function NotFoundPage() {
   return (

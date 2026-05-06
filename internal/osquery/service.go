@@ -95,10 +95,11 @@ func (s *Service) DistributedRead(ctx context.Context, nodeKey string) (Distribu
 	if !ok {
 		return DistributedReadResponse{NodeInvalid: true}, nil
 	}
+	due := detailQueriesDue(host.DetailUpdatedAt)
 	return DistributedReadResponse{
 		NodeInvalid: false,
-		Queries:     detailQueriesDue(host.DetailUpdatedAt),
-		Discovery:   map[string]string{},
+		Queries:     due.Queries,
+		Discovery:   due.Discovery,
 		Accelerate:  0,
 	}, nil
 }
@@ -116,12 +117,17 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 	registry := DetailQueries()
 	allDetailSucceeded := true
 	for name, rows := range req.Queries {
+		if name == querySoftwareMacOS {
+			continue
+		}
 		query, ok := registry[name]
 		if !ok {
 			continue
 		}
 		if !statusOK(req.Statuses[name]) {
-			allDetailSucceeded = false
+			if !query.Optional {
+				allDetailSucceeded = false
+			}
 			log.Warn().Str("query", name).Str("message", req.Messages[name]).Msg("osquery detail query failed")
 			continue
 		}
@@ -129,7 +135,18 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", name, err)
 		}
 	}
-	if allDetailSucceeded && sawEveryDetailQuery(req.Queries, registry) {
+	if rows, ok := req.Queries[querySoftwareMacOS]; ok {
+		if !statusOK(req.Statuses[querySoftwareMacOS]) {
+			allDetailSucceeded = false
+			log.Warn().
+				Str("query", querySoftwareMacOS).
+				Str("message", req.Messages[querySoftwareMacOS]).
+				Msg("osquery detail query failed")
+		} else if err := ingestSoftwareMacOSWithEnrichment(ctx, s, host.ID, rows, req.Queries); err != nil {
+			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", querySoftwareMacOS, err)
+		}
+	}
+	if allDetailSucceeded && sawEveryRequiredDetailQuery(req.Queries, registry) {
 		if err := s.hosts.MarkDetailFresh(ctx, host.ID); err != nil {
 			return DistributedWriteResponse{}, err
 		}
@@ -163,8 +180,32 @@ func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*models.Ho
 	return host, true, nil
 }
 
-func sawEveryDetailQuery(results map[string][]map[string]string, registry map[string]DetailQuery) bool {
-	for name := range registry {
+func ingestSoftwareMacOSWithEnrichment(
+	ctx context.Context,
+	svc *Service,
+	hostID int64,
+	rows []map[string]string,
+	queryRows map[string][]map[string]string,
+) error {
+	if svc.software == nil {
+		return nil
+	}
+	enrichment := softwareEnrichmentByPath(
+		queryRows[querySoftwareMacOSCodesign],
+		queryRows[querySoftwareMacOSExecutableHash],
+	)
+	rows = append(rows, queryRows[querySoftwareVSCodeExtensions]...)
+	rows = append(rows, queryRows[querySoftwareJetBrainsPlugins]...)
+	rows = append(rows, queryRows[querySoftwareGoBinaries]...)
+	rows = append(rows, queryRows[querySoftwarePythonPackages]...)
+	return svc.software.ReplaceHostSoftware(ctx, hostID, parseSoftwareRows(rows, enrichment))
+}
+
+func sawEveryRequiredDetailQuery(results map[string][]map[string]string, registry map[string]DetailQuery) bool {
+	for name, query := range registry {
+		if query.Optional {
+			continue
+		}
 		if _, ok := results[name]; !ok {
 			return false
 		}

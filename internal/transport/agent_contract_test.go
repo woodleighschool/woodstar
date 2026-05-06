@@ -134,7 +134,7 @@ func cleanupContractRows(ctx context.Context, t *testing.T, db *database.DB, cle
 		{sql: `DELETE FROM hosts WHERE hardware_uuid = $1`, args: []any{cleanup.HardwareUUID}},
 		{sql: `DELETE FROM users WHERE email = $1`, args: []any{cleanup.AdminEmail}},
 		{sql: `DELETE FROM secrets WHERE value = $1`, args: []any{cleanup.SecretValue}},
-		{sql: `DELETE FROM software WHERE bundle_identifier = $1`, args: []any{cleanup.BundleID}},
+		{sql: `DELETE FROM software_titles WHERE bundle_identifier = $1`, args: []any{cleanup.BundleID}},
 	}
 	for _, stmt := range statements {
 		if _, err := db.Pool().Exec(ctx, stmt.sql, stmt.args...); err != nil {
@@ -281,7 +281,15 @@ func osqueryDistributedRead(t *testing.T, router http.Handler, nodeKey string) m
 
 func assertDetailQueries(t *testing.T, queries map[string]string) {
 	t.Helper()
-	for _, name := range []string{"os_version", "system_info", "osquery_info", "software_macos"} {
+	for _, name := range []string{
+		"os_version",
+		"system_info",
+		"osquery_info",
+		"orbit_info",
+		"software_macos",
+		"software_macos_codesign",
+		"software_macos_executable_sha256",
+	} {
 		if queries[name] == "" {
 			t.Fatalf("missing detail query %q", name)
 		}
@@ -312,20 +320,34 @@ func osqueryDistributedWrite(t *testing.T, router http.Handler, nodeKey string, 
 				"physical_memory":    "68719476736",
 			}},
 			"osquery_info": {{"version": "5.22.1"}},
+			"orbit_info":   {{"version": "1.47.0"}},
 			"software_macos": {{
 				"name":              softwareName,
 				"version":           "1.2.3",
 				"source":            "apps",
 				"bundle_identifier": bundleID,
+				"installed_path":    "/Applications/Example App.app",
+				"last_opened_at":    "1777435200.5",
+			}},
+			"software_macos_codesign": {{
+				"path":            "/Applications/Example App.app",
+				"team_identifier": "ABCD123456",
+				"cdhash_sha256":   "cdhash",
+			}},
+			"software_macos_executable_sha256": {{
 				"path":              "/Applications/Example App.app",
-				"last_opened_time":  "1777435200",
+				"executable_sha256": "executable-hash",
+				"executable_path":   "/Applications/Example App.app/Contents/MacOS/Example",
 			}},
 		},
 		"statuses": map[string]int{
-			"os_version":     0,
-			"system_info":    0,
-			"osquery_info":   0,
-			"software_macos": 0,
+			"os_version":                       0,
+			"system_info":                      0,
+			"osquery_info":                     0,
+			"orbit_info":                       0,
+			"software_macos":                   0,
+			"software_macos_codesign":          0,
+			"software_macos_executable_sha256": 0,
 		},
 	}, nil, nil)
 }
@@ -342,6 +364,7 @@ func assertAdminHost(
 		ID             string                  `json:"id"`
 		HardwareUUID   string                  `json:"hardware_uuid"`
 		DisplayName    string                  `json:"display_name"`
+		OrbitVersion   string                  `json:"orbit_version"`
 		PhysicalMemory int64                   `json:"physical_memory"`
 		DeviceMappings []contractDeviceMapping `json:"device_mappings"`
 	}
@@ -356,6 +379,9 @@ func assertAdminHost(
 		if host.PhysicalMemory != 68719476736 {
 			t.Fatalf("host physical_memory = %d, want 68719476736", host.PhysicalMemory)
 		}
+		if host.OrbitVersion != "1.47.0" {
+			t.Fatalf("host orbit_version = %q, want 1.47.0", host.OrbitVersion)
+		}
 		assertDeviceMapping(t, host.DeviceMappings, deviceEmail)
 		return host.ID
 	}
@@ -369,18 +395,36 @@ type contractDeviceMapping struct {
 }
 
 type contractSoftwareTitle struct {
-	Name             string `json:"name"`
-	Version          string `json:"version"`
-	Source           string `json:"source"`
-	BundleIdentifier string `json:"bundle_identifier"`
+	Name              string                             `json:"name"`
+	Source            string                             `json:"source"`
+	InstalledVersions []contractSoftwareInstalledVersion `json:"installed_versions"`
 }
 
 type contractSoftwareTitleWithCount struct {
-	Name             string `json:"name"`
+	Name       string                    `json:"name"`
+	Source     string                    `json:"source"`
+	HostsCount int                       `json:"hosts_count"`
+	Versions   []contractSoftwareVersion `json:"versions"`
+}
+
+type contractSoftwareVersion struct {
 	Version          string `json:"version"`
-	Source           string `json:"source"`
 	BundleIdentifier string `json:"bundle_identifier"`
-	HostCount        int    `json:"host_count"`
+}
+
+type contractSoftwareInstalledVersion struct {
+	Version              string                             `json:"version"`
+	BundleIdentifier     string                             `json:"bundle_identifier"`
+	InstalledPaths       []string                           `json:"installed_paths"`
+	SignatureInformation []contractPathSignatureInformation `json:"signature_information"`
+}
+
+type contractPathSignatureInformation struct {
+	InstalledPath    string `json:"installed_path"`
+	TeamIdentifier   string `json:"team_identifier"`
+	CDHashSHA256     string `json:"hash_sha256"`
+	ExecutableSHA256 string `json:"executable_sha256"`
+	ExecutablePath   string `json:"executable_path"`
 }
 
 func assertDeviceMapping(t *testing.T, mappings []contractDeviceMapping, email string) {
@@ -415,11 +459,18 @@ func assertAdminSoftware(
 	bundleID string,
 ) {
 	t.Helper()
-	var software []contractSoftwareTitleWithCount
-	doJSON(t, router, http.MethodGet, "/api/software", nil, adminCookie, &software)
-	for _, title := range software {
-		if title.Name == softwareName && title.Version == "1.2.3" && title.Source == "apps" &&
-			title.BundleIdentifier == bundleID && title.HostCount >= 1 {
+	var body struct {
+		SoftwareTitles []contractSoftwareTitleWithCount `json:"software_titles"`
+		Count          int                              `json:"count"`
+		Meta           map[string]any                   `json:"meta"`
+	}
+	doJSON(t, router, http.MethodGet, "/api/software", nil, adminCookie, &body)
+	if body.Count < 1 {
+		t.Fatalf("software count = %d, want at least 1", body.Count)
+	}
+	for _, title := range body.SoftwareTitles {
+		if title.Name == softwareName && title.Source == "apps" && title.HostsCount >= 1 &&
+			hasContractVersion(title.Versions, "1.2.3", bundleID) {
 			return
 		}
 	}
@@ -429,12 +480,38 @@ func assertAdminSoftware(
 func assertExampleSoftware(t *testing.T, software []contractSoftwareTitle, softwareName string, bundleID string) {
 	t.Helper()
 	for _, title := range software {
-		if title.Name == softwareName && title.Version == "1.2.3" && title.Source == "apps" &&
-			title.BundleIdentifier == bundleID {
+		if title.Name == softwareName && title.Source == "apps" &&
+			hasContractInstalledVersion(title.InstalledVersions, "1.2.3", bundleID) {
 			return
 		}
 	}
 	t.Fatalf("%s not found in host software list", softwareName)
+}
+
+func hasContractVersion(versions []contractSoftwareVersion, version string, bundleID string) bool {
+	for _, got := range versions {
+		if got.Version == version && got.BundleIdentifier == bundleID {
+			return true
+		}
+	}
+	return false
+}
+
+func hasContractInstalledVersion(versions []contractSoftwareInstalledVersion, version string, bundleID string) bool {
+	for _, got := range versions {
+		if got.Version != version || got.BundleIdentifier != bundleID || len(got.InstalledPaths) == 0 {
+			continue
+		}
+		for _, signature := range got.SignatureInformation {
+			if signature.InstalledPath == "/Applications/Example App.app" &&
+				signature.TeamIdentifier == "ABCD123456" &&
+				signature.CDHashSHA256 == "cdhash" &&
+				signature.ExecutableSHA256 == "executable-hash" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func doJSON(

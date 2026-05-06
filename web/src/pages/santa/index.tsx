@@ -1,8 +1,8 @@
 import { KeyRound } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/page-header";
 import { SantaTokensDialog } from "@/components/secrets/santa-tokens-dialog";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/ui/page-header";
 
 export function SantaHomePage() {
   return (

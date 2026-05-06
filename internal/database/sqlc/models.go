@@ -140,6 +140,18 @@ type HostSoftware struct {
 	LastOpenedAt *time.Time `json:"last_opened_at"`
 }
 
+type HostSoftwareInstalledPath struct {
+	ID               int64     `json:"id"`
+	HostID           int64     `json:"host_id"`
+	SoftwareID       int64     `json:"software_id"`
+	InstalledPath    string    `json:"installed_path"`
+	TeamIdentifier   string    `json:"team_identifier"`
+	CdhashSha256     *string   `json:"cdhash_sha256"`
+	ExecutableSha256 *string   `json:"executable_sha256"`
+	ExecutablePath   *string   `json:"executable_path"`
+	LastSeenAt       time.Time `json:"last_seen_at"`
+}
+
 type Secret struct {
 	ID        int64      `json:"id"`
 	Kind      SecretKind `json:"kind"`
@@ -156,11 +168,31 @@ type Session struct {
 
 type Software struct {
 	ID               int64     `json:"id"`
+	TitleID          int64     `json:"title_id"`
 	Name             string    `json:"name"`
 	Version          string    `json:"version"`
 	Source           string    `json:"source"`
 	BundleIdentifier string    `json:"bundle_identifier"`
+	ExtensionID      string    `json:"extension_id"`
+	ExtensionFor     string    `json:"extension_for"`
+	Vendor           string    `json:"vendor"`
+	Arch             string    `json:"arch"`
+	Release          string    `json:"release"`
 	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type SoftwareTitle struct {
+	ID               int64     `json:"id"`
+	Name             string    `json:"name"`
+	DisplayName      string    `json:"display_name"`
+	IconURL          *string   `json:"icon_url"`
+	Source           string    `json:"source"`
+	ExtensionFor     string    `json:"extension_for"`
+	BundleIdentifier string    `json:"bundle_identifier"`
+	Vendor           string    `json:"vendor"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type User struct {

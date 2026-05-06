@@ -296,6 +296,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/software/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a software title */
+        get: operations["get-software"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users": {
         parameters: {
             query?: never;
@@ -453,16 +470,47 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        HostListBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/HostListBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["HostBody"][] | null;
+        };
         HostSoftwareBody: {
-            bundle_identifier: string;
+            app_store_app: unknown;
+            display_name: string;
+            extension_for: string;
+            icon_url: string | null;
             id: string;
+            installed_versions: components["schemas"]["HostSoftwareInstalledVersionBody"][] | null;
+            name: string;
+            software_package: unknown;
+            source: string;
+            status: unknown;
+        };
+        HostSoftwareInstalledVersionBody: {
+            bundle_identifier: string;
+            installed_paths: string[] | null;
             /** Format: date-time */
             last_opened_at?: string;
-            /** Format: date-time */
-            last_seen_at: string;
-            name: string;
-            source: string;
+            signature_information: components["schemas"]["PathSignatureInformationBody"][] | null;
             version: string;
+        };
+        HostSoftwareListBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/HostSoftwareListBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["HostSoftwareBody"][] | null;
         };
         LoginInputBody: {
             /**
@@ -474,6 +522,13 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+        };
+        PathSignatureInformationBody: {
+            executable_path: string;
+            executable_sha256: string;
+            hash_sha256: string;
+            installed_path: string;
+            team_identifier: string;
         };
         Secret: {
             /**
@@ -508,15 +563,50 @@ export interface components {
             readonly $schema?: string;
             complete: boolean;
         };
-        SoftwareTitleBody: {
-            bundle_identifier: string;
-            /** Format: date-time */
-            created_at: string;
+        SoftwareGetBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/SoftwareGetBody.json
+             */
+            readonly $schema?: string;
+            software_title: components["schemas"]["SoftwareTitleBody"];
+        };
+        SoftwareListBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/SoftwareListBody.json
+             */
+            readonly $schema?: string;
             /** Format: int64 */
-            host_count: number;
+            count: number;
+            items: components["schemas"]["SoftwareTitleBody"][] | null;
+        };
+        SoftwareTitleBody: {
+            app_store_app: unknown;
+            browser: string;
+            bundle_identifier?: string;
+            /** Format: date-time */
+            counts_updated_at: string | null;
+            display_name: string;
+            extension_for: string;
+            /** Format: int64 */
+            hosts_count: number;
+            icon_url: string | null;
             id: string;
             name: string;
+            software_package: unknown;
             source: string;
+            versions: components["schemas"]["SoftwareVersionBody"][] | null;
+            /** Format: int64 */
+            versions_count: number;
+        };
+        SoftwareVersionBody: {
+            bundle_identifier?: string;
+            /** Format: int64 */
+            hosts_count: number;
+            id: string;
             version: string;
         };
         UserBody: {
@@ -743,7 +833,16 @@ export interface operations {
     };
     "list-hosts": {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+                platform?: string;
+                software_title_id?: string;
+                software_id?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -756,11 +855,20 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostBody"][] | null;
+                    "application/json": components["schemas"]["HostListBody"];
                 };
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -839,7 +947,14 @@ export interface operations {
     };
     "list-host-software": {
         parameters: {
-            query?: never;
+            query?: {
+                q?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+                source?: string[] | null;
+            };
             header?: never;
             path: {
                 id: string;
@@ -854,7 +969,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostSoftwareBody"][] | null;
+                    "application/json": components["schemas"]["HostSoftwareListBody"];
                 };
             };
             /** @description Unauthorized */
@@ -1501,7 +1616,14 @@ export interface operations {
     };
     "list-software": {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                per_page?: number;
+                q?: string;
+                order_key?: string;
+                order_direction?: string;
+                source?: string[] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1514,11 +1636,78 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SoftwareTitleBody"][] | null;
+                    "application/json": components["schemas"]["SoftwareListBody"];
                 };
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-software": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SoftwareGetBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

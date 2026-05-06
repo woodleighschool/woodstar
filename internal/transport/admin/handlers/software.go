@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,18 +13,72 @@ import (
 
 const softwareTag = "Software"
 
+type softwareListInput struct {
+	Page           int      `query:"page,omitempty"`
+	PerPage        int      `query:"per_page,omitempty"`
+	Q              string   `query:"q,omitempty"`
+	OrderKey       string   `query:"order_key,omitempty"`
+	OrderDirection string   `query:"order_direction,omitempty"`
+	Source         []string `query:"source,omitempty"`
+}
+
+func (i softwareListInput) params() models.SoftwareTitleListParams {
+	listParams := models.CleanListParams(models.ListParams{
+		Q:              i.Q,
+		Page:           i.Page,
+		PerPage:        i.PerPage,
+		OrderKey:       i.OrderKey,
+		OrderDirection: i.OrderDirection,
+	})
+	return models.SoftwareTitleListParams{
+		ListParams:      listParams,
+		SoftwareSources: models.SplitListValues(i.Source),
+	}
+}
+
+type softwareGetInput struct {
+	ID string `path:"id"`
+}
+
 type softwareTitleBody struct {
-	ID               string    `json:"id"`
-	Name             string    `json:"name"`
-	Version          string    `json:"version"`
-	Source           string    `json:"source"`
-	BundleIdentifier string    `json:"bundle_identifier"`
-	HostCount        int       `json:"host_count"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               string                `json:"id"`
+	Name             string                `json:"name"`
+	DisplayName      string                `json:"display_name"`
+	IconURL          *string               `json:"icon_url"`
+	Source           string                `json:"source"`
+	ExtensionFor     string                `json:"extension_for"`
+	Browser          string                `json:"browser"`
+	BundleIdentifier string                `json:"bundle_identifier,omitempty"`
+	HostsCount       int                   `json:"hosts_count"`
+	VersionsCount    int                   `json:"versions_count"`
+	Versions         []softwareVersionBody `json:"versions"`
+	CountsUpdatedAt  *time.Time            `json:"counts_updated_at"`
+	SoftwarePackage  any                   `json:"software_package"`
+	AppStoreApp      any                   `json:"app_store_app"`
+}
+
+type softwareVersionBody struct {
+	ID               string `json:"id"`
+	Version          string `json:"version"`
+	BundleIdentifier string `json:"bundle_identifier,omitempty"`
+	HostsCount       int    `json:"hosts_count"`
+}
+
+type softwareListBody struct {
+	Items []softwareTitleBody `json:"items"`
+	Count int                 `json:"count"`
 }
 
 type softwareListOutput struct {
-	Body []softwareTitleBody
+	Body softwareListBody
+}
+
+type softwareGetBody struct {
+	SoftwareTitle softwareTitleBody `json:"software_title"`
+}
+
+type softwareGetOutput struct {
+	Body softwareGetBody
 }
 
 // RegisterSoftware registers admin software inventory endpoints.
@@ -35,27 +90,77 @@ func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
 		Tags:        []string{softwareTag},
 		Summary:     "List software titles",
 		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*softwareListOutput, error) {
-		titles, err := store.ListTitlesWithHostCount(ctx)
+	}, func(ctx context.Context, input *softwareListInput) (*softwareListOutput, error) {
+		titles, count, err := store.ListTitles(ctx, input.params())
 		if err != nil {
 			return nil, err
 		}
-		out := &softwareListOutput{Body: make([]softwareTitleBody, 0, len(titles))}
-		for _, title := range titles {
-			out.Body = append(out.Body, softwareTitleResponse(title))
+		body := softwareListBody{
+			Items: make([]softwareTitleBody, 0, len(titles)),
+			Count: count,
 		}
-		return out, nil
+		for _, title := range titles {
+			body.Items = append(body.Items, softwareTitleResponse(title))
+		}
+		return &softwareListOutput{Body: body}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-software",
+		Method:      http.MethodGet,
+		Path:        "/api/software/{id}",
+		Tags:        []string{softwareTag},
+		Summary:     "Get a software title",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *softwareGetInput) (*softwareGetOutput, error) {
+		id, err := parseHostID(input.ID)
+		if err != nil {
+			return nil, err
+		}
+		title, err := store.GetTitle(ctx, id)
+		if errors.Is(err, models.ErrNotFound) {
+			return nil, huma.Error404NotFound("software title not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &softwareGetOutput{Body: softwareGetBody{SoftwareTitle: softwareTitleResponse(*title)}}, nil
 	})
 }
 
 func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
+	versions := make([]softwareVersionBody, 0, len(title.Versions))
+	for _, version := range title.Versions {
+		versions = append(versions, softwareVersionBody{
+			ID:               models.HostIDString(version.ID),
+			Version:          version.Version,
+			BundleIdentifier: version.BundleIdentifier,
+			HostsCount:       version.HostsCount,
+		})
+	}
 	return softwareTitleBody{
 		ID:               models.HostIDString(title.ID),
 		Name:             title.Name,
-		Version:          title.Version,
+		DisplayName:      title.DisplayName,
+		IconURL:          title.IconURL,
 		Source:           title.Source,
+		ExtensionFor:     title.ExtensionFor,
+		Browser:          browserForSoftware(title.Source, title.ExtensionFor),
 		BundleIdentifier: title.BundleIdentifier,
-		HostCount:        title.HostCount,
-		CreatedAt:        title.CreatedAt,
+		HostsCount:       title.HostsCount,
+		VersionsCount:    title.VersionsCount,
+		Versions:         versions,
+		CountsUpdatedAt:  title.CountsUpdatedAt,
+		SoftwarePackage:  nil,
+		AppStoreApp:      nil,
+	}
+}
+
+func browserForSoftware(source string, extensionFor string) string {
+	switch source {
+	case "chrome_extensions", "firefox_addons", "safari_extensions":
+		return extensionFor
+	default:
+		return ""
 	}
 }

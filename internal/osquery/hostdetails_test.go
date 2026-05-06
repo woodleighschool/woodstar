@@ -33,6 +33,9 @@ func TestParseHostDetails(t *testing.T) {
 		"platform_info": {
 			"extra": "Darwin Kernel Version 25.5.0",
 		},
+		"orbit_info": {
+			"version": "1.47.0",
+		},
 	}
 
 	got := ParseHostDetails(details)
@@ -51,6 +54,7 @@ func TestParseHostDetails(t *testing.T) {
 		CPUPhysicalCores: 8,
 		PhysicalMemory:   68719476736,
 		OsqueryVersion:   "5.22.1",
+		OrbitVersion:     "1.47.0",
 		KernelVersion:    "Darwin Kernel Version 25.5.0",
 	}
 	if got != want {

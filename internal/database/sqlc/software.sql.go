@@ -24,114 +24,70 @@ func (q *Queries) DeleteHostSoftware(ctx context.Context, arg DeleteHostSoftware
 	return err
 }
 
-const listSoftwareForHost = `-- name: ListSoftwareForHost :many
-SELECT
-    software.id,
-    software.name,
-    software.version,
-    software.source,
-    software.bundle_identifier,
-    host_software.last_seen_at,
-    host_software.last_opened_at
-FROM host_software
-JOIN software ON software.id = host_software.software_id
-WHERE host_software.host_id = $1
-ORDER BY lower(software.name), software.version, software.source
+const deleteHostSoftwarePaths = `-- name: DeleteHostSoftwarePaths :exec
+DELETE FROM host_software_installed_paths
+WHERE host_id = $1
 `
 
-type ListSoftwareForHostParams struct {
+type DeleteHostSoftwarePathsParams struct {
 	HostID int64 `json:"host_id"`
 }
 
-type ListSoftwareForHostRow struct {
-	ID               int64      `json:"id"`
-	Name             string     `json:"name"`
-	Version          string     `json:"version"`
-	Source           string     `json:"source"`
-	BundleIdentifier string     `json:"bundle_identifier"`
-	LastSeenAt       time.Time  `json:"last_seen_at"`
-	LastOpenedAt     *time.Time `json:"last_opened_at"`
+func (q *Queries) DeleteHostSoftwarePaths(ctx context.Context, arg DeleteHostSoftwarePathsParams) error {
+	_, err := q.db.Exec(ctx, deleteHostSoftwarePaths, arg.HostID)
+	return err
 }
 
-func (q *Queries) ListSoftwareForHost(ctx context.Context, arg ListSoftwareForHostParams) ([]ListSoftwareForHostRow, error) {
-	rows, err := q.db.Query(ctx, listSoftwareForHost, arg.HostID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListSoftwareForHostRow{}
-	for rows.Next() {
-		var i ListSoftwareForHostRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Version,
-			&i.Source,
-			&i.BundleIdentifier,
-			&i.LastSeenAt,
-			&i.LastOpenedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listSoftwareTitlesWithHostCount = `-- name: ListSoftwareTitlesWithHostCount :many
-SELECT
-    software.id,
-    software.name,
-    software.version,
-    software.source,
-    software.bundle_identifier,
-    count(host_software.host_id)::integer AS host_count,
-    software.created_at
-FROM software
-LEFT JOIN host_software ON host_software.software_id = software.id
-GROUP BY software.id
-ORDER BY count(host_software.host_id) DESC, lower(software.name), software.version
+const insertHostSoftwareInstalledPath = `-- name: InsertHostSoftwareInstalledPath :exec
+INSERT INTO host_software_installed_paths (
+    host_id,
+    software_id,
+    installed_path,
+    team_identifier,
+    cdhash_sha256,
+    executable_sha256,
+    executable_path,
+    last_seen_at
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    NULLIF($5::text, ''),
+    NULLIF($6::text, ''),
+    NULLIF($7::text, ''),
+    now()
+)
+ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
+    team_identifier = EXCLUDED.team_identifier,
+    cdhash_sha256 = EXCLUDED.cdhash_sha256,
+    executable_sha256 = EXCLUDED.executable_sha256,
+    executable_path = EXCLUDED.executable_path,
+    last_seen_at = now()
 `
 
-type ListSoftwareTitlesWithHostCountRow struct {
-	ID               int64     `json:"id"`
-	Name             string    `json:"name"`
-	Version          string    `json:"version"`
-	Source           string    `json:"source"`
-	BundleIdentifier string    `json:"bundle_identifier"`
-	HostCount        int32     `json:"host_count"`
-	CreatedAt        time.Time `json:"created_at"`
+type InsertHostSoftwareInstalledPathParams struct {
+	HostID           int64  `json:"host_id"`
+	SoftwareID       int64  `json:"software_id"`
+	InstalledPath    string `json:"installed_path"`
+	TeamIdentifier   string `json:"team_identifier"`
+	CdhashSha256     string `json:"cdhash_sha256"`
+	ExecutableSha256 string `json:"executable_sha256"`
+	ExecutablePath   string `json:"executable_path"`
 }
 
-func (q *Queries) ListSoftwareTitlesWithHostCount(ctx context.Context) ([]ListSoftwareTitlesWithHostCountRow, error) {
-	rows, err := q.db.Query(ctx, listSoftwareTitlesWithHostCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListSoftwareTitlesWithHostCountRow{}
-	for rows.Next() {
-		var i ListSoftwareTitlesWithHostCountRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Version,
-			&i.Source,
-			&i.BundleIdentifier,
-			&i.HostCount,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) InsertHostSoftwareInstalledPath(ctx context.Context, arg InsertHostSoftwareInstalledPathParams) error {
+	_, err := q.db.Exec(ctx, insertHostSoftwareInstalledPath,
+		arg.HostID,
+		arg.SoftwareID,
+		arg.InstalledPath,
+		arg.TeamIdentifier,
+		arg.CdhashSha256,
+		arg.ExecutableSha256,
+		arg.ExecutablePath,
+	)
+	return err
 }
 
 const upsertHostSoftware = `-- name: UpsertHostSoftware :exec
@@ -163,37 +119,165 @@ func (q *Queries) UpsertHostSoftware(ctx context.Context, arg UpsertHostSoftware
 	return err
 }
 
-const upsertSoftwareTitle = `-- name: UpsertSoftwareTitle :one
+const upsertSoftware = `-- name: UpsertSoftware :one
 INSERT INTO software (
+    title_id,
     name,
     version,
     source,
-    bundle_identifier
+    bundle_identifier,
+    extension_id,
+    extension_for,
+    vendor,
+    arch,
+    release
 )
 VALUES (
     $1,
     $2,
     $3,
-    $4
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10
 )
-ON CONFLICT (name, version, source, bundle_identifier) DO UPDATE SET
-    name = EXCLUDED.name
+ON CONFLICT (
+    title_id,
+    version,
+    source,
+    bundle_identifier,
+    extension_id,
+    extension_for,
+    vendor,
+    arch,
+    release
+) DO UPDATE SET
+    updated_at = now()
 RETURNING id
 `
 
-type UpsertSoftwareTitleParams struct {
+type UpsertSoftwareParams struct {
+	TitleID          int64  `json:"title_id"`
 	Name             string `json:"name"`
 	Version          string `json:"version"`
 	Source           string `json:"source"`
 	BundleIdentifier string `json:"bundle_identifier"`
+	ExtensionID      string `json:"extension_id"`
+	ExtensionFor     string `json:"extension_for"`
+	Vendor           string `json:"vendor"`
+	Arch             string `json:"arch"`
+	Release          string `json:"release"`
 }
 
-func (q *Queries) UpsertSoftwareTitle(ctx context.Context, arg UpsertSoftwareTitleParams) (int64, error) {
-	row := q.db.QueryRow(ctx, upsertSoftwareTitle,
+func (q *Queries) UpsertSoftware(ctx context.Context, arg UpsertSoftwareParams) (int64, error) {
+	row := q.db.QueryRow(ctx, upsertSoftware,
+		arg.TitleID,
 		arg.Name,
 		arg.Version,
 		arg.Source,
 		arg.BundleIdentifier,
+		arg.ExtensionID,
+		arg.ExtensionFor,
+		arg.Vendor,
+		arg.Arch,
+		arg.Release,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const upsertSoftwareTitleByBundle = `-- name: UpsertSoftwareTitleByBundle :one
+INSERT INTO software_titles (
+    name,
+    display_name,
+    source,
+    extension_for,
+    bundle_identifier,
+    vendor
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+)
+ON CONFLICT (bundle_identifier, source, extension_for)
+WHERE bundle_identifier <> ''
+DO UPDATE SET
+    vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
+    updated_at = now()
+RETURNING id
+`
+
+type UpsertSoftwareTitleByBundleParams struct {
+	Name             string `json:"name"`
+	DisplayName      string `json:"display_name"`
+	Source           string `json:"source"`
+	ExtensionFor     string `json:"extension_for"`
+	BundleIdentifier string `json:"bundle_identifier"`
+	Vendor           string `json:"vendor"`
+}
+
+func (q *Queries) UpsertSoftwareTitleByBundle(ctx context.Context, arg UpsertSoftwareTitleByBundleParams) (int64, error) {
+	row := q.db.QueryRow(ctx, upsertSoftwareTitleByBundle,
+		arg.Name,
+		arg.DisplayName,
+		arg.Source,
+		arg.ExtensionFor,
+		arg.BundleIdentifier,
+		arg.Vendor,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const upsertSoftwareTitleByName = `-- name: UpsertSoftwareTitleByName :one
+INSERT INTO software_titles (
+    name,
+    display_name,
+    source,
+    extension_for,
+    bundle_identifier,
+    vendor
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+)
+ON CONFLICT (name, source, extension_for, bundle_identifier) DO UPDATE SET
+    vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
+    updated_at = now()
+RETURNING id
+`
+
+type UpsertSoftwareTitleByNameParams struct {
+	Name             string `json:"name"`
+	DisplayName      string `json:"display_name"`
+	Source           string `json:"source"`
+	ExtensionFor     string `json:"extension_for"`
+	BundleIdentifier string `json:"bundle_identifier"`
+	Vendor           string `json:"vendor"`
+}
+
+func (q *Queries) UpsertSoftwareTitleByName(ctx context.Context, arg UpsertSoftwareTitleByNameParams) (int64, error) {
+	row := q.db.QueryRow(ctx, upsertSoftwareTitleByName,
+		arg.Name,
+		arg.DisplayName,
+		arg.Source,
+		arg.ExtensionFor,
+		arg.BundleIdentifier,
+		arg.Vendor,
 	)
 	var id int64
 	err := row.Scan(&id)
