@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog/log"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -33,6 +33,7 @@ type Dependencies struct {
 	Config         config.Config
 	DB             *database.DB
 	Version        string
+	Logger         *slog.Logger
 	WebHandler     *web.Handler
 	AuthService    *auth.Service
 	SessionManager *scs.SessionManager
@@ -50,6 +51,7 @@ type Server struct {
 	config         config.Config
 	db             *database.DB
 	version        string
+	logger         *slog.Logger
 	webHandler     *web.Handler
 	authService    *auth.Service
 	sessionManager *scs.SessionManager
@@ -74,6 +76,7 @@ func NewServer(deps Dependencies) *Server {
 		config:         deps.Config,
 		db:             deps.DB,
 		version:        deps.Version,
+		logger:         deps.Logger,
 		webHandler:     deps.WebHandler,
 		authService:    deps.AuthService,
 		sessionManager: deps.SessionManager,
@@ -93,7 +96,14 @@ func (s *Server) ListenAndServe() error {
 	s.httpServer.Addr = addr
 	s.httpServer.Handler = s.routes()
 
-	log.Info().Str("addr", addr).Str("public_url", s.config.PublicURL).Msg("starting woodstar")
+	s.logger.Info(
+		"starting woodstar",
+		"component", "server",
+		"operation", "start",
+		"addr", addr,
+		"public_url", s.config.PublicURL,
+		"version", s.version,
+	)
 	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -102,7 +112,7 @@ func (s *Server) ListenAndServe() error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	log.Info().Msg("stopping woodstar")
+	s.logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
 	return s.httpServer.Shutdown(ctx)
 }
 
@@ -110,17 +120,19 @@ func (s *Server) routes() http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(120 * time.Second))
 
-	if s.sessionManager != nil {
-		r.Use(s.sessionManager.LoadAndSave)
-	}
-
-	transportorbit.RegisterRoutes(r, s.orbitService)
-	transportosquery.RegisterRoutes(r, s.osqueryService)
+	r.Group(func(agent chi.Router) {
+		agent.Use(requestLogger(s.logger, slog.LevelDebug))
+		transportorbit.RegisterRoutes(agent, s.orbitService, s.logger.With("component", "orbit"))
+		transportosquery.RegisterRoutes(agent, s.osqueryService, s.logger.With("component", "osquery"))
+	})
 
 	r.Group(func(browser chi.Router) {
+		browser.Use(requestLogger(s.logger, slog.LevelDebug))
+		if s.sessionManager != nil {
+			browser.Use(s.sessionManager.LoadAndSave)
+		}
 		if !s.config.IsHTTPS() {
 			browser.Use(admin.PlaintextHTTP)
 		}

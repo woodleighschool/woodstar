@@ -1,6 +1,7 @@
 package orbit
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +11,7 @@ import (
 
 func TestPingReportsSupportedCapabilities(t *testing.T) {
 	router := chi.NewRouter()
-	RegisterRoutes(router, nil)
+	RegisterRoutes(router, nil, slog.New(slog.DiscardHandler))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodHead, "/api/fleet/orbit/ping", nil)

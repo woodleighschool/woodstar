@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 )
 
 type runtimeConfig struct {
@@ -23,6 +23,7 @@ type HandlerOptions struct {
 	FS        fs.FS
 	Version   string
 	CSRFToken func(*http.Request) string
+	Logger    *slog.Logger
 }
 
 // Handler serves the embedded frontend bundle and runtime config.
@@ -31,6 +32,7 @@ type Handler struct {
 	version   string
 	csrfToken func(*http.Request) string
 	assets    http.Handler
+	logger    *slog.Logger
 }
 
 // NewHandler returns an HTTP handler for the embedded web UI.
@@ -39,6 +41,7 @@ func NewHandler(opts HandlerOptions) *Handler {
 		fs:        opts.FS,
 		version:   opts.Version,
 		csrfToken: opts.CSRFToken,
+		logger:    opts.Logger,
 	}
 	if opts.FS != nil {
 		h.assets = http.FileServer(http.FS(opts.FS))
@@ -74,7 +77,13 @@ func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
 
 	file, err := h.fs.Open("index.html")
 	if err != nil {
-		log.Error().Err(err).Msg("embedded web index missing")
+		h.logger.ErrorContext(
+			r.Context(),
+			"embedded web index missing", "operation",
+			"serve_index",
+			"err",
+			err,
+		)
 		http.Error(w, "web bundle missing", http.StatusInternalServerError)
 		return
 	}
@@ -82,6 +91,13 @@ func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
 
 	content, err := io.ReadAll(file)
 	if err != nil {
+		h.logger.ErrorContext(
+			r.Context(),
+			"embedded web index read failed", "operation",
+			"serve_index",
+			"err",
+			err,
+		)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,7 @@ func TestInjectRuntimeIncludesVersionAndCSRF(t *testing.T) {
 		FS:        testFS(),
 		Version:   "test",
 		CSRFToken: func(*http.Request) string { return "csrf-token-value" },
+		Logger:    slog.New(slog.DiscardHandler),
 	})
 
 	rec := httptest.NewRecorder()
@@ -35,6 +37,7 @@ func TestServeAssetReturnsAsset(t *testing.T) {
 	handler := NewHandler(HandlerOptions{
 		FS:      testFS(),
 		Version: "test",
+		Logger:  slog.New(slog.DiscardHandler),
 	})
 
 	rec := httptest.NewRecorder()

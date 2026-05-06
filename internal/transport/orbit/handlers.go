@@ -3,10 +3,10 @@ package orbit
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 
 	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
 )
@@ -17,15 +17,15 @@ const (
 )
 
 // RegisterRoutes mounts Orbit agent endpoints on r.
-func RegisterRoutes(r chi.Router, svc *coreorbit.Service) {
-	r.Post("/api/fleet/orbit/enroll", enrollHandler(svc))
-	r.Post("/api/fleet/orbit/config", configHandler(svc))
-	r.Put("/api/fleet/orbit/device_mapping", deviceMappingHandler(svc))
+func RegisterRoutes(r chi.Router, svc *coreorbit.Service, logger *slog.Logger) {
+	r.Post("/api/fleet/orbit/enroll", enrollHandler(svc, logger))
+	r.Post("/api/fleet/orbit/config", configHandler(svc, logger))
+	r.Put("/api/fleet/orbit/device_mapping", deviceMappingHandler(svc, logger))
 	r.Head("/api/fleet/orbit/ping", pingHandler)
 	registerStubs(r, svc)
 }
 
-func enrollHandler(svc *coreorbit.Service) http.HandlerFunc {
+func enrollHandler(svc *coreorbit.Service, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req coreorbit.EnrollRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -40,25 +40,38 @@ func enrollHandler(svc *coreorbit.Service) http.HandlerFunc {
 			return
 		case errors.Is(err, coreorbit.ErrInvalidEnrollSecret):
 			// Do not reveal whether the secret was malformed vs unknown.
+			logger.WarnContext(
+				r.Context(),
+				"orbit enroll rejected", "operation", "enroll",
+				"reason", "invalid_enroll_secret",
+				"hardware_uuid", req.HardwareUUID,
+			)
 			writeAgentError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case err != nil:
-			log.Error().Err(err).Str("hardware_uuid", req.HardwareUUID).Msg("orbit enroll failed")
+			logger.ErrorContext(
+				r.Context(),
+				"orbit enroll failed", "operation", "enroll",
+				"hardware_uuid", req.HardwareUUID,
+				"err", err,
+			)
 			writeAgentError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
 
-		log.Info().
-			Int64("host_id", host.ID).
-			Str("hardware_uuid", host.HardwareUUID).
-			Str("display_name", host.DisplayName).
-			Msg("orbit host enrolled")
+		logger.InfoContext(
+			r.Context(),
+			"orbit host enrolled", "operation", "enroll",
+			"host_id", host.ID,
+			"hardware_uuid", host.HardwareUUID,
+			"display_name", host.DisplayName,
+		)
 
 		writeAgentJSON(w, http.StatusOK, coreorbit.EnrollResponse{OrbitNodeKey: nodeKey})
 	}
 }
 
-func configHandler(svc *coreorbit.Service) http.HandlerFunc {
+func configHandler(svc *coreorbit.Service, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req coreorbit.ConfigRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -67,6 +80,11 @@ func configHandler(svc *coreorbit.Service) http.HandlerFunc {
 		}
 		resp, err := svc.Config(r.Context(), req.OrbitNodeKey)
 		if err != nil {
+			logger.DebugContext(
+				r.Context(),
+				"orbit config rejected", "operation", "config",
+				"reason", "invalid_node_key",
+			)
 			writeAgentError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
@@ -74,7 +92,7 @@ func configHandler(svc *coreorbit.Service) http.HandlerFunc {
 	}
 }
 
-func deviceMappingHandler(svc *coreorbit.Service) http.HandlerFunc {
+func deviceMappingHandler(svc *coreorbit.Service, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req coreorbit.DeviceMappingRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -82,6 +100,11 @@ func deviceMappingHandler(svc *coreorbit.Service) http.HandlerFunc {
 			return
 		}
 		if err := svc.SetDeviceMapping(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
+			logger.WarnContext(
+				r.Context(),
+				"orbit device mapping rejected", "operation", "device_mapping",
+				"reason", "invalid_node_key",
+			)
 			writeAgentError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}

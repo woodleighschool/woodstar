@@ -12,13 +12,13 @@ import (
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/gorilla/csrf"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -28,8 +28,6 @@ import (
 )
 
 func main() {
-	config.InitLogger(buildinfo.Version)
-
 	rootCmd := &cobra.Command{
 		Use:   "woodstar",
 		Short: "Woodstar macOS observability and admin server",
@@ -58,13 +56,15 @@ func runServeCommand() *cobra.Command {
 			if err := config.ApplyEnvironment(&cfg); err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			config.ConfigureLogger(cfg.LogLevel)
+			logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+			logger.Info("woodstar configuration loaded", "component", "config", "operation", "load")
 
 			db, err := database.Open(ctx, cfg.DatabaseURL)
 			if err != nil {
 				return fmt.Errorf("open database: %w", err)
 			}
 			defer db.Close()
+			logger.Info("database ready", "component", "database", "operation", "open")
 
 			sessionManager, sessionStore := newSessionManager(db, cfg)
 			defer sessionStore.StopCleanup()
@@ -77,12 +77,13 @@ func runServeCommand() *cobra.Command {
 
 			authService := auth.NewService(users, sessionManager)
 			orbitService := orbit.NewService(hosts, secrets, deviceMappings)
-			osqueryService := osquery.NewService(hosts, software, secrets)
+			osqueryService := osquery.NewService(hosts, software, secrets, logger.With("component", "osquery"))
 
 			server := transport.NewServer(transport.Dependencies{
 				Config:         cfg,
 				DB:             db,
 				Version:        buildinfo.Version,
+				Logger:         logger,
 				AuthService:    authService,
 				SessionManager: sessionManager,
 				HostStore:      hosts,
@@ -95,6 +96,7 @@ func runServeCommand() *cobra.Command {
 					FS:        webfs.DistDirFS,
 					Version:   buildinfo.Version,
 					CSRFToken: csrf.Token,
+					Logger:    logger.With("component", "web"),
 				}),
 			})
 
@@ -143,7 +145,6 @@ func runVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Print build version",
 		Run: func(cmd *cobra.Command, _ []string) {
-			log.Debug().Msg("printing version")
 			_, _ = cmd.OutOrStdout().Write([]byte(buildinfo.String()))
 		},
 	}

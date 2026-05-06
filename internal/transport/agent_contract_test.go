@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -99,6 +100,7 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 	sessionManager.Store = memstore.New()
 
 	authService := auth.NewService(users, sessionManager)
+	logger := slog.New(slog.DiscardHandler)
 
 	return Dependencies{
 		Config: config.Config{
@@ -107,6 +109,7 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 		},
 		DB:             db,
 		Version:        "test",
+		Logger:         logger,
 		AuthService:    authService,
 		SessionManager: sessionManager,
 		HostStore:      hosts,
@@ -114,7 +117,7 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 		SecretStore:    secrets,
 		SoftwareStore:  software,
 		OrbitService:   orbit.NewService(hosts, secrets, deviceMappings),
-		OsqueryService: osquery.NewService(hosts, software, secrets),
+		OsqueryService: osquery.NewService(hosts, software, secrets, logger.With("component", "osquery")),
 	}, users
 }
 

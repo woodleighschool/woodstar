@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -74,6 +75,7 @@ func testDependencies(cfg config.Config) Dependencies {
 	return Dependencies{
 		Config:         cfg,
 		Version:        "test",
+		Logger:         slog.New(slog.DiscardHandler),
 		AuthService:    auth.NewService(users, sessionManager),
 		SessionManager: sessionManager,
 		HostStore:      hosts,

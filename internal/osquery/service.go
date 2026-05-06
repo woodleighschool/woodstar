@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/woodleighschool/woodstar/internal/models"
 )
@@ -22,11 +21,17 @@ type Service struct {
 	hosts    *models.HostStore
 	software *models.SoftwareStore
 	secrets  *models.SecretStore
+	logger   *slog.Logger
 }
 
 // NewService returns an osquery service.
-func NewService(hosts *models.HostStore, software *models.SoftwareStore, secrets *models.SecretStore) *Service {
-	return &Service{hosts: hosts, software: software, secrets: secrets}
+func NewService(
+	hosts *models.HostStore,
+	software *models.SoftwareStore,
+	secrets *models.SecretStore,
+	logger *slog.Logger,
+) *Service {
+	return &Service{hosts: hosts, software: software, secrets: secrets, logger: logger}
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
@@ -61,11 +66,13 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("upsert host: %w", err)
 	}
-	log.Info().
-		Int64("host_id", host.ID).
-		Str("hardware_uuid", host.HardwareUUID).
-		Str("display_name", host.DisplayName).
-		Msg("osquery host enrolled")
+	s.logger.DebugContext(
+		ctx,
+		"osquery host enrolled", "operation", "enroll",
+		"host_id", host.ID,
+		"hardware_uuid", host.HardwareUUID,
+		"display_name", host.DisplayName,
+	)
 	return nodeKey, nil
 }
 
@@ -96,6 +103,13 @@ func (s *Service) DistributedRead(ctx context.Context, nodeKey string) (Distribu
 		return DistributedReadResponse{NodeInvalid: true}, nil
 	}
 	due := detailQueriesDue(host.DetailUpdatedAt)
+	s.logger.DebugContext(
+		ctx,
+		"osquery distributed queries prepared", "operation", "distributed_read",
+		"host_id", host.ID,
+		"query_count", len(due.Queries),
+		"discovery_count", len(due.Discovery),
+	)
 	return DistributedReadResponse{
 		NodeInvalid: false,
 		Queries:     due.Queries,
@@ -128,7 +142,14 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 			if !query.Optional {
 				allDetailSucceeded = false
 			}
-			log.Warn().Str("query", name).Str("message", req.Messages[name]).Msg("osquery detail query failed")
+			s.logger.WarnContext(
+				ctx,
+				"osquery detail query failed", "operation", "distributed_write",
+				"host_id", host.ID,
+				"query", name,
+				"optional", query.Optional,
+				"message", req.Messages[name],
+			)
 			continue
 		}
 		if err := query.Ingest(ctx, s, host.ID, rows); err != nil {
@@ -138,10 +159,14 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 	if rows, ok := req.Queries[querySoftwareMacOS]; ok {
 		if !statusOK(req.Statuses[querySoftwareMacOS]) {
 			allDetailSucceeded = false
-			log.Warn().
-				Str("query", querySoftwareMacOS).
-				Str("message", req.Messages[querySoftwareMacOS]).
-				Msg("osquery detail query failed")
+			s.logger.WarnContext(
+				ctx,
+				"osquery detail query failed", "operation", "distributed_write",
+				"host_id", host.ID,
+				"query", querySoftwareMacOS,
+				"optional", false,
+				"message", req.Messages[querySoftwareMacOS],
+			)
 		} else if err := ingestSoftwareMacOSWithEnrichment(ctx, s, host.ID, rows, req.Queries); err != nil {
 			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", querySoftwareMacOS, err)
 		}
@@ -150,6 +175,12 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 		if err := s.hosts.MarkDetailFresh(ctx, host.ID); err != nil {
 			return DistributedWriteResponse{}, err
 		}
+		s.logger.DebugContext(
+			ctx,
+			"osquery detail inventory refreshed", "operation", "inventory_refresh",
+			"host_id", host.ID,
+			"query_count", len(req.Queries),
+		)
 	}
 	return DistributedWriteResponse{NodeInvalid: false}, nil
 }
@@ -198,7 +229,20 @@ func ingestSoftwareMacOSWithEnrichment(
 	rows = append(rows, queryRows[querySoftwareJetBrainsPlugins]...)
 	rows = append(rows, queryRows[querySoftwareGoBinaries]...)
 	rows = append(rows, queryRows[querySoftwarePythonPackages]...)
-	return svc.software.ReplaceHostSoftware(ctx, hostID, parseSoftwareRows(rows, enrichment))
+	entries := parseSoftwareRows(rows, enrichment)
+	if err := svc.software.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
+		return err
+	}
+	svc.logger.DebugContext(
+		ctx,
+		"software inventory ingested", "operation", "software_ingest",
+		"host_id", hostID,
+		"row_count", len(rows),
+		"entry_count", len(entries),
+		"codesign_count", len(queryRows[querySoftwareMacOSCodesign]),
+		"executable_hash_count", len(queryRows[querySoftwareMacOSExecutableHash]),
+	)
+	return nil
 }
 
 func sawEveryRequiredDetailQuery(results map[string][]map[string]string, registry map[string]DetailQuery) bool {

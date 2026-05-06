@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -142,7 +140,6 @@ func parseUnixTime(value string) *time.Time {
 	}
 	seconds, nanos, ok := parseUnixTimeParts(value)
 	if !ok {
-		log.Debug().Str("value", value).Msg("ignoring invalid osquery last_opened_time")
 		return nil
 	}
 	opened := time.Unix(seconds, nanos).UTC()

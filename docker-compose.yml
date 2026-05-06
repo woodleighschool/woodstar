@@ -4,9 +4,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
       WOODSTAR_DATABASE_URL: postgres://woodstar:woodstar@postgres:5432/woodstar?sslmode=disable
       WOODSTAR_SESSION_SECRET: woodstar-dev-session-secret-change-me
+      WOODSTAR_LOG_LEVEL: debug
     ports:
       - "8080:8080"
     depends_on:
@@ -15,14 +17,17 @@ services:
 
   postgres:
     image: postgres:18
+    restart: unless-stopped
     environment:
       POSTGRES_USER: woodstar
       POSTGRES_PASSWORD: woodstar
       POSTGRES_DB: woodstar
+    ports:
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U woodstar"]
+      test: [ "CMD-SHELL", "pg_isready -U woodstar" ]
       interval: 5s
       timeout: 3s
       retries: 20
