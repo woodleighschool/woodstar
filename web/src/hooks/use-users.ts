@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 export type User = Schemas["UserBody"];
 export type UserCreateBody = Schemas["UserCreateInputBody"];
-export type UserUpdateBody = Schemas["UserUpdateInputBody"];
+export type UserUpdateBody = Schemas["UserPutBody"];
 
 export function useUsers() {
   return useQuery<User[], ApiError>({
@@ -29,7 +29,7 @@ export function useUpdateUser() {
   return useMutation<User, ApiError, { id: string; body: UserUpdateBody }>({
     mutationFn: ({ id, body }) =>
       unwrap(
-        apiClient.PATCH("/api/users/{id}", {
+        apiClient.PUT("/api/users/{id}", {
           params: { path: { id } },
           body,
         }),

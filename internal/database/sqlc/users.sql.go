@@ -207,8 +207,8 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET
-    name = COALESCE($1, name),
-    role = COALESCE($2::user_role, role),
+    name = $1,
+    role = $2::user_role,
     password_hash = COALESCE($3, password_hash),
     updated_at = now()
 WHERE id = $4 AND deleted_at IS NULL
@@ -224,10 +224,10 @@ RETURNING
 `
 
 type UpdateUserParams struct {
-	Name         *string   `json:"name"`
-	Role         *UserRole `json:"role"`
-	PasswordHash *string   `json:"password_hash"`
-	ID           int64     `json:"id"`
+	Name         string   `json:"name"`
+	Role         UserRole `json:"role"`
+	PasswordHash *string  `json:"password_hash"`
+	ID           int64    `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

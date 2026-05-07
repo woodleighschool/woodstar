@@ -150,14 +150,18 @@ export interface paths {
         };
         /** Get a label */
         get: operations["get-label"];
-        put?: never;
+        /** Replace a label */
+        put: operations["put-label"];
         post?: never;
         /** Delete a custom label */
         delete: operations["delete-label"];
         options?: never;
         head?: never;
-        /** Update a label */
-        patch: operations["update-label"];
+        /**
+         * Patch label
+         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
+         */
+        patch: operations["patch-label"];
         trace?: never;
     };
     "/api/orbit/enroll-secrets": {
@@ -288,15 +292,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
+        /** Get a Woodstar user */
+        get: operations["get-user"];
+        /** Replace a Woodstar user */
+        put: operations["put-user"];
         post?: never;
         /** Delete a Woodstar user */
         delete: operations["delete-user"];
         options?: never;
         head?: never;
-        /** Update a Woodstar user */
-        patch: operations["update-user"];
+        /**
+         * Patch user
+         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
+         */
+        patch: operations["patch-user"];
         trace?: never;
     };
     "/api/version": {
@@ -514,6 +523,19 @@ export interface components {
             uid: string;
             username: string;
         };
+        JsonPatchOp: {
+            /** @description JSON Pointer for the source of a move or copy */
+            from?: string;
+            /**
+             * @description Operation name
+             * @enum {string}
+             */
+            op: "add" | "remove" | "replace" | "move" | "copy" | "test";
+            /** @description JSON Pointer to the field being operated on, or the destination of a move/copy operation */
+            path: string;
+            /** @description The value to set */
+            value?: unknown;
+        };
         LabelBody: {
             /**
              * Format: uri
@@ -561,6 +583,29 @@ export interface components {
             name: string;
             platform?: string;
             query?: string;
+        };
+        LabelPutBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LabelPutBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at?: string;
+            description?: string;
+            /** Format: int64 */
+            hosts_count?: number;
+            id?: string;
+            /** @enum {string} */
+            kind: "custom" | "builtin";
+            /** @enum {string} */
+            membership_type: "dynamic" | "static" | "identity";
+            name: string;
+            platform?: string;
+            query?: string;
+            /** Format: date-time */
+            updated_at?: string;
         };
         LoginInputBody: {
             /**
@@ -688,17 +733,21 @@ export interface components {
             /** @enum {string} */
             role: "admin" | "viewer";
         };
-        UserUpdateInputBody: {
+        UserPutBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/UserUpdateInputBody.json
+             * @example //api/schemas/UserPutBody.json
              */
             readonly $schema?: string;
-            name?: string;
+            created_at?: string;
+            /** Format: email */
+            email?: string;
+            id?: string;
+            name: string;
             password?: string;
             /** @enum {string} */
-            role?: "admin" | "viewer";
+            role: "admin" | "viewer";
         };
         VersionOutputBody: {
             /**
@@ -1237,6 +1286,86 @@ export interface operations {
             };
         };
     };
+    "put-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelPutBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "delete-label": {
         parameters: {
             query?: never;
@@ -1293,7 +1422,7 @@ export interface operations {
             };
         };
     };
-    "update-label": {
+    "patch-label": {
         parameters: {
             query?: never;
             header?: never;
@@ -1304,7 +1433,53 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LabelMutationBody"];
+                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
+                "application/merge-patch+json": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/LabelPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    description?: string;
+                    /** Format: int64 */
+                    hosts_count?: number;
+                    id?: string;
+                    /** @enum {string} */
+                    kind?: "custom" | "builtin";
+                    /** @enum {string} */
+                    membership_type?: "dynamic" | "static" | "identity";
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
+                "application/merge-patch+shorthand": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/LabelPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    description?: string;
+                    /** Format: int64 */
+                    hosts_count?: number;
+                    id?: string;
+                    /** @enum {string} */
+                    kind?: "custom" | "builtin";
+                    /** @enum {string} */
+                    membership_type?: "dynamic" | "static" | "identity";
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
             };
         };
         responses: {
@@ -1867,6 +2042,162 @@ export interface operations {
             };
         };
     };
+    "get-user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "put-user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPutBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "delete-user": {
         parameters: {
             query?: never;
@@ -1941,7 +2272,7 @@ export interface operations {
             };
         };
     };
-    "update-user": {
+    "patch-user": {
         parameters: {
             query?: never;
             header?: never;
@@ -1952,7 +2283,39 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserUpdateInputBody"];
+                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
+                "application/merge-patch+json": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/UserPutBody.json
+                     */
+                    readonly $schema?: string;
+                    created_at?: string;
+                    /** Format: email */
+                    email?: string;
+                    id?: string;
+                    name?: string;
+                    password?: string;
+                    /** @enum {string} */
+                    role?: "admin" | "viewer";
+                };
+                "application/merge-patch+shorthand": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/UserPutBody.json
+                     */
+                    readonly $schema?: string;
+                    created_at?: string;
+                    /** Format: email */
+                    email?: string;
+                    id?: string;
+                    name?: string;
+                    password?: string;
+                    /** @enum {string} */
+                    role?: "admin" | "viewer";
+                };
             };
         };
         responses: {

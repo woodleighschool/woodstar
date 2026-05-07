@@ -24,20 +24,30 @@ type userOutput struct {
 
 type userCreateInput struct {
 	Body struct {
-		Email    string          `json:"email" format:"email"`
+		Email    string          `json:"email"    format:"email"`
 		Name     string          `json:"name,omitempty"`
-		Role     models.UserRole `json:"role" enum:"admin,viewer"`
+		Role     models.UserRole `json:"role"     enum:"admin,viewer"`
 		Password string          `json:"password" minLength:"12"`
 	}
 }
 
-type userUpdateInput struct {
+type userGetInput struct {
+	ID string `path:"id"`
+}
+
+// userPutBody mirrors the userBody response shape.
+type userPutBody struct {
+	ID        string          `json:"id,omitempty"`
+	Email     string          `json:"email,omitempty"      format:"email"`
+	Name      string          `json:"name"`
+	Role      models.UserRole `json:"role"                 enum:"admin,viewer"`
+	CreatedAt string          `json:"created_at,omitempty"`
+	Password  *string         `json:"password,omitempty"   minLength:"12"`
+}
+
+type userPutInput struct {
 	ID   string `path:"id"`
-	Body struct {
-		Name     *string          `json:"name,omitempty"`
-		Role     *models.UserRole `json:"role,omitempty" enum:"admin,viewer"`
-		Password *string          `json:"password,omitempty" minLength:"12"`
-	}
+	Body userPutBody
 }
 
 type userDeleteInput struct {
@@ -48,7 +58,8 @@ type userDeleteInput struct {
 func RegisterUsers(api huma.API, authService *auth.Service) {
 	registerListUsers(api, authService)
 	registerCreateUser(api, authService)
-	registerUpdateUser(api, authService)
+	registerGetUser(api, authService)
+	registerPutUser(api, authService)
 	registerDeleteUser(api, authService)
 }
 
@@ -107,13 +118,37 @@ func registerCreateUser(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerUpdateUser(api huma.API, authService *auth.Service) {
+func registerGetUser(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
-		OperationID: "update-user",
-		Method:      http.MethodPatch,
+		OperationID: "get-user",
+		Method:      http.MethodGet,
 		Path:        "/api/users/{id}",
 		Tags:        []string{usersTag},
-		Summary:     "Update a Woodstar user",
+		Summary:     "Get a Woodstar user",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		id, err := parseUserID(input.ID)
+		if err != nil {
+			return nil, err
+		}
+		user, err := authService.GetUser(ctx, id)
+		if err != nil {
+			return nil, userMutationError(err)
+		}
+		return &userOutput{Body: userResponse(user)}, nil
+	})
+}
+
+func registerPutUser(api huma.API, authService *auth.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "put-user",
+		Method:      http.MethodPut,
+		Path:        "/api/users/{id}",
+		Tags:        []string{usersTag},
+		Summary:     "Replace a Woodstar user",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
@@ -121,7 +156,7 @@ func registerUpdateUser(api huma.API, authService *auth.Service) {
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *userUpdateInput) (*userOutput, error) {
+	}, func(ctx context.Context, input *userPutInput) (*userOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
 			return nil, err
@@ -130,7 +165,7 @@ func registerUpdateUser(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		user, err := authService.UpdateUser(ctx, actor.ID, targetID, auth.UpdateUserParams{
+		user, err := authService.UpdateUser(ctx, actor, targetID, auth.UpdateUserParams{
 			Name:     input.Body.Name,
 			Role:     input.Body.Role,
 			Password: input.Body.Password,

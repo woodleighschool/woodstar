@@ -175,7 +175,6 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 		Name:           params.Name,
 		Description:    params.Description,
 		Query:          params.Query,
-		Kind:           string(params.Kind),
 		MembershipType: string(params.MembershipType),
 		Platform:       params.Platform,
 		ID:             id,

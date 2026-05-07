@@ -85,9 +85,10 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
       return;
     }
 
-    const body: UserUpdateBody = {};
-    if (name !== editing!.name) body.name = name;
-    if (canChangeRole && role !== editing!.role) body.role = role;
+    const body: UserUpdateBody = {
+      name,
+      role: canChangeRole ? role : (editing!.role as Role),
+    };
     if (password.trim() !== "") body.password = password;
     await update.mutateAsync({ id: editing!.id, body });
     onClose();

@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/danielgtaylor/huma/v2/autopatch"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -41,6 +42,10 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterSoftware(protected, deps.SoftwareStore)
 	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
+
+	// Synthesise PATCH for resources that expose GET + PUT.
+	// https://huma.rocks/features/auto-patch/.
+	autopatch.AutoPatch(api)
 
 	return api
 }

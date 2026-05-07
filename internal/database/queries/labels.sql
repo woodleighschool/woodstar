@@ -96,7 +96,6 @@ SET
     name = @name,
     description = @description,
     query = sqlc.narg(query),
-    kind = @kind,
     membership_type = @membership_type,
     platform = sqlc.narg(platform),
     updated_at = now()

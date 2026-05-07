@@ -63,9 +63,25 @@ type labelCreateInput struct {
 	Body labelMutationBody
 }
 
-type labelUpdateInput struct {
+// labelPutBody mirrors labelBody so the autopatch round-trip (GET → merge →
+// PUT) sends a body the handler accepts. Read-only fields are accepted but
+// ignored.
+type labelPutBody struct {
+	ID             string                     `json:"id,omitempty"`
+	Name           string                     `json:"name"`
+	Description    string                     `json:"description,omitempty"`
+	Query          *string                    `json:"query,omitempty"`
+	Kind           models.LabelKind           `json:"kind"            enum:"custom,builtin"`
+	MembershipType models.LabelMembershipType `json:"membership_type" enum:"dynamic,static,identity"`
+	Platform       *string                    `json:"platform,omitempty"`
+	HostsCount     int                        `json:"hosts_count,omitempty"`
+	CreatedAt      time.Time                  `json:"created_at,omitempty"`
+	UpdatedAt      time.Time                  `json:"updated_at,omitempty"`
+}
+
+type labelPutInput struct {
 	ID   string `path:"id"`
-	Body labelMutationBody
+	Body labelPutBody
 }
 
 type labelDeleteInput struct {
@@ -174,13 +190,13 @@ func registerGetLabel(api huma.API, store *models.LabelStore) {
 
 func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 	huma.Register(api, huma.Operation{
-		OperationID: "update-label",
-		Method:      http.MethodPatch,
+		OperationID: "put-label",
+		Method:      http.MethodPut,
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
-		Summary:     "Update a label",
+		Summary:     "Replace a label",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
-	}, func(ctx context.Context, input *labelUpdateInput) (*labelOutput, error) {
+	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
 		id, err := parseLabelID(input.ID)
 		if err != nil {
 			return nil, err

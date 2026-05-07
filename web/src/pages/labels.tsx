@@ -38,6 +38,7 @@ import {
   useUpdateLabel,
   type Label,
   type LabelMutation,
+  type LabelPut,
 } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { cn, formatRelative } from "@/lib/utils";
@@ -378,17 +379,25 @@ function LabelFormBody({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const body: LabelMutation = {
-      name,
-      description,
-      membership_type: membershipType,
-      platform: platform.trim() === "" ? undefined : platform.trim(),
-      query: queryRequired ? query : undefined,
-    };
-
     if (mode === "create") {
+      const body: LabelMutation = {
+        name,
+        description,
+        membership_type: membershipType,
+        platform: platform.trim() === "" ? undefined : platform.trim(),
+        query: queryRequired ? query : undefined,
+      };
       await create.mutateAsync(body);
     } else {
+      const body: LabelPut = {
+        name,
+        description,
+        // Custom labels can't change kind; backend SQL ignores it but the schema accepts it.
+        kind: editing!.kind as LabelPut["kind"],
+        membership_type: membershipType,
+        platform: platform.trim() === "" ? undefined : platform.trim(),
+        query: queryRequired ? query : undefined,
+      };
       await update.mutateAsync(body);
     }
     onClose();

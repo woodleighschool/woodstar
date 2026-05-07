@@ -71,8 +71,8 @@ ORDER BY created_at;
 -- name: UpdateUser :one
 UPDATE users
 SET
-    name = COALESCE(sqlc.narg(name), name),
-    role = COALESCE(sqlc.narg(role)::user_role, role),
+    name = @name,
+    role = @role::user_role,
     password_hash = COALESCE(sqlc.narg(password_hash), password_hash),
     updated_at = now()
 WHERE id = @id AND deleted_at IS NULL

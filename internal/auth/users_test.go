@@ -13,9 +13,12 @@ import (
 
 func TestUpdateUserRejectsOwnRoleChange(t *testing.T) {
 	svc := NewService(&models.UserStore{}, nil)
-	role := models.RoleViewer
+	actor := &models.User{ID: 5, Role: models.RoleAdmin}
 
-	_, err := svc.UpdateUser(context.Background(), 5, 5, UpdateUserParams{Role: &role})
+	_, err := svc.UpdateUser(context.Background(), actor, actor.ID, UpdateUserParams{
+		Name: "John Doe",
+		Role: models.RoleViewer,
+	})
 	if !errors.Is(err, ErrCannotChangeOwnRole) {
 		t.Fatalf("err = %v, want ErrCannotChangeOwnRole", err)
 	}

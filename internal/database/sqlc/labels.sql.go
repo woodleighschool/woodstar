@@ -481,11 +481,10 @@ SET
     name = $1,
     description = $2,
     query = $3,
-    kind = $4,
-    membership_type = $5,
-    platform = $6,
+    membership_type = $4,
+    platform = $5,
     updated_at = now()
-WHERE id = $7 AND kind = 'custom'
+WHERE id = $6 AND kind = 'custom'
 RETURNING
     id,
     name,
@@ -507,7 +506,6 @@ type UpdateLabelParams struct {
 	Name           string  `json:"name"`
 	Description    string  `json:"description"`
 	Query          *string `json:"query"`
-	Kind           string  `json:"kind"`
 	MembershipType string  `json:"membership_type"`
 	Platform       *string `json:"platform"`
 	ID             int64   `json:"id"`
@@ -526,12 +524,13 @@ type UpdateLabelRow struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// kind is intentionally not in SET: the WHERE guards to custom-only and
+// custom→builtin (or vice versa) is not a real product workflow.
 func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (UpdateLabelRow, error) {
 	row := q.db.QueryRow(ctx, updateLabel,
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Kind,
 		arg.MembershipType,
 		arg.Platform,
 		arg.ID,

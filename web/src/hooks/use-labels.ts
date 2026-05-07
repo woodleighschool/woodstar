@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 export type Label = Schemas["LabelBody"];
 export type LabelListResult = Schemas["LabelListBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];
+export type LabelPut = Schemas["LabelPutBody"];
 
 export interface LabelListParams {
   q?: string;
@@ -70,8 +71,8 @@ export function useCreateLabel() {
 
 export function useUpdateLabel(id: string) {
   const queryClient = useQueryClient();
-  return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(apiClient.PATCH("/api/labels/{id}", { params: { path: { id } }, body })),
+  return useMutation<Label, ApiError, LabelPut>({
+    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });

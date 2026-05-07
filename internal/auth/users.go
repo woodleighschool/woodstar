@@ -23,11 +23,10 @@ type CreateUserParams struct {
 	Password string
 }
 
-// UpdateUserParams contains the optional fields an admin can change on a user.
-// Nil fields are left untouched.
+// UpdateUserParams replaces the writable fields of a user.
 type UpdateUserParams struct {
-	Name     *string
-	Role     *models.UserRole
+	Name     string
+	Role     models.UserRole
 	Password *string
 }
 
@@ -37,6 +36,14 @@ func (s *Service) ListUsers(ctx context.Context) ([]models.User, error) {
 		return nil, ErrNotSetup
 	}
 	return s.users.List(ctx)
+}
+
+// GetUser returns one active user by id.
+func (s *Service) GetUser(ctx context.Context, id int64) (*models.User, error) {
+	if s.users == nil {
+		return nil, ErrNotSetup
+	}
+	return s.users.GetByID(ctx, id)
 }
 
 // CreateUser provisions a local user.
@@ -58,11 +65,10 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (*mod
 	})
 }
 
-// UpdateUser applies the non-nil fields of params to targetID.
-// actorID is the admin making the change and is used to enforce self-mutation guards.
+// UpdateUser writes the full target record. Self-mutation guards.
 func (s *Service) UpdateUser(
 	ctx context.Context,
-	actorID int64,
+	actor *models.User,
 	targetID int64,
 	params UpdateUserParams,
 ) (*models.User, error) {
@@ -70,7 +76,7 @@ func (s *Service) UpdateUser(
 		return nil, ErrNotSetup
 	}
 
-	if actorID == targetID && params.Role != nil {
+	if actor != nil && actor.ID == targetID && actor.Role != params.Role {
 		return nil, ErrCannotChangeOwnRole
 	}
 
@@ -129,9 +135,9 @@ func (s *Service) DeleteUser(ctx context.Context, actorID int64, targetID int64)
 func (s *Service) guardLastAdminOnRoleChange(
 	ctx context.Context,
 	targetID int64,
-	newRole *models.UserRole,
+	newRole models.UserRole,
 ) error {
-	if newRole == nil || *newRole == models.RoleAdmin {
+	if newRole == models.RoleAdmin {
 		return nil
 	}
 	target, err := s.users.GetByID(ctx, targetID)

@@ -46,11 +46,10 @@ type CreateUserParams struct {
 	Role         UserRole
 }
 
-// UpdateUserParams contains the optional fields an admin can change on a user.
-// Nil fields are left untouched.
+// UpdateUserParams replaces the writable fields of a user.
 type UpdateUserParams struct {
-	Name         *string
-	Role         *UserRole
+	Name         string
+	Role         UserRole
 	PasswordHash *string
 }
 
@@ -119,27 +118,13 @@ func (s *UserStore) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-// Update applies the non-nil fields of params to the user with id and returns the row.
+// Update writes the writable fields of a user and returns the row.
+// Name and Role are required; PasswordHash is optional.
 func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParams) (*User, error) {
-	var nameArg *string
-	if params.Name != nil {
-		name := strings.TrimSpace(*params.Name)
-		nameArg = &name
-	}
-	var roleArg *sqlc.UserRole
-	if params.Role != nil {
-		role := sqlc.UserRole(*params.Role)
-		roleArg = &role
-	}
-	var passwordArg *string
-	if params.PasswordHash != nil {
-		passwordArg = params.PasswordHash
-	}
-
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
-		Name:         nameArg,
-		Role:         roleArg,
-		PasswordHash: passwordArg,
+		Name:         strings.TrimSpace(params.Name),
+		Role:         sqlc.UserRole(params.Role),
+		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
