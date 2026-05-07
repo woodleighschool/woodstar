@@ -15,8 +15,6 @@ type SecretKind string
 
 const (
 	SecretKindOrbit SecretKind = "orbit"
-	SecretKindSanta SecretKind = "santa"
-	SecretKindMunki SecretKind = "munki"
 )
 
 func (e *SecretKind) Scan(src interface{}) error {

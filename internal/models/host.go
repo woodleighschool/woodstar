@@ -208,7 +208,7 @@ func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, in
 
 	orderSQL := hostOrder(params.OrderKey, params.OrderDirection)
 	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32(params.Page*params.PerPage))
+	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
 	rows, err := s.db.Pool().Query(ctx, hostListSQL(whereSQL, orderSQL, limitIndex), args...)
 	if err != nil {
 		return nil, 0, err

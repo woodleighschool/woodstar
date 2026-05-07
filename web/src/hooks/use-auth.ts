@@ -3,21 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type CurrentUser = Schemas["UserBody"];
+export type Session = Schemas["SessionBody"];
+export type CurrentUser = NonNullable<Session["user"]>;
 
-export function useAuth(): { user: CurrentUser | null } {
-  const { data } = useQuery<CurrentUser | null, ApiError>({
-    queryKey: queryKeys.authMe,
-    queryFn: async ({ signal }) => {
-      const result = await apiClient.GET("/api/auth/me", { signal });
-      if (result.response.status === 401) {
-        return null;
-      }
-      return unwrap(Promise.resolve(result));
-    },
+export function useSession(): { session: Session | null; isLoading: boolean } {
+  const { data, isLoading } = useQuery<Session, ApiError>({
+    queryKey: queryKeys.session,
+    queryFn: async ({ signal }) => unwrap(apiClient.GET("/api/auth/session", { signal })),
     retry: false,
     staleTime: 30_000,
   });
 
-  return { user: data ?? null };
+  return { session: data ?? null, isLoading };
+}
+
+export function useAuth(): { user: CurrentUser | null } {
+  const { session } = useSession();
+  return { user: session?.user ?? null };
 }

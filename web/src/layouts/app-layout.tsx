@@ -1,33 +1,34 @@
-import { Outlet } from "@tanstack/react-router";
-import { useState } from "react";
+import { Outlet, useLocation } from "@tanstack/react-router";
+import { AnimatePresence, motion } from "motion/react";
 
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { useAuth } from "@/hooks/use-auth";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AppTopbar } from "@/components/layout/app-topbar";
+import { PageActionsProvider } from "@/components/layout/page-actions";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export function AppLayout() {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { user } = useAuth();
-
+  const location = useLocation();
   return (
-    <div className="flex h-dvh bg-background text-foreground">
-      <aside className="hidden lg:flex w-60 shrink-0">
-        <Sidebar />
-      </aside>
-
-      <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <DialogContent className="lg:hidden left-0 top-0 translate-x-0 translate-y-0 max-w-[16rem] h-dvh rounded-none border-r p-0">
-          <Sidebar onNavigate={() => setMobileNavOpen(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <div className="flex flex-1 flex-col min-w-0">
-        <Topbar user={user} onOpenMobileNav={() => setMobileNavOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+    <PageActionsProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <AppTopbar />
+          <main className="flex-1 overflow-y-auto">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12, ease: "easeOut" }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </PageActionsProvider>
   );
 }

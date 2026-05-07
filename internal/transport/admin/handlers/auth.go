@@ -22,10 +22,13 @@ type userBody struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
-type setupStatusOutput struct {
-	Body struct {
-		Complete bool `json:"complete"`
-	}
+type sessionOutput struct {
+	Body sessionBody
+}
+
+type sessionBody struct {
+	SetupComplete bool      `json:"setup_complete"`
+	User          *userBody `json:"user,omitempty"`
 }
 
 type authUserOutput struct {
@@ -34,7 +37,7 @@ type authUserOutput struct {
 
 type setupInput struct {
 	Body struct {
-		Email    string `json:"email" format:"email"`
+		Email    string `json:"email"    format:"email"`
 		Name     string `json:"name,omitempty"`
 		Password string `json:"password" minLength:"12"`
 	}
@@ -42,7 +45,7 @@ type setupInput struct {
 
 type loginInput struct {
 	Body struct {
-		Email    string `json:"email" format:"email"`
+		Email    string `json:"email"    format:"email"`
 		Password string `json:"password" minLength:"1"`
 	}
 }
@@ -55,31 +58,17 @@ const (
 // RegisterPublicAuth registers setup and browser session endpoints.
 func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
-	registerSessions(api, authService)
+	registerSession(api, authService)
+	registerLogin(api, authService)
 }
 
 // RegisterProtectedAuth registers authenticated browser session endpoints.
-func RegisterProtectedAuth(api huma.API, authService *auth.Service) {
-	registerCurrentUser(api, authService)
+// All session-aware reads happen through /api/auth/session, so no protected
+// endpoints are needed here today.
+func RegisterProtectedAuth(_ huma.API, _ *auth.Service) {
 }
 
 func registerSetup(api huma.API, authService *auth.Service) {
-	huma.Register(api, huma.Operation{
-		OperationID: "get-setup-status",
-		Method:      http.MethodGet,
-		Path:        "/api/setup/status",
-		Tags:        []string{setupTag},
-		Summary:     "Check whether initial setup is complete",
-	}, func(ctx context.Context, _ *struct{}) (*setupStatusOutput, error) {
-		complete, err := authService.SetupComplete(ctx)
-		if err != nil {
-			return nil, err
-		}
-		out := &setupStatusOutput{}
-		out.Body.Complete = complete
-		return out, nil
-	})
-
 	huma.Register(api, huma.Operation{
 		OperationID:   "complete-setup",
 		Method:        http.MethodPost,
@@ -101,7 +90,36 @@ func registerSetup(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerSessions(api huma.API, authService *auth.Service) {
+func registerSession(api huma.API, authService *auth.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-session",
+		Method:      http.MethodGet,
+		Path:        "/api/auth/session",
+		Tags:        []string{authTag},
+		Summary:     "Get setup state and the current signed-in user, if any",
+	}, func(ctx context.Context, _ *struct{}) (*sessionOutput, error) {
+		complete, err := authService.SetupComplete(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := &sessionOutput{Body: sessionBody{SetupComplete: complete}}
+		if !complete {
+			return out, nil
+		}
+		user, err := authService.CurrentUser(ctx)
+		if err != nil {
+			if errors.Is(err, auth.ErrNotAuthenticated) {
+				return out, nil
+			}
+			return nil, err
+		}
+		body := userResponse(user)
+		out.Body.User = &body
+		return out, nil
+	})
+}
+
+func registerLogin(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      http.MethodPost,
@@ -127,26 +145,6 @@ func registerSessions(api huma.API, authService *auth.Service) {
 			return nil, err
 		}
 		return &struct{}{}, nil
-	})
-}
-
-func registerCurrentUser(api huma.API, authService *auth.Service) {
-	huma.Register(api, huma.Operation{
-		OperationID: "get-current-user",
-		Method:      http.MethodGet,
-		Path:        "/api/auth/me",
-		Tags:        []string{authTag},
-		Summary:     "Get the current signed-in user",
-		Errors:      []int{http.StatusUnauthorized},
-	}, func(ctx context.Context, _ *struct{}) (*authUserOutput, error) {
-		if user, ok := adminctx.UserFromContext(ctx); ok {
-			return &authUserOutput{Body: userResponse(user)}, nil
-		}
-		user, err := authService.CurrentUser(ctx)
-		if err != nil {
-			return nil, authError(err)
-		}
-		return &authUserOutput{Body: userResponse(user)}, nil
 	})
 }
 

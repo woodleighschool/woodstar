@@ -1,8 +1,7 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState } from "react";
 
-import { ErrorState } from "@/components/feedback/error-state";
-import { Spinner } from "@/components/feedback/spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
@@ -27,20 +26,30 @@ export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, empty
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
   if (error) {
-    return <ErrorState message={error.message} onRetry={onRetry} />;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Failed to load secrets</AlertTitle>
+        <AlertDescription>{error.message}</AlertDescription>
+        {onRetry ? (
+          <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 w-fit">
+            Retry
+          </Button>
+        ) : null}
+      </Alert>
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner /> Loading…
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Loader2 className="size-4 animate-spin" /> Loading...
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="rounded-md border border-dashed bg-muted/30 px-4 py-6 text-sm">
+      <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">
         <p className="font-medium">{emptyTitle}</p>
         <p className="text-muted-foreground">{emptyDescription}</p>
       </div>

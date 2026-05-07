@@ -1,16 +1,15 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Search, Tags, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import * as React from "react";
+import { useState } from "react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
-import { ErrorState } from "@/components/feedback/error-state";
-import { Spinner } from "@/components/feedback/spinner";
-import { PageHeader } from "@/components/layout/page-header";
-import { FilterPopover, type FilterGroup } from "@/components/lists/filter-popover";
-import type { SortState } from "@/components/lists/sort-state";
-import { SortableTableHead } from "@/components/lists/sortable-table-head";
-import { TablePagination } from "@/components/lists/table-pagination";
+import { PageActions } from "@/components/layout/page-actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import {
   Dialog,
   DialogClose,
@@ -26,11 +25,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label as FieldLabel } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
   useCreateLabel,
   useDeleteLabel,
@@ -39,10 +39,9 @@ import {
   type Label,
   type LabelMutation,
 } from "@/hooks/use-labels";
+import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { cn, formatRelative } from "@/lib/utils";
-
-const DEFAULT_PAGE_SIZE = 50;
-const SEARCH_DEBOUNCE_MS = 200;
+import { useSearch } from "@tanstack/react-router";
 
 const KIND_OPTIONS = [
   { value: "builtin", label: "Built-in" },
@@ -59,241 +58,140 @@ const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
 
 type LabelMembershipType = NonNullable<LabelMutation["membership_type"]>;
 
-export interface LabelsSearch {
+interface LabelsSearch {
   q?: string;
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: "asc" | "desc";
   kind?: string;
   membership_type?: string;
   platform?: string;
 }
 
-export function LabelsPage({
-  search,
-  setSearch,
-}: {
-  search: LabelsSearch;
-  setSearch: (updater: (prev: LabelsSearch) => LabelsSearch) => void;
-}) {
-  const activeQ = search.q ?? "";
-  const activePage = search.page ?? 1;
-  const activePerPage = search.per_page ?? DEFAULT_PAGE_SIZE;
-  const activeSort: SortState = { orderKey: search.order_key, orderDirection: search.order_direction };
-  const [searchInput, setSearchInput] = useState(activeQ);
-  const [lastActiveQ, setLastActiveQ] = useState(activeQ);
+export function LabelsPage() {
+  const search = useSearch({ strict: false }) as LabelsSearch;
+  const { state, setters } = useTablePaginationParams();
+  const [draft, setDraft] = useDebouncedSearchParam("q");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Label | null>(null);
   const [deleting, setDeleting] = useState<Label | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  if (lastActiveQ !== activeQ) {
-    setLastActiveQ(activeQ);
-    setSearchInput(activeQ);
-  }
-
-  useEffect(
-    () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    },
-    [],
-  );
 
   const query = useLabels({
-    q: activeQ,
-    page: activePage - 1,
-    per_page: activePerPage,
-    order_key: activeSort.orderKey,
-    order_direction: activeSort.orderDirection,
+    q: search.q,
+    page: state.page,
+    per_page: state.perPage,
+    order_key: state.orderKey,
+    order_direction: state.orderDirection,
     kind: search.kind,
     membership_type: search.membership_type,
     platform: search.platform,
   });
 
-  const writeQ = (next: string) => {
-    const trimmed = next.trim();
-    setSearch((prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }));
-  };
+  const data = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = Boolean(search.q || search.kind || search.membership_type || search.platform);
 
-  const filterGroups: FilterGroup[] = [
+  const columns: ColumnDef<Label>[] = [
+    {
+      id: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => row.original.name,
+    },
     {
       id: "kind",
-      label: "Kind",
-      options: KIND_OPTIONS,
-      selected: search.kind ? [search.kind] : [],
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, kind: values[0] || undefined, page: undefined }));
-      },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Kind" />,
+      cell: ({ row }) => (
+        <Badge variant={row.original.kind === "builtin" ? "secondary" : "outline"}>{row.original.kind}</Badge>
+      ),
     },
     {
       id: "membership_type",
-      label: "Membership",
-      options: MEMBERSHIP_OPTIONS,
-      selected: search.membership_type ? [search.membership_type] : [],
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, membership_type: values[0] || undefined, page: undefined }));
-      },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.membership_type}</span>,
     },
     {
       id: "platform",
-      label: "Platform",
-      options: PLATFORM_OPTIONS,
-      selected: search.platform ? [search.platform] : [],
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, platform: values[0] || undefined, page: undefined }));
-      },
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.platform || "-"}</span>,
+    },
+    {
+      id: "hosts_count",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" />,
+      cell: ({ row }) => <span className="tabular-nums">{row.original.hosts_count}</span>,
+    },
+    {
+      id: "updated_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" title={new Date(row.original.updated_at).toLocaleString()}>
+          {formatRelative(row.original.updated_at)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => <LabelRowActions label={row.original} onEdit={setEditing} onDelete={setDeleting} />,
+      meta: { headClassName: "w-12" },
     },
   ];
 
-  const data = query.data?.items ?? [];
-  const hasFilters = activeQ !== "" || Boolean(search.kind || search.membership_type || search.platform);
-
   return (
-    <div className="flex flex-col">
-      <PageHeader
-        title="Labels"
-        description="Host groups used to scope reports, checks, and module rules."
-        actions={
-          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> Add label
-          </Button>
-        }
-      />
+    <>
+      <PageActions>
+        <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4" /> Add label
+        </Button>
+      </PageActions>
 
       <div className="p-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-md">
-              <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
+        {query.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load labels</AlertTitle>
+            <AlertDescription>{query.error.message}</AlertDescription>
+            <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+              Retry
+            </Button>
+          </Alert>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={data}
+            totalCount={totalCount}
+            page={state.page}
+            perPage={state.perPage}
+            sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
+            onPageChange={setters.setPage}
+            onPerPageChange={setters.setPerPage}
+            onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+            isLoading={query.isLoading}
+            toolbar={
+              <LabelsToolbar
+                draft={draft}
+                onDraftChange={setDraft}
+                kind={search.kind}
+                onKindChange={(v) => setters.setFilter("kind", v)}
+                membership={search.membership_type}
+                onMembershipChange={(v) => setters.setFilter("membership_type", v)}
+                platform={search.platform}
+                onPlatformChange={(v) => setters.setFilter("platform", v)}
+                isFetching={query.isFetching}
+                totalCount={totalCount}
               />
-              <Input
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  if (debounceRef.current) clearTimeout(debounceRef.current);
-                  debounceRef.current = setTimeout(() => writeQ(event.target.value), SEARCH_DEBOUNCE_MS);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    if (debounceRef.current) clearTimeout(debounceRef.current);
-                    writeQ(searchInput);
-                  }
-                }}
-                placeholder="Search labels"
-                className="pl-8 pr-8"
-                aria-label="Search labels"
-              />
-              {searchInput ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (debounceRef.current) clearTimeout(debounceRef.current);
-                    setSearchInput("");
-                    writeQ("");
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="size-3.5" />
-                </button>
-              ) : null}
-            </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {query.isFetching ? (
-                <span className="inline-flex items-center gap-1">
-                  <Spinner className="size-3" /> Loading…
-                </span>
-              ) : (
-                <>
-                  {query.data?.count ?? 0} label{query.data?.count === 1 ? "" : "s"}
-                </>
-              )}
-            </div>
-            <FilterPopover groups={filterGroups} />
-          </div>
-
-          {query.error ? (
-            <ErrorState message={query.error.message} onRetry={() => query.refetch()} />
-          ) : query.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Spinner /> Loading…
-            </div>
-          ) : data.length === 0 ? (
-            <EmptyState
-              icon={Tags}
-              title={hasFilters ? "No matches" : "No labels yet"}
-              description={hasFilters ? "No labels matched the current filters." : "Built-in labels appear here."}
-            />
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableTableHead orderKey="name" active={activeSort} onSort={(next) => setSort(setSearch, next)}>
-                      Name
-                    </SortableTableHead>
-                    <SortableTableHead orderKey="kind" active={activeSort} onSort={(next) => setSort(setSearch, next)}>
-                      Kind
-                    </SortableTableHead>
-                    <SortableTableHead
-                      orderKey="membership_type"
-                      active={activeSort}
-                      onSort={(next) => setSort(setSearch, next)}
-                    >
-                      Membership
-                    </SortableTableHead>
-                    <SortableTableHead
-                      orderKey="platform"
-                      active={activeSort}
-                      onSort={(next) => setSort(setSearch, next)}
-                    >
-                      Platform
-                    </SortableTableHead>
-                    <SortableTableHead
-                      orderKey="hosts_count"
-                      active={activeSort}
-                      onSort={(next) => setSort(setSearch, next)}
-                    >
-                      Hosts
-                    </SortableTableHead>
-                    <SortableTableHead
-                      orderKey="updated_at"
-                      active={activeSort}
-                      onSort={(next) => setSort(setSearch, next)}
-                    >
-                      Updated
-                    </SortableTableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.map((label) => (
-                    <LabelRow key={label.id} label={label} onEdit={setEditing} onDelete={setDeleting} />
-                  ))}
-                </TableBody>
-              </Table>
-              <TablePagination
-                page={activePage}
-                perPage={activePerPage}
-                totalCount={query.data?.count ?? data.length}
-                visibleCount={data.length}
-                onPageChange={(page) => {
-                  setSearch((prev) => ({ ...prev, page: page <= 1 ? undefined : page }));
-                }}
-                onPerPageChange={(perPage) => {
-                  setSearch((prev) => ({
-                    ...prev,
-                    per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
-                    page: undefined,
-                  }));
-                }}
-              />
-            </div>
-          )}
-        </div>
+            }
+            empty={
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Tags />
+                  </EmptyMedia>
+                  <EmptyTitle>{hasFilters ? "No matches" : "No labels yet"}</EmptyTitle>
+                  <EmptyDescription>
+                    {hasFilters ? "No labels matched the current filters." : "Built-in labels appear here."}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            }
+          />
+        )}
       </div>
 
       <LabelFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
@@ -316,20 +214,89 @@ export function LabelsPage({
           if (!open) setDeleting(null);
         }}
       />
+    </>
+  );
+}
+
+interface LabelsToolbarProps {
+  draft: string;
+  onDraftChange: (next: string) => void;
+  kind: string | undefined;
+  onKindChange: (next: string | undefined) => void;
+  membership: string | undefined;
+  onMembershipChange: (next: string | undefined) => void;
+  platform: string | undefined;
+  onPlatformChange: (next: string | undefined) => void;
+  isFetching: boolean;
+  totalCount: number;
+}
+
+function LabelsToolbar({
+  draft,
+  onDraftChange,
+  kind,
+  onKindChange,
+  membership,
+  onMembershipChange,
+  platform,
+  onPlatformChange,
+  isFetching,
+  totalCount,
+}: LabelsToolbarProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative max-w-md flex-1">
+        <Search
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+          aria-hidden
+        />
+        <Input
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          placeholder="Search labels"
+          className="pr-8 pl-8"
+          aria-label="Search labels"
+        />
+        {draft ? (
+          <button
+            type="button"
+            onClick={() => onDraftChange("")}
+            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
+            aria-label="Clear search"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <DataTableFacetedFilter
+        title="Kind"
+        options={KIND_OPTIONS}
+        selected={kind ? [kind] : []}
+        onChange={(next) => onKindChange(next[0])}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Membership"
+        options={MEMBERSHIP_OPTIONS}
+        selected={membership ? [membership] : []}
+        onChange={(next) => onMembershipChange(next[0])}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Platform"
+        options={PLATFORM_OPTIONS}
+        selected={platform ? [platform] : []}
+        onChange={(next) => onPlatformChange(next[0])}
+        singleSelect
+      />
+      <div className="text-muted-foreground ml-auto text-xs tabular-nums">
+        {isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "label" : "labels"}`}
+      </div>
     </div>
   );
 }
 
-function setSort(setSearch: (updater: (prev: LabelsSearch) => LabelsSearch) => void, next: SortState) {
-  setSearch((prev) => ({
-    ...prev,
-    order_key: next.orderKey,
-    order_direction: next.orderDirection,
-    page: undefined,
-  }));
-}
-
-function LabelRow({
+function LabelRowActions({
   label,
   onEdit,
   onDelete,
@@ -338,38 +305,21 @@ function LabelRow({
   onEdit: (label: Label) => void;
   onDelete: (label: Label) => void;
 }) {
-  const canMutate = label.kind === "custom";
-
+  if (label.kind !== "custom") return null;
   return (
-    <TableRow>
-      <TableCell className="font-medium">{label.name}</TableCell>
-      <TableCell>
-        <Badge variant={label.kind === "builtin" ? "secondary" : "outline"}>{label.kind}</Badge>
-      </TableCell>
-      <TableCell className="text-muted-foreground">{label.membership_type}</TableCell>
-      <TableCell className="text-muted-foreground">{label.platform || "-"}</TableCell>
-      <TableCell className="tabular-nums">{label.hosts_count}</TableCell>
-      <TableCell className="text-muted-foreground" title={new Date(label.updated_at).toLocaleString()}>
-        {formatRelative(label.updated_at)}
-      </TableCell>
-      <TableCell className="text-right">
-        {canMutate ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${label.name}`}>
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => onEdit(label)}>Edit</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(label)}>
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-      </TableCell>
-    </TableRow>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${label.name}`}>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onEdit(label)}>Edit</DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(label)}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -505,7 +455,7 @@ function LabelFormBody({
           />
         </div>
 
-        {submitError ? <p className="text-sm text-destructive">{submitError.message}</p> : null}
+        {submitError ? <p className="text-destructive text-sm">{submitError.message}</p> : null}
 
         <DialogFooter className="pt-2">
           <DialogClose asChild>
@@ -558,7 +508,7 @@ function LabelDeleteDialog({
             {label ? `${label.name} will be removed from hosts and filters.` : "This label will be removed."}
           </DialogDescription>
         </DialogHeader>
-        {remove.error ? <p className="text-sm text-destructive">{remove.error.message}</p> : null}
+        {remove.error ? <p className="text-destructive text-sm">{remove.error.message}</p> : null}
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="ghost" size="sm" disabled={remove.isPending}>

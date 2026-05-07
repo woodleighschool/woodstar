@@ -20,7 +20,7 @@ export interface SoftwareListParams {
 export function useSoftware(params: SoftwareListParams = {}) {
   const sourceParam = params.source && params.source.length > 0 ? params.source : undefined;
   const qParam = params.q?.trim() || undefined;
-  const pageParam = Math.max(0, params.page ?? 0);
+  const pageParam = Math.max(1, params.page ?? 1);
   const perPageParam = params.per_page ?? 50;
   const queryParams = {
     q: qParam,

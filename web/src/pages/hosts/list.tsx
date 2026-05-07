@@ -1,38 +1,32 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Search, ServerCog, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
-import { ErrorState } from "@/components/feedback/error-state";
-import { Spinner } from "@/components/feedback/spinner";
-import { PageHeader } from "@/components/layout/page-header";
-import { FilterPopover, type FilterGroup } from "@/components/lists/filter-popover";
-import type { SortState } from "@/components/lists/sort-state";
-import { SortableTableHead } from "@/components/lists/sortable-table-head";
-import { TablePagination } from "@/components/lists/table-pagination";
+import { PageActions } from "@/components/layout/page-actions";
 import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
+import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
-const SEARCH_DEBOUNCE_MS = 200;
-const DEFAULT_PAGE_SIZE = 50;
-const PLATFORM_FILTER_OPTIONS = [{ value: "darwin", label: "Darwin" }];
-const STATUS_FILTER_OPTIONS = [
+const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
+const STATUS_OPTIONS = [
   { value: "online", label: "Online" },
   { value: "offline", label: "Offline" },
 ];
 
-export interface HostsListSearch {
+interface HostsSearch {
   q?: string;
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: "asc" | "desc";
   status?: string;
   platform?: string;
   label_id?: string;
@@ -40,329 +34,272 @@ export interface HostsListSearch {
   software_id?: string;
 }
 
-export function HostsListPage({
-  search,
-  setSearch,
-}: {
-  search: HostsListSearch;
-  setSearch: (updater: (prev: HostsListSearch) => HostsListSearch) => void;
-}) {
-  const activeQ = search.q ?? "";
-  const activePage = search.page ?? 1;
-  const activePerPage = search.per_page ?? DEFAULT_PAGE_SIZE;
-  const activeSort: SortState = {
-    orderKey: search.order_key,
-    orderDirection: search.order_direction,
-  };
-  const activePlatform = search.platform ? [search.platform] : [];
-  const activeStatus = search.status ? [search.status] : [];
-  const activeLabel = search.label_id ? [search.label_id] : [];
-  const [searchInput, setSearchInput] = useState(activeQ);
-  const [lastActiveQ, setLastActiveQ] = useState(activeQ);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function HostsListPage() {
+  const search = useSearch({ strict: false }) as HostsSearch;
+  const { state, setters } = useTablePaginationParams();
+  const [draft, setDraft] = useDebouncedSearchParam("q");
   const labelsQuery = useLabels({ per_page: 200, order_key: "name", order_direction: "asc" });
 
-  if (lastActiveQ !== activeQ) {
-    setLastActiveQ(activeQ);
-    setSearchInput(activeQ);
-  }
-
-  useEffect(
-    () => () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    },
-    [],
-  );
-
-  const writeQ = (next: string) => {
-    const trimmed = next.trim();
-    setSearch((prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }));
-  };
+  const isSoftwareFiltered = Boolean(search.software_title_id || search.software_id);
 
   const query = useHosts({
-    q: activeQ,
-    page: activePage - 1,
-    per_page: activePerPage,
-    order_key: activeSort.orderKey,
-    order_direction: activeSort.orderDirection,
+    q: search.q,
+    page: state.page,
+    per_page: state.perPage,
+    order_key: state.orderKey,
+    order_direction: state.orderDirection,
     status: search.status,
     platform: search.platform,
     label_id: search.label_id,
     software_title_id: search.software_title_id,
     software_id: search.software_id,
   });
-  const isSoftwareFiltered = Boolean(search.software_title_id || search.software_id);
-  const hasFilters =
-    activeQ !== "" ||
-    activePlatform.length > 0 ||
-    activeStatus.length > 0 ||
-    activeLabel.length > 0 ||
-    isSoftwareFiltered;
-  const filterGroups: FilterGroup[] = [
+
+  const data = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
+  const [now] = useState(() => Date.now());
+
+  const hasFilters = Boolean(search.q || search.status || search.platform || search.label_id) || isSoftwareFiltered;
+
+  const columns: ColumnDef<Host>[] = [
+    {
+      id: "display_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
+      cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
+    },
     {
       id: "status",
-      label: "Status",
-      options: STATUS_FILTER_OPTIONS,
-      selected: activeStatus,
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, status: values[0] || undefined, page: undefined }));
+      header: () => "Status",
+      enableSorting: false,
+      cell: ({ row }) => <HostStatusBadge host={row.original} now={now} />,
+    },
+    {
+      id: "os_version",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="OS" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.os_version || "-"}</span>,
+    },
+    {
+      id: "hardware_model",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_model || "-"}</span>,
+    },
+    {
+      id: "hardware_serial",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground font-mono text-xs">{row.original.hardware_serial || "-"}</span>
+      ),
+    },
+    {
+      id: "disk_space_available_bytes",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Disk free" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground tabular-nums">
+          {row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-"}
+        </span>
+      ),
+    },
+    {
+      id: "primary_user",
+      header: () => "Primary user",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const email = row.original.device_mappings?.[0]?.email ?? "";
+        return (
+          <span className="text-muted-foreground block max-w-[16rem] truncate" title={email || ""}>
+            {email || "-"}
+          </span>
+        );
       },
     },
     {
-      id: "platform",
-      label: "Platform",
-      options: PLATFORM_FILTER_OPTIONS,
-      selected: activePlatform,
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, platform: values[0] || undefined, page: undefined }));
-      },
-    },
-    {
-      id: "label",
-      label: "Label",
-      options: (labelsQuery.data?.items ?? []).map((label) => ({ value: label.id, label: label.name })),
-      selected: activeLabel,
-      onChange: (values) => {
-        setSearch((prev) => ({ ...prev, label_id: values[0] || undefined, page: undefined }));
-      },
+      id: "last_seen_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last seen" />,
+      cell: ({ row }) => (
+        <span
+          className="text-muted-foreground"
+          title={row.original.last_seen_at ? new Date(row.original.last_seen_at).toLocaleString() : ""}
+        >
+          {formatRelative(row.original.last_seen_at)}
+        </span>
+      ),
     },
   ];
 
+  const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: l.id, label: l.name }));
+
   return (
-    <div className="flex flex-col">
-      <PageHeader
-        title="Hosts"
-        description={
-          isSoftwareFiltered
-            ? "Hosts matching the selected software filter."
-            : "Orbit/osquery-managed Macs in this Woodstar deployment."
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            {isSoftwareFiltered ? (
-              <Button asChild variant="outline" size="sm">
-                <Link to="/hosts">Clear filter</Link>
-              </Button>
-            ) : null}
-            <OrbitEnrollSecretsDialog
-              trigger={
-                <Button variant="outline" size="sm" className="gap-2">
-                  <KeyRound className="size-4" /> Manage enroll secrets
-                </Button>
-              }
-            />
-          </div>
-        }
-      />
+    <>
+      <PageActions>
+        {isSoftwareFiltered ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/hosts">Clear filter</Link>
+          </Button>
+        ) : null}
+        <OrbitEnrollSecretsDialog
+          trigger={
+            <Button variant="outline" size="sm" className="gap-2">
+              <KeyRound className="size-4" /> Manage enroll secrets
+            </Button>
+          }
+        />
+      </PageActions>
 
       <div className="p-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-md">
-              <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
+        {query.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load hosts</AlertTitle>
+            <AlertDescription>{query.error.message}</AlertDescription>
+            <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+              Retry
+            </Button>
+          </Alert>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={data}
+            totalCount={totalCount}
+            page={state.page}
+            perPage={state.perPage}
+            sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
+            onPageChange={setters.setPage}
+            onPerPageChange={setters.setPerPage}
+            onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+            isLoading={query.isLoading}
+            rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: row.id } })}
+            toolbar={
+              <HostsToolbar
+                draft={draft}
+                onDraftChange={setDraft}
+                status={search.status}
+                onStatusChange={(v) => setters.setFilter("status", v)}
+                platform={search.platform}
+                onPlatformChange={(v) => setters.setFilter("platform", v)}
+                labelId={search.label_id}
+                onLabelChange={(v) => setters.setFilter("label_id", v)}
+                labelOptions={labelOptions}
+                isFetching={query.isFetching}
+                totalCount={totalCount}
               />
-              <Input
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  if (debounceRef.current) clearTimeout(debounceRef.current);
-                  debounceRef.current = setTimeout(() => writeQ(event.target.value), SEARCH_DEBOUNCE_MS);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    if (debounceRef.current) clearTimeout(debounceRef.current);
-                    writeQ(searchInput);
-                  }
-                }}
-                placeholder="Search hosts"
-                className="pl-8 pr-8"
-                aria-label="Search hosts"
-              />
-              {searchInput ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (debounceRef.current) clearTimeout(debounceRef.current);
-                    setSearchInput("");
-                    writeQ("");
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="Clear search"
-                >
-                  <X className="size-3.5" />
-                </button>
-              ) : null}
-            </div>
-            <div className="text-xs text-muted-foreground tabular-nums">
-              {query.isFetching ? (
-                <span className="inline-flex items-center gap-1">
-                  <Spinner className="size-3" /> Loading…
-                </span>
-              ) : (
-                <>
-                  {query.data?.count ?? 0} host{query.data?.count === 1 ? "" : "s"}
-                </>
-              )}
-            </div>
-            <FilterPopover groups={filterGroups} />
-          </div>
-
-          <HostsTable
-            query={query}
-            hasFilters={hasFilters}
-            page={activePage}
-            perPage={activePerPage}
-            sort={activeSort}
-            onSortChange={(next) => {
-              setSearch((prev) => ({
-                ...prev,
-                order_key: next.orderKey,
-                order_direction: next.orderDirection,
-                page: undefined,
-              }));
-            }}
-            onPageChange={(page) => {
-              setSearch((prev) => ({ ...prev, page: page <= 1 ? undefined : page }));
-            }}
-            onPerPageChange={(perPage) => {
-              setSearch((prev) => ({
-                ...prev,
-                per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
-                page: undefined,
-              }));
-            }}
+            }
+            empty={
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ServerCog />
+                  </EmptyMedia>
+                  <EmptyTitle>{hasFilters ? "No matches" : "No hosts enrolled yet"}</EmptyTitle>
+                  <EmptyDescription>
+                    {hasFilters
+                      ? "No hosts matched the current filters."
+                      : "Create an enroll secret, then point an Orbit-managed Mac at this Woodstar deployment."}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            }
           />
-        </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
-function HostsTable({
-  query,
-  hasFilters,
-  page,
-  perPage,
-  sort,
-  onSortChange,
-  onPageChange,
-  onPerPageChange,
-}: {
-  query: ReturnType<typeof useHosts>;
-  hasFilters: boolean;
-  page: number;
-  perPage: number;
-  sort: SortState;
-  onSortChange: (next: SortState) => void;
-  onPageChange: (page: number) => void;
-  onPerPageChange: (perPage: number) => void;
-}) {
-  const [now] = useState(() => Date.now());
+interface HostsToolbarProps {
+  draft: string;
+  onDraftChange: (next: string) => void;
+  status: string | undefined;
+  onStatusChange: (next: string | undefined) => void;
+  platform: string | undefined;
+  onPlatformChange: (next: string | undefined) => void;
+  labelId: string | undefined;
+  onLabelChange: (next: string | undefined) => void;
+  labelOptions: { value: string; label: string }[];
+  isFetching: boolean;
+  totalCount: number;
+}
 
-  if (query.error) {
-    return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
-  }
-
-  if (query.isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner /> Loading…
-      </div>
-    );
-  }
-
-  const data = query.data?.items ?? [];
-  if (data.length === 0) {
-    return (
-      <EmptyState
-        icon={ServerCog}
-        title={hasFilters ? "No matches" : "No hosts enrolled yet"}
-        description={
-          hasFilters
-            ? "No hosts matched the current filters."
-            : "Create an enroll secret, then point an Orbit-managed Mac at this Woodstar deployment. Hosts appear here on first check-in."
-        }
-      />
-    );
-  }
-
+function HostsToolbar({
+  draft,
+  onDraftChange,
+  status,
+  onStatusChange,
+  platform,
+  onPlatformChange,
+  labelId,
+  onLabelChange,
+  labelOptions,
+  isFetching,
+  totalCount,
+}: HostsToolbarProps) {
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableTableHead orderKey="display_name" active={sort} onSort={onSortChange}>
-              Host
-            </SortableTableHead>
-            <TableHead>Status</TableHead>
-            <SortableTableHead orderKey="os_version" active={sort} onSort={onSortChange}>
-              Operating system
-            </SortableTableHead>
-            <SortableTableHead orderKey="hardware_model" active={sort} onSort={onSortChange}>
-              Hardware model
-            </SortableTableHead>
-            <SortableTableHead orderKey="hardware_serial" active={sort} onSort={onSortChange}>
-              Serial number
-            </SortableTableHead>
-            <SortableTableHead orderKey="disk_space_available_bytes" active={sort} onSort={onSortChange}>
-              Disk space
-            </SortableTableHead>
-            <TableHead>Primary user</TableHead>
-            <SortableTableHead orderKey="last_seen_at" active={sort} onSort={onSortChange}>
-              Last seen
-            </SortableTableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row) => {
-            const primaryEmail = row.device_mappings?.[0]?.email ?? "";
-            return (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium">
-                  <Link to="/hosts/$hostId" params={{ hostId: row.id }} className="hover:underline">
-                    {row.display_name || row.hardware_uuid}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge host={row} now={now} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">{row.os_version || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{row.hardware_model || "-"}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{row.hardware_serial || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {row.disk_space_available_bytes ? formatBytes(row.disk_space_available_bytes) : "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-[16rem] truncate" title={primaryEmail || ""}>
-                  {primaryEmail || "-"}
-                </TableCell>
-                <TableCell
-                  className="text-muted-foreground"
-                  title={row.last_seen_at ? new Date(row.last_seen_at).toLocaleString() : ""}
-                >
-                  {formatRelative(row.last_seen_at)}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-      <TablePagination
-        page={page}
-        perPage={perPage}
-        totalCount={query.data?.count ?? data.length}
-        visibleCount={data.length}
-        onPageChange={onPageChange}
-        onPerPageChange={onPerPageChange}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative max-w-md flex-1">
+        <Search
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+          aria-hidden
+        />
+        <Input
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          placeholder="Search hosts"
+          className="pr-8 pl-8"
+          aria-label="Search hosts"
+        />
+        {draft ? (
+          <button
+            type="button"
+            onClick={() => onDraftChange("")}
+            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
+            aria-label="Clear search"
+          >
+            <X className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <DataTableFacetedFilter
+        title="Status"
+        options={STATUS_OPTIONS}
+        selected={status ? [status] : []}
+        onChange={(next) => onStatusChange(next[0])}
+        singleSelect
       />
+      <DataTableFacetedFilter
+        title="Platform"
+        options={PLATFORM_OPTIONS}
+        selected={platform ? [platform] : []}
+        onChange={(next) => onPlatformChange(next[0])}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Label"
+        options={labelOptions}
+        selected={labelId ? [labelId] : []}
+        onChange={(next) => onLabelChange(next[0])}
+        singleSelect
+      />
+      <div className="text-muted-foreground ml-auto text-xs tabular-nums">
+        {isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "host" : "hosts"}`}
+      </div>
     </div>
   );
 }
 
-function StatusBadge({ host, now }: { host: Host; now: number }) {
-  if (!host.last_seen_at) return <Badge variant="outline">Offline</Badge>;
+function HostStatusBadge({ host, now }: { host: Host; now: number }) {
+  if (!host.last_seen_at) {
+    return (
+      <Badge variant="outline" className="gap-1.5">
+        <span className="bg-status-offline size-2 rounded-full" />
+        Offline
+      </Badge>
+    );
+  }
   const lastSeen = new Date(host.last_seen_at).getTime();
   const online = now - lastSeen <= 5 * 60 * 1000;
-  return <Badge variant={online ? "default" : "outline"}>{online ? "Online" : "Offline"}</Badge>;
+  return (
+    <Badge variant={online ? "default" : "outline"} className="gap-1.5">
+      <span className={online ? "bg-status-online size-2 rounded-full" : "bg-status-offline size-2 rounded-full"} />
+      {online ? "Online" : "Offline"}
+    </Badge>
+  );
 }

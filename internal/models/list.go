@@ -12,6 +12,7 @@ const (
 )
 
 // ListParams is the common query shape for paginated list endpoints.
+// Page is 1-indexed: page 1 returns the first PerPage rows.
 type ListParams struct {
 	Q              string
 	Page           int
@@ -21,8 +22,8 @@ type ListParams struct {
 }
 
 func CleanListParams(params ListParams) ListParams {
-	if params.Page < 0 {
-		params.Page = 0
+	if params.Page < 1 {
+		params.Page = 1
 	}
 	if params.PerPage <= 0 {
 		params.PerPage = defaultPerPage

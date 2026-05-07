@@ -21,7 +21,7 @@ export interface LabelListParams {
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
     q: params.q?.trim() || undefined,
-    page: Math.max(0, params.page ?? 0),
+    page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
     order_key: params.order_key || undefined,
     order_direction: params.order_direction || undefined,

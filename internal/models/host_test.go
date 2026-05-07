@@ -101,8 +101,8 @@ func TestCleanHostListParams(t *testing.T) {
 	if params.Q != "mac" {
 		t.Fatalf("Q = %q, want mac", params.Q)
 	}
-	if params.Page != 0 {
-		t.Fatalf("Page = %d, want 0", params.Page)
+	if params.Page != 1 {
+		t.Fatalf("Page = %d, want 1", params.Page)
 	}
 	if params.PerPage != maxPerPage {
 		t.Fatalf("PerPage = %d, want %d", params.PerPage, maxPerPage)

@@ -31,7 +31,8 @@ type secretRoute struct {
 	name              string
 }
 
-// RegisterSecrets registers shared credential endpoints for Orbit, Santa, and Munki.
+// RegisterSecrets registers shared credential endpoints for Orbit enroll secrets.
+// Santa and Munki return when their modules ship.
 func RegisterSecrets(api huma.API, store *models.SecretStore) {
 	registerSecretRoutes(api, store, models.SecretOrbit, secretRoute{
 		listOperationID:   "list-orbit-enroll-secrets",
@@ -40,24 +41,6 @@ func RegisterSecrets(api huma.API, store *models.SecretStore) {
 		path:              "/api/orbit/enroll-secrets",
 		tag:               "Orbit",
 		name:              "Orbit enroll secret",
-	})
-
-	registerSecretRoutes(api, store, models.SecretSanta, secretRoute{
-		listOperationID:   "list-santa-tokens",
-		createOperationID: "create-santa-token",
-		deleteOperationID: "delete-santa-token",
-		path:              "/api/santa/tokens",
-		tag:               "Santa",
-		name:              "Santa token",
-	})
-
-	registerSecretRoutes(api, store, models.SecretMunki, secretRoute{
-		listOperationID:   "list-munki-tokens",
-		createOperationID: "create-munki-token",
-		deleteOperationID: "delete-munki-token",
-		path:              "/api/munki/tokens",
-		tag:               "Munki",
-		name:              "Munki token",
 	})
 }
 

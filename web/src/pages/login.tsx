@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -21,9 +20,9 @@ export function LoginPage() {
 
   const login = useMutation<UserBody, ApiError, LoginInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/auth/login", { body })),
-    onSuccess: async (user) => {
+    onSuccess: async () => {
       setError(null);
-      queryClient.setQueryData(queryKeys.authMe, user);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
       await router.navigate({ to: "/hosts" });
     },
     onError: (err) => {
@@ -65,19 +64,9 @@ export function LoginPage() {
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
             <Button type="submit" className="w-full" disabled={login.isPending}>
-              {login.isPending ? "Signing in…" : "Sign in"}
+              {login.isPending ? "Signing in..." : "Sign in"}
             </Button>
           </form>
-
-          <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-muted-foreground">
-            <Separator className="flex-1" />
-            <span>or</span>
-            <Separator className="flex-1" />
-          </div>
-
-          <Button variant="outline" className="w-full" disabled>
-            Sign in with OIDC
-          </Button>
         </CardContent>
       </Card>
     </div>

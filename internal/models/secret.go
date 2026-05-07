@@ -20,10 +20,9 @@ import (
 type SecretKind string
 
 // Secret kinds map to agent-facing credentials.
+// Santa and Munki return alongside their modules.
 const (
 	SecretOrbit SecretKind = "orbit"
-	SecretSanta SecretKind = "santa"
-	SecretMunki SecretKind = "munki"
 )
 
 // Secret is a reusable shared credential shown to admins.
@@ -123,7 +122,7 @@ func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id string) er
 // Valid reports whether k is a supported secret kind.
 func (k SecretKind) Valid() error {
 	switch k {
-	case SecretOrbit, SecretSanta, SecretMunki:
+	case SecretOrbit:
 		return nil
 	default:
 		return fmt.Errorf("unknown secret kind %q", k)

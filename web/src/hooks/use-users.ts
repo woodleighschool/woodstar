@@ -37,7 +37,7 @@ export function useUpdateUser() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users });
       // The actor may have updated their own row (name/password).
-      queryClient.invalidateQueries({ queryKey: queryKeys.authMe });
+      queryClient.invalidateQueries({ queryKey: queryKeys.session });
     },
   });
 }

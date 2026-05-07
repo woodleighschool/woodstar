@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
-CREATE TYPE secret_kind AS ENUM ('orbit', 'santa', 'munki');
+CREATE TYPE secret_kind AS ENUM ('orbit');
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,

@@ -1,10 +1,8 @@
-import { MoreHorizontal, UserPlus, Users } from "lucide-react";
+import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
-import { ErrorState } from "@/components/feedback/error-state";
-import { Spinner } from "@/components/feedback/spinner";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageActions } from "@/components/layout/page-actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
@@ -29,16 +28,12 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState<User | null>(null);
 
   return (
-    <div className="flex flex-col">
-      <PageHeader
-        title="Users"
-        description="Local Woodstar accounts. Admins manage users and secrets; viewers are read-only."
-        actions={
-          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-            <UserPlus className="size-4" /> Add user
-          </Button>
-        }
-      />
+    <>
+      <PageActions>
+        <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
+          <UserPlus className="size-4" /> Add user
+        </Button>
+      </PageActions>
 
       <div className="p-6">
         <UsersTable query={query} currentUserId={currentUser?.id ?? null} onEdit={setEditing} onDelete={setDeleting} />
@@ -65,7 +60,7 @@ export function UsersPage() {
         }}
         user={deleting}
       />
-    </div>
+    </>
   );
 }
 
@@ -78,13 +73,21 @@ interface UsersTableProps {
 
 function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps) {
   if (query.error) {
-    return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Failed to load users</AlertTitle>
+        <AlertDescription>{query.error.message}</AlertDescription>
+        <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+          Retry
+        </Button>
+      </Alert>
+    );
   }
 
   if (query.isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner /> Loading…
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Loader2 className="size-4 animate-spin" /> Loading...
       </div>
     );
   }
@@ -92,11 +95,17 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
   const data = query.data ?? [];
   if (data.length === 0) {
     return (
-      <EmptyState
-        icon={Users}
-        title="No users yet"
-        description="Add a user to give other admins or viewers access to this Woodstar deployment."
-      />
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Users />
+          </EmptyMedia>
+          <EmptyTitle>No users yet</EmptyTitle>
+          <EmptyDescription>
+            Add a user to give other admins or viewers access to this Woodstar deployment.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -123,7 +132,7 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                 </TableCell>
                 <TableCell className="text-muted-foreground">{row.name || "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={row.role === "admin" ? "default" : "muted"}>{row.role}</Badge>
+                  <Badge variant={row.role === "admin" ? "default" : "secondary"}>{row.role}</Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground" title={new Date(row.created_at).toLocaleString()}>
                   {formatRelative(row.created_at)}
@@ -135,7 +144,7 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                         <MoreHorizontal className="size-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
+                    <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
                       {!isSelf ? (
                         <DropdownMenuItem

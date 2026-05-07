@@ -217,7 +217,7 @@ func (s *SoftwareStore) ListTitles(ctx context.Context, params SoftwareTitleList
 
 	orderSQL := softwareTitleOrder(params.OrderKey, params.OrderDirection)
 	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32(params.Page*params.PerPage))
+	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
 	rows, err := s.db.Pool().Query(ctx, softwareTitleListSQL(whereSQL, orderSQL, limitIndex), args...)
 	if err != nil {
 		return nil, 0, err
@@ -588,7 +588,7 @@ func (s *SoftwareStore) hostSoftwareTitleIDs(
 	params HostSoftwareListParams,
 ) ([]int64, error) {
 	limitIndex := len(args) + 1
-	queryArgs := append(append([]any{}, args...), int32(params.PerPage), int32(params.Page*params.PerPage))
+	queryArgs := append(append([]any{}, args...), int32(params.PerPage), int32((params.Page-1)*params.PerPage))
 	rows, err := s.db.Pool().Query(ctx, `
 SELECT
 	st.id,

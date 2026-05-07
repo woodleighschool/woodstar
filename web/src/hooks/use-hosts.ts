@@ -27,7 +27,7 @@ export interface HostListParams extends ListParams {
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
     q: params.q?.trim() || undefined,
-    page: Math.max(0, params.page ?? 0),
+    page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
     order_key: params.order_key || undefined,
     order_direction: params.order_direction || undefined,
@@ -72,7 +72,7 @@ export interface HostSoftwareListParams extends ListParams {
 export function useHostSoftware(id: string, params: HostSoftwareListParams = {}) {
   const queryParams = {
     q: params.q?.trim() || undefined,
-    page: Math.max(0, params.page ?? 0),
+    page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
     order_key: params.order_key || undefined,
     order_direction: params.order_direction || undefined,

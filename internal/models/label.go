@@ -94,7 +94,7 @@ func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label,
 		OrderKey:       params.OrderKey,
 		OrderDirection: params.OrderDirection,
 		LimitRows:      int32(params.PerPage),
-		OffsetRows:     int32(params.Page * params.PerPage),
+		OffsetRows:     int32((params.Page - 1) * params.PerPage),
 	})
 	if err != nil {
 		return nil, 0, err

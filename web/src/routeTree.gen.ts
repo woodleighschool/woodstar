@@ -11,21 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthedUsersRouteImport } from './routes/_authed/users'
-import { Route as AuthedSoftwareRouteImport } from './routes/_authed/software'
-import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
-import { Route as AuthedSantaRouteImport } from './routes/_authed/santa'
-import { Route as AuthedReportsRouteImport } from './routes/_authed/reports'
-import { Route as AuthedMunkiRouteImport } from './routes/_authed/munki'
-import { Route as AuthedLabelsRouteImport } from './routes/_authed/labels'
-import { Route as AuthedHostsRouteImport } from './routes/_authed/hosts'
-import { Route as AuthedChecksRouteImport } from './routes/_authed/checks'
-import { Route as AuthedSoftwareIndexRouteImport } from './routes/_authed/software.index'
-import { Route as AuthedHostsIndexRouteImport } from './routes/_authed/hosts.index'
-import { Route as AuthedHostsHostIdRouteImport } from './routes/_authed/hosts.$hostId'
-import { Route as AuthedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authed/software.titles.$softwareId'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedSoftwareRouteImport } from './routes/_authenticated/software'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
+import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
+import { Route as AuthenticatedSoftwareIndexRouteImport } from './routes/_authenticated/software.index'
+import { Route as AuthenticatedHostsIndexRouteImport } from './routes/_authenticated/hosts.index'
+import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
+import { Route as AuthenticatedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authenticated/software.titles.$softwareId'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -37,8 +33,8 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedRoute = AuthedRouteImport.update({
-  id: '/_authed',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -46,126 +42,96 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedUsersRoute = AuthedUsersRouteImport.update({
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
   path: '/users',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthedSoftwareRoute = AuthedSoftwareRouteImport.update({
+const AuthenticatedSoftwareRoute = AuthenticatedSoftwareRouteImport.update({
   id: '/software',
   path: '/software',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthedSettingsRoute = AuthedSettingsRouteImport.update({
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthedSantaRoute = AuthedSantaRouteImport.update({
-  id: '/santa',
-  path: '/santa',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedReportsRoute = AuthedReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedMunkiRoute = AuthedMunkiRouteImport.update({
-  id: '/munki',
-  path: '/munki',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedLabelsRoute = AuthedLabelsRouteImport.update({
+const AuthenticatedLabelsRoute = AuthenticatedLabelsRouteImport.update({
   id: '/labels',
   path: '/labels',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthedHostsRoute = AuthedHostsRouteImport.update({
+const AuthenticatedHostsRoute = AuthenticatedHostsRouteImport.update({
   id: '/hosts',
   path: '/hosts',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthedChecksRoute = AuthedChecksRouteImport.update({
-  id: '/checks',
-  path: '/checks',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedSoftwareIndexRoute = AuthedSoftwareIndexRouteImport.update({
+const AuthenticatedSoftwareIndexRoute =
+  AuthenticatedSoftwareIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSoftwareRoute,
+  } as any)
+const AuthenticatedHostsIndexRoute = AuthenticatedHostsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthedSoftwareRoute,
+  getParentRoute: () => AuthenticatedHostsRoute,
 } as any)
-const AuthedHostsIndexRoute = AuthedHostsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthedHostsRoute,
-} as any)
-const AuthedHostsHostIdRoute = AuthedHostsHostIdRouteImport.update({
-  id: '/$hostId',
-  path: '/$hostId',
-  getParentRoute: () => AuthedHostsRoute,
-} as any)
-const AuthedSoftwareTitlesSoftwareIdRoute =
-  AuthedSoftwareTitlesSoftwareIdRouteImport.update({
+const AuthenticatedHostsHostIdRoute =
+  AuthenticatedHostsHostIdRouteImport.update({
+    id: '/$hostId',
+    path: '/$hostId',
+    getParentRoute: () => AuthenticatedHostsRoute,
+  } as any)
+const AuthenticatedSoftwareTitlesSoftwareIdRoute =
+  AuthenticatedSoftwareTitlesSoftwareIdRouteImport.update({
     id: '/titles/$softwareId',
     path: '/titles/$softwareId',
-    getParentRoute: () => AuthedSoftwareRoute,
+    getParentRoute: () => AuthenticatedSoftwareRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/checks': typeof AuthedChecksRoute
-  '/hosts': typeof AuthedHostsRouteWithChildren
-  '/labels': typeof AuthedLabelsRoute
-  '/munki': typeof AuthedMunkiRoute
-  '/reports': typeof AuthedReportsRoute
-  '/santa': typeof AuthedSantaRoute
-  '/settings': typeof AuthedSettingsRoute
-  '/software': typeof AuthedSoftwareRouteWithChildren
-  '/users': typeof AuthedUsersRoute
-  '/hosts/$hostId': typeof AuthedHostsHostIdRoute
-  '/hosts/': typeof AuthedHostsIndexRoute
-  '/software/': typeof AuthedSoftwareIndexRoute
-  '/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
+  '/hosts': typeof AuthenticatedHostsRouteWithChildren
+  '/labels': typeof AuthenticatedLabelsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/software': typeof AuthenticatedSoftwareRouteWithChildren
+  '/users': typeof AuthenticatedUsersRoute
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/hosts/': typeof AuthenticatedHostsIndexRoute
+  '/software/': typeof AuthenticatedSoftwareIndexRoute
+  '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/checks': typeof AuthedChecksRoute
-  '/labels': typeof AuthedLabelsRoute
-  '/munki': typeof AuthedMunkiRoute
-  '/reports': typeof AuthedReportsRoute
-  '/santa': typeof AuthedSantaRoute
-  '/settings': typeof AuthedSettingsRoute
-  '/users': typeof AuthedUsersRoute
-  '/hosts/$hostId': typeof AuthedHostsHostIdRoute
-  '/hosts': typeof AuthedHostsIndexRoute
-  '/software': typeof AuthedSoftwareIndexRoute
-  '/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
+  '/labels': typeof AuthenticatedLabelsRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/users': typeof AuthenticatedUsersRoute
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/hosts': typeof AuthenticatedHostsIndexRoute
+  '/software': typeof AuthenticatedSoftwareIndexRoute
+  '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_authed': typeof AuthedRouteWithChildren
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
-  '/_authed/checks': typeof AuthedChecksRoute
-  '/_authed/hosts': typeof AuthedHostsRouteWithChildren
-  '/_authed/labels': typeof AuthedLabelsRoute
-  '/_authed/munki': typeof AuthedMunkiRoute
-  '/_authed/reports': typeof AuthedReportsRoute
-  '/_authed/santa': typeof AuthedSantaRoute
-  '/_authed/settings': typeof AuthedSettingsRoute
-  '/_authed/software': typeof AuthedSoftwareRouteWithChildren
-  '/_authed/users': typeof AuthedUsersRoute
-  '/_authed/hosts/$hostId': typeof AuthedHostsHostIdRoute
-  '/_authed/hosts/': typeof AuthedHostsIndexRoute
-  '/_authed/software/': typeof AuthedSoftwareIndexRoute
-  '/_authed/software/titles/$softwareId': typeof AuthedSoftwareTitlesSoftwareIdRoute
+  '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
+  '/_authenticated/labels': typeof AuthenticatedLabelsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
+  '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
+  '/_authenticated/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -173,12 +139,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
-    | '/checks'
     | '/hosts'
     | '/labels'
-    | '/munki'
-    | '/reports'
-    | '/santa'
     | '/settings'
     | '/software'
     | '/users'
@@ -191,11 +153,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
-    | '/checks'
     | '/labels'
-    | '/munki'
-    | '/reports'
-    | '/santa'
     | '/settings'
     | '/users'
     | '/hosts/$hostId'
@@ -205,27 +163,23 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/_authed'
+    | '/_authenticated'
     | '/login'
     | '/setup'
-    | '/_authed/checks'
-    | '/_authed/hosts'
-    | '/_authed/labels'
-    | '/_authed/munki'
-    | '/_authed/reports'
-    | '/_authed/santa'
-    | '/_authed/settings'
-    | '/_authed/software'
-    | '/_authed/users'
-    | '/_authed/hosts/$hostId'
-    | '/_authed/hosts/'
-    | '/_authed/software/'
-    | '/_authed/software/titles/$softwareId'
+    | '/_authenticated/hosts'
+    | '/_authenticated/labels'
+    | '/_authenticated/settings'
+    | '/_authenticated/software'
+    | '/_authenticated/users'
+    | '/_authenticated/hosts/$hostId'
+    | '/_authenticated/hosts/'
+    | '/_authenticated/software/'
+    | '/_authenticated/software/titles/$softwareId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthedRoute: typeof AuthedRouteWithChildren
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
 }
@@ -246,11 +200,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed': {
-      id: '/_authed'
+    '/_authenticated': {
+      id: '/_authenticated'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof AuthedRouteImport
+      preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -260,158 +214,124 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/users': {
-      id: '/_authed/users'
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
       path: '/users'
       fullPath: '/users'
-      preLoaderRoute: typeof AuthedUsersRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authed/software': {
-      id: '/_authed/software'
+    '/_authenticated/software': {
+      id: '/_authenticated/software'
       path: '/software'
       fullPath: '/software'
-      preLoaderRoute: typeof AuthedSoftwareRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthenticatedSoftwareRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authed/settings': {
-      id: '/_authed/settings'
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof AuthedSettingsRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authed/santa': {
-      id: '/_authed/santa'
-      path: '/santa'
-      fullPath: '/santa'
-      preLoaderRoute: typeof AuthedSantaRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/reports': {
-      id: '/_authed/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AuthedReportsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/munki': {
-      id: '/_authed/munki'
-      path: '/munki'
-      fullPath: '/munki'
-      preLoaderRoute: typeof AuthedMunkiRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/labels': {
-      id: '/_authed/labels'
+    '/_authenticated/labels': {
+      id: '/_authenticated/labels'
       path: '/labels'
       fullPath: '/labels'
-      preLoaderRoute: typeof AuthedLabelsRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthenticatedLabelsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authed/hosts': {
-      id: '/_authed/hosts'
+    '/_authenticated/hosts': {
+      id: '/_authenticated/hosts'
       path: '/hosts'
       fullPath: '/hosts'
-      preLoaderRoute: typeof AuthedHostsRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof AuthenticatedHostsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authed/checks': {
-      id: '/_authed/checks'
-      path: '/checks'
-      fullPath: '/checks'
-      preLoaderRoute: typeof AuthedChecksRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/software/': {
-      id: '/_authed/software/'
+    '/_authenticated/software/': {
+      id: '/_authenticated/software/'
       path: '/'
       fullPath: '/software/'
-      preLoaderRoute: typeof AuthedSoftwareIndexRouteImport
-      parentRoute: typeof AuthedSoftwareRoute
+      preLoaderRoute: typeof AuthenticatedSoftwareIndexRouteImport
+      parentRoute: typeof AuthenticatedSoftwareRoute
     }
-    '/_authed/hosts/': {
-      id: '/_authed/hosts/'
+    '/_authenticated/hosts/': {
+      id: '/_authenticated/hosts/'
       path: '/'
       fullPath: '/hosts/'
-      preLoaderRoute: typeof AuthedHostsIndexRouteImport
-      parentRoute: typeof AuthedHostsRoute
+      preLoaderRoute: typeof AuthenticatedHostsIndexRouteImport
+      parentRoute: typeof AuthenticatedHostsRoute
     }
-    '/_authed/hosts/$hostId': {
-      id: '/_authed/hosts/$hostId'
+    '/_authenticated/hosts/$hostId': {
+      id: '/_authenticated/hosts/$hostId'
       path: '/$hostId'
       fullPath: '/hosts/$hostId'
-      preLoaderRoute: typeof AuthedHostsHostIdRouteImport
-      parentRoute: typeof AuthedHostsRoute
+      preLoaderRoute: typeof AuthenticatedHostsHostIdRouteImport
+      parentRoute: typeof AuthenticatedHostsRoute
     }
-    '/_authed/software/titles/$softwareId': {
-      id: '/_authed/software/titles/$softwareId'
+    '/_authenticated/software/titles/$softwareId': {
+      id: '/_authenticated/software/titles/$softwareId'
       path: '/titles/$softwareId'
       fullPath: '/software/titles/$softwareId'
-      preLoaderRoute: typeof AuthedSoftwareTitlesSoftwareIdRouteImport
-      parentRoute: typeof AuthedSoftwareRoute
+      preLoaderRoute: typeof AuthenticatedSoftwareTitlesSoftwareIdRouteImport
+      parentRoute: typeof AuthenticatedSoftwareRoute
     }
   }
 }
 
-interface AuthedHostsRouteChildren {
-  AuthedHostsHostIdRoute: typeof AuthedHostsHostIdRoute
-  AuthedHostsIndexRoute: typeof AuthedHostsIndexRoute
+interface AuthenticatedHostsRouteChildren {
+  AuthenticatedHostsHostIdRoute: typeof AuthenticatedHostsHostIdRoute
+  AuthenticatedHostsIndexRoute: typeof AuthenticatedHostsIndexRoute
 }
 
-const AuthedHostsRouteChildren: AuthedHostsRouteChildren = {
-  AuthedHostsHostIdRoute: AuthedHostsHostIdRoute,
-  AuthedHostsIndexRoute: AuthedHostsIndexRoute,
+const AuthenticatedHostsRouteChildren: AuthenticatedHostsRouteChildren = {
+  AuthenticatedHostsHostIdRoute: AuthenticatedHostsHostIdRoute,
+  AuthenticatedHostsIndexRoute: AuthenticatedHostsIndexRoute,
 }
 
-const AuthedHostsRouteWithChildren = AuthedHostsRoute._addFileChildren(
-  AuthedHostsRouteChildren,
+const AuthenticatedHostsRouteWithChildren =
+  AuthenticatedHostsRoute._addFileChildren(AuthenticatedHostsRouteChildren)
+
+interface AuthenticatedSoftwareRouteChildren {
+  AuthenticatedSoftwareIndexRoute: typeof AuthenticatedSoftwareIndexRoute
+  AuthenticatedSoftwareTitlesSoftwareIdRoute: typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
+}
+
+const AuthenticatedSoftwareRouteChildren: AuthenticatedSoftwareRouteChildren = {
+  AuthenticatedSoftwareIndexRoute: AuthenticatedSoftwareIndexRoute,
+  AuthenticatedSoftwareTitlesSoftwareIdRoute:
+    AuthenticatedSoftwareTitlesSoftwareIdRoute,
+}
+
+const AuthenticatedSoftwareRouteWithChildren =
+  AuthenticatedSoftwareRoute._addFileChildren(
+    AuthenticatedSoftwareRouteChildren,
+  )
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
+  AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSoftwareRoute: typeof AuthenticatedSoftwareRouteWithChildren
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
+  AuthenticatedLabelsRoute: AuthenticatedLabelsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSoftwareRoute: AuthenticatedSoftwareRouteWithChildren,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
 )
-
-interface AuthedSoftwareRouteChildren {
-  AuthedSoftwareIndexRoute: typeof AuthedSoftwareIndexRoute
-  AuthedSoftwareTitlesSoftwareIdRoute: typeof AuthedSoftwareTitlesSoftwareIdRoute
-}
-
-const AuthedSoftwareRouteChildren: AuthedSoftwareRouteChildren = {
-  AuthedSoftwareIndexRoute: AuthedSoftwareIndexRoute,
-  AuthedSoftwareTitlesSoftwareIdRoute: AuthedSoftwareTitlesSoftwareIdRoute,
-}
-
-const AuthedSoftwareRouteWithChildren = AuthedSoftwareRoute._addFileChildren(
-  AuthedSoftwareRouteChildren,
-)
-
-interface AuthedRouteChildren {
-  AuthedChecksRoute: typeof AuthedChecksRoute
-  AuthedHostsRoute: typeof AuthedHostsRouteWithChildren
-  AuthedLabelsRoute: typeof AuthedLabelsRoute
-  AuthedMunkiRoute: typeof AuthedMunkiRoute
-  AuthedReportsRoute: typeof AuthedReportsRoute
-  AuthedSantaRoute: typeof AuthedSantaRoute
-  AuthedSettingsRoute: typeof AuthedSettingsRoute
-  AuthedSoftwareRoute: typeof AuthedSoftwareRouteWithChildren
-  AuthedUsersRoute: typeof AuthedUsersRoute
-}
-
-const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedChecksRoute: AuthedChecksRoute,
-  AuthedHostsRoute: AuthedHostsRouteWithChildren,
-  AuthedLabelsRoute: AuthedLabelsRoute,
-  AuthedMunkiRoute: AuthedMunkiRoute,
-  AuthedReportsRoute: AuthedReportsRoute,
-  AuthedSantaRoute: AuthedSantaRoute,
-  AuthedSettingsRoute: AuthedSettingsRoute,
-  AuthedSoftwareRoute: AuthedSoftwareRouteWithChildren,
-  AuthedUsersRoute: AuthedUsersRoute,
-}
-
-const AuthedRouteWithChildren =
-  AuthedRoute._addFileChildren(AuthedRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthedRoute: AuthedRouteWithChildren,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
 }
