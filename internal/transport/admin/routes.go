@@ -24,6 +24,7 @@ type Dependencies struct {
 	DeviceMappings *models.DeviceMappingStore
 	SecretStore    *models.SecretStore
 	SoftwareStore  *models.SoftwareStore
+	LabelStore     *models.LabelStore
 }
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -36,8 +37,9 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterPublicAuth(api, deps.AuthService)
 	handlers.RegisterProtectedAuth(protected, deps.AuthService)
 	handlers.RegisterUsers(protected, deps.AuthService)
-	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore)
+	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)
 	handlers.RegisterSoftware(protected, deps.SoftwareStore)
+	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
 	return api
@@ -54,5 +56,6 @@ func BuildAPI(version string) huma.API {
 		DeviceMappings: models.NewDeviceMappingStore(nil),
 		SecretStore:    models.NewSecretStore(nil),
 		SoftwareStore:  models.NewSoftwareStore(nil),
+		LabelStore:     models.NewLabelStore(nil),
 	})
 }

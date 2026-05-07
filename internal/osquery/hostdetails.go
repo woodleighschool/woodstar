@@ -17,7 +17,10 @@ func ParseHostDetails(details map[string]map[string]string) models.HostDetailUpd
 		update.ComputerName = strings.TrimSpace(row["computer_name"])
 		update.HardwareSerial = strings.TrimSpace(row["hardware_serial"])
 		update.HardwareModel = strings.TrimSpace(row["hardware_model"])
+		update.HardwareVersion = strings.TrimSpace(row["hardware_version"])
 		update.HardwareVendor = strings.TrimSpace(row["hardware_vendor"])
+		update.CPUType = strings.TrimSpace(row["cpu_type"])
+		update.CPUSubtype = strings.TrimSpace(row["cpu_subtype"])
 		update.CPUBrand = strings.TrimSpace(row["cpu_brand"])
 		update.CPULogicalCores = parseInt(row["cpu_logical_cores"])
 		update.CPUPhysicalCores = parseInt(row["cpu_physical_cores"])
@@ -30,12 +33,31 @@ func ParseHostDetails(details map[string]map[string]string) models.HostDetailUpd
 		update.OrbitVersion = strings.TrimSpace(row["version"])
 	}
 	if row := details["os_version"]; row != nil {
+		update.OSName = strings.TrimSpace(row["name"])
 		update.OSVersion = osVersion(row)
+		update.OSBuild = strings.TrimSpace(row["build"])
 		update.Platform = strings.TrimSpace(row["platform"])
 		update.PlatformLike = strings.TrimSpace(row["platform_like"])
 	}
 	if row := details["platform_info"]; row != nil {
 		update.KernelVersion = strings.TrimSpace(row["extra"])
+	}
+	if row := details["uptime"]; row != nil {
+		update.UptimeSeconds = parsePositiveInt64Ptr(row["total_seconds"])
+	}
+	if row := details["root_disk"]; row != nil {
+		total := parseInt64(row["bytes_total"])
+		available := parseInt64(row["bytes_available"])
+		if total > 0 {
+			update.DiskSpaceTotalBytes = &total
+			if available >= 0 {
+				update.DiskSpaceAvailableBytes = &available
+			}
+		}
+	}
+	if row := details["primary_interface"]; row != nil {
+		update.PrimaryIP = strings.TrimSpace(row["primary_ip"])
+		update.PrimaryMAC = strings.TrimSpace(row["primary_mac"])
 	}
 	return update
 }
@@ -77,4 +99,12 @@ func parseInt(value string) int {
 func parseInt64(value string) int64 {
 	parsed, _ := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
 	return parsed
+}
+
+func parsePositiveInt64Ptr(value string) *int64 {
+	parsed := parseInt64(value)
+	if parsed <= 0 {
+		return nil
+	}
+	return new(parsed)
 }

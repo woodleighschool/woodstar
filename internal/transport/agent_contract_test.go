@@ -95,6 +95,7 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 	deviceMappings := models.NewDeviceMappingStore(db)
 	secrets := models.NewSecretStore(db)
 	software := models.NewSoftwareStore(db)
+	labels := models.NewLabelStore(db)
 
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
@@ -116,8 +117,9 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 		DeviceMappings: deviceMappings,
 		SecretStore:    secrets,
 		SoftwareStore:  software,
+		LabelStore:     labels,
 		OrbitService:   orbit.NewService(hosts, secrets, deviceMappings),
-		OsqueryService: osquery.NewService(hosts, software, secrets, logger.With("component", "osquery")),
+		OsqueryService: osquery.NewService(hosts, software, labels, secrets, logger.With("component", "osquery")),
 	}, users
 }
 
@@ -288,7 +290,12 @@ func assertDetailQueries(t *testing.T, queries map[string]string) {
 		"os_version",
 		"system_info",
 		"osquery_info",
+		"osquery_flags",
 		"orbit_info",
+		"uptime",
+		"root_disk",
+		"primary_interface",
+		"users",
 		"software_macos",
 		"software_macos_codesign",
 		"software_macos_executable_sha256",
@@ -323,7 +330,25 @@ func osqueryDistributedWrite(t *testing.T, router http.Handler, nodeKey string, 
 				"physical_memory":    "68719476736",
 			}},
 			"osquery_info": {{"version": "5.22.1"}},
-			"orbit_info":   {{"version": "1.47.0"}},
+			"osquery_flags": {
+				{"name": "distributed_interval", "value": "15"},
+				{"name": "config_refresh", "value": "60"},
+			},
+			"orbit_info": {{"version": "1.47.0"}},
+			"uptime":     {{"total_seconds": "3600"}},
+			"root_disk":  {{"bytes_available": "1073741824", "bytes_total": "4294967296"}},
+			"primary_interface": {{
+				"primary_ip":  "192.168.1.10",
+				"primary_mac": "aa:bb:cc:dd:ee:ff",
+			}},
+			"users": {{
+				"uid":         "501",
+				"username":    "contract",
+				"type":        "local",
+				"description": "Contract User",
+				"directory":   "/Users/contract",
+				"shell":       "/bin/zsh",
+			}},
 			"software_macos": {{
 				"name":              softwareName,
 				"version":           "1.2.3",
@@ -347,7 +372,12 @@ func osqueryDistributedWrite(t *testing.T, router http.Handler, nodeKey string, 
 			"os_version":                       0,
 			"system_info":                      0,
 			"osquery_info":                     0,
+			"osquery_flags":                    0,
 			"orbit_info":                       0,
+			"uptime":                           0,
+			"root_disk":                        0,
+			"primary_interface":                0,
+			"users":                            0,
 			"software_macos":                   0,
 			"software_macos_codesign":          0,
 			"software_macos_executable_sha256": 0,
@@ -369,6 +399,8 @@ func assertAdminHost(
 		DisplayName    string                  `json:"display_name"`
 		OrbitVersion   string                  `json:"orbit_version"`
 		PhysicalMemory int64                   `json:"physical_memory"`
+		DiskAvailable  *int64                  `json:"disk_space_available_bytes,omitempty"`
+		DiskTotal      *int64                  `json:"disk_space_total_bytes,omitempty"`
 		DeviceMappings []contractDeviceMapping `json:"device_mappings"`
 	}
 	doJSON(t, router, http.MethodGet, "/api/hosts", nil, adminCookie, &hosts)
@@ -384,6 +416,12 @@ func assertAdminHost(
 		}
 		if host.OrbitVersion != "1.47.0" {
 			t.Fatalf("host orbit_version = %q, want 1.47.0", host.OrbitVersion)
+		}
+		if host.DiskAvailable == nil || *host.DiskAvailable != 1073741824 {
+			t.Fatalf("host disk_space_available_bytes = %v, want 1073741824", host.DiskAvailable)
+		}
+		if host.DiskTotal == nil || *host.DiskTotal != 4294967296 {
+			t.Fatalf("host disk_space_total_bytes = %v, want 4294967296", host.DiskTotal)
 		}
 		assertDeviceMapping(t, host.DeviceMappings, deviceEmail)
 		return host.ID

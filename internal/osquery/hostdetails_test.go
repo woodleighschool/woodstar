@@ -12,6 +12,8 @@ func TestParseHostDetails(t *testing.T) {
 			"name":          "macOS",
 			"version":       "26.5",
 			"build":         "25F5068a",
+			"major":         "26",
+			"minor":         "5",
 			"platform":      "darwin",
 			"platform_like": "darwin",
 		},
@@ -24,11 +26,25 @@ func TestParseHostDetails(t *testing.T) {
 			"uuid":               "00000000-0000-4000-8000-000000000000",
 			"hardware_serial":    "ABCDEFGHIJ",
 			"hardware_model":     "Mac15,8",
+			"hardware_version":   "1.0",
 			"hardware_vendor":    "Apple Inc.",
+			"cpu_type":           "arm64e",
+			"cpu_subtype":        "2",
 			"cpu_brand":          "Apple M3",
 			"cpu_logical_cores":  "8",
 			"cpu_physical_cores": "8",
 			"physical_memory":    "68719476736",
+		},
+		"uptime": {
+			"total_seconds": "3600",
+		},
+		"root_disk": {
+			"bytes_total":     "409600",
+			"bytes_available": "102400",
+		},
+		"primary_interface": {
+			"primary_ip":  "192.0.2.10",
+			"primary_mac": "aa:bb:cc:dd:ee:ff",
 		},
 		"platform_info": {
 			"extra": "Darwin Kernel Version 25.5.0",
@@ -40,26 +56,34 @@ func TestParseHostDetails(t *testing.T) {
 
 	got := ParseHostDetails(details)
 	want := models.HostDetailUpdate{
-		OSVersion:        "macOS 26.5 (build 25F5068a)",
-		Platform:         "darwin",
-		PlatformLike:     "darwin",
-		Hostname:         "example-host",
-		ComputerName:     "EXAMPLE-HOST",
-		HardwareUUID:     "00000000-0000-4000-8000-000000000000",
-		HardwareSerial:   "ABCDEFGHIJ",
-		HardwareModel:    "Mac15,8",
-		HardwareVendor:   "Apple Inc.",
-		CPUBrand:         "Apple M3",
-		CPULogicalCores:  8,
-		CPUPhysicalCores: 8,
-		PhysicalMemory:   68719476736,
-		OsqueryVersion:   "5.22.1",
-		OrbitVersion:     "1.47.0",
-		KernelVersion:    "Darwin Kernel Version 25.5.0",
+		OSVersion:               "macOS 26.5 (build 25F5068a)",
+		Platform:                "darwin",
+		PlatformLike:            "darwin",
+		Hostname:                "example-host",
+		ComputerName:            "EXAMPLE-HOST",
+		HardwareUUID:            "00000000-0000-4000-8000-000000000000",
+		HardwareSerial:          "ABCDEFGHIJ",
+		HardwareModel:           "Mac15,8",
+		HardwareVersion:         "1.0",
+		HardwareVendor:          "Apple Inc.",
+		OSName:                  "macOS",
+		OSBuild:                 "25F5068a",
+		CPUType:                 "arm64e",
+		CPUSubtype:              "2",
+		CPUBrand:                "Apple M3",
+		CPULogicalCores:         8,
+		CPUPhysicalCores:        8,
+		PhysicalMemory:          68719476736,
+		OsqueryVersion:          "5.22.1",
+		OrbitVersion:            "1.47.0",
+		KernelVersion:           "Darwin Kernel Version 25.5.0",
+		UptimeSeconds:           new(int64(3600)),
+		DiskSpaceAvailableBytes: new(int64(102400)),
+		DiskSpaceTotalBytes:     new(int64(409600)),
+		PrimaryIP:               "192.0.2.10",
+		PrimaryMAC:              "aa:bb:cc:dd:ee:ff",
 	}
-	if got != want {
-		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
-	}
+	assertHostDetailUpdate(t, got, want)
 }
 
 func TestParseHostDetailsMissingFields(t *testing.T) {
@@ -75,5 +99,48 @@ func TestParseHostDetailsMissingFields(t *testing.T) {
 	}
 	if got.PhysicalMemory != 0 {
 		t.Fatalf("PhysicalMemory = %d, want 0", got.PhysicalMemory)
+	}
+}
+
+func assertHostDetailUpdate(t *testing.T, got models.HostDetailUpdate, want models.HostDetailUpdate) {
+	t.Helper()
+	if got.HardwareUUID != want.HardwareUUID ||
+		got.Hostname != want.Hostname ||
+		got.ComputerName != want.ComputerName ||
+		got.HardwareSerial != want.HardwareSerial ||
+		got.HardwareModel != want.HardwareModel ||
+		got.HardwareVersion != want.HardwareVersion ||
+		got.HardwareVendor != want.HardwareVendor ||
+		got.OSName != want.OSName ||
+		got.OSVersion != want.OSVersion ||
+		got.OSBuild != want.OSBuild ||
+		got.Platform != want.Platform ||
+		got.PlatformLike != want.PlatformLike ||
+		got.KernelVersion != want.KernelVersion ||
+		got.OrbitVersion != want.OrbitVersion ||
+		got.CPUType != want.CPUType ||
+		got.CPUSubtype != want.CPUSubtype ||
+		got.CPUBrand != want.CPUBrand ||
+		got.CPULogicalCores != want.CPULogicalCores ||
+		got.CPUPhysicalCores != want.CPUPhysicalCores ||
+		got.PhysicalMemory != want.PhysicalMemory ||
+		got.OsqueryVersion != want.OsqueryVersion ||
+		got.PrimaryIP != want.PrimaryIP ||
+		got.PrimaryMAC != want.PrimaryMAC {
+		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
+	}
+	assertInt64Ptr(t, "UptimeSeconds", got.UptimeSeconds, want.UptimeSeconds)
+	assertInt64Ptr(t, "DiskSpaceAvailableBytes", got.DiskSpaceAvailableBytes, want.DiskSpaceAvailableBytes)
+	assertInt64Ptr(t, "DiskSpaceTotalBytes", got.DiskSpaceTotalBytes, want.DiskSpaceTotalBytes)
+}
+
+func assertInt64Ptr(t *testing.T, name string, got *int64, want *int64) {
+	t.Helper()
+	switch {
+	case got == nil && want == nil:
+	case got == nil || want == nil:
+		t.Fatalf("%s = %v, want %v", name, got, want)
+	case *got != *want:
+		t.Fatalf("%s = %d, want %d", name, *got, *want)
 	}
 }

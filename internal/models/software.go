@@ -114,45 +114,52 @@ func NewSoftwareStore(db *database.DB) *SoftwareStore {
 func (s *SoftwareStore) ReplaceHostSoftware(ctx context.Context, hostID int64, entries []HostSoftwareEntry) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
-		if err := q.DeleteHostSoftwarePaths(ctx, sqlc.DeleteHostSoftwarePathsParams{HostID: hostID}); err != nil {
+		if err := resetHostSoftware(ctx, q, hostID); err != nil {
 			return err
 		}
-		if err := q.DeleteHostSoftware(ctx, sqlc.DeleteHostSoftwareParams{HostID: hostID}); err != nil {
-			return err
-		}
-
 		for _, entry := range entries {
-			entry = cleanHostSoftwareEntry(entry)
-			if entry.Name == "" || entry.Source == "" {
-				continue
-			}
-			softwareID, err := softwareIDFor(ctx, q, entry)
-			if err != nil {
-				return err
-			}
-			if err := q.UpsertHostSoftware(ctx, sqlc.UpsertHostSoftwareParams{
-				HostID:       hostID,
-				SoftwareID:   softwareID,
-				LastOpenedAt: entry.LastOpenedAt,
-			}); err != nil {
-				return err
-			}
-			if entry.InstalledPath == "" {
-				continue
-			}
-			if err := q.InsertHostSoftwareInstalledPath(ctx, sqlc.InsertHostSoftwareInstalledPathParams{
-				HostID:           hostID,
-				SoftwareID:       softwareID,
-				InstalledPath:    entry.InstalledPath,
-				TeamIdentifier:   entry.TeamIdentifier,
-				CdhashSha256:     entry.CDHashSHA256,
-				ExecutableSha256: entry.ExecutableSHA256,
-				ExecutablePath:   entry.ExecutablePath,
-			}); err != nil {
+			if err := replaceHostSoftwareEntry(ctx, q, hostID, entry); err != nil {
 				return err
 			}
 		}
 		return nil
+	})
+}
+
+func resetHostSoftware(ctx context.Context, q *sqlc.Queries, hostID int64) error {
+	if err := q.DeleteHostSoftwarePaths(ctx, sqlc.DeleteHostSoftwarePathsParams{HostID: hostID}); err != nil {
+		return err
+	}
+	return q.DeleteHostSoftware(ctx, sqlc.DeleteHostSoftwareParams{HostID: hostID})
+}
+
+func replaceHostSoftwareEntry(ctx context.Context, q *sqlc.Queries, hostID int64, entry HostSoftwareEntry) error {
+	entry = cleanHostSoftwareEntry(entry)
+	if entry.Name == "" || entry.Source == "" {
+		return nil
+	}
+	softwareID, err := softwareIDFor(ctx, q, entry)
+	if err != nil {
+		return err
+	}
+	if err := q.UpsertHostSoftware(ctx, sqlc.UpsertHostSoftwareParams{
+		HostID:       hostID,
+		SoftwareID:   softwareID,
+		LastOpenedAt: entry.LastOpenedAt,
+	}); err != nil {
+		return err
+	}
+	if entry.InstalledPath == "" {
+		return nil
+	}
+	return q.InsertHostSoftwareInstalledPath(ctx, sqlc.InsertHostSoftwareInstalledPathParams{
+		HostID:           hostID,
+		SoftwareID:       softwareID,
+		InstalledPath:    entry.InstalledPath,
+		TeamIdentifier:   entry.TeamIdentifier,
+		CdhashSha256:     entry.CDHashSHA256,
+		ExecutableSha256: entry.ExecutableSHA256,
+		ExecutablePath:   entry.ExecutablePath,
 	})
 }
 
@@ -283,82 +290,130 @@ JOIN software_titles st ON st.id = s.title_id
 		return []HostSoftwareRow{}, total, nil
 	}
 
-	rows, err := s.db.Pool().Query(ctx, hostSoftwareSQL, hostID, titleIDs)
+	software, err := s.hostSoftwareRows(ctx, hostID, titleIDs)
 	if err != nil {
 		return nil, 0, err
 	}
+	return software, total, nil
+}
+
+func (s *SoftwareStore) hostSoftwareRows(
+	ctx context.Context,
+	hostID int64,
+	titleIDs []int64,
+) ([]HostSoftwareRow, error) {
+	rows, err := s.db.Pool().Query(ctx, hostSoftwareSQL, hostID, titleIDs)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
+	return scanHostSoftwareRows(rows)
+}
 
-	byTitle := make(map[int64]*HostSoftwareRow)
-	ordered := make([]int64, 0)
-	versionByKey := make(map[string]*HostSoftwareInstalledVersion)
+type hostSoftwareAccumulator struct {
+	byTitle      map[int64]*HostSoftwareRow
+	ordered      []int64
+	versionByKey map[string]int
+}
+
+func scanHostSoftwareRows(rows pgx.Rows) ([]HostSoftwareRow, error) {
+	acc := hostSoftwareAccumulator{
+		byTitle:      make(map[int64]*HostSoftwareRow),
+		ordered:      make([]int64, 0),
+		versionByKey: make(map[string]int),
+	}
 	for rows.Next() {
-		var row hostSoftwareDBRow
-		if err := rows.Scan(
-			&row.TitleID,
-			&row.TitleName,
-			&row.DisplayName,
-			&row.IconURL,
-			&row.Source,
-			&row.ExtensionFor,
-			&row.SoftwareID,
-			&row.Version,
-			&row.BundleIdentifier,
-			&row.LastOpenedAt,
-			&row.InstalledPath,
-			&row.TeamIdentifier,
-			&row.CDHashSHA256,
-			&row.ExecutableSHA256,
-			&row.ExecutablePath,
-		); err != nil {
-			return nil, 0, err
+		row, err := scanHostSoftwareDBRow(rows)
+		if err != nil {
+			return nil, err
 		}
-		title := byTitle[row.TitleID]
-		if title == nil {
-			title = &HostSoftwareRow{
-				ID:           row.TitleID,
-				Name:         row.TitleName,
-				DisplayName:  row.DisplayName,
-				IconURL:      row.IconURL,
-				Source:       row.Source,
-				ExtensionFor: row.ExtensionFor,
-			}
-			byTitle[row.TitleID] = title
-			ordered = append(ordered, row.TitleID)
-		}
-
-		key := fmt.Sprintf("%d:%d", row.TitleID, row.SoftwareID)
-		version := versionByKey[key]
-		if version == nil {
-			title.InstalledVersions = append(title.InstalledVersions, HostSoftwareInstalledVersion{
-				Version:          row.Version,
-				BundleIdentifier: row.BundleIdentifier,
-				LastOpenedAt:     row.LastOpenedAt,
-			})
-			version = &title.InstalledVersions[len(title.InstalledVersions)-1]
-			versionByKey[key] = version
-		}
-		if row.InstalledPath == "" {
-			continue
-		}
-		version.InstalledPaths = append(version.InstalledPaths, row.InstalledPath)
-		version.SignatureInformation = append(version.SignatureInformation, PathSignatureInformation{
-			InstalledPath:    row.InstalledPath,
-			TeamIdentifier:   row.TeamIdentifier,
-			CDHashSHA256:     row.CDHashSHA256,
-			ExecutableSHA256: row.ExecutableSHA256,
-			ExecutablePath:   row.ExecutablePath,
-		})
+		acc.add(row)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
+	return acc.rows(), nil
+}
 
-	software := make([]HostSoftwareRow, 0, len(ordered))
-	for _, id := range ordered {
-		software = append(software, *byTitle[id])
+func (acc *hostSoftwareAccumulator) rows() []HostSoftwareRow {
+	software := make([]HostSoftwareRow, 0, len(acc.ordered))
+	for _, id := range acc.ordered {
+		software = append(software, *acc.byTitle[id])
 	}
-	return software, total, nil
+	return software
+}
+
+func (acc *hostSoftwareAccumulator) add(row hostSoftwareDBRow) {
+	title := acc.title(row)
+	versionIndex := acc.versionIndex(title, row)
+	if row.InstalledPath == "" {
+		return
+	}
+	version := &title.InstalledVersions[versionIndex]
+	version.InstalledPaths = append(version.InstalledPaths, row.InstalledPath)
+	version.SignatureInformation = append(version.SignatureInformation, PathSignatureInformation{
+		InstalledPath:    row.InstalledPath,
+		TeamIdentifier:   row.TeamIdentifier,
+		CDHashSHA256:     row.CDHashSHA256,
+		ExecutableSHA256: row.ExecutableSHA256,
+		ExecutablePath:   row.ExecutablePath,
+	})
+}
+
+func (acc *hostSoftwareAccumulator) title(row hostSoftwareDBRow) *HostSoftwareRow {
+	title := acc.byTitle[row.TitleID]
+	if title != nil {
+		return title
+	}
+	title = &HostSoftwareRow{
+		ID:           row.TitleID,
+		Name:         row.TitleName,
+		DisplayName:  row.DisplayName,
+		IconURL:      row.IconURL,
+		Source:       row.Source,
+		ExtensionFor: row.ExtensionFor,
+	}
+	acc.byTitle[row.TitleID] = title
+	acc.ordered = append(acc.ordered, row.TitleID)
+	return title
+}
+
+func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hostSoftwareDBRow) int {
+	key := fmt.Sprintf("%d:%d", row.TitleID, row.SoftwareID)
+	versionIndex, ok := acc.versionByKey[key]
+	if ok {
+		return versionIndex
+	}
+	title.InstalledVersions = append(title.InstalledVersions, HostSoftwareInstalledVersion{
+		Version:          row.Version,
+		BundleIdentifier: row.BundleIdentifier,
+		LastOpenedAt:     row.LastOpenedAt,
+	})
+	versionIndex = len(title.InstalledVersions) - 1
+	acc.versionByKey[key] = versionIndex
+	return versionIndex
+}
+
+func scanHostSoftwareDBRow(rows pgx.Rows) (hostSoftwareDBRow, error) {
+	var row hostSoftwareDBRow
+	err := rows.Scan(
+		&row.TitleID,
+		&row.TitleName,
+		&row.DisplayName,
+		&row.IconURL,
+		&row.Source,
+		&row.ExtensionFor,
+		&row.SoftwareID,
+		&row.Version,
+		&row.BundleIdentifier,
+		&row.LastOpenedAt,
+		&row.InstalledPath,
+		&row.TeamIdentifier,
+		&row.CDHashSHA256,
+		&row.ExecutableSHA256,
+		&row.ExecutablePath,
+	)
+	return row, err
 }
 
 func cleanHostSoftwareEntry(entry HostSoftwareEntry) HostSoftwareEntry {
@@ -419,9 +474,9 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 }
 
 func softwareTitleOrder(orderKey string, direction string) string {
-	directionSQL := "ASC"
-	if direction == "desc" {
-		directionSQL = "DESC"
+	directionSQL := orderSQLAsc
+	if direction == orderDesc {
+		directionSQL = orderSQLDesc
 	}
 	switch orderKey {
 	case "source":
@@ -601,9 +656,9 @@ func hostSoftwareWhere(params HostSoftwareListParams, args []any) (string, []any
 }
 
 func hostSoftwareOrder(orderKey string, direction string) string {
-	directionSQL := "ASC"
-	if direction == "desc" {
-		directionSQL = "DESC"
+	directionSQL := orderSQLAsc
+	if direction == orderDesc {
+		directionSQL = orderSQLDesc
 	}
 	switch orderKey {
 	case "version":

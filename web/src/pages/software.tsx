@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Package, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -18,9 +18,22 @@ import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-sourc
 const SEARCH_DEBOUNCE_MS = 200;
 const DEFAULT_PAGE_SIZE = 50;
 
-export function SoftwarePage() {
-  const search = useSearch({ from: "/_authed/software/" });
-  const navigate = useNavigate({ from: "/_authed/software/" });
+export interface SoftwareSearch {
+  q?: string;
+  source?: string[];
+  page?: number;
+  per_page?: number;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+}
+
+export function SoftwarePage({
+  search,
+  setSearch,
+}: {
+  search: SoftwareSearch;
+  setSearch: (updater: (prev: SoftwareSearch) => SoftwareSearch) => void;
+}) {
 
   const activeQuery = search.q ?? "";
   const activeSources = useMemo(() => search.source ?? [], [search.source]);
@@ -31,8 +44,14 @@ export function SoftwarePage() {
     orderDirection: search.order_direction,
   };
   const [searchInput, setSearchInput] = useState(activeQuery);
+  const [lastActiveQuery, setLastActiveQuery] = useState(activeQuery);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  if (lastActiveQuery !== activeQuery) {
+    setLastActiveQuery(activeQuery);
+    setSearchInput(activeQuery);
+  }
 
   useEffect(
     () => () => {
@@ -43,11 +62,7 @@ export function SoftwarePage() {
 
   const writeQuery = (next: string) => {
     const trimmed = next.trim();
-    void navigate({
-      to: "/software",
-      search: (prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }),
-      replace: true,
-    });
+    setSearch((prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }));
   };
 
   const handleSearchChange = (value: string) => {
@@ -68,31 +83,19 @@ export function SoftwarePage() {
   };
 
   const setSources = (sources: string[]) => {
-    void navigate({
-      to: "/software",
-      search: (prev) => ({ ...prev, source: sources.length === 0 ? undefined : sources, page: undefined }),
-      replace: true,
-    });
+    setSearch((prev) => ({ ...prev, source: sources.length === 0 ? undefined : sources, page: undefined }));
   };
 
   const setPage = (page: number) => {
-    void navigate({
-      to: "/software",
-      search: (prev) => ({ ...prev, page: page <= 1 ? undefined : page }),
-      replace: true,
-    });
+    setSearch((prev) => ({ ...prev, page: page <= 1 ? undefined : page }));
   };
 
   const setPerPage = (perPage: number) => {
-    void navigate({
-      to: "/software",
-      search: (prev) => ({
-        ...prev,
-        per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
-        page: undefined,
-      }),
-      replace: true,
-    });
+    setSearch((prev) => ({
+      ...prev,
+      per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
+      page: undefined,
+    }));
   };
 
   const query = useSoftware({
@@ -176,16 +179,12 @@ export function SoftwarePage() {
           totalCount={totalCount}
           sort={activeSort}
           onSortChange={(next) => {
-            void navigate({
-              to: "/software",
-              search: (prev) => ({
-                ...prev,
-                order_key: next.orderKey,
-                order_direction: next.orderDirection,
-                page: undefined,
-              }),
-              replace: true,
-            });
+            setSearch((prev) => ({
+              ...prev,
+              order_key: next.orderKey,
+              order_direction: next.orderDirection,
+              page: undefined,
+            }));
           }}
           onPageChange={setPage}
           onPerPageChange={setPerPage}

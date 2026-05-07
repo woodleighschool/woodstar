@@ -46,7 +46,9 @@ func TestHostListInputParams(t *testing.T) {
 		PerPage:         25,
 		OrderKey:        "display_name",
 		OrderDirection:  "desc",
+		Status:          " online ",
 		Platform:        " darwin ",
+		LabelID:         "7",
 		SoftwareTitleID: "12",
 		SoftwareID:      "40",
 	}
@@ -61,7 +63,8 @@ func TestHostListInputParams(t *testing.T) {
 	if got.OrderKey != "display_name" || got.OrderDirection != "desc" {
 		t.Fatalf("sort params = %#v", got.ListParams)
 	}
-	if got.Platform != "darwin" || got.SoftwareTitleID != 12 || got.SoftwareID != 40 {
+	if got.Status != "online" || got.Platform != "darwin" || got.LabelID != 7 ||
+		got.SoftwareTitleID != 12 || got.SoftwareID != 40 {
 		t.Fatalf("params = %#v", got)
 	}
 }

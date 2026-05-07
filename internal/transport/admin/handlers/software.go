@@ -11,7 +11,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
-const softwareTag = "Software"
+const (
+	softwareTag            = "Software"
+	sourceChromeExtensions = "chrome_extensions"
+)
 
 type softwareListInput struct {
 	Page           int      `query:"page,omitempty"`
@@ -113,7 +116,7 @@ func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
 		Summary:     "Get a software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareGetInput) (*softwareGetOutput, error) {
-		id, err := parseHostID(input.ID)
+		id, err := parseResourceID(input.ID, "software title")
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +161,7 @@ func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
 
 func browserForSoftware(source string, extensionFor string) string {
 	switch source {
-	case "chrome_extensions", "firefox_addons", "safari_extensions":
+	case sourceChromeExtensions, "firefox_addons", "safari_extensions":
 		return extensionFor
 	default:
 		return ""

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -50,69 +51,7 @@ func runServeCommand() *cobra.Command {
 		Use:   "serve",
 		Short: "Start the Woodstar server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-
-			if err := config.ApplyEnvironment(&cfg); err != nil {
-				return fmt.Errorf("load config: %w", err)
-			}
-			logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
-			logger.Info("woodstar configuration loaded", "component", "config", "operation", "load")
-
-			db, err := database.Open(ctx, cfg.DatabaseURL)
-			if err != nil {
-				return fmt.Errorf("open database: %w", err)
-			}
-			defer db.Close()
-			logger.Info("database ready", "component", "database", "operation", "open")
-
-			sessionManager, sessionStore := newSessionManager(db, cfg)
-			defer sessionStore.StopCleanup()
-
-			users := models.NewUserStore(db)
-			hosts := models.NewHostStore(db)
-			deviceMappings := models.NewDeviceMappingStore(db)
-			secrets := models.NewSecretStore(db)
-			software := models.NewSoftwareStore(db)
-
-			authService := auth.NewService(users, sessionManager)
-			orbitService := orbit.NewService(hosts, secrets, deviceMappings)
-			osqueryService := osquery.NewService(hosts, software, secrets, logger.With("component", "osquery"))
-
-			server := transport.NewServer(transport.Dependencies{
-				Config:         cfg,
-				DB:             db,
-				Version:        buildinfo.Version,
-				Logger:         logger,
-				AuthService:    authService,
-				SessionManager: sessionManager,
-				HostStore:      hosts,
-				DeviceMappings: deviceMappings,
-				SecretStore:    secrets,
-				SoftwareStore:  software,
-				OrbitService:   orbitService,
-				OsqueryService: osqueryService,
-				WebHandler: web.NewHandler(web.HandlerOptions{
-					FS:        webfs.DistDirFS,
-					Version:   buildinfo.Version,
-					CSRFToken: csrf.Token,
-					Logger:    logger.With("component", "web"),
-				}),
-			})
-
-			errCh := make(chan error, 1)
-			go func() {
-				errCh <- server.ListenAndServe()
-			}()
-
-			select {
-			case <-ctx.Done():
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				return server.Shutdown(shutdownCtx)
-			case err := <-errCh:
-				return err
-			}
+			return serve(cmd.Context(), cfg)
 		},
 	}
 
@@ -124,6 +63,105 @@ func runServeCommand() *cobra.Command {
 	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
 
 	return cmd
+}
+
+func serve(parent context.Context, cfg config.Config) error {
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := config.ApplyEnvironment(&cfg); err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
+	logger.InfoContext(parent, "woodstar configuration loaded", "component", "config", "operation", "load")
+
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer db.Close()
+	logger.InfoContext(parent, "database ready", "component", "database", "operation", "open")
+
+	sessionManager, sessionStore := newSessionManager(db, cfg)
+	defer sessionStore.StopCleanup()
+
+	return runServer(ctx, newServer(cfg, db, sessionManager, logger))
+}
+
+func runServer(ctx context.Context, server *transport.Server) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		return server.Shutdown(shutdownCtx)
+	case err := <-errCh:
+		return err
+	}
+}
+
+func newServer(
+	cfg config.Config,
+	db *database.DB,
+	sessionManager *scs.SessionManager,
+	logger *slog.Logger,
+) *transport.Server {
+	stores := newModelStores(db)
+	authService := auth.NewService(stores.users, sessionManager)
+	orbitService := orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings)
+	osqueryService := osquery.NewService(
+		stores.hosts,
+		stores.software,
+		stores.labels,
+		stores.secrets,
+		logger.With("component", "osquery"),
+	)
+
+	return transport.NewServer(transport.Dependencies{
+		Config:         cfg,
+		DB:             db,
+		Version:        buildinfo.Version,
+		Logger:         logger,
+		AuthService:    authService,
+		SessionManager: sessionManager,
+		HostStore:      stores.hosts,
+		DeviceMappings: stores.deviceMappings,
+		SecretStore:    stores.secrets,
+		SoftwareStore:  stores.software,
+		LabelStore:     stores.labels,
+		OrbitService:   orbitService,
+		OsqueryService: osqueryService,
+		WebHandler: web.NewHandler(web.HandlerOptions{
+			FS:        webfs.DistDirFS,
+			Version:   buildinfo.Version,
+			CSRFToken: csrf.Token,
+			Logger:    logger.With("component", "web"),
+		}),
+	})
+}
+
+type modelStores struct {
+	users          *models.UserStore
+	hosts          *models.HostStore
+	deviceMappings *models.DeviceMappingStore
+	secrets        *models.SecretStore
+	software       *models.SoftwareStore
+	labels         *models.LabelStore
+}
+
+func newModelStores(db *database.DB) modelStores {
+	return modelStores{
+		users:          models.NewUserStore(db),
+		hosts:          models.NewHostStore(db),
+		deviceMappings: models.NewDeviceMappingStore(db),
+		secrets:        models.NewSecretStore(db),
+		software:       models.NewSoftwareStore(db),
+		labels:         models.NewLabelStore(db),
+	}
 }
 
 func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {

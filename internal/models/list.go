@@ -5,6 +5,10 @@ import "strings"
 const (
 	defaultPerPage = 50
 	maxPerPage     = 200
+	orderAsc       = "asc"
+	orderDesc      = "desc"
+	orderSQLAsc    = "ASC"
+	orderSQLDesc   = "DESC"
 )
 
 // ListParams is the common query shape for paginated list endpoints.
@@ -29,8 +33,8 @@ func CleanListParams(params ListParams) ListParams {
 	params.Q = strings.TrimSpace(params.Q)
 	params.OrderKey = strings.TrimSpace(params.OrderKey)
 	params.OrderDirection = strings.ToLower(strings.TrimSpace(params.OrderDirection))
-	if params.OrderDirection != "desc" {
-		params.OrderDirection = "asc"
+	if params.OrderDirection != orderDesc {
+		params.OrderDirection = orderAsc
 	}
 	return params
 }

@@ -123,6 +123,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List labels */
+        get: operations["list-labels"];
+        put?: never;
+        /** Create a label */
+        post: operations["create-label"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/labels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a label */
+        get: operations["get-label"];
+        put?: never;
+        post?: never;
+        /** Delete a custom label */
+        delete: operations["delete-label"];
+        options?: never;
+        head?: never;
+        /** Update a label */
+        patch: operations["update-label"];
+        trace?: never;
+    };
     "/api/munki/tokens": {
         parameters: {
             query?: never;
@@ -430,6 +467,23 @@ export interface components {
             readonly $schema?: string;
             status: string;
         };
+        HostBatteryBody: {
+            chemistry: string;
+            /** Format: int32 */
+            current_capacity?: number;
+            /** Format: int32 */
+            cycle_count?: number;
+            /** Format: int32 */
+            designed_capacity?: number;
+            health: string;
+            manufacturer: string;
+            /** Format: int32 */
+            max_capacity?: number;
+            model: string;
+            /** Format: double */
+            percent_remaining?: number;
+            serial_number: string;
+        };
         HostBody: {
             /**
              * Format: uri
@@ -437,38 +491,65 @@ export interface components {
              * @example //api/schemas/HostBody.json
              */
             readonly $schema?: string;
+            batteries: components["schemas"]["HostBatteryBody"][] | null;
             computer_name: string;
+            /** Format: int32 */
+            config_tls_refresh?: number;
             cpu_brand: string;
             /** Format: int64 */
             cpu_logical_cores: number;
             /** Format: int64 */
             cpu_physical_cores: number;
+            cpu_subtype: string;
+            cpu_type: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             detail_updated_at?: string;
             device_mappings: components["schemas"]["DeviceMappingBody"][] | null;
+            /** Format: int64 */
+            disk_space_available_bytes?: number;
+            /** Format: int64 */
+            disk_space_total_bytes?: number;
             display_name: string;
+            /** Format: int32 */
+            distributed_interval?: number;
             /** Format: date-time */
             enrolled_at?: string;
             hardware_model: string;
             hardware_serial: string;
             hardware_uuid: string;
             hardware_vendor: string;
+            hardware_version: string;
             hostname: string;
             id: string;
             kernel_version: string;
             /** Format: date-time */
+            label_updated_at?: string;
+            labels: components["schemas"]["LabelBody"][] | null;
+            /** Format: date-time */
+            last_restarted_at?: string;
+            /** Format: date-time */
             last_seen_at?: string;
             orbit_version: string;
+            os_build: string;
+            os_name: string;
             os_version: string;
             osquery_version: string;
             /** Format: int64 */
             physical_memory: number;
             platform: string;
             platform_like: string;
+            primary_ip?: string;
+            primary_mac: string;
+            public_ip?: string;
+            /** Format: date-time */
+            software_updated_at?: string;
             /** Format: date-time */
             updated_at: string;
+            /** Format: int64 */
+            uptime_seconds?: number;
+            users: components["schemas"]["HostUserBody"][] | null;
         };
         HostListBody: {
             /**
@@ -511,6 +592,62 @@ export interface components {
             /** Format: int64 */
             count: number;
             items: components["schemas"]["HostSoftwareBody"][] | null;
+        };
+        HostUserBody: {
+            description: string;
+            directory: string;
+            shell: string;
+            type: string;
+            uid: string;
+            username: string;
+        };
+        LabelBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LabelBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            description: string;
+            /** Format: int64 */
+            hosts_count: number;
+            id: string;
+            kind: string;
+            membership_type: string;
+            name: string;
+            platform?: string;
+            query?: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        LabelListBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LabelListBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["LabelBody"][] | null;
+        };
+        LabelMutationBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LabelMutationBody.json
+             */
+            readonly $schema?: string;
+            description?: string;
+            /** @enum {string} */
+            kind?: "custom" | "builtin";
+            /** @enum {string} */
+            membership_type?: "dynamic" | "static" | "identity";
+            name: string;
+            platform?: string;
+            query?: string;
         };
         LoginInputBody: {
             /**
@@ -839,7 +976,9 @@ export interface operations {
                 per_page?: number;
                 order_key?: string;
                 order_direction?: string;
+                status?: string;
                 platform?: string;
+                label_id?: string;
                 software_title_id?: string;
                 software_id?: string;
             };
@@ -983,6 +1122,325 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-labels": {
+        parameters: {
+            query?: {
+                q?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+                kind?: string;
+                membership_type?: string;
+                platform?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelListBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelMutationBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelMutationBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

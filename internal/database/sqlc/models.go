@@ -7,6 +7,7 @@ package sqlc
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 	"time"
 )
 
@@ -96,32 +97,66 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Host struct {
-	ID               int64      `json:"id"`
-	HardwareUUID     string     `json:"hardware_uuid"`
-	DisplayName      string     `json:"display_name"`
-	Hostname         string     `json:"hostname"`
-	ComputerName     string     `json:"computer_name"`
-	HardwareSerial   string     `json:"hardware_serial"`
-	HardwareModel    string     `json:"hardware_model"`
-	OSVersion        string     `json:"os_version"`
-	OsqueryVersion   string     `json:"osquery_version"`
-	OrbitVersion     string     `json:"orbit_version"`
-	LastSeenAt       *time.Time `json:"last_seen_at"`
-	DetailUpdatedAt  *time.Time `json:"detail_updated_at"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	DeletedAt        *time.Time `json:"deleted_at"`
-	OrbitNodeKey     *string    `json:"orbit_node_key"`
-	OsqueryNodeKey   *string    `json:"osquery_node_key"`
-	Platform         string     `json:"platform"`
-	PlatformLike     string     `json:"platform_like"`
-	EnrolledAt       *time.Time `json:"enrolled_at"`
-	CPUBrand         string     `json:"cpu_brand"`
-	CPULogicalCores  int        `json:"cpu_logical_cores"`
-	CPUPhysicalCores int        `json:"cpu_physical_cores"`
-	PhysicalMemory   int64      `json:"physical_memory"`
-	HardwareVendor   string     `json:"hardware_vendor"`
-	KernelVersion    string     `json:"kernel_version"`
+	ID                      int64       `json:"id"`
+	HardwareUUID            string      `json:"hardware_uuid"`
+	DisplayName             string      `json:"display_name"`
+	Hostname                string      `json:"hostname"`
+	ComputerName            string      `json:"computer_name"`
+	HardwareSerial          string      `json:"hardware_serial"`
+	HardwareModel           string      `json:"hardware_model"`
+	OSVersion               string      `json:"os_version"`
+	OsqueryVersion          string      `json:"osquery_version"`
+	OrbitVersion            string      `json:"orbit_version"`
+	LastSeenAt              *time.Time  `json:"last_seen_at"`
+	DetailUpdatedAt         *time.Time  `json:"detail_updated_at"`
+	CreatedAt               time.Time   `json:"created_at"`
+	UpdatedAt               time.Time   `json:"updated_at"`
+	DeletedAt               *time.Time  `json:"deleted_at"`
+	OrbitNodeKey            *string     `json:"orbit_node_key"`
+	OsqueryNodeKey          *string     `json:"osquery_node_key"`
+	Platform                string      `json:"platform"`
+	PlatformLike            string      `json:"platform_like"`
+	EnrolledAt              *time.Time  `json:"enrolled_at"`
+	CPUBrand                string      `json:"cpu_brand"`
+	CPULogicalCores         int         `json:"cpu_logical_cores"`
+	CPUPhysicalCores        int         `json:"cpu_physical_cores"`
+	PhysicalMemory          int64       `json:"physical_memory"`
+	HardwareVendor          string      `json:"hardware_vendor"`
+	KernelVersion           string      `json:"kernel_version"`
+	OSName                  string      `json:"os_name"`
+	OSBuild                 string      `json:"os_build"`
+	HardwareVersion         string      `json:"hardware_version"`
+	CPUType                 string      `json:"cpu_type"`
+	CPUSubtype              string      `json:"cpu_subtype"`
+	UptimeSeconds           *int64      `json:"uptime_seconds"`
+	LastRestartedAt         *time.Time  `json:"last_restarted_at"`
+	DiskSpaceAvailableBytes *int64      `json:"disk_space_available_bytes"`
+	DiskSpaceTotalBytes     *int64      `json:"disk_space_total_bytes"`
+	PublicIP                *netip.Addr `json:"public_ip"`
+	PrimaryIP               *netip.Addr `json:"primary_ip"`
+	PrimaryMAC              string      `json:"primary_mac"`
+	DistributedInterval     *int32      `json:"distributed_interval"`
+	ConfigTLSRefresh        *int32      `json:"config_tls_refresh"`
+	DetailQueryHash         string      `json:"detail_query_hash"`
+	LabelUpdatedAt          *time.Time  `json:"label_updated_at"`
+	SoftwareUpdatedAt       *time.Time  `json:"software_updated_at"`
+}
+
+type HostBattery struct {
+	ID               int64     `json:"id"`
+	HostID           int64     `json:"host_id"`
+	SerialNumber     string    `json:"serial_number"`
+	Manufacturer     string    `json:"manufacturer"`
+	Model            string    `json:"model"`
+	Chemistry        string    `json:"chemistry"`
+	CycleCount       *int32    `json:"cycle_count"`
+	Health           string    `json:"health"`
+	DesignedCapacity *int32    `json:"designed_capacity"`
+	MaxCapacity      *int32    `json:"max_capacity"`
+	CurrentCapacity  *int32    `json:"current_capacity"`
+	PercentRemaining *float64  `json:"percent_remaining"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type HostEmail struct {
@@ -150,6 +185,38 @@ type HostSoftwareInstalledPath struct {
 	ExecutableSha256 *string   `json:"executable_sha256"`
 	ExecutablePath   *string   `json:"executable_path"`
 	LastSeenAt       time.Time `json:"last_seen_at"`
+}
+
+type HostUser struct {
+	ID          int64     `json:"id"`
+	HostID      int64     `json:"host_id"`
+	UID         string    `json:"uid"`
+	Username    string    `json:"username"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	Directory   string    `json:"directory"`
+	Shell       string    `json:"shell"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Label struct {
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Query          *string   `json:"query"`
+	Kind           string    `json:"kind"`
+	MembershipType string    `json:"membership_type"`
+	Platform       *string   `json:"platform"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type LabelMembership struct {
+	LabelID   int64     `json:"label_id"`
+	HostID    int64     `json:"host_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Secret struct {

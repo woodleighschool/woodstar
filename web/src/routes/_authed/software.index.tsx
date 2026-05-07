@@ -14,5 +14,17 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_authed/software/")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: SoftwarePage,
+  component: function SoftwareIndexRoute() {
+    const search = Route.useSearch();
+    const navigate = Route.useNavigate();
+
+    return (
+      <SoftwarePage
+        search={search}
+        setSearch={(updater) => {
+          void navigate({ search: updater, replace: true });
+        }}
+      />
+    );
+  },
 });

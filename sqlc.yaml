@@ -17,8 +17,12 @@ sql:
           - uuid
           - os
           - cpu
+          - ip
+          - mac
+          - tls
           - api
           - url
+          - uid
         overrides:
           - db_type: timestamptz
             go_type: time.Time

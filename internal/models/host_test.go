@@ -84,3 +84,39 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 		t.Fatalf("PhysicalMemory = %d, want %d", got.PhysicalMemory, memoryBytes)
 	}
 }
+
+func TestCleanHostListParams(t *testing.T) {
+	params := cleanHostListParams(HostListParams{
+		ListParams: ListParams{
+			Q:              " mac ",
+			Page:           -1,
+			PerPage:        1000,
+			OrderDirection: "DESC",
+		},
+		Status:   " online ",
+		Platform: " darwin ",
+		LabelID:  42,
+	})
+
+	if params.Q != "mac" {
+		t.Fatalf("Q = %q, want mac", params.Q)
+	}
+	if params.Page != 0 {
+		t.Fatalf("Page = %d, want 0", params.Page)
+	}
+	if params.PerPage != maxPerPage {
+		t.Fatalf("PerPage = %d, want %d", params.PerPage, maxPerPage)
+	}
+	if params.OrderDirection != "desc" {
+		t.Fatalf("OrderDirection = %q, want desc", params.OrderDirection)
+	}
+	if params.Status != "online" {
+		t.Fatalf("Status = %q, want online", params.Status)
+	}
+	if params.Platform != "darwin" {
+		t.Fatalf("Platform = %q, want darwin", params.Platform)
+	}
+	if params.LabelID != 42 {
+		t.Fatalf("LabelID = %d, want 42", params.LabelID)
+	}
+}

@@ -1,6 +1,7 @@
 package osquery
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -39,6 +40,52 @@ func TestParseSoftwareRows(t *testing.T) {
 	}
 	if got[1].LastOpenedAt != nil {
 		t.Fatalf("second LastOpenedAt = %v, want nil", got[1].LastOpenedAt)
+	}
+}
+
+func TestParseOsqueryFlags(t *testing.T) {
+	got := parseOsqueryFlags([]map[string]string{
+		{"name": "distributed_interval", "value": "15"},
+		{"name": "config_refresh", "value": "60"},
+	})
+	if got.DistributedInterval == nil || *got.DistributedInterval != 15 {
+		t.Fatalf("DistributedInterval = %v, want 15", got.DistributedInterval)
+	}
+	if got.ConfigTLSRefresh == nil || *got.ConfigTLSRefresh != 60 {
+		t.Fatalf("ConfigTLSRefresh = %v, want 60", got.ConfigTLSRefresh)
+	}
+
+	got = parseOsqueryFlags([]map[string]string{
+		{"name": "config_refresh", "value": "60"},
+		{"name": "config_tls_refresh", "value": "30"},
+	})
+	if got.ConfigTLSRefresh == nil || *got.ConfigTLSRefresh != 30 {
+		t.Fatalf("ConfigTLSRefresh = %v, want config_tls_refresh value 30", got.ConfigTLSRefresh)
+	}
+}
+
+func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
+	registry := map[string]DetailQuery{
+		"required": {Ingest: ingestNoop},
+		"optional": {Optional: true, Ingest: ingestNoop},
+	}
+	if sawEveryRequiredDetailQuery(DistributedWriteRequest{Queries: map[string][]map[string]string{}}, registry) {
+		t.Fatal("missing required query was treated as complete")
+	}
+	if sawEveryRequiredDetailQuery(
+		DistributedWriteRequest{
+			Queries:  map[string][]map[string]string{"required": {}},
+			Statuses: map[string]json.RawMessage{"required": json.RawMessage(`1`)},
+		},
+		registry,
+	) {
+		t.Fatal("failed required query was treated as complete")
+	}
+	if !sawEveryRequiredDetailQuery(
+		DistributedWriteRequest{Queries: map[string][]map[string]string{"required": {}}},
+		registry,
+	) {
+		t.Fatal("empty successful required query was not treated as complete")
 	}
 }
 

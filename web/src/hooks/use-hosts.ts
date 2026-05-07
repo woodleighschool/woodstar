@@ -17,7 +17,9 @@ export interface ListParams {
 }
 
 export interface HostListParams extends ListParams {
+  status?: string;
   platform?: string;
+  label_id?: string;
   software_title_id?: string;
   software_id?: string;
 }
@@ -29,7 +31,9 @@ export function useHosts(params: HostListParams = {}) {
     per_page: params.per_page ?? 50,
     order_key: params.order_key || undefined,
     order_direction: params.order_direction || undefined,
+    status: params.status || undefined,
     platform: params.platform || undefined,
+    label_id: params.label_id || undefined,
     software_title_id: params.software_title_id || undefined,
     software_id: params.software_id || undefined,
   };

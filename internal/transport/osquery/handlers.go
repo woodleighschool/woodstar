@@ -1,10 +1,13 @@
 package osquery
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 
 	"github.com/go-chi/chi/v5"
 
@@ -60,51 +63,67 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 }
 
 func configHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req coreosquery.ConfigRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAgentError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-		resp, err := svc.Config(r.Context(), req.NodeKey)
-		writeAgentResult(r, w, logger, "config", resp, err)
-	}
+	return nodeKeyHandler(logger, "config",
+		func(ctx context.Context, req coreosquery.ConfigRequest, publicIP string) (any, error) {
+			return svc.Config(ctx, req.NodeKey, publicIP)
+		},
+	)
 }
 
 func distributedReadHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req coreosquery.DistributedReadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAgentError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-		resp, err := svc.DistributedRead(r.Context(), req.NodeKey)
-		writeAgentResult(r, w, logger, "distributed_read", resp, err)
-	}
+	return nodeKeyHandler(logger, "distributed_read",
+		func(ctx context.Context, req coreosquery.DistributedReadRequest, publicIP string) (any, error) {
+			return svc.DistributedRead(ctx, req.NodeKey, publicIP)
+		},
+	)
 }
 
 func distributedWriteHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req coreosquery.DistributedWriteRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAgentError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-		resp, err := svc.DistributedWrite(r.Context(), req)
-		writeAgentResult(r, w, logger, "distributed_write", resp, err)
-	}
+	return nodeKeyHandler(logger, "distributed_write",
+		func(ctx context.Context, req coreosquery.DistributedWriteRequest, publicIP string) (any, error) {
+			return svc.DistributedWrite(ctx, req, publicIP)
+		},
+	)
 }
 
 func logHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFunc {
+	return nodeKeyHandler(logger, "log",
+		func(ctx context.Context, req coreosquery.LogRequest, publicIP string) (any, error) {
+			return svc.Log(ctx, req.NodeKey, publicIP)
+		},
+	)
+}
+
+func nodeKeyHandler[T any](
+	logger *slog.Logger,
+	operation string,
+	handle func(context.Context, T, string) (any, error),
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req coreosquery.LogRequest
+		var req T
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeAgentError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := svc.Log(r.Context(), req.NodeKey)
-		writeAgentResult(r, w, logger, "log", resp, err)
+		resp, err := handle(r.Context(), req, clientIP(r))
+		writeAgentResult(r, w, logger, operation, resp, err)
 	}
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return parseIP(host)
+	}
+	return parseIP(r.RemoteAddr)
+}
+
+func parseIP(value string) string {
+	ip, err := netip.ParseAddr(value)
+	if err != nil {
+		return ""
+	}
+	return ip.String()
 }
 
 func writeAgentResult(
@@ -118,8 +137,8 @@ func writeAgentResult(
 	if err != nil {
 		logger.ErrorContext(
 			r.Context(),
-			"osquery handler failed", "operation",
-			operation,
+			"osquery handler failed",
+			"operation", operation,
 			"err",
 			err,
 		)

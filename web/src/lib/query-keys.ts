@@ -5,6 +5,8 @@ export const queryKeys = {
   hosts: (params?: unknown) => ["hosts", params ?? {}] as const,
   host: (id: string) => ["hosts", id] as const,
   hostSoftware: (id: string, params?: unknown) => ["hosts", id, "software", params ?? {}] as const,
+  labels: (params?: unknown) => ["labels", params ?? {}] as const,
+  label: (id: string) => ["labels", id] as const,
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: string) => ["software", id] as const,
   enrollSecrets: ["orbit", "enroll-secrets"] as const,

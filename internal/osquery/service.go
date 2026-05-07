@@ -20,18 +20,27 @@ var (
 type Service struct {
 	hosts    *models.HostStore
 	software *models.SoftwareStore
+	labels   labelStore
 	secrets  *models.SecretStore
 	logger   *slog.Logger
+}
+
+type labelStore interface {
+	ListApplicableDynamic(context.Context, string) ([]models.Label, error)
+	ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error)
+	SetMembership(context.Context, int64, int64, bool) error
+	MarkHostLabelsFresh(context.Context, int64) error
 }
 
 // NewService returns an osquery service.
 func NewService(
 	hosts *models.HostStore,
 	software *models.SoftwareStore,
+	labels *models.LabelStore,
 	secrets *models.SecretStore,
 	logger *slog.Logger,
 ) *Service {
-	return &Service{hosts: hosts, software: software, secrets: secrets, logger: logger}
+	return &Service{hosts: hosts, software: software, labels: labels, secrets: secrets, logger: logger}
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
@@ -77,11 +86,16 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 }
 
 // Config returns the current osquery config.
-func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, error) {
-	if ok, err := s.validNodeKey(ctx, nodeKey); err != nil {
+func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
+	if err != nil {
 		return ConfigResponse{}, err
-	} else if !ok {
+	}
+	if !ok {
 		return ConfigResponse{NodeInvalid: true}, nil
+	}
+	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
+		return ConfigResponse{}, err
 	}
 	return ConfigResponse{
 		NodeInvalid: false,
@@ -94,7 +108,11 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 }
 
 // DistributedRead returns built-in detail queries when the host is stale.
-func (s *Service) DistributedRead(ctx context.Context, nodeKey string) (DistributedReadResponse, error) {
+func (s *Service) DistributedRead(
+	ctx context.Context,
+	nodeKey string,
+	publicIP string,
+) (DistributedReadResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
 	if err != nil {
 		return DistributedReadResponse{}, err
@@ -102,13 +120,31 @@ func (s *Service) DistributedRead(ctx context.Context, nodeKey string) (Distribu
 	if !ok {
 		return DistributedReadResponse{NodeInvalid: true}, nil
 	}
-	due := detailQueriesDue(host.DetailUpdatedAt)
+	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
+		return DistributedReadResponse{}, err
+	}
+	due := detailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	labelCount := 0
+	if s.labels != nil {
+		labels, err := s.labels.ListApplicableDynamic(ctx, host.Platform)
+		if err != nil {
+			return DistributedReadResponse{}, err
+		}
+		for _, label := range labels {
+			if label.Query == nil {
+				continue
+			}
+			due.Queries[labelQueryName(label.ID)] = *label.Query
+			labelCount++
+		}
+	}
 	s.logger.DebugContext(
 		ctx,
 		"osquery distributed queries prepared", "operation", "distributed_read",
 		"host_id", host.ID,
 		"query_count", len(due.Queries),
 		"discovery_count", len(due.Discovery),
+		"label_count", labelCount,
 	)
 	return DistributedReadResponse{
 		NodeInvalid: false,
@@ -119,7 +155,11 @@ func (s *Service) DistributedRead(ctx context.Context, nodeKey string) (Distribu
 }
 
 // DistributedWrite ingests successful built-in detail query results.
-func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequest) (DistributedWriteResponse, error) {
+func (s *Service) DistributedWrite(
+	ctx context.Context,
+	req DistributedWriteRequest,
+	publicIP string,
+) (DistributedWriteResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, req.NodeKey)
 	if err != nil {
 		return DistributedWriteResponse{}, err
@@ -127,34 +167,14 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 	if !ok {
 		return DistributedWriteResponse{NodeInvalid: true}, nil
 	}
+	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
+		return DistributedWriteResponse{}, err
+	}
 
 	registry := DetailQueries()
-	allDetailSucceeded := true
-	for name, rows := range req.Queries {
-		if name == querySoftwareMacOS {
-			continue
-		}
-		query, ok := registry[name]
-		if !ok {
-			continue
-		}
-		if !statusOK(req.Statuses[name]) {
-			if !query.Optional {
-				allDetailSucceeded = false
-			}
-			s.logger.WarnContext(
-				ctx,
-				"osquery detail query failed", "operation", "distributed_write",
-				"host_id", host.ID,
-				"query", name,
-				"optional", query.Optional,
-				"message", req.Messages[name],
-			)
-			continue
-		}
-		if err := query.Ingest(ctx, s, host.ID, rows); err != nil {
-			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", name, err)
-		}
+	allDetailSucceeded, err := s.ingestDetailResults(ctx, host.ID, req, registry)
+	if err != nil {
+		return DistributedWriteResponse{}, err
 	}
 	if rows, ok := req.Queries[querySoftwareMacOS]; ok {
 		if !statusOK(req.Statuses[querySoftwareMacOS]) {
@@ -171,8 +191,11 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", querySoftwareMacOS, err)
 		}
 	}
-	if allDetailSucceeded && sawEveryRequiredDetailQuery(req.Queries, registry) {
-		if err := s.hosts.MarkDetailFresh(ctx, host.ID); err != nil {
+	if err := s.ingestLabelResults(ctx, host, req); err != nil {
+		return DistributedWriteResponse{}, err
+	}
+	if allDetailSucceeded && sawEveryRequiredDetailQuery(req, registry) {
+		if err := s.hosts.MarkDetailFresh(ctx, host.ID, detailQueryHash()); err != nil {
 			return DistributedWriteResponse{}, err
 		}
 		s.logger.DebugContext(
@@ -185,19 +208,135 @@ func (s *Service) DistributedWrite(ctx context.Context, req DistributedWriteRequ
 	return DistributedWriteResponse{NodeInvalid: false}, nil
 }
 
-// Log accepts osquery logs. Storage and retention are a later slice.
-func (s *Service) Log(ctx context.Context, nodeKey string) (LogResponse, error) {
-	if ok, err := s.validNodeKey(ctx, nodeKey); err != nil {
-		return LogResponse{}, err
-	} else if !ok {
-		return LogResponse{NodeInvalid: true}, nil
+func (s *Service) recordHostPublicIP(ctx context.Context, host *models.Host, publicIP string) error {
+	publicIP = strings.TrimSpace(publicIP)
+	if publicIP == "" {
+		return nil
 	}
-	return LogResponse{NodeInvalid: false}, nil
+	return s.hosts.ApplyDetail(ctx, host.ID, models.HostDetailUpdate{PublicIP: publicIP})
 }
 
-func (s *Service) validNodeKey(ctx context.Context, nodeKey string) (bool, error) {
-	_, ok, err := s.hostByNodeKey(ctx, nodeKey)
-	return ok, err
+func (s *Service) ingestDetailResults(
+	ctx context.Context,
+	hostID int64,
+	req DistributedWriteRequest,
+	registry map[string]DetailQuery,
+) (bool, error) {
+	allDetailSucceeded := true
+	for name, rows := range req.Queries {
+		if name == querySoftwareMacOS {
+			continue
+		}
+		query, ok := registry[name]
+		if !ok {
+			continue
+		}
+		if !statusOK(req.Statuses[name]) {
+			if !query.Optional {
+				allDetailSucceeded = false
+			}
+			s.logDetailQueryFailure(ctx, hostID, name, query, req.Messages[name])
+			continue
+		}
+		if err := query.Ingest(ctx, s, hostID, rows); err != nil {
+			return false, fmt.Errorf("ingest %s: %w", name, err)
+		}
+	}
+	return allDetailSucceeded, nil
+}
+
+func (s *Service) logDetailQueryFailure(
+	ctx context.Context,
+	hostID int64,
+	name string,
+	query DetailQuery,
+	message string,
+) {
+	s.logger.WarnContext(
+		ctx,
+		"osquery detail query failed", "operation", "distributed_write",
+		"host_id", hostID,
+		"query", name,
+		"optional", query.Optional,
+		"message", message,
+	)
+}
+
+type labelQueryResult struct {
+	labelID int64
+	matched bool
+}
+
+func (s *Service) ingestLabelResults(ctx context.Context, host *models.Host, req DistributedWriteRequest) error {
+	if s.labels == nil {
+		return nil
+	}
+	results := make([]labelQueryResult, 0)
+	ids := make([]int64, 0)
+	for name, rows := range req.Queries {
+		labelID, ok := parseLabelQueryName(name)
+		if !ok {
+			continue
+		}
+		if !statusOK(req.Statuses[name]) {
+			s.logger.WarnContext(
+				ctx,
+				"osquery label query failed", "operation", "label_evaluation",
+				"host_id", host.ID,
+				"label_id", labelID,
+				"query", name,
+				"message", req.Messages[name],
+			)
+			continue
+		}
+		results = append(results, labelQueryResult{labelID: labelID, matched: len(rows) > 0})
+		ids = append(ids, labelID)
+	}
+	if len(results) == 0 {
+		return nil
+	}
+	applicable, err := s.labels.ApplicableDynamicIDs(ctx, ids, host.Platform)
+	if err != nil {
+		return err
+	}
+	handled := 0
+	for _, result := range results {
+		if _, ok := applicable[result.labelID]; !ok {
+			continue
+		}
+		if err := s.labels.SetMembership(ctx, result.labelID, host.ID, result.matched); err != nil {
+			return err
+		}
+		handled++
+	}
+	if handled == 0 {
+		return nil
+	}
+	if err := s.labels.MarkHostLabelsFresh(ctx, host.ID); err != nil {
+		return err
+	}
+	s.logger.DebugContext(
+		ctx,
+		"osquery label results ingested", "operation", "label_evaluation",
+		"host_id", host.ID,
+		"result_count", handled,
+	)
+	return nil
+}
+
+// Log accepts osquery logs. Storage and retention are a later slice.
+func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string) (LogResponse, error) {
+	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
+	if err != nil {
+		return LogResponse{}, err
+	}
+	if !ok {
+		return LogResponse{NodeInvalid: true}, nil
+	}
+	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
+		return LogResponse{}, err
+	}
+	return LogResponse{NodeInvalid: false}, nil
 }
 
 func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*models.Host, bool, error) {
@@ -245,12 +384,12 @@ func ingestSoftwareMacOSWithEnrichment(
 	return nil
 }
 
-func sawEveryRequiredDetailQuery(results map[string][]map[string]string, registry map[string]DetailQuery) bool {
+func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]DetailQuery) bool {
 	for name, query := range registry {
 		if query.Optional {
 			continue
 		}
-		if _, ok := results[name]; !ok {
+		if _, ok := req.Queries[name]; !ok || !statusOK(req.Statuses[name]) {
 			return false
 		}
 	}

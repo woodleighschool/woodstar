@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { KeyRound, Search, ServerCog, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -16,15 +16,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHosts, type Host } from "@/hooks/use-hosts";
-import { formatRelative } from "@/lib/utils";
+import { useLabels } from "@/hooks/use-labels";
+import { formatBytes, formatRelative } from "@/lib/utils";
 
 const SEARCH_DEBOUNCE_MS = 200;
 const DEFAULT_PAGE_SIZE = 50;
 const PLATFORM_FILTER_OPTIONS = [{ value: "darwin", label: "Darwin" }];
+const STATUS_FILTER_OPTIONS = [
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+];
 
-export function HostsListPage() {
-  const search = useSearch({ from: "/_authed/hosts/" });
-  const navigate = useNavigate({ from: "/_authed/hosts/" });
+export interface HostsListSearch {
+  q?: string;
+  page?: number;
+  per_page?: number;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  status?: string;
+  platform?: string;
+  label_id?: string;
+  software_title_id?: string;
+  software_id?: string;
+}
+
+export function HostsListPage({
+  search,
+  setSearch,
+}: {
+  search: HostsListSearch;
+  setSearch: (updater: (prev: HostsListSearch) => HostsListSearch) => void;
+}) {
   const activeQ = search.q ?? "";
   const activePage = search.page ?? 1;
   const activePerPage = search.per_page ?? DEFAULT_PAGE_SIZE;
@@ -33,8 +55,17 @@ export function HostsListPage() {
     orderDirection: search.order_direction,
   };
   const activePlatform = search.platform ? [search.platform] : [];
+  const activeStatus = search.status ? [search.status] : [];
+  const activeLabel = search.label_id ? [search.label_id] : [];
   const [searchInput, setSearchInput] = useState(activeQ);
+  const [lastActiveQ, setLastActiveQ] = useState(activeQ);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const labelsQuery = useLabels({ per_page: 200, order_key: "name", order_direction: "asc" });
+
+  if (lastActiveQ !== activeQ) {
+    setLastActiveQ(activeQ);
+    setSearchInput(activeQ);
+  }
 
   useEffect(
     () => () => {
@@ -45,11 +76,7 @@ export function HostsListPage() {
 
   const writeQ = (next: string) => {
     const trimmed = next.trim();
-    void navigate({
-      to: "/hosts",
-      search: (prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }),
-      replace: true,
-    });
+    setSearch((prev) => ({ ...prev, q: trimmed === "" ? undefined : trimmed, page: undefined }));
   };
 
   const query = useHosts({
@@ -58,24 +85,45 @@ export function HostsListPage() {
     per_page: activePerPage,
     order_key: activeSort.orderKey,
     order_direction: activeSort.orderDirection,
+    status: search.status,
     platform: search.platform,
+    label_id: search.label_id,
     software_title_id: search.software_title_id,
     software_id: search.software_id,
   });
   const isSoftwareFiltered = Boolean(search.software_title_id || search.software_id);
-  const hasFilters = activeQ !== "" || activePlatform.length > 0 || isSoftwareFiltered;
+  const hasFilters =
+    activeQ !== "" ||
+    activePlatform.length > 0 ||
+    activeStatus.length > 0 ||
+    activeLabel.length > 0 ||
+    isSoftwareFiltered;
   const filterGroups: FilterGroup[] = [
+    {
+      id: "status",
+      label: "Status",
+      options: STATUS_FILTER_OPTIONS,
+      selected: activeStatus,
+      onChange: (values) => {
+        setSearch((prev) => ({ ...prev, status: values[0] || undefined, page: undefined }));
+      },
+    },
     {
       id: "platform",
       label: "Platform",
       options: PLATFORM_FILTER_OPTIONS,
       selected: activePlatform,
       onChange: (values) => {
-        void navigate({
-          to: "/hosts",
-          search: (prev) => ({ ...prev, platform: values[0] || undefined, page: undefined }),
-          replace: true,
-        });
+        setSearch((prev) => ({ ...prev, platform: values[0] || undefined, page: undefined }));
+      },
+    },
+    {
+      id: "label",
+      label: "Label",
+      options: (labelsQuery.data?.items ?? []).map((label) => ({ value: label.id, label: label.name })),
+      selected: activeLabel,
+      onChange: (values) => {
+        setSearch((prev) => ({ ...prev, label_id: values[0] || undefined, page: undefined }));
       },
     },
   ];
@@ -168,34 +216,22 @@ export function HostsListPage() {
             perPage={activePerPage}
             sort={activeSort}
             onSortChange={(next) => {
-              void navigate({
-                to: "/hosts",
-                search: (prev) => ({
-                  ...prev,
-                  order_key: next.orderKey,
-                  order_direction: next.orderDirection,
-                  page: undefined,
-                }),
-                replace: true,
-              });
+              setSearch((prev) => ({
+                ...prev,
+                order_key: next.orderKey,
+                order_direction: next.orderDirection,
+                page: undefined,
+              }));
             }}
             onPageChange={(page) => {
-              void navigate({
-                to: "/hosts",
-                search: (prev) => ({ ...prev, page: page <= 1 ? undefined : page }),
-                replace: true,
-              });
+              setSearch((prev) => ({ ...prev, page: page <= 1 ? undefined : page }));
             }}
             onPerPageChange={(perPage) => {
-              void navigate({
-                to: "/hosts",
-                search: (prev) => ({
-                  ...prev,
-                  per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
-                  page: undefined,
-                }),
-                replace: true,
-              });
+              setSearch((prev) => ({
+                ...prev,
+                per_page: perPage === DEFAULT_PAGE_SIZE ? undefined : perPage,
+                page: undefined,
+              }));
             }}
           />
         </div>
@@ -223,6 +259,8 @@ function HostsTable({
   onPageChange: (page: number) => void;
   onPerPageChange: (perPage: number) => void;
 }) {
+  const [now] = useState(() => Date.now());
+
   if (query.error) {
     return <ErrorState message={query.error.message} onRetry={() => query.refetch()} />;
   }
@@ -256,18 +294,22 @@ function HostsTable({
         <TableHeader>
           <TableRow>
             <SortableTableHead orderKey="display_name" active={sort} onSort={onSortChange}>
-              Name
+              Host
             </SortableTableHead>
-            <TableHead>Primary user</TableHead>
-            <SortableTableHead orderKey="platform" active={sort} onSort={onSortChange}>
-              Platform
+            <TableHead>Status</TableHead>
+            <SortableTableHead orderKey="os_version" active={sort} onSort={onSortChange}>
+              Operating system
+            </SortableTableHead>
+            <SortableTableHead orderKey="hardware_model" active={sort} onSort={onSortChange}>
+              Hardware model
             </SortableTableHead>
             <SortableTableHead orderKey="hardware_serial" active={sort} onSort={onSortChange}>
-              Serial
+              Serial number
             </SortableTableHead>
-            <SortableTableHead orderKey="os_version" active={sort} onSort={onSortChange}>
-              OS
+            <SortableTableHead orderKey="disk_space_available_bytes" active={sort} onSort={onSortChange}>
+              Disk space
             </SortableTableHead>
+            <TableHead>Primary user</TableHead>
             <SortableTableHead orderKey="last_seen_at" active={sort} onSort={onSortChange}>
               Last seen
             </SortableTableHead>
@@ -283,14 +325,18 @@ function HostsTable({
                     {row.display_name || row.hardware_uuid}
                   </Link>
                 </TableCell>
+                <TableCell>
+                  <StatusBadge host={row} now={now} />
+                </TableCell>
+                <TableCell className="text-muted-foreground">{row.os_version || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{row.hardware_model || "-"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">{row.hardware_serial || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {row.disk_space_available_bytes ? formatBytes(row.disk_space_available_bytes) : "-"}
+                </TableCell>
                 <TableCell className="text-muted-foreground max-w-[16rem] truncate" title={primaryEmail || ""}>
                   {primaryEmail || "-"}
                 </TableCell>
-                <TableCell>
-                  <PlatformBadge platform={row.platform} />
-                </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{row.hardware_serial || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{row.os_version || "-"}</TableCell>
                 <TableCell
                   className="text-muted-foreground"
                   title={row.last_seen_at ? new Date(row.last_seen_at).toLocaleString() : ""}
@@ -314,7 +360,9 @@ function HostsTable({
   );
 }
 
-function PlatformBadge({ platform }: { platform: Host["platform"] }) {
-  if (!platform) return <span className="text-muted-foreground">-</span>;
-  return <Badge variant="muted">{platform}</Badge>;
+function StatusBadge({ host, now }: { host: Host; now: number }) {
+  if (!host.last_seen_at) return <Badge variant="outline">Offline</Badge>;
+  const lastSeen = new Date(host.last_seen_at).getTime();
+  const online = now - lastSeen <= 5 * 60 * 1000;
+  return <Badge variant={online ? "default" : "outline"}>{online ? "Online" : "Offline"}</Badge>;
 }

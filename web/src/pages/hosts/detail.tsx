@@ -80,6 +80,12 @@ function DetailsTab({ host }: { host: Host }) {
   const primaryUser = primaryMapping
     ? `${primaryMapping.email} (${deviceMappingSourceLabel(primaryMapping.source)})`
     : "-";
+  const labels = host.labels?.map((label) => label.name).join(", ") || "-";
+  const users =
+    host.users
+      ?.map((user) => user.username)
+      .filter(Boolean)
+      .join(", ") || "-";
 
   return (
     <DefinitionList
@@ -87,17 +93,32 @@ function DetailsTab({ host }: { host: Host }) {
         ["Hardware UUID", <span className="font-mono text-xs">{host.hardware_uuid}</span>],
         ["Vendor", host.hardware_vendor || "-"],
         ["Model", host.hardware_model || "-"],
+        ["Hardware version", host.hardware_version || "-"],
         ["CPU", host.cpu_brand ? `${host.cpu_brand} (${host.cpu_logical_cores} logical cores)` : "-"],
         ["Memory", host.physical_memory > 0 ? formatBytes(host.physical_memory) : "-"],
+        [
+          "Disk available",
+          host.disk_space_available_bytes != null
+            ? `${formatBytes(host.disk_space_available_bytes)}${diskPercent(host)}`
+            : "-",
+        ],
         ["Hostname", host.hostname || "-"],
         ["Computer name", host.computer_name || "-"],
         ["Platform", host.platform ? <Badge variant="muted">{host.platform}</Badge> : "-"],
         ["OS version", host.os_version || "-"],
+        ["OS build", host.os_build || "-"],
         ["Kernel", host.kernel_version || "-"],
         ["Serial", host.hardware_serial || "-"],
+        ["Primary IP", host.primary_ip || "-"],
+        ["Primary MAC", host.primary_mac || "-"],
+        ["Public IP", host.public_ip || "-"],
         ["osquery version", host.osquery_version || "-"],
         ["Orbit version", host.orbit_version || "-"],
+        ["Distributed interval", host.distributed_interval ? `${host.distributed_interval}s` : "-"],
+        ["Config refresh", host.config_tls_refresh ? `${host.config_tls_refresh}s` : "-"],
         ["Primary user", primaryUser],
+        ["Users", users],
+        ["Labels", labels],
         [
           "Enrolled",
           host.enrolled_at ? (
@@ -127,6 +148,14 @@ function DetailsTab({ host }: { host: Host }) {
       ]}
     />
   );
+}
+
+function diskPercent(host: Host) {
+  const available = host.disk_space_available_bytes;
+  const total = host.disk_space_total_bytes;
+  if (available == null || total == null || total <= 0) return "";
+
+  return ` (${((available / total) * 100).toFixed(1)}%)`;
 }
 
 function SoftwareTab({ hostId }: { hostId: string }) {

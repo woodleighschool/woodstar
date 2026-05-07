@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 export function useVersion() {
   return useQuery({
     queryKey: queryKeys.version,
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/version", { signal })),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/version", { signal })),
     staleTime: 5 * 60_000,
     retry: 1,
   });

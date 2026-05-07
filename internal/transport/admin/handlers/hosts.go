@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -16,30 +17,71 @@ import (
 const hostsTag = "Hosts"
 
 type hostBody struct {
-	ID               string              `json:"id"`
-	HardwareUUID     string              `json:"hardware_uuid"`
-	DisplayName      string              `json:"display_name"`
-	Hostname         string              `json:"hostname"`
-	ComputerName     string              `json:"computer_name"`
-	HardwareSerial   string              `json:"hardware_serial"`
-	HardwareModel    string              `json:"hardware_model"`
-	Platform         string              `json:"platform"`
-	PlatformLike     string              `json:"platform_like"`
-	OSVersion        string              `json:"os_version"`
-	OsqueryVersion   string              `json:"osquery_version"`
-	OrbitVersion     string              `json:"orbit_version"`
-	CPUBrand         string              `json:"cpu_brand"`
-	CPULogicalCores  int                 `json:"cpu_logical_cores"`
-	CPUPhysicalCores int                 `json:"cpu_physical_cores"`
-	PhysicalMemory   int64               `json:"physical_memory"`
-	HardwareVendor   string              `json:"hardware_vendor"`
-	KernelVersion    string              `json:"kernel_version"`
-	DeviceMappings   []deviceMappingBody `json:"device_mappings"`
-	EnrolledAt       *time.Time          `json:"enrolled_at,omitempty"`
-	LastSeenAt       *time.Time          `json:"last_seen_at,omitempty"`
-	DetailUpdatedAt  *time.Time          `json:"detail_updated_at,omitempty"`
-	CreatedAt        time.Time           `json:"created_at"`
-	UpdatedAt        time.Time           `json:"updated_at"`
+	ID                      string              `json:"id"`
+	HardwareUUID            string              `json:"hardware_uuid"`
+	DisplayName             string              `json:"display_name"`
+	Hostname                string              `json:"hostname"`
+	ComputerName            string              `json:"computer_name"`
+	HardwareSerial          string              `json:"hardware_serial"`
+	HardwareModel           string              `json:"hardware_model"`
+	HardwareVersion         string              `json:"hardware_version"`
+	OSName                  string              `json:"os_name"`
+	Platform                string              `json:"platform"`
+	PlatformLike            string              `json:"platform_like"`
+	OSVersion               string              `json:"os_version"`
+	OSBuild                 string              `json:"os_build"`
+	OsqueryVersion          string              `json:"osquery_version"`
+	OrbitVersion            string              `json:"orbit_version"`
+	CPUType                 string              `json:"cpu_type"`
+	CPUSubtype              string              `json:"cpu_subtype"`
+	CPUBrand                string              `json:"cpu_brand"`
+	CPULogicalCores         int                 `json:"cpu_logical_cores"`
+	CPUPhysicalCores        int                 `json:"cpu_physical_cores"`
+	PhysicalMemory          int64               `json:"physical_memory"`
+	HardwareVendor          string              `json:"hardware_vendor"`
+	KernelVersion           string              `json:"kernel_version"`
+	UptimeSeconds           *int64              `json:"uptime_seconds,omitempty"`
+	LastRestartedAt         *time.Time          `json:"last_restarted_at,omitempty"`
+	DiskSpaceAvailableBytes *int64              `json:"disk_space_available_bytes,omitempty"`
+	DiskSpaceTotalBytes     *int64              `json:"disk_space_total_bytes,omitempty"`
+	PublicIP                string              `json:"public_ip,omitempty"`
+	PrimaryIP               string              `json:"primary_ip,omitempty"`
+	PrimaryMAC              string              `json:"primary_mac"`
+	DistributedInterval     *int32              `json:"distributed_interval,omitempty"`
+	ConfigTLSRefresh        *int32              `json:"config_tls_refresh,omitempty"`
+	DeviceMappings          []deviceMappingBody `json:"device_mappings"`
+	Labels                  []labelBody         `json:"labels"`
+	Users                   []hostUserBody      `json:"users"`
+	Batteries               []hostBatteryBody   `json:"batteries"`
+	EnrolledAt              *time.Time          `json:"enrolled_at,omitempty"`
+	LastSeenAt              *time.Time          `json:"last_seen_at,omitempty"`
+	DetailUpdatedAt         *time.Time          `json:"detail_updated_at,omitempty"`
+	LabelUpdatedAt          *time.Time          `json:"label_updated_at,omitempty"`
+	SoftwareUpdatedAt       *time.Time          `json:"software_updated_at,omitempty"`
+	CreatedAt               time.Time           `json:"created_at"`
+	UpdatedAt               time.Time           `json:"updated_at"`
+}
+
+type hostUserBody struct {
+	UID         string `json:"uid"`
+	Username    string `json:"username"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Directory   string `json:"directory"`
+	Shell       string `json:"shell"`
+}
+
+type hostBatteryBody struct {
+	SerialNumber     string   `json:"serial_number"`
+	Manufacturer     string   `json:"manufacturer"`
+	Model            string   `json:"model"`
+	Chemistry        string   `json:"chemistry"`
+	CycleCount       *int32   `json:"cycle_count,omitempty"`
+	Health           string   `json:"health"`
+	DesignedCapacity *int32   `json:"designed_capacity,omitempty"`
+	MaxCapacity      *int32   `json:"max_capacity,omitempty"`
+	CurrentCapacity  *int32   `json:"current_capacity,omitempty"`
+	PercentRemaining *float64 `json:"percent_remaining,omitempty"`
 }
 
 type deviceMappingBody struct {
@@ -108,7 +150,9 @@ type hostListInput struct {
 	PerPage         int    `query:"per_page,omitempty"`
 	OrderKey        string `query:"order_key,omitempty"`
 	OrderDirection  string `query:"order_direction,omitempty"`
+	Status          string `query:"status,omitempty"`
 	Platform        string `query:"platform,omitempty"`
+	LabelID         string `query:"label_id,omitempty"`
 	SoftwareTitleID string `query:"software_title_id,omitempty"`
 	SoftwareID      string `query:"software_id,omitempty"`
 }
@@ -122,6 +166,10 @@ func (i hostListInput) params() (models.HostListParams, error) {
 	if err != nil {
 		return models.HostListParams{}, err
 	}
+	labelID, err := parseOptionalPositiveID(i.LabelID, "label_id")
+	if err != nil {
+		return models.HostListParams{}, err
+	}
 	listParams := models.CleanListParams(models.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
@@ -131,7 +179,9 @@ func (i hostListInput) params() (models.HostListParams, error) {
 	})
 	return models.HostListParams{
 		ListParams:      listParams,
+		Status:          strings.TrimSpace(i.Status),
 		Platform:        strings.TrimSpace(i.Platform),
+		LabelID:         labelID,
 		SoftwareTitleID: titleID,
 		SoftwareID:      softwareID,
 	}, nil
@@ -172,9 +222,10 @@ func RegisterHosts(
 	store *models.HostStore,
 	deviceMappings *models.DeviceMappingStore,
 	software *models.SoftwareStore,
+	labels *models.LabelStore,
 ) {
 	registerListHosts(api, store, deviceMappings)
-	registerGetHost(api, store, deviceMappings)
+	registerGetHost(api, store, deviceMappings, labels)
 	registerHostSoftware(api, store, software)
 }
 
@@ -207,7 +258,12 @@ func registerListHosts(api huma.API, store *models.HostStore, mappings *models.D
 	})
 }
 
-func registerGetHost(api huma.API, store *models.HostStore, mappings *models.DeviceMappingStore) {
+func registerGetHost(
+	api huma.API,
+	store *models.HostStore,
+	mappings *models.DeviceMappingStore,
+	labels *models.LabelStore,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -227,12 +283,41 @@ func registerGetHost(api huma.API, store *models.HostStore, mappings *models.Dev
 		if err != nil {
 			return nil, err
 		}
+		if err := loadHostDetailChildren(ctx, store, labels, host); err != nil {
+			return nil, err
+		}
 		body, err := hostResponse(ctx, host, mappings)
 		if err != nil {
 			return nil, err
 		}
 		return &hostOutput{Body: body}, nil
 	})
+}
+
+func loadHostDetailChildren(
+	ctx context.Context,
+	store *models.HostStore,
+	labels *models.LabelStore,
+	host *models.Host,
+) error {
+	if labels != nil {
+		hostLabels, err := labels.ListForHost(ctx, host.ID)
+		if err != nil {
+			return err
+		}
+		host.Labels = hostLabels
+	}
+	users, err := store.ListUsers(ctx, host.ID)
+	if err != nil {
+		return err
+	}
+	host.Users = users
+	batteries, err := store.ListBatteries(ctx, host.ID)
+	if err != nil {
+		return err
+	}
+	host.Batteries = batteries
+	return nil
 }
 
 func registerHostSoftware(api huma.API, hosts *models.HostStore, software *models.SoftwareStore) {
@@ -272,36 +357,108 @@ func hostResponse(ctx context.Context, host *models.Host, mappings *models.Devic
 	if err != nil {
 		return hostBody{}, err
 	}
-	bodyMappings := make([]deviceMappingBody, 0, len(mappingRows))
-	for _, mapping := range mappingRows {
-		bodyMappings = append(bodyMappings, deviceMappingBody{Email: mapping.Email, Source: mapping.Source})
-	}
 	return hostBody{
-		ID:               models.HostIDString(host.ID),
-		HardwareUUID:     host.HardwareUUID,
-		DisplayName:      host.DisplayName,
-		Hostname:         host.Hostname,
-		ComputerName:     host.ComputerName,
-		HardwareSerial:   host.HardwareSerial,
-		HardwareModel:    host.HardwareModel,
-		Platform:         host.Platform,
-		PlatformLike:     host.PlatformLike,
-		OSVersion:        host.OSVersion,
-		OsqueryVersion:   host.OsqueryVersion,
-		OrbitVersion:     host.OrbitVersion,
-		CPUBrand:         host.CPUBrand,
-		CPULogicalCores:  host.CPULogicalCores,
-		CPUPhysicalCores: host.CPUPhysicalCores,
-		PhysicalMemory:   host.PhysicalMemory,
-		HardwareVendor:   host.HardwareVendor,
-		KernelVersion:    host.KernelVersion,
-		DeviceMappings:   bodyMappings,
-		EnrolledAt:       host.EnrolledAt,
-		LastSeenAt:       host.LastSeenAt,
-		DetailUpdatedAt:  host.DetailUpdatedAt,
-		CreatedAt:        host.CreatedAt,
-		UpdatedAt:        host.UpdatedAt,
+		ID:                      models.HostIDString(host.ID),
+		HardwareUUID:            host.HardwareUUID,
+		DisplayName:             host.DisplayName,
+		Hostname:                host.Hostname,
+		ComputerName:            host.ComputerName,
+		HardwareSerial:          host.HardwareSerial,
+		HardwareModel:           host.HardwareModel,
+		HardwareVersion:         host.HardwareVersion,
+		OSName:                  host.OSName,
+		Platform:                host.Platform,
+		PlatformLike:            host.PlatformLike,
+		OSVersion:               host.OSVersion,
+		OSBuild:                 host.OSBuild,
+		OsqueryVersion:          host.OsqueryVersion,
+		OrbitVersion:            host.OrbitVersion,
+		CPUType:                 host.CPUType,
+		CPUSubtype:              host.CPUSubtype,
+		CPUBrand:                host.CPUBrand,
+		CPULogicalCores:         host.CPULogicalCores,
+		CPUPhysicalCores:        host.CPUPhysicalCores,
+		PhysicalMemory:          host.PhysicalMemory,
+		HardwareVendor:          host.HardwareVendor,
+		KernelVersion:           host.KernelVersion,
+		UptimeSeconds:           host.UptimeSeconds,
+		LastRestartedAt:         host.LastRestartedAt,
+		DiskSpaceAvailableBytes: host.DiskSpaceAvailableBytes,
+		DiskSpaceTotalBytes:     host.DiskSpaceTotalBytes,
+		PublicIP:                addrString(host.PublicIP),
+		PrimaryIP:               addrString(host.PrimaryIP),
+		PrimaryMAC:              host.PrimaryMAC,
+		DistributedInterval:     host.DistributedInterval,
+		ConfigTLSRefresh:        host.ConfigTLSRefresh,
+		DeviceMappings:          deviceMappingResponses(mappingRows),
+		Labels:                  labelResponses(host.Labels),
+		Users:                   hostUserResponses(host.Users),
+		Batteries:               hostBatteryResponses(host.Batteries),
+		EnrolledAt:              host.EnrolledAt,
+		LastSeenAt:              host.LastSeenAt,
+		DetailUpdatedAt:         host.DetailUpdatedAt,
+		LabelUpdatedAt:          host.LabelUpdatedAt,
+		SoftwareUpdatedAt:       host.SoftwareUpdatedAt,
+		CreatedAt:               host.CreatedAt,
+		UpdatedAt:               host.UpdatedAt,
 	}, nil
+}
+
+func addrString(addr *netip.Addr) string {
+	if addr == nil {
+		return ""
+	}
+	return addr.String()
+}
+
+func deviceMappingResponses(rows []models.HostDeviceMapping) []deviceMappingBody {
+	out := make([]deviceMappingBody, 0, len(rows))
+	for _, mapping := range rows {
+		out = append(out, deviceMappingBody{Email: mapping.Email, Source: mapping.Source})
+	}
+	return out
+}
+
+func labelResponses(labels []models.Label) []labelBody {
+	out := make([]labelBody, 0, len(labels))
+	for i := range labels {
+		out = append(out, labelResponse(&labels[i]))
+	}
+	return out
+}
+
+func hostUserResponses(users []models.HostUser) []hostUserBody {
+	out := make([]hostUserBody, 0, len(users))
+	for _, user := range users {
+		out = append(out, hostUserBody{
+			UID:         user.UID,
+			Username:    user.Username,
+			Type:        user.Type,
+			Description: user.Description,
+			Directory:   user.Directory,
+			Shell:       user.Shell,
+		})
+	}
+	return out
+}
+
+func hostBatteryResponses(batteries []models.HostBattery) []hostBatteryBody {
+	out := make([]hostBatteryBody, 0, len(batteries))
+	for _, battery := range batteries {
+		out = append(out, hostBatteryBody{
+			SerialNumber:     battery.SerialNumber,
+			Manufacturer:     battery.Manufacturer,
+			Model:            battery.Model,
+			Chemistry:        battery.Chemistry,
+			CycleCount:       battery.CycleCount,
+			Health:           battery.Health,
+			DesignedCapacity: battery.DesignedCapacity,
+			MaxCapacity:      battery.MaxCapacity,
+			CurrentCapacity:  battery.CurrentCapacity,
+			PercentRemaining: battery.PercentRemaining,
+		})
+	}
+	return out
 }
 
 func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
@@ -340,9 +497,13 @@ func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
 }
 
 func parseHostID(id string) (int64, error) {
+	return parseResourceID(id, "host")
+}
+
+func parseResourceID(id string, resource string) (int64, error) {
 	parsed, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || parsed <= 0 {
-		return 0, huma.Error404NotFound("host not found")
+		return 0, huma.Error404NotFound(resource + " not found")
 	}
 	return parsed, nil
 }

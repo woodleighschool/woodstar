@@ -9,6 +9,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
+const osqueryFlagConfigRefresh = "config_refresh"
+
 func ingestOSVersion(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
@@ -30,11 +32,53 @@ func ingestOsqueryInfo(ctx context.Context, svc *Service, hostID int64, rows []m
 	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}))
 }
 
+func ingestOsqueryFlags(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	return svc.hosts.ApplyDetail(ctx, hostID, parseOsqueryFlags(rows))
+}
+
 func ingestOrbitInfo(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
 	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}))
+}
+
+func ingestUptime(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	update := ParseHostDetails(map[string]map[string]string{queryUptime: rows[0]})
+	if update.UptimeSeconds != nil {
+		restarted := time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second)
+		update.LastRestartedAt = &restarted
+	}
+	return svc.hosts.ApplyDetail(ctx, hostID, update)
+}
+
+func ingestRootDisk(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}))
+}
+
+func ingestPrimaryInterface(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	return svc.hosts.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{queryPrimaryInterface: rows[0]}),
+	)
+}
+
+func ingestUsers(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	return svc.hosts.ReplaceUsers(ctx, hostID, parseHostUsers(rows))
+}
+
+func ingestBatteries(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+	return svc.hosts.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
 }
 
 func ingestSoftwareMacOS(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
@@ -46,6 +90,85 @@ func ingestSoftwareMacOS(ctx context.Context, svc *Service, hostID int64, rows [
 
 func ingestNoop(context.Context, *Service, int64, []map[string]string) error {
 	return nil
+}
+
+func parseHostUsers(rows []map[string]string) []models.HostUser {
+	users := make([]models.HostUser, 0, len(rows))
+	for _, row := range rows {
+		username := strings.TrimSpace(row["username"])
+		uid := strings.TrimSpace(row["uid"])
+		if username == "" || uid == "" {
+			continue
+		}
+		users = append(users, models.HostUser{
+			UID:         uid,
+			Username:    username,
+			Type:        strings.TrimSpace(row["type"]),
+			Description: strings.TrimSpace(row["description"]),
+			Directory:   strings.TrimSpace(row["directory"]),
+			Shell:       strings.TrimSpace(row["shell"]),
+		})
+	}
+	return users
+}
+
+func parseHostBatteries(rows []map[string]string) []models.HostBattery {
+	batteries := make([]models.HostBattery, 0, len(rows))
+	for _, row := range rows {
+		serialNumber := strings.TrimSpace(row["serial_number"])
+		if serialNumber == "" {
+			continue
+		}
+		batteries = append(batteries, models.HostBattery{
+			SerialNumber:     serialNumber,
+			Manufacturer:     strings.TrimSpace(row["manufacturer"]),
+			Model:            strings.TrimSpace(row["model"]),
+			Chemistry:        strings.TrimSpace(row["chemistry"]),
+			CycleCount:       parseInt32Ptr(row["cycle_count"]),
+			Health:           strings.TrimSpace(row["health"]),
+			DesignedCapacity: parseInt32Ptr(row["designed_capacity"]),
+			MaxCapacity:      parseInt32Ptr(row["max_capacity"]),
+			CurrentCapacity:  parseInt32Ptr(row["current_capacity"]),
+			PercentRemaining: parseFloat64Ptr(row["percent_remaining"]),
+		})
+	}
+	return batteries
+}
+
+func parseOsqueryFlags(rows []map[string]string) models.HostDetailUpdate {
+	var update models.HostDetailUpdate
+	var configRefresh *int32
+	for _, row := range rows {
+		switch strings.TrimSpace(row["name"]) {
+		case "distributed_interval":
+			update.DistributedInterval = parseInt32Ptr(row["value"])
+		case "config_tls_refresh":
+			update.ConfigTLSRefresh = parseInt32Ptr(row["value"])
+		case osqueryFlagConfigRefresh:
+			configRefresh = parseInt32Ptr(row["value"])
+		}
+	}
+	if update.ConfigTLSRefresh == nil {
+		update.ConfigTLSRefresh = configRefresh
+	}
+	return update
+}
+
+func parseInt32Ptr(value string) *int32 {
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 32)
+	if err != nil {
+		return nil
+	}
+	out := int32(parsed)
+	return &out
+}
+
+func parseFloat64Ptr(value string) *float64 {
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return nil
+	}
+	return &parsed
 }
 
 type softwareEnrichment map[string]softwarePathEnrichment

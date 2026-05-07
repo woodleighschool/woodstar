@@ -41,6 +41,7 @@ type Dependencies struct {
 	DeviceMappings *models.DeviceMappingStore
 	SecretStore    *models.SecretStore
 	SoftwareStore  *models.SoftwareStore
+	LabelStore     *models.LabelStore
 	OrbitService   *orbit.Service
 	OsqueryService *osquery.Service
 }
@@ -59,6 +60,7 @@ type Server struct {
 	deviceMappings *models.DeviceMappingStore
 	secretStore    *models.SecretStore
 	softwareStore  *models.SoftwareStore
+	labelStore     *models.LabelStore
 	orbitService   *orbit.Service
 	osqueryService *osquery.Service
 	started        time.Time
@@ -84,6 +86,7 @@ func NewServer(deps Dependencies) *Server {
 		deviceMappings: deps.DeviceMappings,
 		secretStore:    deps.SecretStore,
 		softwareStore:  deps.SoftwareStore,
+		labelStore:     deps.LabelStore,
 		orbitService:   deps.OrbitService,
 		osqueryService: deps.OsqueryService,
 		started:        time.Now().UTC(),
@@ -146,6 +149,7 @@ func (s *Server) routes() http.Handler {
 			DeviceMappings: s.deviceMappings,
 			SecretStore:    s.secretStore,
 			SoftwareStore:  s.softwareStore,
+			LabelStore:     s.labelStore,
 		})
 		if s.webHandler != nil {
 			s.webHandler.RegisterRoutes(browser)
