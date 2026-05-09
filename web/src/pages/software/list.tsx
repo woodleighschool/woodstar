@@ -93,7 +93,7 @@ export function SoftwarePage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: row.id } })}
+          rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
           toolbar={
             <SoftwareToolbar
               draft={draft}

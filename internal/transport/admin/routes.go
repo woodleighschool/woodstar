@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
-	"github.com/danielgtaylor/huma/v2/autopatch"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -40,24 +39,19 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 
 	handlers.RegisterSystem(api, deps.DB, deps.Version, deps.Started)
 	handlers.RegisterPublicAuth(api, deps.AuthService)
-	handlers.RegisterProtectedAuth(protected, deps.AuthService)
 	handlers.RegisterUsers(protected, deps.AuthService)
 	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)
 	handlers.RegisterSoftware(protected, deps.SoftwareStore)
 	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
 	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
-	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.HostStore, deps.DB)
+	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.DB)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
 	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit
 	// text/event-stream). Auth uses the Chi-compatible session middleware.
 	r.With(RequireAuthChi(deps.AuthService)).
 		Get("/api/live-queries/{id}/stream", handlers.LiveQueryStreamHandler(deps.LiveQueryManager))
-
-	// Synthesise PATCH for resources that expose GET + PUT.
-	// https://huma.rocks/features/auto-patch/.
-	autopatch.AutoPatch(api)
 
 	return api
 }

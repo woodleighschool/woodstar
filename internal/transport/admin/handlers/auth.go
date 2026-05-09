@@ -15,10 +15,10 @@ import (
 )
 
 type userBody struct {
-	ID        string          `json:"id"`
+	ID        int64           `json:"id"`
 	Email     string          `json:"email"`
 	Name      string          `json:"name"`
-	Role      models.UserRole `json:"role"`
+	Role      models.UserRole `json:"role"       enum:"admin,viewer"`
 	CreatedAt time.Time       `json:"created_at"`
 }
 
@@ -60,12 +60,6 @@ func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
 	registerSession(api, authService)
 	registerLogin(api, authService)
-}
-
-// RegisterProtectedAuth registers authenticated browser session endpoints.
-// All session-aware reads happen through /api/auth/session, so no protected
-// endpoints are needed here today.
-func RegisterProtectedAuth(_ huma.API, _ *auth.Service) {
 }
 
 func registerSetup(api huma.API, authService *auth.Service) {
@@ -150,7 +144,7 @@ func registerLogin(api huma.API, authService *auth.Service) {
 
 func userResponse(user *models.User) userBody {
 	return userBody{
-		ID:        models.UserIDString(user.ID),
+		ID:        user.ID,
 		Email:     user.Email,
 		Name:      user.Name,
 		Role:      user.Role,

@@ -9,8 +9,8 @@ export type QueryResultRow = Schemas["QueryResultBody"];
 
 export type ReportTableRow = {
   id: string;
-  queryId: string;
-  hostId: string;
+  queryId: number;
+  hostId: number;
   hostName: string;
   lastFetched?: string;
   columns: Record<string, string>;
@@ -21,7 +21,7 @@ export function reportRows(rows: QueryResultRow[] | null | undefined): ReportTab
     id: `${row.query_id}-${row.host_id}-${index}`,
     queryId: row.query_id,
     hostId: row.host_id,
-    hostName: row.host_name || row.host_id,
+    hostName: row.host_name || String(row.host_id),
     lastFetched: row.last_fetched,
     columns: row.columns,
   }));
@@ -45,7 +45,11 @@ export function reportTableColumns(options: { linkHosts?: boolean } = {}): Colum
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) =>
         options.linkHosts ? (
-          <Link to="/hosts/$hostId" params={{ hostId: row.original.hostId }} className="font-medium hover:underline">
+          <Link
+            to="/hosts/$hostId"
+            params={{ hostId: String(row.original.hostId) }}
+            className="font-medium hover:underline"
+          >
             {row.original.hostName}
           </Link>
         ) : (

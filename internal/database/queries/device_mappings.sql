@@ -14,13 +14,7 @@ ON CONFLICT (host_id, source) DO UPDATE SET
     updated_at = now();
 
 -- name: ListHostDeviceMappings :many
-SELECT
-    id,
-    host_id,
-    email,
-    source,
-    created_at,
-    updated_at
+SELECT *
 FROM host_emails
 WHERE host_id = @host_id
 ORDER BY source;

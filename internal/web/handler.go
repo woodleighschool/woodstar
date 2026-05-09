@@ -104,7 +104,9 @@ func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(h.injectRuntime(r, content))
+	if _, err := w.Write(h.injectRuntime(r, content)); err != nil {
+		h.logger.DebugContext(r.Context(), "embedded web index write failed", "operation", "serve_index", "err", err)
+	}
 }
 
 func (h *Handler) injectRuntime(r *http.Request, content []byte) []byte {

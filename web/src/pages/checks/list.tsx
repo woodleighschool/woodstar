@@ -108,7 +108,7 @@ export function ChecksPage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/checks/$checkId", params: { checkId: row.id } })}
+          rowHref={(row) => ({ to: "/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
               <div className="relative max-w-md flex-1">

@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
@@ -21,4 +22,16 @@ export function useSession(): { session: Session | null; isLoading: boolean } {
 export function useAuth(): { user: CurrentUser | null } {
   const { session } = useSession();
   return { user: session?.user ?? null };
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: () => unwrap(apiClient.POST("/api/auth/logout")),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+      await router.navigate({ to: "/login" });
+    },
+  });
 }

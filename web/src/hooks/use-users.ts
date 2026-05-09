@@ -27,11 +27,11 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
-  return useMutation<User, ApiError, { id: string; body: UserUpdateBody }>({
+  return useMutation<User, ApiError, { id: number; body: UserUpdateBody }>({
     mutationFn: ({ id, body }) =>
       unwrap(
         apiClient.PUT("/api/users/{id}", {
-          params: { path: { id } },
+          params: { path: { id: String(id) } },
           body,
         }),
       ),
@@ -46,11 +46,11 @@ export function useUpdateUser() {
 
 export function useDeleteUser() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
       await unwrap(
         apiClient.DELETE("/api/users/{id}", {
-          params: { path: { id } },
+          params: { path: { id: String(id) } },
         }),
       );
     },

@@ -35,15 +35,7 @@ VALUES (
     $3,
     $4
 )
-RETURNING
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+RETURNING id, email, name, password_hash, role, created_at, updated_at, deleted_at
 `
 
 type CreateUserParams struct {
@@ -75,15 +67,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
 FROM users
 WHERE email = $1 AND deleted_at IS NULL
 `
@@ -109,15 +93,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -143,15 +119,7 @@ func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (User,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
 FROM users
 WHERE deleted_at IS NULL
 ORDER BY created_at
@@ -212,15 +180,7 @@ SET
     password_hash = COALESCE($3, password_hash),
     updated_at = now()
 WHERE id = $4 AND deleted_at IS NULL
-RETURNING
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+RETURNING id, email, name, password_hash, role, created_at, updated_at, deleted_at
 `
 
 type UpdateUserParams struct {

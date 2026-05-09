@@ -8,7 +8,7 @@ import type { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 export interface SecretRow {
-  id: string;
+  id: number;
   value: string;
   created_at: string;
 }
@@ -23,7 +23,7 @@ export interface SecretTableProps {
 }
 
 export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, emptyDescription }: SecretTableProps) {
-  const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [visible, setVisible] = useState<Record<number, boolean>>({});
 
   if (error) {
     return (

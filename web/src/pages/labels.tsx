@@ -36,8 +36,8 @@ import {
   useLabels,
   useUpdateLabel,
   type Label,
+  type LabelCreate,
   type LabelMutation,
-  type LabelPut,
 } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { cn, formatRelative } from "@/lib/utils";
@@ -45,13 +45,13 @@ import { useSearch } from "@tanstack/react-router";
 
 const KIND_OPTIONS = [
   { value: "builtin", label: "Built-in" },
-  { value: "custom", label: "Custom" },
+  { value: "regular", label: "Regular" },
 ];
 
 const MEMBERSHIP_OPTIONS = [
   { value: "dynamic", label: "Dynamic" },
-  { value: "static", label: "Static" },
-  { value: "identity", label: "Identity" },
+  { value: "manual", label: "Manual" },
+  { value: "host_vitals", label: "Host vitals" },
 ];
 
 const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
@@ -301,7 +301,7 @@ function LabelRowActions({
   onEdit: (label: Label) => void;
   onDelete: (label: Label) => void;
 }) {
-  if (label.kind !== "custom") return null;
+  if (label.kind !== "regular") return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -361,7 +361,7 @@ function LabelFormBody({
   onClose: () => void;
 }) {
   const create = useCreateLabel();
-  const update = useUpdateLabel(editing?.id ?? "");
+  const update = useUpdateLabel(editing?.id ?? null);
   const pending = create.isPending || update.isPending;
   const submitError = mode === "create" ? create.error : update.error;
 
@@ -374,7 +374,7 @@ function LabelFormBody({
 
   async function handleSubmit() {
     if (mode === "create") {
-      const body: LabelMutation = {
+      const body: LabelCreate = {
         name,
         description,
         membership_type: membershipType,
@@ -383,11 +383,9 @@ function LabelFormBody({
       };
       await create.mutateAsync(body);
     } else {
-      const body: LabelPut = {
+      const body: LabelMutation = {
         name,
         description,
-        // Custom labels can't change kind; backend SQL ignores it but the schema accepts it.
-        kind: editing!.kind,
         membership_type: membershipType,
         platform: platform.trim() === "" ? undefined : platform.trim(),
         query: queryRequired ? query : undefined,
@@ -402,7 +400,7 @@ function LabelFormBody({
       <DialogHeader>
         <DialogTitle>{mode === "create" ? "Add label" : "Edit label"}</DialogTitle>
         <DialogDescription>
-          Dynamic labels are evaluated by osquery. Static and identity labels can be populated by later modules.
+          Dynamic labels are evaluated by osquery. Manual and host-vitals labels are populated by the server.
         </DialogDescription>
       </DialogHeader>
 
@@ -482,8 +480,8 @@ function LabelFormBody({
 
 function labelMembershipType(label: Label | null): LabelMembershipType {
   switch (label?.membership_type) {
-    case "static":
-    case "identity":
+    case "manual":
+    case "host_vitals":
       return label.membership_type;
     default:
       return "dynamic";

@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
@@ -20,14 +21,20 @@ func TestRequireAdmin(t *testing.T) {
 		wantOK     bool
 	}{
 		{
-			name:       "admin in context",
-			ctx:        adminctx.WithUser(context.Background(), &models.User{ID: 1, Role: models.RoleAdmin}),
+			name: "admin in context",
+			ctx: adminctx.WithUser(
+				context.Background(),
+				&models.User{User: sqlc.User{ID: 1, Role: models.RoleAdmin}},
+			),
 			wantStatus: 0,
 			wantOK:     true,
 		},
 		{
-			name:       "viewer is forbidden",
-			ctx:        adminctx.WithUser(context.Background(), &models.User{ID: 2, Role: models.RoleViewer}),
+			name: "viewer is forbidden",
+			ctx: adminctx.WithUser(
+				context.Background(),
+				&models.User{User: sqlc.User{ID: 2, Role: models.RoleViewer}},
+			),
 			wantStatus: 403,
 		},
 		{
@@ -39,6 +46,7 @@ func TestRequireAdmin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := requireAdmin(tt.ctx)
 			if tt.wantOK {
 				if err != nil {
@@ -79,6 +87,7 @@ func TestParseUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := parseUserID(tt.input)
 			if tt.wantErr {
 				if err == nil {
@@ -112,6 +121,7 @@ func TestUserMutationErrorMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mapped := userMutationError(tt.err)
 			var status huma.StatusError
 			if !errors.As(mapped, &status) {

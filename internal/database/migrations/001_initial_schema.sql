@@ -1,6 +1,9 @@
 -- +goose Up
+
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE secret_kind AS ENUM ('orbit');
+
+-- Users, sessions, secrets ---------------------------------------------------
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
@@ -13,7 +16,7 @@ CREATE TABLE users (
     deleted_at TIMESTAMPTZ
 );
 
--- Owned by alexedwards/scs/pgxstore: token, gob-encoded data, expiry.
+-- Owned by alexedwards/scs/pgxstore.
 CREATE TABLE sessions (
     token TEXT PRIMARY KEY,
     data BYTEA NOT NULL,
@@ -34,6 +37,8 @@ CREATE INDEX secrets_kind_active_idx
     ON secrets (kind, created_at DESC)
     WHERE deleted_at IS NULL;
 
+-- Hosts ----------------------------------------------------------------------
+
 CREATE TABLE hosts (
     id BIGSERIAL PRIMARY KEY,
     hardware_uuid TEXT NOT NULL UNIQUE,
@@ -42,17 +47,330 @@ CREATE TABLE hosts (
     computer_name TEXT NOT NULL DEFAULT '',
     hardware_serial TEXT NOT NULL DEFAULT '',
     hardware_model TEXT NOT NULL DEFAULT '',
+    hardware_version TEXT NOT NULL DEFAULT '',
+    hardware_vendor TEXT NOT NULL DEFAULT '',
+    os_name TEXT NOT NULL DEFAULT '',
     os_version TEXT NOT NULL DEFAULT '',
+    os_build TEXT NOT NULL DEFAULT '',
+    platform TEXT NOT NULL DEFAULT '',
+    platform_like TEXT NOT NULL DEFAULT '',
     osquery_version TEXT NOT NULL DEFAULT '',
     orbit_version TEXT NOT NULL DEFAULT '',
+    -- Empty string means "no key issued yet"; a partial unique index enforces
+    -- uniqueness only on real keys so multiple unenrolled rows can coexist.
+    orbit_node_key TEXT NOT NULL DEFAULT '',
+    osquery_node_key TEXT NOT NULL DEFAULT '',
+    cpu_type TEXT NOT NULL DEFAULT '',
+    cpu_subtype TEXT NOT NULL DEFAULT '',
+    cpu_brand TEXT NOT NULL DEFAULT '',
+    cpu_logical_cores INTEGER NOT NULL DEFAULT 0,
+    cpu_physical_cores INTEGER NOT NULL DEFAULT 0,
+    physical_memory BIGINT NOT NULL DEFAULT 0,
+    kernel_version TEXT NOT NULL DEFAULT '',
+    uptime_seconds BIGINT,
+    last_restarted_at TIMESTAMPTZ,
+    disk_space_available_bytes BIGINT,
+    disk_space_total_bytes BIGINT,
+    public_ip INET,
+    primary_ip INET,
+    primary_mac TEXT NOT NULL DEFAULT '',
+    distributed_interval INTEGER,
+    config_tls_refresh INTEGER,
+    detail_query_hash TEXT NOT NULL DEFAULT '',
+    enrolled_at TIMESTAMPTZ,
     last_seen_at TIMESTAMPTZ,
     detail_updated_at TIMESTAMPTZ,
+    label_updated_at TIMESTAMPTZ,
+    software_updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
 );
 
+CREATE UNIQUE INDEX hosts_orbit_node_key_idx
+    ON hosts (orbit_node_key)
+    WHERE orbit_node_key <> '';
+CREATE UNIQUE INDEX hosts_osquery_node_key_idx
+    ON hosts (osquery_node_key)
+    WHERE osquery_node_key <> '';
+CREATE INDEX hosts_platform_idx
+    ON hosts (platform)
+    WHERE deleted_at IS NULL;
+CREATE INDEX hosts_active_seen_idx
+    ON hosts (last_seen_at DESC NULLS LAST)
+    WHERE deleted_at IS NULL;
+CREATE INDEX hosts_detail_stale_idx
+    ON hosts (detail_updated_at NULLS FIRST)
+    WHERE deleted_at IS NULL;
+
+CREATE TABLE host_emails (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    source TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, source)
+);
+
+CREATE INDEX host_emails_host_idx ON host_emails (host_id);
+CREATE INDEX host_emails_email_idx ON host_emails (email);
+
+CREATE TABLE host_users (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    uid TEXT NOT NULL,
+    username TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    directory TEXT NOT NULL DEFAULT '',
+    shell TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, uid, username)
+);
+
+CREATE INDEX host_users_host_idx ON host_users (host_id);
+
+CREATE TABLE host_batteries (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    serial_number TEXT NOT NULL,
+    manufacturer TEXT NOT NULL DEFAULT '',
+    model TEXT NOT NULL DEFAULT '',
+    chemistry TEXT NOT NULL DEFAULT '',
+    cycle_count INTEGER,
+    health TEXT NOT NULL DEFAULT '',
+    designed_capacity INTEGER,
+    max_capacity INTEGER,
+    current_capacity INTEGER,
+    percent_remaining DOUBLE PRECISION,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, serial_number)
+);
+
+CREATE INDEX host_batteries_host_idx ON host_batteries (host_id);
+
+-- Software -------------------------------------------------------------------
+
+CREATE TABLE software_titles (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    icon_url TEXT,
+    source TEXT NOT NULL DEFAULT '',
+    extension_for TEXT NOT NULL DEFAULT '',
+    bundle_identifier TEXT NOT NULL DEFAULT '',
+    vendor TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (name, source, extension_for, bundle_identifier)
+);
+
+CREATE UNIQUE INDEX software_titles_bundle_idx
+    ON software_titles (bundle_identifier, source, extension_for)
+    WHERE bundle_identifier <> '';
+
+CREATE TABLE software (
+    id BIGSERIAL PRIMARY KEY,
+    title_id BIGINT NOT NULL REFERENCES software_titles (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    version TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT '',
+    bundle_identifier TEXT NOT NULL DEFAULT '',
+    extension_id TEXT NOT NULL DEFAULT '',
+    extension_for TEXT NOT NULL DEFAULT '',
+    vendor TEXT NOT NULL DEFAULT '',
+    arch TEXT NOT NULL DEFAULT '',
+    release TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (
+        title_id,
+        version,
+        source,
+        bundle_identifier,
+        extension_id,
+        extension_for,
+        vendor,
+        arch,
+        release
+    )
+);
+
+CREATE INDEX software_name_idx ON software (name);
+CREATE INDEX software_title_idx ON software (title_id);
+
+CREATE TABLE host_software (
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    software_id BIGINT NOT NULL REFERENCES software (id) ON DELETE CASCADE,
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_opened_at TIMESTAMPTZ,
+    PRIMARY KEY (host_id, software_id)
+);
+
+CREATE INDEX host_software_software_idx ON host_software (software_id);
+
+CREATE TABLE host_software_installed_paths (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    software_id BIGINT NOT NULL REFERENCES software (id) ON DELETE CASCADE,
+    installed_path TEXT NOT NULL,
+    team_identifier TEXT NOT NULL DEFAULT '',
+    cdhash_sha256 TEXT,
+    executable_sha256 TEXT,
+    executable_path TEXT,
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, software_id, installed_path)
+);
+
+CREATE INDEX host_software_installed_paths_host_software_idx
+    ON host_software_installed_paths (host_id, software_id);
+
+-- Labels ---------------------------------------------------------------------
+-- Labels are first-class targeting primitives. kind is what created them
+-- (admin or builtin); membership_type is how membership is produced:
+--   dynamic     - osquery query result drives membership
+--   manual      - membership is written by the server (e.g. All Hosts on enroll)
+--   host_vitals - membership is derived from host fields, not osquery
+
+CREATE TABLE labels (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    query TEXT,
+    kind TEXT NOT NULL CHECK (kind IN ('builtin', 'regular')),
+    membership_type TEXT NOT NULL CHECK (membership_type IN ('dynamic', 'manual', 'host_vitals')),
+    platform TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (
+        (membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL)
+        OR (membership_type IN ('manual', 'host_vitals') AND query IS NULL)
+    )
+);
+
+CREATE INDEX labels_kind_idx ON labels (kind);
+CREATE INDEX labels_membership_type_idx ON labels (membership_type);
+CREATE INDEX labels_platform_idx ON labels (platform);
+
+CREATE TABLE label_membership (
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (label_id, host_id)
+);
+
+CREATE INDEX label_membership_host_idx ON label_membership (host_id);
+
+-- Builtin seed. "All Hosts" is manual: every enrolled host gets a row inserted
+-- by the host store. macOS / macOS 14+ are dynamic and evaluated by osquery.
+INSERT INTO labels (name, description, query, kind, membership_type, platform)
+VALUES
+    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', NULL),
+    ('macOS', 'Hosts reporting macOS.', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', 'darwin'),
+    ('macOS 14+', 'Hosts reporting macOS 14 or newer.', 'select 1 from os_version where platform = ''darwin'' and major >= 14;', 'builtin', 'dynamic', 'darwin');
+
+-- Queries / Checks -----------------------------------------------------------
+
+CREATE TABLE queries (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    query TEXT NOT NULL,
+    platform TEXT,
+    min_osquery_version TEXT,
+    schedule_interval INTEGER NOT NULL DEFAULT 0,
+    logging_type TEXT NOT NULL DEFAULT 'snapshot' CHECK (logging_type IN ('snapshot')),
+    created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (schedule_interval >= 0)
+);
+
+CREATE INDEX queries_schedule_idx
+    ON queries (schedule_interval)
+    WHERE schedule_interval > 0;
+
+CREATE TABLE query_results (
+    id BIGSERIAL PRIMARY KEY,
+    query_id BIGINT NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    data JSONB,
+    last_fetched TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX query_results_query_last_fetched_idx
+    ON query_results (query_id, last_fetched);
+
+CREATE INDEX query_results_query_host_last_fetched_idx
+    ON query_results (query_id, host_id, last_fetched);
+
+CREATE TABLE checks (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    resolution TEXT NOT NULL DEFAULT '',
+    query TEXT NOT NULL,
+    platform TEXT,
+    min_osquery_version TEXT,
+    created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE check_membership (
+    check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    passes BOOLEAN,
+    first_failed_at TIMESTAMPTZ,
+    last_evaluated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (check_id, host_id)
+);
+
+CREATE INDEX check_membership_passes_idx
+    ON check_membership (check_id, passes);
+
+CREATE TABLE query_labels (
+    query_id BIGINT NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
+    exclude BOOLEAN NOT NULL DEFAULT FALSE,
+    require_all BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (query_id, label_id)
+);
+
+CREATE INDEX query_labels_label_idx ON query_labels (label_id);
+
+CREATE TABLE check_labels (
+    check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
+    exclude BOOLEAN NOT NULL DEFAULT FALSE,
+    require_all BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (check_id, label_id)
+);
+
+CREATE INDEX check_labels_label_idx ON check_labels (label_id);
+
 -- +goose Down
+
+DROP TABLE check_labels;
+DROP TABLE query_labels;
+DROP TABLE check_membership;
+DROP TABLE checks;
+DROP TABLE query_results;
+DROP TABLE queries;
+DROP TABLE label_membership;
+DROP TABLE labels;
+DROP TABLE host_software_installed_paths;
+DROP TABLE host_software;
+DROP TABLE software;
+DROP TABLE software_titles;
+DROP TABLE host_batteries;
+DROP TABLE host_users;
+DROP TABLE host_emails;
 DROP TABLE hosts;
 DROP TABLE secrets;
 DROP TABLE sessions;

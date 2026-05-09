@@ -5,7 +5,7 @@ import { runtime } from "@/lib/runtime";
 
 export type Schemas = components["schemas"];
 
-const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const MUTATING_METHODS = new Set(["POST", "PUT", "DELETE"]);
 
 const requestMiddleware: Middleware = {
   onRequest({ request }) {

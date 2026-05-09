@@ -11,7 +11,7 @@ import (
 
 func registerStubs(r chi.Router, svc *coreorbit.Service) {
 	r.Post("/api/fleet/orbit/scripts/request", requireNodeKey(svc, func(w http.ResponseWriter, _ *http.Request) {
-		writeAgentJSON(w, http.StatusOK, scriptsRequestResponse{Scripts: []any{}})
+		writeAgentJSON(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})
 	}))
 	r.Post("/api/fleet/orbit/scripts/result", requireNodeKey(svc, noContentHandler))
 	r.Post("/api/fleet/orbit/software_install/details", requireNodeKey(svc, emptyObjectHandler))
@@ -42,21 +42,23 @@ func requireNodeKey(svc *coreorbit.Service, next http.HandlerFunc) http.HandlerF
 }
 
 type scriptsRequestResponse struct {
-	Scripts []any `json:"scripts"`
+	Scripts []string `json:"scripts"`
+}
+
+type setupExperienceResponse struct {
+	SetupExperienceResults *struct{} `json:"setup_experience_results"`
+	OK                     bool      `json:"ok"`
 }
 
 func emptyObjectHandler(w http.ResponseWriter, _ *http.Request) {
-	writeAgentJSON(w, http.StatusOK, map[string]any{})
+	writeAgentJSON(w, http.StatusOK, struct{}{})
 }
 
 func setupExperienceStatusHandler(w http.ResponseWriter, _ *http.Request) {
-	writeAgentJSON(w, http.StatusOK, map[string]any{
-		"setup_experience_results": nil,
-		"ok":                       true,
-	})
+	writeAgentJSON(w, http.StatusOK, setupExperienceResponse{OK: true})
 }
 
 func noContentHandler(w http.ResponseWriter, _ *http.Request) {
-	writeOrbitHeaders(w)
+	w.Header().Set(capabilitiesHeader, orbitCapabilities)
 	w.WriteHeader(http.StatusNoContent)
 }

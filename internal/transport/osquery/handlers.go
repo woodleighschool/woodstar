@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	coreosquery "github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/transport/agentjson"
 )
 
 // RegisterRoutes mounts osquery TLS-plugin endpoints on r.
@@ -31,7 +32,7 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req coreosquery.EnrollRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAgentError(w, http.StatusBadRequest, "invalid request body")
+			agentjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
@@ -43,10 +44,10 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 				"reason", "invalid_enroll_secret",
 				"host_identifier", req.HostIdentifier,
 			)
-			writeAgentError(w, http.StatusUnauthorized, "invalid enroll secret")
+			agentjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case errors.Is(err, coreosquery.ErrMissingHardwareUUID):
-			writeAgentError(w, http.StatusBadRequest, err.Error())
+			agentjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case err != nil:
 			logger.ErrorContext(
@@ -55,10 +56,10 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 				"host_identifier", req.HostIdentifier,
 				"err", err,
 			)
-			writeAgentError(w, http.StatusInternalServerError, "enrollment failed")
+			agentjson.WriteError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
-		writeAgentJSON(w, http.StatusOK, coreosquery.EnrollResponse{NodeKey: nodeKey})
+		agentjson.Write(w, http.StatusOK, coreosquery.EnrollResponse{NodeKey: nodeKey})
 	}
 }
 
@@ -102,7 +103,7 @@ func nodeKeyHandler[T any](
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req T
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAgentError(w, http.StatusBadRequest, "invalid request body")
+			agentjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		resp, err := handle(r.Context(), req, clientIP(r))
@@ -142,26 +143,12 @@ func writeAgentResult(
 			"err",
 			err,
 		)
-		writeAgentError(w, http.StatusInternalServerError, "request failed")
+		agentjson.WriteError(w, http.StatusInternalServerError, "request failed")
 		return
 	}
-	writeAgentJSON(w, http.StatusOK, body)
-}
-
-func writeAgentJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
-func writeAgentError(w http.ResponseWriter, status int, message string) {
-	writeAgentJSON(w, status, errorResponse{Error: message})
-}
-
-type errorResponse struct {
-	Error string `json:"error"`
+	agentjson.Write(w, http.StatusOK, body)
 }
 
 func emptyJSONHandler(w http.ResponseWriter, _ *http.Request) {
-	writeAgentJSON(w, http.StatusOK, map[string]any{})
+	agentjson.Write(w, http.StatusOK, struct{}{})
 }

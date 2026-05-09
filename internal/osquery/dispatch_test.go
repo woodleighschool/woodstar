@@ -17,6 +17,7 @@ func TestQueryNameRoundTrips(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			name := queryName(tt.kind, tt.suffix)
 			gotKind, gotSuffix, ok := parseQueryName(name)
 			if !ok {

@@ -10,6 +10,5 @@ func Config(version string) huma.Config {
 	cfg.DocsPath = "/api/docs"
 	cfg.OpenAPIPath = "/api/openapi"
 	cfg.SchemasPath = "/api/schemas"
-	cfg.Servers = []*huma.Server{{URL: "/"}}
 	return cfg
 }

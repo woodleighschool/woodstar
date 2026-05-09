@@ -116,7 +116,7 @@ export function HostsListPage() {
     },
   ];
 
-  const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: l.id, label: l.name }));
+  const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: String(l.id), label: l.name }));
 
   return (
     <>
@@ -156,7 +156,7 @@ export function HostsListPage() {
             onPerPageChange={setters.setPerPage}
             onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
             isLoading={query.isLoading}
-            rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: row.id } })}
+            rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
             toolbar={
               <HostsToolbar
                 draft={draft}

@@ -28,12 +28,35 @@ type ConfigRequest struct {
 
 // ConfigResponse is the Orbit config response.
 type ConfigResponse struct {
-	ScriptExecutionTimeout int             `json:"script_execution_timeout,omitempty"`
-	Flags                  json.RawMessage `json:"command_line_startup_flags,omitempty"`
-	Extensions             json.RawMessage `json:"extensions,omitempty"`
-	Notifications          map[string]any  `json:"notifications,omitempty"`
-	UpdateChannels         any             `json:"update_channels,omitempty"`
-	NudgeConfig            any             `json:"nudge_config,omitempty"`
+	ScriptExecutionTimeout int                   `json:"script_execution_timeout,omitempty"`
+	Flags                  json.RawMessage       `json:"command_line_startup_flags,omitempty"`
+	Extensions             json.RawMessage       `json:"extensions,omitempty"`
+	Notifications          ConfigNotifications   `json:"notifications,omitzero"`
+	UpdateChannels         *ConfigUpdateChannels `json:"update_channels,omitempty"`
+	NudgeConfig            *ConfigNudgeConfig    `json:"nudge_config,omitempty"`
+}
+
+// ConfigNotifications carries one-shot flags Orbit acts on. Mirrors Fleet's
+// orbit notifications shape; populated when a feature is implemented.
+type ConfigNotifications struct {
+	RenewEnrollmentProfile      bool `json:"renew_enrollment_profile,omitempty"`
+	RotateDiskEncryptionKey     bool `json:"rotate_disk_encryption_key,omitempty"`
+	NeedsMDMMigration           bool `json:"needs_mdm_migration,omitempty"`
+	NeedsProgrammaticWindowsMDM bool `json:"needs_programmatic_windows_mdm_enrollment,omitempty"`
+}
+
+// ConfigUpdateChannels names the TUF channels Orbit should track per-component.
+type ConfigUpdateChannels struct {
+	Orbit    string `json:"orbit,omitempty"`
+	Osqueryd string `json:"osqueryd,omitempty"`
+	Desktop  string `json:"desktop,omitempty"`
+}
+
+// ConfigNudgeConfig is the macOS Nudge configuration payload. Empty until Nudge
+// integration ships; sent only when non-nil.
+type ConfigNudgeConfig struct {
+	UserExperience        json.RawMessage `json:"userExperience,omitempty"`
+	OSVersionRequirements json.RawMessage `json:"osVersionRequirements,omitempty"`
 }
 
 // DeviceMappingRequest carries a profile-provided email.

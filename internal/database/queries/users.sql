@@ -18,52 +18,20 @@ VALUES (
     @password_hash,
     @role
 )
-RETURNING
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at;
+RETURNING *;
 
 -- name: GetUserByEmail :one
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT *
 FROM users
 WHERE email = @email AND deleted_at IS NULL;
 
 -- name: GetUserByID :one
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT *
 FROM users
 WHERE id = @id AND deleted_at IS NULL;
 
 -- name: ListUsers :many
-SELECT
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at
+SELECT *
 FROM users
 WHERE deleted_at IS NULL
 ORDER BY created_at;
@@ -76,15 +44,7 @@ SET
     password_hash = COALESCE(sqlc.narg(password_hash), password_hash),
     updated_at = now()
 WHERE id = @id AND deleted_at IS NULL
-RETURNING
-    id,
-    email,
-    name,
-    password_hash,
-    role,
-    created_at,
-    updated_at,
-    deleted_at;
+RETURNING *;
 
 -- name: SoftDeleteUser :one
 UPDATE users

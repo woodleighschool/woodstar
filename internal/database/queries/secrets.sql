@@ -1,10 +1,5 @@
 -- name: ListSecrets :many
-SELECT
-    id,
-    kind,
-    value,
-    created_at,
-    deleted_at
+SELECT *
 FROM secrets
 WHERE kind = @kind AND deleted_at IS NULL
 ORDER BY created_at DESC;
@@ -18,12 +13,7 @@ VALUES (
     @kind,
     @value
 )
-RETURNING
-    id,
-    kind,
-    value,
-    created_at,
-    deleted_at;
+RETURNING *;
 
 -- name: HasActiveSecret :one
 SELECT EXISTS (

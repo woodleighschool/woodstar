@@ -8,7 +8,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 )
 
-func TestDisplayNameForPriority(t *testing.T) {
+func TestDisplayNamePriority(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   EnrollParams
@@ -42,27 +43,17 @@ func TestDisplayNameForPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := displayNameFor(tt.in); got != tt.want {
-				t.Fatalf("displayNameFor = %q, want %q", got, tt.want)
+			t.Parallel()
+			if got := displayName(tt.in.HardwareUUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
+				t.Fatalf("displayName = %q, want %q", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
-	databaseURL := os.Getenv("WOODSTAR_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("WOODSTAR_TEST_DATABASE_URL is not set")
-	}
+	store, ctx := newIntegrationHostStore(t)
 
-	ctx := context.Background()
-	db, err := database.Open(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(db.Close)
-
-	store := NewHostStore(db)
 	host, err := store.UpsertOnOsqueryEnroll(ctx, HostDetailUpdate{
 		HardwareUUID:   "test-apply-detail-big-memory",
 		OsqueryNodeKey: "node-key",
@@ -83,6 +74,52 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 	if got.PhysicalMemory != memoryBytes {
 		t.Fatalf("PhysicalMemory = %d, want %d", got.PhysicalMemory, memoryBytes)
 	}
+}
+
+// Newly-enrolled hosts must land in the All Hosts builtin label so anything
+// targeting it (live queries, checks, scheduled queries) sees the new host.
+func TestEnrollAddsHostToAllHosts(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	labels := NewLabelStore(store.db)
+
+	host, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-enroll-all-hosts",
+		OrbitNodeKey: "orbit-key",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	hostLabels, err := labels.ListForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("list labels for host: %v", err)
+	}
+
+	var found bool
+	for _, l := range hostLabels {
+		if l.Name == "All Hosts" && l.Kind == LabelKindBuiltin && l.MembershipType == LabelMembershipTypeManual {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("All Hosts membership missing; got labels = %+v", hostLabels)
+	}
+}
+
+func newIntegrationHostStore(t *testing.T) (*HostStore, context.Context) {
+	t.Helper()
+	databaseURL := os.Getenv("WOODSTAR_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("WOODSTAR_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(db.Close)
+	return NewHostStore(db), ctx
 }
 
 func TestCleanHostListParams(t *testing.T) {

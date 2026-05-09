@@ -22,6 +22,7 @@ func TestParseHostID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := parseHostID(tt.input)
 			if tt.wantErr {
 				if err == nil {
@@ -129,7 +130,7 @@ func TestHostSoftwareResponseGroupsInstalledVersions(t *testing.T) {
 	}
 
 	got := hostSoftwareResponse(row)
-	if got.ID != "7" || got.Status != nil || got.SoftwarePackage != nil || got.AppStoreApp != nil {
+	if got.ID != 7 {
 		t.Fatalf("unexpected top-level response: %#v", got)
 	}
 	if len(got.InstalledVersions) != 1 {

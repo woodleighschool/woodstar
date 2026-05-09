@@ -92,7 +92,7 @@ function CheckEditForm({
 
   async function submit() {
     const saved = mode === "create" ? await createCheck.mutateAsync(form) : await updateCheck.mutateAsync(form);
-    void navigate({ to: "/checks/$checkId", params: { checkId: saved.id } });
+    void navigate({ to: "/checks/$checkId", params: { checkId: String(saved.id) } });
   }
 
   function insertAtCursor(snippet: string) {

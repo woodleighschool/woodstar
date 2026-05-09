@@ -10,13 +10,7 @@ import (
 )
 
 const listHostDeviceMappings = `-- name: ListHostDeviceMappings :many
-SELECT
-    id,
-    host_id,
-    email,
-    source,
-    created_at,
-    updated_at
+SELECT id, host_id, email, source, created_at, updated_at
 FROM host_emails
 WHERE host_id = $1
 ORDER BY source

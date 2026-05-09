@@ -18,12 +18,7 @@ VALUES (
     $1,
     $2
 )
-RETURNING
-    id,
-    kind,
-    value,
-    created_at,
-    deleted_at
+RETURNING id, kind, value, created_at, deleted_at
 `
 
 type CreateSecretParams struct {
@@ -88,12 +83,7 @@ func (q *Queries) HasActiveSecret(ctx context.Context, arg HasActiveSecretParams
 }
 
 const listSecrets = `-- name: ListSecrets :many
-SELECT
-    id,
-    kind,
-    value,
-    created_at,
-    deleted_at
+SELECT id, kind, value, created_at, deleted_at
 FROM secrets
 WHERE kind = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC

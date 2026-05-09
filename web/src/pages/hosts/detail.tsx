@@ -133,7 +133,7 @@ function HostReportCard({ hostId, report }: { hostId: string; report: HostReport
         <div className="min-w-0">
           <Link
             to="/hosts/$hostId/reports/$reportId"
-            params={{ hostId, reportId: report.report_id }}
+            params={{ hostId, reportId: String(report.report_id) }}
             className="font-medium hover:underline"
           >
             {report.name}
@@ -146,7 +146,7 @@ function HostReportCard({ hostId, report }: { hostId: string; report: HostReport
           </p>
         </div>
         <Button asChild size="sm" variant="outline">
-          <Link to="/reports/$reportId" params={{ reportId: report.report_id }}>
+          <Link to="/reports/$reportId" params={{ reportId: String(report.report_id) }}>
             All hosts
           </Link>
         </Button>
@@ -190,8 +190,12 @@ function HostChecksTab({ hostId }: { hostId: string }) {
           {rows.map((row) => (
             <TableRow key={`${row.check_id}-${row.host_id}`}>
               <TableCell>
-                <Link to="/checks/$checkId" params={{ checkId: row.check_id }} className="font-medium hover:underline">
-                  {row.check_name || row.check_id}
+                <Link
+                  to="/checks/$checkId"
+                  params={{ checkId: String(row.check_id) }}
+                  className="font-medium hover:underline"
+                >
+                  {row.check_name || String(row.check_id)}
                 </Link>
               </TableCell>
               <TableCell>
@@ -249,7 +253,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
         return (
           <Link
             to="/software/titles/$softwareId"
-            params={{ softwareId: row.original.id }}
+            params={{ softwareId: String(row.original.id) }}
             className="block truncate hover:underline"
             title={name}
           >

@@ -66,7 +66,7 @@ export function UsersPage() {
 
 interface UsersTableProps {
   query: ReturnType<typeof useUsers>;
-  currentUserId: string | null;
+  currentUserId: number | null;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
 }

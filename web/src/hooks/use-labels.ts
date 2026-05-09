@@ -7,8 +7,8 @@ import { nonEmpty } from "@/lib/utils";
 
 export type Label = Schemas["LabelBody"];
 export type LabelListResult = Schemas["LabelListBody"];
+export type LabelCreate = Schemas["LabelCreateBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];
-export type LabelPut = Schemas["LabelPutBody"];
 
 export interface LabelListParams {
   q?: string;
@@ -62,7 +62,7 @@ export function useLabel(id: string) {
 
 export function useCreateLabel() {
   const queryClient = useQueryClient();
-  return useMutation<Label, ApiError, LabelMutation>({
+  return useMutation<Label, ApiError, LabelCreate>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/labels", { body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
@@ -71,10 +71,10 @@ export function useCreateLabel() {
   });
 }
 
-export function useUpdateLabel(id: string) {
+export function useUpdateLabel(id: number | null) {
   const queryClient = useQueryClient();
-  return useMutation<Label, ApiError, LabelPut>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id } }, body })),
+  return useMutation<Label, ApiError, LabelMutation>({
+    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: String(id) } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });
@@ -84,8 +84,8 @@ export function useUpdateLabel(id: string) {
 
 export function useDeleteLabel() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, string>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/labels/{id}", { params: { path: { id } } })),
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/labels/{id}", { params: { path: { id: String(id) } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });

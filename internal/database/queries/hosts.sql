@@ -21,7 +21,7 @@ VALUES (
     @hardware_model,
     @platform,
     @platform_like,
-    @orbit_node_key::text,
+    @orbit_node_key,
     now(),
     now()
 )
@@ -38,49 +38,7 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     last_seen_at = now(),
     updated_at = now(),
     deleted_at = NULL
-RETURNING
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at;
+RETURNING *;
 
 -- name: UpsertHostOnOsqueryEnroll :one
 INSERT INTO hosts (
@@ -123,7 +81,7 @@ VALUES (
     @platform_like,
     @osquery_version,
     @orbit_version,
-    @osquery_node_key::text,
+    @osquery_node_key,
     @cpu_brand,
     @cpu_logical_cores,
     @cpu_physical_cores,
@@ -159,347 +117,115 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     last_seen_at = now(),
     updated_at = now(),
     deleted_at = NULL
-RETURNING
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at;
+RETURNING *;
 
 -- name: ListHosts :many
-SELECT
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at
+SELECT *
 FROM hosts
 WHERE deleted_at IS NULL
-ORDER BY last_seen_at DESC NULLS LAST, created_at DESC;
-
--- name: ListHostsBySoftwareTitle :many
-SELECT
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at
-FROM hosts
-WHERE deleted_at IS NULL
-    AND EXISTS (
+    AND (
+        @q::text = ''
+        OR display_name ILIKE '%' || @q::text || '%'
+        OR hostname ILIKE '%' || @q::text || '%'
+        OR computer_name ILIKE '%' || @q::text || '%'
+        OR hardware_serial ILIKE '%' || @q::text || '%'
+        OR hardware_uuid ILIKE '%' || @q::text || '%'
+        OR hardware_model ILIKE '%' || @q::text || '%'
+        OR os_version ILIKE '%' || @q::text || '%'
+        OR EXISTS (
+            SELECT 1 FROM host_emails he
+            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
+        )
+    )
+    AND (@platform::text = '' OR platform = @platform::text)
+    AND (
+        @status::text = ''
+        OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
+        OR (@status::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
+    )
+    AND (@label_id::bigint = 0 OR EXISTS (
+        SELECT 1 FROM label_membership lm
+        WHERE lm.host_id = hosts.id AND lm.label_id = @label_id::bigint
+    ))
+    AND (@software_id::bigint = 0 OR EXISTS (
+        SELECT 1 FROM host_software hs
+        WHERE hs.host_id = hosts.id AND hs.software_id = @software_id::bigint
+    ))
+    AND (@software_title_id::bigint = 0 OR EXISTS (
         SELECT 1
         FROM host_software hs
         JOIN software s ON s.id = hs.software_id
-        WHERE hs.host_id = hosts.id AND s.title_id = @software_title_id
-    )
-ORDER BY last_seen_at DESC NULLS LAST, created_at DESC;
+        WHERE hs.host_id = hosts.id AND s.title_id = @software_title_id::bigint
+    ))
+ORDER BY
+    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'asc' THEN lower(platform) END ASC,
+    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'desc' THEN lower(platform) END DESC,
+    CASE WHEN @order_key::text = 'hardware_serial' AND @order_direction::text = 'asc' THEN lower(hardware_serial) END ASC,
+    CASE WHEN @order_key::text = 'hardware_serial' AND @order_direction::text = 'desc' THEN lower(hardware_serial) END DESC,
+    CASE WHEN @order_key::text = 'os_version' AND @order_direction::text = 'asc' THEN lower(os_version) END ASC,
+    CASE WHEN @order_key::text = 'os_version' AND @order_direction::text = 'desc' THEN lower(os_version) END DESC,
+    CASE WHEN @order_key::text = 'last_seen_at' AND @order_direction::text = 'asc' THEN last_seen_at END ASC NULLS LAST,
+    CASE WHEN @order_key::text = 'last_seen_at' AND @order_direction::text = 'desc' THEN last_seen_at END DESC NULLS LAST,
+    CASE WHEN @order_key::text = 'display_name' AND @order_direction::text = 'desc' THEN lower(display_name) END DESC,
+    lower(display_name),
+    id
+LIMIT @limit_rows OFFSET @offset_rows;
 
--- name: ListHostsBySoftware :many
-SELECT
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at
+-- name: CountHosts :one
+SELECT count(*)::integer
 FROM hosts
 WHERE deleted_at IS NULL
-    AND EXISTS (
+    AND (
+        @q::text = ''
+        OR display_name ILIKE '%' || @q::text || '%'
+        OR hostname ILIKE '%' || @q::text || '%'
+        OR computer_name ILIKE '%' || @q::text || '%'
+        OR hardware_serial ILIKE '%' || @q::text || '%'
+        OR hardware_uuid ILIKE '%' || @q::text || '%'
+        OR hardware_model ILIKE '%' || @q::text || '%'
+        OR os_version ILIKE '%' || @q::text || '%'
+        OR EXISTS (
+            SELECT 1 FROM host_emails he
+            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
+        )
+    )
+    AND (@platform::text = '' OR platform = @platform::text)
+    AND (
+        @status::text = ''
+        OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
+        OR (@status::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
+    )
+    AND (@label_id::bigint = 0 OR EXISTS (
+        SELECT 1 FROM label_membership lm
+        WHERE lm.host_id = hosts.id AND lm.label_id = @label_id::bigint
+    ))
+    AND (@software_id::bigint = 0 OR EXISTS (
+        SELECT 1 FROM host_software hs
+        WHERE hs.host_id = hosts.id AND hs.software_id = @software_id::bigint
+    ))
+    AND (@software_title_id::bigint = 0 OR EXISTS (
         SELECT 1
         FROM host_software hs
-        WHERE hs.host_id = hosts.id AND hs.software_id = @software_id
-    )
-ORDER BY last_seen_at DESC NULLS LAST, created_at DESC;
+        JOIN software s ON s.id = hs.software_id
+        WHERE hs.host_id = hosts.id AND s.title_id = @software_title_id::bigint
+    ));
 
 -- name: GetHostByID :one
-SELECT
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at
+SELECT *
 FROM hosts
 WHERE id = @id AND deleted_at IS NULL;
 
 -- name: TouchHostByOrbitNodeKey :one
 UPDATE hosts
 SET last_seen_at = now(), updated_at = now()
-WHERE orbit_node_key = @orbit_node_key::text AND deleted_at IS NULL
-RETURNING
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at;
+WHERE orbit_node_key = @orbit_node_key AND orbit_node_key <> '' AND deleted_at IS NULL
+RETURNING *;
 
 -- name: TouchHostByOsqueryNodeKey :one
 UPDATE hosts
 SET last_seen_at = now(), updated_at = now()
-WHERE osquery_node_key = @osquery_node_key::text AND deleted_at IS NULL
-RETURNING
-    id,
-    hardware_uuid,
-    display_name,
-    hostname,
-    computer_name,
-    hardware_serial,
-    hardware_model,
-    hardware_version,
-    os_name,
-    platform,
-    platform_like,
-    os_version,
-    os_build,
-    osquery_version,
-    orbit_version,
-    cpu_type,
-    cpu_subtype,
-    COALESCE(orbit_node_key, '')::text AS orbit_node_key,
-    COALESCE(osquery_node_key, '')::text AS osquery_node_key,
-    cpu_brand,
-    cpu_logical_cores,
-    cpu_physical_cores,
-    physical_memory,
-    hardware_vendor,
-    kernel_version,
-    uptime_seconds,
-    last_restarted_at,
-    disk_space_available_bytes,
-    disk_space_total_bytes,
-    public_ip,
-    primary_ip,
-    primary_mac,
-    distributed_interval,
-    config_tls_refresh,
-    enrolled_at,
-    last_seen_at,
-    detail_updated_at,
-    detail_query_hash,
-    label_updated_at,
-    software_updated_at,
-    created_at,
-    updated_at;
+WHERE osquery_node_key = @osquery_node_key AND osquery_node_key <> '' AND deleted_at IS NULL
+RETURNING *;
 
 -- name: ApplyHostDetail :exec
 UPDATE hosts
@@ -554,9 +280,7 @@ INSERT INTO host_users (
     type,
     description,
     directory,
-    shell,
-    created_at,
-    updated_at
+    shell
 )
 VALUES (
     @host_id,
@@ -565,9 +289,7 @@ VALUES (
     @type,
     @description,
     @directory,
-    @shell,
-    now(),
-    now()
+    @shell
 )
 ON CONFLICT (host_id, uid, username) DO UPDATE SET
     type = EXCLUDED.type,
@@ -577,17 +299,7 @@ ON CONFLICT (host_id, uid, username) DO UPDATE SET
     updated_at = now();
 
 -- name: ListHostUsers :many
-SELECT
-    id,
-    host_id,
-    uid,
-    username,
-    type,
-    description,
-    directory,
-    shell,
-    created_at,
-    updated_at
+SELECT *
 FROM host_users
 WHERE host_id = @host_id
 ORDER BY username, uid, id;
@@ -608,9 +320,7 @@ INSERT INTO host_batteries (
     designed_capacity,
     max_capacity,
     current_capacity,
-    percent_remaining,
-    created_at,
-    updated_at
+    percent_remaining
 )
 VALUES (
     @host_id,
@@ -623,9 +333,7 @@ VALUES (
     @designed_capacity,
     @max_capacity,
     @current_capacity,
-    @percent_remaining,
-    now(),
-    now()
+    @percent_remaining
 )
 ON CONFLICT (host_id, serial_number) DO UPDATE SET
     manufacturer = EXCLUDED.manufacturer,
@@ -640,21 +348,14 @@ ON CONFLICT (host_id, serial_number) DO UPDATE SET
     updated_at = now();
 
 -- name: ListHostBatteries :many
-SELECT
-    id,
-    host_id,
-    serial_number,
-    manufacturer,
-    model,
-    chemistry,
-    cycle_count,
-    health,
-    designed_capacity,
-    max_capacity,
-    current_capacity,
-    percent_remaining,
-    created_at,
-    updated_at
+SELECT *
 FROM host_batteries
 WHERE host_id = @host_id
 ORDER BY serial_number, id;
+
+-- name: AddHostToAllHostsLabel :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT id, @host_id
+FROM labels
+WHERE name = 'All Hosts' AND kind = 'builtin' AND membership_type = 'manual'
+ON CONFLICT (label_id, host_id) DO NOTHING;

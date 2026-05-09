@@ -24,8 +24,19 @@ var (
 
 // Service owns local setup, login, and session lookup behavior.
 type Service struct {
-	users    *models.UserStore
+	users    userStore
 	sessions *scs.SessionManager
+}
+
+type userStore interface {
+	Exists(context.Context) (bool, error)
+	Create(context.Context, models.CreateUserParams) (*models.User, error)
+	GetByEmail(context.Context, string) (*models.User, error)
+	GetByID(context.Context, int64) (*models.User, error)
+	List(context.Context) ([]models.User, error)
+	Update(context.Context, int64, models.UpdateUserParams) (*models.User, error)
+	SoftDelete(context.Context, int64) error
+	CountAdmins(context.Context) (int, error)
 }
 
 // SetupParams contains the first administrator account fields.
@@ -36,7 +47,7 @@ type SetupParams struct {
 }
 
 // NewService creates an auth service backed by a user store and an scs session manager.
-func NewService(users *models.UserStore, sessions *scs.SessionManager) *Service {
+func NewService(users userStore, sessions *scs.SessionManager) *Service {
 	return &Service{users: users, sessions: sessions}
 }
 

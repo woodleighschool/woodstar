@@ -6,6 +6,7 @@ import (
 )
 
 func TestCleanLabelCreate(t *testing.T) {
+	t.Parallel()
 	query := " select 1; "
 	staticQuery := "select 1;"
 
@@ -24,7 +25,7 @@ func TestCleanLabelCreate(t *testing.T) {
 			want: LabelCreate{
 				Name:           "Macs",
 				Query:          new("select 1;"),
-				Kind:           LabelKindCustom,
+				Kind:           LabelKindRegular,
 				MembershipType: LabelMembershipTypeDynamic,
 			},
 		},
@@ -37,20 +38,20 @@ func TestCleanLabelCreate(t *testing.T) {
 			wantErr: "query is required for dynamic labels",
 		},
 		{
-			name: "static label with query is invalid",
+			name: "manual label with query is invalid",
 			in: LabelCreate{
-				Name:           "Static",
+				Name:           "Manual",
 				Query:          &staticQuery,
-				MembershipType: LabelMembershipTypeStatic,
+				MembershipType: LabelMembershipTypeManual,
 			},
 			wantErr: "query is only allowed for dynamic labels",
 		},
 		{
-			name: "identity label with query is invalid",
+			name: "host_vitals label with query is invalid",
 			in: LabelCreate{
 				Name:           "Department",
 				Query:          &staticQuery,
-				MembershipType: LabelMembershipTypeIdentity,
+				MembershipType: LabelMembershipTypeHostVitals,
 			},
 			wantErr: "query is only allowed for dynamic labels",
 		},
@@ -91,16 +92,16 @@ func TestCleanLabelCreate(t *testing.T) {
 			wantErr: "unknown label membership type",
 		},
 		{
-			name: "static label without query is valid",
+			name: "manual label without query is valid",
 			in: LabelCreate{
 				Name:           "Pinned",
-				MembershipType: LabelMembershipTypeStatic,
+				MembershipType: LabelMembershipTypeManual,
 				Platform:       new(" darwin "),
 			},
 			want: LabelCreate{
 				Name:           "Pinned",
-				Kind:           LabelKindCustom,
-				MembershipType: LabelMembershipTypeStatic,
+				Kind:           LabelKindRegular,
+				MembershipType: LabelMembershipTypeManual,
 				Platform:       new("darwin"),
 			},
 		},
@@ -108,6 +109,7 @@ func TestCleanLabelCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := cleanLabelCreate(tt.in)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
@@ -123,17 +125,25 @@ func TestCleanLabelCreate(t *testing.T) {
 	}
 }
 
-func TestCleanLabelUpdateRejectsBuiltin(t *testing.T) {
-	query := "select 1;"
-	_, err := cleanLabelUpdate(LabelUpdate{
-		Name:           "All Hosts",
+func TestCleanLabelUpdate(t *testing.T) {
+	query := " select 1; "
+	got, err := cleanLabelUpdate(LabelUpdate{
+		Name:           " Macs ",
 		Query:          &query,
-		Kind:           LabelKindBuiltin,
 		MembershipType: LabelMembershipTypeDynamic,
+		Platform:       new(" darwin "),
 	})
-	if err == nil || !strings.Contains(err.Error(), "builtin labels cannot be updated") {
-		t.Fatalf("cleanLabelUpdate error = %v, want builtin rejection", err)
+	if err != nil {
+		t.Fatalf("cleanLabelUpdate returned error: %v", err)
 	}
+	if got.Name != "Macs" {
+		t.Fatalf("Name = %q, want %q", got.Name, "Macs")
+	}
+	if got.MembershipType != LabelMembershipTypeDynamic {
+		t.Fatalf("MembershipType = %q, want %q", got.MembershipType, LabelMembershipTypeDynamic)
+	}
+	assertStringPtr(t, "Query", got.Query, new("select 1;"))
+	assertStringPtr(t, "Platform", got.Platform, new("darwin"))
 }
 
 func assertLabelCreate(t *testing.T, got LabelCreate, want LabelCreate) {

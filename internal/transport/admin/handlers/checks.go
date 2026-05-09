@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +20,7 @@ const (
 )
 
 type checkBody struct {
-	ID                string         `json:"id"`
+	ID                int64          `json:"id"`
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
 	Resolution        string         `json:"resolution"`
@@ -29,12 +28,11 @@ type checkBody struct {
 	Platform          *string        `json:"platform,omitempty"`
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
 	LabelScope        labelScopeBody `json:"label_scope,omitzero"`
-	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
+	CreatedByUserID   *int64         `json:"created_by_user_id,omitempty"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
-// checkMutationBody is the POST body shape (mutable fields only).
 type checkMutationBody struct {
 	Name              string         `json:"name"`
 	Description       string         `json:"description,omitempty"`
@@ -43,22 +41,6 @@ type checkMutationBody struct {
 	Platform          *string        `json:"platform,omitempty"`
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
 	LabelScope        labelScopeBody `json:"label_scope"`
-}
-
-// checkPutBody mirrors checkBody so the autopatch round-trip accepts the
-// response shape verbatim. Read-only fields are accepted but ignored.
-type checkPutBody struct {
-	ID                string         `json:"id,omitempty"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description,omitempty"`
-	Resolution        string         `json:"resolution,omitempty"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	LabelScope        labelScopeBody `json:"label_scope"`
-	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
-	CreatedAt         *time.Time     `json:"created_at,omitempty"`
-	UpdatedAt         *time.Time     `json:"updated_at,omitempty"`
 }
 
 type checkListInput struct {
@@ -80,7 +62,7 @@ type checkCreateInput struct {
 
 type checkPutInput struct {
 	ID   string `path:"id"`
-	Body checkPutBody
+	Body checkMutationBody
 }
 
 type checkDeleteInput struct {
@@ -105,9 +87,9 @@ type checkHostsOutput struct {
 }
 
 type checkHostBody struct {
-	CheckID         string     `json:"check_id"`
+	CheckID         int64      `json:"check_id"`
 	CheckName       string     `json:"check_name"`
-	HostID          string     `json:"host_id"`
+	HostID          int64      `json:"host_id"`
 	HostName        string     `json:"host_name"`
 	Passes          *bool      `json:"passes,omitempty"`
 	FirstFailedAt   *time.Time `json:"first_failed_at,omitempty"`
@@ -319,7 +301,7 @@ func (body checkMutationBody) createParams(userID *int64) (models.CheckCreate, e
 	}, nil
 }
 
-func (body checkPutBody) updateParams() (models.CheckUpdate, error) {
+func (body checkMutationBody) updateParams() (models.CheckUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
 		return models.CheckUpdate{}, err
@@ -337,7 +319,7 @@ func (body checkPutBody) updateParams() (models.CheckUpdate, error) {
 
 func checkResponse(check *models.Check) checkBody {
 	return checkBody{
-		ID:                strconv.FormatInt(check.ID, 10),
+		ID:                check.ID,
 		Name:              check.Name,
 		Description:       check.Description,
 		Resolution:        check.Resolution,
@@ -345,7 +327,7 @@ func checkResponse(check *models.Check) checkBody {
 		Platform:          check.Platform,
 		MinOsqueryVersion: check.MinOsqueryVersion,
 		LabelScope:        labelScopeResponse(check.LabelScope),
-		CreatedByUserID:   idStringPtr(check.CreatedByUserID),
+		CreatedByUserID:   check.CreatedByUserID,
 		CreatedAt:         check.CreatedAt,
 		UpdatedAt:         check.UpdatedAt,
 	}
@@ -355,9 +337,9 @@ func checkHostResponses(rows []models.CheckHostStatus) []checkHostBody {
 	out := make([]checkHostBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, checkHostBody{
-			CheckID:         strconv.FormatInt(row.CheckID, 10),
+			CheckID:         row.CheckID,
 			CheckName:       row.CheckName,
-			HostID:          strconv.FormatInt(row.HostID, 10),
+			HostID:          row.HostID,
 			HostName:        row.HostName,
 			Passes:          row.Passes,
 			FirstFailedAt:   row.FirstFailedAt,

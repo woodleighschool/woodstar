@@ -44,7 +44,7 @@ type softwareGetInput struct {
 }
 
 type softwareTitleBody struct {
-	ID               string                `json:"id"`
+	ID               int64                 `json:"id"`
 	Name             string                `json:"name"`
 	DisplayName      string                `json:"display_name"`
 	IconURL          *string               `json:"icon_url"`
@@ -56,12 +56,10 @@ type softwareTitleBody struct {
 	VersionsCount    int                   `json:"versions_count"`
 	Versions         []softwareVersionBody `json:"versions"`
 	CountsUpdatedAt  *time.Time            `json:"counts_updated_at"`
-	SoftwarePackage  any                   `json:"software_package"`
-	AppStoreApp      any                   `json:"app_store_app"`
 }
 
 type softwareVersionBody struct {
-	ID               string `json:"id"`
+	ID               int64  `json:"id"`
 	Version          string `json:"version"`
 	BundleIdentifier string `json:"bundle_identifier,omitempty"`
 	HostsCount       int    `json:"hosts_count"`
@@ -135,14 +133,14 @@ func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
 	versions := make([]softwareVersionBody, 0, len(title.Versions))
 	for _, version := range title.Versions {
 		versions = append(versions, softwareVersionBody{
-			ID:               models.HostIDString(version.ID),
+			ID:               version.ID,
 			Version:          version.Version,
 			BundleIdentifier: version.BundleIdentifier,
 			HostsCount:       version.HostsCount,
 		})
 	}
 	return softwareTitleBody{
-		ID:               models.HostIDString(title.ID),
+		ID:               title.ID,
 		Name:             title.Name,
 		DisplayName:      title.DisplayName,
 		IconURL:          title.IconURL,
@@ -154,8 +152,6 @@ func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
 		VersionsCount:    title.VersionsCount,
 		Versions:         versions,
 		CountsUpdatedAt:  title.CountsUpdatedAt,
-		SoftwarePackage:  nil,
-		AppStoreApp:      nil,
 	}
 }
 

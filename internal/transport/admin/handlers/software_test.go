@@ -48,11 +48,8 @@ func TestSoftwareTitleResponseUsesFleetShape(t *testing.T) {
 	}
 
 	got := softwareTitleResponse(title)
-	if got.ID != "12" || got.Browser != "arc" {
+	if got.ID != 12 || got.Browser != "arc" {
 		t.Fatalf("unexpected response identifiers: %#v", got)
-	}
-	if got.SoftwarePackage != nil || got.AppStoreApp != nil {
-		t.Fatalf("package/app store placeholders = %#v %#v, want nil", got.SoftwarePackage, got.AppStoreApp)
 	}
 	if got.HostsCount != 3 || got.VersionsCount != 2 || got.CountsUpdatedAt == nil {
 		t.Fatalf("unexpected counts: %#v", got)

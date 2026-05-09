@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
+	"github.com/woodleighschool/woodstar/internal/transport/agentjson"
 )
 
 const (
@@ -108,30 +109,21 @@ func deviceMappingHandler(svc *coreorbit.Service, logger *slog.Logger) http.Hand
 			writeAgentError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
-		writeAgentJSON(w, http.StatusOK, map[string]any{})
+		writeAgentJSON(w, http.StatusOK, struct{}{})
 	}
 }
 
 func pingHandler(w http.ResponseWriter, _ *http.Request) {
-	writeOrbitHeaders(w)
+	w.Header().Set(capabilitiesHeader, orbitCapabilities)
 	w.WriteHeader(http.StatusOK)
 }
 
 func writeAgentJSON(w http.ResponseWriter, status int, body any) {
-	writeOrbitHeaders(w)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
-func writeOrbitHeaders(w http.ResponseWriter) {
 	w.Header().Set(capabilitiesHeader, orbitCapabilities)
+	agentjson.Write(w, status, body)
 }
 
 func writeAgentError(w http.ResponseWriter, status int, message string) {
-	writeAgentJSON(w, status, errorResponse{Error: message})
-}
-
-type errorResponse struct {
-	Error string `json:"error"`
+	w.Header().Set(capabilitiesHeader, orbitCapabilities)
+	agentjson.WriteError(w, status, message)
 }

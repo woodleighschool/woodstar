@@ -89,11 +89,7 @@ export interface paths {
         delete: operations["delete-check"];
         options?: never;
         head?: never;
-        /**
-         * Patch check
-         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-         */
-        patch: operations["patch-check"];
+        patch?: never;
         trace?: never;
     };
     "/api/checks/{id}/hosts": {
@@ -262,15 +258,11 @@ export interface paths {
         /** Replace a label */
         put: operations["put-label"];
         post?: never;
-        /** Delete a custom label */
+        /** Delete a regular label */
         delete: operations["delete-label"];
         options?: never;
         head?: never;
-        /**
-         * Patch label
-         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-         */
-        patch: operations["patch-label"];
+        patch?: never;
         trace?: never;
     };
     "/api/live-queries": {
@@ -359,11 +351,7 @@ export interface paths {
         delete: operations["delete-query"];
         options?: never;
         head?: never;
-        /**
-         * Patch query
-         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-         */
-        patch: operations["patch-query"];
+        patch?: never;
         trace?: never;
     };
     "/api/queries/{id}/results": {
@@ -485,11 +473,7 @@ export interface paths {
         delete: operations["delete-user"];
         options?: never;
         head?: never;
-        /**
-         * Patch user
-         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-         */
-        patch: operations["patch-user"];
+        patch?: never;
         trace?: never;
     };
     "/api/version": {
@@ -517,14 +501,16 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/CheckBody.json
+             * @example https://example.com/api/schemas/CheckBody.json
              */
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
-            created_by_user_id?: string;
+            /** Format: int64 */
+            created_by_user_id?: number;
             description: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             label_scope?: components["schemas"]["LabelScopeBody"];
             min_osquery_version?: string;
             name: string;
@@ -535,11 +521,13 @@ export interface components {
             updated_at: string;
         };
         CheckHostBody: {
-            check_id: string;
+            /** Format: int64 */
+            check_id: number;
             check_name: string;
             /** Format: date-time */
             first_failed_at?: string;
-            host_id: string;
+            /** Format: int64 */
+            host_id: number;
             host_name: string;
             /** Format: date-time */
             last_evaluated_at?: string;
@@ -549,7 +537,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/CheckHostsOutputBody.json
+             * @example https://example.com/api/schemas/CheckHostsOutputBody.json
              */
             readonly $schema?: string;
             items: components["schemas"]["CheckHostBody"][] | null;
@@ -558,7 +546,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/CheckListOutputBody.json
+             * @example https://example.com/api/schemas/CheckListOutputBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -569,7 +557,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/CheckMutationBody.json
+             * @example https://example.com/api/schemas/CheckMutationBody.json
              */
             readonly $schema?: string;
             description?: string;
@@ -579,27 +567,6 @@ export interface components {
             platform?: string;
             query: string;
             resolution?: string;
-        };
-        CheckPutBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/CheckPutBody.json
-             */
-            readonly $schema?: string;
-            /** Format: date-time */
-            created_at?: string;
-            created_by_user_id?: string;
-            description?: string;
-            id?: string;
-            label_scope: components["schemas"]["LabelScopeBody"];
-            min_osquery_version?: string;
-            name: string;
-            platform?: string;
-            query: string;
-            resolution?: string;
-            /** Format: date-time */
-            updated_at?: string;
         };
         DeviceMappingBody: {
             email: string;
@@ -617,7 +584,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/ErrorModel.json
+             * @example https://example.com/api/schemas/ErrorModel.json
              */
             readonly $schema?: string;
             /**
@@ -656,7 +623,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HealthOutputBody.json
+             * @example https://example.com/api/schemas/HealthOutputBody.json
              */
             readonly $schema?: string;
             status: string;
@@ -682,7 +649,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HostBody.json
+             * @example https://example.com/api/schemas/HostBody.json
              */
             readonly $schema?: string;
             batteries: components["schemas"]["HostBatteryBody"][] | null;
@@ -716,7 +683,8 @@ export interface components {
             hardware_vendor: string;
             hardware_version: string;
             hostname: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             kernel_version: string;
             /** Format: date-time */
             label_updated_at?: string;
@@ -749,7 +717,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HostListBody.json
+             * @example https://example.com/api/schemas/HostListBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -760,15 +728,17 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HostQueryResultsOutputBody.json
+             * @example https://example.com/api/schemas/HostQueryResultsOutputBody.json
              */
             readonly $schema?: string;
-            host_id: string;
+            /** Format: int64 */
+            host_id: number;
             host_name: string;
             items: components["schemas"]["QueryResultBody"][] | null;
             /** Format: date-time */
             last_fetched?: string;
-            query_id: string;
+            /** Format: int64 */
+            query_id: number;
         };
         HostReportBody: {
             description: string;
@@ -780,28 +750,27 @@ export interface components {
             /** Format: int64 */
             n_host_results: number;
             name: string;
-            report_id: string;
+            /** Format: int64 */
+            report_id: number;
         };
         HostReportsOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HostReportsOutputBody.json
+             * @example https://example.com/api/schemas/HostReportsOutputBody.json
              */
             readonly $schema?: string;
             items: components["schemas"]["HostReportBody"][] | null;
         };
         HostSoftwareBody: {
-            app_store_app: unknown;
             display_name: string;
             extension_for: string;
             icon_url: string | null;
-            id: string;
+            /** Format: int64 */
+            id: number;
             installed_versions: components["schemas"]["HostSoftwareInstalledVersionBody"][] | null;
             name: string;
-            software_package: unknown;
             source: string;
-            status: unknown;
         };
         HostSoftwareInstalledVersionBody: {
             bundle_identifier: string;
@@ -815,7 +784,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/HostSoftwareListBody.json
+             * @example https://example.com/api/schemas/HostSoftwareListBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -830,24 +799,11 @@ export interface components {
             uid: string;
             username: string;
         };
-        JsonPatchOp: {
-            /** @description JSON Pointer for the source of a move or copy */
-            from?: string;
-            /**
-             * @description Operation name
-             * @enum {string}
-             */
-            op: "add" | "remove" | "replace" | "move" | "copy" | "test";
-            /** @description JSON Pointer to the field being operated on, or the destination of a move/copy operation */
-            path: string;
-            /** @description The value to set */
-            value?: unknown;
-        };
         LabelBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LabelBody.json
+             * @example https://example.com/api/schemas/LabelBody.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -855,20 +811,39 @@ export interface components {
             description: string;
             /** Format: int64 */
             hosts_count: number;
-            id: string;
-            kind: string;
-            membership_type: string;
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            kind: "regular" | "builtin";
+            /** @enum {string} */
+            membership_type: "dynamic" | "manual" | "host_vitals";
             name: string;
             platform?: string;
             query?: string;
             /** Format: date-time */
             updated_at?: string;
         };
+        LabelCreateBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/LabelCreateBody.json
+             */
+            readonly $schema?: string;
+            description?: string;
+            /** @enum {string} */
+            kind?: "regular" | "builtin";
+            /** @enum {string} */
+            membership_type?: "dynamic" | "manual" | "host_vitals";
+            name: string;
+            platform?: string;
+            query?: string;
+        };
         LabelListBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LabelListBody.json
+             * @example https://example.com/api/schemas/LabelListBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -879,41 +854,18 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LabelMutationBody.json
+             * @example https://example.com/api/schemas/LabelMutationBody.json
              */
             readonly $schema?: string;
             description?: string;
             /** @enum {string} */
-            kind?: "custom" | "builtin";
-            /** @enum {string} */
-            membership_type?: "dynamic" | "static" | "identity";
+            membership_type?: "dynamic" | "manual" | "host_vitals";
             name: string;
             platform?: string;
             query?: string;
-        };
-        LabelPutBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LabelPutBody.json
-             */
-            readonly $schema?: string;
-            /** Format: date-time */
-            created_at?: string;
-            description?: string;
-            /** Format: int64 */
-            hosts_count?: number;
-            id?: string;
-            kind: string;
-            membership_type: string;
-            name: string;
-            platform?: string;
-            query?: string;
-            /** Format: date-time */
-            updated_at?: string;
         };
         LabelScopeBody: {
-            label_ids?: string[] | null;
+            label_ids?: number[] | null;
             /** @enum {string} */
             mode?: "include_any" | "include_all" | "exclude_any";
         };
@@ -921,10 +873,11 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LiveQueryCreateBody.json
+             * @example https://example.com/api/schemas/LiveQueryCreateBody.json
              */
             readonly $schema?: string;
-            query_id?: string;
+            /** Format: int64 */
+            query_id?: number;
             selected?: components["schemas"]["LiveQuerySelectedBody"];
             sql: string;
         };
@@ -932,10 +885,11 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LiveQueryHandleBody.json
+             * @example https://example.com/api/schemas/LiveQueryHandleBody.json
              */
             readonly $schema?: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             /** Format: int64 */
             resolved_host_count: number;
             sql: string;
@@ -943,14 +897,14 @@ export interface components {
             started_at: string;
         };
         LiveQuerySelectedBody: {
-            hosts?: string[] | null;
-            labels?: string[] | null;
+            hosts?: number[] | null;
+            labels?: number[] | null;
         };
         LoginInputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/LoginInputBody.json
+             * @example https://example.com/api/schemas/LoginInputBody.json
              */
             readonly $schema?: string;
             /** Format: email */
@@ -968,14 +922,16 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/QueryBody.json
+             * @example https://example.com/api/schemas/QueryBody.json
              */
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
-            created_by_user_id?: string;
+            /** Format: int64 */
+            created_by_user_id?: number;
             description: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             label_scope?: components["schemas"]["LabelScopeBody"];
             min_osquery_version?: string;
             name: string;
@@ -990,7 +946,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/QueryListOutputBody.json
+             * @example https://example.com/api/schemas/QueryListOutputBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -1001,7 +957,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/QueryMutationBody.json
+             * @example https://example.com/api/schemas/QueryMutationBody.json
              */
             readonly $schema?: string;
             description?: string;
@@ -1012,45 +968,25 @@ export interface components {
             query: string;
             /** Format: int64 */
             schedule_interval?: number;
-        };
-        QueryPutBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/QueryPutBody.json
-             */
-            readonly $schema?: string;
-            /** Format: date-time */
-            created_at?: string;
-            created_by_user_id?: string;
-            description?: string;
-            id?: string;
-            label_scope: components["schemas"]["LabelScopeBody"];
-            min_osquery_version?: string;
-            name: string;
-            platform?: string;
-            query: string;
-            /** Format: int64 */
-            schedule_interval?: number;
-            /** Format: date-time */
-            updated_at?: string;
         };
         QueryResultBody: {
             columns: {
                 [key: string]: string;
             };
-            host_id: string;
+            /** Format: int64 */
+            host_id: number;
             host_name: string;
             /** Format: date-time */
             last_fetched?: string;
-            query_id: string;
+            /** Format: int64 */
+            query_id: number;
             query_name: string;
         };
         QueryResultsOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/QueryResultsOutputBody.json
+             * @example https://example.com/api/schemas/QueryResultsOutputBody.json
              */
             readonly $schema?: string;
             items: components["schemas"]["QueryResultBody"][] | null;
@@ -1059,19 +995,20 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/Secret.json
+             * @example https://example.com/api/schemas/Secret.json
              */
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             value: string;
         };
         SessionBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/SessionBody.json
+             * @example https://example.com/api/schemas/SessionBody.json
              */
             readonly $schema?: string;
             setup_complete: boolean;
@@ -1081,7 +1018,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/SetupInputBody.json
+             * @example https://example.com/api/schemas/SetupInputBody.json
              */
             readonly $schema?: string;
             /** Format: email */
@@ -1093,7 +1030,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/SoftwareGetBody.json
+             * @example https://example.com/api/schemas/SoftwareGetBody.json
              */
             readonly $schema?: string;
             software_title: components["schemas"]["SoftwareTitleBody"];
@@ -1102,7 +1039,7 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/SoftwareListBody.json
+             * @example https://example.com/api/schemas/SoftwareListBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -1110,7 +1047,6 @@ export interface components {
             items: components["schemas"]["SoftwareTitleBody"][] | null;
         };
         SoftwareTitleBody: {
-            app_store_app: unknown;
             browser: string;
             bundle_identifier?: string;
             /** Format: date-time */
@@ -1120,9 +1056,9 @@ export interface components {
             /** Format: int64 */
             hosts_count: number;
             icon_url: string | null;
-            id: string;
+            /** Format: int64 */
+            id: number;
             name: string;
-            software_package: unknown;
             source: string;
             versions: components["schemas"]["SoftwareVersionBody"][] | null;
             /** Format: int64 */
@@ -1132,28 +1068,31 @@ export interface components {
             bundle_identifier?: string;
             /** Format: int64 */
             hosts_count: number;
-            id: string;
+            /** Format: int64 */
+            id: number;
             version: string;
         };
         UserBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/UserBody.json
+             * @example https://example.com/api/schemas/UserBody.json
              */
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
             email: string;
-            id: string;
+            /** Format: int64 */
+            id: number;
             name: string;
-            role: string;
+            /** @enum {string} */
+            role: "admin" | "viewer";
         };
         UserCreateInputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/UserCreateInputBody.json
+             * @example https://example.com/api/schemas/UserCreateInputBody.json
              */
             readonly $schema?: string;
             /** Format: email */
@@ -1167,22 +1106,19 @@ export interface components {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/UserPutBody.json
+             * @example https://example.com/api/schemas/UserPutBody.json
              */
             readonly $schema?: string;
-            created_at?: string;
-            /** Format: email */
-            email?: string;
-            id?: string;
             name: string;
             password?: string;
-            role: string;
+            /** @enum {string} */
+            role: "admin" | "viewer";
         };
         VersionOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example //api/schemas/VersionOutputBody.json
+             * @example https://example.com/api/schemas/VersionOutputBody.json
              */
             readonly $schema?: string;
             started_at: string;
@@ -1514,7 +1450,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CheckPutBody"];
+                "application/json": components["schemas"]["CheckMutationBody"];
             };
         };
         responses: {
@@ -1612,128 +1548,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "patch-check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
-                "application/merge-patch+json": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/CheckPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    created_by_user_id?: string;
-                    description?: string;
-                    id?: string;
-                    label_scope?: unknown;
-                    min_osquery_version?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    resolution?: string;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-                "application/merge-patch+shorthand": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/CheckPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    created_by_user_id?: string;
-                    description?: string;
-                    id?: string;
-                    label_scope?: unknown;
-                    min_osquery_version?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    resolution?: string;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CheckBody"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2269,7 +2083,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LabelMutationBody"];
+                "application/json": components["schemas"]["LabelCreateBody"];
             };
         };
         responses: {
@@ -2398,7 +2212,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LabelPutBody"];
+                "application/json": components["schemas"]["LabelMutationBody"];
             };
         };
         responses: {
@@ -2496,128 +2310,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "patch-label": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
-                "application/merge-patch+json": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/LabelPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    description?: string;
-                    /** Format: int64 */
-                    hosts_count?: number;
-                    id?: string;
-                    kind?: string;
-                    membership_type?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-                "application/merge-patch+shorthand": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/LabelPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    description?: string;
-                    /** Format: int64 */
-                    hosts_count?: number;
-                    id?: string;
-                    kind?: string;
-                    membership_type?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LabelBody"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3056,7 +2748,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["QueryPutBody"];
+                "application/json": components["schemas"]["QueryMutationBody"];
             };
         };
         responses: {
@@ -3154,130 +2846,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "patch-query": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
-                "application/merge-patch+json": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/QueryPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    created_by_user_id?: string;
-                    description?: string;
-                    id?: string;
-                    label_scope?: unknown;
-                    min_osquery_version?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    /** Format: int64 */
-                    schedule_interval?: number;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-                "application/merge-patch+shorthand": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/QueryPutBody.json
-                     */
-                    readonly $schema?: string;
-                    /** Format: date-time */
-                    created_at?: string;
-                    created_by_user_id?: string;
-                    description?: string;
-                    id?: string;
-                    label_scope?: unknown;
-                    min_osquery_version?: string;
-                    name?: string;
-                    platform?: string;
-                    query?: string;
-                    /** Format: int64 */
-                    schedule_interval?: number;
-                    /** Format: date-time */
-                    updated_at?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["QueryBody"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3871,125 +3439,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "patch-user": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
-                "application/merge-patch+json": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/UserPutBody.json
-                     */
-                    readonly $schema?: string;
-                    created_at?: string;
-                    /** Format: email */
-                    email?: string;
-                    id?: string;
-                    name?: string;
-                    password?: string;
-                    role?: string;
-                };
-                "application/merge-patch+shorthand": {
-                    /**
-                     * Format: uri
-                     * @description A URL to the JSON Schema for this object.
-                     * @example //api/schemas/UserPutBody.json
-                     */
-                    readonly $schema?: string;
-                    created_at?: string;
-                    /** Format: email */
-                    email?: string;
-                    id?: string;
-                    name?: string;
-                    password?: string;
-                    role?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserBody"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
             };
             /** @description Unauthorized */
             401: {

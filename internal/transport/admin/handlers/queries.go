@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,11 +22,11 @@ const (
 
 type labelScopeBody struct {
 	Mode     models.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
-	LabelIDs []string              `json:"label_ids,omitempty"`
+	LabelIDs []int64               `json:"label_ids,omitempty"`
 }
 
 type queryBody struct {
-	ID                string         `json:"id"`
+	ID                int64          `json:"id"`
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
 	Query             string         `json:"query"`
@@ -35,12 +34,11 @@ type queryBody struct {
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int            `json:"schedule_interval"`
 	LabelScope        labelScopeBody `json:"label_scope,omitzero"`
-	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
+	CreatedByUserID   *int64         `json:"created_by_user_id,omitempty"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
-// queryMutationBody is the POST body shape (mutable fields only).
 type queryMutationBody struct {
 	Name              string         `json:"name"`
 	Description       string         `json:"description,omitempty"`
@@ -49,23 +47,6 @@ type queryMutationBody struct {
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int            `json:"schedule_interval,omitempty"`
 	LabelScope        labelScopeBody `json:"label_scope"`
-}
-
-// queryPutBody mirrors queryBody so the autopatch round-trip (GET → merge →
-// PUT) accepts the response shape verbatim. Read-only fields are accepted
-// but ignored.
-type queryPutBody struct {
-	ID                string         `json:"id,omitempty"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description,omitempty"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int            `json:"schedule_interval,omitempty"`
-	LabelScope        labelScopeBody `json:"label_scope"`
-	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
-	CreatedAt         *time.Time     `json:"created_at,omitempty"`
-	UpdatedAt         *time.Time     `json:"updated_at,omitempty"`
 }
 
 type queryListInput struct {
@@ -87,7 +68,7 @@ type queryCreateInput struct {
 
 type queryPutInput struct {
 	ID   string `path:"id"`
-	Body queryPutBody
+	Body queryMutationBody
 }
 
 type queryDeleteInput struct {
@@ -112,9 +93,9 @@ type queryResultsOutput struct {
 }
 
 type queryResultBody struct {
-	QueryID     string            `json:"query_id"`
+	QueryID     int64             `json:"query_id"`
 	QueryName   string            `json:"query_name"`
-	HostID      string            `json:"host_id"`
+	HostID      int64             `json:"host_id"`
 	HostName    string            `json:"host_name"`
 	Columns     map[string]string `json:"columns"`
 	LastFetched *time.Time        `json:"last_fetched,omitempty"`
@@ -127,7 +108,7 @@ type hostReportsOutput struct {
 }
 
 type hostReportBody struct {
-	ReportID        string            `json:"report_id"`
+	ReportID        int64             `json:"report_id"`
 	Name            string            `json:"name"`
 	Description     string            `json:"description"`
 	LastFetched     *time.Time        `json:"last_fetched,omitempty"`
@@ -137,8 +118,8 @@ type hostReportBody struct {
 
 type hostQueryResultsOutput struct {
 	Body struct {
-		QueryID     string            `json:"query_id"`
-		HostID      string            `json:"host_id"`
+		QueryID     int64             `json:"query_id"`
+		HostID      int64             `json:"host_id"`
 		HostName    string            `json:"host_name"`
 		LastFetched *time.Time        `json:"last_fetched,omitempty"`
 		Items       []queryResultBody `json:"items"`
@@ -355,8 +336,8 @@ func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *mod
 			return nil, err
 		}
 		out := &hostQueryResultsOutput{}
-		out.Body.QueryID = input.QueryID
-		out.Body.HostID = input.ID
+		out.Body.QueryID = queryID
+		out.Body.HostID = hostID
 		out.Body.HostName = host.DisplayName
 		out.Body.LastFetched = lastFetched
 		out.Body.Items = queryResultResponses(rows)
@@ -395,7 +376,7 @@ func (body queryMutationBody) createParams(userID *int64) (models.QueryCreate, e
 	}, nil
 }
 
-func (body queryPutBody) updateParams() (models.QueryUpdate, error) {
+func (body queryMutationBody) updateParams() (models.QueryUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
 		return models.QueryUpdate{}, err
@@ -414,7 +395,7 @@ func (body queryPutBody) updateParams() (models.QueryUpdate, error) {
 
 func queryResponse(query *models.Query) queryBody {
 	return queryBody{
-		ID:                strconv.FormatInt(query.ID, 10),
+		ID:                query.ID,
 		Name:              query.Name,
 		Description:       query.Description,
 		Query:             query.Query,
@@ -422,7 +403,7 @@ func queryResponse(query *models.Query) queryBody {
 		MinOsqueryVersion: query.MinOsqueryVersion,
 		ScheduleInterval:  query.ScheduleInterval,
 		LabelScope:        labelScopeResponse(query.LabelScope),
-		CreatedByUserID:   idStringPtr(query.CreatedByUserID),
+		CreatedByUserID:   query.CreatedByUserID,
 		CreatedAt:         query.CreatedAt,
 		UpdatedAt:         query.UpdatedAt,
 	}
@@ -436,9 +417,9 @@ func queryResultResponses(rows []models.QueryResult) []queryResultBody {
 			lastFetched = &row.LastFetched
 		}
 		out = append(out, queryResultBody{
-			QueryID:     strconv.FormatInt(row.QueryID, 10),
+			QueryID:     row.QueryID,
 			QueryName:   row.QueryName,
-			HostID:      strconv.FormatInt(row.HostID, 10),
+			HostID:      row.HostID,
 			HostName:    row.HostName,
 			Columns:     row.Columns,
 			LastFetched: lastFetched,
@@ -451,7 +432,7 @@ func hostReportResponses(rows []models.HostReport) []hostReportBody {
 	out := make([]hostReportBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, hostReportBody{
-			ReportID:        strconv.FormatInt(row.ReportID, 10),
+			ReportID:        row.ReportID,
 			Name:            row.Name,
 			Description:     row.Description,
 			LastFetched:     row.LastFetched,
@@ -471,11 +452,7 @@ func (body labelScopeBody) model() (models.LabelScope, error) {
 }
 
 func labelScopeResponse(scope models.LabelScope) labelScopeBody {
-	ids := make([]string, 0, len(scope.LabelIDs))
-	for _, id := range scope.LabelIDs {
-		ids = append(ids, strconv.FormatInt(id, 10))
-	}
-	return labelScopeBody{Mode: scope.Mode, LabelIDs: ids}
+	return labelScopeBody{Mode: scope.Mode, LabelIDs: append([]int64{}, scope.LabelIDs...)}
 }
 
 func currentUserID(ctx context.Context) *int64 {

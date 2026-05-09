@@ -93,7 +93,11 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		err := store.Delete(ctx, kind, input.ID)
+		id, err := parseResourceID(input.ID, "secret")
+		if err != nil {
+			return nil, err
+		}
+		err = store.Delete(ctx, kind, id)
 		if errors.Is(err, models.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}

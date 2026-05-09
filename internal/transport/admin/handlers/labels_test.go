@@ -16,7 +16,7 @@ func TestLabelListInputParams(t *testing.T) {
 		PerPage:        25,
 		OrderKey:       "name",
 		OrderDirection: "desc",
-		Kind:           "custom",
+		Kind:           "regular",
 		MembershipType: "dynamic",
 		Platform:       " darwin ",
 	}
@@ -25,8 +25,8 @@ func TestLabelListInputParams(t *testing.T) {
 	if got.Q != "mac" || got.Page != 2 || got.PerPage != 25 {
 		t.Fatalf("list params = %#v", got.ListParams)
 	}
-	if got.Kind != models.LabelKindCustom {
-		t.Fatalf("Kind = %q, want custom", got.Kind)
+	if got.Kind != models.LabelKindRegular {
+		t.Fatalf("Kind = %q, want regular", got.Kind)
 	}
 	if got.MembershipType != models.LabelMembershipTypeDynamic {
 		t.Fatalf("MembershipType = %q, want dynamic", got.MembershipType)
@@ -49,6 +49,7 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mapped := resourceMutationError("label", tt.err)
 			var status huma.StatusError
 			if !errors.As(mapped, &status) {

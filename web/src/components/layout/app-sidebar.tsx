@@ -1,5 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { LogOut, Star } from "lucide-react";
 
 import { navSections } from "@/components/layout/nav-config";
@@ -24,9 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/use-auth";
-import { apiClient, unwrap } from "@/lib/api";
-import { queryKeys } from "@/lib/query-keys";
+import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
 import { nonEmpty } from "@/lib/utils";
 
@@ -96,15 +93,7 @@ export function AppSidebar() {
 
 function UserMenu() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const router = useRouter();
-  const logout = useMutation({
-    mutationFn: () => unwrap(apiClient.POST("/api/auth/logout")),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
-      await router.navigate({ to: "/login" });
-    },
-  });
+  const logout = useLogout();
 
   const initials = (nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "?")
     .split(/[\s@]+/)

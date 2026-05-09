@@ -3,9 +3,7 @@ package models
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -14,23 +12,17 @@ import (
 )
 
 // UserRole controls application permissions.
-type UserRole string
+type UserRole = sqlc.UserRole
 
 // User roles are intentionally small.
 const (
-	RoleAdmin  UserRole = "admin"
-	RoleViewer UserRole = "viewer"
+	RoleAdmin  = sqlc.UserRoleAdmin
+	RoleViewer = sqlc.UserRoleViewer
 )
 
 // User is a local account.
 type User struct {
-	ID           int64
-	Email        string
-	Name         string
-	PasswordHash string
-	Role         UserRole
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	sqlc.User
 }
 
 // UserStore persists local accounts.
@@ -69,7 +61,7 @@ func (s *UserStore) Create(ctx context.Context, params CreateUserParams) (*User,
 		Email:        normalizeEmail(params.Email),
 		Name:         strings.TrimSpace(params.Name),
 		PasswordHash: params.PasswordHash,
-		Role:         sqlc.UserRole(params.Role),
+		Role:         params.Role,
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -77,7 +69,7 @@ func (s *UserStore) Create(ctx context.Context, params CreateUserParams) (*User,
 		}
 		return nil, err
 	}
-	return userFromRecord(row), nil
+	return &User{User: row}, nil
 }
 
 // GetByEmail returns an active user by email.
@@ -89,7 +81,7 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 	if err != nil {
 		return nil, err
 	}
-	return userFromRecord(row), nil
+	return &User{User: row}, nil
 }
 
 // GetByID returns an active user by database ID.
@@ -101,7 +93,7 @@ func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return userFromRecord(row), nil
+	return &User{User: row}, nil
 }
 
 // List returns active users ordered by creation time.
@@ -110,20 +102,19 @@ func (s *UserStore) List(ctx context.Context) ([]User, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	users := make([]User, 0, len(rows))
-	for _, row := range rows {
-		users = append(users, *userFromRecord(row))
+	users := make([]User, len(rows))
+	for i, row := range rows {
+		users[i] = User{User: row}
 	}
 	return users, nil
 }
 
-// Update writes the writable fields of a user and returns the row.
-// Name and Role are required; PasswordHash is optional.
+// Update writes the writable fields of a user. Name and Role are required;
+// PasswordHash is optional and left untouched when nil.
 func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParams) (*User, error) {
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
 		Name:         strings.TrimSpace(params.Name),
-		Role:         sqlc.UserRole(params.Role),
+		Role:         params.Role,
 		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
@@ -136,7 +127,7 @@ func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParam
 		}
 		return nil, err
 	}
-	return userFromRecord(row), nil
+	return &User{User: row}, nil
 }
 
 // SoftDelete marks the user with id as deleted.
@@ -154,23 +145,6 @@ func (s *UserStore) CountAdmins(ctx context.Context) (int, error) {
 	return int(count), err
 }
 
-func userFromRecord(row sqlc.User) *User {
-	return &User{
-		ID:           row.ID,
-		Email:        row.Email,
-		Name:         row.Name,
-		PasswordHash: row.PasswordHash,
-		Role:         UserRole(row.Role),
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
-	}
-}
-
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
-}
-
-// UserIDString formats a database user ID for API responses.
-func UserIDString(id int64) string {
-	return strconv.FormatInt(id, 10)
 }

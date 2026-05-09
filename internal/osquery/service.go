@@ -115,7 +115,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 		Options: map[string]string{
 			"disable_distributed": "false",
 		},
-		Decorators: map[string]any{},
+		Decorators: map[string][]string{},
 	}, nil
 }
 

@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
 func TestUserFromContextRoundTrip(t *testing.T) {
-	user := &models.User{ID: 7, Role: models.RoleAdmin}
+	user := &models.User{User: sqlc.User{ID: 7, Role: models.RoleAdmin}}
 	ctx := WithUser(context.Background(), user)
 
 	got, ok := UserFromContext(ctx)

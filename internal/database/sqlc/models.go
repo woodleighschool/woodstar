@@ -94,6 +94,35 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type Check struct {
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	Resolution        string    `json:"resolution"`
+	Query             string    `json:"query"`
+	Platform          *string   `json:"platform"`
+	MinOsqueryVersion *string   `json:"min_osquery_version"`
+	CreatedByUserID   *int64    `json:"created_by_user_id"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type CheckLabel struct {
+	CheckID    int64 `json:"check_id"`
+	LabelID    int64 `json:"label_id"`
+	Exclude    bool  `json:"exclude"`
+	RequireAll bool  `json:"require_all"`
+}
+
+type CheckMembership struct {
+	CheckID         int64      `json:"check_id"`
+	HostID          int64      `json:"host_id"`
+	Passes          *bool      `json:"passes"`
+	FirstFailedAt   *time.Time `json:"first_failed_at"`
+	LastEvaluatedAt time.Time  `json:"last_evaluated_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
 type Host struct {
 	ID                      int64       `json:"id"`
 	HardwareUUID            string      `json:"hardware_uuid"`
@@ -102,30 +131,24 @@ type Host struct {
 	ComputerName            string      `json:"computer_name"`
 	HardwareSerial          string      `json:"hardware_serial"`
 	HardwareModel           string      `json:"hardware_model"`
+	HardwareVersion         string      `json:"hardware_version"`
+	HardwareVendor          string      `json:"hardware_vendor"`
+	OSName                  string      `json:"os_name"`
 	OSVersion               string      `json:"os_version"`
-	OsqueryVersion          string      `json:"osquery_version"`
-	OrbitVersion            string      `json:"orbit_version"`
-	LastSeenAt              *time.Time  `json:"last_seen_at"`
-	DetailUpdatedAt         *time.Time  `json:"detail_updated_at"`
-	CreatedAt               time.Time   `json:"created_at"`
-	UpdatedAt               time.Time   `json:"updated_at"`
-	DeletedAt               *time.Time  `json:"deleted_at"`
-	OrbitNodeKey            *string     `json:"orbit_node_key"`
-	OsqueryNodeKey          *string     `json:"osquery_node_key"`
+	OSBuild                 string      `json:"os_build"`
 	Platform                string      `json:"platform"`
 	PlatformLike            string      `json:"platform_like"`
-	EnrolledAt              *time.Time  `json:"enrolled_at"`
+	OsqueryVersion          string      `json:"osquery_version"`
+	OrbitVersion            string      `json:"orbit_version"`
+	OrbitNodeKey            string      `json:"orbit_node_key"`
+	OsqueryNodeKey          string      `json:"osquery_node_key"`
+	CPUType                 string      `json:"cpu_type"`
+	CPUSubtype              string      `json:"cpu_subtype"`
 	CPUBrand                string      `json:"cpu_brand"`
 	CPULogicalCores         int         `json:"cpu_logical_cores"`
 	CPUPhysicalCores        int         `json:"cpu_physical_cores"`
 	PhysicalMemory          int64       `json:"physical_memory"`
-	HardwareVendor          string      `json:"hardware_vendor"`
 	KernelVersion           string      `json:"kernel_version"`
-	OSName                  string      `json:"os_name"`
-	OSBuild                 string      `json:"os_build"`
-	HardwareVersion         string      `json:"hardware_version"`
-	CPUType                 string      `json:"cpu_type"`
-	CPUSubtype              string      `json:"cpu_subtype"`
 	UptimeSeconds           *int64      `json:"uptime_seconds"`
 	LastRestartedAt         *time.Time  `json:"last_restarted_at"`
 	DiskSpaceAvailableBytes *int64      `json:"disk_space_available_bytes"`
@@ -136,8 +159,14 @@ type Host struct {
 	DistributedInterval     *int32      `json:"distributed_interval"`
 	ConfigTLSRefresh        *int32      `json:"config_tls_refresh"`
 	DetailQueryHash         string      `json:"detail_query_hash"`
+	EnrolledAt              *time.Time  `json:"enrolled_at"`
+	LastSeenAt              *time.Time  `json:"last_seen_at"`
+	DetailUpdatedAt         *time.Time  `json:"detail_updated_at"`
 	LabelUpdatedAt          *time.Time  `json:"label_updated_at"`
 	SoftwareUpdatedAt       *time.Time  `json:"software_updated_at"`
+	CreatedAt               time.Time   `json:"created_at"`
+	UpdatedAt               time.Time   `json:"updated_at"`
+	DeletedAt               *time.Time  `json:"deleted_at"`
 }
 
 type HostBattery struct {
@@ -215,6 +244,35 @@ type LabelMembership struct {
 	HostID    int64     `json:"host_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type Query struct {
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	Query             string    `json:"query"`
+	Platform          *string   `json:"platform"`
+	MinOsqueryVersion *string   `json:"min_osquery_version"`
+	ScheduleInterval  int32     `json:"schedule_interval"`
+	LoggingType       string    `json:"logging_type"`
+	CreatedByUserID   *int64    `json:"created_by_user_id"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type QueryLabel struct {
+	QueryID    int64 `json:"query_id"`
+	LabelID    int64 `json:"label_id"`
+	Exclude    bool  `json:"exclude"`
+	RequireAll bool  `json:"require_all"`
+}
+
+type QueryResult struct {
+	ID          int64     `json:"id"`
+	QueryID     int64     `json:"query_id"`
+	HostID      int64     `json:"host_id"`
+	Data        []byte    `json:"data"`
+	LastFetched time.Time `json:"last_fetched"`
 }
 
 type Secret struct {

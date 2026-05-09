@@ -38,10 +38,7 @@ func TestGenerateNodeKeyIsRandom(t *testing.T) {
 }
 
 func TestConfigResponseWireShapeMatchesOrbit(t *testing.T) {
-	body, err := json.Marshal(ConfigResponse{
-		Flags:         []byte("{}"),
-		Notifications: map[string]any{},
-	})
+	body, err := json.Marshal(ConfigResponse{Flags: []byte("{}")})
 	if err != nil {
 		t.Fatalf("marshal config response: %v", err)
 	}

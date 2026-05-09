@@ -28,7 +28,9 @@ type ConfigResponse struct {
 	NodeInvalid bool                     `json:"node_invalid"`
 	Schedule    map[string]ScheduleEntry `json:"schedule"`
 	Options     map[string]string        `json:"options"`
-	Decorators  map[string]any           `json:"decorators"`
+	// Decorators groups SQL by trigger ("load", "always", "interval"); each
+	// value is a list of statements osquery runs to enrich subsequent results.
+	Decorators map[string][]string `json:"decorators"`
 }
 
 // DistributedReadRequest asks for work.

@@ -8,7 +8,6 @@ import { nonEmpty } from "@/lib/utils";
 export type Check = Schemas["CheckBody"];
 export type CheckListResult = Schemas["CheckListOutputBody"];
 export type CheckMutation = Schemas["CheckMutationBody"];
-export type CheckPut = Schemas["CheckPutBody"];
 export type CheckHosts = Schemas["CheckHostsOutputBody"];
 export type CheckHostStatus = Schemas["CheckHostBody"];
 
@@ -66,7 +65,7 @@ export function useCreateCheck() {
 
 export function useUpdateCheck(id: string) {
   const queryClient = useQueryClient();
-  return useMutation<Check, ApiError, CheckPut>({
+  return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) => unwrap(apiClient.PUT("/api/checks/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checks() });
@@ -78,8 +77,8 @@ export function useUpdateCheck(id: string) {
 
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, string>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/checks/{id}", { params: { path: { id } } })),
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/checks/{id}", { params: { path: { id: String(id) } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["checks"] });
     },

@@ -107,7 +107,7 @@ export function ReportsPage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/reports/$reportId", params: { reportId: row.id } })}
+          rowHref={(row) => ({ to: "/reports/$reportId", params: { reportId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
               <div className="relative max-w-md flex-1">

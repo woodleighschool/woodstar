@@ -106,10 +106,10 @@ export function CheckDetailPage() {
                     <TableCell>
                       <Link
                         to="/hosts/$hostId"
-                        params={{ hostId: row.host_id }}
+                        params={{ hostId: String(row.host_id) }}
                         className="font-medium hover:underline"
                       >
-                        {row.host_name || row.host_id}
+                        {row.host_name || String(row.host_id)}
                       </Link>
                     </TableCell>
                     <TableCell>

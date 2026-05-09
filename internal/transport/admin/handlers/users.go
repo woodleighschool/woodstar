@@ -38,14 +38,10 @@ type userGetInput struct {
 	ID string `path:"id"`
 }
 
-// userPutBody mirrors the userBody response shape.
 type userPutBody struct {
-	ID        string          `json:"id,omitempty"`
-	Email     string          `json:"email,omitempty"      format:"email"`
-	Name      string          `json:"name"`
-	Role      models.UserRole `json:"role"`
-	CreatedAt string          `json:"created_at,omitempty"`
-	Password  *string         `json:"password,omitempty"`
+	Name     string          `json:"name"`
+	Role     models.UserRole `json:"role"               enum:"admin,viewer"`
+	Password *string         `json:"password,omitempty"`
 }
 
 type userPutInput struct {

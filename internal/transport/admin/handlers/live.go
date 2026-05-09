@@ -21,18 +21,18 @@ const liveQueriesTag = "Live Queries"
 // liveQueryCreateBody mirrors the campaign body but is one-shot — no DB row,
 // no detail page, no list page. Result events stream and disappear.
 type liveQueryCreateBody struct {
-	QueryID  *string               `json:"query_id,omitempty"`
+	QueryID  *int64                `json:"query_id,omitempty"`
 	SQL      string                `json:"sql"`
 	Selected liveQuerySelectedBody `json:"selected,omitzero"`
 }
 
 type liveQuerySelectedBody struct {
-	Hosts  []string `json:"hosts,omitempty"`
-	Labels []string `json:"labels,omitempty"`
+	Hosts  []int64 `json:"hosts,omitempty"`
+	Labels []int64 `json:"labels,omitempty"`
 }
 
 type liveQueryHandleBody struct {
-	ID                string    `json:"id"`
+	ID                int64     `json:"id"`
 	SQL               string    `json:"sql"`
 	StartedAt         time.Time `json:"started_at"`
 	ResolvedHostCount int       `json:"resolved_host_count"`
@@ -51,7 +51,6 @@ type liveQueryCreateOutput struct {
 func RegisterLiveQueries(
 	api huma.API,
 	manager *queryinfra.LiveQueryManager,
-	hosts *models.HostStore,
 	db *database.DB,
 ) {
 	huma.Register(api, huma.Operation{
@@ -70,7 +69,6 @@ func RegisterLiveQueries(
 		if err != nil {
 			return nil, err
 		}
-		_ = hosts // hosts store may be useful later (per-host validation); kept on signature for symmetry
 		handle := manager.Start(input.Body.SQL, hostIDs)
 		return &liveQueryCreateOutput{Body: liveQueryHandleResponse(handle)}, nil
 	})
@@ -78,7 +76,7 @@ func RegisterLiveQueries(
 
 func liveQueryHandleResponse(h *queryinfra.LiveQueryHandle) liveQueryHandleBody {
 	return liveQueryHandleBody{
-		ID:                strconv.FormatInt(h.ID, 10),
+		ID:                h.ID,
 		SQL:               h.SQL,
 		StartedAt:         h.StartedAt,
 		ResolvedHostCount: h.ResolvedHostCount,
@@ -199,27 +197,34 @@ func streamLiveQuery(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			writeSSE(w, "ping", map[string]string{"status": "ok"})
+			if !writeSSE(w, "ping", map[string]string{"status": "ok"}) {
+				return
+			}
 			flusher.Flush()
 		case event, ok := <-events:
 			if !ok {
 				return
 			}
 			if event.Status == "completed" {
-				writeSSE(w, "completed", event)
+				if !writeSSE(w, "completed", event) {
+					return
+				}
 				flusher.Flush()
 				return
 			}
-			writeSSE(w, "result", event)
+			if !writeSSE(w, "result", event) {
+				return
+			}
 			flusher.Flush()
 		}
 	}
 }
 
-func writeSSE(w http.ResponseWriter, event string, payload any) {
+func writeSSE(w http.ResponseWriter, event string, payload any) bool {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return
+		return false
 	}
-	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
+	_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
+	return err == nil
 }

@@ -7,7 +7,6 @@ package sqlc
 
 import (
 	"context"
-	"time"
 )
 
 const countLabels = `-- name: CountLabels :one
@@ -56,17 +55,7 @@ VALUES (
     $5,
     $6
 )
-RETURNING
-    id,
-    name,
-    description,
-    query,
-    kind,
-    membership_type,
-    platform,
-    0::integer AS hosts_count,
-    created_at,
-    updated_at
+RETURNING id, name, description, query, kind, membership_type, platform, created_at, updated_at
 `
 
 type CreateLabelParams struct {
@@ -78,20 +67,7 @@ type CreateLabelParams struct {
 	Platform       *string `json:"platform"`
 }
 
-type CreateLabelRow struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	HostsCount     int32     `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
-
-func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (CreateLabelRow, error) {
+func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
 	row := q.db.QueryRow(ctx, createLabel,
 		arg.Name,
 		arg.Description,
@@ -100,7 +76,7 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Creat
 		arg.MembershipType,
 		arg.Platform,
 	)
-	var i CreateLabelRow
+	var i Label
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -109,28 +85,10 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Creat
 		&i.Kind,
 		&i.MembershipType,
 		&i.Platform,
-		&i.HostsCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const deleteCustomLabel = `-- name: DeleteCustomLabel :one
-DELETE FROM labels
-WHERE id = $1 AND kind = 'custom'
-RETURNING id
-`
-
-type DeleteCustomLabelParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) DeleteCustomLabel(ctx context.Context, arg DeleteCustomLabelParams) (int64, error) {
-	row := q.db.QueryRow(ctx, deleteCustomLabel, arg.ID)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
 }
 
 const deleteLabelMembership = `-- name: DeleteLabelMembership :exec
@@ -148,18 +106,27 @@ func (q *Queries) DeleteLabelMembership(ctx context.Context, arg DeleteLabelMemb
 	return err
 }
 
+const deleteRegularLabel = `-- name: DeleteRegularLabel :one
+DELETE FROM labels
+WHERE id = $1 AND kind = 'regular'
+RETURNING id
+`
+
+type DeleteRegularLabelParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteRegularLabel(ctx context.Context, arg DeleteRegularLabelParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteRegularLabel, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getLabelByID = `-- name: GetLabelByID :one
 SELECT
-    l.id,
-    l.name,
-    l.description,
-    l.query,
-    l.kind,
-    l.membership_type,
-    l.platform,
-    count(lm.host_id)::integer AS hosts_count,
-    l.created_at,
-    l.updated_at
+    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
 WHERE l.id = $1
@@ -171,32 +138,24 @@ type GetLabelByIDParams struct {
 }
 
 type GetLabelByIDRow struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	HostsCount     int32     `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	Label      Label `json:"label"`
+	HostsCount int32 `json:"hosts_count"`
 }
 
 func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (GetLabelByIDRow, error) {
 	row := q.db.QueryRow(ctx, getLabelByID, arg.ID)
 	var i GetLabelByIDRow
 	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.Query,
-		&i.Kind,
-		&i.MembershipType,
-		&i.Platform,
+		&i.Label.ID,
+		&i.Label.Name,
+		&i.Label.Description,
+		&i.Label.Query,
+		&i.Label.Kind,
+		&i.Label.MembershipType,
+		&i.Label.Platform,
+		&i.Label.CreatedAt,
+		&i.Label.UpdatedAt,
 		&i.HostsCount,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -237,13 +196,7 @@ func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApp
 }
 
 const listApplicableDynamicLabels = `-- name: ListApplicableDynamicLabels :many
-SELECT
-    id,
-    name,
-    kind,
-    membership_type,
-    query,
-    platform
+SELECT id, name, description, query, kind, membership_type, platform, created_at, updated_at
 FROM labels
 WHERE
     membership_type = 'dynamic'
@@ -255,31 +208,25 @@ type ListApplicableDynamicLabelsParams struct {
 	Platform string `json:"platform"`
 }
 
-type ListApplicableDynamicLabelsRow struct {
-	ID             int64   `json:"id"`
-	Name           string  `json:"name"`
-	Kind           string  `json:"kind"`
-	MembershipType string  `json:"membership_type"`
-	Query          *string `json:"query"`
-	Platform       *string `json:"platform"`
-}
-
-func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListApplicableDynamicLabelsParams) ([]ListApplicableDynamicLabelsRow, error) {
+func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListApplicableDynamicLabelsParams) ([]Label, error) {
 	rows, err := q.db.Query(ctx, listApplicableDynamicLabels, arg.Platform)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListApplicableDynamicLabelsRow{}
+	items := []Label{}
 	for rows.Next() {
-		var i ListApplicableDynamicLabelsRow
+		var i Label
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Description,
+			&i.Query,
 			&i.Kind,
 			&i.MembershipType,
-			&i.Query,
 			&i.Platform,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -293,16 +240,8 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 
 const listLabels = `-- name: ListLabels :many
 SELECT
-    l.id,
-    l.name,
-    l.description,
-    l.query,
-    l.kind,
-    l.membership_type,
-    l.platform,
-    count(lm.host_id)::integer AS hosts_count,
-    l.created_at,
-    l.updated_at
+    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
 WHERE
@@ -312,7 +251,6 @@ WHERE
     AND ($4::text = '' OR l.platform = $4::text)
 GROUP BY l.id
 ORDER BY
-    CASE WHEN $5::text = 'name' AND $6::text = 'asc' THEN lower(l.name) END ASC,
     CASE WHEN $5::text = 'name' AND $6::text = 'desc' THEN lower(l.name) END DESC,
     CASE WHEN $5::text = 'kind' AND $6::text = 'asc' THEN l.kind END ASC,
     CASE WHEN $5::text = 'kind' AND $6::text = 'desc' THEN l.kind END DESC,
@@ -341,16 +279,8 @@ type ListLabelsParams struct {
 }
 
 type ListLabelsRow struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	HostsCount     int32     `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	Label      Label `json:"label"`
+	HostsCount int32 `json:"hosts_count"`
 }
 
 func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListLabelsRow, error) {
@@ -372,16 +302,16 @@ func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListL
 	for rows.Next() {
 		var i ListLabelsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Description,
-			&i.Query,
-			&i.Kind,
-			&i.MembershipType,
-			&i.Platform,
+			&i.Label.ID,
+			&i.Label.Name,
+			&i.Label.Description,
+			&i.Label.Query,
+			&i.Label.Kind,
+			&i.Label.MembershipType,
+			&i.Label.Platform,
+			&i.Label.CreatedAt,
+			&i.Label.UpdatedAt,
 			&i.HostsCount,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -395,16 +325,8 @@ func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListL
 
 const listLabelsForHost = `-- name: ListLabelsForHost :many
 SELECT
-    l.id,
-    l.name,
-    l.description,
-    l.query,
-    l.kind,
-    l.membership_type,
-    l.platform,
-    count(lm_all.host_id)::integer AS hosts_count,
-    l.created_at,
-    l.updated_at
+    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    count(lm_all.host_id)::integer AS hosts_count
 FROM labels l
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
 LEFT JOIN label_membership lm_all ON lm_all.label_id = l.id
@@ -417,16 +339,8 @@ type ListLabelsForHostParams struct {
 }
 
 type ListLabelsForHostRow struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	HostsCount     int32     `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	Label      Label `json:"label"`
+	HostsCount int32 `json:"hosts_count"`
 }
 
 func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostParams) ([]ListLabelsForHostRow, error) {
@@ -439,16 +353,16 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 	for rows.Next() {
 		var i ListLabelsForHostRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Description,
-			&i.Query,
-			&i.Kind,
-			&i.MembershipType,
-			&i.Platform,
+			&i.Label.ID,
+			&i.Label.Name,
+			&i.Label.Description,
+			&i.Label.Query,
+			&i.Label.Kind,
+			&i.Label.MembershipType,
+			&i.Label.Platform,
+			&i.Label.CreatedAt,
+			&i.Label.UpdatedAt,
 			&i.HostsCount,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -484,22 +398,8 @@ SET
     membership_type = $4,
     platform = $5,
     updated_at = now()
-WHERE id = $6 AND kind = 'custom'
-RETURNING
-    id,
-    name,
-    description,
-    query,
-    kind,
-    membership_type,
-    platform,
-    (
-        SELECT count(*)::integer
-        FROM label_membership lm
-        WHERE lm.label_id = labels.id
-    ) AS hosts_count,
-    created_at,
-    updated_at
+WHERE id = $6 AND kind = 'regular'
+RETURNING id, name, description, query, kind, membership_type, platform, created_at, updated_at
 `
 
 type UpdateLabelParams struct {
@@ -511,22 +411,7 @@ type UpdateLabelParams struct {
 	ID             int64   `json:"id"`
 }
 
-type UpdateLabelRow struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	HostsCount     int32     `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
-
-// kind is intentionally not in SET: the WHERE guards to custom-only and
-// custom→builtin (or vice versa) is not a real product workflow.
-func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (UpdateLabelRow, error) {
+func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {
 	row := q.db.QueryRow(ctx, updateLabel,
 		arg.Name,
 		arg.Description,
@@ -535,7 +420,7 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Updat
 		arg.Platform,
 		arg.ID,
 	)
-	var i UpdateLabelRow
+	var i Label
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -544,7 +429,6 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Updat
 		&i.Kind,
 		&i.MembershipType,
 		&i.Platform,
-		&i.HostsCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -552,18 +436,8 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Updat
 }
 
 const upsertLabelMembership = `-- name: UpsertLabelMembership :exec
-INSERT INTO label_membership (
-    label_id,
-    host_id,
-    created_at,
-    updated_at
-)
-VALUES (
-    $1,
-    $2,
-    now(),
-    now()
-)
+INSERT INTO label_membership (label_id, host_id)
+VALUES ($1, $2)
 ON CONFLICT (label_id, host_id) DO UPDATE SET
     updated_at = now()
 `

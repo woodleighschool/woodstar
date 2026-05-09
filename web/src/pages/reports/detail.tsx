@@ -137,7 +137,12 @@ function exportReport(name: string, rows: ReportTableRow[]) {
   const csv = [
     headers.join(","),
     ...rows.map((row) =>
-      [row.hostId, row.hostName, row.lastFetched ?? "", ...dynamicColumns.map((column) => row.columns[column] ?? "")]
+      [
+        String(row.hostId),
+        row.hostName,
+        row.lastFetched ?? "",
+        ...dynamicColumns.map((column) => row.columns[column] ?? ""),
+      ]
         .map(csvCell)
         .join(","),
     ),

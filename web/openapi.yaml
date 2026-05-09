@@ -6,7 +6,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/CheckBody.json
+            - https://example.com/api/schemas/CheckBody.json
           format: uri
           readOnly: true
           type: string
@@ -14,11 +14,13 @@ components:
           format: date-time
           type: string
         created_by_user_id:
-          type: string
+          format: int64
+          type: integer
         description:
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         label_scope:
           $ref: "#/components/schemas/LabelScopeBody"
         min_osquery_version:
@@ -47,14 +49,16 @@ components:
       additionalProperties: false
       properties:
         check_id:
-          type: string
+          format: int64
+          type: integer
         check_name:
           type: string
         first_failed_at:
           format: date-time
           type: string
         host_id:
-          type: string
+          format: int64
+          type: integer
         host_name:
           type: string
         last_evaluated_at:
@@ -74,7 +78,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/CheckHostsOutputBody.json
+            - https://example.com/api/schemas/CheckHostsOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -93,7 +97,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/CheckListOutputBody.json
+            - https://example.com/api/schemas/CheckListOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -116,7 +120,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/CheckMutationBody.json
+            - https://example.com/api/schemas/CheckMutationBody.json
           format: uri
           readOnly: true
           type: string
@@ -133,45 +137,6 @@ components:
         query:
           type: string
         resolution:
-          type: string
-      required:
-        - name
-        - query
-        - label_scope
-      type: object
-    CheckPutBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - //api/schemas/CheckPutBody.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        created_by_user_id:
-          type: string
-        description:
-          type: string
-        id:
-          type: string
-        label_scope:
-          $ref: "#/components/schemas/LabelScopeBody"
-        min_osquery_version:
-          type: string
-        name:
-          type: string
-        platform:
-          type: string
-        query:
-          type: string
-        resolution:
-          type: string
-        updated_at:
-          format: date-time
           type: string
       required:
         - name
@@ -207,7 +172,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/ErrorModel.json
+            - https://example.com/api/schemas/ErrorModel.json
           format: uri
           readOnly: true
           type: string
@@ -254,7 +219,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HealthOutputBody.json
+            - https://example.com/api/schemas/HealthOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -304,7 +269,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HostBody.json
+            - https://example.com/api/schemas/HostBody.json
           format: uri
           readOnly: true
           type: string
@@ -370,7 +335,8 @@ components:
         hostname:
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         kernel_version:
           type: string
         label_updated_at:
@@ -464,7 +430,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HostListBody.json
+            - https://example.com/api/schemas/HostListBody.json
           format: uri
           readOnly: true
           type: string
@@ -487,12 +453,13 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HostQueryResultsOutputBody.json
+            - https://example.com/api/schemas/HostQueryResultsOutputBody.json
           format: uri
           readOnly: true
           type: string
         host_id:
-          type: string
+          format: int64
+          type: integer
         host_name:
           type: string
         items:
@@ -505,7 +472,8 @@ components:
           format: date-time
           type: string
         query_id:
-          type: string
+          format: int64
+          type: integer
       required:
         - query_id
         - host_id
@@ -530,7 +498,8 @@ components:
         name:
           type: string
         report_id:
-          type: string
+          format: int64
+          type: integer
       required:
         - report_id
         - name
@@ -543,7 +512,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HostReportsOutputBody.json
+            - https://example.com/api/schemas/HostReportsOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -559,7 +528,6 @@ components:
     HostSoftwareBody:
       additionalProperties: false
       properties:
-        app_store_app: {}
         display_name:
           type: string
         extension_for:
@@ -569,7 +537,8 @@ components:
             - string
             - "null"
         id:
-          type: string
+          format: int64
+          type: integer
         installed_versions:
           items:
             $ref: "#/components/schemas/HostSoftwareInstalledVersionBody"
@@ -578,10 +547,8 @@ components:
             - "null"
         name:
           type: string
-        software_package: {}
         source:
           type: string
-        status: {}
       required:
         - id
         - name
@@ -589,10 +556,7 @@ components:
         - icon_url
         - source
         - extension_for
-        - status
         - installed_versions
-        - software_package
-        - app_store_app
       type: object
     HostSoftwareInstalledVersionBody:
       additionalProperties: false
@@ -628,7 +592,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/HostSoftwareListBody.json
+            - https://example.com/api/schemas/HostSoftwareListBody.json
           format: uri
           readOnly: true
           type: string
@@ -668,38 +632,13 @@ components:
         - directory
         - shell
       type: object
-    JsonPatchOp:
-      additionalProperties: false
-      properties:
-        from:
-          description: JSON Pointer for the source of a move or copy
-          type: string
-        op:
-          description: Operation name
-          enum:
-            - add
-            - remove
-            - replace
-            - move
-            - copy
-            - test
-          type: string
-        path:
-          description: JSON Pointer to the field being operated on, or the destination of a move/copy operation
-          type: string
-        value:
-          description: The value to set
-      required:
-        - op
-        - path
-      type: object
     LabelBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LabelBody.json
+            - https://example.com/api/schemas/LabelBody.json
           format: uri
           readOnly: true
           type: string
@@ -712,10 +651,18 @@ components:
           format: int64
           type: integer
         id:
-          type: string
+          format: int64
+          type: integer
         kind:
+          enum:
+            - regular
+            - builtin
           type: string
         membership_type:
+          enum:
+            - dynamic
+            - manual
+            - host_vitals
           type: string
         name:
           type: string
@@ -734,13 +681,45 @@ components:
         - membership_type
         - hosts_count
       type: object
+    LabelCreateBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/LabelCreateBody.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          type: string
+        kind:
+          enum:
+            - regular
+            - builtin
+          type: string
+        membership_type:
+          enum:
+            - dynamic
+            - manual
+            - host_vitals
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        query:
+          type: string
+      required:
+        - name
+      type: object
     LabelListBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LabelListBody.json
+            - https://example.com/api/schemas/LabelListBody.json
           format: uri
           readOnly: true
           type: string
@@ -763,22 +742,17 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LabelMutationBody.json
+            - https://example.com/api/schemas/LabelMutationBody.json
           format: uri
           readOnly: true
           type: string
         description:
-          type: string
-        kind:
-          enum:
-            - custom
-            - builtin
           type: string
         membership_type:
           enum:
             - dynamic
-            - static
-            - identity
+            - manual
+            - host_vitals
           type: string
         name:
           type: string
@@ -788,51 +762,14 @@ components:
           type: string
       required:
         - name
-      type: object
-    LabelPutBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - //api/schemas/LabelPutBody.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        description:
-          type: string
-        hosts_count:
-          format: int64
-          type: integer
-        id:
-          type: string
-        kind:
-          type: string
-        membership_type:
-          type: string
-        name:
-          type: string
-        platform:
-          type: string
-        query:
-          type: string
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - name
-        - kind
-        - membership_type
       type: object
     LabelScopeBody:
       additionalProperties: false
       properties:
         label_ids:
           items:
-            type: string
+            format: int64
+            type: integer
           type:
             - array
             - "null"
@@ -849,12 +786,13 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LiveQueryCreateBody.json
+            - https://example.com/api/schemas/LiveQueryCreateBody.json
           format: uri
           readOnly: true
           type: string
         query_id:
-          type: string
+          format: int64
+          type: integer
         selected:
           $ref: "#/components/schemas/LiveQuerySelectedBody"
         sql:
@@ -868,12 +806,13 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LiveQueryHandleBody.json
+            - https://example.com/api/schemas/LiveQueryHandleBody.json
           format: uri
           readOnly: true
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         resolved_host_count:
           format: int64
           type: integer
@@ -893,13 +832,15 @@ components:
       properties:
         hosts:
           items:
-            type: string
+            format: int64
+            type: integer
           type:
             - array
             - "null"
         labels:
           items:
-            type: string
+            format: int64
+            type: integer
           type:
             - array
             - "null"
@@ -910,7 +851,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/LoginInputBody.json
+            - https://example.com/api/schemas/LoginInputBody.json
           format: uri
           readOnly: true
           type: string
@@ -950,7 +891,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/QueryBody.json
+            - https://example.com/api/schemas/QueryBody.json
           format: uri
           readOnly: true
           type: string
@@ -958,11 +899,13 @@ components:
           format: date-time
           type: string
         created_by_user_id:
-          type: string
+          format: int64
+          type: integer
         description:
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         label_scope:
           $ref: "#/components/schemas/LabelScopeBody"
         min_osquery_version:
@@ -994,7 +937,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/QueryListOutputBody.json
+            - https://example.com/api/schemas/QueryListOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1017,7 +960,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/QueryMutationBody.json
+            - https://example.com/api/schemas/QueryMutationBody.json
           format: uri
           readOnly: true
           type: string
@@ -1036,46 +979,6 @@ components:
         schedule_interval:
           format: int64
           type: integer
-      required:
-        - name
-        - query
-        - label_scope
-      type: object
-    QueryPutBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - //api/schemas/QueryPutBody.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        created_by_user_id:
-          type: string
-        description:
-          type: string
-        id:
-          type: string
-        label_scope:
-          $ref: "#/components/schemas/LabelScopeBody"
-        min_osquery_version:
-          type: string
-        name:
-          type: string
-        platform:
-          type: string
-        query:
-          type: string
-        schedule_interval:
-          format: int64
-          type: integer
-        updated_at:
-          format: date-time
-          type: string
       required:
         - name
         - query
@@ -1089,14 +992,16 @@ components:
             type: string
           type: object
         host_id:
-          type: string
+          format: int64
+          type: integer
         host_name:
           type: string
         last_fetched:
           format: date-time
           type: string
         query_id:
-          type: string
+          format: int64
+          type: integer
         query_name:
           type: string
       required:
@@ -1112,7 +1017,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/QueryResultsOutputBody.json
+            - https://example.com/api/schemas/QueryResultsOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1131,7 +1036,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/Secret.json
+            - https://example.com/api/schemas/Secret.json
           format: uri
           readOnly: true
           type: string
@@ -1139,7 +1044,8 @@ components:
           format: date-time
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         value:
           type: string
       required:
@@ -1153,7 +1059,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/SessionBody.json
+            - https://example.com/api/schemas/SessionBody.json
           format: uri
           readOnly: true
           type: string
@@ -1170,7 +1076,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/SetupInputBody.json
+            - https://example.com/api/schemas/SetupInputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1192,7 +1098,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/SoftwareGetBody.json
+            - https://example.com/api/schemas/SoftwareGetBody.json
           format: uri
           readOnly: true
           type: string
@@ -1207,7 +1113,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/SoftwareListBody.json
+            - https://example.com/api/schemas/SoftwareListBody.json
           format: uri
           readOnly: true
           type: string
@@ -1227,7 +1133,6 @@ components:
     SoftwareTitleBody:
       additionalProperties: false
       properties:
-        app_store_app: {}
         browser:
           type: string
         bundle_identifier:
@@ -1249,10 +1154,10 @@ components:
             - string
             - "null"
         id:
-          type: string
+          format: int64
+          type: integer
         name:
           type: string
-        software_package: {}
         source:
           type: string
         versions:
@@ -1276,8 +1181,6 @@ components:
         - versions_count
         - versions
         - counts_updated_at
-        - software_package
-        - app_store_app
       type: object
     SoftwareVersionBody:
       additionalProperties: false
@@ -1288,7 +1191,8 @@ components:
           format: int64
           type: integer
         id:
-          type: string
+          format: int64
+          type: integer
         version:
           type: string
       required:
@@ -1302,7 +1206,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/UserBody.json
+            - https://example.com/api/schemas/UserBody.json
           format: uri
           readOnly: true
           type: string
@@ -1312,10 +1216,14 @@ components:
         email:
           type: string
         id:
-          type: string
+          format: int64
+          type: integer
         name:
           type: string
         role:
+          enum:
+            - admin
+            - viewer
           type: string
       required:
         - id
@@ -1330,7 +1238,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/UserCreateInputBody.json
+            - https://example.com/api/schemas/UserCreateInputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1358,22 +1266,18 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/UserPutBody.json
+            - https://example.com/api/schemas/UserPutBody.json
           format: uri
           readOnly: true
-          type: string
-        created_at:
-          type: string
-        email:
-          format: email
-          type: string
-        id:
           type: string
         name:
           type: string
         password:
           type: string
         role:
+          enum:
+            - admin
+            - viewer
           type: string
       required:
         - name
@@ -1385,7 +1289,7 @@ components:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - //api/schemas/VersionOutputBody.json
+            - https://example.com/api/schemas/VersionOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1402,7 +1306,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: a4bd3cc-dirty
+  version: 792ee9e-dirty
 openapi: 3.1.0
 paths:
   /api/auth/login:
@@ -1681,141 +1585,6 @@ paths:
       summary: Get a check
       tags:
         - Checks
-    patch:
-      description: Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-      operationId: patch-check
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json-patch+json:
-            schema:
-              items:
-                $ref: "#/components/schemas/JsonPatchOp"
-              type:
-                - array
-                - "null"
-          application/merge-patch+json:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/CheckPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                created_by_user_id:
-                  type: string
-                description:
-                  type: string
-                id:
-                  type: string
-                label_scope: {}
-                min_osquery_version:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                resolution:
-                  type: string
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-          application/merge-patch+shorthand:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/CheckPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                created_by_user_id:
-                  type: string
-                description:
-                  type: string
-                id:
-                  type: string
-                label_scope: {}
-                min_osquery_version:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                resolution:
-                  type: string
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckBody"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Patch check
-      tags:
-        - Checks
     put:
       operationId: put-check
       parameters:
@@ -1828,7 +1597,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckPutBody"
+              $ref: "#/components/schemas/CheckMutationBody"
         required: true
       responses:
         "200":
@@ -2361,7 +2130,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LabelMutationBody"
+              $ref: "#/components/schemas/LabelCreateBody"
         required: true
       responses:
         "201":
@@ -2439,7 +2208,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Delete a custom label
+      summary: Delete a regular label
       tags:
         - Labels
     get:
@@ -2484,141 +2253,6 @@ paths:
       summary: Get a label
       tags:
         - Labels
-    patch:
-      description: Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-      operationId: patch-label
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json-patch+json:
-            schema:
-              items:
-                $ref: "#/components/schemas/JsonPatchOp"
-              type:
-                - array
-                - "null"
-          application/merge-patch+json:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/LabelPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                description:
-                  type: string
-                hosts_count:
-                  format: int64
-                  type: integer
-                id:
-                  type: string
-                kind:
-                  type: string
-                membership_type:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-          application/merge-patch+shorthand:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/LabelPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                description:
-                  type: string
-                hosts_count:
-                  format: int64
-                  type: integer
-                id:
-                  type: string
-                kind:
-                  type: string
-                membership_type:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LabelBody"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Patch label
-      tags:
-        - Labels
     put:
       operationId: put-label
       parameters:
@@ -2631,7 +2265,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LabelPutBody"
+              $ref: "#/components/schemas/LabelMutationBody"
         required: true
       responses:
         "200":
@@ -3025,143 +2659,6 @@ paths:
       summary: Get a saved query
       tags:
         - Queries
-    patch:
-      description: Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-      operationId: patch-query
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json-patch+json:
-            schema:
-              items:
-                $ref: "#/components/schemas/JsonPatchOp"
-              type:
-                - array
-                - "null"
-          application/merge-patch+json:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/QueryPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                created_by_user_id:
-                  type: string
-                description:
-                  type: string
-                id:
-                  type: string
-                label_scope: {}
-                min_osquery_version:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                schedule_interval:
-                  format: int64
-                  type: integer
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-          application/merge-patch+shorthand:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/QueryPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  format: date-time
-                  type: string
-                created_by_user_id:
-                  type: string
-                description:
-                  type: string
-                id:
-                  type: string
-                label_scope: {}
-                min_osquery_version:
-                  type: string
-                name:
-                  type: string
-                platform:
-                  type: string
-                query:
-                  type: string
-                schedule_interval:
-                  format: int64
-                  type: integer
-                updated_at:
-                  format: date-time
-                  type: string
-              type: object
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QueryBody"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Patch query
-      tags:
-        - Queries
     put:
       operationId: put-query
       parameters:
@@ -3174,7 +2671,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/QueryPutBody"
+              $ref: "#/components/schemas/QueryMutationBody"
         required: true
       responses:
         "200":
@@ -3632,127 +3129,6 @@ paths:
       summary: Get a Woodstar user
       tags:
         - Users
-    patch:
-      description: Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
-      operationId: patch-user
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json-patch+json:
-            schema:
-              items:
-                $ref: "#/components/schemas/JsonPatchOp"
-              type:
-                - array
-                - "null"
-          application/merge-patch+json:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/UserPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  type: string
-                email:
-                  format: email
-                  type: string
-                id:
-                  type: string
-                name:
-                  type: string
-                password:
-                  type: string
-                role:
-                  type: string
-              type: object
-          application/merge-patch+shorthand:
-            schema:
-              additionalProperties: false
-              properties:
-                $schema:
-                  description: A URL to the JSON Schema for this object.
-                  examples:
-                    - //api/schemas/UserPutBody.json
-                  format: uri
-                  readOnly: true
-                  type: string
-                created_at:
-                  type: string
-                email:
-                  format: email
-                  type: string
-                id:
-                  type: string
-                name:
-                  type: string
-                password:
-                  type: string
-                role:
-                  type: string
-              type: object
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserBody"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Patch user
-      tags:
-        - Users
     put:
       operationId: put-user
       parameters:
@@ -3838,5 +3214,3 @@ paths:
       summary: Build version
       tags:
         - System
-servers:
-  - url: /

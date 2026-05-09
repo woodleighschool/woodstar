@@ -8,7 +8,6 @@ import { nonEmpty } from "@/lib/utils";
 export type SavedQuery = Schemas["QueryBody"];
 export type QueryListResult = Schemas["QueryListOutputBody"];
 export type QueryMutation = Schemas["QueryMutationBody"];
-export type QueryPut = Schemas["QueryPutBody"];
 export type QueryResults = Schemas["QueryResultsOutputBody"];
 
 export interface QueryListParams {
@@ -65,7 +64,7 @@ export function useCreateQuery() {
 
 export function useUpdateQuery(id: string) {
   const queryClient = useQueryClient();
-  return useMutation<SavedQuery, ApiError, QueryPut>({
+  return useMutation<SavedQuery, ApiError, QueryMutation>({
     mutationFn: (body) => unwrap(apiClient.PUT("/api/queries/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.queries() });
@@ -77,8 +76,8 @@ export function useUpdateQuery(id: string) {
 
 export function useDeleteQuery() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, string>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/queries/{id}", { params: { path: { id } } })),
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/queries/{id}", { params: { path: { id: String(id) } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["queries"] });
     },

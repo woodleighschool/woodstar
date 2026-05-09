@@ -16,7 +16,7 @@ import (
 const hostsTag = "Hosts"
 
 type hostBody struct {
-	ID                      string              `json:"id"`
+	ID                      int64               `json:"id"`
 	HardwareUUID            string              `json:"hardware_uuid"`
 	DisplayName             string              `json:"display_name"`
 	Hostname                string              `json:"hostname"`
@@ -89,16 +89,13 @@ type deviceMappingBody struct {
 }
 
 type hostSoftwareBody struct {
-	ID                string                             `json:"id"`
+	ID                int64                              `json:"id"`
 	Name              string                             `json:"name"`
 	DisplayName       string                             `json:"display_name"`
 	IconURL           *string                            `json:"icon_url"`
 	Source            string                             `json:"source"`
 	ExtensionFor      string                             `json:"extension_for"`
-	Status            any                                `json:"status"`
 	InstalledVersions []hostSoftwareInstalledVersionBody `json:"installed_versions"`
-	SoftwarePackage   any                                `json:"software_package"`
-	AppStoreApp       any                                `json:"app_store_app"`
 }
 
 type hostSoftwareInstalledVersionBody struct {
@@ -357,7 +354,7 @@ func hostResponse(ctx context.Context, host *models.Host, mappings *models.Devic
 		return hostBody{}, err
 	}
 	return hostBody{
-		ID:                      models.HostIDString(host.ID),
+		ID:                      host.ID,
 		HardwareUUID:            host.HardwareUUID,
 		DisplayName:             host.DisplayName,
 		Hostname:                host.Hostname,
@@ -482,16 +479,13 @@ func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
 		})
 	}
 	return hostSoftwareBody{
-		ID:                models.HostIDString(row.ID),
+		ID:                row.ID,
 		Name:              row.Name,
 		DisplayName:       row.DisplayName,
 		IconURL:           row.IconURL,
 		Source:            row.Source,
 		ExtensionFor:      row.ExtensionFor,
-		Status:            nil,
 		InstalledVersions: versions,
-		SoftwarePackage:   nil,
-		AppStoreApp:       nil,
 	}
 }
 

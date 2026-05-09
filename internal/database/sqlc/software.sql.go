@@ -156,7 +156,7 @@ ON CONFLICT (
     release
 ) DO UPDATE SET
     updated_at = now()
-RETURNING id
+RETURNING id, title_id, name, version, source, bundle_identifier, extension_id, extension_for, vendor, arch, release, created_at, updated_at
 `
 
 type UpsertSoftwareParams struct {
@@ -172,7 +172,7 @@ type UpsertSoftwareParams struct {
 	Release          string `json:"release"`
 }
 
-func (q *Queries) UpsertSoftware(ctx context.Context, arg UpsertSoftwareParams) (int64, error) {
+func (q *Queries) UpsertSoftware(ctx context.Context, arg UpsertSoftwareParams) (Software, error) {
 	row := q.db.QueryRow(ctx, upsertSoftware,
 		arg.TitleID,
 		arg.Name,
@@ -185,9 +185,23 @@ func (q *Queries) UpsertSoftware(ctx context.Context, arg UpsertSoftwareParams) 
 		arg.Arch,
 		arg.Release,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i Software
+	err := row.Scan(
+		&i.ID,
+		&i.TitleID,
+		&i.Name,
+		&i.Version,
+		&i.Source,
+		&i.BundleIdentifier,
+		&i.ExtensionID,
+		&i.ExtensionFor,
+		&i.Vendor,
+		&i.Arch,
+		&i.Release,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertSoftwareTitleByBundle = `-- name: UpsertSoftwareTitleByBundle :one
@@ -212,7 +226,7 @@ WHERE bundle_identifier <> ''
 DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id
+RETURNING id, name, display_name, icon_url, source, extension_for, bundle_identifier, vendor, created_at, updated_at
 `
 
 type UpsertSoftwareTitleByBundleParams struct {
@@ -224,7 +238,7 @@ type UpsertSoftwareTitleByBundleParams struct {
 	Vendor           string `json:"vendor"`
 }
 
-func (q *Queries) UpsertSoftwareTitleByBundle(ctx context.Context, arg UpsertSoftwareTitleByBundleParams) (int64, error) {
+func (q *Queries) UpsertSoftwareTitleByBundle(ctx context.Context, arg UpsertSoftwareTitleByBundleParams) (SoftwareTitle, error) {
 	row := q.db.QueryRow(ctx, upsertSoftwareTitleByBundle,
 		arg.Name,
 		arg.DisplayName,
@@ -233,9 +247,20 @@ func (q *Queries) UpsertSoftwareTitleByBundle(ctx context.Context, arg UpsertSof
 		arg.BundleIdentifier,
 		arg.Vendor,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i SoftwareTitle
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.IconURL,
+		&i.Source,
+		&i.ExtensionFor,
+		&i.BundleIdentifier,
+		&i.Vendor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertSoftwareTitleByName = `-- name: UpsertSoftwareTitleByName :one
@@ -258,7 +283,7 @@ VALUES (
 ON CONFLICT (name, source, extension_for, bundle_identifier) DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id
+RETURNING id, name, display_name, icon_url, source, extension_for, bundle_identifier, vendor, created_at, updated_at
 `
 
 type UpsertSoftwareTitleByNameParams struct {
@@ -270,7 +295,7 @@ type UpsertSoftwareTitleByNameParams struct {
 	Vendor           string `json:"vendor"`
 }
 
-func (q *Queries) UpsertSoftwareTitleByName(ctx context.Context, arg UpsertSoftwareTitleByNameParams) (int64, error) {
+func (q *Queries) UpsertSoftwareTitleByName(ctx context.Context, arg UpsertSoftwareTitleByNameParams) (SoftwareTitle, error) {
 	row := q.db.QueryRow(ctx, upsertSoftwareTitleByName,
 		arg.Name,
 		arg.DisplayName,
@@ -279,7 +304,18 @@ func (q *Queries) UpsertSoftwareTitleByName(ctx context.Context, arg UpsertSoftw
 		arg.BundleIdentifier,
 		arg.Vendor,
 	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
+	var i SoftwareTitle
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.IconURL,
+		&i.Source,
+		&i.ExtensionFor,
+		&i.BundleIdentifier,
+		&i.Vendor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

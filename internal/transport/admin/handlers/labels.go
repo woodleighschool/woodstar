@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,16 +18,16 @@ const (
 )
 
 type labelBody struct {
-	ID             string                     `json:"id"`
-	Name           string                     `json:"name"`
-	Description    string                     `json:"description"`
-	Query          *string                    `json:"query,omitempty"`
-	Kind           models.LabelKind           `json:"kind"`
-	MembershipType models.LabelMembershipType `json:"membership_type"`
-	Platform       *string                    `json:"platform,omitempty"`
-	HostsCount     int                        `json:"hosts_count"`
-	CreatedAt      time.Time                  `json:"created_at,omitzero"`
-	UpdatedAt      time.Time                  `json:"updated_at,omitzero"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Query          *string   `json:"query,omitempty"`
+	Kind           string    `json:"kind"                enum:"regular,builtin"`
+	MembershipType string    `json:"membership_type"     enum:"dynamic,manual,host_vitals"`
+	Platform       *string   `json:"platform,omitempty"`
+	HostsCount     int       `json:"hosts_count"`
+	CreatedAt      time.Time `json:"created_at,omitzero"`
+	UpdatedAt      time.Time `json:"updated_at,omitzero"`
 }
 
 type labelListOutput struct {
@@ -60,41 +59,33 @@ type labelGetInput struct {
 }
 
 type labelCreateInput struct {
-	Body labelMutationBody
-}
-
-// labelPutBody mirrors labelBody so the autopatch round-trip (GET → merge →
-// PUT) sends a body the handler accepts. Read-only fields are accepted but
-// ignored.
-type labelPutBody struct {
-	ID             string                     `json:"id,omitempty"`
-	Name           string                     `json:"name"`
-	Description    string                     `json:"description,omitempty"`
-	Query          *string                    `json:"query,omitempty"`
-	Kind           models.LabelKind           `json:"kind"`
-	MembershipType models.LabelMembershipType `json:"membership_type"`
-	Platform       *string                    `json:"platform,omitempty"`
-	HostsCount     int                        `json:"hosts_count,omitempty"`
-	CreatedAt      *time.Time                 `json:"created_at,omitempty"`
-	UpdatedAt      *time.Time                 `json:"updated_at,omitempty"`
+	Body labelCreateBody
 }
 
 type labelPutInput struct {
 	ID   string `path:"id"`
-	Body labelPutBody
+	Body labelMutationBody
 }
 
 type labelDeleteInput struct {
 	ID string `path:"id"`
 }
 
+type labelCreateBody struct {
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Query          *string `json:"query,omitempty"`
+	Kind           string  `json:"kind,omitempty"            enum:"regular,builtin"`
+	MembershipType string  `json:"membership_type,omitempty" enum:"dynamic,manual,host_vitals"`
+	Platform       *string `json:"platform,omitempty"`
+}
+
 type labelMutationBody struct {
-	Name           string                     `json:"name"`
-	Description    string                     `json:"description,omitempty"`
-	Query          *string                    `json:"query,omitempty"`
-	Kind           models.LabelKind           `json:"kind,omitempty"            enum:"custom,builtin"`
-	MembershipType models.LabelMembershipType `json:"membership_type,omitempty" enum:"dynamic,static,identity"`
-	Platform       *string                    `json:"platform,omitempty"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Query          *string `json:"query,omitempty"`
+	MembershipType string  `json:"membership_type,omitempty" enum:"dynamic,manual,host_vitals"`
+	Platform       *string `json:"platform,omitempty"`
 }
 
 func (i labelListInput) params() models.LabelListParams {
@@ -106,8 +97,8 @@ func (i labelListInput) params() models.LabelListParams {
 			OrderKey:       i.OrderKey,
 			OrderDirection: i.OrderDirection,
 		}),
-		Kind:           models.LabelKind(strings.TrimSpace(i.Kind)),
-		MembershipType: models.LabelMembershipType(strings.TrimSpace(i.MembershipType)),
+		Kind:           strings.TrimSpace(i.Kind),
+		MembershipType: strings.TrimSpace(i.MembershipType),
 		Platform:       strings.TrimSpace(i.Platform),
 	}
 }
@@ -205,7 +196,6 @@ func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 			Name:           input.Body.Name,
 			Description:    input.Body.Description,
 			Query:          input.Body.Query,
-			Kind:           input.Body.Kind,
 			MembershipType: input.Body.MembershipType,
 			Platform:       input.Body.Platform,
 		})
@@ -222,7 +212,7 @@ func registerDeleteLabel(api huma.API, store *models.LabelStore) {
 		Method:      http.MethodDelete,
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},
-		Summary:     "Delete a custom label",
+		Summary:     "Delete a regular label",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *labelDeleteInput) (*struct{}, error) {
 		id, err := parseLabelID(input.ID)
@@ -238,7 +228,7 @@ func registerDeleteLabel(api huma.API, store *models.LabelStore) {
 
 func labelResponse(label *models.Label) labelBody {
 	return labelBody{
-		ID:             strconv.FormatInt(label.ID, 10),
+		ID:             label.ID,
 		Name:           label.Name,
 		Description:    label.Description,
 		Query:          label.Query,

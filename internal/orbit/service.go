@@ -83,10 +83,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 	if _, err := s.hosts.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
 		return ConfigResponse{}, err
 	}
-	return ConfigResponse{
-		Flags:         []byte("{}"),
-		Notifications: map[string]any{},
-	}, nil
+	return ConfigResponse{Flags: []byte("{}")}, nil
 }
 
 // ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.

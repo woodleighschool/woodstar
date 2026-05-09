@@ -168,7 +168,7 @@ func softwareIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftwareEntry
 	if err != nil {
 		return 0, err
 	}
-	return q.UpsertSoftware(ctx, sqlc.UpsertSoftwareParams{
+	row, err := q.UpsertSoftware(ctx, sqlc.UpsertSoftwareParams{
 		TitleID:          titleID,
 		Name:             entry.Name,
 		Version:          entry.Version,
@@ -180,12 +180,16 @@ func softwareIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftwareEntry
 		Arch:             entry.Arch,
 		Release:          entry.Release,
 	})
+	if err != nil {
+		return 0, err
+	}
+	return row.ID, nil
 }
 
 func softwareTitleIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftwareEntry) (int64, error) {
 	displayName := entry.Name
 	if entry.BundleIdentifier != "" {
-		return q.UpsertSoftwareTitleByBundle(ctx, sqlc.UpsertSoftwareTitleByBundleParams{
+		row, err := q.UpsertSoftwareTitleByBundle(ctx, sqlc.UpsertSoftwareTitleByBundleParams{
 			Name:             entry.Name,
 			DisplayName:      displayName,
 			Source:           entry.Source,
@@ -193,8 +197,12 @@ func softwareTitleIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftware
 			BundleIdentifier: entry.BundleIdentifier,
 			Vendor:           entry.Vendor,
 		})
+		if err != nil {
+			return 0, err
+		}
+		return row.ID, nil
 	}
-	return q.UpsertSoftwareTitleByName(ctx, sqlc.UpsertSoftwareTitleByNameParams{
+	row, err := q.UpsertSoftwareTitleByName(ctx, sqlc.UpsertSoftwareTitleByNameParams{
 		Name:             entry.Name,
 		DisplayName:      displayName,
 		Source:           entry.Source,
@@ -202,6 +210,10 @@ func softwareTitleIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftware
 		BundleIdentifier: entry.BundleIdentifier,
 		Vendor:           entry.Vendor,
 	})
+	if err != nil {
+		return 0, err
+	}
+	return row.ID, nil
 }
 
 // ListTitles returns software titles and the total count matching params.

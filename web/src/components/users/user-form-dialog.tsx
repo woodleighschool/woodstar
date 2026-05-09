@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 
-type Role = "admin" | "viewer";
+type Role = User["role"];
 
 interface BaseProps {
   open: boolean;
@@ -73,7 +73,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
 
   const [email, setEmail] = useState(editing?.email ?? "");
   const [name, setName] = useState(editing?.name ?? "");
-  const [role, setRole] = useState<Role>((editing?.role ?? "viewer") as Role);
+  const [role, setRole] = useState<Role>(editing?.role ?? "viewer");
   const [password, setPassword] = useState("");
 
   async function handleSubmit() {

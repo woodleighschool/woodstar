@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -13,7 +14,7 @@ import (
 
 func TestUpdateUserRejectsOwnRoleChange(t *testing.T) {
 	svc := NewService(&models.UserStore{}, nil)
-	actor := &models.User{ID: 5, Role: models.RoleAdmin}
+	actor := &models.User{User: sqlc.User{ID: 5, Role: models.RoleAdmin}}
 
 	_, err := svc.UpdateUser(context.Background(), actor, actor.ID, UpdateUserParams{
 		Name: "John Doe",

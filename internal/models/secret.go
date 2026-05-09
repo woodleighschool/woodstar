@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +26,7 @@ const (
 
 // Secret is a reusable shared credential shown to admins.
 type Secret struct {
-	ID        string    `json:"id"`
+	ID        int64     `json:"id"`
 	Value     string    `json:"value"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -98,19 +97,17 @@ func (s *SecretStore) ValidateActive(ctx context.Context, kind SecretKind, value
 	})
 }
 
-// Delete soft-deletes a secret by kind and API ID.
-func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id string) error {
+// Delete soft-deletes a secret by kind and ID.
+func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id int64) error {
 	if err := kind.Valid(); err != nil {
 		return err
 	}
-
-	parsedID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || parsedID <= 0 {
+	if id <= 0 {
 		return ErrNotFound
 	}
 
-	_, err = s.q.DeleteSecret(ctx, sqlc.DeleteSecretParams{
-		ID:   parsedID,
+	_, err := s.q.DeleteSecret(ctx, sqlc.DeleteSecretParams{
+		ID:   id,
 		Kind: sqlc.SecretKind(kind),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -131,7 +128,7 @@ func (k SecretKind) Valid() error {
 
 func secretFromRecord(row sqlc.Secret) Secret {
 	return Secret{
-		ID:        strconv.FormatInt(row.ID, 10),
+		ID:        row.ID,
 		Value:     row.Value,
 		CreatedAt: row.CreatedAt,
 	}

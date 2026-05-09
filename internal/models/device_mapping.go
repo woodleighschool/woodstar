@@ -2,26 +2,17 @@ package models
 
 import (
 	"context"
-	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
-const (
-	// DeviceMappingSourceOrbitProfile is sourced from the enrollment profile.
-	DeviceMappingSourceOrbitProfile = "orbit_profile"
-)
+// DeviceMappingSourceOrbitProfile is sourced from the enrollment profile.
+const DeviceMappingSourceOrbitProfile = "orbit_profile"
 
-// HostDeviceMapping is a user/device association observed for a host.
-type HostDeviceMapping struct {
-	ID        int64
-	HostID    int64
-	Email     string
-	Source    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
+// HostDeviceMapping is a user/device association observed for a host. Stored
+// in the host_emails table; the alias keeps the domain term in handler code.
+type HostDeviceMapping = sqlc.HostEmail
 
 // DeviceMappingStore persists host device mappings.
 type DeviceMappingStore struct {
@@ -47,25 +38,5 @@ func (s *DeviceMappingStore) Upsert(ctx context.Context, hostID int64, email, so
 
 // ListForHost returns mappings in stable source order.
 func (s *DeviceMappingStore) ListForHost(ctx context.Context, hostID int64) ([]HostDeviceMapping, error) {
-	rows, err := s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: hostID})
-	if err != nil {
-		return nil, err
-	}
-
-	mappings := make([]HostDeviceMapping, 0, len(rows))
-	for _, row := range rows {
-		mappings = append(mappings, mappingFromRecord(row))
-	}
-	return mappings, nil
-}
-
-func mappingFromRecord(row sqlc.HostEmail) HostDeviceMapping {
-	return HostDeviceMapping{
-		ID:        row.ID,
-		HostID:    row.HostID,
-		Email:     row.Email,
-		Source:    row.Source,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
-	}
+	return s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: hostID})
 }

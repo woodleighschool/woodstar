@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -46,7 +47,7 @@ func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T)
 
 	err := svc.dispatchWriteResults(
 		context.Background(),
-		&models.Host{ID: 9, Platform: "darwin"},
+		&models.Host{Host: sqlc.Host{ID: 9, Platform: "darwin"}},
 		DistributedWriteRequest{
 			Queries: map[string][]map[string]string{
 				queryNameID(kindLabel, 1): {{"matches": "yes"}},

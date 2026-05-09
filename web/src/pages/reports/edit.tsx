@@ -105,7 +105,7 @@ function ReportEditForm({
 
   async function submit() {
     const saved = mode === "create" ? await createQuery.mutateAsync(form) : await updateQuery.mutateAsync(form);
-    void navigate({ to: "/reports/$reportId", params: { reportId: saved.id } });
+    void navigate({ to: "/reports/$reportId", params: { reportId: String(saved.id) } });
   }
 
   function insertAtCursor(snippet: string) {

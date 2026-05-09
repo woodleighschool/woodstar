@@ -33,29 +33,18 @@ func parseOptionalPositiveID(id string, name string) (int64, error) {
 	return parsed, nil
 }
 
-// parseIDList parses every element as a positive int64, returning a 400 if any
-// element fails. Silent dropping is unacceptable: a client sending bad IDs
+// parseIDList validates every element as a positive int64, returning a 400 if
+// any element fails. Silent dropping is unacceptable: a client sending bad IDs
 // would otherwise get a narrower scope than they intended with no signal.
-func parseIDList(values []string, name string) ([]int64, error) {
+func parseIDList(values []int64, name string) ([]int64, error) {
 	ids := make([]int64, 0, len(values))
-	for _, raw := range values {
-		id, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || id <= 0 {
-			return nil, huma.Error400BadRequest(name + ": " + raw + " is not a positive integer")
+	for _, id := range values {
+		if id <= 0 {
+			return nil, huma.Error400BadRequest(name + " includes a non-positive ID")
 		}
 		ids = append(ids, id)
 	}
 	return ids, nil
-}
-
-// idStringPtr renders a nullable int64 as a JSON string pointer, matching the
-// rest of the API's "int64 → string" convention.
-func idStringPtr(id *int64) *string {
-	if id == nil {
-		return nil
-	}
-	out := strconv.FormatInt(*id, 10)
-	return &out
 }
 
 // resourceMutationError translates store errors into Huma HTTP errors using

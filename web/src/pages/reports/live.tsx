@@ -55,14 +55,14 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
   async function run() {
     const body: LiveQueryCreate = {
       sql,
-      query_id: reportId,
+      query_id: Number(reportId),
       selected: {
         hosts: selectedHosts.map((host) => host.id),
         labels: selectedLabels.map((label) => label.id),
       },
     };
     const handle = await create.mutateAsync(body);
-    setLiveQueryId(handle.id);
+    setLiveQueryId(String(handle.id));
   }
 
   return (
@@ -220,7 +220,7 @@ function TargetPicker({
                   className="hover:bg-muted flex items-center justify-between rounded px-2 py-2 text-left text-sm"
                   onClick={() => addHost(host)}
                 >
-                  <span>{host.display_name || host.hostname || host.id}</span>
+                  <span>{host.display_name || host.hostname || String(host.id)}</span>
                   <span className="text-muted-foreground text-xs">{host.platform || "unknown"}</span>
                 </button>
               ))
@@ -235,7 +235,7 @@ function TargetPicker({
               <TargetChip
                 key={host.id}
                 selected
-                label={host.display_name || host.hostname || host.id}
+                label={host.display_name || host.hostname || String(host.id)}
                 onClick={() => onHostsChange(selectedHosts.filter((item) => item.id !== host.id))}
               />
             ))}

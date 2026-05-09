@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -13,43 +12,34 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
-// LabelKind separates system-seeded labels from admin-created labels.
-type LabelKind string
-
+// Label kinds. Kind separates system-seeded labels from admin-created ones.
 const (
-	LabelKindBuiltin LabelKind = "builtin"
-	LabelKindCustom  LabelKind = "custom"
+	LabelKindBuiltin = "builtin"
+	LabelKindRegular = "regular"
 )
 
-// LabelMembershipType controls how membership rows are produced.
-type LabelMembershipType string
-
+// Label membership types. MembershipType controls how membership rows are produced:
+//   - dynamic: an osquery query result drives membership
+//   - manual: the server writes membership rows (e.g. All Hosts on enroll)
+//   - host_vitals: membership is derived from host fields, not osquery
 const (
-	LabelMembershipTypeDynamic  LabelMembershipType = "dynamic"
-	LabelMembershipTypeStatic   LabelMembershipType = "static"
-	LabelMembershipTypeIdentity LabelMembershipType = "identity"
+	LabelMembershipTypeDynamic    = "dynamic"
+	LabelMembershipTypeManual     = "manual"
+	LabelMembershipTypeHostVitals = "host_vitals"
 )
 
 // Label is a host grouping and targeting primitive.
 type Label struct {
-	ID             int64
-	Name           string
-	Description    string
-	Query          *string
-	Kind           LabelKind
-	MembershipType LabelMembershipType
-	Platform       *string
-	HostsCount     int
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	sqlc.Label
+	HostsCount int
 }
 
 // LabelListParams filters the admin label list.
 type LabelListParams struct {
 	ListParams
 
-	Kind           LabelKind
-	MembershipType LabelMembershipType
+	Kind           string
+	MembershipType string
 	Platform       string
 }
 
@@ -58,8 +48,8 @@ type LabelCreate struct {
 	Name           string
 	Description    string
 	Query          *string
-	Kind           LabelKind
-	MembershipType LabelMembershipType
+	Kind           string
+	MembershipType string
 	Platform       *string
 }
 
@@ -68,8 +58,7 @@ type LabelUpdate struct {
 	Name           string
 	Description    string
 	Query          *string
-	Kind           LabelKind
-	MembershipType LabelMembershipType
+	MembershipType string
 	Platform       *string
 }
 
@@ -88,8 +77,8 @@ func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label,
 	params = cleanLabelListParams(params)
 	rows, err := s.q.ListLabels(ctx, sqlc.ListLabelsParams{
 		Q:              params.Q,
-		Kind:           string(params.Kind),
-		MembershipType: string(params.MembershipType),
+		Kind:           params.Kind,
+		MembershipType: params.MembershipType,
 		Platform:       params.Platform,
 		OrderKey:       params.OrderKey,
 		OrderDirection: params.OrderDirection,
@@ -101,16 +90,16 @@ func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label,
 	}
 	count, err := s.q.CountLabels(ctx, sqlc.CountLabelsParams{
 		Q:              params.Q,
-		Kind:           string(params.Kind),
-		MembershipType: string(params.MembershipType),
+		Kind:           params.Kind,
+		MembershipType: params.MembershipType,
 		Platform:       params.Platform,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
-	labels := make([]Label, 0, len(rows))
-	for _, row := range rows {
-		labels = append(labels, labelFromListRow(row))
+	labels := make([]Label, len(rows))
+	for i, row := range rows {
+		labels[i] = Label{Label: row.Label, HostsCount: int(row.HostsCount)}
 	}
 	return labels, int(count), nil
 }
@@ -124,8 +113,7 @@ func (s *LabelStore) GetByID(ctx context.Context, id int64) (*Label, error) {
 	if err != nil {
 		return nil, err
 	}
-	label := labelFromGetRow(row)
-	return &label, nil
+	return &Label{Label: row.Label, HostsCount: int(row.HostsCount)}, nil
 }
 
 // ListForHost returns labels currently matching a host.
@@ -134,14 +122,14 @@ func (s *LabelStore) ListForHost(ctx context.Context, hostID int64) ([]Label, er
 	if err != nil {
 		return nil, err
 	}
-	labels := make([]Label, 0, len(rows))
-	for _, row := range rows {
-		labels = append(labels, labelFromHostRow(row))
+	labels := make([]Label, len(rows))
+	for i, row := range rows {
+		labels[i] = Label{Label: row.Label, HostsCount: int(row.HostsCount)}
 	}
 	return labels, nil
 }
 
-// Create inserts a custom label.
+// Create inserts a regular label.
 func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, error) {
 	params, err := cleanLabelCreate(params)
 	if err != nil {
@@ -151,8 +139,8 @@ func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, er
 		Name:           params.Name,
 		Description:    params.Description,
 		Query:          params.Query,
-		Kind:           string(params.Kind),
-		MembershipType: string(params.MembershipType),
+		Kind:           params.Kind,
+		MembershipType: params.MembershipType,
 		Platform:       params.Platform,
 	})
 	if err != nil {
@@ -161,8 +149,7 @@ func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, er
 		}
 		return nil, err
 	}
-	label := labelFromCreateRow(row)
-	return &label, nil
+	return &Label{Label: row}, nil
 }
 
 // Update replaces editable label fields.
@@ -175,7 +162,7 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 		Name:           params.Name,
 		Description:    params.Description,
 		Query:          params.Query,
-		MembershipType: string(params.MembershipType),
+		MembershipType: params.MembershipType,
 		Platform:       params.Platform,
 		ID:             id,
 	})
@@ -188,13 +175,12 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 		}
 		return nil, err
 	}
-	label := labelFromUpdateRow(row)
-	return &label, nil
+	return &Label{Label: row}, nil
 }
 
-// Delete removes a custom label.
+// Delete removes a regular label.
 func (s *LabelStore) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteCustomLabel(ctx, sqlc.DeleteCustomLabelParams{ID: id})
+	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -209,16 +195,9 @@ func (s *LabelStore) ListApplicableDynamic(ctx context.Context, platform string)
 	if err != nil {
 		return nil, err
 	}
-	labels := make([]Label, 0, len(rows))
-	for _, row := range rows {
-		labels = append(labels, Label{
-			ID:             row.ID,
-			Name:           row.Name,
-			Query:          row.Query,
-			Kind:           LabelKind(row.Kind),
-			MembershipType: LabelMembershipType(row.MembershipType),
-			Platform:       row.Platform,
-		})
+	labels := make([]Label, len(rows))
+	for i, row := range rows {
+		labels[i] = Label{Label: row}
 	}
 	return labels, nil
 }
@@ -257,38 +236,43 @@ func (s *LabelStore) MarkHostLabelsFresh(ctx context.Context, hostID int64) erro
 }
 
 func cleanLabelCreate(params LabelCreate) (LabelCreate, error) {
-	fields, err := cleanAdminLabelFields(labelFields(params), "created")
+	fields, err := cleanLabelFields(labelFields(params))
 	if err != nil {
 		return LabelCreate{}, err
+	}
+	if fields.Kind == LabelKindBuiltin {
+		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", ErrInvalidInput)
 	}
 	return LabelCreate(fields), nil
 }
 
 func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
-	fields, err := cleanAdminLabelFields(labelFields(params), "updated")
+	fields, err := cleanLabelFields(labelFields{
+		Name:           params.Name,
+		Description:    params.Description,
+		Query:          params.Query,
+		Kind:           LabelKindRegular,
+		MembershipType: params.MembershipType,
+		Platform:       params.Platform,
+	})
 	if err != nil {
 		return LabelUpdate{}, err
 	}
-	return LabelUpdate(fields), nil
-}
-
-func cleanAdminLabelFields(params labelFields, action string) (labelFields, error) {
-	fields, err := cleanLabelFields(params)
-	if err != nil {
-		return labelFields{}, err
-	}
-	if fields.Kind == LabelKindBuiltin {
-		return labelFields{}, fmt.Errorf("%w: builtin labels cannot be %s", ErrInvalidInput, action)
-	}
-	return fields, nil
+	return LabelUpdate{
+		Name:           fields.Name,
+		Description:    fields.Description,
+		Query:          fields.Query,
+		MembershipType: fields.MembershipType,
+		Platform:       fields.Platform,
+	}, nil
 }
 
 type labelFields struct {
 	Name           string
 	Description    string
 	Query          *string
-	Kind           LabelKind
-	MembershipType LabelMembershipType
+	Kind           string
+	MembershipType string
 	Platform       *string
 }
 
@@ -298,7 +282,7 @@ func cleanLabelFields(params labelFields) (labelFields, error) {
 	params.Query = cleanStringPtr(params.Query)
 	params.Platform = cleanStringPtr(params.Platform)
 	if params.Kind == "" {
-		params.Kind = LabelKindCustom
+		params.Kind = LabelKindRegular
 	}
 	if params.MembershipType == "" {
 		params.MembershipType = LabelMembershipTypeDynamic
@@ -311,16 +295,18 @@ func cleanLabelFields(params labelFields) (labelFields, error) {
 
 func cleanLabelListParams(params LabelListParams) LabelListParams {
 	params.ListParams = CleanListParams(params.ListParams)
+	params.Kind = strings.TrimSpace(params.Kind)
+	params.MembershipType = strings.TrimSpace(params.MembershipType)
 	params.Platform = strings.TrimSpace(params.Platform)
 	return params
 }
 
-func validateLabelFields(name string, query *string, kind LabelKind, membershipType LabelMembershipType) error {
+func validateLabelFields(name string, query *string, kind, membershipType string) error {
 	if name == "" {
 		return fmt.Errorf("%w: name is required", ErrInvalidInput)
 	}
 	switch kind {
-	case LabelKindBuiltin, LabelKindCustom:
+	case LabelKindBuiltin, LabelKindRegular:
 	default:
 		return fmt.Errorf("%w: unknown label kind", ErrInvalidInput)
 	}
@@ -329,7 +315,7 @@ func validateLabelFields(name string, query *string, kind LabelKind, membershipT
 		if query == nil {
 			return fmt.Errorf("%w: query is required for dynamic labels", ErrInvalidInput)
 		}
-	case LabelMembershipTypeStatic, LabelMembershipTypeIdentity:
+	case LabelMembershipTypeManual, LabelMembershipTypeHostVitals:
 		if query != nil {
 			return fmt.Errorf("%w: query is only allowed for dynamic labels", ErrInvalidInput)
 		}
@@ -348,52 +334,4 @@ func cleanStringPtr(value *string) *string {
 		return nil
 	}
 	return &cleaned
-}
-
-type labelRecord struct {
-	ID             int64
-	Name           string
-	Description    string
-	Query          *string
-	Kind           string
-	MembershipType string
-	Platform       *string
-	HostsCount     int32
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-}
-
-func labelFromRecord(row labelRecord) Label {
-	return Label{
-		ID:             row.ID,
-		Name:           row.Name,
-		Description:    row.Description,
-		Query:          row.Query,
-		Kind:           LabelKind(row.Kind),
-		MembershipType: LabelMembershipType(row.MembershipType),
-		Platform:       row.Platform,
-		HostsCount:     int(row.HostsCount),
-		CreatedAt:      row.CreatedAt,
-		UpdatedAt:      row.UpdatedAt,
-	}
-}
-
-func labelFromListRow(row sqlc.ListLabelsRow) Label {
-	return labelFromRecord(labelRecord(row))
-}
-
-func labelFromGetRow(row sqlc.GetLabelByIDRow) Label {
-	return labelFromRecord(labelRecord(row))
-}
-
-func labelFromCreateRow(row sqlc.CreateLabelRow) Label {
-	return labelFromRecord(labelRecord(row))
-}
-
-func labelFromUpdateRow(row sqlc.UpdateLabelRow) Label {
-	return labelFromRecord(labelRecord(row))
-}
-
-func labelFromHostRow(row sqlc.ListLabelsForHostRow) Label {
-	return labelFromRecord(labelRecord(row))
 }

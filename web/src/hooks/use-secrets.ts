@@ -25,11 +25,11 @@ export function useCreateEnrollSecret() {
 
 export function useDeleteEnrollSecret() {
   const queryClient = useQueryClient();
-  return useMutation<void, ApiError, string>({
+  return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
       await unwrap(
         apiClient.DELETE("/api/orbit/enroll-secrets/{id}", {
-          params: { path: { id } },
+          params: { path: { id: String(id) } },
         }),
       );
     },

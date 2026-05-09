@@ -28,7 +28,7 @@ WHERE bundle_identifier <> ''
 DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id;
+RETURNING *;
 
 -- name: UpsertSoftwareTitleByName :one
 INSERT INTO software_titles (
@@ -50,7 +50,7 @@ VALUES (
 ON CONFLICT (name, source, extension_for, bundle_identifier) DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id;
+RETURNING *;
 
 -- name: UpsertSoftware :one
 INSERT INTO software (
@@ -89,7 +89,7 @@ ON CONFLICT (
     release
 ) DO UPDATE SET
     updated_at = now()
-RETURNING id;
+RETURNING *;
 
 -- name: UpsertHostSoftware :exec
 INSERT INTO host_software (
