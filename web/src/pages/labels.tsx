@@ -1,6 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Search, Tags, X } from "lucide-react";
-import * as React from "react";
 import { useState } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
@@ -59,15 +58,8 @@ const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
 
 type LabelMembershipType = NonNullable<LabelMutation["membership_type"]>;
 
-interface LabelsSearch {
-  q?: string;
-  kind?: string;
-  membership_type?: string;
-  platform?: string;
-}
-
 export function LabelsPage() {
-  const search = useSearch({ strict: false }) as LabelsSearch;
+  const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [createOpen, setCreateOpen] = useState(false);
@@ -87,7 +79,7 @@ export function LabelsPage() {
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = Boolean(search.q || search.kind || search.membership_type || search.platform);
+  const hasFilters = !!search.q || !!search.kind || !!search.membership_type || !!search.platform;
 
   const columns: ColumnDef<Label>[] = [
     {
@@ -110,7 +102,7 @@ export function LabelsPage() {
     {
       id: "platform",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.platform || "-"}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.platform ?? "-"}</span>,
     },
     {
       id: "hosts_count",
@@ -121,8 +113,11 @@ export function LabelsPage() {
       id: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground" title={new Date(row.original.updated_at).toLocaleString()}>
-          {formatRelative(row.original.updated_at)}
+        <span
+          className="text-muted-foreground"
+          title={row.original.updated_at ? new Date(row.original.updated_at).toLocaleString() : ""}
+        >
+          {row.original.updated_at ? formatRelative(row.original.updated_at) : "-"}
         </span>
       ),
     },
@@ -148,7 +143,7 @@ export function LabelsPage() {
           <Alert variant="destructive">
             <AlertTitle>Failed to load labels</AlertTitle>
             <AlertDescription>{query.error.message}</AlertDescription>
-            <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+            <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
               Retry
             </Button>
           </Alert>
@@ -201,7 +196,7 @@ export function LabelsPage() {
         <LabelFormDialog
           mode="edit"
           label={editing}
-          open={editing !== null}
+          open
           onOpenChange={(open) => {
             if (!open) setEditing(null);
           }}
@@ -377,8 +372,7 @@ function LabelFormBody({
   const [query, setQuery] = useState(editing?.query ?? "select 1;");
   const queryRequired = membershipType === "dynamic";
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit() {
     if (mode === "create") {
       const body: LabelMutation = {
         name,
@@ -393,7 +387,7 @@ function LabelFormBody({
         name,
         description,
         // Custom labels can't change kind; backend SQL ignores it but the schema accepts it.
-        kind: editing!.kind as LabelPut["kind"],
+        kind: editing!.kind,
         membership_type: membershipType,
         platform: platform.trim() === "" ? undefined : platform.trim(),
         query: queryRequired ? query : undefined,
@@ -412,7 +406,13 @@ function LabelFormBody({
         </DialogDescription>
       </DialogHeader>
 
-      <form className="grid gap-3" onSubmit={handleSubmit}>
+      <form
+        className="grid gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSubmit();
+        }}
+      >
         <div className="grid gap-1.5">
           <FieldLabel htmlFor="label-name">Name</FieldLabel>
           <Input id="label-name" required value={name} onChange={(event) => setName(event.target.value)} />
@@ -460,7 +460,6 @@ function LabelFormBody({
             rows={5}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            className="font-mono text-xs"
           />
         </div>
 
@@ -524,7 +523,13 @@ function LabelDeleteDialog({
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" size="sm" disabled={remove.isPending} onClick={handleDelete}>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={remove.isPending}
+            onClick={() => void handleDelete()}
+          >
             Delete label
           </Button>
         </DialogFooter>

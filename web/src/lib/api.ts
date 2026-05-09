@@ -8,7 +8,7 @@ export type Schemas = components["schemas"];
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const requestMiddleware: Middleware = {
-  async onRequest({ request }) {
+  onRequest({ request }) {
     request.headers.set("Accept", "application/json");
     if (runtime.csrfToken && MUTATING_METHODS.has(request.method.toUpperCase())) {
       request.headers.set("X-CSRF-Token", runtime.csrfToken);

@@ -16,12 +16,26 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSoftwareRouteImport } from './routes/_authenticated/software'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
 import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
+import { Route as AuthenticatedChecksRouteImport } from './routes/_authenticated/checks'
 import { Route as AuthenticatedSoftwareIndexRouteImport } from './routes/_authenticated/software.index'
+import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports.index'
 import { Route as AuthenticatedHostsIndexRouteImport } from './routes/_authenticated/hosts.index'
+import { Route as AuthenticatedChecksIndexRouteImport } from './routes/_authenticated/checks.index'
+import { Route as AuthenticatedReportsNewRouteImport } from './routes/_authenticated/reports.new'
+import { Route as AuthenticatedReportsReportIdRouteImport } from './routes/_authenticated/reports.$reportId'
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
+import { Route as AuthenticatedChecksNewRouteImport } from './routes/_authenticated/checks.new'
+import { Route as AuthenticatedChecksCheckIdRouteImport } from './routes/_authenticated/checks.$checkId'
+import { Route as AuthenticatedReportsReportIdIndexRouteImport } from './routes/_authenticated/reports.$reportId.index'
+import { Route as AuthenticatedChecksCheckIdIndexRouteImport } from './routes/_authenticated/checks.$checkId.index'
 import { Route as AuthenticatedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authenticated/software.titles.$softwareId'
+import { Route as AuthenticatedReportsReportIdLiveRouteImport } from './routes/_authenticated/reports.$reportId.live'
+import { Route as AuthenticatedReportsReportIdEditRouteImport } from './routes/_authenticated/reports.$reportId.edit'
+import { Route as AuthenticatedChecksCheckIdEditRouteImport } from './routes/_authenticated/checks.$checkId.edit'
+import { Route as AuthenticatedHostsHostIdReportsReportIdRouteImport } from './routes/_authenticated/hosts.$hostId.reports.$reportId'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -57,6 +71,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedLabelsRoute = AuthenticatedLabelsRouteImport.update({
   id: '/labels',
   path: '/labels',
@@ -67,22 +86,73 @@ const AuthenticatedHostsRoute = AuthenticatedHostsRouteImport.update({
   path: '/hosts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedChecksRoute = AuthenticatedChecksRouteImport.update({
+  id: '/checks',
+  path: '/checks',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSoftwareIndexRoute =
   AuthenticatedSoftwareIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSoftwareRoute,
   } as any)
+const AuthenticatedReportsIndexRoute =
+  AuthenticatedReportsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedReportsRoute,
+  } as any)
 const AuthenticatedHostsIndexRoute = AuthenticatedHostsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedHostsRoute,
 } as any)
+const AuthenticatedChecksIndexRoute =
+  AuthenticatedChecksIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedChecksRoute,
+  } as any)
+const AuthenticatedReportsNewRoute = AuthenticatedReportsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AuthenticatedReportsRoute,
+} as any)
+const AuthenticatedReportsReportIdRoute =
+  AuthenticatedReportsReportIdRouteImport.update({
+    id: '/$reportId',
+    path: '/$reportId',
+    getParentRoute: () => AuthenticatedReportsRoute,
+  } as any)
 const AuthenticatedHostsHostIdRoute =
   AuthenticatedHostsHostIdRouteImport.update({
     id: '/$hostId',
     path: '/$hostId',
     getParentRoute: () => AuthenticatedHostsRoute,
+  } as any)
+const AuthenticatedChecksNewRoute = AuthenticatedChecksNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AuthenticatedChecksRoute,
+} as any)
+const AuthenticatedChecksCheckIdRoute =
+  AuthenticatedChecksCheckIdRouteImport.update({
+    id: '/$checkId',
+    path: '/$checkId',
+    getParentRoute: () => AuthenticatedChecksRoute,
+  } as any)
+const AuthenticatedReportsReportIdIndexRoute =
+  AuthenticatedReportsReportIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedReportsReportIdRoute,
+  } as any)
+const AuthenticatedChecksCheckIdIndexRoute =
+  AuthenticatedChecksCheckIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedChecksCheckIdRoute,
   } as any)
 const AuthenticatedSoftwareTitlesSoftwareIdRoute =
   AuthenticatedSoftwareTitlesSoftwareIdRouteImport.update({
@@ -90,20 +160,58 @@ const AuthenticatedSoftwareTitlesSoftwareIdRoute =
     path: '/titles/$softwareId',
     getParentRoute: () => AuthenticatedSoftwareRoute,
   } as any)
+const AuthenticatedReportsReportIdLiveRoute =
+  AuthenticatedReportsReportIdLiveRouteImport.update({
+    id: '/live',
+    path: '/live',
+    getParentRoute: () => AuthenticatedReportsReportIdRoute,
+  } as any)
+const AuthenticatedReportsReportIdEditRoute =
+  AuthenticatedReportsReportIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedReportsReportIdRoute,
+  } as any)
+const AuthenticatedChecksCheckIdEditRoute =
+  AuthenticatedChecksCheckIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedChecksCheckIdRoute,
+  } as any)
+const AuthenticatedHostsHostIdReportsReportIdRoute =
+  AuthenticatedHostsHostIdReportsReportIdRouteImport.update({
+    id: '/reports/$reportId',
+    path: '/reports/$reportId',
+    getParentRoute: () => AuthenticatedHostsHostIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/checks': typeof AuthenticatedChecksRouteWithChildren
   '/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/labels': typeof AuthenticatedLabelsRoute
+  '/reports': typeof AuthenticatedReportsRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/users': typeof AuthenticatedUsersRoute
-  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/checks/$checkId': typeof AuthenticatedChecksCheckIdRouteWithChildren
+  '/checks/new': typeof AuthenticatedChecksNewRoute
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
+  '/reports/new': typeof AuthenticatedReportsNewRoute
+  '/checks/': typeof AuthenticatedChecksIndexRoute
   '/hosts/': typeof AuthenticatedHostsIndexRoute
+  '/reports/': typeof AuthenticatedReportsIndexRoute
   '/software/': typeof AuthenticatedSoftwareIndexRoute
+  '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
+  '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
+  '/checks/$checkId/': typeof AuthenticatedChecksCheckIdIndexRoute
+  '/reports/$reportId/': typeof AuthenticatedReportsReportIdIndexRoute
+  '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -112,10 +220,20 @@ export interface FileRoutesByTo {
   '/labels': typeof AuthenticatedLabelsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
-  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/checks/new': typeof AuthenticatedChecksNewRoute
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/reports/new': typeof AuthenticatedReportsNewRoute
+  '/checks': typeof AuthenticatedChecksIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
+  '/reports': typeof AuthenticatedReportsIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
+  '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
+  '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
+  '/checks/$checkId': typeof AuthenticatedChecksCheckIdIndexRoute
+  '/reports/$reportId': typeof AuthenticatedReportsReportIdIndexRoute
+  '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -123,15 +241,29 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_authenticated/checks': typeof AuthenticatedChecksRouteWithChildren
   '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/_authenticated/labels': typeof AuthenticatedLabelsRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/_authenticated/users': typeof AuthenticatedUsersRoute
-  '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
+  '/_authenticated/checks/$checkId': typeof AuthenticatedChecksCheckIdRouteWithChildren
+  '/_authenticated/checks/new': typeof AuthenticatedChecksNewRoute
+  '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/_authenticated/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
+  '/_authenticated/reports/new': typeof AuthenticatedReportsNewRoute
+  '/_authenticated/checks/': typeof AuthenticatedChecksIndexRoute
   '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
+  '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
+  '/_authenticated/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/_authenticated/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
+  '/_authenticated/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
   '/_authenticated/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
+  '/_authenticated/checks/$checkId/': typeof AuthenticatedChecksCheckIdIndexRoute
+  '/_authenticated/reports/$reportId/': typeof AuthenticatedReportsReportIdIndexRoute
+  '/_authenticated/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -139,15 +271,29 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/checks'
     | '/hosts'
     | '/labels'
+    | '/reports'
     | '/settings'
     | '/software'
     | '/users'
+    | '/checks/$checkId'
+    | '/checks/new'
     | '/hosts/$hostId'
+    | '/reports/$reportId'
+    | '/reports/new'
+    | '/checks/'
     | '/hosts/'
+    | '/reports/'
     | '/software/'
+    | '/checks/$checkId/edit'
+    | '/reports/$reportId/edit'
+    | '/reports/$reportId/live'
     | '/software/titles/$softwareId'
+    | '/checks/$checkId/'
+    | '/reports/$reportId/'
+    | '/hosts/$hostId/reports/$reportId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,25 +302,49 @@ export interface FileRouteTypes {
     | '/labels'
     | '/settings'
     | '/users'
+    | '/checks/new'
     | '/hosts/$hostId'
+    | '/reports/new'
+    | '/checks'
     | '/hosts'
+    | '/reports'
     | '/software'
+    | '/checks/$checkId/edit'
+    | '/reports/$reportId/edit'
+    | '/reports/$reportId/live'
     | '/software/titles/$softwareId'
+    | '/checks/$checkId'
+    | '/reports/$reportId'
+    | '/hosts/$hostId/reports/$reportId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/login'
     | '/setup'
+    | '/_authenticated/checks'
     | '/_authenticated/hosts'
     | '/_authenticated/labels'
+    | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/software'
     | '/_authenticated/users'
+    | '/_authenticated/checks/$checkId'
+    | '/_authenticated/checks/new'
     | '/_authenticated/hosts/$hostId'
+    | '/_authenticated/reports/$reportId'
+    | '/_authenticated/reports/new'
+    | '/_authenticated/checks/'
     | '/_authenticated/hosts/'
+    | '/_authenticated/reports/'
     | '/_authenticated/software/'
+    | '/_authenticated/checks/$checkId/edit'
+    | '/_authenticated/reports/$reportId/edit'
+    | '/_authenticated/reports/$reportId/live'
     | '/_authenticated/software/titles/$softwareId'
+    | '/_authenticated/checks/$checkId/'
+    | '/_authenticated/reports/$reportId/'
+    | '/_authenticated/hosts/$hostId/reports/$reportId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -235,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/labels': {
       id: '/_authenticated/labels'
       path: '/labels'
@@ -249,12 +426,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHostsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/checks': {
+      id: '/_authenticated/checks'
+      path: '/checks'
+      fullPath: '/checks'
+      preLoaderRoute: typeof AuthenticatedChecksRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/software/': {
       id: '/_authenticated/software/'
       path: '/'
       fullPath: '/software/'
       preLoaderRoute: typeof AuthenticatedSoftwareIndexRouteImport
       parentRoute: typeof AuthenticatedSoftwareRoute
+    }
+    '/_authenticated/reports/': {
+      id: '/_authenticated/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof AuthenticatedReportsIndexRouteImport
+      parentRoute: typeof AuthenticatedReportsRoute
     }
     '/_authenticated/hosts/': {
       id: '/_authenticated/hosts/'
@@ -263,12 +454,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHostsIndexRouteImport
       parentRoute: typeof AuthenticatedHostsRoute
     }
+    '/_authenticated/checks/': {
+      id: '/_authenticated/checks/'
+      path: '/'
+      fullPath: '/checks/'
+      preLoaderRoute: typeof AuthenticatedChecksIndexRouteImport
+      parentRoute: typeof AuthenticatedChecksRoute
+    }
+    '/_authenticated/reports/new': {
+      id: '/_authenticated/reports/new'
+      path: '/new'
+      fullPath: '/reports/new'
+      preLoaderRoute: typeof AuthenticatedReportsNewRouteImport
+      parentRoute: typeof AuthenticatedReportsRoute
+    }
+    '/_authenticated/reports/$reportId': {
+      id: '/_authenticated/reports/$reportId'
+      path: '/$reportId'
+      fullPath: '/reports/$reportId'
+      preLoaderRoute: typeof AuthenticatedReportsReportIdRouteImport
+      parentRoute: typeof AuthenticatedReportsRoute
+    }
     '/_authenticated/hosts/$hostId': {
       id: '/_authenticated/hosts/$hostId'
       path: '/$hostId'
       fullPath: '/hosts/$hostId'
       preLoaderRoute: typeof AuthenticatedHostsHostIdRouteImport
       parentRoute: typeof AuthenticatedHostsRoute
+    }
+    '/_authenticated/checks/new': {
+      id: '/_authenticated/checks/new'
+      path: '/new'
+      fullPath: '/checks/new'
+      preLoaderRoute: typeof AuthenticatedChecksNewRouteImport
+      parentRoute: typeof AuthenticatedChecksRoute
+    }
+    '/_authenticated/checks/$checkId': {
+      id: '/_authenticated/checks/$checkId'
+      path: '/$checkId'
+      fullPath: '/checks/$checkId'
+      preLoaderRoute: typeof AuthenticatedChecksCheckIdRouteImport
+      parentRoute: typeof AuthenticatedChecksRoute
+    }
+    '/_authenticated/reports/$reportId/': {
+      id: '/_authenticated/reports/$reportId/'
+      path: '/'
+      fullPath: '/reports/$reportId/'
+      preLoaderRoute: typeof AuthenticatedReportsReportIdIndexRouteImport
+      parentRoute: typeof AuthenticatedReportsReportIdRoute
+    }
+    '/_authenticated/checks/$checkId/': {
+      id: '/_authenticated/checks/$checkId/'
+      path: '/'
+      fullPath: '/checks/$checkId/'
+      preLoaderRoute: typeof AuthenticatedChecksCheckIdIndexRouteImport
+      parentRoute: typeof AuthenticatedChecksCheckIdRoute
     }
     '/_authenticated/software/titles/$softwareId': {
       id: '/_authenticated/software/titles/$softwareId'
@@ -277,21 +517,132 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSoftwareTitlesSoftwareIdRouteImport
       parentRoute: typeof AuthenticatedSoftwareRoute
     }
+    '/_authenticated/reports/$reportId/live': {
+      id: '/_authenticated/reports/$reportId/live'
+      path: '/live'
+      fullPath: '/reports/$reportId/live'
+      preLoaderRoute: typeof AuthenticatedReportsReportIdLiveRouteImport
+      parentRoute: typeof AuthenticatedReportsReportIdRoute
+    }
+    '/_authenticated/reports/$reportId/edit': {
+      id: '/_authenticated/reports/$reportId/edit'
+      path: '/edit'
+      fullPath: '/reports/$reportId/edit'
+      preLoaderRoute: typeof AuthenticatedReportsReportIdEditRouteImport
+      parentRoute: typeof AuthenticatedReportsReportIdRoute
+    }
+    '/_authenticated/checks/$checkId/edit': {
+      id: '/_authenticated/checks/$checkId/edit'
+      path: '/edit'
+      fullPath: '/checks/$checkId/edit'
+      preLoaderRoute: typeof AuthenticatedChecksCheckIdEditRouteImport
+      parentRoute: typeof AuthenticatedChecksCheckIdRoute
+    }
+    '/_authenticated/hosts/$hostId/reports/$reportId': {
+      id: '/_authenticated/hosts/$hostId/reports/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/hosts/$hostId/reports/$reportId'
+      preLoaderRoute: typeof AuthenticatedHostsHostIdReportsReportIdRouteImport
+      parentRoute: typeof AuthenticatedHostsHostIdRoute
+    }
   }
 }
 
+interface AuthenticatedChecksCheckIdRouteChildren {
+  AuthenticatedChecksCheckIdEditRoute: typeof AuthenticatedChecksCheckIdEditRoute
+  AuthenticatedChecksCheckIdIndexRoute: typeof AuthenticatedChecksCheckIdIndexRoute
+}
+
+const AuthenticatedChecksCheckIdRouteChildren: AuthenticatedChecksCheckIdRouteChildren =
+  {
+    AuthenticatedChecksCheckIdEditRoute: AuthenticatedChecksCheckIdEditRoute,
+    AuthenticatedChecksCheckIdIndexRoute: AuthenticatedChecksCheckIdIndexRoute,
+  }
+
+const AuthenticatedChecksCheckIdRouteWithChildren =
+  AuthenticatedChecksCheckIdRoute._addFileChildren(
+    AuthenticatedChecksCheckIdRouteChildren,
+  )
+
+interface AuthenticatedChecksRouteChildren {
+  AuthenticatedChecksCheckIdRoute: typeof AuthenticatedChecksCheckIdRouteWithChildren
+  AuthenticatedChecksNewRoute: typeof AuthenticatedChecksNewRoute
+  AuthenticatedChecksIndexRoute: typeof AuthenticatedChecksIndexRoute
+}
+
+const AuthenticatedChecksRouteChildren: AuthenticatedChecksRouteChildren = {
+  AuthenticatedChecksCheckIdRoute: AuthenticatedChecksCheckIdRouteWithChildren,
+  AuthenticatedChecksNewRoute: AuthenticatedChecksNewRoute,
+  AuthenticatedChecksIndexRoute: AuthenticatedChecksIndexRoute,
+}
+
+const AuthenticatedChecksRouteWithChildren =
+  AuthenticatedChecksRoute._addFileChildren(AuthenticatedChecksRouteChildren)
+
+interface AuthenticatedHostsHostIdRouteChildren {
+  AuthenticatedHostsHostIdReportsReportIdRoute: typeof AuthenticatedHostsHostIdReportsReportIdRoute
+}
+
+const AuthenticatedHostsHostIdRouteChildren: AuthenticatedHostsHostIdRouteChildren =
+  {
+    AuthenticatedHostsHostIdReportsReportIdRoute:
+      AuthenticatedHostsHostIdReportsReportIdRoute,
+  }
+
+const AuthenticatedHostsHostIdRouteWithChildren =
+  AuthenticatedHostsHostIdRoute._addFileChildren(
+    AuthenticatedHostsHostIdRouteChildren,
+  )
+
 interface AuthenticatedHostsRouteChildren {
-  AuthenticatedHostsHostIdRoute: typeof AuthenticatedHostsHostIdRoute
+  AuthenticatedHostsHostIdRoute: typeof AuthenticatedHostsHostIdRouteWithChildren
   AuthenticatedHostsIndexRoute: typeof AuthenticatedHostsIndexRoute
 }
 
 const AuthenticatedHostsRouteChildren: AuthenticatedHostsRouteChildren = {
-  AuthenticatedHostsHostIdRoute: AuthenticatedHostsHostIdRoute,
+  AuthenticatedHostsHostIdRoute: AuthenticatedHostsHostIdRouteWithChildren,
   AuthenticatedHostsIndexRoute: AuthenticatedHostsIndexRoute,
 }
 
 const AuthenticatedHostsRouteWithChildren =
   AuthenticatedHostsRoute._addFileChildren(AuthenticatedHostsRouteChildren)
+
+interface AuthenticatedReportsReportIdRouteChildren {
+  AuthenticatedReportsReportIdEditRoute: typeof AuthenticatedReportsReportIdEditRoute
+  AuthenticatedReportsReportIdLiveRoute: typeof AuthenticatedReportsReportIdLiveRoute
+  AuthenticatedReportsReportIdIndexRoute: typeof AuthenticatedReportsReportIdIndexRoute
+}
+
+const AuthenticatedReportsReportIdRouteChildren: AuthenticatedReportsReportIdRouteChildren =
+  {
+    AuthenticatedReportsReportIdEditRoute:
+      AuthenticatedReportsReportIdEditRoute,
+    AuthenticatedReportsReportIdLiveRoute:
+      AuthenticatedReportsReportIdLiveRoute,
+    AuthenticatedReportsReportIdIndexRoute:
+      AuthenticatedReportsReportIdIndexRoute,
+  }
+
+const AuthenticatedReportsReportIdRouteWithChildren =
+  AuthenticatedReportsReportIdRoute._addFileChildren(
+    AuthenticatedReportsReportIdRouteChildren,
+  )
+
+interface AuthenticatedReportsRouteChildren {
+  AuthenticatedReportsReportIdRoute: typeof AuthenticatedReportsReportIdRouteWithChildren
+  AuthenticatedReportsNewRoute: typeof AuthenticatedReportsNewRoute
+  AuthenticatedReportsIndexRoute: typeof AuthenticatedReportsIndexRoute
+}
+
+const AuthenticatedReportsRouteChildren: AuthenticatedReportsRouteChildren = {
+  AuthenticatedReportsReportIdRoute:
+    AuthenticatedReportsReportIdRouteWithChildren,
+  AuthenticatedReportsNewRoute: AuthenticatedReportsNewRoute,
+  AuthenticatedReportsIndexRoute: AuthenticatedReportsIndexRoute,
+}
+
+const AuthenticatedReportsRouteWithChildren =
+  AuthenticatedReportsRoute._addFileChildren(AuthenticatedReportsRouteChildren)
 
 interface AuthenticatedSoftwareRouteChildren {
   AuthenticatedSoftwareIndexRoute: typeof AuthenticatedSoftwareIndexRoute
@@ -310,16 +661,20 @@ const AuthenticatedSoftwareRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedChecksRoute: typeof AuthenticatedChecksRouteWithChildren
   AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
   AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSoftwareRoute: typeof AuthenticatedSoftwareRouteWithChildren
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedChecksRoute: AuthenticatedChecksRouteWithChildren,
   AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
   AuthenticatedLabelsRoute: AuthenticatedLabelsRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSoftwareRoute: AuthenticatedSoftwareRouteWithChildren,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,

@@ -1,7 +1,9 @@
 // Package osquery implements service behavior for Orbit-managed osquery.
 package osquery
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // EnrollRequest is the body posted by osquery to enroll.
 type EnrollRequest struct {
@@ -23,10 +25,10 @@ type ConfigRequest struct {
 
 // ConfigResponse is a minimal osquery config.
 type ConfigResponse struct {
-	NodeInvalid bool              `json:"node_invalid"`
-	Schedule    map[string]string `json:"schedule"`
-	Options     map[string]string `json:"options"`
-	Decorators  map[string]any    `json:"decorators"`
+	NodeInvalid bool                     `json:"node_invalid"`
+	Schedule    map[string]ScheduleEntry `json:"schedule"`
+	Options     map[string]string        `json:"options"`
+	Decorators  map[string]any           `json:"decorators"`
 }
 
 // DistributedReadRequest asks for work.

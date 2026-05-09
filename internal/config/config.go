@@ -19,6 +19,9 @@ type Config struct {
 	SessionSecret string `env:"SESSION_SECRET,required,notEmpty"`
 	DatabaseURL   string `env:"DATABASE_URL"`
 	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
+
+	MaxReportRows           int `env:"MAX_REPORT_ROWS"            envDefault:"1000"`
+	LiveQueryTimeoutSeconds int `env:"LIVE_QUERY_TIMEOUT_SECONDS" envDefault:"60"`
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.

@@ -22,6 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
 func TestAgentContract(t *testing.T) {
@@ -96,6 +97,10 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 	secrets := models.NewSecretStore(db)
 	software := models.NewSoftwareStore(db)
 	labels := models.NewLabelStore(db)
+	queries := models.NewQueryStore(db)
+	checks := models.NewCheckStore(db)
+	hub := queryinfra.NewHub()
+	liveQueries := queryinfra.NewLiveQueryManager(hub, time.Minute)
 
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
@@ -108,18 +113,30 @@ func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.
 			PublicURL:     "http://localhost:8080",
 			SessionSecret: strings.Repeat("s", 32),
 		},
-		DB:             db,
-		Version:        "test",
-		Logger:         logger,
-		AuthService:    authService,
-		SessionManager: sessionManager,
-		HostStore:      hosts,
-		DeviceMappings: deviceMappings,
-		SecretStore:    secrets,
-		SoftwareStore:  software,
-		LabelStore:     labels,
-		OrbitService:   orbit.NewService(hosts, secrets, deviceMappings),
-		OsqueryService: osquery.NewService(hosts, software, labels, secrets, logger.With("component", "osquery")),
+		DB:               db,
+		Version:          "test",
+		Logger:           logger,
+		AuthService:      authService,
+		SessionManager:   sessionManager,
+		HostStore:        hosts,
+		DeviceMappings:   deviceMappings,
+		SecretStore:      secrets,
+		SoftwareStore:    software,
+		LabelStore:       labels,
+		QueryStore:       queries,
+		CheckStore:       checks,
+		LiveQueryManager: liveQueries,
+		OrbitService:     orbit.NewService(hosts, secrets, deviceMappings),
+		OsqueryService: osquery.NewService(
+			hosts,
+			software,
+			labels,
+			queries,
+			checks,
+			liveQueries,
+			secrets,
+			logger.With("component", "osquery"),
+		),
 	}, users
 }
 
@@ -286,7 +303,7 @@ func osqueryDistributedRead(t *testing.T, router http.Handler, nodeKey string) m
 
 func assertDetailQueries(t *testing.T, queries map[string]string) {
 	t.Helper()
-	for _, name := range []string{
+	for _, suffix := range []string{
 		"os_version",
 		"system_info",
 		"osquery_info",
@@ -300,6 +317,7 @@ func assertDetailQueries(t *testing.T, queries map[string]string) {
 		"software_macos_codesign",
 		"software_macos_executable_sha256",
 	} {
+		name := "woodstar_detail_query_" + suffix
 		if queries[name] == "" {
 			t.Fatalf("missing detail query %q", name)
 		}
@@ -308,80 +326,74 @@ func assertDetailQueries(t *testing.T, queries map[string]string) {
 
 func osqueryDistributedWrite(t *testing.T, router http.Handler, nodeKey string, softwareName string, bundleID string) {
 	t.Helper()
+	const prefix = "woodstar_detail_query_"
+	queries := map[string][]map[string]string{
+		prefix + "os_version": {{
+			"name":          "macOS",
+			"version":       "26.5",
+			"build":         "25F5068a",
+			"platform":      "darwin",
+			"platform_like": "darwin",
+		}},
+		prefix + "system_info": {{
+			"hostname":           "contract-mac",
+			"computer_name":      "Contract Mac",
+			"hardware_serial":    "C02CONTRACT",
+			"hardware_model":     "Mac15,8",
+			"hardware_vendor":    "Apple Inc.",
+			"cpu_brand":          "Apple M4",
+			"cpu_logical_cores":  "10",
+			"cpu_physical_cores": "10",
+			"physical_memory":    "68719476736",
+		}},
+		prefix + "osquery_info": {{"version": "5.22.1"}},
+		prefix + "osquery_flags": {
+			{"name": "distributed_interval", "value": "15"},
+			{"name": "config_refresh", "value": "60"},
+		},
+		prefix + "orbit_info": {{"version": "1.47.0"}},
+		prefix + "uptime":     {{"total_seconds": "3600"}},
+		prefix + "root_disk":  {{"bytes_available": "1073741824", "bytes_total": "4294967296"}},
+		prefix + "primary_interface": {{
+			"primary_ip":  "192.168.1.10",
+			"primary_mac": "aa:bb:cc:dd:ee:ff",
+		}},
+		prefix + "users": {{
+			"uid":         "501",
+			"username":    "contract",
+			"type":        "local",
+			"description": "Contract User",
+			"directory":   "/Users/contract",
+			"shell":       "/bin/zsh",
+		}},
+		prefix + "software_macos": {{
+			"name":              softwareName,
+			"version":           "1.2.3",
+			"source":            "apps",
+			"bundle_identifier": bundleID,
+			"installed_path":    "/Applications/Example App.app",
+			"last_opened_at":    "1777435200.5",
+		}},
+		prefix + "software_macos_codesign": {{
+			"path":            "/Applications/Example App.app",
+			"team_identifier": "ABCD123456",
+			"cdhash_sha256":   "cdhash",
+		}},
+		prefix + "software_macos_executable_sha256": {{
+			"path":              "/Applications/Example App.app",
+			"executable_sha256": "executable-hash",
+			"executable_path":   "/Applications/Example App.app/Contents/MacOS/Example",
+		}},
+	}
+	statuses := make(map[string]int, len(queries))
+	for name := range queries {
+		statuses[name] = 0
+	}
+
 	doJSON(t, router, http.MethodPost, "/api/v1/osquery/distributed/write", map[string]any{
 		"node_key": nodeKey,
-		"queries": map[string][]map[string]string{
-			"os_version": {{
-				"name":          "macOS",
-				"version":       "26.5",
-				"build":         "25F5068a",
-				"platform":      "darwin",
-				"platform_like": "darwin",
-			}},
-			"system_info": {{
-				"hostname":           "contract-mac",
-				"computer_name":      "Contract Mac",
-				"hardware_serial":    "C02CONTRACT",
-				"hardware_model":     "Mac15,8",
-				"hardware_vendor":    "Apple Inc.",
-				"cpu_brand":          "Apple M4",
-				"cpu_logical_cores":  "10",
-				"cpu_physical_cores": "10",
-				"physical_memory":    "68719476736",
-			}},
-			"osquery_info": {{"version": "5.22.1"}},
-			"osquery_flags": {
-				{"name": "distributed_interval", "value": "15"},
-				{"name": "config_refresh", "value": "60"},
-			},
-			"orbit_info": {{"version": "1.47.0"}},
-			"uptime":     {{"total_seconds": "3600"}},
-			"root_disk":  {{"bytes_available": "1073741824", "bytes_total": "4294967296"}},
-			"primary_interface": {{
-				"primary_ip":  "192.168.1.10",
-				"primary_mac": "aa:bb:cc:dd:ee:ff",
-			}},
-			"users": {{
-				"uid":         "501",
-				"username":    "contract",
-				"type":        "local",
-				"description": "Contract User",
-				"directory":   "/Users/contract",
-				"shell":       "/bin/zsh",
-			}},
-			"software_macos": {{
-				"name":              softwareName,
-				"version":           "1.2.3",
-				"source":            "apps",
-				"bundle_identifier": bundleID,
-				"installed_path":    "/Applications/Example App.app",
-				"last_opened_at":    "1777435200.5",
-			}},
-			"software_macos_codesign": {{
-				"path":            "/Applications/Example App.app",
-				"team_identifier": "ABCD123456",
-				"cdhash_sha256":   "cdhash",
-			}},
-			"software_macos_executable_sha256": {{
-				"path":              "/Applications/Example App.app",
-				"executable_sha256": "executable-hash",
-				"executable_path":   "/Applications/Example App.app/Contents/MacOS/Example",
-			}},
-		},
-		"statuses": map[string]int{
-			"os_version":                       0,
-			"system_info":                      0,
-			"osquery_info":                     0,
-			"osquery_flags":                    0,
-			"orbit_info":                       0,
-			"uptime":                           0,
-			"root_disk":                        0,
-			"primary_interface":                0,
-			"users":                            0,
-			"software_macos":                   0,
-			"software_macos_codesign":          0,
-			"software_macos_executable_sha256": 0,
-		},
+		"queries":  queries,
+		"statuses": statuses,
 	}, nil, nil)
 }
 

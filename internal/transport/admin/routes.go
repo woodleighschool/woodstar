@@ -12,20 +12,24 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/models"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
 )
 
 // Dependencies contains the services and stores used by the admin HTTP API.
 type Dependencies struct {
-	DB             *database.DB
-	Version        string
-	Started        time.Time
-	AuthService    *auth.Service
-	HostStore      *models.HostStore
-	DeviceMappings *models.DeviceMappingStore
-	SecretStore    *models.SecretStore
-	SoftwareStore  *models.SoftwareStore
-	LabelStore     *models.LabelStore
+	DB               *database.DB
+	Version          string
+	Started          time.Time
+	AuthService      *auth.Service
+	HostStore        *models.HostStore
+	DeviceMappings   *models.DeviceMappingStore
+	SecretStore      *models.SecretStore
+	SoftwareStore    *models.SoftwareStore
+	LabelStore       *models.LabelStore
+	QueryStore       *models.QueryStore
+	CheckStore       *models.CheckStore
+	LiveQueryManager *queryinfra.LiveQueryManager
 }
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -41,7 +45,15 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)
 	handlers.RegisterSoftware(protected, deps.SoftwareStore)
 	handlers.RegisterLabels(protected, deps.LabelStore)
+	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
+	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
+	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.HostStore, deps.DB)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
+
+	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit
+	// text/event-stream). Auth uses the Chi-compatible session middleware.
+	r.With(RequireAuthChi(deps.AuthService)).
+		Get("/api/live-queries/{id}/stream", handlers.LiveQueryStreamHandler(deps.LiveQueryManager))
 
 	// Synthesise PATCH for resources that expose GET + PUT.
 	// https://huma.rocks/features/auto-patch/.
@@ -53,14 +65,18 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 // BuildAPI returns the admin API without starting the server.
 func BuildAPI(version string) huma.API {
 	r := chi.NewRouter()
+	hub := queryinfra.NewHub()
 	return Mount(r, Dependencies{
-		Version:        version,
-		Started:        time.Now().UTC(),
-		AuthService:    auth.NewService(nil, nil),
-		HostStore:      models.NewHostStore(nil),
-		DeviceMappings: models.NewDeviceMappingStore(nil),
-		SecretStore:    models.NewSecretStore(nil),
-		SoftwareStore:  models.NewSoftwareStore(nil),
-		LabelStore:     models.NewLabelStore(nil),
+		Version:          version,
+		Started:          time.Now().UTC(),
+		AuthService:      auth.NewService(nil, nil),
+		HostStore:        models.NewHostStore(nil),
+		DeviceMappings:   models.NewDeviceMappingStore(nil),
+		SecretStore:      models.NewSecretStore(nil),
+		SoftwareStore:    models.NewSoftwareStore(nil),
+		LabelStore:       models.NewLabelStore(nil),
+		QueryStore:       models.NewQueryStore(nil),
+		CheckStore:       models.NewCheckStore(nil),
+		LiveQueryManager: queryinfra.NewLiveQueryManager(hub, time.Minute),
 	})
 }

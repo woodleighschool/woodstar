@@ -168,9 +168,10 @@ func detailQueriesDue(lastUpdated *time.Time, lastHash string) DueDetailQueries 
 	queries := make(map[string]string, len(registry))
 	discovery := make(map[string]string)
 	for name, query := range registry {
-		queries[name] = query.SQL
+		emittedName := detailQueryName(name)
+		queries[emittedName] = query.SQL
 		if query.Discovery != "" {
-			discovery[name] = query.Discovery
+			discovery[emittedName] = query.Discovery
 		}
 	}
 	return DueDetailQueries{Queries: queries, Discovery: discovery}
@@ -185,12 +186,16 @@ func hashDetailQueries(registry map[string]DetailQuery) string {
 	names := make([]string, 0, len(registry))
 	for name, query := range registry {
 		if !query.Optional {
-			names = append(names, name+"\x00"+query.SQL)
+			names = append(names, detailQueryName(name)+"\x00"+query.SQL)
 		}
 	}
 	sort.Strings(names)
 	sum := sha256.Sum256([]byte(strings.Join(names, "\x00")))
 	return hex.EncodeToString(sum[:])
+}
+
+func detailQueryName(suffix string) string {
+	return queryName(kindDetail, suffix)
 }
 
 func discoveryTable(name string) string {

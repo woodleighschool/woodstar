@@ -19,9 +19,10 @@ export function useDebouncedSearchParam<TKey extends string>(
   const debounceMs = options.debounceMs ?? 200;
   const resetKeys = options.resetKeys ?? ["page"];
 
-  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  const search: Record<string, unknown> = useSearch({ strict: false });
   const navigate = useNavigate();
-  const urlValue = typeof search[key] === "string" ? (search[key] as string) : "";
+  const raw = search[key];
+  const urlValue = typeof raw === "string" ? raw : "";
 
   const [draft, setDraft] = useState(urlValue);
   const [prevUrlValue, setPrevUrlValue] = useState(urlValue);

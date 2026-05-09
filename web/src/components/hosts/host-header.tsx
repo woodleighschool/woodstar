@@ -1,5 +1,6 @@
 import { HostImage } from "@/components/hosts/host-image";
-import { HostStatusPill, statusFromHost } from "@/components/hosts/host-status-pill";
+import { statusFromHost } from "@/components/hosts/host-status";
+import { HostStatusPill } from "@/components/hosts/host-status-pill";
 import type { Host } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 

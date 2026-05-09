@@ -23,6 +23,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/transport"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
@@ -85,7 +86,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	sessionManager, sessionStore := newSessionManager(db, cfg)
 	defer sessionStore.StopCleanup()
 
-	return runServer(ctx, newServer(cfg, db, sessionManager, logger))
+	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
 }
 
 func runServer(ctx context.Context, server *transport.Server) error {
@@ -105,6 +106,7 @@ func runServer(ctx context.Context, server *transport.Server) error {
 }
 
 func newServer(
+	ctx context.Context,
 	cfg config.Config,
 	db *database.DB,
 	sessionManager *scs.SessionManager,
@@ -113,28 +115,39 @@ func newServer(
 	stores := newModelStores(db)
 	authService := auth.NewService(stores.users, sessionManager)
 	orbitService := orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings)
+	hub := queryinfra.NewHub()
+	liveQueries := queryinfra.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
 	osqueryService := osquery.NewService(
 		stores.hosts,
 		stores.software,
 		stores.labels,
+		stores.queries,
+		stores.checks,
+		liveQueries,
 		stores.secrets,
 		logger.With("component", "osquery"),
 	)
+	queryinfra.StartCleanup(ctx, stores.queries, queryinfra.CleanupOptions{
+		MaxReportRows: cfg.MaxReportRows,
+	}, logger.With("component", "queries"))
 
 	return transport.NewServer(transport.Dependencies{
-		Config:         cfg,
-		DB:             db,
-		Version:        buildinfo.Version,
-		Logger:         logger,
-		AuthService:    authService,
-		SessionManager: sessionManager,
-		HostStore:      stores.hosts,
-		DeviceMappings: stores.deviceMappings,
-		SecretStore:    stores.secrets,
-		SoftwareStore:  stores.software,
-		LabelStore:     stores.labels,
-		OrbitService:   orbitService,
-		OsqueryService: osqueryService,
+		Config:           cfg,
+		DB:               db,
+		Version:          buildinfo.Version,
+		Logger:           logger,
+		AuthService:      authService,
+		SessionManager:   sessionManager,
+		HostStore:        stores.hosts,
+		DeviceMappings:   stores.deviceMappings,
+		SecretStore:      stores.secrets,
+		SoftwareStore:    stores.software,
+		LabelStore:       stores.labels,
+		QueryStore:       stores.queries,
+		CheckStore:       stores.checks,
+		LiveQueryManager: liveQueries,
+		OrbitService:     orbitService,
+		OsqueryService:   osqueryService,
 		WebHandler: web.NewHandler(web.HandlerOptions{
 			FS:        webfs.DistDirFS,
 			Version:   buildinfo.Version,
@@ -151,6 +164,8 @@ type modelStores struct {
 	secrets        *models.SecretStore
 	software       *models.SoftwareStore
 	labels         *models.LabelStore
+	queries        *models.QueryStore
+	checks         *models.CheckStore
 }
 
 func newModelStores(db *database.DB) modelStores {
@@ -161,6 +176,8 @@ func newModelStores(db *database.DB) modelStores {
 		secrets:        models.NewSecretStore(db),
 		software:       models.NewSoftwareStore(db),
 		labels:         models.NewLabelStore(db),
+		queries:        models.NewQueryStore(db),
+		checks:         models.NewCheckStore(db),
 	}
 }
 

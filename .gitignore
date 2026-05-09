@@ -9,6 +9,7 @@
 /bin/
 /vendor/
 /.gocache/
+/woodstar
 go.work
 go.work.sum
 

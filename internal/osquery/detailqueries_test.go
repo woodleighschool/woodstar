@@ -49,13 +49,13 @@ func TestDetailQueriesDue(t *testing.T) {
 	if got := detailQueriesDue(nil, ""); len(got.Queries) != 17 {
 		t.Fatalf("nil timestamp returned %d queries, want 17", len(got.Queries))
 	}
-	if got := detailQueriesDue(nil, ""); got.Discovery["orbit_info"] == "" ||
-		got.Discovery["software_vscode_extensions"] == "" ||
-		got.Discovery["software_jetbrains_plugins"] == "" ||
-		got.Discovery["software_go_binaries"] == "" ||
-		got.Discovery["software_python_packages"] == "" ||
-		got.Discovery["software_macos_codesign"] == "" ||
-		got.Discovery["software_macos_executable_sha256"] == "" {
+	if got := detailQueriesDue(nil, ""); got.Discovery[detailQueryName("orbit_info")] == "" ||
+		got.Discovery[detailQueryName("software_vscode_extensions")] == "" ||
+		got.Discovery[detailQueryName("software_jetbrains_plugins")] == "" ||
+		got.Discovery[detailQueryName("software_go_binaries")] == "" ||
+		got.Discovery[detailQueryName("software_python_packages")] == "" ||
+		got.Discovery[detailQueryName("software_macos_codesign")] == "" ||
+		got.Discovery[detailQueryName("software_macos_executable_sha256")] == "" {
 		t.Fatalf("missing optional detail query discovery: %#v", got.Discovery)
 	}
 }

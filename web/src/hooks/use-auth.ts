@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type Session = Schemas["SessionBody"];

@@ -1,7 +1,9 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { nonEmpty } from "@/lib/utils";
 
 export type SoftwareTitle = Schemas["SoftwareTitleBody"];
 export type SoftwareListResult = Schemas["SoftwareListBody"];
@@ -18,17 +20,13 @@ export interface SoftwareListParams {
 }
 
 export function useSoftware(params: SoftwareListParams = {}) {
-  const sourceParam = params.source && params.source.length > 0 ? params.source : undefined;
-  const qParam = params.q?.trim() || undefined;
-  const pageParam = Math.max(1, params.page ?? 1);
-  const perPageParam = params.per_page ?? 50;
   const queryParams = {
-    q: qParam,
-    source: sourceParam,
-    page: pageParam,
-    per_page: perPageParam,
-    order_key: params.order_key || undefined,
-    order_direction: params.order_direction || undefined,
+    q: nonEmpty(params.q),
+    source: params.source && params.source.length > 0 ? params.source : undefined,
+    page: Math.max(1, params.page ?? 1),
+    per_page: params.per_page ?? 50,
+    order_key: nonEmpty(params.order_key),
+    order_direction: nonEmpty(params.order_direction),
   };
 
   return useQuery<SoftwareListResult, ApiError>({

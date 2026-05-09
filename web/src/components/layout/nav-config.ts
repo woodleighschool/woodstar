@@ -1,4 +1,13 @@
-import { Package, ServerCog, Settings as SettingsIcon, Tag, Users as UsersIcon, type LucideIcon } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileBarChart2,
+  Package,
+  ServerCog,
+  Settings as SettingsIcon,
+  Tag,
+  Users as UsersIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -19,6 +28,8 @@ export const navSections: NavSection[] = [
       { label: "Hosts", to: "/hosts", icon: ServerCog },
       { label: "Software", to: "/software", icon: Package },
       { label: "Labels", to: "/labels", icon: Tag },
+      { label: "Reports", to: "/reports", icon: FileBarChart2 },
+      { label: "Checks", to: "/checks", icon: ClipboardCheck },
     ],
   },
   {

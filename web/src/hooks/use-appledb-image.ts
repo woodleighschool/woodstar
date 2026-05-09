@@ -29,7 +29,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
       const r = await fetch(DEVICE_URL(hardwareModel!), { signal });
       if (r.status === 404) return null;
       if (!r.ok) throw new Error(`appledb device ${r.status}`);
-      return r.json();
+      return (await r.json()) as DeviceFile;
     },
     enabled: Boolean(hardwareModel),
     staleTime: DAY_MS,
@@ -42,7 +42,7 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
     queryFn: async ({ signal }) => {
       const r = await fetch(MANIFEST_URL, { signal });
       if (!r.ok) throw new Error(`appledb manifest ${r.status}`);
-      return r.json();
+      return (await r.json()) as ManifestEntry[];
     },
     staleTime: DAY_MS,
     gcTime: 7 * DAY_MS,
@@ -50,9 +50,9 @@ export function useAppleDbImage(hardwareModel: string | null | undefined): strin
   });
 
   if (!hardwareModel || !device || !manifest) return null;
-  const imageKey = device.imageKey || device.key || hardwareModel;
+  const imageKey = device.imageKey ?? device.key ?? hardwareModel;
   const entry = manifest.find((e) => e.key === imageKey);
-  const first = entry?.index?.[0];
+  const first = entry?.index[0];
   if (!entry || !first) return null;
   return `${IMAGE_BASE}/${encodeURIComponent(entry.key)}/${encodeURIComponent(first.id)}.png`;
 }

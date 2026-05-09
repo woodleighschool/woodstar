@@ -1,6 +1,9 @@
 package models
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	defaultPerPage = 50
@@ -9,6 +12,7 @@ const (
 	orderDesc      = "desc"
 	orderSQLAsc    = "ASC"
 	orderSQLDesc   = "DESC"
+	orderUpdatedAt = "updated_at"
 )
 
 // ListParams is the common query shape for paginated list endpoints.
@@ -38,6 +42,26 @@ func CleanListParams(params ListParams) ListParams {
 		params.OrderDirection = orderAsc
 	}
 	return params
+}
+
+func nameSearchAndPlatformWhere(q string, platform string) (string, []any) {
+	where := make([]string, 0)
+	args := make([]any, 0)
+	if q != "" {
+		args = append(args, "%"+strings.ToLower(q)+"%")
+		where = append(
+			where,
+			fmt.Sprintf("(lower(name) LIKE $%d OR lower(description) LIKE $%d)", len(args), len(args)),
+		)
+	}
+	if platform != "" {
+		args = append(args, platform)
+		where = append(where, fmt.Sprintf("(platform IS NULL OR platform = $%d)", len(args)))
+	}
+	if len(where) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(where, " AND "), args
 }
 
 func SplitListValues(values []string) []string {

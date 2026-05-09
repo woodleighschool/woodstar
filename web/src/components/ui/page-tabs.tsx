@@ -3,14 +3,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Page-level tab nav. Pill-shaped, Fleet-inspired:
- * - inactive: muted text, transparent background, hover surface
- * - active: bold, slightly elevated muted background
- *
- * Use for primary detail-page navigation (e.g. host detail Details/Software).
- * For panel-internal sub-navigation, use shadcn ui/tabs with variant="line".
- */
 function PageTabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return <TabsPrimitive.Root data-slot="page-tabs" className={cn("flex flex-col gap-4", className)} {...props} />;
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -12,7 +11,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
-const usersTag = "Users"
+const (
+	usersTag     = "Users"
+	userResource = "user"
+	userIDPath   = "/api/users/{id}"
+)
 
 type userListOutput struct {
 	Body []userBody
@@ -40,9 +43,9 @@ type userPutBody struct {
 	ID        string          `json:"id,omitempty"`
 	Email     string          `json:"email,omitempty"      format:"email"`
 	Name      string          `json:"name"`
-	Role      models.UserRole `json:"role"                 enum:"admin,viewer"`
+	Role      models.UserRole `json:"role"`
 	CreatedAt string          `json:"created_at,omitempty"`
-	Password  *string         `json:"password,omitempty"   minLength:"12"`
+	Password  *string         `json:"password,omitempty"`
 }
 
 type userPutInput struct {
@@ -122,7 +125,7 @@ func registerGetUser(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-user",
 		Method:      http.MethodGet,
-		Path:        "/api/users/{id}",
+		Path:        userIDPath,
 		Tags:        []string{usersTag},
 		Summary:     "Get a Woodstar user",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
@@ -146,7 +149,7 @@ func registerPutUser(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-user",
 		Method:      http.MethodPut,
-		Path:        "/api/users/{id}",
+		Path:        userIDPath,
 		Tags:        []string{usersTag},
 		Summary:     "Replace a Woodstar user",
 		Errors: []int{
@@ -181,7 +184,7 @@ func registerDeleteUser(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-user",
 		Method:      http.MethodDelete,
-		Path:        "/api/users/{id}",
+		Path:        userIDPath,
 		Tags:        []string{usersTag},
 		Summary:     "Delete a Woodstar user",
 		Errors: []int{
@@ -207,17 +210,13 @@ func registerDeleteUser(api huma.API, authService *auth.Service) {
 }
 
 func parseUserID(id string) (int64, error) {
-	parsed, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || parsed <= 0 {
-		return 0, huma.Error404NotFound("user not found")
-	}
-	return parsed, nil
+	return parseResourceID(id, userResource)
 }
 
+// userMutationError extends resourceMutationError with auth-specific cases
+// (last-admin, self-edit, weak-password) that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
-	case errors.Is(err, models.ErrNotFound):
-		return huma.Error404NotFound("user not found")
 	case errors.Is(err, models.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
 	case errors.Is(err, auth.ErrCannotChangeOwnRole),
@@ -227,6 +226,6 @@ func userMutationError(err error) error {
 	case errors.Is(err, auth.ErrWeakPassword):
 		return huma.Error400BadRequest(auth.ErrWeakPassword.Error())
 	default:
-		return err
+		return resourceMutationError(userResource, err)
 	}
 }

@@ -35,7 +35,7 @@ export function useTablePaginationParams(defaults?: { perPage?: number }): {
   state: TablePaginationState;
   setters: TablePaginationSetters;
 } {
-  const search = useSearch({ strict: false }) as PaginationSearch;
+  const search = useSearch({ strict: false });
   const navigate = useNavigate();
   const defaultPerPage = defaults?.perPage ?? DEFAULT_PER_PAGE;
 

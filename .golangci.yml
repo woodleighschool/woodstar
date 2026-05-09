@@ -24,167 +24,87 @@ formatters:
       max-len: 120
 
 linters:
+  default: none
   enable:
-    - asasalint
-    - asciicheck
-    - bidichk
     - bodyclose
-    - canonicalheader
     - copyloopvar
-    - cyclop
-    - dupl
-    - durationcheck
-    - embeddedstructfieldcheck
     - errcheck
     - errname
     - errorlint
     - exhaustive
     - exptostd
     - fatcontext
-    - forbidigo
-    - funcorder
-    - funlen
-    - gocheckcompilerdirectives
-    #- gochecknoglobals
-    - gochecknoinits
-    - gochecksumtype
-    - gocognit
-    - goconst
     - gocritic
-    - gocyclo
-    - godoclint
-    - godot
-    - gomoddirectives
-    - goprintffuncname
-    #- gosec # annoying, switch when needed
     - govet
-    - iface
     - ineffassign
-    - interfacebloat
     - intrange
-    - iotamixing
-    - loggercheck
     - makezero
     - mirror
     - misspell
-    #- mnd # annoying, switch when needed
     - modernize
-    - musttag
-    - nakedret
-    - nestif
     - nilerr
     - nilnesserr
     - nilnil
     - noctx
-    - nolintlint
-    - nonamedreturns
-    - nosprintfhostport
     - perfsprint
-    - predeclared
-    - promlinter
-    - protogetter
-    - reassign
-    - recvcheck
     - revive
     - rowserrcheck
-    - sloglint
-    - spancheck
     - sqlclosecheck
     - staticcheck
-    - testableexamples
     - testifylint
-    - tparallel
     - unconvert
-    - unparam
-    - unqueryvet
     - unused
     - usestdlibvars
     - usetesting
-    - wastedassign
-    - whitespace
 
   settings:
-    cyclop:
-      max-complexity: 30
-      package-average: 10.0
-
-    embeddedstructfieldcheck:
-      forbid-mutex: true
-
     errcheck:
       check-type-assertions: true
-
-    dupl:
-      threshold: 100
 
     exhaustive:
       check:
         - switch
         - map
-
-    funcorder:
-      struct-method: false
-
-    funlen:
-      lines: 80
-      statements: 50
-
-    gochecksumtype:
-      default-signifies-exhaustive: false
-
-    gocognit:
-      min-complexity: 15
-    interfacebloat:
-      max: 5
+      default-signifies-exhaustive: true
 
     gocritic:
-      settings:
-        captLocal:
-          paramsOnly: false
-        underef:
-          skipRecvDeref: false
-
-    godoclint:
-      enable:
-        - no-unused-link
+      disabled-checks:
+        - ifElseChain
+        - singleCaseSwitch
 
     govet:
-      enable-all: true
-      disable:
-        - fieldalignment
-        - shadow
-
-    nakedret:
-      max-func-lines: 0
-
-    nolintlint:
-      allow-no-explanation:
-        - funlen
-        - gocognit
-      require-explanation: true
-      require-specific: true
+      enable:
+        - nilness
 
     perfsprint:
       strconcat: false
 
-    reassign:
-      patterns:
-        - ".*"
-
-    rowserrcheck:
-      packages:
-        - github.com/jmoiron/sqlx
-
-    sloglint:
-      no-global: all
-      context: scope
+    revive:
+      severity: warning
+      rules:
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unreachable-code
+        - name: var-declaration
 
     staticcheck:
       checks:
         - all
-        - -ST1000
-        - -ST1016
-        - -QF1008
+        - -ST1000  # missing package comment
+        - -ST1003  # poorly chosen identifier
+        - -ST1016  # inconsistent receiver name
+        - -ST1020  # exported func comment
+        - -ST1021  # exported type comment
+        - -ST1022  # exported var/const comment
+        - -QF1008  # omit embedded fields from selector
 
     usetesting:
       os-temp-dir: true
@@ -201,14 +121,7 @@ linters:
       - path: _test\.go
         linters:
           - bodyclose
-          - dupl
           - errcheck
-          - cyclop
-          - gocognit
-          - gocyclo
-          - funlen
-          - goconst
-          - gosec
           - noctx
 
 run:

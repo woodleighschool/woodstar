@@ -1,33 +1,59 @@
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-import tailwindcss from "@tailwindcss/vite";
-import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({
-      target: "react",
-      autoCodeSplitting: true,
-      routesDirectory: "./src/routes",
-      generatedRouteTree: "./src/routeTree.gen.ts",
+    react({
+      jsxRuntime: "automatic",
     }),
-    react(),
     tailwindcss(),
   ],
   resolve: {
     alias: {
-      "@": path.resolve(dirname, "./src"),
+      "@": path.resolve(__dirname, "./src"),
+      "@schema": path.resolve(__dirname, "../schema"),
     },
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-vendor",
+              test: /node_modules[\\/](react|react-dom|react-hook-form)([\\/]|$)/,
+              priority: 30,
+            },
+            {
+              name: "tanstack",
+              test: /node_modules[\\/]@tanstack[\\/]/,
+              priority: 20,
+            },
+            {
+              name: "ui-vendor",
+              test: /node_modules[\\/](@radix-ui|lucide-react)([\\/]|$)/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 750,
+    sourcemap: false,
   },
   server: {
     port: 5173,
     proxy: {
       "/api": "http://localhost:8080",
+    },
+    fs: {
+      // Allow Vite to serve the vendored osquery schema from the repo root.
+      allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
     },
   },
 });

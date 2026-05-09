@@ -15,7 +15,7 @@ LDFLAGS = -ldflags "-X github.com/woodleighschool/woodstar/internal/buildinfo.Ve
 
 OPENAPI_FILE = $(WEB_DIR)/openapi.yaml
 
-.PHONY: all build backend frontend dev dev-backend dev-frontend test test-openapi openapi openapi-types lint fmt precommit clean deps
+.PHONY: all build backend frontend dev dev-backend dev-frontend test test-openapi openapi openapi-types lint fmt precommit clean deps schema-sync
 
 all: build
 
@@ -70,3 +70,6 @@ clean:
 deps:
 	go mod download
 	cd $(WEB_DIR) && pnpm install
+
+schema-sync:
+	./schema/sync.sh

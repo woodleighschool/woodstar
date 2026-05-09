@@ -44,7 +44,7 @@ export function UsersPage() {
       {editing ? (
         <UserFormDialog
           mode="edit"
-          open={editing !== null}
+          open
           onOpenChange={(open) => {
             if (!open) setEditing(null);
           }}
@@ -77,7 +77,7 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
       <Alert variant="destructive">
         <AlertTitle>Failed to load users</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+        <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
           Retry
         </Button>
       </Alert>

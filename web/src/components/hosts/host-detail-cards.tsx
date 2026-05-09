@@ -54,7 +54,7 @@ export function HostInfoCard({ host }: { host: Host }) {
 
   tiles.push({
     label: "MAC address",
-    value: host.primary_mac ? <span className="font-mono text-xs">{host.primary_mac}</span> : "-",
+    value: host.primary_mac || "-",
   });
 
   if (host.physical_memory > 0) {
@@ -63,13 +63,13 @@ export function HostInfoCard({ host }: { host: Host }) {
 
   tiles.push({ label: "Operating system", value: host.os_version || "-" });
 
-  tiles.push({ label: "Private IP address", value: host.primary_ip || "-" });
+  tiles.push({ label: "Private IP address", value: host.primary_ip ?? "-" });
 
   if (host.cpu_brand || host.cpu_type) {
     tiles.push({ label: "Processor type", value: host.cpu_brand || host.cpu_type });
   }
 
-  tiles.push({ label: "Public IP address", value: host.public_ip || "-" });
+  tiles.push({ label: "Public IP address", value: host.public_ip ?? "-" });
 
   tiles.push({ label: "Serial number", value: host.hardware_serial || "-" });
 
@@ -142,10 +142,10 @@ export function HostUsersCard({ host }: { host: Host }) {
               <TableBody>
                 {users.map((u) => (
                   <TableRow key={u.uid || u.username}>
-                    <TableCell className="font-mono text-xs">{u.username}</TableCell>
+                    <TableCell>{u.username}</TableCell>
                     <TableCell className="text-muted-foreground">{u.type || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">{u.directory || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">{u.shell || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.directory || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.shell || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

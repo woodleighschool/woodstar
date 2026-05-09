@@ -1,0 +1,368 @@
+//nolint:dupl // Huma route registration is intentionally explicit per resource.
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/woodleighschool/woodstar/internal/models"
+)
+
+const (
+	checksTag     = "Checks"
+	checkResource = "check"
+	checkIDPath   = "/api/checks/{id}"
+)
+
+type checkBody struct {
+	ID                string         `json:"id"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	Resolution        string         `json:"resolution"`
+	Query             string         `json:"query"`
+	Platform          *string        `json:"platform,omitempty"`
+	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
+	LabelScope        labelScopeBody `json:"label_scope,omitzero"`
+	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
+}
+
+// checkMutationBody is the POST body shape (mutable fields only).
+type checkMutationBody struct {
+	Name              string         `json:"name"`
+	Description       string         `json:"description,omitempty"`
+	Resolution        string         `json:"resolution,omitempty"`
+	Query             string         `json:"query"`
+	Platform          *string        `json:"platform,omitempty"`
+	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
+	LabelScope        labelScopeBody `json:"label_scope"`
+}
+
+// checkPutBody mirrors checkBody so the autopatch round-trip accepts the
+// response shape verbatim. Read-only fields are accepted but ignored.
+type checkPutBody struct {
+	ID                string         `json:"id,omitempty"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description,omitempty"`
+	Resolution        string         `json:"resolution,omitempty"`
+	Query             string         `json:"query"`
+	Platform          *string        `json:"platform,omitempty"`
+	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
+	LabelScope        labelScopeBody `json:"label_scope"`
+	CreatedByUserID   *string        `json:"created_by_user_id,omitempty"`
+	CreatedAt         *time.Time     `json:"created_at,omitempty"`
+	UpdatedAt         *time.Time     `json:"updated_at,omitempty"`
+}
+
+type checkListInput struct {
+	Q              string `query:"q,omitempty"`
+	Platform       string `query:"platform,omitempty"`
+	Page           int    `query:"page,omitempty"`
+	PerPage        int    `query:"per_page,omitempty"`
+	OrderKey       string `query:"order_key,omitempty"`
+	OrderDirection string `query:"order_direction,omitempty"`
+}
+
+type checkGetInput struct {
+	ID string `path:"id"`
+}
+
+type checkCreateInput struct {
+	Body checkMutationBody
+}
+
+type checkPutInput struct {
+	ID   string `path:"id"`
+	Body checkPutBody
+}
+
+type checkDeleteInput struct {
+	ID string `path:"id"`
+}
+
+type checkListOutput struct {
+	Body struct {
+		Items []checkBody `json:"items"`
+		Count int         `json:"count"`
+	}
+}
+
+type checkOutput struct {
+	Body checkBody
+}
+
+type checkHostsOutput struct {
+	Body struct {
+		Items []checkHostBody `json:"items"`
+	}
+}
+
+type checkHostBody struct {
+	CheckID         string     `json:"check_id"`
+	CheckName       string     `json:"check_name"`
+	HostID          string     `json:"host_id"`
+	HostName        string     `json:"host_name"`
+	Passes          *bool      `json:"passes,omitempty"`
+	FirstFailedAt   *time.Time `json:"first_failed_at,omitempty"`
+	LastEvaluatedAt *time.Time `json:"last_evaluated_at,omitempty"`
+}
+
+// RegisterChecks registers check endpoints.
+func RegisterChecks(api huma.API, store *models.CheckStore, hosts *models.HostStore) {
+	registerListChecks(api, store)
+	registerCreateCheck(api, store)
+	registerGetCheck(api, store)
+	registerUpdateCheck(api, store)
+	registerDeleteCheck(api, store)
+	registerCheckHosts(api, store)
+	registerHostChecks(api, store, hosts)
+}
+
+func registerListChecks(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-checks",
+		Method:      http.MethodGet,
+		Path:        "/api/checks",
+		Tags:        []string{checksTag},
+		Summary:     "List checks",
+		Errors:      []int{http.StatusUnauthorized},
+	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
+		items, count, err := store.List(ctx, input.params())
+		if err != nil {
+			return nil, err
+		}
+		out := &checkListOutput{}
+		out.Body.Items = make([]checkBody, 0, len(items))
+		out.Body.Count = count
+		for i := range items {
+			out.Body.Items = append(out.Body.Items, checkResponse(&items[i]))
+		}
+		return out, nil
+	})
+}
+
+func registerCreateCheck(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-check",
+		Method:        http.MethodPost,
+		Path:          "/api/checks",
+		Tags:          []string{checksTag},
+		Summary:       "Create a check",
+		DefaultStatus: http.StatusCreated,
+		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
+	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
+		params, err := input.Body.createParams(currentUserID(ctx))
+		if err != nil {
+			return nil, err
+		}
+		check, err := store.Create(ctx, params)
+		if err != nil {
+			return nil, resourceMutationError(checkResource, err)
+		}
+		return &checkOutput{Body: checkResponse(check)}, nil
+	})
+}
+
+func registerGetCheck(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-check",
+		Method:      http.MethodGet,
+		Path:        checkIDPath,
+		Tags:        []string{checksTag},
+		Summary:     "Get a check",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
+		id, err := parseResourceID(input.ID, checkResource)
+		if err != nil {
+			return nil, err
+		}
+		check, err := store.GetByID(ctx, id)
+		if err != nil {
+			return nil, resourceMutationError(checkResource, err)
+		}
+		return &checkOutput{Body: checkResponse(check)}, nil
+	})
+}
+
+func registerUpdateCheck(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "put-check",
+		Method:      http.MethodPut,
+		Path:        checkIDPath,
+		Tags:        []string{checksTag},
+		Summary:     "Replace a check",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
+		id, err := parseResourceID(input.ID, checkResource)
+		if err != nil {
+			return nil, err
+		}
+		params, err := input.Body.updateParams()
+		if err != nil {
+			return nil, err
+		}
+		check, err := store.Update(ctx, id, params)
+		if err != nil {
+			return nil, resourceMutationError(checkResource, err)
+		}
+		return &checkOutput{Body: checkResponse(check)}, nil
+	})
+}
+
+func registerDeleteCheck(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-check",
+		Method:      http.MethodDelete,
+		Path:        checkIDPath,
+		Tags:        []string{checksTag},
+		Summary:     "Delete a check",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
+		id, err := parseResourceID(input.ID, checkResource)
+		if err != nil {
+			return nil, err
+		}
+		if err := store.Delete(ctx, id); err != nil {
+			return nil, resourceMutationError(checkResource, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerCheckHosts(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-check-hosts",
+		Method:      http.MethodGet,
+		Path:        "/api/checks/{id}/hosts",
+		Tags:        []string{checksTag},
+		Summary:     "List check host status",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *checkGetInput) (*checkHostsOutput, error) {
+		id, err := parseResourceID(input.ID, checkResource)
+		if err != nil {
+			return nil, err
+		}
+		rows, err := store.HostStatuses(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		out := &checkHostsOutput{}
+		out.Body.Items = checkHostResponses(rows)
+		return out, nil
+	})
+}
+
+func registerHostChecks(api huma.API, store *models.CheckStore, hosts *models.HostStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-host-checks",
+		Method:      http.MethodGet,
+		Path:        "/api/hosts/{id}/checks",
+		Tags:        []string{checksTag, hostsTag},
+		Summary:     "List checks for a host",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*checkHostsOutput, error) {
+		id, err := parseHostID(input.ID)
+		if err != nil {
+			return nil, err
+		}
+		host, err := hosts.GetByID(ctx, id)
+		if errors.Is(err, models.ErrNotFound) {
+			return nil, huma.Error404NotFound("host not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		rows, err := store.HostChecks(ctx, *host)
+		if err != nil {
+			return nil, err
+		}
+		out := &checkHostsOutput{}
+		out.Body.Items = checkHostResponses(rows)
+		return out, nil
+	})
+}
+
+func (input checkListInput) params() models.CheckListParams {
+	return models.CheckListParams{
+		ListParams: models.CleanListParams(models.ListParams{
+			Q:              input.Q,
+			Page:           input.Page,
+			PerPage:        input.PerPage,
+			OrderKey:       input.OrderKey,
+			OrderDirection: input.OrderDirection,
+		}),
+		Platform: strings.TrimSpace(input.Platform),
+	}
+}
+
+func (body checkMutationBody) createParams(userID *int64) (models.CheckCreate, error) {
+	scope, err := body.LabelScope.model()
+	if err != nil {
+		return models.CheckCreate{}, err
+	}
+	return models.CheckCreate{
+		Name:              body.Name,
+		Description:       body.Description,
+		Resolution:        body.Resolution,
+		Query:             body.Query,
+		Platform:          body.Platform,
+		MinOsqueryVersion: body.MinOsqueryVersion,
+		LabelScope:        scope,
+		CreatedByUserID:   userID,
+	}, nil
+}
+
+func (body checkPutBody) updateParams() (models.CheckUpdate, error) {
+	scope, err := body.LabelScope.model()
+	if err != nil {
+		return models.CheckUpdate{}, err
+	}
+	return models.CheckUpdate{
+		Name:              body.Name,
+		Description:       body.Description,
+		Resolution:        body.Resolution,
+		Query:             body.Query,
+		Platform:          body.Platform,
+		MinOsqueryVersion: body.MinOsqueryVersion,
+		LabelScope:        scope,
+	}, nil
+}
+
+func checkResponse(check *models.Check) checkBody {
+	return checkBody{
+		ID:                strconv.FormatInt(check.ID, 10),
+		Name:              check.Name,
+		Description:       check.Description,
+		Resolution:        check.Resolution,
+		Query:             check.Query,
+		Platform:          check.Platform,
+		MinOsqueryVersion: check.MinOsqueryVersion,
+		LabelScope:        labelScopeResponse(check.LabelScope),
+		CreatedByUserID:   idStringPtr(check.CreatedByUserID),
+		CreatedAt:         check.CreatedAt,
+		UpdatedAt:         check.UpdatedAt,
+	}
+}
+
+func checkHostResponses(rows []models.CheckHostStatus) []checkHostBody {
+	out := make([]checkHostBody, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, checkHostBody{
+			CheckID:         strconv.FormatInt(row.CheckID, 10),
+			CheckName:       row.CheckName,
+			HostID:          strconv.FormatInt(row.HostID, 10),
+			HostName:        row.HostName,
+			Passes:          row.Passes,
+			FirstFailedAt:   row.FirstFailedAt,
+			LastEvaluatedAt: row.LastEvaluatedAt,
+		})
+	}
+	return out
+}

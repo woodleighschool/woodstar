@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type Secret = Schemas["Secret"];
@@ -16,8 +17,8 @@ export function useCreateEnrollSecret() {
   const queryClient = useQueryClient();
   return useMutation<Secret, ApiError>({
     mutationFn: () => unwrap(apiClient.POST("/api/orbit/enroll-secrets")),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollSecrets });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.enrollSecrets });
     },
   });
 }
@@ -32,8 +33,8 @@ export function useDeleteEnrollSecret() {
         }),
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.enrollSecrets });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.enrollSecrets });
     },
   });
 }

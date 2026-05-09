@@ -55,6 +55,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List checks */
+        get: operations["list-checks"];
+        put?: never;
+        /** Create a check */
+        post: operations["create-check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/checks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a check */
+        get: operations["get-check"];
+        /** Replace a check */
+        put: operations["put-check"];
+        post?: never;
+        /** Delete a check */
+        delete: operations["delete-check"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch check
+         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
+         */
+        patch: operations["patch-check"];
+        trace?: never;
+    };
+    "/api/checks/{id}/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List check host status */
+        get: operations["list-check-hosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/healthz": {
         parameters: {
             query?: never;
@@ -98,6 +156,57 @@ export interface paths {
         };
         /** Get an enrolled host */
         get: operations["get-host"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosts/{id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List checks for a host */
+        get: operations["list-host-checks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosts/{id}/queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List reports for a host */
+        get: operations["list-host-queries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosts/{id}/queries/{query_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List report rows for one host */
+        get: operations["list-host-query-results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -164,6 +273,23 @@ export interface paths {
         patch: operations["patch-label"];
         trace?: never;
     };
+    "/api/live-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a live query against online hosts */
+        post: operations["create-live-query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/orbit/enroll-secrets": {
         parameters: {
             query?: never;
@@ -194,6 +320,64 @@ export interface paths {
         post?: never;
         /** Delete Orbit enroll secret */
         delete: operations["delete-orbit-enroll-secret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved queries */
+        get: operations["list-queries"];
+        put?: never;
+        /** Create a saved query */
+        post: operations["create-query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/queries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a saved query */
+        get: operations["get-query"];
+        /** Replace a saved query */
+        put: operations["put-query"];
+        post?: never;
+        /** Delete a saved query */
+        delete: operations["delete-query"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch query
+         * @description Partial update operation supporting both JSON Merge Patch & JSON Patch updates.
+         */
+        patch: operations["patch-query"];
+        trace?: never;
+    };
+    "/api/queries/{id}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List latest report snapshots for a query */
+        get: operations["list-query-results"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -329,6 +513,94 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CheckBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/CheckBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            created_by_user_id?: string;
+            description: string;
+            id: string;
+            label_scope?: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            resolution: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CheckHostBody: {
+            check_id: string;
+            check_name: string;
+            /** Format: date-time */
+            first_failed_at?: string;
+            host_id: string;
+            host_name: string;
+            /** Format: date-time */
+            last_evaluated_at?: string;
+            passes?: boolean;
+        };
+        CheckHostsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/CheckHostsOutputBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["CheckHostBody"][] | null;
+        };
+        CheckListOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/CheckListOutputBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["CheckBody"][] | null;
+        };
+        CheckMutationBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/CheckMutationBody.json
+             */
+            readonly $schema?: string;
+            description?: string;
+            label_scope: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            resolution?: string;
+        };
+        CheckPutBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/CheckPutBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at?: string;
+            created_by_user_id?: string;
+            description?: string;
+            id?: string;
+            label_scope: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            resolution?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
         DeviceMappingBody: {
             email: string;
             source: string;
@@ -484,6 +756,41 @@ export interface components {
             count: number;
             items: components["schemas"]["HostBody"][] | null;
         };
+        HostQueryResultsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/HostQueryResultsOutputBody.json
+             */
+            readonly $schema?: string;
+            host_id: string;
+            host_name: string;
+            items: components["schemas"]["QueryResultBody"][] | null;
+            /** Format: date-time */
+            last_fetched?: string;
+            query_id: string;
+        };
+        HostReportBody: {
+            description: string;
+            first_result?: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            last_fetched?: string;
+            /** Format: int64 */
+            n_host_results: number;
+            name: string;
+            report_id: string;
+        };
+        HostReportsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/HostReportsOutputBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["HostReportBody"][] | null;
+        };
         HostSoftwareBody: {
             app_store_app: unknown;
             display_name: string;
@@ -544,7 +851,7 @@ export interface components {
              */
             readonly $schema?: string;
             /** Format: date-time */
-            created_at: string;
+            created_at?: string;
             description: string;
             /** Format: int64 */
             hosts_count: number;
@@ -555,7 +862,7 @@ export interface components {
             platform?: string;
             query?: string;
             /** Format: date-time */
-            updated_at: string;
+            updated_at?: string;
         };
         LabelListBody: {
             /**
@@ -597,15 +904,47 @@ export interface components {
             /** Format: int64 */
             hosts_count?: number;
             id?: string;
-            /** @enum {string} */
-            kind: "custom" | "builtin";
-            /** @enum {string} */
-            membership_type: "dynamic" | "static" | "identity";
+            kind: string;
+            membership_type: string;
             name: string;
             platform?: string;
             query?: string;
             /** Format: date-time */
             updated_at?: string;
+        };
+        LabelScopeBody: {
+            label_ids?: string[] | null;
+            /** @enum {string} */
+            mode?: "include_any" | "include_all" | "exclude_any";
+        };
+        LiveQueryCreateBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LiveQueryCreateBody.json
+             */
+            readonly $schema?: string;
+            query_id?: string;
+            selected?: components["schemas"]["LiveQuerySelectedBody"];
+            sql: string;
+        };
+        LiveQueryHandleBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/LiveQueryHandleBody.json
+             */
+            readonly $schema?: string;
+            id: string;
+            /** Format: int64 */
+            resolved_host_count: number;
+            sql: string;
+            /** Format: date-time */
+            started_at: string;
+        };
+        LiveQuerySelectedBody: {
+            hosts?: string[] | null;
+            labels?: string[] | null;
         };
         LoginInputBody: {
             /**
@@ -624,6 +963,97 @@ export interface components {
             hash_sha256: string;
             installed_path: string;
             team_identifier: string;
+        };
+        QueryBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/QueryBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            created_by_user_id?: string;
+            description: string;
+            id: string;
+            label_scope?: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            /** Format: int64 */
+            schedule_interval: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        QueryListOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/QueryListOutputBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["QueryBody"][] | null;
+        };
+        QueryMutationBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/QueryMutationBody.json
+             */
+            readonly $schema?: string;
+            description?: string;
+            label_scope: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            /** Format: int64 */
+            schedule_interval?: number;
+        };
+        QueryPutBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/QueryPutBody.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at?: string;
+            created_by_user_id?: string;
+            description?: string;
+            id?: string;
+            label_scope: components["schemas"]["LabelScopeBody"];
+            min_osquery_version?: string;
+            name: string;
+            platform?: string;
+            query: string;
+            /** Format: int64 */
+            schedule_interval?: number;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        QueryResultBody: {
+            columns: {
+                [key: string]: string;
+            };
+            host_id: string;
+            host_name: string;
+            /** Format: date-time */
+            last_fetched?: string;
+            query_id: string;
+            query_name: string;
+        };
+        QueryResultsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example //api/schemas/QueryResultsOutputBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["QueryResultBody"][] | null;
         };
         Secret: {
             /**
@@ -746,8 +1176,7 @@ export interface components {
             id?: string;
             name: string;
             password?: string;
-            /** @enum {string} */
-            role: "admin" | "viewer";
+            role: string;
         };
         VersionOutputBody: {
             /**
@@ -893,6 +1322,503 @@ export interface operations {
             };
         };
     };
+    "list-checks": {
+        parameters: {
+            query?: {
+                q?: string;
+                platform?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckListOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckMutationBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "put-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckPutBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "patch-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
+                "application/merge-patch+json": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/CheckPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    created_by_user_id?: string;
+                    description?: string;
+                    id?: string;
+                    label_scope?: unknown;
+                    min_osquery_version?: string;
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    resolution?: string;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
+                "application/merge-patch+shorthand": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/CheckPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    created_by_user_id?: string;
+                    description?: string;
+                    id?: string;
+                    label_scope?: unknown;
+                    min_osquery_version?: string;
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    resolution?: string;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-check-hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckHostsOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     health: {
         parameters: {
             query?: never;
@@ -998,6 +1924,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HostBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-host-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckHostsOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-host-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostReportsOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-host-query-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                query_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostQueryResultsOutputBody"];
                 };
             };
             /** @description Unauthorized */
@@ -1447,10 +2548,8 @@ export interface operations {
                     /** Format: int64 */
                     hosts_count?: number;
                     id?: string;
-                    /** @enum {string} */
-                    kind?: "custom" | "builtin";
-                    /** @enum {string} */
-                    membership_type?: "dynamic" | "static" | "identity";
+                    kind?: string;
+                    membership_type?: string;
                     name?: string;
                     platform?: string;
                     query?: string;
@@ -1470,10 +2569,8 @@ export interface operations {
                     /** Format: int64 */
                     hosts_count?: number;
                     id?: string;
-                    /** @enum {string} */
-                    kind?: "custom" | "builtin";
-                    /** @enum {string} */
-                    membership_type?: "dynamic" | "static" | "identity";
+                    kind?: string;
+                    membership_type?: string;
                     name?: string;
                     platform?: string;
                     query?: string;
@@ -1521,6 +2618,66 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-live-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveQueryCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveQueryHandleBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1671,6 +2828,505 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-queries": {
+        parameters: {
+            query?: {
+                q?: string;
+                platform?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryListOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueryMutationBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "put-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QueryPutBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "patch-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json-patch+json": components["schemas"]["JsonPatchOp"][] | null;
+                "application/merge-patch+json": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/QueryPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    created_by_user_id?: string;
+                    description?: string;
+                    id?: string;
+                    label_scope?: unknown;
+                    min_osquery_version?: string;
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    /** Format: int64 */
+                    schedule_interval?: number;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
+                "application/merge-patch+shorthand": {
+                    /**
+                     * Format: uri
+                     * @description A URL to the JSON Schema for this object.
+                     * @example //api/schemas/QueryPutBody.json
+                     */
+                    readonly $schema?: string;
+                    /** Format: date-time */
+                    created_at?: string;
+                    created_by_user_id?: string;
+                    description?: string;
+                    id?: string;
+                    label_scope?: unknown;
+                    min_osquery_version?: string;
+                    name?: string;
+                    platform?: string;
+                    query?: string;
+                    /** Format: int64 */
+                    schedule_interval?: number;
+                    /** Format: date-time */
+                    updated_at?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-query-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueryResultsOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2297,8 +3953,7 @@ export interface operations {
                     id?: string;
                     name?: string;
                     password?: string;
-                    /** @enum {string} */
-                    role?: "admin" | "viewer";
+                    role?: string;
                 };
                 "application/merge-patch+shorthand": {
                     /**
@@ -2313,8 +3968,7 @@ export interface operations {
                     id?: string;
                     name?: string;
                     password?: string;
-                    /** @enum {string} */
-                    role?: "admin" | "viewer";
+                    role?: string;
                 };
             };
         };

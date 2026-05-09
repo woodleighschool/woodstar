@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
-// RequireAuth attaches the signed-in user to protected admin operations.
+// RequireAuth attaches the signed-in user to protected admin Huma operations.
 func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		user, err := authService.CurrentUser(ctx.Context())
@@ -24,5 +24,24 @@ func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, fun
 		}
 
 		next(huma.WithContext(ctx, adminctx.WithUser(ctx.Context(), user)))
+	}
+}
+
+// RequireAuthChi is the Chi-compatible counterpart to RequireAuth, used for
+// non-Huma routes (the SSE stream handler) that share the same session.
+func RequireAuthChi(authService *auth.Service) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := authService.CurrentUser(r.Context())
+			if err != nil {
+				if errors.Is(err, auth.ErrNotAuthenticated) {
+					http.Error(w, "not authenticated", http.StatusUnauthorized)
+					return
+				}
+				http.Error(w, "request failed", http.StatusInternalServerError)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(adminctx.WithUser(r.Context(), user)))
+		})
 	}
 }

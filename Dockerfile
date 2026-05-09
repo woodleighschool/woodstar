@@ -5,6 +5,7 @@ RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
+COPY schema/ ../schema/
 RUN pnpm build
 
 FROM golang:1.26 AS builder

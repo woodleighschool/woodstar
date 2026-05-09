@@ -2,13 +2,13 @@ package osquery
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/models"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
 var (
@@ -21,15 +21,11 @@ type Service struct {
 	hosts    *models.HostStore
 	software *models.SoftwareStore
 	labels   labelStore
+	queries  *models.QueryStore
+	checks   *models.CheckStore
+	live     *queryinfra.LiveQueryManager
 	secrets  *models.SecretStore
 	logger   *slog.Logger
-}
-
-type labelStore interface {
-	ListApplicableDynamic(context.Context, string) ([]models.Label, error)
-	ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error)
-	SetMembership(context.Context, int64, int64, bool) error
-	MarkHostLabelsFresh(context.Context, int64) error
 }
 
 // NewService returns an osquery service.
@@ -37,10 +33,22 @@ func NewService(
 	hosts *models.HostStore,
 	software *models.SoftwareStore,
 	labels *models.LabelStore,
+	queries *models.QueryStore,
+	checks *models.CheckStore,
+	live *queryinfra.LiveQueryManager,
 	secrets *models.SecretStore,
 	logger *slog.Logger,
 ) *Service {
-	return &Service{hosts: hosts, software: software, labels: labels, secrets: secrets, logger: logger}
+	return &Service{
+		hosts:    hosts,
+		software: software,
+		labels:   labels,
+		queries:  queries,
+		checks:   checks,
+		live:     live,
+		secrets:  secrets,
+		logger:   logger,
+	}
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
@@ -85,7 +93,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 	return nodeKey, nil
 }
 
-// Config returns the current osquery config.
+// Config returns the current osquery config including the host's report schedule.
 func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
 	if err != nil {
@@ -97,9 +105,13 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return ConfigResponse{}, err
 	}
+	schedule, err := buildScheduleForHost(ctx, s.queries, *host)
+	if err != nil {
+		return ConfigResponse{}, err
+	}
 	return ConfigResponse{
 		NodeInvalid: false,
-		Schedule:    map[string]string{},
+		Schedule:    schedule,
 		Options: map[string]string{
 			"disable_distributed": "false",
 		},
@@ -107,7 +119,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	}, nil
 }
 
-// DistributedRead returns built-in detail queries when the host is stale.
+// DistributedRead returns due detail, label, check, and campaign queries for a host.
 func (s *Service) DistributedRead(
 	ctx context.Context,
 	nodeKey string,
@@ -123,21 +135,19 @@ func (s *Service) DistributedRead(
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return DistributedReadResponse{}, err
 	}
+
 	due := detailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
-	labelCount := 0
-	if s.labels != nil {
-		labels, err := s.labels.ListApplicableDynamic(ctx, host.Platform)
-		if err != nil {
-			return DistributedReadResponse{}, err
-		}
-		for _, label := range labels {
-			if label.Query == nil {
-				continue
-			}
-			due.Queries[labelQueryName(label.ID)] = *label.Query
-			labelCount++
-		}
+
+	labelCount, err := s.queueLabelQueries(ctx, host, due.Queries)
+	if err != nil {
+		return DistributedReadResponse{}, err
 	}
+	checkCount, err := s.queueCheckQueries(ctx, host, due.Queries)
+	if err != nil {
+		return DistributedReadResponse{}, err
+	}
+	liveCount := s.queueLiveQueries(host, due.Queries)
+
 	s.logger.DebugContext(
 		ctx,
 		"osquery distributed queries prepared", "operation", "distributed_read",
@@ -145,6 +155,8 @@ func (s *Service) DistributedRead(
 		"query_count", len(due.Queries),
 		"discovery_count", len(due.Discovery),
 		"label_count", labelCount,
+		"check_count", checkCount,
+		"live_count", liveCount,
 	)
 	return DistributedReadResponse{
 		NodeInvalid: false,
@@ -154,7 +166,34 @@ func (s *Service) DistributedRead(
 	}, nil
 }
 
-// DistributedWrite ingests successful built-in detail query results.
+func (s *Service) queueCheckQueries(ctx context.Context, host *models.Host, queries map[string]string) (int, error) {
+	if s.checks == nil {
+		return 0, nil
+	}
+	checks, err := s.checks.ApplicableForHost(ctx, *host)
+	if err != nil {
+		return 0, err
+	}
+	for _, check := range checks {
+		queries[queryNameID(kindCheck, check.ID)] = check.Query
+	}
+	return len(checks), nil
+}
+
+// queueLiveQueries injects ephemeral live queries pending for host. The
+// in-memory manager owns lifecycle; results route back through dispatch.
+func (s *Service) queueLiveQueries(host *models.Host, queries map[string]string) int {
+	if s.live == nil {
+		return 0
+	}
+	work := s.live.PendingForHost(host.ID)
+	for _, item := range work {
+		queries[queryNameID(kindLive, item.QueryID)] = item.SQL
+	}
+	return len(work)
+}
+
+// DistributedWrite ingests results for every kind of distributed query.
 func (s *Service) DistributedWrite(
 	ctx context.Context,
 	req DistributedWriteRequest,
@@ -170,162 +209,14 @@ func (s *Service) DistributedWrite(
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return DistributedWriteResponse{}, err
 	}
-
-	registry := DetailQueries()
-	allDetailSucceeded, err := s.ingestDetailResults(ctx, host.ID, req, registry)
-	if err != nil {
+	if err := s.dispatchWriteResults(ctx, host, req); err != nil {
 		return DistributedWriteResponse{}, err
-	}
-	if rows, ok := req.Queries[querySoftwareMacOS]; ok {
-		if !statusOK(req.Statuses[querySoftwareMacOS]) {
-			allDetailSucceeded = false
-			s.logger.WarnContext(
-				ctx,
-				"osquery detail query failed", "operation", "distributed_write",
-				"host_id", host.ID,
-				"query", querySoftwareMacOS,
-				"optional", false,
-				"message", req.Messages[querySoftwareMacOS],
-			)
-		} else if err := ingestSoftwareMacOSWithEnrichment(ctx, s, host.ID, rows, req.Queries); err != nil {
-			return DistributedWriteResponse{}, fmt.Errorf("ingest %s: %w", querySoftwareMacOS, err)
-		}
-	}
-	if err := s.ingestLabelResults(ctx, host, req); err != nil {
-		return DistributedWriteResponse{}, err
-	}
-	if allDetailSucceeded && sawEveryRequiredDetailQuery(req, registry) {
-		if err := s.hosts.MarkDetailFresh(ctx, host.ID, detailQueryHash()); err != nil {
-			return DistributedWriteResponse{}, err
-		}
-		s.logger.DebugContext(
-			ctx,
-			"osquery detail inventory refreshed", "operation", "inventory_refresh",
-			"host_id", host.ID,
-			"query_count", len(req.Queries),
-		)
 	}
 	return DistributedWriteResponse{NodeInvalid: false}, nil
 }
 
-func (s *Service) recordHostPublicIP(ctx context.Context, host *models.Host, publicIP string) error {
-	publicIP = strings.TrimSpace(publicIP)
-	if publicIP == "" {
-		return nil
-	}
-	return s.hosts.ApplyDetail(ctx, host.ID, models.HostDetailUpdate{PublicIP: publicIP})
-}
-
-func (s *Service) ingestDetailResults(
-	ctx context.Context,
-	hostID int64,
-	req DistributedWriteRequest,
-	registry map[string]DetailQuery,
-) (bool, error) {
-	allDetailSucceeded := true
-	for name, rows := range req.Queries {
-		if name == querySoftwareMacOS {
-			continue
-		}
-		query, ok := registry[name]
-		if !ok {
-			continue
-		}
-		if !statusOK(req.Statuses[name]) {
-			if !query.Optional {
-				allDetailSucceeded = false
-			}
-			s.logDetailQueryFailure(ctx, hostID, name, query, req.Messages[name])
-			continue
-		}
-		if err := query.Ingest(ctx, s, hostID, rows); err != nil {
-			return false, fmt.Errorf("ingest %s: %w", name, err)
-		}
-	}
-	return allDetailSucceeded, nil
-}
-
-func (s *Service) logDetailQueryFailure(
-	ctx context.Context,
-	hostID int64,
-	name string,
-	query DetailQuery,
-	message string,
-) {
-	s.logger.WarnContext(
-		ctx,
-		"osquery detail query failed", "operation", "distributed_write",
-		"host_id", hostID,
-		"query", name,
-		"optional", query.Optional,
-		"message", message,
-	)
-}
-
-type labelQueryResult struct {
-	labelID int64
-	matched bool
-}
-
-func (s *Service) ingestLabelResults(ctx context.Context, host *models.Host, req DistributedWriteRequest) error {
-	if s.labels == nil {
-		return nil
-	}
-	results := make([]labelQueryResult, 0)
-	ids := make([]int64, 0)
-	for name, rows := range req.Queries {
-		labelID, ok := parseLabelQueryName(name)
-		if !ok {
-			continue
-		}
-		if !statusOK(req.Statuses[name]) {
-			s.logger.WarnContext(
-				ctx,
-				"osquery label query failed", "operation", "label_evaluation",
-				"host_id", host.ID,
-				"label_id", labelID,
-				"query", name,
-				"message", req.Messages[name],
-			)
-			continue
-		}
-		results = append(results, labelQueryResult{labelID: labelID, matched: len(rows) > 0})
-		ids = append(ids, labelID)
-	}
-	if len(results) == 0 {
-		return nil
-	}
-	applicable, err := s.labels.ApplicableDynamicIDs(ctx, ids, host.Platform)
-	if err != nil {
-		return err
-	}
-	handled := 0
-	for _, result := range results {
-		if _, ok := applicable[result.labelID]; !ok {
-			continue
-		}
-		if err := s.labels.SetMembership(ctx, result.labelID, host.ID, result.matched); err != nil {
-			return err
-		}
-		handled++
-	}
-	if handled == 0 {
-		return nil
-	}
-	if err := s.labels.MarkHostLabelsFresh(ctx, host.ID); err != nil {
-		return err
-	}
-	s.logger.DebugContext(
-		ctx,
-		"osquery label results ingested", "operation", "label_evaluation",
-		"host_id", host.ID,
-		"result_count", handled,
-	)
-	return nil
-}
-
-// Log accepts osquery logs. Storage and retention are a later slice.
-func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string) (LogResponse, error) {
+// Log accepts osquery scheduled-query logs and persists snapshot results.
+func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req LogRequest) (LogResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
 	if err != nil {
 		return LogResponse{}, err
@@ -336,7 +227,20 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string) (Log
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return LogResponse{}, err
 	}
+	if req.LogType == "result" && s.queries != nil {
+		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
+			s.logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
+		}
+	}
 	return LogResponse{NodeInvalid: false}, nil
+}
+
+func (s *Service) recordHostPublicIP(ctx context.Context, host *models.Host, publicIP string) error {
+	publicIP = strings.TrimSpace(publicIP)
+	if publicIP == "" {
+		return nil
+	}
+	return s.hosts.ApplyDetail(ctx, host.ID, models.HostDetailUpdate{PublicIP: publicIP})
 }
 
 func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*models.Host, bool, error) {
@@ -382,31 +286,4 @@ func ingestSoftwareMacOSWithEnrichment(
 		"executable_hash_count", len(queryRows[querySoftwareMacOSExecutableHash]),
 	)
 	return nil
-}
-
-func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]DetailQuery) bool {
-	for name, query := range registry {
-		if query.Optional {
-			continue
-		}
-		if _, ok := req.Queries[name]; !ok || !statusOK(req.Statuses[name]) {
-			return false
-		}
-	}
-	return true
-}
-
-func statusOK(raw json.RawMessage) bool {
-	if len(raw) == 0 {
-		return true
-	}
-	var number int
-	if err := json.Unmarshal(raw, &number); err == nil {
-		return number == 0
-	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err == nil {
-		return text == "" || text == "0"
-	}
-	return false
 }

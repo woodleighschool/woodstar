@@ -15,6 +15,7 @@ require (
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/mod v0.35.0
 )
 
 require (

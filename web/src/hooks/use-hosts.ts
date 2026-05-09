@@ -1,12 +1,18 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { nonEmpty } from "@/lib/utils";
 
 export type Host = Schemas["HostBody"];
 export type HostSoftware = Schemas["HostSoftwareBody"];
 export type HostListResult = Schemas["HostListBody"];
 export type HostSoftwareListResult = Schemas["HostSoftwareListBody"];
+export type HostQueriesResult = Schemas["HostReportsOutputBody"];
+export type HostReport = Schemas["HostReportBody"];
+export type HostQueryResultsResult = Schemas["HostQueryResultsOutputBody"];
+export type HostChecksResult = Schemas["CheckHostsOutputBody"];
 
 export interface ListParams {
   q?: string;
@@ -26,16 +32,16 @@ export interface HostListParams extends ListParams {
 
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
-    q: params.q?.trim() || undefined,
+    q: nonEmpty(params.q),
     page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
-    order_key: params.order_key || undefined,
-    order_direction: params.order_direction || undefined,
-    status: params.status || undefined,
-    platform: params.platform || undefined,
-    label_id: params.label_id || undefined,
-    software_title_id: params.software_title_id || undefined,
-    software_id: params.software_id || undefined,
+    order_key: nonEmpty(params.order_key),
+    order_direction: nonEmpty(params.order_direction),
+    status: nonEmpty(params.status),
+    platform: nonEmpty(params.platform),
+    label_id: nonEmpty(params.label_id),
+    software_title_id: nonEmpty(params.software_title_id),
+    software_id: nonEmpty(params.software_id),
   };
 
   return useQuery<HostListResult, ApiError>({
@@ -71,11 +77,11 @@ export interface HostSoftwareListParams extends ListParams {
 
 export function useHostSoftware(id: string, params: HostSoftwareListParams = {}) {
   const queryParams = {
-    q: params.q?.trim() || undefined,
+    q: nonEmpty(params.q),
     page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
-    order_key: params.order_key || undefined,
-    order_direction: params.order_direction || undefined,
+    order_key: nonEmpty(params.order_key),
+    order_direction: nonEmpty(params.order_direction),
     source: params.source && params.source.length > 0 ? params.source : undefined,
   };
 
@@ -90,5 +96,35 @@ export function useHostSoftware(id: string, params: HostSoftwareListParams = {})
       ),
     enabled: id !== "",
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useHostQueries(id: string) {
+  return useQuery<HostQueriesResult, ApiError>({
+    queryKey: queryKeys.hostQueries(id),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/queries", { params: { path: { id } }, signal })),
+    enabled: id !== "",
+  });
+}
+
+export function useHostQueryResults(hostId: string, queryId: string) {
+  return useQuery<HostQueryResultsResult, ApiError>({
+    queryKey: queryKeys.hostQueryResults(hostId, queryId),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/hosts/{id}/queries/{query_id}", {
+          params: { path: { id: hostId, query_id: queryId } },
+          signal,
+        }),
+      ),
+    enabled: hostId !== "" && queryId !== "",
+  });
+}
+
+export function useHostChecks(id: string) {
+  return useQuery<HostChecksResult, ApiError>({
+    queryKey: queryKeys.hostChecks(id),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/checks", { params: { path: { id } }, signal })),
+    enabled: id !== "",
   });
 }

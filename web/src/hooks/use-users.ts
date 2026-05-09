@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type User = Schemas["UserBody"];
@@ -18,8 +19,8 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreateBody>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users });
     },
   });
 }
@@ -34,10 +35,11 @@ export function useUpdateUser() {
           body,
         }),
       ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users });
-      // The actor may have updated their own row (name/password).
-      queryClient.invalidateQueries({ queryKey: queryKeys.session });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.session }),
+      ]);
     },
   });
 }
@@ -52,8 +54,8 @@ export function useDeleteUser() {
         }),
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.users });
     },
   });
 }

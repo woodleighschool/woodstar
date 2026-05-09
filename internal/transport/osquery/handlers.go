@@ -89,7 +89,7 @@ func distributedWriteHandler(svc *coreosquery.Service, logger *slog.Logger) http
 func logHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFunc {
 	return nodeKeyHandler(logger, "log",
 		func(ctx context.Context, req coreosquery.LogRequest, publicIP string) (any, error) {
-			return svc.Log(ctx, req.NodeKey, publicIP)
+			return svc.Log(ctx, req.NodeKey, publicIP, req)
 		},
 	)
 }

@@ -1,8 +1,9 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Package, Search, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { HostInfoCard, HostLabelsCard, HostUsersCard } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,7 +15,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
-import { useHost, useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  useHost,
+  useHostChecks,
+  useHostQueries,
+  useHostSoftware,
+  type HostReport,
+  type HostSoftware,
+} from "@/hooks/use-hosts";
 import type { Schemas } from "@/lib/api";
 import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
@@ -35,7 +44,7 @@ export function HostDetailPage() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load host</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
           </Button>
         </Alert>
@@ -59,6 +68,8 @@ export function HostDetailPage() {
         <PageTabsList>
           <PageTabsTrigger value="details">Details</PageTabsTrigger>
           <PageTabsTrigger value="software">Software</PageTabsTrigger>
+          <PageTabsTrigger value="reports">Reports</PageTabsTrigger>
+          <PageTabsTrigger value="checks">Checks</PageTabsTrigger>
         </PageTabsList>
 
         <PageTabsContent value="details">
@@ -72,7 +83,127 @@ export function HostDetailPage() {
         <PageTabsContent value="software">
           <SoftwareTab hostId={hostId} />
         </PageTabsContent>
+
+        <PageTabsContent value="reports">
+          <HostReportsTab hostId={hostId} />
+        </PageTabsContent>
+
+        <PageTabsContent value="checks">
+          <HostChecksTab hostId={hostId} />
+        </PageTabsContent>
       </PageTabs>
+    </div>
+  );
+}
+
+function HostReportsTab({ hostId }: { hostId: string }) {
+  const query = useHostQueries(hostId);
+  const rows = query.data?.items ?? [];
+  if (query.isLoading) {
+    return (
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Loader2 className="size-4 animate-spin" /> Loading reports...
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>No reports</EmptyTitle>
+          <EmptyDescription>Add a scheduled report to view custom vitals for this host.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+  return (
+    <div className="grid gap-3">
+      {rows.map((report) => (
+        <HostReportCard key={report.report_id} hostId={hostId} report={report} />
+      ))}
+    </div>
+  );
+}
+
+function HostReportCard({ hostId, report }: { hostId: string; report: HostReport }) {
+  const entries = Object.entries(report.first_result ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            to="/hosts/$hostId/reports/$reportId"
+            params={{ hostId, reportId: report.report_id }}
+            className="font-medium hover:underline"
+          >
+            {report.name}
+          </Link>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {report.last_fetched ? `Updated ${formatRelative(report.last_fetched)}` : "Collecting results"}
+            {report.n_host_results > 0
+              ? ` · ${report.n_host_results} row${report.n_host_results === 1 ? "" : "s"}`
+              : ""}
+          </p>
+        </div>
+        <Button asChild size="sm" variant="outline">
+          <Link to="/reports/$reportId" params={{ reportId: report.report_id }}>
+            All hosts
+          </Link>
+        </Button>
+      </div>
+      {entries.length > 0 ? (
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
+          {entries.map(([key, value]) => (
+            <div key={key} className="flex min-w-0 flex-col gap-1">
+              <dt className="text-muted-foreground text-xs font-semibold">{key}</dt>
+              <dd className="text-foreground truncate text-sm" title={value}>
+                {value || "-"}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          {report.last_fetched
+            ? "This report ran but returned no rows for this host."
+            : "Waiting for this host to run the report."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function HostChecksTab({ hostId }: { hostId: string }) {
+  const query = useHostChecks(hostId);
+  const rows = query.data?.items ?? [];
+  return (
+    <div className="rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Check</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Last evaluated</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={`${row.check_id}-${row.host_id}`}>
+              <TableCell>
+                <Link to="/checks/$checkId" params={{ checkId: row.check_id }} className="font-medium hover:underline">
+                  {row.check_name || row.check_id}
+                </Link>
+              </TableCell>
+              <TableCell>
+                <CheckStatusBadge passes={row.passes} />
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.last_evaluated_at ? formatRelative(row.last_evaluated_at) : "-"}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -85,12 +216,15 @@ function SoftwareTab({ hostId }: { hostId: string }) {
   const [perPage, setPerPage] = useState(HOST_SOFTWARE_PAGE_SIZE);
   const [orderKey, setOrderKey] = useState<string | undefined>(undefined);
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc" | undefined>(undefined);
+  const debounceRef = useRef<number | null>(null);
 
   const setDraftDebounced = (next: string) => {
     setDraft(next);
     setPage(1);
-    window.clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => setActiveQuery(next.trim()), 200);
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = window.setTimeout(() => setActiveQuery(next.trim()), 200);
   };
 
   const query = useHostSoftware(hostId, {
@@ -183,7 +317,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       enableSorting: false,
       cell: ({ row }) => {
         const paths = installedPathsFor(row.original.installed_versions ?? []);
-        return <span className="text-muted-foreground font-mono text-xs">{singleHash(paths)}</span>;
+        return <span className="text-muted-foreground">{singleHash(paths)}</span>;
       },
     },
   ];
@@ -193,7 +327,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       <Alert variant="destructive">
         <AlertTitle>Failed to load software</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
-        <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+        <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
           Retry
         </Button>
       </Alert>
@@ -281,8 +415,6 @@ function SoftwareTab({ hostId }: { hostId: string }) {
   );
 }
 
-let debounceTimer: number = 0;
-
 interface InstalledPath {
   path: string;
   version: string;
@@ -305,7 +437,7 @@ function InstalledPathCell({
   }
   if (paths.length === 1) {
     return (
-      <span className="text-muted-foreground font-mono text-xs break-all" title={paths[0].path}>
+      <span className="text-muted-foreground break-all" title={paths[0].path}>
         {paths[0].path}
       </span>
     );
@@ -327,7 +459,7 @@ function InstalledPathCell({
             <div className="font-medium">Current version{versionLabel.endsWith("versions") ? "s" : ""}:</div>
             <dl className="mt-2 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1">
               <dt className="text-muted-foreground">Version</dt>
-              <dd className="font-mono text-xs">{versionLabel}</dd>
+              <dd>{versionLabel}</dd>
               <dt className="text-muted-foreground">Type</dt>
               <dd>{typeLabel}</dd>
             </dl>
@@ -336,7 +468,7 @@ function InstalledPathCell({
             {paths.map((item) => (
               <div key={`${item.version}-${item.path}`}>
                 <div className="text-muted-foreground">Path:</div>
-                <div className="font-mono text-xs break-all">{item.path}</div>
+                <div className="break-all">{item.path}</div>
               </div>
             ))}
           </div>
@@ -359,7 +491,7 @@ function installedPathsFor(versions: InstalledVersion[]): InstalledPath[] {
 
 function singleHash(paths: InstalledPath[]): string {
   if (paths.length !== 1) return "-";
-  return paths[0].signature?.hash_sha256 || "-";
+  return paths[0].signature?.hash_sha256 ?? "-";
 }
 
 function pickLatestLastOpened(versions: InstalledVersion[]): string | undefined {

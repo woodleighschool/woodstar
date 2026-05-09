@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { runtime } from "@/lib/runtime";
+import { nonEmpty } from "@/lib/utils";
 
 export function AppSidebar() {
   const { location } = useRouterState();
@@ -105,11 +106,11 @@ function UserMenu() {
     },
   });
 
-  const initials = (user?.name || user?.email || "?")
+  const initials = (nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "?")
     .split(/[\s@]+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
+    .map((s) => s[0].toUpperCase())
     .join("");
 
   return (
@@ -119,7 +120,7 @@ function UserMenu() {
           {initials || "?"}
         </div>
         <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-          <span className="truncate font-medium">{user?.name || user?.email || "Signed out"}</span>
+          <span className="truncate font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out"}</span>
           {user?.role ? <span className="text-muted-foreground truncate text-[11px]">{user.role}</span> : null}
         </div>
       </DropdownMenuTrigger>

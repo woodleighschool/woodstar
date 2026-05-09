@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/netip"
-	"strconv"
 	"strings"
 	"time"
 
@@ -498,23 +497,4 @@ func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
 
 func parseHostID(id string) (int64, error) {
 	return parseResourceID(id, "host")
-}
-
-func parseResourceID(id string, resource string) (int64, error) {
-	parsed, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || parsed <= 0 {
-		return 0, huma.Error404NotFound(resource + " not found")
-	}
-	return parsed, nil
-}
-
-func parseOptionalPositiveID(id string, name string) (int64, error) {
-	if id == "" {
-		return 0, nil
-	}
-	parsed, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || parsed <= 0 {
-		return 0, huma.Error400BadRequest(name + " must be a positive integer")
-	}
-	return parsed, nil
 }

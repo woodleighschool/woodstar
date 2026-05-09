@@ -19,6 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
 	transportorbit "github.com/woodleighschool/woodstar/internal/transport/orbit"
 	transportosquery "github.com/woodleighschool/woodstar/internal/transport/osquery"
@@ -30,20 +31,23 @@ const SessionLifetime = 14 * 24 * time.Hour
 
 // Dependencies contains runtime dependencies for [Server].
 type Dependencies struct {
-	Config         config.Config
-	DB             *database.DB
-	Version        string
-	Logger         *slog.Logger
-	WebHandler     *web.Handler
-	AuthService    *auth.Service
-	SessionManager *scs.SessionManager
-	HostStore      *models.HostStore
-	DeviceMappings *models.DeviceMappingStore
-	SecretStore    *models.SecretStore
-	SoftwareStore  *models.SoftwareStore
-	LabelStore     *models.LabelStore
-	OrbitService   *orbit.Service
-	OsqueryService *osquery.Service
+	Config           config.Config
+	DB               *database.DB
+	Version          string
+	Logger           *slog.Logger
+	WebHandler       *web.Handler
+	AuthService      *auth.Service
+	SessionManager   *scs.SessionManager
+	HostStore        *models.HostStore
+	DeviceMappings   *models.DeviceMappingStore
+	SecretStore      *models.SecretStore
+	SoftwareStore    *models.SoftwareStore
+	LabelStore       *models.LabelStore
+	QueryStore       *models.QueryStore
+	CheckStore       *models.CheckStore
+	LiveQueryManager *queryinfra.LiveQueryManager
+	OrbitService     *orbit.Service
+	OsqueryService   *osquery.Service
 }
 
 // Server owns the HTTP listener and router.
@@ -61,6 +65,9 @@ type Server struct {
 	secretStore    *models.SecretStore
 	softwareStore  *models.SoftwareStore
 	labelStore     *models.LabelStore
+	queryStore     *models.QueryStore
+	checkStore     *models.CheckStore
+	liveQueries    *queryinfra.LiveQueryManager
 	orbitService   *orbit.Service
 	osqueryService *osquery.Service
 	started        time.Time
@@ -87,6 +94,9 @@ func NewServer(deps Dependencies) *Server {
 		secretStore:    deps.SecretStore,
 		softwareStore:  deps.SoftwareStore,
 		labelStore:     deps.LabelStore,
+		queryStore:     deps.QueryStore,
+		checkStore:     deps.CheckStore,
+		liveQueries:    deps.LiveQueryManager,
 		orbitService:   deps.OrbitService,
 		osqueryService: deps.OsqueryService,
 		started:        time.Now().UTC(),
@@ -141,15 +151,18 @@ func (s *Server) routes() http.Handler {
 		}
 		browser.Use(admin.CSRF(s.config, SessionLifetime))
 		admin.Mount(browser, admin.Dependencies{
-			DB:             s.db,
-			Version:        s.version,
-			Started:        s.started,
-			AuthService:    s.authService,
-			HostStore:      s.hostStore,
-			DeviceMappings: s.deviceMappings,
-			SecretStore:    s.secretStore,
-			SoftwareStore:  s.softwareStore,
-			LabelStore:     s.labelStore,
+			DB:               s.db,
+			Version:          s.version,
+			Started:          s.started,
+			AuthService:      s.authService,
+			HostStore:        s.hostStore,
+			DeviceMappings:   s.deviceMappings,
+			SecretStore:      s.secretStore,
+			SoftwareStore:    s.softwareStore,
+			LabelStore:       s.labelStore,
+			QueryStore:       s.queryStore,
+			CheckStore:       s.checkStore,
+			LiveQueryManager: s.liveQueries,
 		})
 		if s.webHandler != nil {
 			s.webHandler.RegisterRoutes(browser)

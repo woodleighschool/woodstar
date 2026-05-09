@@ -38,7 +38,7 @@ export function OrbitEnrollSecretsDialog({ trigger }: { trigger: React.ReactNode
           }))}
           isLoading={query.isLoading}
           error={query.error ?? null}
-          onRetry={() => query.refetch()}
+          onRetry={() => void query.refetch()}
           emptyTitle="No enroll secrets yet"
           emptyDescription="Create a secret to allow Orbit to enroll Macs against this Woodstar deployment."
         />

@@ -24,7 +24,7 @@ export function SoftwareTitleDetailPage() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load software title</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
           </Button>
         </Alert>
@@ -130,7 +130,7 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
   if (title.bundle_identifier) {
     tiles.push({
       label: "Bundle identifier",
-      value: <span className="font-mono text-xs">{title.bundle_identifier}</span>,
+      value: title.bundle_identifier,
     });
   }
   if (title.browser) {
@@ -197,7 +197,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
 function VersionRow({ version }: { version: SoftwareVersion }) {
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs">{version.version || "-"}</TableCell>
+      <TableCell>{version.version || "-"}</TableCell>
       <TableCell className="text-right tabular-nums">
         <Link
           to="/hosts"

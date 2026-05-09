@@ -1,7 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { nonEmpty } from "@/lib/utils";
 
 export type Label = Schemas["LabelBody"];
 export type LabelListResult = Schemas["LabelListBody"];
@@ -21,14 +23,14 @@ export interface LabelListParams {
 
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
-    q: params.q?.trim() || undefined,
+    q: nonEmpty(params.q),
     page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 50,
-    order_key: params.order_key || undefined,
-    order_direction: params.order_direction || undefined,
-    kind: params.kind || undefined,
-    membership_type: params.membership_type || undefined,
-    platform: params.platform || undefined,
+    order_key: nonEmpty(params.order_key),
+    order_direction: nonEmpty(params.order_direction),
+    kind: nonEmpty(params.kind),
+    membership_type: nonEmpty(params.membership_type),
+    platform: nonEmpty(params.platform),
   };
 
   return useQuery<LabelListResult, ApiError>({

@@ -28,11 +28,11 @@ export function ShineBorder({
           "--duration": `${duration}s`,
           backgroundImage: `radial-gradient(transparent, transparent, ${colors.join(",")}, transparent, transparent)`,
           backgroundSize: "300% 300%",
-          mask: `linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)`,
-          WebkitMask: `linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)`,
+          mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+          WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
           maskComposite: "exclude",
           WebkitMaskComposite: "xor",
-          padding: `var(--border-width)`,
+          padding: "var(--border-width)",
           ...style,
         } as React.CSSProperties
       }

@@ -71,7 +71,7 @@ export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, empty
             const shown = visible[row.id] ?? false;
             return (
               <TableRow key={row.id}>
-                <TableCell className="font-mono text-xs">{shown ? row.value : "••••••••••••••••"}</TableCell>
+                <TableCell>{shown ? row.value : "••••••••••••••••"}</TableCell>
                 <TableCell>{formatRelative(row.created_at)}</TableCell>
                 <TableCell className="text-right">
                   <Button

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError, apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
+import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import { formString } from "@/lib/utils";
 
 type LoginInput = Schemas["LoginInputBody"];
 type UserBody = Schemas["UserBody"];
@@ -43,12 +45,12 @@ export function LoginPage() {
         <CardContent className="space-y-5">
           <form
             className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = new FormData(e.currentTarget);
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
               login.mutate({
-                email: String(form.get("email") ?? ""),
-                password: String(form.get("password") ?? ""),
+                email: formString(form, "email"),
+                password: formString(form, "password"),
               });
             }}
           >

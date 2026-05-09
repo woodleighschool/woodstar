@@ -14,13 +14,8 @@ import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 
-interface SoftwareSearch {
-  q?: string;
-  source?: string[];
-}
-
 export function SoftwarePage() {
-  const search = useSearch({ strict: false }) as SoftwareSearch;
+  const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
 
@@ -37,7 +32,7 @@ export function SoftwarePage() {
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = Boolean(search.q || sources.length);
+  const hasFilters = !!search.q || sources.length > 0;
 
   const columns: ColumnDef<SoftwareTitle>[] = [
     {
@@ -82,7 +77,7 @@ export function SoftwarePage() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load software</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
           </Button>
         </Alert>

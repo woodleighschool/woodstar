@@ -25,22 +25,13 @@ const STATUS_OPTIONS = [
   { value: "offline", label: "Offline" },
 ];
 
-interface HostsSearch {
-  q?: string;
-  status?: string;
-  platform?: string;
-  label_id?: string;
-  software_title_id?: string;
-  software_id?: string;
-}
-
 export function HostsListPage() {
-  const search = useSearch({ strict: false }) as HostsSearch;
+  const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const labelsQuery = useLabels({ per_page: 200, order_key: "name", order_direction: "asc" });
 
-  const isSoftwareFiltered = Boolean(search.software_title_id || search.software_id);
+  const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;
 
   const query = useHosts({
     q: search.q,
@@ -60,7 +51,7 @@ export function HostsListPage() {
   // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
   const [now] = useState(() => Date.now());
 
-  const hasFilters = Boolean(search.q || search.status || search.platform || search.label_id) || isSoftwareFiltered;
+  const hasFilters = !!search.q || !!search.status || !!search.platform || !!search.label_id || isSoftwareFiltered;
 
   const columns: ColumnDef<Host>[] = [
     {
@@ -87,9 +78,7 @@ export function HostsListPage() {
     {
       id: "hardware_serial",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-      cell: ({ row }) => (
-        <span className="text-muted-foreground font-mono text-xs">{row.original.hardware_serial || "-"}</span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_serial || "-"}</span>,
     },
     {
       id: "disk_space_available_bytes",
@@ -151,7 +140,7 @@ export function HostsListPage() {
           <Alert variant="destructive">
             <AlertTitle>Failed to load hosts</AlertTitle>
             <AlertDescription>{query.error.message}</AlertDescription>
-            <Button variant="outline" size="sm" onClick={() => query.refetch()} className="mt-2 w-fit">
+            <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
               Retry
             </Button>
           </Alert>

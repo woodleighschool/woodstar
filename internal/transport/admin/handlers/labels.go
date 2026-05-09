@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,8 +13,9 @@ import (
 )
 
 const (
-	labelsTag   = "Labels"
-	labelIDPath = "/api/labels/{id}"
+	labelsTag     = "Labels"
+	labelResource = "label"
+	labelIDPath   = "/api/labels/{id}"
 )
 
 type labelBody struct {
@@ -27,8 +27,8 @@ type labelBody struct {
 	MembershipType models.LabelMembershipType `json:"membership_type"`
 	Platform       *string                    `json:"platform,omitempty"`
 	HostsCount     int                        `json:"hosts_count"`
-	CreatedAt      time.Time                  `json:"created_at"`
-	UpdatedAt      time.Time                  `json:"updated_at"`
+	CreatedAt      time.Time                  `json:"created_at,omitzero"`
+	UpdatedAt      time.Time                  `json:"updated_at,omitzero"`
 }
 
 type labelListOutput struct {
@@ -71,12 +71,12 @@ type labelPutBody struct {
 	Name           string                     `json:"name"`
 	Description    string                     `json:"description,omitempty"`
 	Query          *string                    `json:"query,omitempty"`
-	Kind           models.LabelKind           `json:"kind"            enum:"custom,builtin"`
-	MembershipType models.LabelMembershipType `json:"membership_type" enum:"dynamic,static,identity"`
+	Kind           models.LabelKind           `json:"kind"`
+	MembershipType models.LabelMembershipType `json:"membership_type"`
 	Platform       *string                    `json:"platform,omitempty"`
 	HostsCount     int                        `json:"hosts_count,omitempty"`
-	CreatedAt      time.Time                  `json:"created_at,omitempty"`
-	UpdatedAt      time.Time                  `json:"updated_at,omitempty"`
+	CreatedAt      *time.Time                 `json:"created_at,omitempty"`
+	UpdatedAt      *time.Time                 `json:"updated_at,omitempty"`
 }
 
 type labelPutInput struct {
@@ -161,7 +161,7 @@ func registerCreateLabel(api huma.API, store *models.LabelStore) {
 			Platform:       input.Body.Platform,
 		})
 		if err != nil {
-			return nil, labelMutationError(err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: labelResponse(label)}, nil
 	})
@@ -182,7 +182,7 @@ func registerGetLabel(api huma.API, store *models.LabelStore) {
 		}
 		label, err := store.GetByID(ctx, id)
 		if err != nil {
-			return nil, labelMutationError(err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: labelResponse(label)}, nil
 	})
@@ -210,7 +210,7 @@ func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 			Platform:       input.Body.Platform,
 		})
 		if err != nil {
-			return nil, labelMutationError(err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: labelResponse(label)}, nil
 	})
@@ -230,7 +230,7 @@ func registerDeleteLabel(api huma.API, store *models.LabelStore) {
 			return nil, err
 		}
 		if err := store.Delete(ctx, id); err != nil {
-			return nil, labelMutationError(err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -252,18 +252,5 @@ func labelResponse(label *models.Label) labelBody {
 }
 
 func parseLabelID(id string) (int64, error) {
-	return parseResourceID(id, "label")
-}
-
-func labelMutationError(err error) error {
-	switch {
-	case errors.Is(err, models.ErrNotFound):
-		return huma.Error404NotFound("label not found")
-	case errors.Is(err, models.ErrAlreadyExists):
-		return huma.Error409Conflict("label already exists")
-	case errors.Is(err, models.ErrInvalidInput):
-		return huma.Error400BadRequest(strings.TrimPrefix(err.Error(), models.ErrInvalidInput.Error()+": "))
-	default:
-		return err
-	}
+	return parseResourceID(id, labelResource)
 }

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useDeleteUser, type User } from "@/hooks/use-users";
+import { nonEmpty } from "@/lib/utils";
 
 export interface UserDeleteDialogProps {
   open: boolean;
@@ -42,7 +43,7 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
         </DialogHeader>
 
         <p className="text-sm">
-          Delete <span className="font-medium">{user?.name || user?.email || ""}</span>
+          Delete <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
           {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
         </p>
 
@@ -54,7 +55,13 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" size="sm" disabled={remove.isPending} onClick={handleConfirm}>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={remove.isPending}
+            onClick={() => void handleConfirm()}
+          >
             Delete
           </Button>
         </DialogFooter>

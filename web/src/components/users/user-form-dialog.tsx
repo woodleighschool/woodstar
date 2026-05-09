@@ -73,11 +73,10 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
 
   const [email, setEmail] = useState(editing?.email ?? "");
   const [name, setName] = useState(editing?.name ?? "");
-  const [role, setRole] = useState<Role>((editing?.role as Role) ?? "viewer");
+  const [role, setRole] = useState<Role>((editing?.role ?? "viewer") as Role);
   const [password, setPassword] = useState("");
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit() {
     if (mode === "create") {
       const body: UserCreateBody = { email, name, role, password };
       await create.mutateAsync(body);
@@ -87,7 +86,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
 
     const body: UserUpdateBody = {
       name,
-      role: canChangeRole ? role : (editing!.role as Role),
+      role: canChangeRole ? role : editing!.role,
     };
     if (password.trim() !== "") body.password = password;
     await update.mutateAsync({ id: editing!.id, body });
@@ -107,7 +106,13 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
 
-      <form className="grid gap-3" onSubmit={handleSubmit}>
+      <form
+        className="grid gap-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSubmit();
+        }}
+      >
         <div className="grid gap-1.5">
           <Label htmlFor="user-email">Email</Label>
           <Input

@@ -10,54 +10,61 @@ import (
 )
 
 func TestLabelQueryNameRoundTrips(t *testing.T) {
-	name := labelQueryName(42)
+	name := queryNameID(kindLabel, 42)
 	if name != "woodstar_label_query_42" {
-		t.Fatalf("labelQueryName = %q, want woodstar_label_query_42", name)
+		t.Fatalf("queryNameID = %q, want woodstar_label_query_42", name)
 	}
-	id, ok := parseLabelQueryName(name)
-	if !ok {
-		t.Fatalf("parseLabelQueryName(%q) ok = false, want true", name)
+	kind, suffix, ok := parseQueryName(name)
+	if !ok || kind != kindLabel {
+		t.Fatalf("parseQueryName(%q) = %q, %q, %t; want label query", name, kind, suffix, ok)
 	}
+	id, _ := parsePositiveSuffix(suffix)
 	if id != 42 {
-		t.Fatalf("parseLabelQueryName id = %d, want 42", id)
+		t.Fatalf("parsePositiveSuffix id = %d, want 42", id)
 	}
 }
 
 func TestParseLabelQueryNameRejectsOtherQueries(t *testing.T) {
-	for _, name := range []string{"system_info", "woodstar_label_query_", "woodstar_label_query_nope"} {
-		if id, ok := parseLabelQueryName(name); ok || id != 0 {
-			t.Fatalf("parseLabelQueryName(%q) = %d, %t; want 0, false", name, id, ok)
+	for _, name := range []string{
+		"system_info",
+		"woodstar_label_query_",
+		"woodstar_label_query_nope",
+		"woodstar_check_query_42",
+	} {
+		kind, suffix, ok := parseQueryName(name)
+		if ok && kind == kindLabel {
+			if id, ok := parsePositiveSuffix(suffix); ok || id != 0 {
+				t.Fatalf("parsePositiveSuffix(%q) = %d, %t; want 0, false", suffix, id, ok)
+			}
 		}
 	}
 }
 
-func TestIngestLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
-	labels := &fakeLabelStore{
-		applicable: map[int64]struct{}{1: {}, 2: {}},
-	}
+func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
+	labels := &fakeLabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
 	svc := &Service{labels: labels, logger: slog.New(slog.DiscardHandler)}
 
-	err := svc.ingestLabelResults(
+	err := svc.dispatchWriteResults(
 		context.Background(),
 		&models.Host{ID: 9, Platform: "darwin"},
 		DistributedWriteRequest{
 			Queries: map[string][]map[string]string{
-				labelQueryName(1): {{"matches": "yes"}},
-				labelQueryName(2): {},
-				labelQueryName(3): {{"stale": "ignored"}},
-				labelQueryName(4): {{"failed": "preserved"}},
-				"system_info":     {{"ignored": "true"}},
+				queryNameID(kindLabel, 1): {{"matches": "yes"}},
+				queryNameID(kindLabel, 2): {},
+				queryNameID(kindLabel, 3): {{"stale": "ignored"}},
+				queryNameID(kindLabel, 4): {{"failed": "preserved"}},
+				"system_info":             {{"ignored_unprefixed": "true"}},
 			},
 			Statuses: map[string]json.RawMessage{
-				labelQueryName(4): json.RawMessage(`1`),
+				queryNameID(kindLabel, 4): json.RawMessage(`1`),
 			},
 			Messages: map[string]string{
-				labelQueryName(4): "constraint failed",
+				queryNameID(kindLabel, 4): "constraint failed",
 			},
 		},
 	)
 	if err != nil {
-		t.Fatalf("ingestLabelResults returned error: %v", err)
+		t.Fatalf("dispatchWriteResults returned error: %v", err)
 	}
 
 	if len(labels.setCalls) != 2 {

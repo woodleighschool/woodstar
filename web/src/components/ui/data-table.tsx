@@ -72,6 +72,8 @@ export function DataTable<TData, TValue>({
     else onSortChange({ orderKey: next[0].id, orderDirection: next[0].desc ? "desc" : "asc" });
   };
 
+  // TanStack Table returns function-bearing objects; React Compiler cannot memoize this hook safely.
+
   const table = useReactTable({
     data,
     columns,
