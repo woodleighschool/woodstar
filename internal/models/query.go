@@ -436,7 +436,7 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = cleanStringPtr(params.Platform)
+	params.Platform = cleanPlatformPtr(params.Platform)
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
 	if params.LoggingType == "" {
 		params.LoggingType = QueryLoggingSnapshot
@@ -459,7 +459,7 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 
 func cleanQueryListParams(params QueryListParams) QueryListParams {
 	params.ListParams = CleanListParams(params.ListParams)
-	params.Platform = strings.TrimSpace(params.Platform)
+	params.Platform = CleanPlatform(params.Platform)
 	return params
 }
 

@@ -18,16 +18,16 @@ const (
 )
 
 type labelBody struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query,omitempty"`
-	Kind           string    `json:"kind"                enum:"regular,builtin"`
-	MembershipType string    `json:"membership_type"     enum:"dynamic,manual,host_vitals"`
-	Platform       *string   `json:"platform,omitempty"`
-	HostsCount     int       `json:"hosts_count"`
-	CreatedAt      time.Time `json:"created_at,omitzero"`
-	UpdatedAt      time.Time `json:"updated_at,omitzero"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Query       *string   `json:"query,omitempty"`
+	LabelType   string    `json:"label_type"`
+	Membership  string    `json:"label_membership_type"`
+	Platform    *string   `json:"platform,omitempty"`
+	HostsCount  int       `json:"hosts_count"`
+	CreatedAt   time.Time `json:"created_at,omitzero"`
+	UpdatedAt   time.Time `json:"updated_at,omitzero"`
 }
 
 type labelListOutput struct {
@@ -49,8 +49,8 @@ type labelListInput struct {
 	PerPage        int    `query:"per_page,omitempty"`
 	OrderKey       string `query:"order_key,omitempty"`
 	OrderDirection string `query:"order_direction,omitempty"`
-	Kind           string `query:"kind,omitempty"`
-	MembershipType string `query:"membership_type,omitempty"`
+	LabelType      string `query:"label_type,omitempty"`
+	MembershipType string `query:"label_membership_type,omitempty"`
 	Platform       string `query:"platform,omitempty"`
 }
 
@@ -75,8 +75,8 @@ type labelCreateBody struct {
 	Name           string  `json:"name"`
 	Description    string  `json:"description,omitempty"`
 	Query          *string `json:"query,omitempty"`
-	Kind           string  `json:"kind,omitempty"            enum:"regular,builtin"`
-	MembershipType string  `json:"membership_type,omitempty" enum:"dynamic,manual,host_vitals"`
+	LabelType      string  `json:"label_type,omitempty"`
+	MembershipType string  `json:"label_membership_type,omitempty"`
 	Platform       *string `json:"platform,omitempty"`
 }
 
@@ -84,7 +84,7 @@ type labelMutationBody struct {
 	Name           string  `json:"name"`
 	Description    string  `json:"description,omitempty"`
 	Query          *string `json:"query,omitempty"`
-	MembershipType string  `json:"membership_type,omitempty" enum:"dynamic,manual,host_vitals"`
+	MembershipType string  `json:"label_membership_type,omitempty"`
 	Platform       *string `json:"platform,omitempty"`
 }
 
@@ -97,9 +97,9 @@ func (i labelListInput) params() models.LabelListParams {
 			OrderKey:       i.OrderKey,
 			OrderDirection: i.OrderDirection,
 		}),
-		Kind:           strings.TrimSpace(i.Kind),
-		MembershipType: strings.TrimSpace(i.MembershipType),
-		Platform:       strings.TrimSpace(i.Platform),
+		LabelType:           strings.TrimSpace(i.LabelType),
+		LabelMembershipType: strings.TrimSpace(i.MembershipType),
+		Platform:            strings.TrimSpace(i.Platform),
 	}
 }
 
@@ -144,12 +144,12 @@ func registerCreateLabel(api huma.API, store *models.LabelStore) {
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
 		label, err := store.Create(ctx, models.LabelCreate{
-			Name:           input.Body.Name,
-			Description:    input.Body.Description,
-			Query:          input.Body.Query,
-			Kind:           input.Body.Kind,
-			MembershipType: input.Body.MembershipType,
-			Platform:       input.Body.Platform,
+			Name:                input.Body.Name,
+			Description:         input.Body.Description,
+			Query:               input.Body.Query,
+			LabelType:           input.Body.LabelType,
+			LabelMembershipType: input.Body.MembershipType,
+			Platform:            input.Body.Platform,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
@@ -193,11 +193,11 @@ func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 			return nil, err
 		}
 		label, err := store.Update(ctx, id, models.LabelUpdate{
-			Name:           input.Body.Name,
-			Description:    input.Body.Description,
-			Query:          input.Body.Query,
-			MembershipType: input.Body.MembershipType,
-			Platform:       input.Body.Platform,
+			Name:                input.Body.Name,
+			Description:         input.Body.Description,
+			Query:               input.Body.Query,
+			LabelMembershipType: input.Body.MembershipType,
+			Platform:            input.Body.Platform,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
@@ -228,17 +228,25 @@ func registerDeleteLabel(api huma.API, store *models.LabelStore) {
 
 func labelResponse(label *models.Label) labelBody {
 	return labelBody{
-		ID:             label.ID,
-		Name:           label.Name,
-		Description:    label.Description,
-		Query:          label.Query,
-		Kind:           label.Kind,
-		MembershipType: label.MembershipType,
-		Platform:       label.Platform,
-		HostsCount:     label.HostsCount,
-		CreatedAt:      label.CreatedAt,
-		UpdatedAt:      label.UpdatedAt,
+		ID:          label.ID,
+		Name:        label.Name,
+		Description: label.Description,
+		Query:       label.Query,
+		LabelType:   label.LabelType,
+		Membership:  label.LabelMembershipType,
+		Platform:    labelPlatform(label.Platform),
+		HostsCount:  label.HostsCount,
+		CreatedAt:   label.CreatedAt,
+		UpdatedAt:   label.UpdatedAt,
 	}
+}
+
+func labelPlatform(platform *models.Platform) *string {
+	if platform == nil {
+		return nil
+	}
+	value := string(*platform)
+	return &value
 }
 
 func parseLabelID(id string) (int64, error) {

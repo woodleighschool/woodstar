@@ -325,7 +325,7 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Description = strings.TrimSpace(params.Description)
 	params.Resolution = strings.TrimSpace(params.Resolution)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = cleanStringPtr(params.Platform)
+	params.Platform = cleanPlatformPtr(params.Platform)
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
@@ -339,7 +339,7 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 
 func cleanCheckListParams(params CheckListParams) CheckListParams {
 	params.ListParams = CleanListParams(params.ListParams)
-	params.Platform = strings.TrimSpace(params.Platform)
+	params.Platform = CleanPlatform(params.Platform)
 	return params
 }
 

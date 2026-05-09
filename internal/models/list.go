@@ -56,7 +56,13 @@ func nameSearchAndPlatformWhere(q string, platform string) (string, []any) {
 	}
 	if platform != "" {
 		args = append(args, platform)
-		where = append(where, fmt.Sprintf("(platform IS NULL OR platform = $%d)", len(args)))
+		where = append(
+			where,
+			fmt.Sprintf(
+				"(platform IS NULL OR platform = '' OR $%d = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')))",
+				len(args),
+			),
+		)
 	}
 	if len(where) == 0 {
 		return "", args

@@ -16,8 +16,8 @@ export interface LabelListParams {
   per_page?: number;
   order_key?: string;
   order_direction?: string;
-  kind?: string;
-  membership_type?: string;
+  label_type?: string;
+  label_membership_type?: string;
   platform?: string;
 }
 
@@ -28,8 +28,8 @@ export function useLabels(params: LabelListParams = {}) {
     per_page: params.per_page ?? 50,
     order_key: nonEmpty(params.order_key),
     order_direction: nonEmpty(params.order_direction),
-    kind: nonEmpty(params.kind),
-    membership_type: nonEmpty(params.membership_type),
+    label_type: nonEmpty(params.label_type),
+    label_membership_type: nonEmpty(params.label_membership_type),
     platform: nonEmpty(params.platform),
   };
 

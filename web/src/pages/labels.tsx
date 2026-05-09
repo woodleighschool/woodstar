@@ -3,6 +3,7 @@ import { MoreHorizontal, Plus, Search, Tags, X } from "lucide-react";
 import { useState } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
+import { PlatformSelector } from "@/components/queries/platform-selector";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
   type LabelMutation,
 } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { PLATFORM_LABELS, QUERYABLE_PLATFORMS, platformLabel } from "@/lib/targeting";
 import { cn, formatRelative } from "@/lib/utils";
 import { useSearch } from "@tanstack/react-router";
 
@@ -54,9 +56,9 @@ const MEMBERSHIP_OPTIONS = [
   { value: "host_vitals", label: "Host vitals" },
 ];
 
-const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
+const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
-type LabelMembershipType = NonNullable<LabelMutation["membership_type"]>;
+type LabelMembershipType = NonNullable<LabelMutation["label_membership_type"]>;
 
 export function LabelsPage() {
   const search = useSearch({ strict: false });
@@ -72,14 +74,14 @@ export function LabelsPage() {
     per_page: state.perPage,
     order_key: state.orderKey,
     order_direction: state.orderDirection,
-    kind: search.kind,
-    membership_type: search.membership_type,
+    label_type: search.label_type,
+    label_membership_type: search.label_membership_type,
     platform: search.platform,
   });
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.kind || !!search.membership_type || !!search.platform;
+  const hasFilters = !!search.q || !!search.label_type || !!search.label_membership_type || !!search.platform;
 
   const columns: ColumnDef<Label>[] = [
     {
@@ -88,21 +90,23 @@ export function LabelsPage() {
       cell: ({ row }) => row.original.name,
     },
     {
-      id: "kind",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Kind" />,
+      id: "label_type",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.kind === "builtin" ? "secondary" : "outline"}>{row.original.kind}</Badge>
+        <Badge variant={row.original.label_type === "builtin" ? "secondary" : "outline"}>
+          {row.original.label_type}
+        </Badge>
       ),
     },
     {
-      id: "membership_type",
+      id: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.membership_type}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.label_membership_type}</span>,
     },
     {
       id: "platform",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.platform ?? "-"}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{platformLabel(row.original.platform)}</span>,
     },
     {
       id: "hosts_count",
@@ -163,10 +167,10 @@ export function LabelsPage() {
               <LabelsToolbar
                 draft={draft}
                 onDraftChange={setDraft}
-                kind={search.kind}
-                onKindChange={(v) => setters.setFilter("kind", v)}
-                membership={search.membership_type}
-                onMembershipChange={(v) => setters.setFilter("membership_type", v)}
+                labelType={search.label_type}
+                onLabelTypeChange={(v) => setters.setFilter("label_type", v)}
+                membership={search.label_membership_type}
+                onMembershipChange={(v) => setters.setFilter("label_membership_type", v)}
                 platform={search.platform}
                 onPlatformChange={(v) => setters.setFilter("platform", v)}
                 isFetching={query.isFetching}
@@ -217,8 +221,8 @@ export function LabelsPage() {
 interface LabelsToolbarProps {
   draft: string;
   onDraftChange: (next: string) => void;
-  kind: string | undefined;
-  onKindChange: (next: string | undefined) => void;
+  labelType: string | undefined;
+  onLabelTypeChange: (next: string | undefined) => void;
   membership: string | undefined;
   onMembershipChange: (next: string | undefined) => void;
   platform: string | undefined;
@@ -230,8 +234,8 @@ interface LabelsToolbarProps {
 function LabelsToolbar({
   draft,
   onDraftChange,
-  kind,
-  onKindChange,
+  labelType,
+  onLabelTypeChange,
   membership,
   onMembershipChange,
   platform,
@@ -265,10 +269,10 @@ function LabelsToolbar({
         ) : null}
       </div>
       <DataTableFacetedFilter
-        title="Kind"
+        title="Type"
         options={KIND_OPTIONS}
-        selected={kind ? [kind] : []}
-        onChange={(next) => onKindChange(next[0])}
+        selected={labelType ? [labelType] : []}
+        onChange={(next) => onLabelTypeChange(next[0])}
         singleSelect
       />
       <DataTableFacetedFilter
@@ -301,7 +305,7 @@ function LabelRowActions({
   onEdit: (label: Label) => void;
   onDelete: (label: Label) => void;
 }) {
-  if (label.kind !== "regular") return null;
+  if (label.label_type !== "regular") return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -377,7 +381,7 @@ function LabelFormBody({
       const body: LabelCreate = {
         name,
         description,
-        membership_type: membershipType,
+        label_membership_type: membershipType,
         platform: platform.trim() === "" ? undefined : platform.trim(),
         query: queryRequired ? query : undefined,
       };
@@ -386,7 +390,7 @@ function LabelFormBody({
       const body: LabelMutation = {
         name,
         description,
-        membership_type: membershipType,
+        label_membership_type: membershipType,
         platform: platform.trim() === "" ? undefined : platform.trim(),
         query: queryRequired ? query : undefined,
       };
@@ -424,7 +428,7 @@ function LabelFormBody({
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <FieldLabel htmlFor="label-membership">Membership</FieldLabel>
-            <Select value={membershipType} onValueChange={(value) => setMembershipType(value as LabelMembershipType)}>
+            <Select value={membershipType} onValueChange={setMembershipType}>
               <SelectTrigger id="label-membership">
                 <SelectValue />
               </SelectTrigger>
@@ -438,15 +442,7 @@ function LabelFormBody({
             </Select>
           </div>
 
-          <div className="grid gap-1.5">
-            <FieldLabel htmlFor="label-platform">Platform</FieldLabel>
-            <Input
-              id="label-platform"
-              value={platform}
-              onChange={(event) => setPlatform(event.target.value)}
-              placeholder="darwin"
-            />
-          </div>
+          <PlatformSelector value={platform} onChange={(next) => setPlatform(next ?? "")} />
         </div>
 
         <div className={cn("grid gap-1.5", !queryRequired && "opacity-50")}>
@@ -479,10 +475,10 @@ function LabelFormBody({
 }
 
 function labelMembershipType(label: Label | null): LabelMembershipType {
-  switch (label?.membership_type) {
+  switch (label?.label_membership_type) {
     case "manual":
     case "host_vitals":
-      return label.membership_type;
+      return label.label_membership_type;
     default:
       return "dynamic";
   }

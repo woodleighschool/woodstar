@@ -6,16 +6,16 @@ FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
 WHERE
     (@q::text = '' OR l.name ILIKE '%' || @q::text || '%' OR l.description ILIKE '%' || @q::text || '%')
-    AND (@kind::text = '' OR l.kind = @kind::text)
-    AND (@membership_type::text = '' OR l.membership_type = @membership_type::text)
+    AND (@label_type::text = '' OR l.label_type = @label_type::text)
+    AND (@label_membership_type::text = '' OR l.label_membership_type = @label_membership_type::text)
     AND (@platform::text = '' OR l.platform = @platform::text)
 GROUP BY l.id
 ORDER BY
     CASE WHEN @order_key::text = 'name' AND @order_direction::text = 'desc' THEN lower(l.name) END DESC,
-    CASE WHEN @order_key::text = 'kind' AND @order_direction::text = 'asc' THEN l.kind END ASC,
-    CASE WHEN @order_key::text = 'kind' AND @order_direction::text = 'desc' THEN l.kind END DESC,
-    CASE WHEN @order_key::text = 'membership_type' AND @order_direction::text = 'asc' THEN l.membership_type END ASC,
-    CASE WHEN @order_key::text = 'membership_type' AND @order_direction::text = 'desc' THEN l.membership_type END DESC,
+    CASE WHEN @order_key::text = 'label_type' AND @order_direction::text = 'asc' THEN l.label_type END ASC,
+    CASE WHEN @order_key::text = 'label_type' AND @order_direction::text = 'desc' THEN l.label_type END DESC,
+    CASE WHEN @order_key::text = 'label_membership_type' AND @order_direction::text = 'asc' THEN l.label_membership_type END ASC,
+    CASE WHEN @order_key::text = 'label_membership_type' AND @order_direction::text = 'desc' THEN l.label_membership_type END DESC,
     CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'asc' THEN l.platform END ASC NULLS LAST,
     CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'desc' THEN l.platform END DESC NULLS LAST,
     CASE WHEN @order_key::text = 'hosts_count' AND @order_direction::text = 'asc' THEN count(lm.host_id) END ASC,
@@ -31,8 +31,8 @@ SELECT count(*)::integer
 FROM labels l
 WHERE
     (@q::text = '' OR l.name ILIKE '%' || @q::text || '%' OR l.description ILIKE '%' || @q::text || '%')
-    AND (@kind::text = '' OR l.kind = @kind::text)
-    AND (@membership_type::text = '' OR l.membership_type = @membership_type::text)
+    AND (@label_type::text = '' OR l.label_type = @label_type::text)
+    AND (@label_membership_type::text = '' OR l.label_membership_type = @label_membership_type::text)
     AND (@platform::text = '' OR l.platform = @platform::text);
 
 -- name: GetLabelByID :one
@@ -49,16 +49,16 @@ INSERT INTO labels (
     name,
     description,
     query,
-    kind,
-    membership_type,
+    label_type,
+    label_membership_type,
     platform
 )
 VALUES (
     @name,
     @description,
     sqlc.narg(query),
-    @kind,
-    @membership_type,
+    @label_type,
+    @label_membership_type,
     sqlc.narg(platform)
 )
 RETURNING *;
@@ -69,23 +69,34 @@ SET
     name = @name,
     description = @description,
     query = sqlc.narg(query),
-    membership_type = @membership_type,
+    label_membership_type = @label_membership_type,
     platform = sqlc.narg(platform),
     updated_at = now()
-WHERE id = @id AND kind = 'regular'
+WHERE id = @id AND label_type = 'regular'
 RETURNING *;
 
 -- name: DeleteRegularLabel :one
 DELETE FROM labels
-WHERE id = @id AND kind = 'regular'
+WHERE id = @id AND label_type = 'regular'
 RETURNING id;
 
 -- name: ListApplicableDynamicLabels :many
 SELECT *
 FROM labels
 WHERE
-    membership_type = 'dynamic'
-    AND (platform IS NULL OR platform = '' OR platform = @platform::text)
+    label_membership_type = 'dynamic'
+    AND (
+        label_type = 'builtin'
+        OR platform IS NULL
+        OR platform = ''
+        OR @platform::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        OR (
+            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            AND @platform::text <> ''
+            AND @platform::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+        )
+    )
 ORDER BY id;
 
 -- name: ListApplicableDynamicLabelIDs :many
@@ -93,8 +104,19 @@ SELECT id
 FROM labels
 WHERE
     id = ANY(@ids::bigint[])
-    AND membership_type = 'dynamic'
-    AND (platform IS NULL OR platform = '' OR platform = @platform::text)
+    AND label_membership_type = 'dynamic'
+    AND (
+        label_type = 'builtin'
+        OR platform IS NULL
+        OR platform = ''
+        OR @platform::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        OR (
+            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            AND @platform::text <> ''
+            AND @platform::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+        )
+    )
 ORDER BY id;
 
 -- name: UpsertLabelMembership :exec

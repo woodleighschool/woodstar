@@ -2,6 +2,7 @@
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE secret_kind AS ENUM ('orbit');
+CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux', 'chrome');
 
 -- Users, sessions, secrets ---------------------------------------------------
 
@@ -229,8 +230,8 @@ CREATE INDEX host_software_installed_paths_host_software_idx
     ON host_software_installed_paths (host_id, software_id);
 
 -- Labels ---------------------------------------------------------------------
--- Labels are first-class targeting primitives. kind is what created them
--- (admin or builtin); membership_type is how membership is produced:
+-- Labels are first-class targeting primitives. label_type separates system
+-- labels from admin-created labels; label_membership_type is how membership is produced:
 --   dynamic     - osquery query result drives membership
 --   manual      - membership is written by the server (e.g. All Hosts on enroll)
 --   host_vitals - membership is derived from host fields, not osquery
@@ -240,19 +241,19 @@ CREATE TABLE labels (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT,
-    kind TEXT NOT NULL CHECK (kind IN ('builtin', 'regular')),
-    membership_type TEXT NOT NULL CHECK (membership_type IN ('dynamic', 'manual', 'host_vitals')),
-    platform TEXT,
+    label_type TEXT NOT NULL CHECK (label_type IN ('builtin', 'regular')),
+    label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'host_vitals')),
+    platform platform,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
-        (membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL)
-        OR (membership_type IN ('manual', 'host_vitals') AND query IS NULL)
+        (label_membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL)
+        OR (label_membership_type IN ('manual', 'host_vitals') AND query IS NULL)
     )
 );
 
-CREATE INDEX labels_kind_idx ON labels (kind);
-CREATE INDEX labels_membership_type_idx ON labels (membership_type);
+CREATE INDEX labels_label_type_idx ON labels (label_type);
+CREATE INDEX labels_label_membership_type_idx ON labels (label_membership_type);
 CREATE INDEX labels_platform_idx ON labels (platform);
 
 CREATE TABLE label_membership (
@@ -265,13 +266,13 @@ CREATE TABLE label_membership (
 
 CREATE INDEX label_membership_host_idx ON label_membership (host_id);
 
--- Builtin seed. "All Hosts" is manual: every enrolled host gets a row inserted
--- by the host store. macOS / macOS 14+ are dynamic and evaluated by osquery.
-INSERT INTO labels (name, description, query, kind, membership_type, platform)
+INSERT INTO labels (name, description, query, label_type, label_membership_type, platform)
 VALUES
     ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', NULL),
-    ('macOS', 'Hosts reporting macOS.', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', 'darwin'),
-    ('macOS 14+', 'Hosts reporting macOS 14 or newer.', 'select 1 from os_version where platform = ''darwin'' and major >= 14;', 'builtin', 'dynamic', 'darwin');
+    ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', 'darwin'),
+    ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', 'windows'),
+    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'', ''chrome'');', 'builtin', 'dynamic', 'linux'),
+    ('ChromeOS', 'All ChromeOS hosts', 'select 1 from os_version where platform = ''chrome'';', 'builtin', 'dynamic', 'chrome');
 
 -- Queries / Checks -----------------------------------------------------------
 
@@ -280,7 +281,7 @@ CREATE TABLE queries (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platform TEXT,
+    platform platform,
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
     logging_type TEXT NOT NULL DEFAULT 'snapshot' CHECK (logging_type IN ('snapshot')),
@@ -314,7 +315,7 @@ CREATE TABLE checks (
     description TEXT NOT NULL DEFAULT '',
     resolution TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platform TEXT,
+    platform platform,
     min_osquery_version TEXT,
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -376,4 +377,5 @@ DROP TABLE secrets;
 DROP TABLE sessions;
 DROP TABLE users;
 DROP TYPE secret_kind;
+DROP TYPE platform;
 DROP TYPE user_role;

@@ -13,13 +13,10 @@ import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useQueries, type SavedQuery } from "@/hooks/use-queries";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { formatRelative } from "@/lib/utils";
 
-const PLATFORM_OPTIONS = [
-  { value: "darwin", label: "macOS" },
-  { value: "windows", label: "Windows" },
-  { value: "linux", label: "Linux" },
-];
+const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
 export function ReportsPage() {
   const search = useSearch({ strict: false });

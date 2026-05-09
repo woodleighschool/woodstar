@@ -14,23 +14,23 @@ SELECT count(*)::integer
 FROM labels l
 WHERE
     ($1::text = '' OR l.name ILIKE '%' || $1::text || '%' OR l.description ILIKE '%' || $1::text || '%')
-    AND ($2::text = '' OR l.kind = $2::text)
-    AND ($3::text = '' OR l.membership_type = $3::text)
+    AND ($2::text = '' OR l.label_type = $2::text)
+    AND ($3::text = '' OR l.label_membership_type = $3::text)
     AND ($4::text = '' OR l.platform = $4::text)
 `
 
 type CountLabelsParams struct {
-	Q              string `json:"q"`
-	Kind           string `json:"kind"`
-	MembershipType string `json:"membership_type"`
-	Platform       string `json:"platform"`
+	Q                   string `json:"q"`
+	LabelType           string `json:"label_type"`
+	LabelMembershipType string `json:"label_membership_type"`
+	Platform            string `json:"platform"`
 }
 
 func (q *Queries) CountLabels(ctx context.Context, arg CountLabelsParams) (int32, error) {
 	row := q.db.QueryRow(ctx, countLabels,
 		arg.Q,
-		arg.Kind,
-		arg.MembershipType,
+		arg.LabelType,
+		arg.LabelMembershipType,
 		arg.Platform,
 	)
 	var column_1 int32
@@ -43,8 +43,8 @@ INSERT INTO labels (
     name,
     description,
     query,
-    kind,
-    membership_type,
+    label_type,
+    label_membership_type,
     platform
 )
 VALUES (
@@ -55,16 +55,16 @@ VALUES (
     $5,
     $6
 )
-RETURNING id, name, description, query, kind, membership_type, platform, created_at, updated_at
+RETURNING id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
 `
 
 type CreateLabelParams struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Query          *string `json:"query"`
-	Kind           string  `json:"kind"`
-	MembershipType string  `json:"membership_type"`
-	Platform       *string `json:"platform"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Query               *string   `json:"query"`
+	LabelType           string    `json:"label_type"`
+	LabelMembershipType string    `json:"label_membership_type"`
+	Platform            *Platform `json:"platform"`
 }
 
 func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
@@ -72,8 +72,8 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Kind,
-		arg.MembershipType,
+		arg.LabelType,
+		arg.LabelMembershipType,
 		arg.Platform,
 	)
 	var i Label
@@ -82,8 +82,8 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Kind,
-		&i.MembershipType,
+		&i.LabelType,
+		&i.LabelMembershipType,
 		&i.Platform,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -108,7 +108,7 @@ func (q *Queries) DeleteLabelMembership(ctx context.Context, arg DeleteLabelMemb
 
 const deleteRegularLabel = `-- name: DeleteRegularLabel :one
 DELETE FROM labels
-WHERE id = $1 AND kind = 'regular'
+WHERE id = $1 AND label_type = 'regular'
 RETURNING id
 `
 
@@ -125,7 +125,7 @@ func (q *Queries) DeleteRegularLabel(ctx context.Context, arg DeleteRegularLabel
 
 const getLabelByID = `-- name: GetLabelByID :one
 SELECT
-    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
     count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
@@ -150,8 +150,8 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 		&i.Label.Name,
 		&i.Label.Description,
 		&i.Label.Query,
-		&i.Label.Kind,
-		&i.Label.MembershipType,
+		&i.Label.LabelType,
+		&i.Label.LabelMembershipType,
 		&i.Label.Platform,
 		&i.Label.CreatedAt,
 		&i.Label.UpdatedAt,
@@ -165,8 +165,19 @@ SELECT id
 FROM labels
 WHERE
     id = ANY($1::bigint[])
-    AND membership_type = 'dynamic'
-    AND (platform IS NULL OR platform = '' OR platform = $2::text)
+    AND label_membership_type = 'dynamic'
+    AND (
+        label_type = 'builtin'
+        OR platform IS NULL
+        OR platform = ''
+        OR $2::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND $2::text IN ('darwin', 'macos'))
+        OR (
+            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            AND $2::text <> ''
+            AND $2::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+        )
+    )
 ORDER BY id
 `
 
@@ -196,11 +207,22 @@ func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApp
 }
 
 const listApplicableDynamicLabels = `-- name: ListApplicableDynamicLabels :many
-SELECT id, name, description, query, kind, membership_type, platform, created_at, updated_at
+SELECT id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
 FROM labels
 WHERE
-    membership_type = 'dynamic'
-    AND (platform IS NULL OR platform = '' OR platform = $1::text)
+    label_membership_type = 'dynamic'
+    AND (
+        label_type = 'builtin'
+        OR platform IS NULL
+        OR platform = ''
+        OR $1::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND $1::text IN ('darwin', 'macos'))
+        OR (
+            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            AND $1::text <> ''
+            AND $1::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+        )
+    )
 ORDER BY id
 `
 
@@ -222,8 +244,8 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 			&i.Name,
 			&i.Description,
 			&i.Query,
-			&i.Kind,
-			&i.MembershipType,
+			&i.LabelType,
+			&i.LabelMembershipType,
 			&i.Platform,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -240,22 +262,22 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 
 const listLabels = `-- name: ListLabels :many
 SELECT
-    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
     count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
 WHERE
     ($1::text = '' OR l.name ILIKE '%' || $1::text || '%' OR l.description ILIKE '%' || $1::text || '%')
-    AND ($2::text = '' OR l.kind = $2::text)
-    AND ($3::text = '' OR l.membership_type = $3::text)
+    AND ($2::text = '' OR l.label_type = $2::text)
+    AND ($3::text = '' OR l.label_membership_type = $3::text)
     AND ($4::text = '' OR l.platform = $4::text)
 GROUP BY l.id
 ORDER BY
     CASE WHEN $5::text = 'name' AND $6::text = 'desc' THEN lower(l.name) END DESC,
-    CASE WHEN $5::text = 'kind' AND $6::text = 'asc' THEN l.kind END ASC,
-    CASE WHEN $5::text = 'kind' AND $6::text = 'desc' THEN l.kind END DESC,
-    CASE WHEN $5::text = 'membership_type' AND $6::text = 'asc' THEN l.membership_type END ASC,
-    CASE WHEN $5::text = 'membership_type' AND $6::text = 'desc' THEN l.membership_type END DESC,
+    CASE WHEN $5::text = 'label_type' AND $6::text = 'asc' THEN l.label_type END ASC,
+    CASE WHEN $5::text = 'label_type' AND $6::text = 'desc' THEN l.label_type END DESC,
+    CASE WHEN $5::text = 'label_membership_type' AND $6::text = 'asc' THEN l.label_membership_type END ASC,
+    CASE WHEN $5::text = 'label_membership_type' AND $6::text = 'desc' THEN l.label_membership_type END DESC,
     CASE WHEN $5::text = 'platform' AND $6::text = 'asc' THEN l.platform END ASC NULLS LAST,
     CASE WHEN $5::text = 'platform' AND $6::text = 'desc' THEN l.platform END DESC NULLS LAST,
     CASE WHEN $5::text = 'hosts_count' AND $6::text = 'asc' THEN count(lm.host_id) END ASC,
@@ -268,14 +290,14 @@ LIMIT $8 OFFSET $7
 `
 
 type ListLabelsParams struct {
-	Q              string `json:"q"`
-	Kind           string `json:"kind"`
-	MembershipType string `json:"membership_type"`
-	Platform       string `json:"platform"`
-	OrderKey       string `json:"order_key"`
-	OrderDirection string `json:"order_direction"`
-	OffsetRows     int32  `json:"offset_rows"`
-	LimitRows      int32  `json:"limit_rows"`
+	Q                   string `json:"q"`
+	LabelType           string `json:"label_type"`
+	LabelMembershipType string `json:"label_membership_type"`
+	Platform            string `json:"platform"`
+	OrderKey            string `json:"order_key"`
+	OrderDirection      string `json:"order_direction"`
+	OffsetRows          int32  `json:"offset_rows"`
+	LimitRows           int32  `json:"limit_rows"`
 }
 
 type ListLabelsRow struct {
@@ -286,8 +308,8 @@ type ListLabelsRow struct {
 func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListLabelsRow, error) {
 	rows, err := q.db.Query(ctx, listLabels,
 		arg.Q,
-		arg.Kind,
-		arg.MembershipType,
+		arg.LabelType,
+		arg.LabelMembershipType,
 		arg.Platform,
 		arg.OrderKey,
 		arg.OrderDirection,
@@ -306,8 +328,8 @@ func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListL
 			&i.Label.Name,
 			&i.Label.Description,
 			&i.Label.Query,
-			&i.Label.Kind,
-			&i.Label.MembershipType,
+			&i.Label.LabelType,
+			&i.Label.LabelMembershipType,
 			&i.Label.Platform,
 			&i.Label.CreatedAt,
 			&i.Label.UpdatedAt,
@@ -325,7 +347,7 @@ func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListL
 
 const listLabelsForHost = `-- name: ListLabelsForHost :many
 SELECT
-    l.id, l.name, l.description, l.query, l.kind, l.membership_type, l.platform, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
     count(lm_all.host_id)::integer AS hosts_count
 FROM labels l
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
@@ -357,8 +379,8 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 			&i.Label.Name,
 			&i.Label.Description,
 			&i.Label.Query,
-			&i.Label.Kind,
-			&i.Label.MembershipType,
+			&i.Label.LabelType,
+			&i.Label.LabelMembershipType,
 			&i.Label.Platform,
 			&i.Label.CreatedAt,
 			&i.Label.UpdatedAt,
@@ -395,20 +417,20 @@ SET
     name = $1,
     description = $2,
     query = $3,
-    membership_type = $4,
+    label_membership_type = $4,
     platform = $5,
     updated_at = now()
-WHERE id = $6 AND kind = 'regular'
-RETURNING id, name, description, query, kind, membership_type, platform, created_at, updated_at
+WHERE id = $6 AND label_type = 'regular'
+RETURNING id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
 `
 
 type UpdateLabelParams struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Query          *string `json:"query"`
-	MembershipType string  `json:"membership_type"`
-	Platform       *string `json:"platform"`
-	ID             int64   `json:"id"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Query               *string   `json:"query"`
+	LabelMembershipType string    `json:"label_membership_type"`
+	Platform            *Platform `json:"platform"`
+	ID                  int64     `json:"id"`
 }
 
 func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {
@@ -416,7 +438,7 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.MembershipType,
+		arg.LabelMembershipType,
 		arg.Platform,
 		arg.ID,
 	)
@@ -426,8 +448,8 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Kind,
-		&i.MembershipType,
+		&i.LabelType,
+		&i.LabelMembershipType,
 		&i.Platform,
 		&i.CreatedAt,
 		&i.UpdatedAt,

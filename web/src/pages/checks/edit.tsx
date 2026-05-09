@@ -6,12 +6,12 @@ import { useRef, useState } from "react";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
+import { PlatformSelector } from "@/components/queries/platform-selector";
 import { BackLink, PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { cn } from "@/lib/utils";
@@ -23,11 +23,6 @@ const emptyCheck: CheckMutation = {
   query: "select 1;",
   label_scope: {},
 };
-
-const PLATFORM_OPTIONS = [
-  { value: "all", label: "All platforms" },
-  { value: "darwin", label: "macOS" },
-];
 
 export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -179,24 +174,7 @@ function CheckEditForm({
 
       <div className="grid gap-4">
         <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="check-platform">Targeted platforms</Label>
-            <Select
-              value={form.platform ?? "all"}
-              onValueChange={(value) => setForm({ ...form, platform: value === "all" ? undefined : value })}
-            >
-              <SelectTrigger id="check-platform" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLATFORM_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
         </div>
         <LabelScopeSelector
           entity="check"

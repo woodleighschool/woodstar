@@ -813,10 +813,8 @@ export interface components {
             hosts_count: number;
             /** Format: int64 */
             id: number;
-            /** @enum {string} */
-            kind: "regular" | "builtin";
-            /** @enum {string} */
-            membership_type: "dynamic" | "manual" | "host_vitals";
+            label_membership_type: string;
+            label_type: string;
             name: string;
             platform?: string;
             query?: string;
@@ -831,10 +829,8 @@ export interface components {
              */
             readonly $schema?: string;
             description?: string;
-            /** @enum {string} */
-            kind?: "regular" | "builtin";
-            /** @enum {string} */
-            membership_type?: "dynamic" | "manual" | "host_vitals";
+            label_membership_type?: string;
+            label_type?: string;
             name: string;
             platform?: string;
             query?: string;
@@ -858,8 +854,7 @@ export interface components {
              */
             readonly $schema?: string;
             description?: string;
-            /** @enum {string} */
-            membership_type?: "dynamic" | "manual" | "host_vitals";
+            label_membership_type?: string;
             name: string;
             platform?: string;
             query?: string;
@@ -2026,8 +2021,8 @@ export interface operations {
                 per_page?: number;
                 order_key?: string;
                 order_direction?: string;
-                kind?: string;
-                membership_type?: string;
+                label_type?: string;
+                label_membership_type?: string;
                 platform?: string;
             };
             header?: never;

@@ -137,7 +137,12 @@ WHERE deleted_at IS NULL
             WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
         )
     )
-    AND (@platform::text = '' OR platform = @platform::text)
+    AND (
+        @platform::text = ''
+        OR platform = @platform::text
+        OR (@platform::text = 'darwin' AND platform IN ('darwin', 'macos'))
+        OR (@platform::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+    )
     AND (
         @status::text = ''
         OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
@@ -189,7 +194,12 @@ WHERE deleted_at IS NULL
             WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
         )
     )
-    AND (@platform::text = '' OR platform = @platform::text)
+    AND (
+        @platform::text = ''
+        OR platform = @platform::text
+        OR (@platform::text = 'darwin' AND platform IN ('darwin', 'macos'))
+        OR (@platform::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+    )
     AND (
         @status::text = ''
         OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
@@ -357,5 +367,5 @@ ORDER BY serial_number, id;
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, @host_id
 FROM labels
-WHERE name = 'All Hosts' AND kind = 'builtin' AND membership_type = 'manual'
+WHERE name = 'All Hosts' AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING;

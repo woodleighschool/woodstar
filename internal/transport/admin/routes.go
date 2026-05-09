@@ -45,7 +45,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
 	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
-	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.DB)
+	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, models.NewTargetResolver(deps.DB))
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
 	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit

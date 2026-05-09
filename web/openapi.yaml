@@ -653,16 +653,9 @@ components:
         id:
           format: int64
           type: integer
-        kind:
-          enum:
-            - regular
-            - builtin
+        label_membership_type:
           type: string
-        membership_type:
-          enum:
-            - dynamic
-            - manual
-            - host_vitals
+        label_type:
           type: string
         name:
           type: string
@@ -677,8 +670,8 @@ components:
         - id
         - name
         - description
-        - kind
-        - membership_type
+        - label_type
+        - label_membership_type
         - hosts_count
       type: object
     LabelCreateBody:
@@ -693,16 +686,9 @@ components:
           type: string
         description:
           type: string
-        kind:
-          enum:
-            - regular
-            - builtin
+        label_membership_type:
           type: string
-        membership_type:
-          enum:
-            - dynamic
-            - manual
-            - host_vitals
+        label_type:
           type: string
         name:
           type: string
@@ -748,11 +734,7 @@ components:
           type: string
         description:
           type: string
-        membership_type:
-          enum:
-            - dynamic
-            - manual
-            - host_vitals
+        label_membership_type:
           type: string
         name:
           type: string
@@ -2083,12 +2065,12 @@ paths:
             type: string
         - explode: false
           in: query
-          name: kind
+          name: label_type
           schema:
             type: string
         - explode: false
           in: query
-          name: membership_type
+          name: label_membership_type
           schema:
             type: string
         - explode: false

@@ -22,6 +22,50 @@ export function targetSummary(scope: LabelScope | undefined, platform?: string |
 
 export function platformLabel(platform?: string | null) {
   if (!platform) return "all platforms";
-  if (platform === "darwin") return "macOS";
-  return platform;
+  const labels = platform
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map(platformDisplayLabel);
+  if (labels.length === 0) return "all platforms";
+  return labels.join(", ");
+}
+
+export const QUERYABLE_PLATFORMS = ["darwin", "windows", "linux", "chrome"] as const;
+
+export type QueryablePlatform = (typeof QUERYABLE_PLATFORMS)[number];
+
+export const PLATFORM_LABELS: Record<QueryablePlatform, string> = {
+  darwin: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
+};
+
+const PLATFORM_DISPLAY_LABELS: Partial<Record<string, string>> = {
+  ...PLATFORM_LABELS,
+  macos: "macOS",
+  rhel: "Linux",
+  centos: "Linux",
+  ubuntu: "Linux",
+};
+
+export function platformsFromValue(value?: string | null): QueryablePlatform[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item): item is QueryablePlatform => isQueryablePlatform(item));
+}
+
+export function platformsToValue(platforms: QueryablePlatform[]) {
+  return platforms.length ? platforms.join(",") : undefined;
+}
+
+export function isQueryablePlatform(platform: string): platform is QueryablePlatform {
+  return (QUERYABLE_PLATFORMS as readonly string[]).includes(platform);
+}
+
+export function platformDisplayLabel(platform: string) {
+  return PLATFORM_DISPLAY_LABELS[platform] ?? platform;
 }

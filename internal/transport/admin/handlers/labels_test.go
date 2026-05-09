@@ -16,7 +16,7 @@ func TestLabelListInputParams(t *testing.T) {
 		PerPage:        25,
 		OrderKey:       "name",
 		OrderDirection: "desc",
-		Kind:           "regular",
+		LabelType:      "regular",
 		MembershipType: "dynamic",
 		Platform:       " darwin ",
 	}
@@ -25,11 +25,11 @@ func TestLabelListInputParams(t *testing.T) {
 	if got.Q != "mac" || got.Page != 2 || got.PerPage != 25 {
 		t.Fatalf("list params = %#v", got.ListParams)
 	}
-	if got.Kind != models.LabelKindRegular {
-		t.Fatalf("Kind = %q, want regular", got.Kind)
+	if got.LabelType != models.LabelTypeRegular {
+		t.Fatalf("LabelType = %q, want regular", got.LabelType)
 	}
-	if got.MembershipType != models.LabelMembershipTypeDynamic {
-		t.Fatalf("MembershipType = %q, want dynamic", got.MembershipType)
+	if got.LabelMembershipType != models.LabelMembershipTypeDynamic {
+		t.Fatalf("LabelMembershipType = %q, want dynamic", got.LabelMembershipType)
 	}
 	if got.Platform != "darwin" {
 		t.Fatalf("Platform = %q, want darwin", got.Platform)

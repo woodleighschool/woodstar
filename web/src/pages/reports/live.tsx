@@ -1,5 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { Check, Loader2, Play, Plus, Search, X } from "lucide-react";
+import { Apple, Check, Globe, Loader2, Monitor, Play, Plus, Search, Server, X } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { BackLink, PageLead, ShowQueryButton } from "@/components/queries/query-ui";
@@ -153,7 +154,7 @@ function TargetPicker({
   }, [grouped.allHosts, onLabelsChange, selectedHosts.length, selectedLabels.length]);
 
   function toggleLabel(label: Label) {
-    const isAllHosts = label.kind === "builtin" && label.name === "All Hosts";
+    const isAllHosts = label.label_type === "builtin" && label.name === "All Hosts";
     const alreadySelected = selectedLabels.some((item) => item.id === label.id);
     if (alreadySelected) {
       onLabelsChange(selectedLabels.filter((item) => item.id !== label.id));
@@ -267,6 +268,7 @@ function TargetSection({
             key={label.id}
             selected={selected.some((item) => item.id === label.id)}
             label={displayLabel(label)}
+            icon={targetIcon(label)}
             onClick={() => onToggle(label)}
           />
         ))}
@@ -275,7 +277,17 @@ function TargetSection({
   );
 }
 
-function TargetChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function TargetChip({
+  label,
+  selected,
+  onClick,
+  icon: Icon,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+  icon?: ComponentType<SVGProps<SVGSVGElement>>;
+}) {
   return (
     <button
       type="button"
@@ -284,6 +296,7 @@ function TargetChip({ label, selected, onClick }: { label: string; selected: boo
       className="border-input data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-muted inline-flex h-8 items-center rounded-full border px-3 text-sm transition-colors data-[selected=true]:border-primary"
     >
       {selected ? <Check className="mr-1 size-3.5" /> : <Plus className="mr-1 size-3.5" />}
+      {Icon ? <Icon className="mr-1 size-3.5" /> : null}
       {label}
     </button>
   );
@@ -335,16 +348,36 @@ function LiveResults({ rows, status }: { rows: LiveQueryRow[]; status: string })
 
 function groupLabels(labels: Label[]) {
   return {
-    allHosts: labels.filter((label) => label.kind === "builtin" && label.name === "All Hosts"),
-    platforms: labels.filter((label) => label.kind === "builtin" && label.name !== "All Hosts"),
-    other: labels.filter((label) => label.kind !== "builtin"),
+    allHosts: labels.filter((label) => label.label_type === "builtin" && label.name === "All Hosts"),
+    platforms: labels.filter(isPrimaryPlatformLabel),
+    other: labels.filter((label) => label.name !== "All Hosts" && !isPrimaryPlatformLabel(label)),
   };
 }
 
 function displayLabel(label: Label) {
-  if (label.name === "MS Windows") return "Windows";
-  if (label.name === "All Linux") return "Linux";
   return label.name;
+}
+
+function isPrimaryPlatformLabel(label: Label) {
+  return (
+    label.label_type === "builtin" &&
+    (label.name === "macOS" || label.name === "Windows" || label.name === "Linux" || label.name === "ChromeOS")
+  );
+}
+
+function targetIcon(label: Label): ComponentType<SVGProps<SVGSVGElement>> | undefined {
+  switch (label.name) {
+    case "macOS":
+      return Apple;
+    case "Windows":
+      return Monitor;
+    case "Linux":
+      return Server;
+    case "ChromeOS":
+      return Globe;
+    default:
+      return undefined;
+  }
 }
 
 function liveColumnNames(rows: LiveQueryRow[]) {

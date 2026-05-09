@@ -9,8 +9,8 @@ const searchSchema = z.object({
   per_page: z.coerce.number().int().min(10).max(200).optional(),
   order_key: z.string().optional(),
   order_direction: z.enum(["asc", "desc"]).optional(),
-  kind: z.string().optional(),
-  membership_type: z.string().optional(),
+  label_type: z.string().optional(),
+  label_membership_type: z.string().optional(),
   platform: z.string().optional(),
 });
 

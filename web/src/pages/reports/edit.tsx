@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
+import { PlatformSelector } from "@/components/queries/platform-selector";
 import { BackLink, PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,6 @@ const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 43200, label: "Every 12 hours" },
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
-];
-
-const PLATFORM_OPTIONS = [
-  { value: "all", label: "All platforms" },
-  { value: "darwin", label: "macOS" },
 ];
 
 const emptyQuery: QueryMutation = {
@@ -201,24 +197,7 @@ function ReportEditForm({
               </Select>
               <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="report-platform">Targeted platforms</Label>
-              <Select
-                value={form.platform ?? "all"}
-                onValueChange={(value) => setForm({ ...form, platform: value === "all" ? undefined : value })}
-              >
-                <SelectTrigger id="report-platform" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORM_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
           </div>
           <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
         </div>

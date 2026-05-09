@@ -11,6 +11,50 @@ import (
 	"time"
 )
 
+type Platform string
+
+const (
+	PlatformDarwin  Platform = "darwin"
+	PlatformWindows Platform = "windows"
+	PlatformLinux   Platform = "linux"
+	PlatformChrome  Platform = "chrome"
+)
+
+func (e *Platform) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Platform(s)
+	case string:
+		*e = Platform(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Platform: %T", src)
+	}
+	return nil
+}
+
+type NullPlatform struct {
+	Platform Platform `json:"platform"`
+	Valid    bool     `json:"valid"` // Valid is true if Platform is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlatform) Scan(value interface{}) error {
+	if value == nil {
+		ns.Platform, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Platform.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlatform) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Platform), nil
+}
+
 type SecretKind string
 
 const (
@@ -100,7 +144,7 @@ type Check struct {
 	Description       string    `json:"description"`
 	Resolution        string    `json:"resolution"`
 	Query             string    `json:"query"`
-	Platform          *string   `json:"platform"`
+	Platform          *Platform `json:"platform"`
 	MinOsqueryVersion *string   `json:"min_osquery_version"`
 	CreatedByUserID   *int64    `json:"created_by_user_id"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -228,15 +272,15 @@ type HostUser struct {
 }
 
 type Label struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Query          *string   `json:"query"`
-	Kind           string    `json:"kind"`
-	MembershipType string    `json:"membership_type"`
-	Platform       *string   `json:"platform"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                  int64     `json:"id"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Query               *string   `json:"query"`
+	LabelType           string    `json:"label_type"`
+	LabelMembershipType string    `json:"label_membership_type"`
+	Platform            *Platform `json:"platform"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type LabelMembership struct {
@@ -251,7 +295,7 @@ type Query struct {
 	Name              string    `json:"name"`
 	Description       string    `json:"description"`
 	Query             string    `json:"query"`
-	Platform          *string   `json:"platform"`
+	Platform          *Platform `json:"platform"`
 	MinOsqueryVersion *string   `json:"min_osquery_version"`
 	ScheduleInterval  int32     `json:"schedule_interval"`
 	LoggingType       string    `json:"logging_type"`

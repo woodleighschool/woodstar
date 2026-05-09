@@ -14,7 +14,7 @@ const addHostToAllHostsLabel = `-- name: AddHostToAllHostsLabel :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, $1
 FROM labels
-WHERE name = 'All Hosts' AND kind = 'builtin' AND membership_type = 'manual'
+WHERE name = 'All Hosts' AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING
 `
 
@@ -151,7 +151,12 @@ WHERE deleted_at IS NULL
             WHERE he.host_id = hosts.id AND he.email ILIKE '%' || $1::text || '%'
         )
     )
-    AND ($2::text = '' OR platform = $2::text)
+    AND (
+        $2::text = ''
+        OR platform = $2::text
+        OR ($2::text = 'darwin' AND platform IN ('darwin', 'macos'))
+        OR ($2::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+    )
     AND (
         $3::text = ''
         OR ($3::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
@@ -512,7 +517,12 @@ WHERE deleted_at IS NULL
             WHERE he.host_id = hosts.id AND he.email ILIKE '%' || $1::text || '%'
         )
     )
-    AND ($2::text = '' OR platform = $2::text)
+    AND (
+        $2::text = ''
+        OR platform = $2::text
+        OR ($2::text = 'darwin' AND platform IN ('darwin', 'macos'))
+        OR ($2::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+    )
     AND (
         $3::text = ''
         OR ($3::text = 'online' AND last_seen_at >= now() - interval '5 minutes')

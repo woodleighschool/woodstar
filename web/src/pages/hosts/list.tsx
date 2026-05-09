@@ -17,9 +17,10 @@ import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
-const PLATFORM_OPTIONS = [{ value: "darwin", label: "Darwin" }];
+const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 const STATUS_OPTIONS = [
   { value: "online", label: "Online" },
   { value: "offline", label: "Offline" },

@@ -11,12 +11,15 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
 const liveQueriesTag = "Live Queries"
+
+type targetResolver interface {
+	ResolveSelectedTargets(context.Context, models.TargetSelection) ([]int64, error)
+}
 
 // liveQueryCreateBody mirrors the campaign body but is one-shot — no DB row,
 // no detail page, no list page. Result events stream and disappear.
@@ -51,7 +54,7 @@ type liveQueryCreateOutput struct {
 func RegisterLiveQueries(
 	api huma.API,
 	manager *queryinfra.LiveQueryManager,
-	db *database.DB,
+	resolver targetResolver,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-live-query",
@@ -65,7 +68,7 @@ func RegisterLiveQueries(
 		if manager == nil {
 			return nil, huma.Error500InternalServerError("live queries are not configured")
 		}
-		hostIDs, err := input.Body.resolveTargets(ctx, db)
+		hostIDs, err := input.Body.resolveTargets(ctx, resolver)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +86,7 @@ func liveQueryHandleResponse(h *queryinfra.LiveQueryHandle) liveQueryHandleBody 
 	}
 }
 
-func (body liveQueryCreateBody) resolveTargets(ctx context.Context, db *database.DB) ([]int64, error) {
+func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver targetResolver) ([]int64, error) {
 	if body.SQL == "" {
 		return nil, huma.Error400BadRequest("sql is required")
 	}
@@ -95,44 +98,20 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, db *database
 	if err != nil {
 		return nil, err
 	}
-	scope := models.LabelScope{Mode: models.ScopeIncludeAny, LabelIDs: labelIDs}
-	if len(scope.LabelIDs) > 0 && db != nil {
-		matches, err := models.HostsMatchingScope(ctx, db, scope, "")
-		if err != nil {
-			return nil, err
-		}
-		hostIDs = mergePositiveIDs(hostIDs, matches)
+	if resolver == nil {
+		return nil, huma.Error500InternalServerError("target resolver is not configured")
 	}
-	if len(hostIDs) == 0 {
+	resolved, err := resolver.ResolveSelectedTargets(ctx, models.TargetSelection{
+		HostIDs:  hostIDs,
+		LabelIDs: labelIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(resolved) == 0 {
 		return nil, huma.Error400BadRequest("no hosts targeted")
 	}
-	return hostIDs, nil
-}
-
-func mergePositiveIDs(a, b []int64) []int64 {
-	seen := make(map[int64]struct{}, len(a)+len(b))
-	out := make([]int64, 0, len(a)+len(b))
-	for _, id := range a {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	for _, id := range b {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	return out
+	return resolved, nil
 }
 
 // LiveQueryStreamHandler returns the SSE handler for /api/live-queries/{id}/stream.
