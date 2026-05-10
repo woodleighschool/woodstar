@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/netip"
 	"strings"
 	"time"
 
@@ -187,12 +186,12 @@ func (i hostListInput) params() (hosts.HostListParams, error) {
 
 type hostSoftwareInput struct {
 	ID             string   `path:"id"`
-	Q              string   `          query:"q,omitempty"`
-	Page           int      `          query:"page,omitempty"`
-	PerPage        int      `          query:"per_page,omitempty"`
-	OrderKey       string   `          query:"order_key,omitempty"`
-	OrderDirection string   `          query:"order_direction,omitempty"`
-	Source         []string `          query:"source,omitempty"`
+	Q              string   `query:"q,omitempty"`
+	Page           int      `query:"page,omitempty"`
+	PerPage        int      `query:"per_page,omitempty"`
+	OrderKey       string   `query:"order_key,omitempty"`
+	OrderDirection string   `query:"order_direction,omitempty"`
+	Source         []string `query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
@@ -415,7 +414,7 @@ func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceM
 	if err != nil {
 		return hostBody{}, err
 	}
-	return hostBody{
+	body := hostBody{
 		ID:                      host.ID,
 		HardwareUUID:            host.HardwareUUID,
 		DisplayName:             host.DisplayName,
@@ -443,8 +442,6 @@ func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceM
 		LastRestartedAt:         host.LastRestartedAt,
 		DiskSpaceAvailableBytes: host.DiskSpaceAvailableBytes,
 		DiskSpaceTotalBytes:     host.DiskSpaceTotalBytes,
-		PublicIP:                addrString(host.PublicIP),
-		PrimaryIP:               addrString(host.PrimaryIP),
 		PrimaryMAC:              host.PrimaryMAC,
 		DistributedInterval:     host.DistributedInterval,
 		ConfigTLSRefresh:        host.ConfigTLSRefresh,
@@ -459,14 +456,14 @@ func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceM
 		SoftwareUpdatedAt:       host.SoftwareUpdatedAt,
 		CreatedAt:               host.CreatedAt,
 		UpdatedAt:               host.UpdatedAt,
-	}, nil
-}
-
-func addrString(addr *netip.Addr) string {
-	if addr == nil {
-		return ""
 	}
-	return addr.String()
+	if host.PublicIP != nil {
+		body.PublicIP = host.PublicIP.String()
+	}
+	if host.PrimaryIP != nil {
+		body.PrimaryIP = host.PrimaryIP.String()
+	}
+	return body, nil
 }
 
 func deviceMappingResponses(rows []hosts.HostDeviceMapping) []deviceMappingBody {

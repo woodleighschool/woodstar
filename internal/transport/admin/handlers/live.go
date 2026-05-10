@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -112,8 +111,8 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 // Auth must be applied by the caller via middleware.
 func LiveQueryStreamHandler(manager *queries.LiveQueryManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		id, err := parseLiveQueryStreamID(req)
-		if err != nil {
+		id, ok := parseLiveQueryStreamID(req)
+		if !ok {
 			http.NotFound(w, req)
 			return
 		}
@@ -121,21 +120,16 @@ func LiveQueryStreamHandler(manager *queries.LiveQueryManager) http.HandlerFunc 
 	}
 }
 
-var (
-	errLiveStreamMissingID = errors.New("missing id")
-	errLiveStreamInvalidID = errors.New("invalid id")
-)
-
-func parseLiveQueryStreamID(req *http.Request) (int64, error) {
+func parseLiveQueryStreamID(req *http.Request) (int64, bool) {
 	id := req.PathValue("id")
 	if id == "" {
-		return 0, errLiveStreamMissingID
+		return 0, false
 	}
 	parsed, err := strconv.ParseInt(id, 10, 64)
 	if err != nil || parsed <= 0 {
-		return 0, errLiveStreamInvalidID
+		return 0, false
 	}
-	return parsed, nil
+	return parsed, true
 }
 
 func streamLiveQuery(

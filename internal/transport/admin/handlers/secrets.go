@@ -23,41 +23,21 @@ type secretCreateOutput struct {
 	Body models.Secret
 }
 
-type secretRoute struct {
-	listOperationID   string
-	createOperationID string
-	deleteOperationID string
-	path              string
-	tag               string
-	name              string
-}
-
 // RegisterSecrets registers shared credential endpoints for Orbit enroll secrets.
 // Santa and Munki return when their modules ship.
 func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
-	registerSecretRoutes(api, secretStore, models.SecretOrbit, secretRoute{
-		listOperationID:   "list-orbit-enroll-secrets",
-		createOperationID: "create-orbit-enroll-secret",
-		deleteOperationID: "delete-orbit-enroll-secret",
-		path:              "/api/orbit/enroll-secrets",
-		tag:               "Orbit",
-		name:              "Orbit enroll secret",
-	})
-}
-
-func registerSecretRoutes(api huma.API, secretStore *models.SecretStore, kind models.SecretKind, route secretRoute) {
 	huma.Register(api, huma.Operation{
-		OperationID: route.listOperationID,
+		OperationID: "list-orbit-enroll-secrets",
 		Method:      http.MethodGet,
-		Path:        route.path,
-		Tags:        []string{route.tag},
-		Summary:     "List " + route.name + "s",
+		Path:        "/api/orbit/enroll-secrets",
+		Tags:        []string{"Orbit"},
+		Summary:     "List Orbit enroll secrets",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, _ *struct{}) (*secretListOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secrets, err := secretStore.List(ctx, kind)
+		secrets, err := secretStore.List(ctx, models.SecretOrbit)
 		if err != nil {
 			return nil, err
 		}
@@ -65,18 +45,18 @@ func registerSecretRoutes(api huma.API, secretStore *models.SecretStore, kind mo
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID:   route.createOperationID,
+		OperationID:   "create-orbit-enroll-secret",
 		Method:        http.MethodPost,
-		Path:          route.path,
-		Tags:          []string{route.tag},
-		Summary:       "Create " + route.name,
+		Path:          "/api/orbit/enroll-secrets",
+		Tags:          []string{"Orbit"},
+		Summary:       "Create Orbit enroll secret",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, _ *struct{}) (*secretCreateOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secret, err := secretStore.Create(ctx, kind)
+		secret, err := secretStore.Create(ctx, models.SecretOrbit)
 		if err != nil {
 			return nil, err
 		}
@@ -84,11 +64,11 @@ func registerSecretRoutes(api huma.API, secretStore *models.SecretStore, kind mo
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: route.deleteOperationID,
+		OperationID: "delete-orbit-enroll-secret",
 		Method:      http.MethodDelete,
-		Path:        route.path + "/{id}",
-		Tags:        []string{route.tag},
-		Summary:     "Delete " + route.name,
+		Path:        "/api/orbit/enroll-secrets/{id}",
+		Tags:        []string{"Orbit"},
+		Summary:     "Delete Orbit enroll secret",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *secretDeleteInput) (*struct{}, error) {
 		if _, err := requireAdmin(ctx); err != nil {
@@ -98,10 +78,13 @@ func registerSecretRoutes(api huma.API, secretStore *models.SecretStore, kind mo
 		if err != nil {
 			return nil, err
 		}
-		err = secretStore.Delete(ctx, kind, id)
+		err = secretStore.Delete(ctx, models.SecretOrbit, id)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+		return &struct{}{}, nil
 	})
 }

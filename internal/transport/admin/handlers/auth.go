@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -175,8 +174,6 @@ func authError(err error) error {
 		return huma.Error409Conflict("woodstar is already set up")
 	case errors.Is(err, auth.ErrWeakPassword):
 		return huma.Error400BadRequest(auth.ErrWeakPassword.Error())
-	case strings.TrimSpace(err.Error()) == "":
-		return huma.Error500InternalServerError("request failed")
 	default:
 		return err
 	}

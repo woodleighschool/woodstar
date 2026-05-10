@@ -10,8 +10,6 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
-const logPathField = "path"
-
 func requestLogger(logger *slog.Logger, accessLevel slog.Level) func(http.Handler) http.Handler {
 	logger = logger.With("component", "http")
 
@@ -26,7 +24,7 @@ func requestLogger(logger *slog.Logger, accessLevel slog.Level) func(http.Handle
 						r.Context(),
 						"panic recovered",
 						"method", r.Method,
-						logPathField, r.URL.Path,
+						"path", r.URL.Path,
 						"recover", recovered,
 						"stack", string(debug.Stack()),
 					)
@@ -56,7 +54,7 @@ func logRequest(
 	attrs := []any{
 		"request_id", chimiddleware.GetReqID(ctx),
 		"method", r.Method,
-		logPathField, r.URL.Path,
+		"path", r.URL.Path,
 		"status", status,
 		"duration_ms", float64(elapsed.Microseconds()) / 1000,
 		"remote_addr", r.RemoteAddr,

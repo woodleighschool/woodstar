@@ -82,7 +82,7 @@ type queryBulkDeleteInput struct {
 }
 
 func (i queryBulkDeleteInput) ids() ([]int64, error) {
-	return cleanBulkIDs(i.Body.IDs, "report IDs")
+	return cleanBulkIDs(i.Body.IDs, "query IDs")
 }
 
 type queryListOutput struct {
