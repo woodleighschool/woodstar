@@ -93,6 +93,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+// Config returns the runtime configuration used by the server.
+func (s *Server) Config() config.Config {
+	return s.deps.Config
+}
+
 func (s *Server) routes() http.Handler {
 	deps := s.deps
 	r := chi.NewRouter()

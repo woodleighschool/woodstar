@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,9 @@ func TestApplyEnvironmentDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
 	}
+	if cfg.ShutdownTimeoutSeconds != 15 {
+		t.Fatalf("ShutdownTimeoutSeconds = %d, want 15", cfg.ShutdownTimeoutSeconds)
+	}
 }
 
 func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {
@@ -94,6 +98,9 @@ func TestApplyEnvironmentRejectsURLWithPath(t *testing.T) {
 	err := ApplyEnvironment(&Config{})
 	if err == nil {
 		t.Fatal("ApplyEnvironment returned nil error, want path rejection")
+	}
+	if !errors.Is(err, ErrInvalidPublicURL) {
+		t.Fatalf("err = %v, want ErrInvalidPublicURL", err)
 	}
 }
 

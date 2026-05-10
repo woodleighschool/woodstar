@@ -15,6 +15,9 @@ const minSessionSecretLength = 32
 // SessionLifetime is the browser session lifetime.
 const SessionLifetime = 14 * 24 * time.Hour
 
+// ErrInvalidPublicURL is returned when WOODSTAR_PUBLIC_URL is not a valid public origin.
+var ErrInvalidPublicURL = errors.New("invalid WOODSTAR_PUBLIC_URL")
+
 // Config contains runtime settings.
 type Config struct {
 	Host          string `env:"HOST"                             envDefault:"0.0.0.0"`
@@ -26,6 +29,9 @@ type Config struct {
 
 	MaxReportRows           int `env:"MAX_REPORT_ROWS"            envDefault:"1000"`
 	LiveQueryTimeoutSeconds int `env:"LIVE_QUERY_TIMEOUT_SECONDS" envDefault:"60"`
+	ShutdownTimeoutSeconds  int `env:"SHUTDOWN_TIMEOUT_SECONDS"   envDefault:"15"`
+
+	publicURLScheme string
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.
@@ -40,11 +46,12 @@ func ApplyEnvironment(cfg *Config) error {
 }
 
 func (cfg *Config) normalize() error {
-	publicURL, err := normalizePublicURL(cfg.PublicURL)
+	publicURL, scheme, err := normalizePublicURL(cfg.PublicURL)
 	if err != nil {
 		return err
 	}
 	cfg.PublicURL = publicURL
+	cfg.publicURLScheme = scheme
 	if len(cfg.SessionSecret) < minSessionSecretLength {
 		return fmt.Errorf("WOODSTAR_SESSION_SECRET must be at least %d characters", minSessionSecretLength)
 	}
@@ -52,30 +59,29 @@ func (cfg *Config) normalize() error {
 	return nil
 }
 
-func normalizePublicURL(value string) (string, error) {
+func normalizePublicURL(value string) (string, string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		value = "http://localhost:8080"
 	}
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
+		return "", "", fmt.Errorf("%w: parse URL", ErrInvalidPublicURL)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
+		return "", "", fmt.Errorf("%w: scheme must be http or https", ErrInvalidPublicURL)
 	}
 	if parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", errors.New("invalid WOODSTAR_PUBLIC_URL")
+		return "", "", fmt.Errorf("%w: must include host and omit query or fragment", ErrInvalidPublicURL)
 	}
 	if path := strings.Trim(parsed.Path, "/"); path != "" {
-		return "", errors.New("WOODSTAR_PUBLIC_URL must not include a path; use a reverse proxy if you need a sub-path")
+		return "", "", fmt.Errorf("%w: must not include a path; use a reverse proxy if you need a sub-path", ErrInvalidPublicURL)
 	}
 	parsed.Path = ""
-	return strings.TrimRight(parsed.String(), "/"), nil
+	return strings.TrimRight(parsed.String(), "/"), parsed.Scheme, nil
 }
 
 // IsHTTPS reports whether PublicURL uses the https scheme.
 func (cfg *Config) IsHTTPS() bool {
-	parsed, err := url.Parse(cfg.PublicURL)
-	return err == nil && parsed.Scheme == "https"
+	return cfg.publicURLScheme == "https"
 }
