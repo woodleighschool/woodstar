@@ -313,7 +313,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
         const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
         return <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />;
       },
-      meta: { cellClassName: "max-w-[28rem]" },
+      meta: { cellClassName: "max-w-[28rem] whitespace-normal break-all" },
     },
     {
       id: "hash",
@@ -321,7 +321,11 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       enableSorting: false,
       cell: ({ row }) => {
         const paths = installedPathsFor(row.original.installed_versions ?? []);
-        return <span className="text-muted-foreground">{singleHash(paths)}</span>;
+        return (
+          <span className="text-muted-foreground font-mono text-xs" title={singleHash(paths)}>
+            {truncateHash(singleHash(paths))}
+          </span>
+        );
       },
     },
   ];
@@ -441,7 +445,7 @@ function InstalledPathCell({
   }
   if (paths.length === 1) {
     return (
-      <span className="text-muted-foreground break-all" title={paths[0].path}>
+      <span className="text-muted-foreground" title={paths[0].path}>
         {paths[0].path}
       </span>
     );
@@ -496,6 +500,11 @@ function installedPathsFor(versions: InstalledVersion[]): InstalledPath[] {
 function singleHash(paths: InstalledPath[]): string {
   if (paths.length !== 1) return "-";
   return paths[0].signature?.hash_sha256 ?? "-";
+}
+
+function truncateHash(hash: string): string {
+  if (hash === "-" || hash.length <= 16) return hash;
+  return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
 }
 
 function pickLatestLastOpened(versions: InstalledVersion[]): string | undefined {

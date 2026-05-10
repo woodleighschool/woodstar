@@ -1,13 +1,13 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { ChevronDown, ChevronRight, Loader2, PanelRightOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { BackLink, PageLead } from "@/components/queries/query-ui";
+import { PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateQuery, useQueryDetail, useUpdateQuery, type QueryMutation } from "@/hooks/use-queries";
+import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -92,7 +93,7 @@ function ReportEditForm({
   const createQuery = useCreateQuery();
   const updateQuery = useUpdateQuery(reportId);
   const [form, setForm] = useState<QueryMutation>(initial);
-  const [schemaOpen, setSchemaOpen] = useState(true);
+  const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
@@ -114,122 +115,114 @@ function ReportEditForm({
   }
 
   return (
-    <div className={cn("flex h-full flex-col transition-[padding] duration-150", schemaOpen && "pr-80")}>
-      <form
-        className="flex flex-col gap-5 p-6 pb-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <BackLink to={mode === "edit" ? `/reports/${reportId}` : "/reports"}>
-          {mode === "edit" ? "Back to report" : "Back to reports"}
-        </BackLink>
-        <PageLead
-          title={mode === "create" ? "New report" : "Edit report"}
-          description="Use osquery SQL to gather data about hosts. Add an interval to collect snapshot results on a schedule."
-          actions={
-            <>
-              {!schemaOpen ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setSchemaOpen(true)}>
-                  <PanelRightOpen className="size-4" />
-                  Schema
-                </Button>
-              ) : null}
-              {mode === "edit" ? (
-                <Button asChild type="button" variant="outline" size="sm">
-                  <Link to="/reports/$reportId" params={{ reportId }}>
-                    Cancel
-                  </Link>
-                </Button>
-              ) : null}
-              <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Saving..." : mode === "create" ? "Save report" : "Save"}
+    <form
+      className={cn(
+        "flex h-full flex-col gap-5 p-6 transition-[padding] duration-200 ease-out",
+        schemaOpen && "pr-[21rem]",
+      )}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <PageLead
+        title={mode === "create" ? "New report" : "Edit report"}
+        description="Use osquery SQL to gather data about hosts. Add an interval to collect snapshot results on a schedule."
+        actions={
+          <>
+            {mode === "edit" ? (
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link to="/reports/$reportId" params={{ reportId }}>
+                  Cancel
+                </Link>
               </Button>
-            </>
-          }
-        />
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save report</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
-        <div className="grid max-w-3xl gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="report-name">Name</Label>
-            <Input
-              id="report-name"
-              required
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="report-description">Description</Label>
-            <Textarea
-              id="report-description"
-              rows={3}
-              placeholder="What information does this report reveal?"
-              value={form.description ?? ""}
-              onChange={(event) => setForm({ ...form, description: event.target.value })}
-            />
-          </div>
+            ) : null}
+            <Button type="submit" size="sm" disabled={pending}>
+              {pending ? "Saving..." : mode === "create" ? "Save report" : "Save"}
+            </Button>
+          </>
+        }
+      />
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to save report</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="grid max-w-3xl gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="report-name">Name</Label>
+          <Input
+            id="report-name"
+            required
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
         </div>
-        <div className="grid gap-4">
-          <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="report-description">Description</Label>
+          <Textarea
+            id="report-description"
+            rows={3}
+            placeholder="What information does this report reveal?"
+            value={form.description ?? ""}
+            onChange={(event) => setForm({ ...form, description: event.target.value })}
+          />
+        </div>
+      </div>
+      <div className="grid gap-4">
+        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="report-interval">Interval</Label>
+            <Select
+              value={String(form.schedule_interval ?? 0)}
+              onValueChange={(value) => setForm({ ...form, schedule_interval: Number(value) })}
+            >
+              <SelectTrigger id="report-interval" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
+          </div>
+          <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
+        </div>
+        <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
+      </div>
+
+      <div className="grid max-w-3xl gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-fit px-0"
+          onClick={() => setAdvancedOpen((open) => !open)}
+        >
+          {advancedOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          Advanced options
+        </Button>
+        {advancedOpen ? (
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="report-interval">Interval</Label>
-              <Select
-                value={String(form.schedule_interval ?? 0)}
-                onValueChange={(value) => setForm({ ...form, schedule_interval: Number(value) })}
-              >
-                <SelectTrigger id="report-interval" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FREQUENCY_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
+              <Label htmlFor="report-min-version">Minimum osquery version</Label>
+              <Input
+                id="report-min-version"
+                value={form.min_osquery_version ?? ""}
+                placeholder="5.18.1"
+                onChange={(event) => setForm({ ...form, min_osquery_version: event.target.value || undefined })}
+              />
             </div>
-            <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
           </div>
-          <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
-        </div>
+        ) : null}
+      </div>
 
-        <div className="grid max-w-3xl gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-fit px-0"
-            onClick={() => setAdvancedOpen((open) => !open)}
-          >
-            {advancedOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-            Advanced options
-          </Button>
-          {advancedOpen ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="report-min-version">Minimum osquery version</Label>
-                <Input
-                  id="report-min-version"
-                  value={form.min_osquery_version ?? ""}
-                  placeholder="5.18.1"
-                  onChange={(event) => setForm({ ...form, min_osquery_version: event.target.value || undefined })}
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </form>
-
-      <div className="flex flex-1 px-6 pb-6">
+      <div className="flex flex-1">
         <SQLEditor
           ref={editorRef}
           value={form.query}
@@ -239,7 +232,7 @@ function ReportEditForm({
           className="flex-1"
         />
       </div>
-      {schemaOpen ? <SchemaSidebar onClose={() => setSchemaOpen(false)} onInsertColumn={insertAtCursor} /> : null}
-    </div>
+      <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+    </form>
   );
 }

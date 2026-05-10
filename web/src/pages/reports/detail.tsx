@@ -3,7 +3,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2 } from "lucide-react";
 
 import {
-  BackLink,
   DetailSettings,
   EditButton,
   ExportButton,
@@ -67,7 +66,6 @@ export function ReportDetailPage() {
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink to="/reports">Back to reports</BackLink>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{query.data.name}</h1>

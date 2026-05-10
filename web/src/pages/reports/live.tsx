@@ -3,7 +3,7 @@ import { Apple, Check, Globe, Loader2, Monitor, Play, Plus, Search, Server, X } 
 import type { ComponentType, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { BackLink, PageLead, ShowQueryButton } from "@/components/queries/query-ui";
+import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,6 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink to={`/reports/${reportId}`}>Back to report</BackLink>
       <PageLead
         title={`Run ${name}`}
         description="Choose labels or individual hosts, then run this report once against online hosts."

@@ -118,9 +118,7 @@ export function DataTable<TData, TValue>({
       {toolbar}
       {enableRowSelection && selectedRowIds.length > 0 ? (
         <div className="bg-muted/50 flex min-h-10 items-center justify-between rounded-md border px-3 py-2">
-          <div className="text-muted-foreground text-sm tabular-nums">
-            {selectedRowIds.length} selected
-          </div>
+          <div className="text-muted-foreground text-sm tabular-nums">{selectedRowIds.length} selected</div>
           <div className="flex items-center gap-2">{bulkActions}</div>
         </div>
       ) : null}
@@ -158,41 +156,33 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => {
                 const linkProps = rowHref?.(row.original);
                 const cells = row.getVisibleCells();
-                if (linkProps) {
-                  return (
-                    <TableRow
-                      key={row.id}
-                      className="hover:bg-muted/50 cursor-pointer"
-                      onClick={(e) => {
-                        // ignore if user is selecting text or clicked a button/link
-                        const target = e.target as HTMLElement;
-                        if (target.closest("a, button, [role=menuitem]")) return;
-                      }}
-                    >
-                      {cells.map((cell, i) => (
+                const firstDataIndex = enableRowSelection ? 1 : 0;
+                return (
+                  <TableRow key={row.id} className={cn(linkProps && "cursor-pointer")}>
+                    {cells.map((cell, i) => {
+                      const meta = cell.column.columnDef.meta as Meta | undefined;
+                      const isSelectionCell = cell.column.id === "__select";
+                      const wrapInLink = linkProps && !isSelectionCell;
+                      return (
                         <TableCell
                           key={cell.id}
-                          className={cn((cell.column.columnDef.meta as Meta)?.cellClassName, "p-0")}
+                          className={cn(meta?.cellClassName, wrapInLink && "p-0")}
+                          onClick={isSelectionCell ? (e) => e.stopPropagation() : undefined}
                         >
-                          <Link
-                            to={linkProps.to}
-                            params={linkProps.params}
-                            className={cn("block px-4 py-2", i === 0 && "font-medium")}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </Link>
+                          {wrapInLink ? (
+                            <Link
+                              to={linkProps.to}
+                              params={linkProps.params}
+                              className={cn("block px-2 py-2", i === firstDataIndex && "font-medium")}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </Link>
+                          ) : (
+                            flexRender(cell.column.columnDef.cell, cell.getContext())
+                          )}
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                }
-                return (
-                  <TableRow key={row.id}>
-                    {cells.map((cell) => (
-                      <TableCell key={cell.id} className={cn((cell.column.columnDef.meta as Meta)?.cellClassName)}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+                      );
+                    })}
                   </TableRow>
                 );
               })

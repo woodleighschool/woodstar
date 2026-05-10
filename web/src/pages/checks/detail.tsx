@@ -3,7 +3,6 @@ import { Loader2 } from "lucide-react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import {
-  BackLink,
   DetailSettings,
   EditButton,
   PlatformBadge,
@@ -45,7 +44,6 @@ export function CheckDetailPage() {
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      <BackLink to="/checks">Back to checks</BackLink>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{check.data.name}</h1>

@@ -1,19 +1,20 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { ChevronDown, ChevronRight, Loader2, PanelRightOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { BackLink, PageLead } from "@/components/queries/query-ui";
+import { PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
+import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 
 const emptyCheck: CheckMutation = {
@@ -78,7 +79,7 @@ function CheckEditForm({
   const createCheck = useCreateCheck();
   const updateCheck = useUpdateCheck(checkId);
   const [form, setForm] = useState<CheckMutation>(initial);
-  const [schemaOpen, setSchemaOpen] = useState(true);
+  const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
@@ -101,26 +102,20 @@ function CheckEditForm({
 
   return (
     <form
-      className={cn("flex h-full flex-col gap-5 p-6 transition-[padding] duration-150", schemaOpen && "pr-80")}
+      className={cn(
+        "flex h-full flex-col gap-5 p-6 transition-[padding] duration-200 ease-out",
+        schemaOpen && "pr-[21rem]",
+      )}
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
       }}
     >
-      <BackLink to={mode === "edit" ? `/checks/${checkId}` : "/checks"}>
-        {mode === "edit" ? "Back to check" : "Back to checks"}
-      </BackLink>
       <PageLead
         title={mode === "create" ? "New check" : "Edit check"}
         description="Checks pass when their SQL returns rows and fail when it returns none."
         actions={
           <>
-            {!schemaOpen ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setSchemaOpen(true)}>
-                <PanelRightOpen className="size-4" />
-                Schema
-              </Button>
-            ) : null}
             {mode === "edit" ? (
               <Button asChild type="button" variant="outline" size="sm">
                 <Link to="/checks/$checkId" params={{ checkId }}>
@@ -217,7 +212,7 @@ function CheckEditForm({
           className="flex-1"
         />
       </div>
-      {schemaOpen ? <SchemaSidebar onClose={() => setSchemaOpen(false)} onInsertColumn={insertAtCursor} /> : null}
+      <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
     </form>
   );
 }

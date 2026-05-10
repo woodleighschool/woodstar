@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
-import { cn } from "@/lib/utils";
 
 type Role = User["role"];
 
@@ -140,20 +140,15 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
 
         <div className="grid gap-1.5">
           <Label htmlFor="user-role">Role</Label>
-          <select
-            id="user-role"
-            className={cn(
-              "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs",
-              "outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-            value={role}
-            disabled={!canChangeRole}
-            onChange={(event) => setRole(event.target.value as Role)}
-          >
-            <option value="admin">admin</option>
-            <option value="viewer">viewer</option>
-          </select>
+          <Select value={role} onValueChange={(value) => setRole(value as Role)} disabled={!canChangeRole}>
+            <SelectTrigger id="user-role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">admin</SelectItem>
+              <SelectItem value="viewer">viewer</SelectItem>
+            </SelectContent>
+          </Select>
           {!canChangeRole ? <p className="text-xs text-muted-foreground">You cannot change your own role.</p> : null}
         </div>
 

@@ -3,7 +3,6 @@ import { useRouter } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { useState } from "react";
 
-import { ShineBorder } from "@/components/magicui/shine-border";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,8 +34,7 @@ export function SetupPage() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-muted/40 px-4 py-10">
-      <Card className="relative w-full max-w-md overflow-hidden">
-        <ShineBorder borderWidth={1} duration={14} />
+      <Card className="w-full max-w-md">
         <CardHeader className="items-center text-center">
           <div className="rounded-full bg-primary/10 p-2 text-primary">
             <Star className="size-5" />

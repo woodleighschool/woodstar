@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, ExternalLink, X } from "lucide-react";
+import { Check, ChevronsUpDown, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +20,33 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 interface SchemaSidebarProps {
-  onClose?: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onInsertColumn?: (columnName: string) => void;
-  className?: string;
 }
 
-export function SchemaSidebar({ onClose, onInsertColumn, className }: SchemaSidebarProps) {
+export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSidebarProps) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-label={open ? "Hide osquery schema" : "Show osquery schema"}
+        aria-expanded={open}
+        className={cn(
+          "bg-card hover:border-primary hover:text-primary fixed top-20 z-40",
+          "flex h-12 w-7 items-center justify-center rounded-l-md border border-r-0 shadow-sm transition-[right] duration-200 ease-out",
+          open ? "right-80" : "right-0",
+        )}
+      >
+        {open ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+      </button>
+      <SchemaPanel open={open} onInsertColumn={onInsertColumn} />
+    </TooltipProvider>
+  );
+}
+
+function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?: (columnName: string) => void }) {
   const schema = useOsquerySchema();
   const tables = useMemo(() => schema.data ?? [], [schema.data]);
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -38,45 +59,37 @@ export function SchemaSidebar({ onClose, onInsertColumn, className }: SchemaSide
   }, [tables, selectedName]);
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <aside
-        className={cn("bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg", className)}
-      >
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close schema panel"
-            className="bg-card hover:border-primary hover:text-primary absolute top-10 -left-3 z-10 flex size-6 items-center justify-center rounded-full border shadow-sm"
-          >
-            <X className="size-3.5" />
-          </button>
+    <aside
+      aria-hidden={!open}
+      className={cn(
+        "bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg",
+        "transition-transform duration-200 ease-out",
+        open ? "translate-x-0" : "translate-x-full",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2 border-b p-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold">Tables</h2>
+          <Badge variant="secondary" className="rounded-full px-2 text-[11px] font-normal">
+            {tables.length}
+          </Badge>
+        </div>
+      </div>
+
+      <div className="border-b p-4">
+        <TableSelector tables={tables} value={selected?.name ?? null} onChange={setSelectedName} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {schema.isLoading ? (
+          <div className="text-muted-foreground p-4 text-sm">Loading schema…</div>
+        ) : schema.error ? (
+          <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
+        ) : selected ? (
+          <TableDetail table={selected} onInsertColumn={onInsertColumn} />
         ) : null}
-
-        <div className="flex items-center justify-between gap-2 border-b p-4 pb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Tables</h2>
-            <Badge variant="secondary" className="rounded-full px-2 text-[11px] font-normal">
-              {tables.length}
-            </Badge>
-          </div>
-        </div>
-
-        <div className="border-b px-4 py-3">
-          <TableSelector tables={tables} value={selected?.name ?? null} onChange={setSelectedName} />
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {schema.isLoading ? (
-            <div className="text-muted-foreground p-4 text-sm">Loading schema…</div>
-          ) : schema.error ? (
-            <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
-          ) : selected ? (
-            <TableDetail table={selected} onInsertColumn={onInsertColumn} />
-          ) : null}
-        </div>
-      </aside>
-    </TooltipProvider>
+      </div>
+    </aside>
   );
 }
 

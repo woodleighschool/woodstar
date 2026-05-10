@@ -27,7 +27,6 @@ export const navSections: NavSection[] = [
     items: [
       { label: "Hosts", to: "/hosts", icon: ServerCog },
       { label: "Software", to: "/software", icon: Package },
-      { label: "Labels", to: "/labels", icon: Tag },
       { label: "Reports", to: "/reports", icon: FileBarChart2 },
       { label: "Checks", to: "/checks", icon: ClipboardCheck },
     ],
@@ -35,6 +34,7 @@ export const navSections: NavSection[] = [
   {
     label: "System",
     items: [
+      { label: "Labels", to: "/labels", icon: Tag },
       { label: "Users", to: "/users", icon: UsersIcon, adminOnly: true },
       { label: "Settings", to: "/settings", icon: SettingsIcon },
     ],

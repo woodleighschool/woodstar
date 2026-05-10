@@ -1,8 +1,8 @@
 import { Apple, Globe, Monitor, Server } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   PLATFORM_LABELS,
   QUERYABLE_PLATFORMS,
@@ -10,7 +10,6 @@ import {
   platformsToValue,
   type QueryablePlatform,
 } from "@/lib/targeting";
-import { cn } from "@/lib/utils";
 
 const ICONS: Record<QueryablePlatform, ComponentType<SVGProps<SVGSVGElement>>> = {
   darwin: Apple,
@@ -28,59 +27,36 @@ export function PlatformSelector({
   onChange: (next: string | undefined) => void;
   disabled?: boolean;
 }) {
-  const selected = new Set(platformsFromValue(value));
-  const allSelected = selected.size === 0;
+  const selected = platformsFromValue(value);
 
-  function setAll() {
-    onChange(undefined);
-  }
-
-  function toggle(platform: QueryablePlatform, checked: boolean) {
-    const next = new Set(selected);
-    if (checked) next.add(platform);
-    else next.delete(platform);
-    onChange(platformsToValue([...next]));
+  function handleChange(next: string[]) {
+    onChange(platformsToValue(next as QueryablePlatform[]));
   }
 
   return (
     <div className="grid gap-2">
       <Label>Targeted platforms</Label>
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          data-selected={allSelected}
-          className={cn(
-            "border-input hover:bg-muted inline-flex h-9 items-center rounded-md border px-3 text-sm",
-            "data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground data-[selected=true]:border-primary",
-          )}
-          onClick={setAll}
-        >
-          All platforms
-        </button>
+      <ToggleGroup
+        type="multiple"
+        value={selected}
+        onValueChange={handleChange}
+        disabled={disabled}
+        variant="outline"
+        className="flex-wrap justify-start"
+      >
         {QUERYABLE_PLATFORMS.map((platform) => {
           const Icon = ICONS[platform];
-          const checked = selected.has(platform);
           return (
-            <label
-              key={platform}
-              className={cn(
-                "border-input hover:bg-muted inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm",
-                checked && "border-primary bg-primary text-primary-foreground",
-              )}
-            >
-              <Checkbox
-                checked={checked}
-                disabled={disabled}
-                className={checked ? "border-primary-foreground" : undefined}
-                onCheckedChange={(next) => toggle(platform, next === true)}
-              />
+            <ToggleGroupItem key={platform} value={platform} className="gap-2">
               <Icon className="size-4" />
               {PLATFORM_LABELS[platform]}
-            </label>
+            </ToggleGroupItem>
           );
         })}
-      </div>
+      </ToggleGroup>
+      <p className="text-muted-foreground text-xs">
+        {selected.length === 0 ? "Targeting all platforms." : "Toggle to limit which platforms run this."}
+      </p>
     </div>
   );
 }

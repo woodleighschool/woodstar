@@ -31,7 +31,12 @@ export function HostsListPage() {
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
-  const labelsQuery = useLabels({ per_page: 200, order_key: "name", order_direction: "asc" });
+  const labelsQuery = useLabels({
+    per_page: 200,
+    order_key: "name",
+    order_direction: "asc",
+    label_type: "regular",
+  });
   const bulkDelete = useBulkDeleteHosts();
 
   const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;

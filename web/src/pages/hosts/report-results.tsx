@@ -62,11 +62,6 @@ export function HostReportResultsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Button asChild variant="link" className="mb-2 h-auto p-0">
-            <Link to="/hosts/$hostId" params={{ hostId }}>
-              Back to host details
-            </Link>
-          </Button>
           <h1 className="text-xl font-semibold">{report.data.name}</h1>
           <p className="text-muted-foreground text-sm">
             {results.data?.host_name ?? "Host"}

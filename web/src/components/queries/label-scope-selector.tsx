@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabels } from "@/hooks/use-labels";
 import type { Schemas } from "@/lib/api";
@@ -59,26 +60,20 @@ export function LabelScopeSelector({
         </p>
       </div>
 
-      <div className="grid gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={`${entity}-target-type`}
-            checked={selectedTarget === "All hosts"}
-            onChange={() => setTarget("All hosts")}
-          />
-          All hosts
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            name={`${entity}-target-type`}
-            checked={selectedTarget === "Custom"}
-            onChange={() => setTarget("Custom")}
-          />
-          Custom
-        </label>
-      </div>
+      <RadioGroup value={selectedTarget} onValueChange={setTarget} className="gap-2">
+        <div className="flex items-center gap-2">
+          <RadioGroupItem id={`${entity}-target-all`} value="All hosts" />
+          <Label htmlFor={`${entity}-target-all`} className="font-normal">
+            All hosts
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <RadioGroupItem id={`${entity}-target-custom`} value="Custom" />
+          <Label htmlFor={`${entity}-target-custom`} className="font-normal">
+            Custom
+          </Label>
+        </div>
+      </RadioGroup>
 
       {selectedTarget === "Custom" ? (
         <div className="grid gap-3 pl-5">

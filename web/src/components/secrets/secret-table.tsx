@@ -1,8 +1,9 @@
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
@@ -49,10 +50,15 @@ export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, empty
 
   if (data.length === 0) {
     return (
-      <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">
-        <p className="font-medium">{emptyTitle}</p>
-        <p className="text-muted-foreground">{emptyDescription}</p>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <KeyRound />
+          </EmptyMedia>
+          <EmptyTitle>{emptyTitle}</EmptyTitle>
+          <EmptyDescription>{emptyDescription}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

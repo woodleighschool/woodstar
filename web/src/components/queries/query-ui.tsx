@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, FileCode2, Play, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { SQLEditor } from "@/components/editor/sql-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,14 +29,6 @@ export function PageLead({ title, description, actions }: { title: string; descr
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
-  );
-}
-
-export function BackLink({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link to={to} className="text-muted-foreground hover:text-foreground inline-flex text-sm font-medium">
-      {children}
-    </Link>
   );
 }
 
@@ -104,7 +97,13 @@ export function ShowQueryButton({ sql }: { sql: string }) {
           <DialogTitle>Query</DialogTitle>
           <DialogDescription>SQL used by this item.</DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-auto text-sm leading-relaxed whitespace-pre-wrap">{sql}</div>
+        <SQLEditor
+          value={sql}
+          onChange={() => null}
+          readOnly
+          minHeight="12rem"
+          className="max-h-[60vh] overflow-auto"
+        />
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Host } from "@/hooks/use-hosts";
@@ -90,7 +91,7 @@ export function HostInfoCard({ host }: { host: Host }) {
 }
 
 export function HostLabelsCard({ host }: { host: Host }) {
-  const labels = host.labels ?? [];
+  const labels = (host.labels ?? []).filter((l) => l.label_type === "regular");
   if (labels.length === 0) return null;
   return (
     <Card>
@@ -100,9 +101,11 @@ export function HostLabelsCard({ host }: { host: Host }) {
       <CardContent>
         <div className="flex flex-wrap gap-1.5">
           {labels.map((l) => (
-            <Badge key={l.id} variant="outline" className="font-normal">
-              {l.name}
-            </Badge>
+            <Button key={l.id} asChild size="xs" variant="outline" className="font-normal">
+              <Link to="/hosts" search={{ label_id: String(l.id) }}>
+                {l.name}
+              </Link>
+            </Button>
           ))}
         </div>
       </CardContent>
