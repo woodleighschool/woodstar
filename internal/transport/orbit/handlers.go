@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/transport/agentjson"
 )
@@ -36,10 +37,10 @@ func enrollHandler(svc *coreorbit.Service, logger *slog.Logger) http.HandlerFunc
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, coreorbit.ErrMissingHardwareUUID):
+		case errors.Is(err, agentauth.ErrMissingHardwareUUID):
 			writeAgentError(w, http.StatusBadRequest, err.Error())
 			return
-		case errors.Is(err, coreorbit.ErrInvalidEnrollSecret):
+		case errors.Is(err, agentauth.ErrInvalidEnrollSecret):
 			// Do not reveal whether the secret was malformed vs unknown.
 			logger.WarnContext(
 				r.Context(),

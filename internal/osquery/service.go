@@ -7,17 +7,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/store"
-)
-
-var (
-	ErrInvalidEnrollSecret = errors.New("invalid enroll secret")
-	ErrMissingHardwareUUID = errors.New("hardware_uuid is required")
 )
 
 // Service performs osquery TLS-plugin operations.
@@ -66,7 +62,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		return "", fmt.Errorf("validate enroll secret: %w", err)
 	}
 	if !ok {
-		return "", ErrInvalidEnrollSecret
+		return "", agentauth.ErrInvalidEnrollSecret
 	}
 
 	update := inventory.ParseHostDetails(req.HostDetails)
@@ -74,10 +70,10 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
 	}
 	if update.HardwareUUID == "" {
-		return "", ErrMissingHardwareUUID
+		return "", agentauth.ErrMissingHardwareUUID
 	}
 
-	nodeKey, err := generateNodeKey()
+	nodeKey, err := agentauth.GenerateNodeKey()
 	if err != nil {
 		return "", fmt.Errorf("generate node key: %w", err)
 	}

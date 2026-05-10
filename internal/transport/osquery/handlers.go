@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	coreosquery "github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/transport/agentjson"
 )
@@ -37,7 +38,7 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, coreosquery.ErrInvalidEnrollSecret):
+		case errors.Is(err, agentauth.ErrInvalidEnrollSecret):
 			logger.WarnContext(
 				r.Context(),
 				"osquery enroll rejected", "operation", "enroll",
@@ -46,7 +47,7 @@ func enrollHandler(svc *coreosquery.Service, logger *slog.Logger) http.HandlerFu
 			)
 			agentjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
-		case errors.Is(err, coreosquery.ErrMissingHardwareUUID):
+		case errors.Is(err, agentauth.ErrMissingHardwareUUID):
 			agentjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case err != nil:

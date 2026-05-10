@@ -2,26 +2,17 @@ package orbit
 
 import (
 	"context"
-	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
-// Enrollment failures the handler maps to specific HTTP status codes.
-var (
-	ErrInvalidEnrollSecret = errors.New("invalid enroll secret")
-	ErrMissingHardwareUUID = errors.New("hardware_uuid is required")
-)
-
-// nodeKeyLength is the Orbit node key length.
-const nodeKeyLength = 24
-
-// nodeKeyAlphabet keeps node keys URL-safe.
-const nodeKeyAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const emptyConfigFlags = "{}"
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
@@ -47,7 +38,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", errors.New("orbit service is not configured")
 	}
 	if strings.TrimSpace(req.HardwareUUID) == "" {
-		return nil, "", ErrMissingHardwareUUID
+		return nil, "", agentauth.ErrMissingHardwareUUID
 	}
 
 	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
@@ -55,10 +46,10 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", fmt.Errorf("validate enroll secret: %w", err)
 	}
 	if !ok {
-		return nil, "", ErrInvalidEnrollSecret
+		return nil, "", agentauth.ErrInvalidEnrollSecret
 	}
 
-	nodeKey, err := generateNodeKey()
+	nodeKey, err := agentauth.GenerateNodeKey()
 	if err != nil {
 		return nil, "", fmt.Errorf("generate node key: %w", err)
 	}
@@ -84,7 +75,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 	if _, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
 		return ConfigResponse{}, err
 	}
-	return ConfigResponse{Flags: []byte("{}")}, nil
+	return ConfigResponse{Flags: json.RawMessage(emptyConfigFlags)}, nil
 }
 
 // ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
@@ -103,15 +94,4 @@ func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) e
 		return err
 	}
 	return s.deviceMappingStore.Upsert(ctx, host.ID, strings.TrimSpace(email), hosts.DeviceMappingSourceOrbitProfile)
-}
-
-func generateNodeKey() (string, error) {
-	buf := make([]byte, nodeKeyLength)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	for i, b := range buf {
-		buf[i] = nodeKeyAlphabet[int(b)%len(nodeKeyAlphabet)]
-	}
-	return string(buf), nil
 }
