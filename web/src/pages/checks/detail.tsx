@@ -70,13 +70,6 @@ export function CheckDetailPage() {
         </SettingItem>
       </DetailSettings>
 
-      {check.data.resolution ? (
-        <div className="rounded-md border bg-muted/20 p-4">
-          <h2 className="text-sm font-semibold">Resolution</h2>
-          <p className="text-muted-foreground mt-1 text-sm">{check.data.resolution}</p>
-        </div>
-      ) : null}
-
       <div className="grid gap-3">
         <div>
           <h2 className="text-base font-semibold">Hosts</h2>

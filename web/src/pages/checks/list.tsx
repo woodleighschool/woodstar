@@ -65,7 +65,7 @@ export function ChecksPage() {
     },
     {
       id: "platform",
-      header: "Targeted platforms",
+      header: "Platforms",
       enableSorting: false,
       cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
     },
@@ -74,12 +74,6 @@ export function ChecksPage() {
       header: () => "Targets",
       enableSorting: false,
       cell: ({ row }) => <TargetSummary scope={row.original.label_scope} platform={row.original.platform} />,
-    },
-    {
-      id: "resolution",
-      header: "Resolution",
-      enableSorting: false,
-      cell: ({ row }) => <span className="text-muted-foreground line-clamp-2">{row.original.resolution || "-"}</span>,
     },
     {
       id: "updated_at",

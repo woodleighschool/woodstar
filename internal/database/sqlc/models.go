@@ -142,7 +142,6 @@ type Check struct {
 	ID                int64     `json:"id"`
 	Name              string    `json:"name"`
 	Description       string    `json:"description"`
-	Resolution        string    `json:"resolution"`
 	Query             string    `json:"query"`
 	Platform          *Platform `json:"platform"`
 	MinOsqueryVersion *string   `json:"min_osquery_version"`

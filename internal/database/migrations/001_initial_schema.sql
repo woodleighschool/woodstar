@@ -312,7 +312,6 @@ CREATE TABLE checks (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
-    resolution TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
     platform platform,
     min_osquery_version TEXT,

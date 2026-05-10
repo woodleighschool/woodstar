@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 const emptyCheck: CheckMutation = {
   name: "",
   description: "",
-  resolution: "",
   query: "select 1;",
   label_scope: {},
 };
@@ -55,7 +54,6 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
       ? {
           name: detail.data.name,
           description: detail.data.description,
-          resolution: detail.data.resolution,
           query: detail.data.query,
           platform: detail.data.platform,
           min_osquery_version: detail.data.min_osquery_version,
@@ -153,16 +151,6 @@ function CheckEditForm({
             placeholder="How does this check's failure put the organization at risk?"
             value={form.description ?? ""}
             onChange={(event) => setForm({ ...form, description: event.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="check-resolution">Resolution</Label>
-          <Textarea
-            id="check-resolution"
-            rows={3}
-            placeholder="If this check fails, what should the end user expect?"
-            value={form.resolution ?? ""}
-            onChange={(event) => setForm({ ...form, resolution: event.target.value })}
           />
         </div>
       </div>

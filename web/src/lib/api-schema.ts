@@ -577,7 +577,6 @@ export interface components {
             name: string;
             platform?: string;
             query: string;
-            resolution: string;
             /** Format: date-time */
             updated_at: string;
         };
@@ -627,7 +626,6 @@ export interface components {
             name: string;
             platform?: string;
             query: string;
-            resolution?: string;
         };
         DeviceMappingBody: {
             email: string;

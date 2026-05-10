@@ -96,7 +96,6 @@ func TestCleanCheckCreate(t *testing.T) {
 	got, err := cleanCheckCreate(CheckCreate{
 		Name:        " Gatekeeper enabled ",
 		Description: " Security check ",
-		Resolution:  " Enable Gatekeeper ",
 		Query:       " select 1 from gatekeeper where assessments_enabled = 1; ",
 		Platform:    new(" darwin "),
 	})
@@ -105,9 +104,6 @@ func TestCleanCheckCreate(t *testing.T) {
 	}
 	if got.Name != "Gatekeeper enabled" {
 		t.Fatalf("Name = %q, want Gatekeeper enabled", got.Name)
-	}
-	if got.Resolution != "Enable Gatekeeper" {
-		t.Fatalf("Resolution = %q, want Enable Gatekeeper", got.Resolution)
 	}
 	if got.Query != "select 1 from gatekeeper where assessments_enabled = 1;" {
 		t.Fatalf("Query = %q, want trimmed SQL", got.Query)

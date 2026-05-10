@@ -51,8 +51,6 @@ components:
           type: string
         query:
           type: string
-        resolution:
-          type: string
         updated_at:
           format: date-time
           type: string
@@ -60,7 +58,6 @@ components:
         - id
         - name
         - description
-        - resolution
         - query
         - created_at
         - updated_at
@@ -155,8 +152,6 @@ components:
         platform:
           type: string
         query:
-          type: string
-        resolution:
           type: string
       required:
         - name
@@ -1298,7 +1293,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 7d65cfe-dirty
+  version: e884ad5-dirty
 openapi: 3.1.0
 paths:
   /api/auth/login:

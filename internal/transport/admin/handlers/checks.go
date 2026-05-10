@@ -23,7 +23,6 @@ type checkBody struct {
 	ID                int64          `json:"id"`
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
-	Resolution        string         `json:"resolution"`
 	Query             string         `json:"query"`
 	Platform          *string        `json:"platform,omitempty"`
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
@@ -36,7 +35,6 @@ type checkBody struct {
 type checkMutationBody struct {
 	Name              string         `json:"name"`
 	Description       string         `json:"description,omitempty"`
-	Resolution        string         `json:"resolution,omitempty"`
 	Query             string         `json:"query"`
 	Platform          *string        `json:"platform,omitempty"`
 	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
@@ -324,7 +322,6 @@ func (body checkMutationBody) createParams(userID *int64) (models.CheckCreate, e
 	return models.CheckCreate{
 		Name:              body.Name,
 		Description:       body.Description,
-		Resolution:        body.Resolution,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
@@ -341,7 +338,6 @@ func (body checkMutationBody) updateParams() (models.CheckUpdate, error) {
 	return models.CheckUpdate{
 		Name:              body.Name,
 		Description:       body.Description,
-		Resolution:        body.Resolution,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
@@ -354,7 +350,6 @@ func checkResponse(check *models.Check) checkBody {
 		ID:                check.ID,
 		Name:              check.Name,
 		Description:       check.Description,
-		Resolution:        check.Resolution,
 		Query:             check.Query,
 		Platform:          check.Platform,
 		MinOsqueryVersion: check.MinOsqueryVersion,

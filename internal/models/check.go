@@ -17,7 +17,6 @@ type Check struct {
 	ID                int64
 	Name              string
 	Description       string
-	Resolution        string
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
@@ -31,7 +30,6 @@ type Check struct {
 type CheckCreate struct {
 	Name              string
 	Description       string
-	Resolution        string
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
@@ -135,7 +133,6 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 		row := tx.QueryRow(ctx, checkInsertSQL,
 			params.Name,
 			params.Description,
-			params.Resolution,
 			params.Query,
 			params.Platform,
 			params.MinOsqueryVersion,
@@ -170,7 +167,6 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 		row := tx.QueryRow(ctx, checkUpdateSQL,
 			cleaned.Name,
 			cleaned.Description,
-			cleaned.Resolution,
 			cleaned.Query,
 			cleaned.Platform,
 			cleaned.MinOsqueryVersion,
@@ -336,7 +332,6 @@ func (s *CheckStore) HostChecks(ctx context.Context, host Host) ([]CheckHostStat
 func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
-	params.Resolution = strings.TrimSpace(params.Resolution)
 	params.Query = strings.TrimSpace(params.Query)
 	params.Platform = cleanPlatformPtr(params.Platform)
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
@@ -374,7 +369,6 @@ func scanCheck(row pgx.Row) (*Check, error) {
 		&check.ID,
 		&check.Name,
 		&check.Description,
-		&check.Resolution,
 		&check.Query,
 		&check.Platform,
 		&check.MinOsqueryVersion,
@@ -425,27 +419,26 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 }
 
 const checkSelectSQL = `
-SELECT id, name, description, resolution, query, platform, min_osquery_version,
+SELECT id, name, description, query, platform, min_osquery_version,
        created_by_user_id, created_at, updated_at
 FROM checks`
 
 const checkInsertSQL = `
 INSERT INTO checks (
-    name, description, resolution, query, platform, min_osquery_version, created_by_user_id
+    name, description, query, platform, min_osquery_version, created_by_user_id
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, description, resolution, query, platform, min_osquery_version,
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, name, description, query, platform, min_osquery_version,
           created_by_user_id, created_at, updated_at`
 
 const checkUpdateSQL = `
 UPDATE checks
 SET name = $1,
     description = $2,
-    resolution = $3,
-    query = $4,
-    platform = $5,
-    min_osquery_version = $6,
+    query = $3,
+    platform = $4,
+    min_osquery_version = $5,
     updated_at = now()
-WHERE id = $7
-RETURNING id, name, description, resolution, query, platform, min_osquery_version,
+WHERE id = $6
+RETURNING id, name, description, query, platform, min_osquery_version,
           created_by_user_id, created_at, updated_at`
