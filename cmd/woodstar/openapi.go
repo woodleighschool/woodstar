@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
 )
 
-func runOpenAPICommand() *cobra.Command {
+func openAPICommand() *cobra.Command {
 	var output string
 
 	cmd := &cobra.Command{

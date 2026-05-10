@@ -85,6 +85,22 @@ func TestAgentRoutesBypassBrowserAuth(t *testing.T) {
 	}
 }
 
+func TestNewServerBuildsHTTPServer(t *testing.T) {
+	server := NewServer(testDependencies(config.Config{
+		Host:          "127.0.0.1",
+		Port:          9090,
+		PublicURL:     "http://localhost:9090",
+		SessionSecret: strings.Repeat("s", 32),
+	}))
+
+	if server.httpServer.Addr != "127.0.0.1:9090" {
+		t.Fatalf("Addr = %q, want 127.0.0.1:9090", server.httpServer.Addr)
+	}
+	if server.httpServer.Handler == nil {
+		t.Fatal("Handler is nil")
+	}
+}
+
 const testUserPassword = "test-user-password"
 
 type testUserStore struct {

@@ -39,9 +39,9 @@ func main() {
 		Short: "Woodstar macOS observability and admin server",
 	}
 	rootCmd.Version = buildinfo.Version
-	rootCmd.AddCommand(runServeCommand())
-	rootCmd.AddCommand(runVersionCommand())
-	rootCmd.AddCommand(runOpenAPICommand())
+	rootCmd.AddCommand(serveCommand())
+	rootCmd.AddCommand(versionCommand())
+	rootCmd.AddCommand(openAPICommand())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -49,7 +49,7 @@ func main() {
 	}
 }
 
-func runServeCommand() *cobra.Command {
+func serveCommand() *cobra.Command {
 	var cfg config.Config
 
 	cmd := &cobra.Command{
@@ -116,27 +116,37 @@ func newServer(
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
 ) *transport.Server {
-	stores := newModelStores(db)
-	authService := auth.NewService(stores.userStore, sessionManager)
-	orbitService := orbit.NewService(stores.hostStore, stores.secretStore, stores.deviceMappingStore)
+	userStore := models.NewUserStore(db)
+	hostStore := hosts.NewHostStore(db)
+	deviceMappingStore := hosts.NewDeviceMappingStore(db)
+	secretStore := models.NewSecretStore(db)
+	softwareStore := software.NewSoftwareStore(db)
+	labelStore := labels.NewLabelStore(db)
+	queryStore := queries.NewQueryStore(db)
+	checkStore := queries.NewCheckStore(db)
+
+	authService := auth.NewService(userStore, sessionManager)
+	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
 	hub := queries.NewHub()
 	liveQueries := queries.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
 	inventoryProjector := inventory.NewProjector(
-		stores.hostStore,
-		stores.softwareStore,
+		hostStore,
+		softwareStore,
 		logger.With("component", "inventory"),
 	)
 	osqueryService := osquery.NewService(
-		stores.hostStore,
+		hostStore,
 		inventoryProjector,
-		stores.labelStore,
-		stores.queryStore,
-		stores.checkStore,
+		labelStore,
+		queryStore,
+		checkStore,
 		liveQueries,
-		stores.secretStore,
+		secretStore,
 		logger.With("component", "osquery"),
 	)
-	queries.StartCleanup(ctx, stores.queryStore, queries.CleanupOptions{
+	targetResolver := hosts.NewTargetResolver(db)
+
+	queries.StartCleanup(ctx, queryStore, queries.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "queries"))
 
@@ -147,14 +157,15 @@ func newServer(
 		Logger:           logger,
 		AuthService:      authService,
 		SessionManager:   sessionManager,
-		HostStore:        stores.hostStore,
-		DeviceMappings:   stores.deviceMappingStore,
-		SecretStore:      stores.secretStore,
-		SoftwareStore:    stores.softwareStore,
-		LabelStore:       stores.labelStore,
-		QueryStore:       stores.queryStore,
-		CheckStore:       stores.checkStore,
+		HostStore:        hostStore,
+		DeviceMappings:   deviceMappingStore,
+		SecretStore:      secretStore,
+		SoftwareStore:    softwareStore,
+		LabelStore:       labelStore,
+		QueryStore:       queryStore,
+		CheckStore:       checkStore,
 		LiveQueryManager: liveQueries,
+		TargetResolver:   targetResolver,
 		OrbitService:     orbitService,
 		OsqueryService:   osqueryService,
 		WebHandler: web.NewHandler(web.HandlerOptions{
@@ -166,35 +177,11 @@ func newServer(
 	})
 }
 
-type modelStores struct {
-	userStore          *models.UserStore
-	hostStore          *hosts.HostStore
-	deviceMappingStore *hosts.DeviceMappingStore
-	secretStore        *models.SecretStore
-	softwareStore      *software.SoftwareStore
-	labelStore         *labels.LabelStore
-	queryStore         *queries.QueryStore
-	checkStore         *queries.CheckStore
-}
-
-func newModelStores(db *db.DB) modelStores {
-	return modelStores{
-		userStore:          models.NewUserStore(db),
-		hostStore:          hosts.NewHostStore(db),
-		deviceMappingStore: hosts.NewDeviceMappingStore(db),
-		secretStore:        models.NewSecretStore(db),
-		softwareStore:      software.NewSoftwareStore(db),
-		labelStore:         labels.NewLabelStore(db),
-		queryStore:         queries.NewQueryStore(db),
-		checkStore:         queries.NewCheckStore(db),
-	}
-}
-
 func newSessionManager(db *db.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
 	store := pgxstore.New(db.Pool())
 	sm := scs.New()
 	sm.Store = store
-	sm.Lifetime = transport.SessionLifetime
+	sm.Lifetime = config.SessionLifetime
 	sm.Cookie.Name = "woodstar_session"
 	sm.Cookie.Path = "/"
 	sm.Cookie.HttpOnly = true
@@ -204,7 +191,7 @@ func newSessionManager(db *db.DB, cfg config.Config) (*scs.SessionManager, *pgxs
 	return sm, store
 }
 
-func runVersionCommand() *cobra.Command {
+func versionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print build version",

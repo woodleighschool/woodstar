@@ -29,9 +29,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
-// SessionLifetime is the browser session lifetime.
-const SessionLifetime = 14 * 24 * time.Hour
-
 // Dependencies contains runtime dependencies for [Server].
 type Dependencies struct {
 	Config           config.Config
@@ -49,74 +46,40 @@ type Dependencies struct {
 	QueryStore       *queries.QueryStore
 	CheckStore       *queries.CheckStore
 	LiveQueryManager *queries.LiveQueryManager
+	TargetResolver   *hosts.TargetResolver
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service
 }
 
 // Server owns the HTTP listener and router.
 type Server struct {
-	httpServer     *http.Server
-	config         config.Config
-	db             *db.DB
-	version        string
-	logger         *slog.Logger
-	webHandler     *web.Handler
-	authService    *auth.Service
-	sessionManager *scs.SessionManager
-	hostStore      *hosts.HostStore
-	deviceMappings *hosts.DeviceMappingStore
-	secretStore    *models.SecretStore
-	softwareStore  *software.SoftwareStore
-	labelStore     *labels.LabelStore
-	queryStore     *queries.QueryStore
-	checkStore     *queries.CheckStore
-	liveQueries    *queries.LiveQueryManager
-	orbitService   *orbit.Service
-	osqueryService *osquery.Service
+	httpServer *http.Server
+	deps       Dependencies
 }
 
 // NewServer returns an HTTP server.
 func NewServer(deps Dependencies) *Server {
-	return &Server{
-		httpServer: &http.Server{
-			ReadHeaderTimeout: 15 * time.Second,
-			ReadTimeout:       60 * time.Second,
-			WriteTimeout:      120 * time.Second,
-			IdleTimeout:       180 * time.Second,
-		},
-		config:         deps.Config,
-		db:             deps.DB,
-		version:        deps.Version,
-		logger:         deps.Logger,
-		webHandler:     deps.WebHandler,
-		authService:    deps.AuthService,
-		sessionManager: deps.SessionManager,
-		hostStore:      deps.HostStore,
-		deviceMappings: deps.DeviceMappings,
-		secretStore:    deps.SecretStore,
-		softwareStore:  deps.SoftwareStore,
-		labelStore:     deps.LabelStore,
-		queryStore:     deps.QueryStore,
-		checkStore:     deps.CheckStore,
-		liveQueries:    deps.LiveQueryManager,
-		orbitService:   deps.OrbitService,
-		osqueryService: deps.OsqueryService,
+	server := &Server{deps: deps}
+	server.httpServer = &http.Server{
+		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
+		Handler:           server.routes(),
+		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       180 * time.Second,
 	}
+	return server
 }
 
 // ListenAndServe starts the HTTP listener and blocks until shutdown or failure.
 func (s *Server) ListenAndServe() error {
-	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	s.httpServer.Addr = addr
-	s.httpServer.Handler = s.routes()
-
-	s.logger.Info(
+	s.deps.Logger.Info(
 		"starting woodstar",
 		"component", "server",
 		"operation", "start",
-		"addr", addr,
-		"public_url", s.config.PublicURL,
-		"version", s.version,
+		"addr", s.httpServer.Addr,
+		"public_url", s.deps.Config.PublicURL,
+		"version", s.deps.Version,
 	)
 	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -126,11 +89,12 @@ func (s *Server) ListenAndServe() error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
+	s.deps.Logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
 	return s.httpServer.Shutdown(ctx)
 }
 
 func (s *Server) routes() http.Handler {
+	deps := s.deps
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.RequestID)
@@ -140,7 +104,7 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("alive\n"))
 	})
 	r.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
-		if err := s.db.Ping(req.Context()); err != nil {
+		if err := deps.DB.Ping(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}
@@ -148,35 +112,36 @@ func (s *Server) routes() http.Handler {
 	})
 
 	r.Group(func(agent chi.Router) {
-		agent.Use(requestLogger(s.logger, slog.LevelDebug))
-		transportorbit.RegisterRoutes(agent, s.orbitService, s.logger.With("component", "orbit"))
-		transportosquery.RegisterRoutes(agent, s.osqueryService, s.logger.With("component", "osquery"))
+		agent.Use(requestLogger(deps.Logger, slog.LevelDebug))
+		transportorbit.RegisterRoutes(agent, deps.OrbitService, deps.Logger.With("component", "orbit"))
+		transportosquery.RegisterRoutes(agent, deps.OsqueryService, deps.Logger.With("component", "osquery"))
 	})
 
 	r.Group(func(browser chi.Router) {
-		browser.Use(requestLogger(s.logger, slog.LevelDebug))
-		if s.sessionManager != nil {
-			browser.Use(s.sessionManager.LoadAndSave)
+		browser.Use(requestLogger(deps.Logger, slog.LevelDebug))
+		if deps.SessionManager != nil {
+			browser.Use(deps.SessionManager.LoadAndSave)
 		}
-		if !s.config.IsHTTPS() {
+		if !deps.Config.IsHTTPS() {
 			browser.Use(admin.PlaintextHTTP)
 		}
-		browser.Use(admin.CSRF(s.config, SessionLifetime))
+		browser.Use(admin.CSRF(deps.Config, config.SessionLifetime))
 		admin.Mount(browser, admin.Dependencies{
-			DB:               s.db,
-			Version:          s.version,
-			AuthService:      s.authService,
-			HostStore:        s.hostStore,
-			DeviceMappings:   s.deviceMappings,
-			SecretStore:      s.secretStore,
-			SoftwareStore:    s.softwareStore,
-			LabelStore:       s.labelStore,
-			QueryStore:       s.queryStore,
-			CheckStore:       s.checkStore,
-			LiveQueryManager: s.liveQueries,
+			DB:               deps.DB,
+			Version:          deps.Version,
+			AuthService:      deps.AuthService,
+			HostStore:        deps.HostStore,
+			DeviceMappings:   deps.DeviceMappings,
+			SecretStore:      deps.SecretStore,
+			SoftwareStore:    deps.SoftwareStore,
+			LabelStore:       deps.LabelStore,
+			QueryStore:       deps.QueryStore,
+			CheckStore:       deps.CheckStore,
+			LiveQueryManager: deps.LiveQueryManager,
+			TargetResolver:   deps.TargetResolver,
 		})
-		if s.webHandler != nil {
-			s.webHandler.RegisterRoutes(browser)
+		if deps.WebHandler != nil {
+			deps.WebHandler.RegisterRoutes(browser)
 		}
 	})
 

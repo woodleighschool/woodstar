@@ -31,6 +31,7 @@ type Dependencies struct {
 	QueryStore       *queries.QueryStore
 	CheckStore       *queries.CheckStore
 	LiveQueryManager *queries.LiveQueryManager
+	TargetResolver   *hosts.TargetResolver
 }
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -46,7 +47,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
 	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
-	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, hosts.NewTargetResolver(deps.DB))
+	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.TargetResolver)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
 	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit

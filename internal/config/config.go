@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 )
 
 const minSessionSecretLength = 32
+
+// SessionLifetime is the browser session lifetime.
+const SessionLifetime = 14 * 24 * time.Hour
 
 // Config contains runtime settings.
 type Config struct {
