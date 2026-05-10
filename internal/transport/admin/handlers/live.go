@@ -65,9 +65,6 @@ func RegisterLiveQueries(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
-		if manager == nil {
-			return nil, huma.Error500InternalServerError("live queries are not configured")
-		}
 		hostIDs, err := input.Body.resolveTargets(ctx, resolver)
 		if err != nil {
 			return nil, err
@@ -97,9 +94,6 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 	labelIDs, err := parseIDList(body.Selected.Labels, "selected.labels")
 	if err != nil {
 		return nil, err
-	}
-	if resolver == nil {
-		return nil, huma.Error500InternalServerError("target resolver is not configured")
 	}
 	resolved, err := resolver.ResolveSelectedTargets(ctx, hosts.TargetSelection{
 		HostIDs:  hostIDs,

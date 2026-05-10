@@ -2,8 +2,6 @@
 package admin
 
 import (
-	"time"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -61,17 +59,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 // BuildAPI returns the admin API without starting the server.
 func BuildAPI(version string) huma.API {
 	r := chi.NewRouter()
-	hub := queries.NewHub()
 	return Mount(r, Dependencies{
-		Version:          version,
-		AuthService:      auth.NewService(nil, nil),
-		HostStore:        hosts.NewHostStore(nil),
-		DeviceMappings:   hosts.NewDeviceMappingStore(nil),
-		SecretStore:      models.NewSecretStore(nil),
-		SoftwareStore:    software.NewSoftwareStore(nil),
-		LabelStore:       labels.NewLabelStore(nil),
-		QueryStore:       queries.NewQueryStore(nil),
-		CheckStore:       queries.NewCheckStore(nil),
-		LiveQueryManager: queries.NewLiveQueryManager(hub, time.Minute),
+		Version: version,
 	})
 }

@@ -3,7 +3,6 @@ package orbit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -34,9 +33,6 @@ func NewService(
 // Re-enrollment of the same hardware UUID overwrites the existing key, so prior
 // keys stop authenticating immediately.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
-	if s.hostStore == nil || s.secretStore == nil {
-		return nil, "", errors.New("orbit service is not configured")
-	}
 	if strings.TrimSpace(req.HardwareUUID) == "" {
 		return nil, "", agentauth.ErrMissingHardwareUUID
 	}

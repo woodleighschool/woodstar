@@ -18,10 +18,6 @@ const migrationLockID int64 = 7146808627076917000
 var migrationsFS embed.FS
 
 func (db *DB) migrate(ctx context.Context) error {
-	if db == nil || db.pool == nil {
-		return errDatabaseClosed()
-	}
-
 	sqlDB := stdlib.OpenDBFromPool(db.pool)
 	defer sqlDB.Close()
 

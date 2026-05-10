@@ -53,10 +53,6 @@ func NewService(
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	if s.hostStore == nil || s.secretStore == nil {
-		return "", errors.New("osquery service is not configured")
-	}
-
 	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
 	if err != nil {
 		return "", fmt.Errorf("validate enroll secret: %w", err)

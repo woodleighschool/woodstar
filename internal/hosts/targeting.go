@@ -2,7 +2,6 @@ package hosts
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"strings"
 
@@ -64,9 +63,6 @@ func (r *TargetResolver) ResolveSelectedTargets(ctx context.Context, selection T
 	labelIDs := cleanPositiveIDs(selection.LabelIDs)
 	if len(labelIDs) == 0 {
 		return hostIDs, nil
-	}
-	if r == nil || r.db == nil {
-		return nil, errors.New("target resolver is not configured")
 	}
 	matches, err := resolveSelectedLabelTargets(ctx, r.db, labelIDs)
 	if err != nil {

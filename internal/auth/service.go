@@ -54,17 +54,11 @@ func NewService(users userStore, sessions *scs.SessionManager) *Service {
 
 // SetupComplete reports whether the initial administrator account exists.
 func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
-	if s.users == nil {
-		return false, nil
-	}
 	return s.users.Exists(ctx)
 }
 
 // Setup creates the first administrator account and starts a session.
 func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, error) {
-	if s.users == nil || s.sessions == nil {
-		return nil, ErrNotSetup
-	}
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -96,9 +90,6 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, 
 
 // Login checks local credentials and starts a session.
 func (s *Service) Login(ctx context.Context, email string, password string) (*models.User, error) {
-	if s.users == nil || s.sessions == nil {
-		return nil, ErrNotSetup
-	}
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -131,9 +122,6 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*mo
 
 // CurrentUser returns the user attached to the session loaded into ctx by scs middleware.
 func (s *Service) CurrentUser(ctx context.Context) (*models.User, error) {
-	if s.users == nil || s.sessions == nil {
-		return nil, ErrNotAuthenticated
-	}
 	id := s.sessions.GetInt64(ctx, sessionUserKey)
 	if id == 0 {
 		return nil, ErrNotAuthenticated
@@ -152,9 +140,6 @@ func (s *Service) CurrentUser(ctx context.Context) (*models.User, error) {
 
 // Logout revokes the active session.
 func (s *Service) Logout(ctx context.Context) error {
-	if s.sessions == nil {
-		return nil
-	}
 	if err := s.sessions.Destroy(ctx); err != nil {
 		return fmt.Errorf("destroy session: %w", err)
 	}

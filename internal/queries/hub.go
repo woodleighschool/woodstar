@@ -24,11 +24,6 @@ func NewHub() *Hub {
 // function. The caller must invoke release when done; release closes the
 // channel.
 func (h *Hub) Subscribe(queryID int64) (<-chan LiveQueryEvent, func()) {
-	if h == nil {
-		ch := make(chan LiveQueryEvent)
-		close(ch)
-		return ch, func() {}
-	}
 	id := h.next.Add(1)
 	ch := make(chan LiveQueryEvent, 32)
 
@@ -61,9 +56,6 @@ func (h *Hub) Subscribe(queryID int64) (<-chan LiveQueryEvent, func()) {
 // subscriber's buffer is full the event is dropped for that subscriber —
 // slow consumers don't stall the publisher.
 func (h *Hub) Publish(queryID int64, event LiveQueryEvent) {
-	if h == nil {
-		return
-	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, ch := range h.subs[queryID] {

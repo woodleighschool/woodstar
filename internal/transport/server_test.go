@@ -15,10 +15,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/queries"
-	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -185,12 +183,6 @@ func testConfig() config.Config {
 }
 
 func testDependencies(cfg config.Config) Dependencies {
-	users := models.NewUserStore(nil)
-	hostStore := hosts.NewHostStore(nil)
-	deviceMappings := hosts.NewDeviceMappingStore(nil)
-	secrets := models.NewSecretStore(nil)
-	softwareStore := software.NewSoftwareStore(nil)
-
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
 
@@ -198,11 +190,7 @@ func testDependencies(cfg config.Config) Dependencies {
 		Config:         cfg,
 		Version:        "test",
 		Logger:         slog.New(slog.DiscardHandler),
-		AuthService:    auth.NewService(users, sessionManager),
+		AuthService:    auth.NewService(&testUserStore{}, sessionManager),
 		SessionManager: sessionManager,
-		HostStore:      hostStore,
-		DeviceMappings: deviceMappings,
-		SecretStore:    secrets,
-		SoftwareStore:  softwareStore,
 	}
 }

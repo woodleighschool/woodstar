@@ -33,12 +33,3 @@ func TestDeleteUserRejectsSelf(t *testing.T) {
 		t.Fatalf("err = %v, want ErrCannotDeleteSelf", err)
 	}
 }
-
-func TestDeleteUserRequiresStores(t *testing.T) {
-	svc := NewService(nil, nil)
-
-	err := svc.DeleteUser(context.Background(), 1, 2)
-	if !errors.Is(err, ErrNotSetup) {
-		t.Fatalf("err = %v, want ErrNotSetup", err)
-	}
-}

@@ -32,26 +32,16 @@ type UpdateUserParams struct {
 
 // ListUsers returns every active user.
 func (s *Service) ListUsers(ctx context.Context) ([]models.User, error) {
-	if s.users == nil {
-		return nil, ErrNotSetup
-	}
 	return s.users.List(ctx)
 }
 
 // GetUser returns one active user by id.
 func (s *Service) GetUser(ctx context.Context, id int64) (*models.User, error) {
-	if s.users == nil {
-		return nil, ErrNotSetup
-	}
 	return s.users.GetByID(ctx, id)
 }
 
 // CreateUser provisions a local user.
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (*models.User, error) {
-	if s.users == nil {
-		return nil, ErrNotSetup
-	}
-
 	hash, err := HashPassword(params.Password)
 	if err != nil {
 		return nil, err
@@ -72,10 +62,6 @@ func (s *Service) UpdateUser(
 	targetID int64,
 	params UpdateUserParams,
 ) (*models.User, error) {
-	if s.users == nil {
-		return nil, ErrNotSetup
-	}
-
 	if actor != nil && actor.ID == targetID && actor.Role != params.Role {
 		return nil, ErrCannotChangeOwnRole
 	}
@@ -104,9 +90,6 @@ func (s *Service) UpdateUser(
 // filters deleted_at, and the rows expire on their own.
 // actorID may not equal targetID, and the last active admin cannot be removed.
 func (s *Service) DeleteUser(ctx context.Context, actorID int64, targetID int64) error {
-	if s.users == nil {
-		return ErrNotSetup
-	}
 	if actorID == targetID {
 		return ErrCannotDeleteSelf
 	}
