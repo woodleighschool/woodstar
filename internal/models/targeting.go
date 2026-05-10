@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 )
 
 // LabelScopeMode describes how a target set uses labels.
@@ -35,10 +35,10 @@ type TargetSelection struct {
 
 // TargetResolver resolves live target selections against host and label state.
 type TargetResolver struct {
-	db *database.DB
+	db *db.DB
 }
 
-func NewTargetResolver(db *database.DB) *TargetResolver {
+func NewTargetResolver(db *db.DB) *TargetResolver {
 	return &TargetResolver{db: db}
 }
 
@@ -74,7 +74,7 @@ func (r *TargetResolver) ResolveSelectedTargets(ctx context.Context, selection T
 }
 
 // HostMatchesScope reports whether a host satisfies a label scope.
-func HostMatchesScope(ctx context.Context, db *database.DB, scope LabelScope, hostID int64) (bool, error) {
+func HostMatchesScope(ctx context.Context, db *db.DB, scope LabelScope, hostID int64) (bool, error) {
 	scope = NormalizeLabelScope(scope)
 	if scope.Mode == ScopeNone {
 		return true, nil
@@ -107,7 +107,7 @@ func HostMatchesScope(ctx context.Context, db *database.DB, scope LabelScope, ho
 	}
 }
 
-func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
+func resolveSelectedLabelTargets(ctx context.Context, db *db.DB, labelIDs []int64) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx,
 		`SELECT id, name, label_type
 		 FROM labels
@@ -154,7 +154,7 @@ func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs 
 	}
 }
 
-func allActiveHostIDs(ctx context.Context, db *database.DB) ([]int64, error) {
+func allActiveHostIDs(ctx context.Context, db *db.DB) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx, `SELECT id FROM hosts WHERE deleted_at IS NULL ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func allActiveHostIDs(ctx context.Context, db *database.DB) ([]int64, error) {
 	return scanHostIDs(rows)
 }
 
-func hostsMatchingAnyLabel(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
+func hostsMatchingAnyLabel(ctx context.Context, db *db.DB, labelIDs []int64) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx,
 		`SELECT DISTINCT h.id
 		 FROM hosts h
@@ -181,7 +181,7 @@ func hostsMatchingAnyLabel(ctx context.Context, db *database.DB, labelIDs []int6
 
 func hostsMatchingBuiltinAndRegularLabels(
 	ctx context.Context,
-	db *database.DB,
+	db *db.DB,
 	builtinIDs []int64,
 	regularIDs []int64,
 ) ([]int64, error) {

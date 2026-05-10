@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 )
 
 // SecretKind identifies the subsystem that accepts a shared secret.
@@ -37,7 +37,7 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a secret store backed by db.
-func NewSecretStore(db *database.DB) *SecretStore {
+func NewSecretStore(db *db.DB) *SecretStore {
 	return &SecretStore{q: db.Queries()}
 }
 

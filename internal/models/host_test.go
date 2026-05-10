@@ -2,10 +2,9 @@ package models
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 )
 
 func TestDisplayNamePriority(t *testing.T) {
@@ -111,17 +110,8 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 
 func newIntegrationHostStore(t *testing.T) (*HostStore, context.Context) {
 	t.Helper()
-	databaseURL := os.Getenv("WOODSTAR_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("WOODSTAR_TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	db, err := database.Open(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(db.Close)
-	return NewHostStore(db), ctx
+	database, ctx := dbtest.Open(t)
+	return NewHostStore(database), ctx
 }
 
 func TestCleanHostListParams(t *testing.T) {

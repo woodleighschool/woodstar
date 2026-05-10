@@ -15,7 +15,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -32,7 +32,7 @@ const SessionLifetime = 14 * 24 * time.Hour
 // Dependencies contains runtime dependencies for [Server].
 type Dependencies struct {
 	Config           config.Config
-	DB               *database.DB
+	DB               *db.DB
 	Version          string
 	Logger           *slog.Logger
 	WebHandler       *web.Handler
@@ -54,7 +54,7 @@ type Dependencies struct {
 type Server struct {
 	httpServer     *http.Server
 	config         config.Config
-	db             *database.DB
+	db             *db.DB
 	version        string
 	logger         *slog.Logger
 	webHandler     *web.Handler

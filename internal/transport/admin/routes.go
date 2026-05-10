@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
@@ -17,7 +17,7 @@ import (
 
 // Dependencies contains the services and stores used by the admin HTTP API.
 type Dependencies struct {
-	DB               *database.DB
+	DB               *db.DB
 	Version          string
 	Started          time.Time
 	AuthService      *auth.Service

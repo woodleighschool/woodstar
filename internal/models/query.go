@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 )
 
 // QueryLoggingType is the storage mode for scheduled query results.
@@ -86,11 +86,11 @@ type snapshotResultRow struct {
 
 // QueryStore persists saved queries and scheduled report results.
 type QueryStore struct {
-	db *database.DB
+	db *db.DB
 }
 
 // NewQueryStore returns a query store backed by db.
-func NewQueryStore(db *database.DB) *QueryStore {
+func NewQueryStore(db *db.DB) *QueryStore {
 	return &QueryStore{db: db}
 }
 

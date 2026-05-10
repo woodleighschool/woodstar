@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 )
 
 // Label types. LabelType separates system-seeded labels from admin-created ones.
@@ -64,12 +64,12 @@ type LabelUpdate struct {
 
 // LabelStore persists labels and host memberships.
 type LabelStore struct {
-	db *database.DB
+	db *db.DB
 	q  *sqlc.Queries
 }
 
 // NewLabelStore returns a label store backed by db.
-func NewLabelStore(db *database.DB) *LabelStore {
+func NewLabelStore(db *db.DB) *LabelStore {
 	return &LabelStore{db: db, q: db.Queries()}
 }
 

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,7 +17,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -26,14 +26,7 @@ import (
 )
 
 func TestAgentContract(t *testing.T) {
-	databaseURL := integrationDatabaseURL(t)
-	ctx := context.Background()
-
-	db, err := database.Open(ctx, databaseURL)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(db.Close)
+	database, ctx := dbtest.Open(t)
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "woodstar-contract-" + suffix
@@ -44,7 +37,7 @@ func TestAgentContract(t *testing.T) {
 
 	var secretValue string
 	t.Cleanup(func() {
-		cleanupContractRows(context.Background(), t, db, contractCleanup{
+		cleanupContractRows(context.Background(), t, database, contractCleanup{
 			HardwareUUID: hardwareUUID,
 			AdminEmail:   adminEmail,
 			SecretValue:  secretValue,
@@ -52,7 +45,7 @@ func TestAgentContract(t *testing.T) {
 		})
 	})
 
-	deps, users := contractDependencies(t, db)
+	deps, users := contractDependencies(t, database)
 	router := NewServer(deps).routes()
 
 	secret, err := deps.SecretStore.Create(ctx, models.SecretOrbit)
@@ -76,19 +69,7 @@ func TestAgentContract(t *testing.T) {
 	assertAdminSoftware(t, router, adminCookie, softwareName, softwareBundleID)
 }
 
-func integrationDatabaseURL(t *testing.T) string {
-	t.Helper()
-	if os.Getenv("WOODSTAR_INTEGRATION") == "" {
-		t.Skip("WOODSTAR_INTEGRATION is not set")
-	}
-	databaseURL := os.Getenv("WOODSTAR_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("WOODSTAR_TEST_DATABASE_URL is not set")
-	}
-	return databaseURL
-}
-
-func contractDependencies(t *testing.T, db *database.DB) (Dependencies, *models.UserStore) {
+func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserStore) {
 	t.Helper()
 
 	users := models.NewUserStore(db)
@@ -147,7 +128,7 @@ type contractCleanup struct {
 	BundleID     string
 }
 
-func cleanupContractRows(ctx context.Context, t *testing.T, db *database.DB, cleanup contractCleanup) {
+func cleanupContractRows(ctx context.Context, t *testing.T, db *db.DB, cleanup contractCleanup) {
 	t.Helper()
 	statements := []struct {
 		sql  string
@@ -405,18 +386,21 @@ func assertAdminHost(
 	deviceEmail string,
 ) string {
 	t.Helper()
-	var hosts []struct {
-		ID             string                  `json:"id"`
-		HardwareUUID   string                  `json:"hardware_uuid"`
-		DisplayName    string                  `json:"display_name"`
-		OrbitVersion   string                  `json:"orbit_version"`
-		PhysicalMemory int64                   `json:"physical_memory"`
-		DiskAvailable  *int64                  `json:"disk_space_available_bytes,omitempty"`
-		DiskTotal      *int64                  `json:"disk_space_total_bytes,omitempty"`
-		DeviceMappings []contractDeviceMapping `json:"device_mappings"`
+	var body struct {
+		Items []struct {
+			ID             int64                   `json:"id"`
+			HardwareUUID   string                  `json:"hardware_uuid"`
+			DisplayName    string                  `json:"display_name"`
+			OrbitVersion   string                  `json:"orbit_version"`
+			PhysicalMemory int64                   `json:"physical_memory"`
+			DiskAvailable  *int64                  `json:"disk_space_available_bytes,omitempty"`
+			DiskTotal      *int64                  `json:"disk_space_total_bytes,omitempty"`
+			DeviceMappings []contractDeviceMapping `json:"device_mappings"`
+		} `json:"items"`
+		Count int `json:"count"`
 	}
-	doJSON(t, router, http.MethodGet, "/api/hosts", nil, adminCookie, &hosts)
-	for _, host := range hosts {
+	doJSON(t, router, http.MethodGet, "/api/hosts", nil, adminCookie, &body)
+	for _, host := range body.Items {
 		if host.HardwareUUID != hardwareUUID {
 			continue
 		}
@@ -436,7 +420,7 @@ func assertAdminHost(
 			t.Fatalf("host disk_space_total_bytes = %v, want 4294967296", host.DiskTotal)
 		}
 		assertDeviceMapping(t, host.DeviceMappings, deviceEmail)
-		return host.ID
+		return strconv.FormatInt(host.ID, 10)
 	}
 	t.Fatalf("host %q not found in admin list", hardwareUUID)
 	return ""
@@ -499,9 +483,12 @@ func assertAdminHostSoftware(
 	bundleID string,
 ) {
 	t.Helper()
-	var software []contractSoftwareTitle
-	doJSON(t, router, http.MethodGet, "/api/hosts/"+hostID+"/software", nil, adminCookie, &software)
-	assertExampleSoftware(t, software, softwareName, bundleID)
+	var body struct {
+		Items []contractSoftwareTitle `json:"items"`
+		Count int                     `json:"count"`
+	}
+	doJSON(t, router, http.MethodGet, "/api/hosts/"+hostID+"/software", nil, adminCookie, &body)
+	assertExampleSoftware(t, body.Items, softwareName, bundleID)
 }
 
 func assertAdminSoftware(
@@ -513,15 +500,14 @@ func assertAdminSoftware(
 ) {
 	t.Helper()
 	var body struct {
-		SoftwareTitles []contractSoftwareTitleWithCount `json:"software_titles"`
-		Count          int                              `json:"count"`
-		Meta           map[string]any                   `json:"meta"`
+		Items []contractSoftwareTitleWithCount `json:"items"`
+		Count int                              `json:"count"`
 	}
 	doJSON(t, router, http.MethodGet, "/api/software", nil, adminCookie, &body)
 	if body.Count < 1 {
 		t.Fatalf("software count = %d, want at least 1", body.Count)
 	}
-	for _, title := range body.SoftwareTitles {
+	for _, title := range body.Items {
 		if title.Name == softwareName && title.Source == "apps" && title.HostsCount >= 1 &&
 			hasContractVersion(title.Versions, "1.2.3", bundleID) {
 			return

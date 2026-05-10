@@ -18,7 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -76,17 +76,17 @@ func serve(parent context.Context, cfg config.Config) error {
 	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
 	logger.InfoContext(parent, "woodstar configuration loaded", "component", "config", "operation", "load")
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	database, err := db.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
+	defer database.Close()
 	logger.InfoContext(parent, "database ready", "component", "database", "operation", "open")
 
-	sessionManager, sessionStore := newSessionManager(db, cfg)
+	sessionManager, sessionStore := newSessionManager(database, cfg)
 	defer sessionStore.StopCleanup()
 
-	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
+	return runServer(ctx, newServer(ctx, cfg, database, sessionManager, logger))
 }
 
 func runServer(ctx context.Context, server *transport.Server) error {
@@ -108,7 +108,7 @@ func runServer(ctx context.Context, server *transport.Server) error {
 func newServer(
 	ctx context.Context,
 	cfg config.Config,
-	db *database.DB,
+	db *db.DB,
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
 ) *transport.Server {
@@ -168,7 +168,7 @@ type modelStores struct {
 	checks         *models.CheckStore
 }
 
-func newModelStores(db *database.DB) modelStores {
+func newModelStores(db *db.DB) modelStores {
 	return modelStores{
 		users:          models.NewUserStore(db),
 		hosts:          models.NewHostStore(db),
@@ -181,7 +181,7 @@ func newModelStores(db *database.DB) modelStores {
 	}
 }
 
-func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+func newSessionManager(db *db.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
 	store := pgxstore.New(db.Pool())
 	sm := scs.New()
 	sm.Store = store

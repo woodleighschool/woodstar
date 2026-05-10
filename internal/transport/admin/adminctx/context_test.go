@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 

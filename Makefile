@@ -15,7 +15,7 @@ LDFLAGS = -ldflags "-X github.com/woodleighschool/woodstar/internal/buildinfo.Ve
 
 OPENAPI_FILE = $(WEB_DIR)/openapi.yaml
 
-.PHONY: all build backend frontend dev dev-backend dev-frontend test test-openapi openapi openapi-types lint fmt precommit clean deps schema-sync
+.PHONY: all build backend frontend dev dev-backend dev-frontend test test-integration test-openapi openapi openapi-types lint fmt precommit clean deps schema-sync
 
 all: build
 
@@ -38,6 +38,9 @@ dev-frontend:
 
 test:
 	go test -race -count=1 -v ./...
+
+test-integration:
+	go test -race -count=1 -v ./internal/models ./internal/transport
 
 openapi:
 	go run $(LDFLAGS) ./cmd/woodstar openapi --output $(OPENAPI_FILE)

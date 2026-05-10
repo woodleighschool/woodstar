@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 )
 
 // HostSoftwareEntry is one installed software version reported by a host.
@@ -99,12 +99,12 @@ type HostSoftwareListParams struct {
 
 // SoftwareStore persists global software titles and host inventory joins.
 type SoftwareStore struct {
-	db *database.DB
+	db *db.DB
 	q  *sqlc.Queries
 }
 
 // NewSoftwareStore returns a software store backed by db.
-func NewSoftwareStore(db *database.DB) *SoftwareStore {
+func NewSoftwareStore(db *db.DB) *SoftwareStore {
 	return &SoftwareStore{db: db, q: db.Queries()}
 }
 

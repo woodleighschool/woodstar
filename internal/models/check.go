@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/db"
 )
 
 // Check is a query-backed pass/fail policy.
@@ -60,11 +60,11 @@ type CheckHostStatus struct {
 
 // CheckStore persists checks and per-host membership state.
 type CheckStore struct {
-	db *database.DB
+	db *db.DB
 }
 
 // NewCheckStore returns a check store backed by db.
-func NewCheckStore(db *database.DB) *CheckStore {
+func NewCheckStore(db *db.DB) *CheckStore {
 	return &CheckStore{db: db}
 }
 

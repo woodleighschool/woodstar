@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 )
 
 // DB wraps the Postgres connection pool used by stores.

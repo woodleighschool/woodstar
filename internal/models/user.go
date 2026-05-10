@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 )
 
 // UserRole controls application permissions.
@@ -46,7 +46,7 @@ type UpdateUserParams struct {
 }
 
 // NewUserStore returns a user store backed by db.
-func NewUserStore(db *database.DB) *UserStore {
+func NewUserStore(db *db.DB) *UserStore {
 	return &UserStore{q: db.Queries()}
 }
 
