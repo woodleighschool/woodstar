@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -31,7 +32,7 @@ export function UsersPage() {
     <>
       <PageActions>
         <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-          <UserPlus className="size-4" /> Add user
+          <UserPlus data-icon="inline-start" /> Add user
         </Button>
       </PageActions>
 
@@ -141,19 +142,18 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${row.email}`}>
-                        <MoreHorizontal className="size-4" />
+                        <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
-                      {!isSelf ? (
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onSelect={() => onDelete(row)}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      ) : null}
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
+                        {!isSelf ? (
+                          <DropdownMenuItem variant="destructive" onSelect={() => onDelete(row)}>
+                            Delete
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

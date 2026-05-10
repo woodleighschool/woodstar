@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOsquerySchema, type OsqueryColumn, type OsqueryTable } from "@/hooks/use-osquery-schema";
@@ -113,7 +113,7 @@ function TableSelector({
           className="w-full justify-between font-mono text-sm"
         >
           <span className="truncate">{value ?? "Select a table"}</span>
-          <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 opacity-70" />
+          <ChevronsUpDown data-icon="inline-end" className="text-muted-foreground shrink-0 opacity-70" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
@@ -121,19 +121,21 @@ function TableSelector({
           <CommandInput placeholder="Search tables…" />
           <CommandList>
             <CommandEmpty>No tables found.</CommandEmpty>
-            {tables.map((table) => (
-              <CommandItem
-                key={table.name}
-                value={table.name}
-                onSelect={() => {
-                  onChange(table.name);
-                  setOpen(false);
-                }}
-              >
-                <Check className={cn("size-4", value === table.name ? "opacity-100" : "opacity-0")} />
-                <span className="font-mono text-sm">{table.name}</span>
-              </CommandItem>
-            ))}
+            <CommandGroup>
+              {tables.map((table) => (
+                <CommandItem
+                  key={table.name}
+                  value={table.name}
+                  onSelect={() => {
+                    onChange(table.name);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn(value === table.name ? "opacity-100" : "opacity-0")} />
+                  <span className="font-mono text-sm">{table.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>

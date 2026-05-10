@@ -1,19 +1,22 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { KeyRound, Search, ServerCog, Trash2, X } from "lucide-react";
+import { KeyRound, ServerCog, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { defaultHiddenIds } from "@/components/data-table/data-table-visibility";
 import { PageActions } from "@/components/layout/page-actions";
 import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useHiddenColumns } from "@/hooks/use-hidden-columns";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -61,36 +64,41 @@ export function HostsListPage() {
 
   const hasFilters = !!search.q || !!search.status || !!search.platform || !!search.label_id || isSoftwareFiltered;
 
-  const columns: ColumnDef<Host>[] = [
+  const allColumns: ColumnDef<Host>[] = [
     {
       id: "display_name",
       accessorFn: (row) => row.display_name || row.hardware_uuid,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
+      meta: { label: "Host", alwaysVisible: true },
     },
     {
       id: "status",
       header: () => "Status",
       enableSorting: false,
       cell: ({ row }) => <HostStatusBadge host={row.original} now={now} />,
+      meta: { label: "Status" },
     },
     {
       id: "os_version",
       accessorKey: "os_version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="OS" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.os_version || "-"}</span>,
+      meta: { label: "OS" },
     },
     {
       id: "hardware_model",
       accessorKey: "hardware_model",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_model || "-"}</span>,
+      meta: { label: "Model" },
     },
     {
       id: "hardware_serial",
       accessorKey: "hardware_serial",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_serial || "-"}</span>,
+      meta: { label: "Serial" },
     },
     {
       id: "disk_space_available_bytes",
@@ -101,6 +109,7 @@ export function HostsListPage() {
           {row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-"}
         </span>
       ),
+      meta: { label: "Disk free" },
     },
     {
       id: "primary_user",
@@ -114,6 +123,7 @@ export function HostsListPage() {
           </span>
         );
       },
+      meta: { label: "Primary user" },
     },
     {
       id: "last_seen_at",
@@ -127,8 +137,71 @@ export function HostsListPage() {
           {formatRelative(row.original.last_seen_at)}
         </span>
       ),
+      meta: { label: "Last seen" },
+    },
+    {
+      id: "hardware_uuid",
+      accessorKey: "hardware_uuid",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="UUID" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground font-mono text-xs">{row.original.hardware_uuid || "-"}</span>
+      ),
+      meta: { label: "UUID", defaultHidden: true },
+    },
+    {
+      id: "primary_ip",
+      accessorKey: "primary_ip",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Private IP" />,
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.primary_ip ?? "-"}</span>,
+      meta: { label: "Private IP", defaultHidden: true },
+    },
+    {
+      id: "public_ip",
+      accessorKey: "public_ip",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Public IP" />,
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.public_ip ?? "-"}</span>,
+      meta: { label: "Public IP", defaultHidden: true },
+    },
+    {
+      id: "physical_memory",
+      accessorKey: "physical_memory",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Memory" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground tabular-nums">
+          {row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"}
+        </span>
+      ),
+      meta: { label: "Memory", defaultHidden: true },
+    },
+    {
+      id: "osquery_version",
+      accessorKey: "osquery_version",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="osquery" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.osquery_version || "-"}</span>,
+      meta: { label: "osquery version", defaultHidden: true },
+    },
+    {
+      id: "last_restarted_at",
+      accessorKey: "last_restarted_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last restarted" />,
+      cell: ({ row }) => (
+        <span
+          className="text-muted-foreground"
+          title={row.original.last_restarted_at ? new Date(row.original.last_restarted_at).toLocaleString() : ""}
+        >
+          {row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"}
+        </span>
+      ),
+      meta: { label: "Last restarted", defaultHidden: true },
     },
   ];
+
+  const { hidden, toggle } = useHiddenColumns("hosts:hidden_columns", defaultHiddenIds(allColumns));
+  const hiddenSet = new Set(hidden);
+  const visibleColumns = allColumns.filter((c) => {
+    if (c.meta?.alwaysVisible) return true;
+    return !hiddenSet.has(c.id ?? "");
+  });
 
   const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: String(l.id), label: l.name }));
   const selectedIDs = selectedHostIds.map(Number);
@@ -156,7 +229,7 @@ export function HostsListPage() {
         <OrbitEnrollSecretsDialog
           trigger={
             <Button variant="outline" size="sm" className="gap-2">
-              <KeyRound className="size-4" /> Manage enroll secrets
+              <KeyRound data-icon="inline-start" /> Manage enroll secrets
             </Button>
           }
         />
@@ -173,7 +246,7 @@ export function HostsListPage() {
           </Alert>
         ) : (
           <DataTable
-            columns={columns}
+            columns={visibleColumns}
             data={data}
             totalCount={totalCount}
             page={state.page}
@@ -188,7 +261,7 @@ export function HostsListPage() {
             onSelectedRowIdsChange={setSelectedHostIds}
             bulkActions={
               <Button variant="destructive" size="sm" onClick={deleteSelectedHosts} disabled={bulkDelete.isPending}>
-                <Trash2 className="size-4" />
+                <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
             }
@@ -204,6 +277,9 @@ export function HostsListPage() {
                 labelId={search.label_id}
                 onLabelChange={(v) => setters.setFilter("label_id", v)}
                 labelOptions={labelOptions}
+                allColumns={allColumns}
+                hiddenColumns={hidden}
+                onToggleColumn={toggle}
                 isFetching={query.isFetching}
                 totalCount={totalCount}
               />
@@ -240,6 +316,9 @@ interface HostsToolbarProps {
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
+  allColumns: ColumnDef<Host>[];
+  hiddenColumns: string[];
+  onToggleColumn: (id: string) => void;
   isFetching: boolean;
   totalCount: number;
 }
@@ -254,34 +333,15 @@ function HostsToolbar({
   labelId,
   onLabelChange,
   labelOptions,
+  allColumns,
+  hiddenColumns,
+  onToggleColumn,
   isFetching,
   totalCount,
 }: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="relative max-w-md flex-1">
-        <Search
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-          aria-hidden
-        />
-        <Input
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          placeholder="Search hosts"
-          className="pr-8 pl-8"
-          aria-label="Search hosts"
-        />
-        {draft ? (
-          <button
-            type="button"
-            onClick={() => onDraftChange("")}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-            aria-label="Clear search"
-          >
-            <X className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
+      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search hosts" label="Search hosts" />
       <DataTableFacetedFilter
         title="Status"
         options={STATUS_OPTIONS}
@@ -303,6 +363,7 @@ function HostsToolbar({
         onChange={(next) => onLabelChange(next[0])}
         singleSelect
       />
+      <DataTableColumnToggle columns={allColumns} hidden={hiddenColumns} onToggle={onToggleColumn} />
       <div className="text-muted-foreground ml-auto text-xs tabular-nums">
         {isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "host" : "hosts"}`}
       </div>

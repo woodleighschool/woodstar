@@ -1,14 +1,15 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Plus, Search, Tags, X } from "lucide-react";
+import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import {
   Dialog,
   DialogClose,
@@ -21,11 +22,11 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -123,7 +124,7 @@ export function LabelsPage() {
         actions={
           <Button asChild size="sm">
             <Link to="/labels/new">
-              <Plus className="size-4" />
+              <Plus data-icon="inline-start" />
               Add label
             </Link>
           </Button>
@@ -152,29 +153,7 @@ export function LabelsPage() {
           rowHref={(row) => ({ to: "/labels/$labelId/edit", params: { labelId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <div className="relative max-w-md flex-1">
-                <Search
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-                  aria-hidden
-                />
-                <Input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Search labels"
-                  className="pr-8 pl-8"
-                  aria-label="Search labels"
-                />
-                {draft ? (
-                  <button
-                    type="button"
-                    onClick={() => setDraft("")}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-                    aria-label="Clear search"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
-              </div>
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search labels" label="Search labels" />
               <DataTableFacetedFilter
                 title="Membership"
                 options={MEMBERSHIP_OPTIONS}
@@ -228,18 +207,20 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${label.name}`}>
-          <MoreHorizontal className="size-4" />
+          <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link to="/labels/$labelId/edit" params={{ labelId: String(label.id) }}>
-            Edit
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(label)}>
-          Delete
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link to="/labels/$labelId/edit" params={{ labelId: String(label.id) }}>
+              Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => onDelete(label)}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

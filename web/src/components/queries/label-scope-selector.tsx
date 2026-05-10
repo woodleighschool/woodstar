@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabels } from "@/hooks/use-labels";
 import type { Schemas } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -82,11 +82,13 @@ export function LabelScopeSelector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {modeOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {modeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">

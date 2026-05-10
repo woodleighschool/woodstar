@@ -1,6 +1,7 @@
 import type { Column } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface DataTableColumnHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
@@ -23,17 +24,15 @@ export function DataTableColumnHeader<TData, TValue>({
   const Icon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ChevronsUpDown;
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={() => column.toggleSorting(sorted === "asc")}
-      className={cn(
-        "inline-flex items-center gap-1.5 text-foreground/80 hover:text-foreground transition-colors",
-        align === "right" && "ml-auto",
-        className,
-      )}
+      className={cn("-ml-3 h-8 data-[state=open]:bg-accent", align === "right" && "ml-auto", className)}
     >
       {title}
-      <Icon className={cn("size-3.5", sorted ? "text-foreground" : "text-muted-foreground/60")} />
-    </button>
+      <Icon className={cn(sorted ? "text-foreground" : "text-muted-foreground/60")} />
+    </Button>
   );
 }

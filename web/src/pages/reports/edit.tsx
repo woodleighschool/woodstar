@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateQuery, useQueryDetail, useUpdateQuery, type QueryMutation } from "@/hooks/use-queries";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
@@ -182,11 +182,13 @@ function ReportEditForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FREQUENCY_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={String(option.value)}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {FREQUENCY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
@@ -204,7 +206,7 @@ function ReportEditForm({
           className="w-fit px-0"
           onClick={() => setAdvancedOpen((open) => !open)}
         >
-          {advancedOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {advancedOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
           Advanced options
         </Button>
         {advancedOpen ? (

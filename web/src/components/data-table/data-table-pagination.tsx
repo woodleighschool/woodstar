@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PER_PAGE_OPTIONS = [25, 50, 100, 200] as const;
 
@@ -39,11 +39,13 @@ export function DataTablePagination({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PER_PAGE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {PER_PAGE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
@@ -59,7 +61,7 @@ export function DataTablePagination({
             onClick={() => onPageChange(1)}
             aria-label="First page"
           >
-            <ChevronsLeft className="size-4" />
+            <ChevronsLeft />
           </Button>
           <Button
             variant="outline"
@@ -69,7 +71,7 @@ export function DataTablePagination({
             onClick={() => onPageChange(page - 1)}
             aria-label="Previous page"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft />
           </Button>
           <Button
             variant="outline"
@@ -79,7 +81,7 @@ export function DataTablePagination({
             onClick={() => onPageChange(page + 1)}
             aria-label="Next page"
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight />
           </Button>
           <Button
             variant="outline"
@@ -89,7 +91,7 @@ export function DataTablePagination({
             onClick={() => onPageChange(pageCount)}
             aria-label="Last page"
           >
-            <ChevronsRight className="size-4" />
+            <ChevronsRight />
           </Button>
         </div>
       </div>

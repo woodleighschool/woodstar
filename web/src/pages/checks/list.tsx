@@ -1,16 +1,16 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageLead, PlatformBadge, TargetSummary } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -97,7 +97,7 @@ export function ChecksPage() {
         actions={
           <Button asChild size="sm">
             <Link to="/checks/new">
-              <Plus className="size-4" />
+              <Plus data-icon="inline-start" />
               Add check
             </Link>
           </Button>
@@ -125,32 +125,14 @@ export function ChecksPage() {
           onSelectedRowIdsChange={setSelectedCheckIds}
           bulkActions={
             <Button variant="destructive" size="sm" onClick={deleteSelectedChecks} disabled={bulkDelete.isPending}>
-              <Trash2 className="size-4" />
+              <Trash2 data-icon="inline-start" />
               Delete
             </Button>
           }
           rowHref={(row) => ({ to: "/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <div className="relative max-w-md flex-1">
-                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-                <Input
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Search by name"
-                  className="pr-8 pl-8"
-                />
-                {draft ? (
-                  <button
-                    type="button"
-                    onClick={() => setDraft("")}
-                    className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-                    aria-label="Clear search"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
-              </div>
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search by name" label="Search checks" />
               <DataTableFacetedFilter
                 title="Platform"
                 options={PLATFORM_OPTIONS}

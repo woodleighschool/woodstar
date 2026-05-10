@@ -45,7 +45,7 @@ export function OrbitEnrollSecretsDialog({ trigger }: { trigger: React.ReactNode
 
         <DialogFooter>
           <Button size="sm" className="gap-2" disabled={create.isPending} onClick={() => create.mutate()}>
-            <Plus className="size-4" /> New enroll secret
+            <Plus data-icon="inline-start" /> New enroll secret
           </Button>
         </DialogFooter>
       </DialogContent>

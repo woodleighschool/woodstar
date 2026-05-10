@@ -5,8 +5,8 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -42,9 +42,9 @@ export function LoginPage() {
           <CardTitle>Sign in to Woodstar</CardTitle>
           <CardDescription>Local administrator sign-in or OIDC, when configured.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent>
           <form
-            className="space-y-4"
+            className="flex flex-col gap-4"
             onSubmit={(event) => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
@@ -54,16 +54,18 @@ export function LoginPage() {
               });
             }}
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="login-email">Email</Label>
-              <Input id="login-email" name="email" type="email" autoComplete="email" required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="login-password">Password</Label>
-              <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
-            </div>
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="login-email">Email</FieldLabel>
+                <Input id="login-email" name="email" type="email" autoComplete="email" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="login-password">Password</FieldLabel>
+                <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
+              </Field>
+            </FieldGroup>
 
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <FieldError>{error}</FieldError>
 
             <Button type="submit" className="w-full" disabled={login.isPending}>
               {login.isPending ? "Signing in..." : "Sign in"}

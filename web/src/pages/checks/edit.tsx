@@ -186,7 +186,7 @@ function CheckEditForm({
           className="w-fit px-0"
           onClick={() => setAdvancedOpen((open) => !open)}
         >
-          {advancedOpen ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          {advancedOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
           Advanced options
         </Button>
         {advancedOpen ? (

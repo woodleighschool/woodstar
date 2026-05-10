@@ -23,7 +23,7 @@ type LabelScope = Schemas["LabelScopeBody"];
 export function PageLead({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 space-y-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-muted-foreground max-w-3xl text-sm">{description}</p>
       </div>
@@ -88,7 +88,7 @@ export function ShowQueryButton({ sql }: { sql: string }) {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <FileCode2 className="size-4" />
+          <FileCode2 data-icon="inline-start" />
           Show query
         </Button>
       </DialogTrigger>
@@ -121,7 +121,7 @@ export function LiveRunButton({
   return (
     <Button asChild variant="outline" size="sm">
       <Link to={to} params={params} search={search}>
-        <Play className="size-4" />
+        <Play data-icon="inline-start" />
         Run live
       </Link>
     </Button>
@@ -140,7 +140,7 @@ export function EditButton({
   return (
     <Button asChild size="sm">
       <Link to={to} params={params}>
-        <Settings2 className="size-4" />
+        <Settings2 data-icon="inline-start" />
         {children}
       </Link>
     </Button>
@@ -150,7 +150,7 @@ export function EditButton({
 export function ExportButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
   return (
     <Button variant="outline" size="sm" disabled={disabled} onClick={onClick}>
-      <Download className="size-4" />
+      <Download data-icon="inline-start" />
       Export results
     </Button>
   );

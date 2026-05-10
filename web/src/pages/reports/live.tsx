@@ -1,13 +1,13 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { Apple, Check, Globe, Loader2, Monitor, Play, Plus, Search, Server, X } from "lucide-react";
+import { Apple, Check, Globe, Loader2, Monitor, Play, Plus, Server } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
@@ -115,9 +115,9 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
               disabled={!hasTargets || create.isPending || stream.status === "open"}
             >
               {create.isPending || stream.status === "open" ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
-                <Play className="size-4" />
+                <Play data-icon="inline-start" />
               )}
               {liveQueryId ? "Run again" : "Run"}
             </Button>
@@ -187,25 +187,13 @@ function TargetPicker({
 
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">Hosts</h3>
-        <div className="relative">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            value={hostSearch}
-            onChange={(event) => setHostSearch(event.target.value)}
-            placeholder="Search hosts"
-            className="pr-8 pl-8"
-          />
-          {hostSearch ? (
-            <button
-              type="button"
-              onClick={() => setHostSearch("")}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-              aria-label="Clear host search"
-            >
-              <X className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
+        <DataTableSearch
+          value={hostSearch}
+          onChange={setHostSearch}
+          placeholder="Search hosts"
+          label="Search hosts"
+          className="max-w-none"
+        />
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (

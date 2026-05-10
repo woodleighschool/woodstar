@@ -11,8 +11,8 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -136,6 +136,10 @@ export function DataTable<TData, TValue>({
   });
 
   const showSkeleton = isLoading && data.length === 0;
+  const skeletonRowIds = useMemo(
+    () => Array.from({ length: skeletonRows }, (_, row) => `skeleton-row-${row}`),
+    [skeletonRows],
+  );
 
   return (
     <div className="flex flex-col gap-3">
@@ -152,7 +156,7 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((group) => (
               <TableRow key={group.id}>
                 {group.headers.map((header) => (
-                  <TableHead key={header.id} className={cn((header.column.columnDef.meta as Meta)?.headClassName)}>
+                  <TableHead key={header.id} className={cn(header.column.columnDef.meta?.headClassName)}>
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -161,8 +165,8 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {showSkeleton ? (
-              Array.from({ length: skeletonRows }).map((_, i) => (
-                <TableRow key={`skeleton-${i}`}>
+              skeletonRowIds.map((rowId) => (
+                <TableRow key={rowId}>
                   {table.getAllLeafColumns().map((col) => (
                     <TableCell key={col.id}>
                       <Skeleton className="h-4 w-3/4" />
@@ -196,17 +200,17 @@ export function DataTable<TData, TValue>({
                         : undefined
                     }
                   >
-                    {cells.map((cell, i) => {
-                      const meta = cell.column.columnDef.meta as Meta | undefined;
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          className={cn(meta?.cellClassName, i === firstDataIndex && linkProps && "font-medium")}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      );
-                    })}
+                    {cells.map((cell, i) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          cell.column.columnDef.meta?.cellClassName,
+                          i === firstDataIndex && linkProps && "font-medium",
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 );
               })
@@ -226,11 +230,6 @@ export function DataTable<TData, TValue>({
       )}
     </div>
   );
-}
-
-interface Meta {
-  headClassName?: string;
-  cellClassName?: string;
 }
 
 function selectionColumn<TData>(): ColumnDef<TData, unknown> {

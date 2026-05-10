@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -16,20 +17,22 @@ export function ThemeToggle() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Toggle theme" title={`Theme: ${theme ?? "system"}`}>
-          <Sun className="size-4 dark:hidden" />
-          <Moon className="hidden size-4 dark:block" />
+          <Sun className="dark:hidden" />
+          <Moon className="hidden dark:block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuItem onSelect={() => setTheme("light")}>
-          <Sun className="size-4" /> Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("dark")}>
-          <Moon className="size-4" /> Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setTheme("system")}>
-          <Monitor className="size-4" /> System
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onSelect={() => setTheme("light")}>
+            <Sun /> Light
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setTheme("dark")}>
+            <Moon /> Dark
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setTheme("system")}>
+            <Monitor /> System
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

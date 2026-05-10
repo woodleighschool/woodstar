@@ -1,20 +1,20 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Loader2, Package, Search, X } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { HostInfoCard, HostLabelsCard, HostUsersCard } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -365,33 +365,20 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       isLoading={query.isLoading}
       toolbar={
         <div className="flex items-center gap-2">
-          <div className="relative max-w-md flex-1">
-            <Search
-              className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-              aria-hidden
-            />
-            <Input
-              value={draft}
-              onChange={(e) => setDraftDebounced(e.target.value)}
-              placeholder="Search software"
-              className="pr-8 pl-8"
-              aria-label="Search host software"
-            />
-            {draft ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft("");
-                  setActiveQuery("");
-                  setPage(1);
-                }}
-                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-                aria-label="Clear search"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </div>
+          <DataTableSearch
+            value={draft}
+            onChange={(next) => {
+              if (next === "") {
+                setDraft("");
+                setActiveQuery("");
+                setPage(1);
+                return;
+              }
+              setDraftDebounced(next);
+            }}
+            placeholder="Search software"
+            label="Search host software"
+          />
           <DataTableFacetedFilter
             title="Type"
             options={SOURCE_FILTER_OPTIONS}

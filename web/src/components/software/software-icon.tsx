@@ -46,13 +46,7 @@ export function SoftwareIcon({ source = "", size = "sm", className }: SoftwareIc
   const Icon = ICON_BY_SOURCE[source] ?? Package;
   const sizes = SIZE_CLASS[size];
   return (
-    <span
-      className={cn(
-        "bg-muted/40 inline-flex shrink-0 items-center justify-center border",
-        sizes.box,
-        className,
-      )}
-    >
+    <span className={cn("bg-muted/40 inline-flex shrink-0 items-center justify-center border", sizes.box, className)}>
       <Icon className={cn("text-muted-foreground", sizes.icon)} aria-hidden />
     </span>
   );

@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
 
 type Role = User["role"];
@@ -107,66 +107,72 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
       </DialogHeader>
 
       <form
-        className="grid gap-3"
+        className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           void handleSubmit();
         }}
       >
-        <div className="grid gap-1.5">
-          <Label htmlFor="user-email">Email</Label>
-          <Input
-            id="user-email"
-            type="email"
-            required
-            autoComplete="off"
-            value={email}
-            disabled={mode === "edit"}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
+        <FieldGroup className="gap-4">
+          <Field data-disabled={mode === "edit"}>
+            <FieldLabel htmlFor="user-email">Email</FieldLabel>
+            <Input
+              id="user-email"
+              type="email"
+              required
+              autoComplete="off"
+              value={email}
+              disabled={mode === "edit"}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </Field>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="user-name">Name</Label>
-          <Input
-            id="user-name"
-            type="text"
-            autoComplete="off"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={mode === "create" ? "Optional, defaults to email" : ""}
-          />
-        </div>
+          <Field>
+            <FieldLabel htmlFor="user-name">Name</FieldLabel>
+            <Input
+              id="user-name"
+              type="text"
+              autoComplete="off"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={mode === "create" ? "Optional, defaults to email" : ""}
+            />
+          </Field>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="user-role">Role</Label>
-          <Select value={role} onValueChange={(value) => setRole(value as Role)} disabled={!canChangeRole}>
-            <SelectTrigger id="user-role" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">admin</SelectItem>
-              <SelectItem value="viewer">viewer</SelectItem>
-            </SelectContent>
-          </Select>
-          {!canChangeRole ? <p className="text-xs text-muted-foreground">You cannot change your own role.</p> : null}
-        </div>
+          <Field data-disabled={!canChangeRole}>
+            <FieldLabel htmlFor="user-role">Role</FieldLabel>
+            <Select value={role} onValueChange={(value) => setRole(value as Role)} disabled={!canChangeRole}>
+              <SelectTrigger id="user-role" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="admin">admin</SelectItem>
+                  <SelectItem value="viewer">viewer</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {!canChangeRole ? <FieldDescription>You cannot change your own role.</FieldDescription> : null}
+          </Field>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="user-password">Password{mode === "edit" ? " (leave blank to keep current)" : ""}</Label>
-          <Input
-            id="user-password"
-            type="password"
-            autoComplete="new-password"
-            required={mode === "create"}
-            minLength={mode === "create" ? 12 : undefined}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder={mode === "create" ? "Min 12 characters" : ""}
-          />
-        </div>
+          <Field>
+            <FieldLabel htmlFor="user-password">
+              Password{mode === "edit" ? " (leave blank to keep current)" : ""}
+            </FieldLabel>
+            <Input
+              id="user-password"
+              type="password"
+              autoComplete="new-password"
+              required={mode === "create"}
+              minLength={mode === "create" ? 12 : undefined}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={mode === "create" ? "Min 12 characters" : ""}
+            />
+          </Field>
+        </FieldGroup>
 
-        {submitError ? <p className="text-sm text-destructive">{submitError.message}</p> : null}
+        <FieldError>{submitError?.message}</FieldError>
 
         <DialogFooter className="pt-2">
           <DialogClose asChild>

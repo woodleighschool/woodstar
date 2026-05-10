@@ -44,7 +44,7 @@ export function DataTableFacetedFilter({
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 border-dashed">
-          <PlusCircle className="size-4" />
+          <PlusCircle data-icon="inline-start" />
           {title}
           {selectedSet.size > 0 ? (
             <>
@@ -101,7 +101,7 @@ export function DataTableFacetedFilter({
                     >
                       <Check className="size-3" />
                     </div>
-                    {option.icon ? <option.icon className="text-muted-foreground mr-2 size-4" /> : null}
+                    {option.icon ? <option.icon className="text-muted-foreground" /> : null}
                     <span>{option.label}</span>
                   </CommandItem>
                 );

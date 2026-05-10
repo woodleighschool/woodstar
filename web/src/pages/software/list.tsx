@@ -1,15 +1,15 @@
 import { useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Package, Search, X } from "lucide-react";
+import { Package } from "lucide-react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -154,29 +154,12 @@ function SoftwareToolbar({
 }: SoftwareToolbarProps) {
   return (
     <div className="flex items-center gap-2">
-      <div className="relative max-w-md flex-1">
-        <Search
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-          aria-hidden
-        />
-        <Input
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          placeholder="Search by name, display name, bundle id..."
-          className="pr-8 pl-8"
-          aria-label="Search software"
-        />
-        {draft ? (
-          <button
-            type="button"
-            onClick={() => onDraftChange("")}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5"
-            aria-label="Clear search"
-          >
-            <X className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
+      <DataTableSearch
+        value={draft}
+        onChange={onDraftChange}
+        placeholder="Search by name, display name, bundle id..."
+        label="Search software"
+      />
       <DataTableFacetedFilter
         title="Type"
         options={SOURCE_FILTER_OPTIONS}
