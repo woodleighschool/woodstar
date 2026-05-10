@@ -11,7 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/models"
+	querypkg "github.com/woodleighschool/woodstar/internal/queries"
 	storepkg "github.com/woodleighschool/woodstar/internal/store"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
@@ -142,7 +142,7 @@ type hostQueryResultsInput struct {
 }
 
 // RegisterQueries registers saved-query and report endpoints.
-func RegisterQueries(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
+func RegisterQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
 	registerListQueries(api, store)
 	registerCreateQuery(api, store)
 	registerGetQuery(api, store)
@@ -154,7 +154,7 @@ func RegisterQueries(api huma.API, store *models.QueryStore, hosts *hosts.HostSt
 	registerHostQueryResults(api, store, hosts)
 }
 
-func registerListQueries(api huma.API, store *models.QueryStore) {
+func registerListQueries(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-queries",
 		Method:      http.MethodGet,
@@ -177,7 +177,7 @@ func registerListQueries(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerCreateQuery(api huma.API, store *models.QueryStore) {
+func registerCreateQuery(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-query",
 		Method:        http.MethodPost,
@@ -199,7 +199,7 @@ func registerCreateQuery(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerGetQuery(api huma.API, store *models.QueryStore) {
+func registerGetQuery(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-query",
 		Method:      http.MethodGet,
@@ -220,7 +220,7 @@ func registerGetQuery(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerUpdateQuery(api huma.API, store *models.QueryStore) {
+func registerUpdateQuery(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-query",
 		Method:      http.MethodPut,
@@ -245,7 +245,7 @@ func registerUpdateQuery(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerDeleteQuery(api huma.API, store *models.QueryStore) {
+func registerDeleteQuery(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-query",
 		Method:      http.MethodDelete,
@@ -265,7 +265,7 @@ func registerDeleteQuery(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerBulkDeleteQueries(api huma.API, store *models.QueryStore) {
+func registerBulkDeleteQueries(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-queries",
 		Method:      http.MethodPost,
@@ -288,7 +288,7 @@ func registerBulkDeleteQueries(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerQueryResults(api huma.API, store *models.QueryStore) {
+func registerQueryResults(api huma.API, store *querypkg.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-query-results",
 		Method:      http.MethodGet,
@@ -311,7 +311,7 @@ func registerQueryResults(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerHostQueries(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
+func registerHostQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-queries",
 		Method:      http.MethodGet,
@@ -341,7 +341,7 @@ func registerHostQueries(api huma.API, store *models.QueryStore, hosts *hosts.Ho
 	})
 }
 
-func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
+func registerHostQueryResults(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-query-results",
 		Method:      http.MethodGet,
@@ -379,8 +379,8 @@ func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *hos
 	})
 }
 
-func (input queryListInput) params() models.QueryListParams {
-	return models.QueryListParams{
+func (input queryListInput) params() querypkg.QueryListParams {
+	return querypkg.QueryListParams{
 		ListParams: storepkg.CleanListParams(storepkg.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
@@ -392,42 +392,42 @@ func (input queryListInput) params() models.QueryListParams {
 	}
 }
 
-func (body queryMutationBody) createParams(userID *int64) (models.QueryCreate, error) {
+func (body queryMutationBody) createParams(userID *int64) (querypkg.QueryCreate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return models.QueryCreate{}, err
+		return querypkg.QueryCreate{}, err
 	}
-	return models.QueryCreate{
+	return querypkg.QueryCreate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       models.QueryLoggingSnapshot,
+		LoggingType:       querypkg.QueryLoggingSnapshot,
 		LabelScope:        scope,
 		CreatedByUserID:   userID,
 	}, nil
 }
 
-func (body queryMutationBody) updateParams() (models.QueryUpdate, error) {
+func (body queryMutationBody) updateParams() (querypkg.QueryUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return models.QueryUpdate{}, err
+		return querypkg.QueryUpdate{}, err
 	}
-	return models.QueryUpdate{
+	return querypkg.QueryUpdate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       models.QueryLoggingSnapshot,
+		LoggingType:       querypkg.QueryLoggingSnapshot,
 		LabelScope:        scope,
 	}, nil
 }
 
-func queryResponse(query *models.Query) queryBody {
+func queryResponse(query *querypkg.Query) queryBody {
 	return queryBody{
 		ID:                query.ID,
 		Name:              query.Name,
@@ -443,7 +443,7 @@ func queryResponse(query *models.Query) queryBody {
 	}
 }
 
-func queryResultResponses(rows []models.QueryResult) []queryResultBody {
+func queryResultResponses(rows []querypkg.QueryResult) []queryResultBody {
 	out := make([]queryResultBody, 0, len(rows))
 	for _, row := range rows {
 		var lastFetched *time.Time
@@ -462,7 +462,7 @@ func queryResultResponses(rows []models.QueryResult) []queryResultBody {
 	return out
 }
 
-func hostReportResponses(rows []models.HostReport) []hostReportBody {
+func hostReportResponses(rows []querypkg.HostReport) []hostReportBody {
 	out := make([]hostReportBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, hostReportBody{

@@ -166,8 +166,8 @@ type modelStores struct {
 	secrets        *models.SecretStore
 	software       *models.SoftwareStore
 	labels         *labels.LabelStore
-	queries        *models.QueryStore
-	checks         *models.CheckStore
+	queries        *queryinfra.QueryStore
+	checks         *queryinfra.CheckStore
 }
 
 func newModelStores(db *db.DB) modelStores {
@@ -178,8 +178,8 @@ func newModelStores(db *db.DB) modelStores {
 		secrets:        models.NewSecretStore(db),
 		software:       models.NewSoftwareStore(db),
 		labels:         labels.NewLabelStore(db),
-		queries:        models.NewQueryStore(db),
-		checks:         models.NewCheckStore(db),
+		queries:        queryinfra.NewQueryStore(db),
+		checks:         queryinfra.NewCheckStore(db),
 	}
 }
 

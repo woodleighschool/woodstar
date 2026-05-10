@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/models"
+	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.
@@ -18,7 +18,7 @@ type ScheduleEntry struct {
 
 // scheduledQueryStore is the store surface BuildScheduleForHost uses.
 type scheduledQueryStore interface {
-	ScheduledForHost(context.Context, hosts.Host) ([]models.Query, error)
+	ScheduledForHost(context.Context, hosts.Host) ([]queryinfra.Query, error)
 }
 
 // buildScheduleForHost returns the per-host osquery schedule map for reports.

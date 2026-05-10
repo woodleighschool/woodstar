@@ -28,8 +28,8 @@ type Dependencies struct {
 	SecretStore      *models.SecretStore
 	SoftwareStore    *models.SoftwareStore
 	LabelStore       *labels.LabelStore
-	QueryStore       *models.QueryStore
-	CheckStore       *models.CheckStore
+	QueryStore       *queryinfra.QueryStore
+	CheckStore       *queryinfra.CheckStore
 	LiveQueryManager *queryinfra.LiveQueryManager
 }
 
@@ -71,8 +71,8 @@ func BuildAPI(version string) huma.API {
 		SecretStore:      models.NewSecretStore(nil),
 		SoftwareStore:    models.NewSoftwareStore(nil),
 		LabelStore:       labels.NewLabelStore(nil),
-		QueryStore:       models.NewQueryStore(nil),
-		CheckStore:       models.NewCheckStore(nil),
+		QueryStore:       queryinfra.NewQueryStore(nil),
+		CheckStore:       queryinfra.NewCheckStore(nil),
 		LiveQueryManager: queryinfra.NewLiveQueryManager(hub, time.Minute),
 	})
 }

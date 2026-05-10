@@ -45,8 +45,8 @@ type Dependencies struct {
 	SecretStore      *models.SecretStore
 	SoftwareStore    *models.SoftwareStore
 	LabelStore       *labels.LabelStore
-	QueryStore       *models.QueryStore
-	CheckStore       *models.CheckStore
+	QueryStore       *queryinfra.QueryStore
+	CheckStore       *queryinfra.CheckStore
 	LiveQueryManager *queryinfra.LiveQueryManager
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service
@@ -67,8 +67,8 @@ type Server struct {
 	secretStore    *models.SecretStore
 	softwareStore  *models.SoftwareStore
 	labelStore     *labels.LabelStore
-	queryStore     *models.QueryStore
-	checkStore     *models.CheckStore
+	queryStore     *queryinfra.QueryStore
+	checkStore     *queryinfra.CheckStore
 	liveQueries    *queryinfra.LiveQueryManager
 	orbitService   *orbit.Service
 	osqueryService *osquery.Service

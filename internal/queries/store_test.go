@@ -1,12 +1,8 @@
-package models
+package queries
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 func TestCleanQueryCreate(t *testing.T) {
@@ -94,87 +90,6 @@ func TestCleanQueryCreate(t *testing.T) {
 	}
 }
 
-func TestCleanCheckCreate(t *testing.T) {
-	got, err := cleanCheckCreate(CheckCreate{
-		Name:        " Gatekeeper enabled ",
-		Description: " Security check ",
-		Query:       " select 1 from gatekeeper where assessments_enabled = 1; ",
-		Platform:    new(" darwin "),
-	})
-	if err != nil {
-		t.Fatalf("cleanCheckCreate returned error: %v", err)
-	}
-	if got.Name != "Gatekeeper enabled" {
-		t.Fatalf("Name = %q, want Gatekeeper enabled", got.Name)
-	}
-	if got.Query != "select 1 from gatekeeper where assessments_enabled = 1;" {
-		t.Fatalf("Query = %q, want trimmed SQL", got.Query)
-	}
-	assertStringPtr(t, "Platform", got.Platform, new("darwin"))
-}
-
-func TestNormalizeLabelScope(t *testing.T) {
-	scope := hosts.NormalizeLabelScope(hosts.LabelScope{
-		Mode:     hosts.ScopeExcludeAny,
-		LabelIDs: []int64{5, 2, 5, 0, -1},
-	})
-	if scope.Mode != hosts.ScopeExcludeAny {
-		t.Fatalf("Mode = %q, want %q", scope.Mode, hosts.ScopeExcludeAny)
-	}
-	assertInt64s(t, "LabelIDs", scope.LabelIDs, []int64{2, 5})
-
-	empty := hosts.NormalizeLabelScope(hosts.LabelScope{Mode: hosts.ScopeIncludeAll})
-	if empty.Mode != hosts.ScopeNone {
-		t.Fatalf("empty Mode = %q, want %q", empty.Mode, hosts.ScopeNone)
-	}
-}
-
-func TestSnapshotResultRowsStoreEachOsqueryRowSeparately(t *testing.T) {
-	fetchedAt := time.Date(2026, 5, 9, 10, 30, 0, 0, time.UTC)
-	rows, err := snapshotResultRows([]map[string]string{
-		{"name": "alpha", "version": "1"},
-		{"name": "bravo", "version": "2"},
-	}, fetchedAt)
-	if err != nil {
-		t.Fatalf("snapshotResultRows returned error: %v", err)
-	}
-	if len(rows) != 2 {
-		t.Fatalf("len(rows) = %d, want 2", len(rows))
-	}
-	for i, row := range rows {
-		if row.data == nil {
-			t.Fatalf("rows[%d].data is nil, want JSON object", i)
-		}
-		var got map[string]string
-		if err := json.Unmarshal(*row.data, &got); err != nil {
-			t.Fatalf("unmarshal rows[%d]: %v", i, err)
-		}
-		if got["name"] == "" || got["version"] == "" {
-			t.Fatalf("rows[%d] data = %#v, want osquery columns", i, got)
-		}
-		if !row.lastFetched.Equal(fetchedAt) {
-			t.Fatalf("rows[%d].lastFetched = %s, want %s", i, row.lastFetched, fetchedAt)
-		}
-	}
-}
-
-func TestSnapshotResultRowsPreserveEmptyFetchWithNullData(t *testing.T) {
-	fetchedAt := time.Date(2026, 5, 9, 10, 30, 0, 0, time.UTC)
-	rows, err := snapshotResultRows(nil, fetchedAt)
-	if err != nil {
-		t.Fatalf("snapshotResultRows returned error: %v", err)
-	}
-	if len(rows) != 1 {
-		t.Fatalf("len(rows) = %d, want 1", len(rows))
-	}
-	if rows[0].data != nil {
-		t.Fatalf("rows[0].data = %s, want nil sentinel", string(*rows[0].data))
-	}
-	if !rows[0].lastFetched.Equal(fetchedAt) {
-		t.Fatalf("rows[0].lastFetched = %s, want %s", rows[0].lastFetched, fetchedAt)
-	}
-}
-
 func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
 	t.Helper()
 	if got.Name != want.Name {
@@ -193,18 +108,6 @@ func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
 		t.Fatalf("LoggingType = %q, want %q", got.LoggingType, want.LoggingType)
 	}
 	assertStringPtr(t, "Platform", got.Platform, want.Platform)
-}
-
-func assertInt64s(t *testing.T, name string, got []int64, want []int64) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("%s = %#v, want %#v", name, got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("%s = %#v, want %#v", name, got, want)
-		}
-	}
 }
 
 func assertStringPtr(t *testing.T, name string, got *string, want *string) {

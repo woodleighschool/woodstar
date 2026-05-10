@@ -24,8 +24,8 @@ type Service struct {
 	hosts    *hosts.HostStore
 	software *models.SoftwareStore
 	labels   labelStore
-	queries  *models.QueryStore
-	checks   *models.CheckStore
+	queries  *queryinfra.QueryStore
+	checks   *queryinfra.CheckStore
 	live     *queryinfra.LiveQueryManager
 	secrets  *models.SecretStore
 	logger   *slog.Logger
@@ -36,8 +36,8 @@ func NewService(
 	hosts *hosts.HostStore,
 	software *models.SoftwareStore,
 	labels *labels.LabelStore,
-	queries *models.QueryStore,
-	checks *models.CheckStore,
+	queries *queryinfra.QueryStore,
+	checks *queryinfra.CheckStore,
 	live *queryinfra.LiveQueryManager,
 	secrets *models.SecretStore,
 	logger *slog.Logger,

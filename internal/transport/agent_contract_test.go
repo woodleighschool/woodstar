@@ -80,8 +80,8 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 	secrets := models.NewSecretStore(db)
 	software := models.NewSoftwareStore(db)
 	labelStore := labels.NewLabelStore(db)
-	queries := models.NewQueryStore(db)
-	checks := models.NewCheckStore(db)
+	queryStore := queryinfra.NewQueryStore(db)
+	checkStore := queryinfra.NewCheckStore(db)
 	hub := queryinfra.NewHub()
 	liveQueries := queryinfra.NewLiveQueryManager(hub, time.Minute)
 
@@ -106,16 +106,16 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 		SecretStore:      secrets,
 		SoftwareStore:    software,
 		LabelStore:       labelStore,
-		QueryStore:       queries,
-		CheckStore:       checks,
+		QueryStore:       queryStore,
+		CheckStore:       checkStore,
 		LiveQueryManager: liveQueries,
 		OrbitService:     orbit.NewService(hostStore, secrets, deviceMappings),
 		OsqueryService: osquery.NewService(
 			hostStore,
 			software,
 			labelStore,
-			queries,
-			checks,
+			queryStore,
+			checkStore,
 			liveQueries,
 			secrets,
 			logger.With("component", "osquery"),

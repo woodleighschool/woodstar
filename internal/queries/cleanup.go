@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/models"
 )
 
 // CleanupOptions controls periodic query-execution maintenance.
@@ -24,7 +22,7 @@ func DefaultCleanupOptions() CleanupOptions {
 // per-query timeouts in-process.
 func StartCleanup(
 	ctx context.Context,
-	queries *models.QueryStore,
+	queries *QueryStore,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {
@@ -39,7 +37,7 @@ func StartCleanup(
 
 func reportTrimLoop(
 	ctx context.Context,
-	queries *models.QueryStore,
+	queries *QueryStore,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {
