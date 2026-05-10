@@ -3,6 +3,7 @@ import { Loader2, Package } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
+import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSoftwareTitle, type SoftwareTitle, type SoftwareVersion } from "@/hooks/use-software";
 import { softwareSourceLabel } from "@/lib/software-source-labels";
-import { cn, formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 
 export function SoftwareTitleDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
@@ -78,7 +79,7 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
 
   return (
     <div className="flex items-center gap-4">
-      <SoftwareIcon iconUrl={title.icon_url} />
+      <SoftwareIcon source={title.source} size="lg" />
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-foreground truncate text-xl font-semibold" title={displayName}>
@@ -98,23 +99,6 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
           )}
         </p>
       </div>
-    </div>
-  );
-}
-
-function SoftwareIcon({ iconUrl, className }: { iconUrl: string | null; className?: string }) {
-  return (
-    <div
-      className={cn(
-        "bg-muted/40 flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border",
-        className,
-      )}
-    >
-      {iconUrl ? (
-        <img src={iconUrl} alt="" loading="lazy" className="size-full object-contain p-1" />
-      ) : (
-        <Package className="text-muted-foreground size-8" aria-hidden />
-      )}
     </div>
   );
 }

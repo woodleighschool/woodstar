@@ -52,6 +52,7 @@ export function ReportsPage() {
   const columns: ColumnDef<SavedQuery>[] = [
     {
       id: "name",
+      accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <div className="grid gap-1">
@@ -76,11 +77,13 @@ export function ReportsPage() {
     },
     {
       id: "schedule_interval",
+      accessorKey: "schedule_interval",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Interval" />,
       cell: ({ row }) => <IntervalIndicator interval={row.original.schedule_interval} />,
     },
     {
       id: "updated_at",
+      accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last modified" />,
       cell: ({ row }) => <span className="text-muted-foreground">{formatRelative(row.original.updated_at)}</span>,
     },

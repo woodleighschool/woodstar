@@ -64,6 +64,7 @@ export function HostsListPage() {
   const columns: ColumnDef<Host>[] = [
     {
       id: "display_name",
+      accessorFn: (row) => row.display_name || row.hardware_uuid,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
     },
@@ -75,21 +76,25 @@ export function HostsListPage() {
     },
     {
       id: "os_version",
+      accessorKey: "os_version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="OS" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.os_version || "-"}</span>,
     },
     {
       id: "hardware_model",
+      accessorKey: "hardware_model",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_model || "-"}</span>,
     },
     {
       id: "hardware_serial",
+      accessorKey: "hardware_serial",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_serial || "-"}</span>,
     },
     {
       id: "disk_space_available_bytes",
+      accessorKey: "disk_space_available_bytes",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Disk free" />,
       cell: ({ row }) => (
         <span className="text-muted-foreground tabular-nums">
@@ -112,6 +117,7 @@ export function HostsListPage() {
     },
     {
       id: "last_seen_at",
+      accessorKey: "last_seen_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last seen" />,
       cell: ({ row }) => (
         <span

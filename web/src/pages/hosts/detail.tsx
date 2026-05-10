@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { HostInfoCard, HostLabelsCard, HostUsersCard } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
+import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -247,23 +248,21 @@ function SoftwareTab({ hostId }: { hostId: string }) {
   const columns: ColumnDef<HostSoftware>[] = [
     {
       id: "name",
+      accessorFn: (row) => row.display_name || row.name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => {
         const name = row.original.display_name || row.original.name;
         return (
-          <Link
-            to="/software/titles/$softwareId"
-            params={{ softwareId: String(row.original.id) }}
-            className="block truncate hover:underline"
-            title={name}
-          >
-            {name}
-          </Link>
+          <span className="inline-flex items-center gap-2 truncate" title={name}>
+            <SoftwareIcon source={row.original.source} />
+            <span className="truncate">{name}</span>
+          </span>
         );
       },
     },
     {
       id: "version",
+      accessorFn: (row) => row.installed_versions?.[0]?.version ?? "",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
       cell: ({ row }) => {
         const versions = row.original.installed_versions ?? [];
@@ -278,6 +277,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
     },
     {
       id: "source",
+      accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
       cell: ({ row }) => (
         <span className="text-muted-foreground" title={row.original.source}>
@@ -287,6 +287,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
     },
     {
       id: "last_opened_at",
+      accessorFn: (row) => pickLatestLastOpened(row.installed_versions ?? []) ?? "",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last opened" />,
       cell: ({ row }) => {
         const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
@@ -350,6 +351,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       page={page}
       perPage={perPage}
       sort={{ orderKey, orderDirection }}
+      rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
       onPageChange={setPage}
       onPerPageChange={(n) => {
         setPerPage(n);

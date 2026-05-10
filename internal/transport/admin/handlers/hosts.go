@@ -92,7 +92,6 @@ type hostSoftwareBody struct {
 	ID                int64                              `json:"id"`
 	Name              string                             `json:"name"`
 	DisplayName       string                             `json:"display_name"`
-	IconURL           *string                            `json:"icon_url"`
 	Source            string                             `json:"source"`
 	ExtensionFor      string                             `json:"extension_for"`
 	InstalledVersions []hostSoftwareInstalledVersionBody `json:"installed_versions"`
@@ -542,7 +541,6 @@ func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
 		ID:                row.ID,
 		Name:              row.Name,
 		DisplayName:       row.DisplayName,
-		IconURL:           row.IconURL,
 		Source:            row.Source,
 		ExtensionFor:      row.ExtensionFor,
 		InstalledVersions: versions,

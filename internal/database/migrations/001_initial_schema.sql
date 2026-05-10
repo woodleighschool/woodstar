@@ -159,7 +159,6 @@ CREATE TABLE software_titles (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     display_name TEXT NOT NULL DEFAULT '',
-    icon_url TEXT,
     source TEXT NOT NULL DEFAULT '',
     extension_for TEXT NOT NULL DEFAULT '',
     bundle_identifier TEXT NOT NULL DEFAULT '',

@@ -2,6 +2,7 @@ import { useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package, Search, X } from "lucide-react";
 
+import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -37,11 +38,18 @@ export function SoftwarePage() {
   const columns: ColumnDef<SoftwareTitle>[] = [
     {
       id: "name",
+      accessorFn: (row) => row.display_name || row.name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.display_name || row.original.name,
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2 truncate">
+          <SoftwareIcon source={row.original.source} />
+          <span className="truncate">{row.original.display_name || row.original.name}</span>
+        </span>
+      ),
     },
     {
       id: "versions_count",
+      accessorFn: (row) => row.versions?.length ?? 0,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Versions" />,
       cell: ({ row }) => {
         const versions = row.original.versions ?? [];
@@ -56,6 +64,7 @@ export function SoftwarePage() {
     },
     {
       id: "source",
+      accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
       cell: ({ row }) => (
         <span className="text-muted-foreground" title={row.original.source}>
@@ -65,6 +74,7 @@ export function SoftwarePage() {
     },
     {
       id: "hosts_count",
+      accessorKey: "hosts_count",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" align="right" />,
       cell: ({ row }) => <div className="text-right tabular-nums">{row.original.hosts_count}</div>,
       meta: { headClassName: "text-right", cellClassName: "text-right" },

@@ -826,7 +826,6 @@ export interface components {
         HostSoftwareBody: {
             display_name: string;
             extension_for: string;
-            icon_url: string | null;
             /** Format: int64 */
             id: number;
             installed_versions: components["schemas"]["HostSoftwareInstalledVersionBody"][] | null;
@@ -1111,7 +1110,6 @@ export interface components {
             extension_for: string;
             /** Format: int64 */
             hosts_count: number;
-            icon_url: string | null;
             /** Format: int64 */
             id: number;
             name: string;

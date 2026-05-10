@@ -110,8 +110,9 @@ export function ReportDetailPage() {
           isLoading={results.isLoading}
           totalCount={rows.length}
           page={1}
-          perPage={Math.max(rows.length, 50)}
+          perPage={rows.length}
           sort={{}}
+          clientSort
           onPageChange={() => null}
           onPerPageChange={() => null}
           onSortChange={() => null}

@@ -47,7 +47,6 @@ type softwareTitleBody struct {
 	ID               int64                 `json:"id"`
 	Name             string                `json:"name"`
 	DisplayName      string                `json:"display_name"`
-	IconURL          *string               `json:"icon_url"`
 	Source           string                `json:"source"`
 	ExtensionFor     string                `json:"extension_for"`
 	Browser          string                `json:"browser"`
@@ -143,7 +142,6 @@ func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
 		ID:               title.ID,
 		Name:             title.Name,
 		DisplayName:      title.DisplayName,
-		IconURL:          title.IconURL,
 		Source:           title.Source,
 		ExtensionFor:     title.ExtensionFor,
 		Browser:          browserForSoftware(title.Source, title.ExtensionFor),

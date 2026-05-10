@@ -63,7 +63,6 @@ type HostSoftwareRow struct {
 	ID                int64
 	Name              string
 	DisplayName       string
-	IconURL           *string
 	Source            string
 	ExtensionFor      string
 	InstalledVersions []HostSoftwareInstalledVersion
@@ -74,7 +73,6 @@ type SoftwareTitle struct {
 	ID               int64
 	Name             string
 	DisplayName      string
-	IconURL          *string
 	Source           string
 	ExtensionFor     string
 	BundleIdentifier string
@@ -388,7 +386,6 @@ func (acc *hostSoftwareAccumulator) title(row hostSoftwareDBRow) *HostSoftwareRo
 		ID:           row.TitleID,
 		Name:         row.TitleName,
 		DisplayName:  row.DisplayName,
-		IconURL:      row.IconURL,
 		Source:       row.Source,
 		ExtensionFor: row.ExtensionFor,
 	}
@@ -419,7 +416,6 @@ func scanHostSoftwareDBRow(rows pgx.Rows) (hostSoftwareDBRow, error) {
 		&row.TitleID,
 		&row.TitleName,
 		&row.DisplayName,
-		&row.IconURL,
 		&row.Source,
 		&row.ExtensionFor,
 		&row.SoftwareID,
@@ -512,7 +508,6 @@ SELECT
 	st.id,
 	st.name,
 	st.display_name,
-	st.icon_url,
 	st.source,
 	st.extension_for,
 	st.bundle_identifier,
@@ -537,7 +532,6 @@ func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 			&title.ID,
 			&title.Name,
 			&title.DisplayName,
-			&title.IconURL,
 			&title.Source,
 			&title.ExtensionFor,
 			&title.BundleIdentifier,
@@ -686,7 +680,6 @@ type hostSoftwareDBRow struct {
 	TitleID          int64
 	TitleName        string
 	DisplayName      string
-	IconURL          *string
 	Source           string
 	ExtensionFor     string
 	SoftwareID       int64
@@ -705,7 +698,6 @@ SELECT
 	st.id,
 	st.name,
 	st.display_name,
-	st.icon_url,
 	st.source,
 	st.extension_for,
 	s.id,

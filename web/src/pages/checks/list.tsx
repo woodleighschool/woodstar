@@ -52,6 +52,7 @@ export function ChecksPage() {
   const columns: ColumnDef<Check>[] = [
     {
       id: "name",
+      accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <div className="grid gap-1">
@@ -82,6 +83,7 @@ export function ChecksPage() {
     },
     {
       id: "updated_at",
+      accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last modified" />,
       cell: ({ row }) => <span className="text-muted-foreground">{formatRelative(row.original.updated_at)}</span>,
     },

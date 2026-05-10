@@ -552,10 +552,6 @@ components:
           type: string
         extension_for:
           type: string
-        icon_url:
-          type:
-            - string
-            - "null"
         id:
           format: int64
           type: integer
@@ -573,7 +569,6 @@ components:
         - id
         - name
         - display_name
-        - icon_url
         - source
         - extension_for
         - installed_versions
@@ -1151,10 +1146,6 @@ components:
         hosts_count:
           format: int64
           type: integer
-        icon_url:
-          type:
-            - string
-            - "null"
         id:
           format: int64
           type: integer
@@ -1175,7 +1166,6 @@ components:
         - id
         - name
         - display_name
-        - icon_url
         - source
         - extension_for
         - browser
@@ -1308,7 +1298,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: f440aa0-dirty
+  version: 7d65cfe-dirty
 openapi: 3.1.0
 paths:
   /api/auth/login:

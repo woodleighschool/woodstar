@@ -1,20 +1,24 @@
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type RowSelectionState,
   type SortingState,
   type Updater,
 } from "@tanstack/react-table";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+
+const INTERACTIVE_SELECTOR =
+  "a, button, input, label, select, textarea, [role=checkbox], [role=menuitem], [role=button], [role=dialog]";
 
 export interface DataTableSort {
   orderKey?: string;
@@ -39,7 +43,7 @@ interface DataTableProps<TData, TValue> {
   selectedRowIds?: string[];
   onSelectedRowIdsChange?: (ids: string[]) => void;
   bulkActions?: ReactNode;
-  /** Optional row link wrapper. */
+  /** When set, the entire row navigates on click (skipping interactive children). */
   rowHref?: (row: TData) => { to: string; params?: Record<string, string> };
   /** Stable row id; defaults to (row as { id: string }).id. */
   getRowId?: (row: TData) => string;
@@ -49,6 +53,12 @@ interface DataTableProps<TData, TValue> {
   empty: ReactNode;
   /** Skeleton row count during initial load. */
   skeletonRows?: number;
+  /**
+   * Use TanStack's internal sorting instead of the server. Pass when the table
+   * data is a fixed snapshot (e.g. query results) rather than a paginated list.
+   * sort/onSortChange/page/onPageChange become no-ops in this mode.
+   */
+  clientSort?: boolean;
 }
 
 const DEFAULT_GET_ROW_ID = (row: unknown): string => String((row as { id: string | number }).id);
@@ -73,8 +83,17 @@ export function DataTable<TData, TValue>({
   toolbar,
   empty,
   skeletonRows = 8,
+  clientSort = false,
 }: DataTableProps<TData, TValue>) {
-  const sortingState: SortingState = sort.orderKey ? [{ id: sort.orderKey, desc: sort.orderDirection === "desc" }] : [];
+  const navigate = useNavigate();
+  const [localSorting, setLocalSorting] = useState<SortingState>([]);
+
+  const sortingState: SortingState = clientSort
+    ? localSorting
+    : sort.orderKey
+      ? [{ id: sort.orderKey, desc: sort.orderDirection === "desc" }]
+      : [];
+
   const rowSelection: RowSelectionState = useMemo(
     () => Object.fromEntries(selectedRowIds.map((id) => [id, true])),
     [selectedRowIds],
@@ -82,6 +101,10 @@ export function DataTable<TData, TValue>({
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
     const next = typeof updater === "function" ? updater(sortingState) : updater;
+    if (clientSort) {
+      setLocalSorting(next);
+      return;
+    }
     if (next.length === 0) onSortChange({ orderKey: undefined, orderDirection: undefined });
     else onSortChange({ orderKey: next[0].id, orderDirection: next[0].desc ? "desc" : "asc" });
   };
@@ -102,8 +125,9 @@ export function DataTable<TData, TValue>({
     data,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    manualSorting: true,
+    getSortedRowModel: clientSort ? getSortedRowModel() : undefined,
+    manualPagination: !clientSort,
+    manualSorting: !clientSort,
     enableRowSelection,
     state: { sorting: sortingState, rowSelection },
     onSortingChange: handleSortingChange,
@@ -158,28 +182,28 @@ export function DataTable<TData, TValue>({
                 const cells = row.getVisibleCells();
                 const firstDataIndex = enableRowSelection ? 1 : 0;
                 return (
-                  <TableRow key={row.id} className={cn(linkProps && "cursor-pointer")}>
+                  <TableRow
+                    key={row.id}
+                    className={cn(linkProps && "cursor-pointer")}
+                    onClick={
+                      linkProps
+                        ? (e) => {
+                            const target = e.target as HTMLElement;
+                            if (target.closest(INTERACTIVE_SELECTOR)) return;
+                            if (window.getSelection()?.toString()) return;
+                            void navigate({ to: linkProps.to, params: linkProps.params });
+                          }
+                        : undefined
+                    }
+                  >
                     {cells.map((cell, i) => {
                       const meta = cell.column.columnDef.meta as Meta | undefined;
-                      const isSelectionCell = cell.column.id === "__select";
-                      const wrapInLink = linkProps && !isSelectionCell;
                       return (
                         <TableCell
                           key={cell.id}
-                          className={cn(meta?.cellClassName, wrapInLink && "p-0")}
-                          onClick={isSelectionCell ? (e) => e.stopPropagation() : undefined}
+                          className={cn(meta?.cellClassName, i === firstDataIndex && linkProps && "font-medium")}
                         >
-                          {wrapInLink ? (
-                            <Link
-                              to={linkProps.to}
-                              params={linkProps.params}
-                              className={cn("block px-2 py-2", i === firstDataIndex && "font-medium")}
-                            >
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </Link>
-                          ) : (
-                            flexRender(cell.column.columnDef.cell, cell.getContext())
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       );
                     })}
@@ -190,14 +214,16 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination
-        page={page}
-        perPage={perPage}
-        totalCount={totalCount}
-        visibleCount={data.length}
-        onPageChange={onPageChange}
-        onPerPageChange={onPerPageChange}
-      />
+      {clientSort ? null : (
+        <DataTablePagination
+          page={page}
+          perPage={perPage}
+          totalCount={totalCount}
+          visibleCount={data.length}
+          onPageChange={onPageChange}
+          onPerPageChange={onPerPageChange}
+        />
+      )}
     </div>
   );
 }

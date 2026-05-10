@@ -64,6 +64,7 @@ export function LabelsPage() {
   const columns: ColumnDef<Label>[] = [
     {
       id: "name",
+      accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => (
         <div className="grid gap-1">
@@ -76,21 +77,25 @@ export function LabelsPage() {
     },
     {
       id: "label_membership_type",
+      accessorKey: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.label_membership_type}</span>,
     },
     {
       id: "platform",
+      accessorKey: "platform",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
       cell: ({ row }) => <span className="text-muted-foreground">{platformLabel(row.original.platform)}</span>,
     },
     {
       id: "hosts_count",
+      accessorKey: "hosts_count",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" />,
       cell: ({ row }) => <span className="tabular-nums">{row.original.hosts_count}</span>,
     },
     {
       id: "updated_at",
+      accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
       cell: ({ row }) => (
         <span

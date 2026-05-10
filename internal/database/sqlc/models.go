@@ -353,7 +353,6 @@ type SoftwareTitle struct {
 	ID               int64     `json:"id"`
 	Name             string    `json:"name"`
 	DisplayName      string    `json:"display_name"`
-	IconURL          *string   `json:"icon_url"`
 	Source           string    `json:"source"`
 	ExtensionFor     string    `json:"extension_for"`
 	BundleIdentifier string    `json:"bundle_identifier"`

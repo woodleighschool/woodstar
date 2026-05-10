@@ -226,7 +226,7 @@ WHERE bundle_identifier <> ''
 DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id, name, display_name, icon_url, source, extension_for, bundle_identifier, vendor, created_at, updated_at
+RETURNING id, name, display_name, source, extension_for, bundle_identifier, vendor, created_at, updated_at
 `
 
 type UpsertSoftwareTitleByBundleParams struct {
@@ -252,7 +252,6 @@ func (q *Queries) UpsertSoftwareTitleByBundle(ctx context.Context, arg UpsertSof
 		&i.ID,
 		&i.Name,
 		&i.DisplayName,
-		&i.IconURL,
 		&i.Source,
 		&i.ExtensionFor,
 		&i.BundleIdentifier,
@@ -283,7 +282,7 @@ VALUES (
 ON CONFLICT (name, source, extension_for, bundle_identifier) DO UPDATE SET
     vendor = COALESCE(NULLIF(EXCLUDED.vendor, ''), software_titles.vendor),
     updated_at = now()
-RETURNING id, name, display_name, icon_url, source, extension_for, bundle_identifier, vendor, created_at, updated_at
+RETURNING id, name, display_name, source, extension_for, bundle_identifier, vendor, created_at, updated_at
 `
 
 type UpsertSoftwareTitleByNameParams struct {
@@ -309,7 +308,6 @@ func (q *Queries) UpsertSoftwareTitleByName(ctx context.Context, arg UpsertSoftw
 		&i.ID,
 		&i.Name,
 		&i.DisplayName,
-		&i.IconURL,
 		&i.Source,
 		&i.ExtensionFor,
 		&i.BundleIdentifier,
