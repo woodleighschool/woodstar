@@ -1,5 +1,4 @@
 export const queryKeys = {
-  version: ["version"] as const,
   session: ["auth", "session"] as const,
   users: ["users"] as const,
   osquerySchema: ["osquery-schema"] as const,

@@ -22,7 +22,6 @@ import (
 type Dependencies struct {
 	DB               *db.DB
 	Version          string
-	Started          time.Time
 	AuthService      *auth.Service
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
@@ -40,7 +39,6 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(RequireAuth(api, deps.AuthService))
 
-	handlers.RegisterSystem(api, deps.DB, deps.Version, deps.Started)
 	handlers.RegisterPublicAuth(api, deps.AuthService)
 	handlers.RegisterUsers(protected, deps.AuthService)
 	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)
@@ -65,7 +63,6 @@ func BuildAPI(version string) huma.API {
 	hub := queries.NewHub()
 	return Mount(r, Dependencies{
 		Version:          version,
-		Started:          time.Now().UTC(),
 		AuthService:      auth.NewService(nil, nil),
 		HostStore:        hosts.NewHostStore(nil),
 		DeviceMappings:   hosts.NewDeviceMappingStore(nil),

@@ -73,7 +73,6 @@ type Server struct {
 	liveQueries    *queries.LiveQueryManager
 	orbitService   *orbit.Service
 	osqueryService *osquery.Service
-	started        time.Time
 }
 
 // NewServer returns an HTTP server.
@@ -102,7 +101,6 @@ func NewServer(deps Dependencies) *Server {
 		liveQueries:    deps.LiveQueryManager,
 		orbitService:   deps.OrbitService,
 		osqueryService: deps.OsqueryService,
-		started:        time.Now().UTC(),
 	}
 }
 
@@ -138,6 +136,17 @@ func (s *Server) routes() http.Handler {
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Timeout(120 * time.Second))
 
+	r.Get("/api/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("alive\n"))
+	})
+	r.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
+		if err := s.db.Ping(req.Context()); err != nil {
+			http.Error(w, "not ready", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte("ready\n"))
+	})
+
 	r.Group(func(agent chi.Router) {
 		agent.Use(requestLogger(s.logger, slog.LevelDebug))
 		transportorbit.RegisterRoutes(agent, s.orbitService, s.logger.With("component", "orbit"))
@@ -156,7 +165,6 @@ func (s *Server) routes() http.Handler {
 		admin.Mount(browser, admin.Dependencies{
 			DB:               s.db,
 			Version:          s.version,
-			Started:          s.started,
 			AuthService:      s.authService,
 			HostStore:        s.hostStore,
 			DeviceMappings:   s.deviceMappings,

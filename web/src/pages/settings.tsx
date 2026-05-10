@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { useVersion } from "@/hooks/use-version";
+import { runtime } from "@/lib/runtime";
 
 function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return (
@@ -16,17 +16,11 @@ function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
 }
 
 export function SettingsPage() {
-  const { data: version, isLoading } = useVersion();
-
   return (
     <div className="p-6">
       <DefinitionList
         rows={[
-          ["Version", isLoading ? "loading..." : (version?.version ?? "unknown")],
-          [
-            "Started at",
-            isLoading ? "loading..." : version?.started_at ? new Date(version.started_at).toLocaleString() : "unknown",
-          ],
+          ["Version", runtime.version || "unknown"],
           ["Database", "Postgres (configured via env)"],
           ["Frontend mode", import.meta.env.MODE],
         ]}

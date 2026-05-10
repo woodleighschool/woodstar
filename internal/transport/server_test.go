@@ -22,19 +22,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
-func TestVersionEndpointPublic(t *testing.T) {
-	server := NewServer(testDependencies(testConfig()))
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/version", nil)
-
-	server.routes().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-}
-
 func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 	server := NewServer(testDependencies(testConfig()))
 

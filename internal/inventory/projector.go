@@ -66,21 +66,33 @@ func ingestOSVersion(ctx context.Context, projector *Projector, hostID int64, ro
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOSVersion: rows[0]}))
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{queryOSVersion: rows[0]}),
+	)
 }
 
 func ingestSystemInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{querySystemInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{querySystemInfo: rows[0]}),
+	)
 }
 
 func ingestOsqueryInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}),
+	)
 }
 
 func ingestOsqueryFlags(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
@@ -91,7 +103,11 @@ func ingestOrbitInfo(ctx context.Context, projector *Projector, hostID int64, ro
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}),
+	)
 }
 
 func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
@@ -110,7 +126,11 @@ func ingestRootDisk(ctx context.Context, projector *Projector, hostID int64, row
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}))
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}),
+	)
 }
 
 func ingestPrimaryInterface(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {

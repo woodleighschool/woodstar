@@ -228,21 +228,6 @@ components:
           format: uri
           type: string
       type: object
-    HealthOutputBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HealthOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        status:
-          type: string
-      required:
-        - status
-      type: object
     HostBatteryBody:
       additionalProperties: false
       properties:
@@ -1270,30 +1255,12 @@ components:
         - name
         - role
       type: object
-    VersionOutputBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/VersionOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        started_at:
-          type: string
-        version:
-          type: string
-      required:
-        - version
-        - started_at
-      type: object
 info:
   description: Typed admin and frontend API.
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: e884ad5-dirty
+  version: 282557b-dirty
 openapi: 3.1.0
 paths:
   /api/auth/login:
@@ -1720,25 +1687,6 @@ paths:
       summary: List check host status
       tags:
         - Checks
-  /api/healthz:
-    get:
-      operationId: health
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthOutputBody"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Error
-      summary: Liveness check
-      tags:
-        - System
   /api/hosts:
     get:
       operationId: list-hosts
@@ -2928,31 +2876,6 @@ paths:
       summary: List latest report snapshots for a query
       tags:
         - Queries
-  /api/readyz:
-    get:
-      operationId: ready
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthOutputBody"
-          description: OK
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-        "503":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Service Unavailable
-      summary: Readiness check
-      tags:
-        - System
   /api/setup:
     post:
       operationId: complete-setup
@@ -3361,22 +3284,3 @@ paths:
       summary: Replace a Woodstar user
       tags:
         - Users
-  /api/version:
-    get:
-      operationId: version
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/VersionOutputBody"
-          description: OK
-        default:
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Error
-      summary: Build version
-      tags:
-        - System

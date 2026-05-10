@@ -195,7 +195,12 @@ func (s *Service) finalizeDetailPass(
 		if s.inventoryProjector == nil {
 			return nil
 		}
-		if err := s.inventoryProjector.IngestSoftwareMacOSWithEnrichment(ctx, host.ID, rows, pass.detailRowsBySuffix); err != nil {
+		if err := s.inventoryProjector.IngestSoftwareMacOSWithEnrichment(
+			ctx,
+			host.ID,
+			rows,
+			pass.detailRowsBySuffix,
+		); err != nil {
 			return fmt.Errorf("ingest %s: %w", inventory.QuerySoftwareMacOS, err)
 		}
 	}
