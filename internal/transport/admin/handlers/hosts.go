@@ -12,7 +12,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/models"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -195,10 +195,10 @@ type hostSoftwareInput struct {
 	Source         []string `          query:"source,omitempty"`
 }
 
-func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error) {
+func (i hostSoftwareInput) params() (int64, softwarepkg.HostSoftwareListParams, error) {
 	id, err := parseHostID(i.ID)
 	if err != nil {
-		return 0, models.HostSoftwareListParams{}, err
+		return 0, softwarepkg.HostSoftwareListParams{}, err
 	}
 	listParams := storepkg.CleanListParams(storepkg.ListParams{
 		Q:              i.Q,
@@ -207,7 +207,7 @@ func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error
 		OrderKey:       i.OrderKey,
 		OrderDirection: i.OrderDirection,
 	})
-	return id, models.HostSoftwareListParams{
+	return id, softwarepkg.HostSoftwareListParams{
 		ListParams:      listParams,
 		SoftwareSources: storepkg.SplitListValues(i.Source),
 	}, nil
@@ -231,7 +231,7 @@ func RegisterHosts(
 	api huma.API,
 	store *hosts.HostStore,
 	deviceMappings *hosts.DeviceMappingStore,
-	software *models.SoftwareStore,
+	software *softwarepkg.SoftwareStore,
 	labels *labels.LabelStore,
 ) {
 	registerListHosts(api, store, deviceMappings)
@@ -378,7 +378,7 @@ func loadHostDetailChildren(
 	return nil
 }
 
-func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, software *models.SoftwareStore) {
+func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, software *softwarepkg.SoftwareStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
@@ -519,7 +519,7 @@ func hostBatteryResponses(batteries []hosts.HostBattery) []hostBatteryBody {
 	return out
 }
 
-func hostSoftwareResponse(row models.HostSoftwareRow) hostSoftwareBody {
+func hostSoftwareResponse(row softwarepkg.HostSoftwareRow) hostSoftwareBody {
 	versions := make([]hostSoftwareInstalledVersionBody, 0, len(row.InstalledVersions))
 	for _, version := range row.InstalledVersions {
 		signatures := make([]pathSignatureInformationBody, 0, len(version.SignatureInformation))

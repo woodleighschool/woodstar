@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -26,7 +26,7 @@ type softwareListInput struct {
 	Source         []string `query:"source,omitempty"`
 }
 
-func (i softwareListInput) params() models.SoftwareTitleListParams {
+func (i softwareListInput) params() softwarepkg.SoftwareTitleListParams {
 	listParams := storepkg.CleanListParams(storepkg.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
@@ -34,7 +34,7 @@ func (i softwareListInput) params() models.SoftwareTitleListParams {
 		OrderKey:       i.OrderKey,
 		OrderDirection: i.OrderDirection,
 	})
-	return models.SoftwareTitleListParams{
+	return softwarepkg.SoftwareTitleListParams{
 		ListParams:      listParams,
 		SoftwareSources: storepkg.SplitListValues(i.Source),
 	}
@@ -83,7 +83,7 @@ type softwareGetOutput struct {
 }
 
 // RegisterSoftware registers admin software inventory endpoints.
-func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
+func RegisterSoftware(api huma.API, store *softwarepkg.SoftwareStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,
@@ -129,7 +129,7 @@ func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
 	})
 }
 
-func softwareTitleResponse(title models.SoftwareTitle) softwareTitleBody {
+func softwareTitleResponse(title softwarepkg.SoftwareTitle) softwareTitleBody {
 	versions := make([]softwareVersionBody, 0, len(title.Versions))
 	for _, version := range title.Versions {
 		versions = append(versions, softwareVersionBody{

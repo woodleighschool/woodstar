@@ -14,6 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
 )
 
@@ -26,7 +27,7 @@ type Dependencies struct {
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
-	SoftwareStore    *models.SoftwareStore
+	SoftwareStore    *softwarepkg.SoftwareStore
 	LabelStore       *labels.LabelStore
 	QueryStore       *queryinfra.QueryStore
 	CheckStore       *queryinfra.CheckStore
@@ -69,7 +70,7 @@ func BuildAPI(version string) huma.API {
 		HostStore:        hosts.NewHostStore(nil),
 		DeviceMappings:   hosts.NewDeviceMappingStore(nil),
 		SecretStore:      models.NewSecretStore(nil),
-		SoftwareStore:    models.NewSoftwareStore(nil),
+		SoftwareStore:    softwarepkg.NewSoftwareStore(nil),
 		LabelStore:       labels.NewLabelStore(nil),
 		QueryStore:       queryinfra.NewQueryStore(nil),
 		CheckStore:       queryinfra.NewCheckStore(nil),

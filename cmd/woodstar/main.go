@@ -26,6 +26,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
@@ -164,7 +165,7 @@ type modelStores struct {
 	hosts          *hosts.HostStore
 	deviceMappings *hosts.DeviceMappingStore
 	secrets        *models.SecretStore
-	software       *models.SoftwareStore
+	software       *software.SoftwareStore
 	labels         *labels.LabelStore
 	queries        *queryinfra.QueryStore
 	checks         *queryinfra.CheckStore
@@ -176,7 +177,7 @@ func newModelStores(db *db.DB) modelStores {
 		hosts:          hosts.NewHostStore(db),
 		deviceMappings: hosts.NewDeviceMappingStore(db),
 		secrets:        models.NewSecretStore(db),
-		software:       models.NewSoftwareStore(db),
+		software:       software.NewSoftwareStore(db),
 		labels:         labels.NewLabelStore(db),
 		queries:        queryinfra.NewQueryStore(db),
 		checks:         queryinfra.NewCheckStore(db),

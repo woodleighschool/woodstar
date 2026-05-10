@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/models"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 )
 
 const osqueryFlagConfigRefresh = "config_refresh"
@@ -206,8 +206,8 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 	return enrichment
 }
 
-func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []models.HostSoftwareEntry {
-	entries := make([]models.HostSoftwareEntry, 0, len(rows))
+func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []softwarepkg.HostSoftwareEntry {
+	entries := make([]softwarepkg.HostSoftwareEntry, 0, len(rows))
 	for _, row := range rows {
 		name := strings.TrimSpace(row["name"])
 		if name == "" {
@@ -215,7 +215,7 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 		}
 		installedPath := installedPathForSoftware(row)
 		pathEnrichment := enrichment[installedPath]
-		entries = append(entries, models.HostSoftwareEntry{
+		entries = append(entries, softwarepkg.HostSoftwareEntry{
 			Name:             name,
 			Version:          versionForSoftware(row),
 			Source:           strings.TrimSpace(row["source"]),

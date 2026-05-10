@@ -18,6 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -185,7 +186,7 @@ func testDependencies(cfg config.Config) Dependencies {
 	hostStore := hosts.NewHostStore(nil)
 	deviceMappings := hosts.NewDeviceMappingStore(nil)
 	secrets := models.NewSecretStore(nil)
-	software := models.NewSoftwareStore(nil)
+	software := softwarepkg.NewSoftwareStore(nil)
 
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()

@@ -22,6 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
 	transportorbit "github.com/woodleighschool/woodstar/internal/transport/orbit"
 	transportosquery "github.com/woodleighschool/woodstar/internal/transport/osquery"
@@ -43,7 +44,7 @@ type Dependencies struct {
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
-	SoftwareStore    *models.SoftwareStore
+	SoftwareStore    *softwarepkg.SoftwareStore
 	LabelStore       *labels.LabelStore
 	QueryStore       *queryinfra.QueryStore
 	CheckStore       *queryinfra.CheckStore
@@ -65,7 +66,7 @@ type Server struct {
 	hostStore      *hosts.HostStore
 	deviceMappings *hosts.DeviceMappingStore
 	secretStore    *models.SecretStore
-	softwareStore  *models.SoftwareStore
+	softwareStore  *softwarepkg.SoftwareStore
 	labelStore     *labels.LabelStore
 	queryStore     *queryinfra.QueryStore
 	checkStore     *queryinfra.CheckStore

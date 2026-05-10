@@ -11,6 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -22,7 +23,7 @@ var (
 // Service performs osquery TLS-plugin operations.
 type Service struct {
 	hosts    *hosts.HostStore
-	software *models.SoftwareStore
+	software *softwarepkg.SoftwareStore
 	labels   labelStore
 	queries  *queryinfra.QueryStore
 	checks   *queryinfra.CheckStore
@@ -34,7 +35,7 @@ type Service struct {
 // NewService returns an osquery service.
 func NewService(
 	hosts *hosts.HostStore,
-	software *models.SoftwareStore,
+	software *softwarepkg.SoftwareStore,
 	labels *labels.LabelStore,
 	queries *queryinfra.QueryStore,
 	checks *queryinfra.CheckStore,

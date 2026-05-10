@@ -25,6 +25,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestAgentContract(t *testing.T) {
@@ -78,7 +79,7 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 	hostStore := hosts.NewHostStore(db)
 	deviceMappings := hosts.NewDeviceMappingStore(db)
 	secrets := models.NewSecretStore(db)
-	software := models.NewSoftwareStore(db)
+	software := softwarepkg.NewSoftwareStore(db)
 	labelStore := labels.NewLabelStore(db)
 	queryStore := queryinfra.NewQueryStore(db)
 	checkStore := queryinfra.NewCheckStore(db)
