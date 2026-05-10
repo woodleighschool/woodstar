@@ -8,8 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
-	storepkg "github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -26,17 +26,17 @@ type softwareListInput struct {
 	Source         []string `query:"source,omitempty"`
 }
 
-func (i softwareListInput) params() softwarepkg.SoftwareTitleListParams {
-	listParams := storepkg.CleanListParams(storepkg.ListParams{
+func (i softwareListInput) params() software.SoftwareTitleListParams {
+	listParams := store.CleanListParams(store.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
 		OrderKey:       i.OrderKey,
 		OrderDirection: i.OrderDirection,
 	})
-	return softwarepkg.SoftwareTitleListParams{
+	return software.SoftwareTitleListParams{
 		ListParams:      listParams,
-		SoftwareSources: storepkg.SplitListValues(i.Source),
+		SoftwareSources: store.SplitListValues(i.Source),
 	}
 }
 
@@ -83,7 +83,7 @@ type softwareGetOutput struct {
 }
 
 // RegisterSoftware registers admin software inventory endpoints.
-func RegisterSoftware(api huma.API, store *softwarepkg.SoftwareStore) {
+func RegisterSoftware(api huma.API, softwareStore *software.SoftwareStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,
@@ -92,7 +92,7 @@ func RegisterSoftware(api huma.API, store *softwarepkg.SoftwareStore) {
 		Summary:     "List software titles",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *softwareListInput) (*softwareListOutput, error) {
-		titles, count, err := store.ListTitles(ctx, input.params())
+		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
@@ -118,8 +118,8 @@ func RegisterSoftware(api huma.API, store *softwarepkg.SoftwareStore) {
 		if err != nil {
 			return nil, err
 		}
-		title, err := store.GetTitle(ctx, id)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		title, err := softwareStore.GetTitle(ctx, id)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {
@@ -129,7 +129,7 @@ func RegisterSoftware(api huma.API, store *softwarepkg.SoftwareStore) {
 	})
 }
 
-func softwareTitleResponse(title softwarepkg.SoftwareTitle) softwareTitleBody {
+func softwareTitleResponse(title software.SoftwareTitle) softwareTitleBody {
 	versions := make([]softwareVersionBody, 0, len(title.Versions))
 	for _, version := range title.Versions {
 		versions = append(versions, softwareVersionBody{

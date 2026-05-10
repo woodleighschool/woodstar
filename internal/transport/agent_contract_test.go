@@ -20,12 +20,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestAgentContract(t *testing.T) {
@@ -79,18 +80,19 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 	hostStore := hosts.NewHostStore(db)
 	deviceMappings := hosts.NewDeviceMappingStore(db)
 	secrets := models.NewSecretStore(db)
-	software := softwarepkg.NewSoftwareStore(db)
+	softwareStore := software.NewSoftwareStore(db)
 	labelStore := labels.NewLabelStore(db)
-	queryStore := queryinfra.NewQueryStore(db)
-	checkStore := queryinfra.NewCheckStore(db)
-	hub := queryinfra.NewHub()
-	liveQueries := queryinfra.NewLiveQueryManager(hub, time.Minute)
+	queryStore := queries.NewQueryStore(db)
+	checkStore := queries.NewCheckStore(db)
+	hub := queries.NewHub()
+	liveQueries := queries.NewLiveQueryManager(hub, time.Minute)
 
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
 
 	authService := auth.NewService(users, sessionManager)
 	logger := slog.New(slog.DiscardHandler)
+	inventoryProjector := inventory.NewProjector(hostStore, softwareStore, logger.With("component", "inventory"))
 
 	return Dependencies{
 		Config: config.Config{
@@ -105,7 +107,7 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 		HostStore:        hostStore,
 		DeviceMappings:   deviceMappings,
 		SecretStore:      secrets,
-		SoftwareStore:    software,
+		SoftwareStore:    softwareStore,
 		LabelStore:       labelStore,
 		QueryStore:       queryStore,
 		CheckStore:       checkStore,
@@ -113,7 +115,7 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 		OrbitService:     orbit.NewService(hostStore, secrets, deviceMappings),
 		OsqueryService: osquery.NewService(
 			hostStore,
-			software,
+			inventoryProjector,
 			labelStore,
 			queryStore,
 			checkStore,

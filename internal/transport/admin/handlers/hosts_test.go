@@ -3,7 +3,7 @@ package handlers
 import (
 	"testing"
 
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestParseHostID(t *testing.T) {
@@ -147,17 +147,17 @@ func TestHostSoftwareInputParams(t *testing.T) {
 }
 
 func TestHostSoftwareResponseGroupsInstalledVersions(t *testing.T) {
-	row := softwarepkg.HostSoftwareRow{
+	row := software.HostSoftwareRow{
 		ID:           7,
 		Name:         "Example",
 		DisplayName:  "Example",
 		Source:       "apps",
 		ExtensionFor: "",
-		InstalledVersions: []softwarepkg.HostSoftwareInstalledVersion{{
+		InstalledVersions: []software.HostSoftwareInstalledVersion{{
 			Version:          "1.2.3",
 			BundleIdentifier: "com.example.app",
 			InstalledPaths:   []string{"/Applications/Example.app"},
-			SignatureInformation: []softwarepkg.PathSignatureInformation{{
+			SignatureInformation: []software.PathSignatureInformation{{
 				InstalledPath:    "/Applications/Example.app",
 				TeamIdentifier:   "ABCD123456",
 				CDHashSHA256:     "cdhash",

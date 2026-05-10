@@ -16,20 +16,20 @@ type labelStore interface {
 	MarkHostLabelsFresh(context.Context, int64) error
 }
 
-func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queries map[string]string) (int, error) {
-	if s.labels == nil {
+func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
+	if s.labelStore == nil {
 		return 0, nil
 	}
-	labels, err := s.labels.ListApplicableDynamic(ctx, host.Platform)
+	labelRows, err := s.labelStore.ListApplicableDynamic(ctx, host.Platform)
 	if err != nil {
 		return 0, err
 	}
 	count := 0
-	for _, label := range labels {
+	for _, label := range labelRows {
 		if label.Query == nil {
 			continue
 		}
-		queries[queryNameID(kindLabel, label.ID)] = *label.Query
+		queryMap[queryNameID(kindLabel, label.ID)] = *label.Query
 		count++
 	}
 	return count, nil
@@ -47,7 +47,7 @@ func (s *Service) handleLabelResult(
 	message string,
 	pass *dispatchPass,
 ) {
-	if s.labels == nil {
+	if s.labelStore == nil {
 		return
 	}
 	labelID, ok := parsePositiveSuffix(suffix)
@@ -70,13 +70,13 @@ func (s *Service) handleLabelResult(
 }
 
 func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass *dispatchPass) error {
-	if s.labels == nil || len(pass.labelResults) == 0 {
+	if s.labelStore == nil || len(pass.labelResults) == 0 {
 		return nil
 	}
 	slices.SortFunc(pass.labelResults, func(a, b labelQueryResult) int {
 		return int(a.labelID - b.labelID)
 	})
-	applicable, err := s.labels.ApplicableDynamicIDs(ctx, pass.labelIDs, host.Platform)
+	applicable, err := s.labelStore.ApplicableDynamicIDs(ctx, pass.labelIDs, host.Platform)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass 
 		if _, ok := applicable[result.labelID]; !ok {
 			continue
 		}
-		if err := s.labels.SetMembership(ctx, result.labelID, host.ID, result.matched); err != nil {
+		if err := s.labelStore.SetMembership(ctx, result.labelID, host.ID, result.matched); err != nil {
 			return err
 		}
 		handled++
@@ -93,7 +93,7 @@ func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass 
 	if handled == 0 {
 		return nil
 	}
-	if err := s.labels.MarkHostLabelsFresh(ctx, host.ID); err != nil {
+	if err := s.labelStore.MarkHostLabelsFresh(ctx, host.ID); err != nil {
 		return err
 	}
 	s.logger.DebugContext(

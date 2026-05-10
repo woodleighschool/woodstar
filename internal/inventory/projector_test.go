@@ -1,7 +1,6 @@
-package osquery
+package inventory
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 )
@@ -61,31 +60,6 @@ func TestParseOsqueryFlags(t *testing.T) {
 	})
 	if got.ConfigTLSRefresh == nil || *got.ConfigTLSRefresh != 30 {
 		t.Fatalf("ConfigTLSRefresh = %v, want config_tls_refresh value 30", got.ConfigTLSRefresh)
-	}
-}
-
-func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
-	registry := map[string]DetailQuery{
-		"required": {Ingest: ingestNoop},
-		"optional": {Optional: true, Ingest: ingestNoop},
-	}
-	if sawEveryRequiredDetailQuery(DistributedWriteRequest{Queries: map[string][]map[string]string{}}, registry) {
-		t.Fatal("missing required query was treated as complete")
-	}
-	if sawEveryRequiredDetailQuery(
-		DistributedWriteRequest{
-			Queries:  map[string][]map[string]string{detailQueryName("required"): {}},
-			Statuses: map[string]json.RawMessage{detailQueryName("required"): json.RawMessage(`1`)},
-		},
-		registry,
-	) {
-		t.Fatal("failed required query was treated as complete")
-	}
-	if !sawEveryRequiredDetailQuery(
-		DistributedWriteRequest{Queries: map[string][]map[string]string{detailQueryName("required"): {}}},
-		registry,
-	) {
-		t.Fatal("empty successful required query was not treated as complete")
 	}
 }
 

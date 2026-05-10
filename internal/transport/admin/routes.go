@@ -13,8 +13,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
 )
 
@@ -27,11 +27,11 @@ type Dependencies struct {
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
-	SoftwareStore    *softwarepkg.SoftwareStore
+	SoftwareStore    *software.SoftwareStore
 	LabelStore       *labels.LabelStore
-	QueryStore       *queryinfra.QueryStore
-	CheckStore       *queryinfra.CheckStore
-	LiveQueryManager *queryinfra.LiveQueryManager
+	QueryStore       *queries.QueryStore
+	CheckStore       *queries.CheckStore
+	LiveQueryManager *queries.LiveQueryManager
 }
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -62,7 +62,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 // BuildAPI returns the admin API without starting the server.
 func BuildAPI(version string) huma.API {
 	r := chi.NewRouter()
-	hub := queryinfra.NewHub()
+	hub := queries.NewHub()
 	return Mount(r, Dependencies{
 		Version:          version,
 		Started:          time.Now().UTC(),
@@ -70,10 +70,10 @@ func BuildAPI(version string) huma.API {
 		HostStore:        hosts.NewHostStore(nil),
 		DeviceMappings:   hosts.NewDeviceMappingStore(nil),
 		SecretStore:      models.NewSecretStore(nil),
-		SoftwareStore:    softwarepkg.NewSoftwareStore(nil),
+		SoftwareStore:    software.NewSoftwareStore(nil),
 		LabelStore:       labels.NewLabelStore(nil),
-		QueryStore:       queryinfra.NewQueryStore(nil),
-		CheckStore:       queryinfra.NewCheckStore(nil),
-		LiveQueryManager: queryinfra.NewLiveQueryManager(hub, time.Minute),
+		QueryStore:       queries.NewQueryStore(nil),
+		CheckStore:       queries.NewCheckStore(nil),
+		LiveQueryManager: queries.NewLiveQueryManager(hub, time.Minute),
 	})
 }

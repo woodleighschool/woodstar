@@ -106,15 +106,15 @@ func (i labelListInput) params() labels.LabelListParams {
 }
 
 // RegisterLabels registers admin label endpoints.
-func RegisterLabels(api huma.API, store *labels.LabelStore) {
-	registerListLabels(api, store)
-	registerCreateLabel(api, store)
-	registerGetLabel(api, store)
-	registerUpdateLabel(api, store)
-	registerDeleteLabel(api, store)
+func RegisterLabels(api huma.API, labelStore *labels.LabelStore) {
+	registerListLabels(api, labelStore)
+	registerCreateLabel(api, labelStore)
+	registerGetLabel(api, labelStore)
+	registerUpdateLabel(api, labelStore)
+	registerDeleteLabel(api, labelStore)
 }
 
-func registerListLabels(api huma.API, store *labels.LabelStore) {
+func registerListLabels(api huma.API, labelStore *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-labels",
 		Method:      http.MethodGet,
@@ -123,19 +123,19 @@ func registerListLabels(api huma.API, store *labels.LabelStore) {
 		Summary:     "List labels",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
-		labels, count, err := store.List(ctx, input.params())
+		labelRows, count, err := labelStore.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
-		out := &labelListOutput{Body: labelListBody{Items: make([]labelBody, 0, len(labels)), Count: count}}
-		for i := range labels {
-			out.Body.Items = append(out.Body.Items, labelResponse(&labels[i]))
+		out := &labelListOutput{Body: labelListBody{Items: make([]labelBody, 0, len(labelRows)), Count: count}}
+		for i := range labelRows {
+			out.Body.Items = append(out.Body.Items, labelResponse(&labelRows[i]))
 		}
 		return out, nil
 	})
 }
 
-func registerCreateLabel(api huma.API, store *labels.LabelStore) {
+func registerCreateLabel(api huma.API, labelStore *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-label",
 		Method:        http.MethodPost,
@@ -145,7 +145,7 @@ func registerCreateLabel(api huma.API, store *labels.LabelStore) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
-		label, err := store.Create(ctx, labels.LabelCreate{
+		label, err := labelStore.Create(ctx, labels.LabelCreate{
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
@@ -160,7 +160,7 @@ func registerCreateLabel(api huma.API, store *labels.LabelStore) {
 	})
 }
 
-func registerGetLabel(api huma.API, store *labels.LabelStore) {
+func registerGetLabel(api huma.API, labelStore *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-label",
 		Method:      http.MethodGet,
@@ -173,7 +173,7 @@ func registerGetLabel(api huma.API, store *labels.LabelStore) {
 		if err != nil {
 			return nil, err
 		}
-		label, err := store.GetByID(ctx, id)
+		label, err := labelStore.GetByID(ctx, id)
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
@@ -181,7 +181,7 @@ func registerGetLabel(api huma.API, store *labels.LabelStore) {
 	})
 }
 
-func registerUpdateLabel(api huma.API, store *labels.LabelStore) {
+func registerUpdateLabel(api huma.API, labelStore *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-label",
 		Method:      http.MethodPut,
@@ -194,7 +194,7 @@ func registerUpdateLabel(api huma.API, store *labels.LabelStore) {
 		if err != nil {
 			return nil, err
 		}
-		label, err := store.Update(ctx, id, labels.LabelUpdate{
+		label, err := labelStore.Update(ctx, id, labels.LabelUpdate{
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
@@ -208,7 +208,7 @@ func registerUpdateLabel(api huma.API, store *labels.LabelStore) {
 	})
 }
 
-func registerDeleteLabel(api huma.API, store *labels.LabelStore) {
+func registerDeleteLabel(api huma.API, labelStore *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-label",
 		Method:      http.MethodDelete,
@@ -221,7 +221,7 @@ func registerDeleteLabel(api huma.API, store *labels.LabelStore) {
 		if err != nil {
 			return nil, err
 		}
-		if err := store.Delete(ctx, id); err != nil {
+		if err := labelStore.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
 		return &struct{}{}, nil

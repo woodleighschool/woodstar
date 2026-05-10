@@ -8,7 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/models"
-	storepkg "github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 type secretDeleteInput struct {
@@ -34,8 +34,8 @@ type secretRoute struct {
 
 // RegisterSecrets registers shared credential endpoints for Orbit enroll secrets.
 // Santa and Munki return when their modules ship.
-func RegisterSecrets(api huma.API, store *models.SecretStore) {
-	registerSecretRoutes(api, store, models.SecretOrbit, secretRoute{
+func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
+	registerSecretRoutes(api, secretStore, models.SecretOrbit, secretRoute{
 		listOperationID:   "list-orbit-enroll-secrets",
 		createOperationID: "create-orbit-enroll-secret",
 		deleteOperationID: "delete-orbit-enroll-secret",
@@ -45,7 +45,7 @@ func RegisterSecrets(api huma.API, store *models.SecretStore) {
 	})
 }
 
-func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.SecretKind, route secretRoute) {
+func registerSecretRoutes(api huma.API, secretStore *models.SecretStore, kind models.SecretKind, route secretRoute) {
 	huma.Register(api, huma.Operation{
 		OperationID: route.listOperationID,
 		Method:      http.MethodGet,
@@ -57,7 +57,7 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secrets, err := store.List(ctx, kind)
+		secrets, err := secretStore.List(ctx, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +76,7 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secret, err := store.Create(ctx, kind)
+		secret, err := secretStore.Create(ctx, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -98,8 +98,8 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 		if err != nil {
 			return nil, err
 		}
-		err = store.Delete(ctx, kind, id)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		err = secretStore.Delete(ctx, kind, id)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}
 		return nil, err

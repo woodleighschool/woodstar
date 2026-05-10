@@ -25,32 +25,32 @@ const nodeKeyAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
-	hosts          *hosts.HostStore
-	secrets        *models.SecretStore
-	deviceMappings *hosts.DeviceMappingStore
+	hostStore          *hosts.HostStore
+	secretStore        *models.SecretStore
+	deviceMappingStore *hosts.DeviceMappingStore
 }
 
 // NewService returns an Orbit service.
 func NewService(
-	hosts *hosts.HostStore,
+	hostStore *hosts.HostStore,
 	secrets *models.SecretStore,
 	deviceMappings *hosts.DeviceMappingStore,
 ) *Service {
-	return &Service{hosts: hosts, secrets: secrets, deviceMappings: deviceMappings}
+	return &Service{hostStore: hostStore, secretStore: secrets, deviceMappingStore: deviceMappings}
 }
 
 // Enroll validates the request, upserts the host, and returns a fresh node key.
 // Re-enrollment of the same hardware UUID overwrites the existing key, so prior
 // keys stop authenticating immediately.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
-	if s.hosts == nil || s.secrets == nil {
+	if s.hostStore == nil || s.secretStore == nil {
 		return nil, "", errors.New("orbit service is not configured")
 	}
 	if strings.TrimSpace(req.HardwareUUID) == "" {
 		return nil, "", ErrMissingHardwareUUID
 	}
 
-	ok, err := s.secrets.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
+	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
 	if err != nil {
 		return nil, "", fmt.Errorf("validate enroll secret: %w", err)
 	}
@@ -63,7 +63,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", fmt.Errorf("generate node key: %w", err)
 	}
 
-	host, err := s.hosts.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+	host, err := s.hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
 		HardwareUUID:   req.HardwareUUID,
 		HardwareSerial: req.HardwareSerial,
 		Hostname:       req.Hostname,
@@ -81,7 +81,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 
 // Config returns the current Orbit config.
 func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, error) {
-	if _, err := s.hosts.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
+	if _, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
 		return ConfigResponse{}, err
 	}
 	return ConfigResponse{Flags: []byte("{}")}, nil
@@ -89,20 +89,20 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 
 // ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
 func (s *Service) ValidateNodeKey(ctx context.Context, nodeKey string) error {
-	_, err := s.hosts.GetByOrbitNodeKey(ctx, nodeKey)
+	_, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	return err
 }
 
 // SetDeviceMapping records a profile-provided email for the host.
 func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) error {
-	if s.deviceMappings == nil {
+	if s.deviceMappingStore == nil {
 		return nil
 	}
-	host, err := s.hosts.GetByOrbitNodeKey(ctx, nodeKey)
+	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		return err
 	}
-	return s.deviceMappings.Upsert(ctx, host.ID, strings.TrimSpace(email), hosts.DeviceMappingSourceOrbitProfile)
+	return s.deviceMappingStore.Upsert(ctx, host.ID, strings.TrimSpace(email), hosts.DeviceMappingSourceOrbitProfile)
 }
 
 func generateNodeKey() (string, error) {

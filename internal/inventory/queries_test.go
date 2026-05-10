@@ -1,4 +1,4 @@
-package osquery
+package inventory
 
 import (
 	"strings"
@@ -46,26 +46,26 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 }
 
 func TestDetailQueriesDue(t *testing.T) {
-	if got := detailQueriesDue(nil, ""); len(got.Queries) != 17 {
+	if got := DetailQueriesDue(nil, ""); len(got.Queries) != 17 {
 		t.Fatalf("nil timestamp returned %d queries, want 17", len(got.Queries))
 	}
-	if got := detailQueriesDue(nil, ""); got.Discovery[detailQueryName("orbit_info")] == "" ||
-		got.Discovery[detailQueryName("software_vscode_extensions")] == "" ||
-		got.Discovery[detailQueryName("software_jetbrains_plugins")] == "" ||
-		got.Discovery[detailQueryName("software_go_binaries")] == "" ||
-		got.Discovery[detailQueryName("software_python_packages")] == "" ||
-		got.Discovery[detailQueryName("software_macos_codesign")] == "" ||
-		got.Discovery[detailQueryName("software_macos_executable_sha256")] == "" {
+	if got := DetailQueriesDue(nil, ""); got.Discovery["orbit_info"] == "" ||
+		got.Discovery["software_vscode_extensions"] == "" ||
+		got.Discovery["software_jetbrains_plugins"] == "" ||
+		got.Discovery["software_go_binaries"] == "" ||
+		got.Discovery["software_python_packages"] == "" ||
+		got.Discovery["software_macos_codesign"] == "" ||
+		got.Discovery["software_macos_executable_sha256"] == "" {
 		t.Fatalf("missing optional detail query discovery: %#v", got.Discovery)
 	}
 }
 
 func TestDetailQueriesDueWhenHashChanges(t *testing.T) {
 	now := time.Now()
-	if got := detailQueriesDue(&now, detailQueryHash()); len(got.Queries) != 0 {
+	if got := DetailQueriesDue(&now, DetailQueryHash()); len(got.Queries) != 0 {
 		t.Fatalf("fresh matching hash returned %d queries, want 0", len(got.Queries))
 	}
-	if got := detailQueriesDue(&now, "old-hash"); len(got.Queries) == 0 {
+	if got := DetailQueriesDue(&now, "old-hash"); len(got.Queries) == 0 {
 		t.Fatal("fresh stale hash returned no queries")
 	}
 }

@@ -43,8 +43,8 @@ func TestParseLabelQueryNameRejectsOtherQueries(t *testing.T) {
 }
 
 func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
-	labels := &fakeLabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
-	svc := &Service{labels: labels, logger: slog.New(slog.DiscardHandler)}
+	labelStore := &fakeLabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
+	svc := &Service{labelStore: labelStore, logger: slog.New(slog.DiscardHandler)}
 
 	err := svc.dispatchWriteResults(
 		context.Background(),
@@ -69,17 +69,17 @@ func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T)
 		t.Fatalf("dispatchWriteResults returned error: %v", err)
 	}
 
-	if len(labels.setCalls) != 2 {
-		t.Fatalf("set calls = %#v, want 2 applicable successful labels", labels.setCalls)
+	if len(labelStore.setCalls) != 2 {
+		t.Fatalf("set calls = %#v, want 2 applicable successful labels", labelStore.setCalls)
 	}
-	if labels.setCalls[0] != (fakeSetCall{labelID: 1, hostID: 9, matched: true}) {
-		t.Fatalf("first set call = %#v", labels.setCalls[0])
+	if labelStore.setCalls[0] != (fakeSetCall{labelID: 1, hostID: 9, matched: true}) {
+		t.Fatalf("first set call = %#v", labelStore.setCalls[0])
 	}
-	if labels.setCalls[1] != (fakeSetCall{labelID: 2, hostID: 9, matched: false}) {
-		t.Fatalf("second set call = %#v", labels.setCalls[1])
+	if labelStore.setCalls[1] != (fakeSetCall{labelID: 2, hostID: 9, matched: false}) {
+		t.Fatalf("second set call = %#v", labelStore.setCalls[1])
 	}
-	if labels.markedHostID != 9 {
-		t.Fatalf("markedHostID = %d, want 9", labels.markedHostID)
+	if labelStore.markedHostID != 9 {
+		t.Fatalf("markedHostID = %d, want 9", labelStore.markedHostID)
 	}
 }
 

@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -22,46 +22,46 @@ var (
 
 // Service performs osquery TLS-plugin operations.
 type Service struct {
-	hosts    *hosts.HostStore
-	software *softwarepkg.SoftwareStore
-	labels   labelStore
-	queries  *queryinfra.QueryStore
-	checks   *queryinfra.CheckStore
-	live     *queryinfra.LiveQueryManager
-	secrets  *models.SecretStore
-	logger   *slog.Logger
+	hostStore          *hosts.HostStore
+	inventoryProjector *inventory.Projector
+	labelStore         labelStore
+	queryStore         *queries.QueryStore
+	checkStore         *queries.CheckStore
+	liveQueries        *queries.LiveQueryManager
+	secretStore        *models.SecretStore
+	logger             *slog.Logger
 }
 
 // NewService returns an osquery service.
 func NewService(
-	hosts *hosts.HostStore,
-	software *softwarepkg.SoftwareStore,
-	labels *labels.LabelStore,
-	queries *queryinfra.QueryStore,
-	checks *queryinfra.CheckStore,
-	live *queryinfra.LiveQueryManager,
+	hostStore *hosts.HostStore,
+	inventoryProjector *inventory.Projector,
+	labelStore *labels.LabelStore,
+	queryStore *queries.QueryStore,
+	checkStore *queries.CheckStore,
+	liveQueries *queries.LiveQueryManager,
 	secrets *models.SecretStore,
 	logger *slog.Logger,
 ) *Service {
 	return &Service{
-		hosts:    hosts,
-		software: software,
-		labels:   labels,
-		queries:  queries,
-		checks:   checks,
-		live:     live,
-		secrets:  secrets,
-		logger:   logger,
+		hostStore:          hostStore,
+		inventoryProjector: inventoryProjector,
+		labelStore:         labelStore,
+		queryStore:         queryStore,
+		checkStore:         checkStore,
+		liveQueries:        liveQueries,
+		secretStore:        secrets,
+		logger:             logger,
 	}
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	if s.hosts == nil || s.secrets == nil {
+	if s.hostStore == nil || s.secretStore == nil {
 		return "", errors.New("osquery service is not configured")
 	}
 
-	ok, err := s.secrets.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
+	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
 	if err != nil {
 		return "", fmt.Errorf("validate enroll secret: %w", err)
 	}
@@ -69,7 +69,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		return "", ErrInvalidEnrollSecret
 	}
 
-	update := ParseHostDetails(req.HostDetails)
+	update := inventory.ParseHostDetails(req.HostDetails)
 	if update.HardwareUUID == "" {
 		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
 	}
@@ -83,7 +83,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 	}
 	update.OsqueryNodeKey = nodeKey
 
-	host, err := s.hosts.UpsertOnOsqueryEnroll(ctx, update)
+	host, err := s.hostStore.UpsertOnOsqueryEnroll(ctx, update)
 	if err != nil {
 		return "", fmt.Errorf("upsert host: %w", err)
 	}
@@ -109,7 +109,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return ConfigResponse{}, err
 	}
-	schedule, err := buildScheduleForHost(ctx, s.queries, *host)
+	schedule, err := buildScheduleForHost(ctx, s.queryStore, *host)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -140,59 +140,67 @@ func (s *Service) DistributedRead(
 		return DistributedReadResponse{}, err
 	}
 
-	due := detailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	due := inventory.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	detailQueries := make(map[string]string, len(due.Queries))
+	for suffix, sql := range due.Queries {
+		detailQueries[detailQueryName(suffix)] = sql
+	}
+	detailDiscovery := make(map[string]string, len(due.Discovery))
+	for suffix, sql := range due.Discovery {
+		detailDiscovery[detailQueryName(suffix)] = sql
+	}
 
-	labelCount, err := s.queueLabelQueries(ctx, host, due.Queries)
+	labelCount, err := s.queueLabelQueries(ctx, host, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	checkCount, err := s.queueCheckQueries(ctx, host, due.Queries)
+	checkCount, err := s.queueCheckQueries(ctx, host, detailQueries)
 	if err != nil {
 		return DistributedReadResponse{}, err
 	}
-	liveCount := s.queueLiveQueries(host, due.Queries)
+	liveCount := s.queueLiveQueries(host, detailQueries)
 
 	s.logger.DebugContext(
 		ctx,
 		"osquery distributed queries prepared", "operation", "distributed_read",
 		"host_id", host.ID,
-		"query_count", len(due.Queries),
-		"discovery_count", len(due.Discovery),
+		"query_count", len(detailQueries),
+		"discovery_count", len(detailDiscovery),
 		"label_count", labelCount,
 		"check_count", checkCount,
 		"live_count", liveCount,
 	)
 	return DistributedReadResponse{
 		NodeInvalid: false,
-		Queries:     due.Queries,
-		Discovery:   due.Discovery,
+		Queries:     detailQueries,
+		Discovery:   detailDiscovery,
 		Accelerate:  0,
 	}, nil
 }
 
-func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queries map[string]string) (int, error) {
-	if s.checks == nil {
+func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
+	if s.checkStore == nil {
 		return 0, nil
 	}
-	checks, err := s.checks.ApplicableForHost(ctx, *host)
+	checks, err := s.checkStore.ApplicableForHost(ctx, *host)
 	if err != nil {
 		return 0, err
 	}
 	for _, check := range checks {
-		queries[queryNameID(kindCheck, check.ID)] = check.Query
+		queryMap[queryNameID(kindCheck, check.ID)] = check.Query
 	}
 	return len(checks), nil
 }
 
 // queueLiveQueries injects ephemeral live queries pending for host. The
 // in-memory manager owns lifecycle; results route back through dispatch.
-func (s *Service) queueLiveQueries(host *hosts.Host, queries map[string]string) int {
-	if s.live == nil {
+func (s *Service) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
+	if s.liveQueries == nil {
 		return 0
 	}
-	work := s.live.PendingForHost(host.ID)
+	work := s.liveQueries.PendingForHost(host.ID)
 	for _, item := range work {
-		queries[queryNameID(kindLive, item.QueryID)] = item.SQL
+		queryMap[queryNameID(kindLive, item.QueryID)] = item.SQL
 	}
 	return len(work)
 }
@@ -231,7 +239,7 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req 
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return LogResponse{}, err
 	}
-	if req.LogType == "result" && s.queries != nil {
+	if req.LogType == "result" && s.queryStore != nil {
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
 			s.logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
 		}
@@ -244,11 +252,11 @@ func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publ
 	if publicIP == "" {
 		return nil
 	}
-	return s.hosts.ApplyDetail(ctx, host.ID, hosts.HostDetailUpdate{PublicIP: publicIP})
+	return s.hostStore.ApplyDetail(ctx, host.ID, hosts.HostDetailUpdate{PublicIP: publicIP})
 }
 
 func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
-	host, err := s.hosts.GetByOsqueryNodeKey(ctx, nodeKey)
+	host, err := s.hostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, false, nil
 	}
@@ -256,38 +264,4 @@ func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Hos
 		return nil, false, err
 	}
 	return host, true, nil
-}
-
-func ingestSoftwareMacOSWithEnrichment(
-	ctx context.Context,
-	svc *Service,
-	hostID int64,
-	rows []map[string]string,
-	queryRows map[string][]map[string]string,
-) error {
-	if svc.software == nil {
-		return nil
-	}
-	enrichment := softwareEnrichmentByPath(
-		queryRows[querySoftwareMacOSCodesign],
-		queryRows[querySoftwareMacOSExecutableHash],
-	)
-	rows = append(rows, queryRows[querySoftwareVSCodeExtensions]...)
-	rows = append(rows, queryRows[querySoftwareJetBrainsPlugins]...)
-	rows = append(rows, queryRows[querySoftwareGoBinaries]...)
-	rows = append(rows, queryRows[querySoftwarePythonPackages]...)
-	entries := parseSoftwareRows(rows, enrichment)
-	if err := svc.software.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
-		return err
-	}
-	svc.logger.DebugContext(
-		ctx,
-		"software inventory ingested", "operation", "software_ingest",
-		"host_id", hostID,
-		"row_count", len(rows),
-		"entry_count", len(entries),
-		"codesign_count", len(queryRows[querySoftwareMacOSCodesign]),
-		"executable_hash_count", len(queryRows[querySoftwareMacOSExecutableHash]),
-	)
-	return nil
 }

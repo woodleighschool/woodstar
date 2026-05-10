@@ -1,6 +1,11 @@
 package osquery
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/inventory"
+)
 
 func TestQueryNameRoundTrips(t *testing.T) {
 	tests := []struct {
@@ -40,5 +45,30 @@ func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 		if kind, suffix, ok := parseQueryName(name); ok || kind != "" || suffix != "" {
 			t.Fatalf("parseQueryName(%q) = %q, %q, %t; want zero values", name, kind, suffix, ok)
 		}
+	}
+}
+
+func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
+	registry := map[string]inventory.DetailQuery{
+		"required": {},
+		"optional": {Optional: true},
+	}
+	if sawEveryRequiredDetailQuery(DistributedWriteRequest{Queries: map[string][]map[string]string{}}, registry) {
+		t.Fatal("missing required query was treated as complete")
+	}
+	if sawEveryRequiredDetailQuery(
+		DistributedWriteRequest{
+			Queries:  map[string][]map[string]string{detailQueryName("required"): {}},
+			Statuses: map[string]json.RawMessage{detailQueryName("required"): json.RawMessage(`1`)},
+		},
+		registry,
+	) {
+		t.Fatal("failed required query was treated as complete")
+	}
+	if !sawEveryRequiredDetailQuery(
+		DistributedWriteRequest{Queries: map[string][]map[string]string{detailQueryName("required"): {}}},
+		registry,
+	) {
+		t.Fatal("empty successful required query was not treated as complete")
 	}
 }

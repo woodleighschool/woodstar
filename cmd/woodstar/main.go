@@ -20,12 +20,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -116,21 +117,26 @@ func newServer(
 	logger *slog.Logger,
 ) *transport.Server {
 	stores := newModelStores(db)
-	authService := auth.NewService(stores.users, sessionManager)
-	orbitService := orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings)
-	hub := queryinfra.NewHub()
-	liveQueries := queryinfra.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
+	authService := auth.NewService(stores.userStore, sessionManager)
+	orbitService := orbit.NewService(stores.hostStore, stores.secretStore, stores.deviceMappingStore)
+	hub := queries.NewHub()
+	liveQueries := queries.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
+	inventoryProjector := inventory.NewProjector(
+		stores.hostStore,
+		stores.softwareStore,
+		logger.With("component", "inventory"),
+	)
 	osqueryService := osquery.NewService(
-		stores.hosts,
-		stores.software,
-		stores.labels,
-		stores.queries,
-		stores.checks,
+		stores.hostStore,
+		inventoryProjector,
+		stores.labelStore,
+		stores.queryStore,
+		stores.checkStore,
 		liveQueries,
-		stores.secrets,
+		stores.secretStore,
 		logger.With("component", "osquery"),
 	)
-	queryinfra.StartCleanup(ctx, stores.queries, queryinfra.CleanupOptions{
+	queries.StartCleanup(ctx, stores.queryStore, queries.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "queries"))
 
@@ -141,13 +147,13 @@ func newServer(
 		Logger:           logger,
 		AuthService:      authService,
 		SessionManager:   sessionManager,
-		HostStore:        stores.hosts,
-		DeviceMappings:   stores.deviceMappings,
-		SecretStore:      stores.secrets,
-		SoftwareStore:    stores.software,
-		LabelStore:       stores.labels,
-		QueryStore:       stores.queries,
-		CheckStore:       stores.checks,
+		HostStore:        stores.hostStore,
+		DeviceMappings:   stores.deviceMappingStore,
+		SecretStore:      stores.secretStore,
+		SoftwareStore:    stores.softwareStore,
+		LabelStore:       stores.labelStore,
+		QueryStore:       stores.queryStore,
+		CheckStore:       stores.checkStore,
 		LiveQueryManager: liveQueries,
 		OrbitService:     orbitService,
 		OsqueryService:   osqueryService,
@@ -161,26 +167,26 @@ func newServer(
 }
 
 type modelStores struct {
-	users          *models.UserStore
-	hosts          *hosts.HostStore
-	deviceMappings *hosts.DeviceMappingStore
-	secrets        *models.SecretStore
-	software       *software.SoftwareStore
-	labels         *labels.LabelStore
-	queries        *queryinfra.QueryStore
-	checks         *queryinfra.CheckStore
+	userStore          *models.UserStore
+	hostStore          *hosts.HostStore
+	deviceMappingStore *hosts.DeviceMappingStore
+	secretStore        *models.SecretStore
+	softwareStore      *software.SoftwareStore
+	labelStore         *labels.LabelStore
+	queryStore         *queries.QueryStore
+	checkStore         *queries.CheckStore
 }
 
 func newModelStores(db *db.DB) modelStores {
 	return modelStores{
-		users:          models.NewUserStore(db),
-		hosts:          hosts.NewHostStore(db),
-		deviceMappings: hosts.NewDeviceMappingStore(db),
-		secrets:        models.NewSecretStore(db),
-		software:       software.NewSoftwareStore(db),
-		labels:         labels.NewLabelStore(db),
-		queries:        queryinfra.NewQueryStore(db),
-		checks:         queryinfra.NewCheckStore(db),
+		userStore:          models.NewUserStore(db),
+		hostStore:          hosts.NewHostStore(db),
+		deviceMappingStore: hosts.NewDeviceMappingStore(db),
+		secretStore:        models.NewSecretStore(db),
+		softwareStore:      software.NewSoftwareStore(db),
+		labelStore:         labels.NewLabelStore(db),
+		queryStore:         queries.NewQueryStore(db),
+		checkStore:         queries.NewCheckStore(db),
 	}
 }
 

@@ -17,8 +17,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -65,7 +65,7 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	deps := testDependencies(testConfig())
 	store := newTestUserStore(t)
 	deps.AuthService = auth.NewService(store, deps.SessionManager)
-	deps.LiveQueryManager = queryinfra.NewLiveQueryManager(queryinfra.NewHub(), time.Minute)
+	deps.LiveQueryManager = queries.NewLiveQueryManager(queries.NewHub(), time.Minute)
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
@@ -186,7 +186,7 @@ func testDependencies(cfg config.Config) Dependencies {
 	hostStore := hosts.NewHostStore(nil)
 	deviceMappings := hosts.NewDeviceMappingStore(nil)
 	secrets := models.NewSecretStore(nil)
-	software := softwarepkg.NewSoftwareStore(nil)
+	softwareStore := software.NewSoftwareStore(nil)
 
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
@@ -200,6 +200,6 @@ func testDependencies(cfg config.Config) Dependencies {
 		HostStore:      hostStore,
 		DeviceMappings: deviceMappings,
 		SecretStore:    secrets,
-		SoftwareStore:  software,
+		SoftwareStore:  softwareStore,
 	}
 }

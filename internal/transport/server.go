@@ -21,8 +21,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
 	transportorbit "github.com/woodleighschool/woodstar/internal/transport/orbit"
 	transportosquery "github.com/woodleighschool/woodstar/internal/transport/osquery"
@@ -44,11 +44,11 @@ type Dependencies struct {
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
-	SoftwareStore    *softwarepkg.SoftwareStore
+	SoftwareStore    *software.SoftwareStore
 	LabelStore       *labels.LabelStore
-	QueryStore       *queryinfra.QueryStore
-	CheckStore       *queryinfra.CheckStore
-	LiveQueryManager *queryinfra.LiveQueryManager
+	QueryStore       *queries.QueryStore
+	CheckStore       *queries.CheckStore
+	LiveQueryManager *queries.LiveQueryManager
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service
 }
@@ -66,11 +66,11 @@ type Server struct {
 	hostStore      *hosts.HostStore
 	deviceMappings *hosts.DeviceMappingStore
 	secretStore    *models.SecretStore
-	softwareStore  *softwarepkg.SoftwareStore
+	softwareStore  *software.SoftwareStore
 	labelStore     *labels.LabelStore
-	queryStore     *queryinfra.QueryStore
-	checkStore     *queryinfra.CheckStore
-	liveQueries    *queryinfra.LiveQueryManager
+	queryStore     *queries.QueryStore
+	checkStore     *queries.CheckStore
+	liveQueries    *queries.LiveQueryManager
 	orbitService   *orbit.Service
 	osqueryService *osquery.Service
 	started        time.Time

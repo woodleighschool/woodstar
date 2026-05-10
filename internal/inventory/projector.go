@@ -1,50 +1,100 @@
-package osquery
+package inventory
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 const osqueryFlagConfigRefresh = "config_refresh"
 
-func ingestOSVersion(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+type Projector struct {
+	hostStore     *hosts.HostStore
+	softwareStore *software.SoftwareStore
+	logger        *slog.Logger
+}
+
+func NewProjector(hostStore *hosts.HostStore, softwareStore *software.SoftwareStore, logger *slog.Logger) *Projector {
+	return &Projector{hostStore: hostStore, softwareStore: softwareStore, logger: logger}
+}
+
+func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
+	return p.hostStore.MarkDetailFresh(ctx, hostID, DetailQueryHash())
+}
+
+func (p *Projector) IngestSoftwareMacOSWithEnrichment(
+	ctx context.Context,
+	hostID int64,
+	rows []map[string]string,
+	queryRows map[string][]map[string]string,
+) error {
+	if p.softwareStore == nil {
+		return nil
+	}
+	enrichment := softwareEnrichmentByPath(
+		queryRows[querySoftwareMacOSCodesign],
+		queryRows[querySoftwareMacOSExecutableHash],
+	)
+	rows = append(rows, queryRows[querySoftwareVSCodeExtensions]...)
+	rows = append(rows, queryRows[querySoftwareJetBrainsPlugins]...)
+	rows = append(rows, queryRows[querySoftwareGoBinaries]...)
+	rows = append(rows, queryRows[querySoftwarePythonPackages]...)
+	entries := parseSoftwareRows(rows, enrichment)
+	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
+		return err
+	}
+	if p.logger != nil {
+		p.logger.DebugContext(
+			ctx,
+			"software inventory ingested", "operation", "software_ingest",
+			"host_id", hostID,
+			"row_count", len(rows),
+			"entry_count", len(entries),
+			"codesign_count", len(queryRows[querySoftwareMacOSCodesign]),
+			"executable_hash_count", len(queryRows[querySoftwareMacOSExecutableHash]),
+		)
+	}
+	return nil
+}
+
+func ingestOSVersion(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOSVersion: rows[0]}))
+	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOSVersion: rows[0]}))
 }
 
-func ingestSystemInfo(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestSystemInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{querySystemInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{querySystemInfo: rows[0]}))
 }
 
-func ingestOsqueryInfo(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestOsqueryInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}))
 }
 
-func ingestOsqueryFlags(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
-	return svc.hosts.ApplyDetail(ctx, hostID, parseOsqueryFlags(rows))
+func ingestOsqueryFlags(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	return projector.hostStore.ApplyDetail(ctx, hostID, parseOsqueryFlags(rows))
 }
 
-func ingestOrbitInfo(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestOrbitInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}))
+	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}))
 }
 
-func ingestUptime(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -53,43 +103,43 @@ func ingestUptime(ctx context.Context, svc *Service, hostID int64, rows []map[st
 		restarted := time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second)
 		update.LastRestartedAt = &restarted
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, update)
+	return projector.hostStore.ApplyDetail(ctx, hostID, update)
 }
 
-func ingestRootDisk(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestRootDisk(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}))
+	return projector.hostStore.ApplyDetail(ctx, hostID, ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}))
 }
 
-func ingestPrimaryInterface(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
+func ingestPrimaryInterface(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return svc.hosts.ApplyDetail(
+	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
 		ParseHostDetails(map[string]map[string]string{queryPrimaryInterface: rows[0]}),
 	)
 }
 
-func ingestUsers(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
-	return svc.hosts.ReplaceUsers(ctx, hostID, parseHostUsers(rows))
+func ingestUsers(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	return projector.hostStore.ReplaceUsers(ctx, hostID, parseHostUsers(rows))
 }
 
-func ingestBatteries(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
-	return svc.hosts.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
+func ingestBatteries(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	return projector.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
 }
 
-func ingestSoftwareMacOS(ctx context.Context, svc *Service, hostID int64, rows []map[string]string) error {
-	if svc.software == nil {
+func ingestSoftwareMacOS(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	if projector.softwareStore == nil {
 		return nil
 	}
-	return svc.software.ReplaceHostSoftware(ctx, hostID, parseSoftwareRows(rows, softwareEnrichment{}))
+	return projector.softwareStore.ReplaceHostSoftware(ctx, hostID, parseSoftwareRows(rows, softwareEnrichment{}))
 }
 
-func ingestNoop(context.Context, *Service, int64, []map[string]string) error {
+func ingestNoop(context.Context, *Projector, int64, []map[string]string) error {
 	return nil
 }
 
@@ -206,8 +256,8 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 	return enrichment
 }
 
-func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []softwarepkg.HostSoftwareEntry {
-	entries := make([]softwarepkg.HostSoftwareEntry, 0, len(rows))
+func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []software.HostSoftwareEntry {
+	entries := make([]software.HostSoftwareEntry, 0, len(rows))
 	for _, row := range rows {
 		name := strings.TrimSpace(row["name"])
 		if name == "" {
@@ -215,7 +265,7 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 		}
 		installedPath := installedPathForSoftware(row)
 		pathEnrichment := enrichment[installedPath]
-		entries = append(entries, softwarepkg.HostSoftwareEntry{
+		entries = append(entries, software.HostSoftwareEntry{
 			Name:             name,
 			Version:          versionForSoftware(row),
 			Source:           strings.TrimSpace(row["source"]),

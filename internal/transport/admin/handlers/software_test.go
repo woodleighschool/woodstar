@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestSoftwareListInputParams(t *testing.T) {
@@ -32,7 +32,7 @@ func TestSoftwareListInputParams(t *testing.T) {
 
 func TestSoftwareTitleResponseUsesFleetShape(t *testing.T) {
 	updated := time.Date(2026, 5, 5, 1, 2, 3, 0, time.UTC)
-	title := softwarepkg.SoftwareTitle{
+	title := software.SoftwareTitle{
 		ID:              12,
 		Name:            "Example Extension",
 		DisplayName:     "Example Extension",
@@ -41,7 +41,7 @@ func TestSoftwareTitleResponseUsesFleetShape(t *testing.T) {
 		HostsCount:      3,
 		VersionsCount:   2,
 		CountsUpdatedAt: &updated,
-		Versions: []softwarepkg.SoftwareVersion{
+		Versions: []software.SoftwareVersion{
 			{ID: 40, Version: "1.0.0", HostsCount: 1},
 			{ID: 41, Version: "1.1.0", HostsCount: 2},
 		},

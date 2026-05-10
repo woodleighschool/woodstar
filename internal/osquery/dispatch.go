@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/inventory"
+	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
 // queryKind tags each kind of query Woodstar emits to osquery agents.
@@ -30,6 +31,10 @@ func queryName(kind queryKind, suffix string) string {
 
 func queryNameID(kind queryKind, id int64) string {
 	return queryName(kind, strconv.FormatInt(id, 10))
+}
+
+func detailQueryName(suffix string) string {
+	return queryName(kindDetail, suffix)
 }
 
 // parseQueryName splits a Woodstar query name into kind and suffix.
@@ -79,7 +84,7 @@ func statusOK(raw json.RawMessage) bool {
 // Detail and label kinds aggregate cross-row state finalized after the loop;
 // check and campaign are pure per-row writes.
 type dispatchPass struct {
-	registry           map[string]DetailQuery
+	registry           map[string]inventory.DetailQuery
 	detailRowsBySuffix map[string][]map[string]string
 	detailAllSucceeded bool
 
@@ -100,7 +105,7 @@ func (s *Service) dispatchWriteResults(
 	req DistributedWriteRequest,
 ) error {
 	pass := &dispatchPass{
-		registry:           DetailQueries(),
+		registry:           inventory.DetailQueries(),
 		detailRowsBySuffix: make(map[string][]map[string]string),
 		detailAllSucceeded: true,
 	}
@@ -170,10 +175,13 @@ func (s *Service) handleDetailResult(
 		)
 		return nil
 	}
-	if suffix == querySoftwareMacOS {
+	if suffix == inventory.QuerySoftwareMacOS {
 		return nil
 	}
-	return query.Ingest(ctx, s, hostID, rows)
+	if s.inventoryProjector == nil {
+		return nil
+	}
+	return query.Ingest(ctx, s.inventoryProjector, hostID, rows)
 }
 
 func (s *Service) finalizeDetailPass(
@@ -182,16 +190,22 @@ func (s *Service) finalizeDetailPass(
 	req DistributedWriteRequest,
 	pass *dispatchPass,
 ) error {
-	if rows, ok := pass.detailRowsBySuffix[querySoftwareMacOS]; ok &&
-		statusOK(req.Statuses[queryName(kindDetail, querySoftwareMacOS)]) {
-		if err := ingestSoftwareMacOSWithEnrichment(ctx, s, host.ID, rows, pass.detailRowsBySuffix); err != nil {
-			return fmt.Errorf("ingest %s: %w", querySoftwareMacOS, err)
+	if rows, ok := pass.detailRowsBySuffix[inventory.QuerySoftwareMacOS]; ok &&
+		statusOK(req.Statuses[detailQueryName(inventory.QuerySoftwareMacOS)]) {
+		if s.inventoryProjector == nil {
+			return nil
+		}
+		if err := s.inventoryProjector.IngestSoftwareMacOSWithEnrichment(ctx, host.ID, rows, pass.detailRowsBySuffix); err != nil {
+			return fmt.Errorf("ingest %s: %w", inventory.QuerySoftwareMacOS, err)
 		}
 	}
 	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry) {
 		return nil
 	}
-	if err := s.hosts.MarkDetailFresh(ctx, host.ID, detailQueryHash()); err != nil {
+	if s.inventoryProjector == nil {
+		return nil
+	}
+	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
 		return err
 	}
 	s.logger.DebugContext(
@@ -203,7 +217,7 @@ func (s *Service) finalizeDetailPass(
 	return nil
 }
 
-func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]DetailQuery) bool {
+func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]inventory.DetailQuery) bool {
 	for name, query := range registry {
 		if query.Optional {
 			continue
@@ -226,7 +240,7 @@ func (s *Service) handleCheckResult(
 	status json.RawMessage,
 	message string,
 ) error {
-	if s.checks == nil {
+	if s.checkStore == nil {
 		return nil
 	}
 	checkID, ok := parsePositiveSuffix(suffix)
@@ -246,7 +260,7 @@ func (s *Service) handleCheckResult(
 			"message", message,
 		)
 	}
-	return s.checks.UpsertMembership(ctx, checkID, hostID, passes)
+	return s.checkStore.UpsertMembership(ctx, checkID, hostID, passes)
 }
 
 // ----- live query -----
@@ -259,14 +273,14 @@ func (s *Service) handleLiveResult(
 	status json.RawMessage,
 	message string,
 ) error {
-	if s.live == nil {
+	if s.liveQueries == nil {
 		return nil
 	}
 	queryID, ok := parsePositiveSuffix(suffix)
 	if !ok {
 		return nil
 	}
-	resultStatus := queryinfra.LiveStatusSuccess
+	resultStatus := queries.LiveStatusSuccess
 	var data json.RawMessage
 	if statusOK(status) {
 		encoded, err := json.Marshal(rows)
@@ -275,8 +289,8 @@ func (s *Service) handleLiveResult(
 		}
 		data = encoded
 	} else {
-		resultStatus = queryinfra.LiveStatusError
+		resultStatus = queries.LiveStatusError
 	}
-	s.live.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
+	s.liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
 	return nil
 }

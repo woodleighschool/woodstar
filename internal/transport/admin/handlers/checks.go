@@ -11,8 +11,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	querypkg "github.com/woodleighschool/woodstar/internal/queries"
-	storepkg "github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -105,18 +105,18 @@ type checkHostBody struct {
 }
 
 // RegisterChecks registers check endpoints.
-func RegisterChecks(api huma.API, store *querypkg.CheckStore, hosts *hosts.HostStore) {
-	registerListChecks(api, store)
-	registerCreateCheck(api, store)
-	registerGetCheck(api, store)
-	registerUpdateCheck(api, store)
-	registerDeleteCheck(api, store)
-	registerBulkDeleteChecks(api, store)
-	registerCheckHosts(api, store)
-	registerHostChecks(api, store, hosts)
+func RegisterChecks(api huma.API, checkStore *queries.CheckStore, hostStore *hosts.HostStore) {
+	registerListChecks(api, checkStore)
+	registerCreateCheck(api, checkStore)
+	registerGetCheck(api, checkStore)
+	registerUpdateCheck(api, checkStore)
+	registerDeleteCheck(api, checkStore)
+	registerBulkDeleteChecks(api, checkStore)
+	registerCheckHosts(api, checkStore)
+	registerHostChecks(api, checkStore, hostStore)
 }
 
-func registerListChecks(api huma.API, store *querypkg.CheckStore) {
+func registerListChecks(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-checks",
 		Method:      http.MethodGet,
@@ -125,7 +125,7 @@ func registerListChecks(api huma.API, store *querypkg.CheckStore) {
 		Summary:     "List checks",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
-		items, count, err := store.List(ctx, input.params())
+		items, count, err := checkStore.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -139,7 +139,7 @@ func registerListChecks(api huma.API, store *querypkg.CheckStore) {
 	})
 }
 
-func registerCreateCheck(api huma.API, store *querypkg.CheckStore) {
+func registerCreateCheck(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-check",
 		Method:        http.MethodPost,
@@ -153,7 +153,7 @@ func registerCreateCheck(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		check, err := store.Create(ctx, params)
+		check, err := checkStore.Create(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -161,7 +161,7 @@ func registerCreateCheck(api huma.API, store *querypkg.CheckStore) {
 	})
 }
 
-func registerGetCheck(api huma.API, store *querypkg.CheckStore) {
+func registerGetCheck(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-check",
 		Method:      http.MethodGet,
@@ -174,7 +174,7 @@ func registerGetCheck(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		check, err := store.GetByID(ctx, id)
+		check, err := checkStore.GetByID(ctx, id)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -182,7 +182,7 @@ func registerGetCheck(api huma.API, store *querypkg.CheckStore) {
 	})
 }
 
-func registerUpdateCheck(api huma.API, store *querypkg.CheckStore) {
+func registerUpdateCheck(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-check",
 		Method:      http.MethodPut,
@@ -199,7 +199,7 @@ func registerUpdateCheck(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		check, err := store.Update(ctx, id, params)
+		check, err := checkStore.Update(ctx, id, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -207,7 +207,7 @@ func registerUpdateCheck(api huma.API, store *querypkg.CheckStore) {
 	})
 }
 
-func registerDeleteCheck(api huma.API, store *querypkg.CheckStore) {
+func registerDeleteCheck(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-check",
 		Method:      http.MethodDelete,
@@ -220,14 +220,14 @@ func registerDeleteCheck(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		if err := store.Delete(ctx, id); err != nil {
+		if err := checkStore.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteChecks(api huma.API, store *querypkg.CheckStore) {
+func registerBulkDeleteChecks(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-checks",
 		Method:      http.MethodPost,
@@ -243,14 +243,14 @@ func registerBulkDeleteChecks(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := store.DeleteMany(ctx, ids); err != nil {
+		if _, err := checkStore.DeleteMany(ctx, ids); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerCheckHosts(api huma.API, store *querypkg.CheckStore) {
+func registerCheckHosts(api huma.API, checkStore *queries.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-check-hosts",
 		Method:      http.MethodGet,
@@ -263,7 +263,7 @@ func registerCheckHosts(api huma.API, store *querypkg.CheckStore) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err := store.HostStatuses(ctx, id)
+		rows, err := checkStore.HostStatuses(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -273,7 +273,7 @@ func registerCheckHosts(api huma.API, store *querypkg.CheckStore) {
 	})
 }
 
-func registerHostChecks(api huma.API, store *querypkg.CheckStore, hosts *hosts.HostStore) {
+func registerHostChecks(api huma.API, checkStore *queries.CheckStore, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-checks",
 		Method:      http.MethodGet,
@@ -286,14 +286,14 @@ func registerHostChecks(api huma.API, store *querypkg.CheckStore, hosts *hosts.H
 		if err != nil {
 			return nil, err
 		}
-		host, err := hosts.GetByID(ctx, id)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		host, err := hostStore.GetByID(ctx, id)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		rows, err := store.HostChecks(ctx, *host)
+		rows, err := checkStore.HostChecks(ctx, *host)
 		if err != nil {
 			return nil, err
 		}
@@ -303,9 +303,9 @@ func registerHostChecks(api huma.API, store *querypkg.CheckStore, hosts *hosts.H
 	})
 }
 
-func (input checkListInput) params() querypkg.CheckListParams {
-	return querypkg.CheckListParams{
-		ListParams: storepkg.CleanListParams(storepkg.ListParams{
+func (input checkListInput) params() queries.CheckListParams {
+	return queries.CheckListParams{
+		ListParams: store.CleanListParams(store.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,
@@ -316,12 +316,12 @@ func (input checkListInput) params() querypkg.CheckListParams {
 	}
 }
 
-func (body checkMutationBody) createParams(userID *int64) (querypkg.CheckCreate, error) {
+func (body checkMutationBody) createParams(userID *int64) (queries.CheckCreate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return querypkg.CheckCreate{}, err
+		return queries.CheckCreate{}, err
 	}
-	return querypkg.CheckCreate{
+	return queries.CheckCreate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
@@ -332,12 +332,12 @@ func (body checkMutationBody) createParams(userID *int64) (querypkg.CheckCreate,
 	}, nil
 }
 
-func (body checkMutationBody) updateParams() (querypkg.CheckUpdate, error) {
+func (body checkMutationBody) updateParams() (queries.CheckUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return querypkg.CheckUpdate{}, err
+		return queries.CheckUpdate{}, err
 	}
-	return querypkg.CheckUpdate{
+	return queries.CheckUpdate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
@@ -347,7 +347,7 @@ func (body checkMutationBody) updateParams() (querypkg.CheckUpdate, error) {
 	}, nil
 }
 
-func checkResponse(check *querypkg.Check) checkBody {
+func checkResponse(check *queries.Check) checkBody {
 	return checkBody{
 		ID:                check.ID,
 		Name:              check.Name,
@@ -362,7 +362,7 @@ func checkResponse(check *querypkg.Check) checkBody {
 	}
 }
 
-func checkHostResponses(rows []querypkg.CheckHostStatus) []checkHostBody {
+func checkHostResponses(rows []queries.CheckHostStatus) []checkHostBody {
 	out := make([]checkHostBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, checkHostBody{

@@ -11,8 +11,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	querypkg "github.com/woodleighschool/woodstar/internal/queries"
-	storepkg "github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/store"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
@@ -142,19 +142,19 @@ type hostQueryResultsInput struct {
 }
 
 // RegisterQueries registers saved-query and report endpoints.
-func RegisterQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
-	registerListQueries(api, store)
-	registerCreateQuery(api, store)
-	registerGetQuery(api, store)
-	registerUpdateQuery(api, store)
-	registerDeleteQuery(api, store)
-	registerBulkDeleteQueries(api, store)
-	registerQueryResults(api, store)
-	registerHostQueries(api, store, hosts)
-	registerHostQueryResults(api, store, hosts)
+func RegisterQueries(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
+	registerListQueries(api, queryStore)
+	registerCreateQuery(api, queryStore)
+	registerGetQuery(api, queryStore)
+	registerUpdateQuery(api, queryStore)
+	registerDeleteQuery(api, queryStore)
+	registerBulkDeleteQueries(api, queryStore)
+	registerQueryResults(api, queryStore)
+	registerHostQueries(api, queryStore, hostStore)
+	registerHostQueryResults(api, queryStore, hostStore)
 }
 
-func registerListQueries(api huma.API, store *querypkg.QueryStore) {
+func registerListQueries(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-queries",
 		Method:      http.MethodGet,
@@ -163,7 +163,7 @@ func registerListQueries(api huma.API, store *querypkg.QueryStore) {
 		Summary:     "List saved queries",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *queryListInput) (*queryListOutput, error) {
-		items, count, err := store.List(ctx, input.params())
+		items, count, err := queryStore.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(queryResource, err)
 		}
@@ -177,7 +177,7 @@ func registerListQueries(api huma.API, store *querypkg.QueryStore) {
 	})
 }
 
-func registerCreateQuery(api huma.API, store *querypkg.QueryStore) {
+func registerCreateQuery(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-query",
 		Method:        http.MethodPost,
@@ -191,7 +191,7 @@ func registerCreateQuery(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		query, err := store.Create(ctx, params)
+		query, err := queryStore.Create(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError(queryResource, err)
 		}
@@ -199,7 +199,7 @@ func registerCreateQuery(api huma.API, store *querypkg.QueryStore) {
 	})
 }
 
-func registerGetQuery(api huma.API, store *querypkg.QueryStore) {
+func registerGetQuery(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-query",
 		Method:      http.MethodGet,
@@ -212,7 +212,7 @@ func registerGetQuery(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		query, err := store.GetByID(ctx, id)
+		query, err := queryStore.GetByID(ctx, id)
 		if err != nil {
 			return nil, resourceMutationError(queryResource, err)
 		}
@@ -220,7 +220,7 @@ func registerGetQuery(api huma.API, store *querypkg.QueryStore) {
 	})
 }
 
-func registerUpdateQuery(api huma.API, store *querypkg.QueryStore) {
+func registerUpdateQuery(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-query",
 		Method:      http.MethodPut,
@@ -237,7 +237,7 @@ func registerUpdateQuery(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		query, err := store.Update(ctx, id, params)
+		query, err := queryStore.Update(ctx, id, params)
 		if err != nil {
 			return nil, resourceMutationError(queryResource, err)
 		}
@@ -245,7 +245,7 @@ func registerUpdateQuery(api huma.API, store *querypkg.QueryStore) {
 	})
 }
 
-func registerDeleteQuery(api huma.API, store *querypkg.QueryStore) {
+func registerDeleteQuery(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-query",
 		Method:      http.MethodDelete,
@@ -258,14 +258,14 @@ func registerDeleteQuery(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		if err := store.Delete(ctx, id); err != nil {
+		if err := queryStore.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError(queryResource, err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteQueries(api huma.API, store *querypkg.QueryStore) {
+func registerBulkDeleteQueries(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-queries",
 		Method:      http.MethodPost,
@@ -281,14 +281,14 @@ func registerBulkDeleteQueries(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := store.DeleteMany(ctx, ids); err != nil {
+		if _, err := queryStore.DeleteMany(ctx, ids); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerQueryResults(api huma.API, store *querypkg.QueryStore) {
+func registerQueryResults(api huma.API, queryStore *queries.QueryStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-query-results",
 		Method:      http.MethodGet,
@@ -301,7 +301,7 @@ func registerQueryResults(api huma.API, store *querypkg.QueryStore) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err := store.Results(ctx, id)
+		rows, err := queryStore.Results(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func registerQueryResults(api huma.API, store *querypkg.QueryStore) {
 	})
 }
 
-func registerHostQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
+func registerHostQueries(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-queries",
 		Method:      http.MethodGet,
@@ -324,14 +324,14 @@ func registerHostQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.
 		if err != nil {
 			return nil, err
 		}
-		host, err := hosts.GetByID(ctx, id)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		host, err := hostStore.GetByID(ctx, id)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		rows, err := store.HostReports(ctx, *host)
+		rows, err := queryStore.HostReports(ctx, *host)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +341,7 @@ func registerHostQueries(api huma.API, store *querypkg.QueryStore, hosts *hosts.
 	})
 }
 
-func registerHostQueryResults(api huma.API, store *querypkg.QueryStore, hosts *hosts.HostStore) {
+func registerHostQueryResults(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-query-results",
 		Method:      http.MethodGet,
@@ -358,14 +358,14 @@ func registerHostQueryResults(api huma.API, store *querypkg.QueryStore, hosts *h
 		if err != nil {
 			return nil, err
 		}
-		host, err := hosts.GetByID(ctx, hostID)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		host, err := hostStore.GetByID(ctx, hostID)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		rows, lastFetched, err := store.HostQueryResults(ctx, hostID, queryID)
+		rows, lastFetched, err := queryStore.HostQueryResults(ctx, hostID, queryID)
 		if err != nil {
 			return nil, err
 		}
@@ -379,9 +379,9 @@ func registerHostQueryResults(api huma.API, store *querypkg.QueryStore, hosts *h
 	})
 }
 
-func (input queryListInput) params() querypkg.QueryListParams {
-	return querypkg.QueryListParams{
-		ListParams: storepkg.CleanListParams(storepkg.ListParams{
+func (input queryListInput) params() queries.QueryListParams {
+	return queries.QueryListParams{
+		ListParams: store.CleanListParams(store.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,
@@ -392,42 +392,42 @@ func (input queryListInput) params() querypkg.QueryListParams {
 	}
 }
 
-func (body queryMutationBody) createParams(userID *int64) (querypkg.QueryCreate, error) {
+func (body queryMutationBody) createParams(userID *int64) (queries.QueryCreate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return querypkg.QueryCreate{}, err
+		return queries.QueryCreate{}, err
 	}
-	return querypkg.QueryCreate{
+	return queries.QueryCreate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       querypkg.QueryLoggingSnapshot,
+		LoggingType:       queries.QueryLoggingSnapshot,
 		LabelScope:        scope,
 		CreatedByUserID:   userID,
 	}, nil
 }
 
-func (body queryMutationBody) updateParams() (querypkg.QueryUpdate, error) {
+func (body queryMutationBody) updateParams() (queries.QueryUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return querypkg.QueryUpdate{}, err
+		return queries.QueryUpdate{}, err
 	}
-	return querypkg.QueryUpdate{
+	return queries.QueryUpdate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       querypkg.QueryLoggingSnapshot,
+		LoggingType:       queries.QueryLoggingSnapshot,
 		LabelScope:        scope,
 	}, nil
 }
 
-func queryResponse(query *querypkg.Query) queryBody {
+func queryResponse(query *queries.Query) queryBody {
 	return queryBody{
 		ID:                query.ID,
 		Name:              query.Name,
@@ -443,7 +443,7 @@ func queryResponse(query *querypkg.Query) queryBody {
 	}
 }
 
-func queryResultResponses(rows []querypkg.QueryResult) []queryResultBody {
+func queryResultResponses(rows []queries.QueryResult) []queryResultBody {
 	out := make([]queryResultBody, 0, len(rows))
 	for _, row := range rows {
 		var lastFetched *time.Time
@@ -462,7 +462,7 @@ func queryResultResponses(rows []querypkg.QueryResult) []queryResultBody {
 	return out
 }
 
-func hostReportResponses(rows []querypkg.HostReport) []hostReportBody {
+func hostReportResponses(rows []queries.HostReport) []hostReportBody {
 	out := make([]hostReportBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, hostReportBody{

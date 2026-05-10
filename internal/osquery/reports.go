@@ -37,7 +37,7 @@ func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.
 			continue
 		}
 		fetchedAt := parseCalendarTime(item.CalendarTime)
-		if err := s.queries.OverwriteResults(ctx, queryID, hostID, item.Snapshot, fetchedAt); err != nil {
+		if err := s.queryStore.OverwriteResults(ctx, queryID, hostID, item.Snapshot, fetchedAt); err != nil {
 			return err
 		}
 	}

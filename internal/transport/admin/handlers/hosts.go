@@ -12,8 +12,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	softwarepkg "github.com/woodleighschool/woodstar/internal/software"
-	storepkg "github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/software"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const hostsTag = "Hosts"
@@ -168,7 +168,7 @@ func (i hostListInput) params() (hosts.HostListParams, error) {
 	if err != nil {
 		return hosts.HostListParams{}, err
 	}
-	listParams := storepkg.CleanListParams(storepkg.ListParams{
+	listParams := store.CleanListParams(store.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -195,21 +195,21 @@ type hostSoftwareInput struct {
 	Source         []string `          query:"source,omitempty"`
 }
 
-func (i hostSoftwareInput) params() (int64, softwarepkg.HostSoftwareListParams, error) {
+func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
 	id, err := parseHostID(i.ID)
 	if err != nil {
-		return 0, softwarepkg.HostSoftwareListParams{}, err
+		return 0, software.HostSoftwareListParams{}, err
 	}
-	listParams := storepkg.CleanListParams(storepkg.ListParams{
+	listParams := store.CleanListParams(store.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
 		OrderKey:       i.OrderKey,
 		OrderDirection: i.OrderDirection,
 	})
-	return id, softwarepkg.HostSoftwareListParams{
+	return id, software.HostSoftwareListParams{
 		ListParams:      listParams,
-		SoftwareSources: storepkg.SplitListValues(i.Source),
+		SoftwareSources: store.SplitListValues(i.Source),
 	}, nil
 }
 
@@ -229,19 +229,19 @@ func (i hostBulkDeleteInput) ids() ([]int64, error) {
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterHosts(
 	api huma.API,
-	store *hosts.HostStore,
+	hostStore *hosts.HostStore,
 	deviceMappings *hosts.DeviceMappingStore,
-	software *softwarepkg.SoftwareStore,
-	labels *labels.LabelStore,
+	softwareStore *software.SoftwareStore,
+	labelStore *labels.LabelStore,
 ) {
-	registerListHosts(api, store, deviceMappings)
-	registerGetHost(api, store, deviceMappings, labels)
-	registerDeleteHost(api, store)
-	registerBulkDeleteHosts(api, store)
-	registerHostSoftware(api, store, software)
+	registerListHosts(api, hostStore, deviceMappings)
+	registerGetHost(api, hostStore, deviceMappings, labelStore)
+	registerDeleteHost(api, hostStore)
+	registerBulkDeleteHosts(api, hostStore)
+	registerHostSoftware(api, hostStore, softwareStore)
 }
 
-func registerListHosts(api huma.API, store *hosts.HostStore, mappings *hosts.DeviceMappingStore) {
+func registerListHosts(api huma.API, hostStore *hosts.HostStore, deviceMappings *hosts.DeviceMappingStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -254,13 +254,13 @@ func registerListHosts(api huma.API, store *hosts.HostStore, mappings *hosts.Dev
 		if err != nil {
 			return nil, err
 		}
-		hosts, count, err := store.List(ctx, params)
+		hostRows, count, err := hostStore.List(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError("host", err)
 		}
-		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hosts)), Count: count}}
-		for i := range hosts {
-			body, err := hostResponse(ctx, &hosts[i], mappings)
+		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hostRows)), Count: count}}
+		for i := range hostRows {
+			body, err := hostResponse(ctx, &hostRows[i], deviceMappings)
 			if err != nil {
 				return nil, err
 			}
@@ -272,9 +272,9 @@ func registerListHosts(api huma.API, store *hosts.HostStore, mappings *hosts.Dev
 
 func registerGetHost(
 	api huma.API,
-	store *hosts.HostStore,
-	mappings *hosts.DeviceMappingStore,
-	labels *labels.LabelStore,
+	hostStore *hosts.HostStore,
+	deviceMappings *hosts.DeviceMappingStore,
+	labelStore *labels.LabelStore,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
@@ -288,17 +288,17 @@ func registerGetHost(
 		if err != nil {
 			return nil, err
 		}
-		host, err := store.GetByID(ctx, id)
-		if errors.Is(err, storepkg.ErrNotFound) {
+		host, err := hostStore.GetByID(ctx, id)
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		if err := loadHostDetailChildren(ctx, store, labels, host); err != nil {
+		if err := loadHostDetailChildren(ctx, hostStore, labelStore, host); err != nil {
 			return nil, err
 		}
-		body, err := hostResponse(ctx, host, mappings)
+		body, err := hostResponse(ctx, host, deviceMappings)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +306,7 @@ func registerGetHost(
 	})
 }
 
-func registerDeleteHost(api huma.API, store *hosts.HostStore) {
+func registerDeleteHost(api huma.API, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -322,14 +322,14 @@ func registerDeleteHost(api huma.API, store *hosts.HostStore) {
 		if err != nil {
 			return nil, err
 		}
-		if err := store.Delete(ctx, id); err != nil {
+		if err := hostStore.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError("host", err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
-func registerBulkDeleteHosts(api huma.API, store *hosts.HostStore) {
+func registerBulkDeleteHosts(api huma.API, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-hosts",
 		Method:      http.MethodPost,
@@ -345,7 +345,7 @@ func registerBulkDeleteHosts(api huma.API, store *hosts.HostStore) {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := store.DeleteMany(ctx, ids); err != nil {
+		if _, err := hostStore.DeleteMany(ctx, ids); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
@@ -354,23 +354,23 @@ func registerBulkDeleteHosts(api huma.API, store *hosts.HostStore) {
 
 func loadHostDetailChildren(
 	ctx context.Context,
-	store *hosts.HostStore,
-	labels *labels.LabelStore,
+	hostStore *hosts.HostStore,
+	labelStore *labels.LabelStore,
 	host *hosts.Host,
 ) error {
-	if labels != nil {
-		hostLabels, err := labels.ListForHost(ctx, host.ID)
+	if labelStore != nil {
+		hostLabels, err := labelStore.ListForHost(ctx, host.ID)
 		if err != nil {
 			return err
 		}
 		host.Labels = hostLabels
 	}
-	users, err := store.ListUsers(ctx, host.ID)
+	users, err := hostStore.ListUsers(ctx, host.ID)
 	if err != nil {
 		return err
 	}
 	host.Users = users
-	batteries, err := store.ListBatteries(ctx, host.ID)
+	batteries, err := hostStore.ListBatteries(ctx, host.ID)
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func loadHostDetailChildren(
 	return nil
 }
 
-func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, software *softwarepkg.SoftwareStore) {
+func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, softwareStore *software.SoftwareStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
@@ -391,12 +391,12 @@ func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, software *so
 		if err != nil {
 			return nil, err
 		}
-		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, storepkg.ErrNotFound) {
+		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
 		}
-		rows, count, err := software.ListForHost(ctx, id, params)
+		rows, count, err := softwareStore.ListForHost(ctx, id, params)
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
@@ -519,7 +519,7 @@ func hostBatteryResponses(batteries []hosts.HostBattery) []hostBatteryBody {
 	return out
 }
 
-func hostSoftwareResponse(row softwarepkg.HostSoftwareRow) hostSoftwareBody {
+func hostSoftwareResponse(row software.HostSoftwareRow) hostSoftwareBody {
 	versions := make([]hostSoftwareInstalledVersionBody, 0, len(row.InstalledVersions))
 	for _, version := range row.InstalledVersions {
 		signatures := make([]pathSignatureInformationBody, 0, len(version.SignatureInformation))

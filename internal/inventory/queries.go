@@ -1,4 +1,4 @@
-package osquery
+package inventory
 
 import (
 	"context"
@@ -34,6 +34,8 @@ const (
 	querySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
 )
 
+const QuerySoftwareMacOS = querySoftwareMacOS
+
 //go:embed queries/*.sql
 var queryFS embed.FS
 
@@ -47,7 +49,7 @@ type DetailQuery struct {
 	SQL       string
 	Discovery string
 	Optional  bool
-	Ingest    func(context.Context, *Service, int64, []map[string]string) error
+	Ingest    func(context.Context, *Projector, int64, []map[string]string) error
 }
 
 // DueDetailQueries is the osquery distributed work due for a host.
@@ -63,7 +65,7 @@ func DetailQueries() map[string]DetailQuery {
 }
 
 func buildDetailQueries() map[string]DetailQuery {
-	queries := map[string]DetailQuery{
+	registry := map[string]DetailQuery{
 		queryOSVersion: {
 			SQL:    mustQuery("queries/os_version.sql"),
 			Ingest: ingestOSVersion,
@@ -110,8 +112,8 @@ func buildDetailQueries() map[string]DetailQuery {
 			Ingest:    ingestBatteries,
 		},
 	}
-	maps.Copy(queries, softwareDetailQueries())
-	return queries
+	maps.Copy(registry, softwareDetailQueries())
+	return registry
 }
 
 func softwareDetailQueries() map[string]DetailQuery {
@@ -159,25 +161,24 @@ func softwareDetailQueries() map[string]DetailQuery {
 	}
 }
 
-func detailQueriesDue(lastUpdated *time.Time, lastHash string) DueDetailQueries {
+func DetailQueriesDue(lastUpdated *time.Time, lastHash string) DueDetailQueries {
 	registry, hash := detailRegistry()
 	if lastUpdated != nil && lastHash == hash && time.Since(*lastUpdated) < detailQueryCadence {
 		return DueDetailQueries{Queries: map[string]string{}, Discovery: map[string]string{}}
 	}
 
-	queries := make(map[string]string, len(registry))
+	querySQL := make(map[string]string, len(registry))
 	discovery := make(map[string]string)
 	for name, query := range registry {
-		emittedName := detailQueryName(name)
-		queries[emittedName] = query.SQL
+		querySQL[name] = query.SQL
 		if query.Discovery != "" {
-			discovery[emittedName] = query.Discovery
+			discovery[name] = query.Discovery
 		}
 	}
-	return DueDetailQueries{Queries: queries, Discovery: discovery}
+	return DueDetailQueries{Queries: querySQL, Discovery: discovery}
 }
 
-func detailQueryHash() string {
+func DetailQueryHash() string {
 	_, hash := detailRegistry()
 	return hash
 }
@@ -186,16 +187,12 @@ func hashDetailQueries(registry map[string]DetailQuery) string {
 	names := make([]string, 0, len(registry))
 	for name, query := range registry {
 		if !query.Optional {
-			names = append(names, detailQueryName(name)+"\x00"+query.SQL)
+			names = append(names, name+"\x00"+query.SQL)
 		}
 	}
 	sort.Strings(names)
 	sum := sha256.Sum256([]byte(strings.Join(names, "\x00")))
 	return hex.EncodeToString(sum[:])
-}
-
-func detailQueryName(suffix string) string {
-	return queryName(kindDetail, suffix)
 }
 
 func discoveryTable(name string) string {
