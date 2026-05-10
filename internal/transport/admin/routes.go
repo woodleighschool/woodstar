@@ -10,6 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
@@ -21,11 +23,11 @@ type Dependencies struct {
 	Version          string
 	Started          time.Time
 	AuthService      *auth.Service
-	HostStore        *models.HostStore
-	DeviceMappings   *models.DeviceMappingStore
+	HostStore        *hosts.HostStore
+	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
 	SoftwareStore    *models.SoftwareStore
-	LabelStore       *models.LabelStore
+	LabelStore       *labels.LabelStore
 	QueryStore       *models.QueryStore
 	CheckStore       *models.CheckStore
 	LiveQueryManager *queryinfra.LiveQueryManager
@@ -45,7 +47,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterLabels(protected, deps.LabelStore)
 	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
 	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
-	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, models.NewTargetResolver(deps.DB))
+	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, hosts.NewTargetResolver(deps.DB))
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
 	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit
@@ -64,11 +66,11 @@ func BuildAPI(version string) huma.API {
 		Version:          version,
 		Started:          time.Now().UTC(),
 		AuthService:      auth.NewService(nil, nil),
-		HostStore:        models.NewHostStore(nil),
-		DeviceMappings:   models.NewDeviceMappingStore(nil),
+		HostStore:        hosts.NewHostStore(nil),
+		DeviceMappings:   hosts.NewDeviceMappingStore(nil),
 		SecretStore:      models.NewSecretStore(nil),
 		SoftwareStore:    models.NewSoftwareStore(nil),
-		LabelStore:       models.NewLabelStore(nil),
+		LabelStore:       labels.NewLabelStore(nil),
 		QueryStore:       models.NewQueryStore(nil),
 		CheckStore:       models.NewCheckStore(nil),
 		LiveQueryManager: queryinfra.NewLiveQueryManager(hub, time.Minute),

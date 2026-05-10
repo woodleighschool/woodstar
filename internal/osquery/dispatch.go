@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
@@ -96,7 +96,7 @@ type labelQueryResult struct {
 // result to its kind handler, then finalizes detail and label state.
 func (s *Service) dispatchWriteResults(
 	ctx context.Context,
-	host *models.Host,
+	host *hosts.Host,
 	req DistributedWriteRequest,
 ) error {
 	pass := &dispatchPass{
@@ -178,7 +178,7 @@ func (s *Service) handleDetailResult(
 
 func (s *Service) finalizeDetailPass(
 	ctx context.Context,
-	host *models.Host,
+	host *hosts.Host,
 	req DistributedWriteRequest,
 	pass *dispatchPass,
 ) error {
@@ -253,7 +253,7 @@ func (s *Service) handleCheckResult(
 
 func (s *Service) handleLiveResult(
 	_ context.Context,
-	host *models.Host,
+	host *hosts.Host,
 	suffix string,
 	rows []map[string]string,
 	status json.RawMessage,

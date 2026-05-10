@@ -8,7 +8,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -88,9 +90,9 @@ type labelMutationBody struct {
 	Platform       *string `json:"platform,omitempty"`
 }
 
-func (i labelListInput) params() models.LabelListParams {
-	return models.LabelListParams{
-		ListParams: models.CleanListParams(models.ListParams{
+func (i labelListInput) params() labels.LabelListParams {
+	return labels.LabelListParams{
+		ListParams: store.CleanListParams(store.ListParams{
 			Q:              i.Q,
 			Page:           i.Page,
 			PerPage:        i.PerPage,
@@ -104,7 +106,7 @@ func (i labelListInput) params() models.LabelListParams {
 }
 
 // RegisterLabels registers admin label endpoints.
-func RegisterLabels(api huma.API, store *models.LabelStore) {
+func RegisterLabels(api huma.API, store *labels.LabelStore) {
 	registerListLabels(api, store)
 	registerCreateLabel(api, store)
 	registerGetLabel(api, store)
@@ -112,7 +114,7 @@ func RegisterLabels(api huma.API, store *models.LabelStore) {
 	registerDeleteLabel(api, store)
 }
 
-func registerListLabels(api huma.API, store *models.LabelStore) {
+func registerListLabels(api huma.API, store *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-labels",
 		Method:      http.MethodGet,
@@ -133,7 +135,7 @@ func registerListLabels(api huma.API, store *models.LabelStore) {
 	})
 }
 
-func registerCreateLabel(api huma.API, store *models.LabelStore) {
+func registerCreateLabel(api huma.API, store *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-label",
 		Method:        http.MethodPost,
@@ -143,7 +145,7 @@ func registerCreateLabel(api huma.API, store *models.LabelStore) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
-		label, err := store.Create(ctx, models.LabelCreate{
+		label, err := store.Create(ctx, labels.LabelCreate{
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
@@ -158,7 +160,7 @@ func registerCreateLabel(api huma.API, store *models.LabelStore) {
 	})
 }
 
-func registerGetLabel(api huma.API, store *models.LabelStore) {
+func registerGetLabel(api huma.API, store *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-label",
 		Method:      http.MethodGet,
@@ -179,7 +181,7 @@ func registerGetLabel(api huma.API, store *models.LabelStore) {
 	})
 }
 
-func registerUpdateLabel(api huma.API, store *models.LabelStore) {
+func registerUpdateLabel(api huma.API, store *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-label",
 		Method:      http.MethodPut,
@@ -192,7 +194,7 @@ func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 		if err != nil {
 			return nil, err
 		}
-		label, err := store.Update(ctx, id, models.LabelUpdate{
+		label, err := store.Update(ctx, id, labels.LabelUpdate{
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
@@ -206,7 +208,7 @@ func registerUpdateLabel(api huma.API, store *models.LabelStore) {
 	})
 }
 
-func registerDeleteLabel(api huma.API, store *models.LabelStore) {
+func registerDeleteLabel(api huma.API, store *labels.LabelStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-label",
 		Method:      http.MethodDelete,
@@ -226,7 +228,7 @@ func registerDeleteLabel(api huma.API, store *models.LabelStore) {
 	})
 }
 
-func labelResponse(label *models.Label) labelBody {
+func labelResponse(label *labels.Label) labelBody {
 	return labelBody{
 		ID:          label.ID,
 		Name:        label.Name,
@@ -241,7 +243,7 @@ func labelResponse(label *models.Label) labelBody {
 	}
 }
 
-func labelPlatform(platform *models.Platform) *string {
+func labelPlatform(platform *platform.Platform) *string {
 	if platform == nil {
 		return nil
 	}

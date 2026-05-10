@@ -5,12 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 // ParseHostDetails converts osquery enroll details into inventory fields.
-func ParseHostDetails(details map[string]map[string]string) models.HostDetailUpdate {
-	var update models.HostDetailUpdate
+func ParseHostDetails(details map[string]map[string]string) hosts.HostDetailUpdate {
+	var update hosts.HostDetailUpdate
 	if row := details["system_info"]; row != nil {
 		update.HardwareUUID = strings.TrimSpace(row["uuid"])
 		update.Hostname = strings.TrimSpace(row["hostname"])

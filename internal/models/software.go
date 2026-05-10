@@ -11,6 +11,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // HostSoftwareEntry is one installed software version reported by a host.
@@ -85,14 +86,14 @@ type SoftwareTitle struct {
 
 // SoftwareTitleListParams controls software title list filtering and sorting.
 type SoftwareTitleListParams struct {
-	ListParams
+	store.ListParams
 
 	SoftwareSources []string
 }
 
 // HostSoftwareListParams controls software installed on one host.
 type HostSoftwareListParams struct {
-	ListParams
+	store.ListParams
 
 	SoftwareSources []string
 }
@@ -261,7 +262,7 @@ func (s *SoftwareStore) GetTitle(ctx context.Context, id int64) (*SoftwareTitle,
 		return nil, err
 	}
 	if len(titles) == 0 {
-		return nil, ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
@@ -450,14 +451,14 @@ func cleanHostSoftwareEntry(entry HostSoftwareEntry) HostSoftwareEntry {
 }
 
 func cleanSoftwareTitleListParams(params SoftwareTitleListParams) SoftwareTitleListParams {
-	params.ListParams = CleanListParams(params.ListParams)
-	params.SoftwareSources = SplitListValues(params.SoftwareSources)
+	params.ListParams = store.CleanListParams(params.ListParams)
+	params.SoftwareSources = store.SplitListValues(params.SoftwareSources)
 	return params
 }
 
 func cleanHostSoftwareListParams(params HostSoftwareListParams) HostSoftwareListParams {
-	params.ListParams = CleanListParams(params.ListParams)
-	params.SoftwareSources = SplitListValues(params.SoftwareSources)
+	params.ListParams = store.CleanListParams(params.ListParams)
+	params.SoftwareSources = store.SplitListValues(params.SoftwareSources)
 	return params
 }
 
@@ -489,16 +490,16 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 }
 
 func softwareTitleOrder(orderKey string, direction string) (string, error) {
-	return listOrderBy(
-		CleanListParams(ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]orderExpr{
+	return store.OrderBy(
+		store.CleanListParams(store.ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]store.OrderExpr{
 			"name":              {SQL: "lower(st.name)"},
 			"source":            {SQL: "lower(st.source)"},
 			"hosts_count":       {SQL: "hosts_count"},
 			"versions_count":    {SQL: "versions_count"},
 			"counts_updated_at": {SQL: "counts_updated_at", NullsLast: true},
 		},
-		[]orderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
+		[]store.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 	)
 }
 
@@ -664,15 +665,15 @@ func hostSoftwareWhere(params HostSoftwareListParams, args []any) (string, []any
 }
 
 func hostSoftwareOrder(orderKey string, direction string) (string, error) {
-	return listOrderBy(
-		CleanListParams(ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]orderExpr{
+	return store.OrderBy(
+		store.CleanListParams(store.ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]store.OrderExpr{
 			"name":           {SQL: "order_name"},
 			"version":        {SQL: "order_version"},
 			"source":         {SQL: "order_source"},
 			"last_opened_at": {SQL: "order_last_opened_at", NullsLast: true},
 		},
-		[]orderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
+		[]store.OrderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
 	)
 }
 

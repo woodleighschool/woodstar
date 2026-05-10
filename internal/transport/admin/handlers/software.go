@@ -9,6 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/models"
+	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -26,7 +27,7 @@ type softwareListInput struct {
 }
 
 func (i softwareListInput) params() models.SoftwareTitleListParams {
-	listParams := models.CleanListParams(models.ListParams{
+	listParams := storepkg.CleanListParams(storepkg.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -35,7 +36,7 @@ func (i softwareListInput) params() models.SoftwareTitleListParams {
 	})
 	return models.SoftwareTitleListParams{
 		ListParams:      listParams,
-		SoftwareSources: models.SplitListValues(i.Source),
+		SoftwareSources: storepkg.SplitListValues(i.Source),
 	}
 }
 
@@ -118,7 +119,7 @@ func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
 			return nil, err
 		}
 		title, err := store.GetTitle(ctx, id)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {

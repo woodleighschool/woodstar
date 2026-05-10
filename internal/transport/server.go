@@ -16,6 +16,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -38,11 +40,11 @@ type Dependencies struct {
 	WebHandler       *web.Handler
 	AuthService      *auth.Service
 	SessionManager   *scs.SessionManager
-	HostStore        *models.HostStore
-	DeviceMappings   *models.DeviceMappingStore
+	HostStore        *hosts.HostStore
+	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *models.SecretStore
 	SoftwareStore    *models.SoftwareStore
-	LabelStore       *models.LabelStore
+	LabelStore       *labels.LabelStore
 	QueryStore       *models.QueryStore
 	CheckStore       *models.CheckStore
 	LiveQueryManager *queryinfra.LiveQueryManager
@@ -60,11 +62,11 @@ type Server struct {
 	webHandler     *web.Handler
 	authService    *auth.Service
 	sessionManager *scs.SessionManager
-	hostStore      *models.HostStore
-	deviceMappings *models.DeviceMappingStore
+	hostStore      *hosts.HostStore
+	deviceMappings *hosts.DeviceMappingStore
 	secretStore    *models.SecretStore
 	softwareStore  *models.SoftwareStore
-	labelStore     *models.LabelStore
+	labelStore     *labels.LabelStore
 	queryStore     *models.QueryStore
 	checkStore     *models.CheckStore
 	liveQueries    *queryinfra.LiveQueryManager

@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 var (
@@ -18,7 +21,7 @@ var (
 
 // Service performs osquery TLS-plugin operations.
 type Service struct {
-	hosts    *models.HostStore
+	hosts    *hosts.HostStore
 	software *models.SoftwareStore
 	labels   labelStore
 	queries  *models.QueryStore
@@ -30,9 +33,9 @@ type Service struct {
 
 // NewService returns an osquery service.
 func NewService(
-	hosts *models.HostStore,
+	hosts *hosts.HostStore,
 	software *models.SoftwareStore,
-	labels *models.LabelStore,
+	labels *labels.LabelStore,
 	queries *models.QueryStore,
 	checks *models.CheckStore,
 	live *queryinfra.LiveQueryManager,
@@ -166,7 +169,7 @@ func (s *Service) DistributedRead(
 	}, nil
 }
 
-func (s *Service) queueCheckQueries(ctx context.Context, host *models.Host, queries map[string]string) (int, error) {
+func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queries map[string]string) (int, error) {
 	if s.checks == nil {
 		return 0, nil
 	}
@@ -182,7 +185,7 @@ func (s *Service) queueCheckQueries(ctx context.Context, host *models.Host, quer
 
 // queueLiveQueries injects ephemeral live queries pending for host. The
 // in-memory manager owns lifecycle; results route back through dispatch.
-func (s *Service) queueLiveQueries(host *models.Host, queries map[string]string) int {
+func (s *Service) queueLiveQueries(host *hosts.Host, queries map[string]string) int {
 	if s.live == nil {
 		return 0
 	}
@@ -235,17 +238,17 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req 
 	return LogResponse{NodeInvalid: false}, nil
 }
 
-func (s *Service) recordHostPublicIP(ctx context.Context, host *models.Host, publicIP string) error {
+func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publicIP string) error {
 	publicIP = strings.TrimSpace(publicIP)
 	if publicIP == "" {
 		return nil
 	}
-	return s.hosts.ApplyDetail(ctx, host.ID, models.HostDetailUpdate{PublicIP: publicIP})
+	return s.hosts.ApplyDetail(ctx, host.ID, hosts.HostDetailUpdate{PublicIP: publicIP})
 }
 
-func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*models.Host, bool, error) {
+func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
 	host, err := s.hosts.GetByOsqueryNodeKey(ctx, nodeKey)
-	if errors.Is(err, models.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		return nil, false, nil
 	}
 	if err != nil {

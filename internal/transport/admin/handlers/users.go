@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -213,7 +214,7 @@ func parseUserID(id string) (int64, error) {
 // (last-admin, self-edit, weak-password) that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
-	case errors.Is(err, models.ErrAlreadyExists):
+	case errors.Is(err, store.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
 	case errors.Is(err, auth.ErrCannotChangeOwnRole),
 		errors.Is(err, auth.ErrCannotDeleteSelf),

@@ -19,6 +19,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -159,11 +161,11 @@ func newServer(
 
 type modelStores struct {
 	users          *models.UserStore
-	hosts          *models.HostStore
-	deviceMappings *models.DeviceMappingStore
+	hosts          *hosts.HostStore
+	deviceMappings *hosts.DeviceMappingStore
 	secrets        *models.SecretStore
 	software       *models.SoftwareStore
-	labels         *models.LabelStore
+	labels         *labels.LabelStore
 	queries        *models.QueryStore
 	checks         *models.CheckStore
 }
@@ -171,11 +173,11 @@ type modelStores struct {
 func newModelStores(db *db.DB) modelStores {
 	return modelStores{
 		users:          models.NewUserStore(db),
-		hosts:          models.NewHostStore(db),
-		deviceMappings: models.NewDeviceMappingStore(db),
+		hosts:          hosts.NewHostStore(db),
+		deviceMappings: hosts.NewDeviceMappingStore(db),
 		secrets:        models.NewSecretStore(db),
 		software:       models.NewSoftwareStore(db),
-		labels:         models.NewLabelStore(db),
+		labels:         labels.NewLabelStore(db),
 		queries:        models.NewQueryStore(db),
 		checks:         models.NewCheckStore(db),
 	}

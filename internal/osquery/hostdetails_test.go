@@ -3,7 +3,7 @@ package osquery
 import (
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 func TestParseHostDetails(t *testing.T) {
@@ -55,7 +55,7 @@ func TestParseHostDetails(t *testing.T) {
 	}
 
 	got := ParseHostDetails(details)
-	want := models.HostDetailUpdate{
+	want := hosts.HostDetailUpdate{
 		OSVersion:               "macOS 26.5 (build 25F5068a)",
 		Platform:                "darwin",
 		PlatformLike:            "darwin",
@@ -102,7 +102,7 @@ func TestParseHostDetailsMissingFields(t *testing.T) {
 	}
 }
 
-func assertHostDetailUpdate(t *testing.T, got models.HostDetailUpdate, want models.HostDetailUpdate) {
+func assertHostDetailUpdate(t *testing.T, got hosts.HostDetailUpdate, want hosts.HostDetailUpdate) {
 	t.Helper()
 	if got.HardwareUUID != want.HardwareUUID ||
 		got.Hostname != want.Hostname ||

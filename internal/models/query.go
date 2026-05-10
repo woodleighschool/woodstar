@@ -11,6 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // QueryLoggingType is the storage mode for scheduled query results.
@@ -30,7 +33,7 @@ type Query struct {
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LoggingType       QueryLoggingType
-	LabelScope        LabelScope
+	LabelScope        hosts.LabelScope
 	CreatedByUserID   *int64
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -45,7 +48,7 @@ type QueryCreate struct {
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LoggingType       QueryLoggingType
-	LabelScope        LabelScope
+	LabelScope        hosts.LabelScope
 	CreatedByUserID   *int64
 }
 
@@ -54,7 +57,7 @@ type QueryUpdate QueryCreate
 
 // QueryListParams filters saved query lists.
 type QueryListParams struct {
-	ListParams
+	store.ListParams
 
 	Platform string
 }
@@ -147,7 +150,7 @@ func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
 func (s *QueryStore) getByID(ctx context.Context, id int64) (*Query, error) {
 	query, err := scanQuery(s.db.Pool().QueryRow(ctx, querySelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	return query, err
 }
@@ -173,15 +176,15 @@ func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, er
 		)
 		query, err := scanQuery(row)
 		if err != nil {
-			if isUniqueViolation(err) {
-				return ErrAlreadyExists
+			if store.IsUniqueViolation(err) {
+				return store.ErrAlreadyExists
 			}
 			return err
 		}
 		if err := replaceScope(ctx, tx, "query_labels", "query_id", query.ID, params.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = NormalizeLabelScope(params.LabelScope)
+		query.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 		created = query
 		return nil
 	})
@@ -209,18 +212,18 @@ func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (
 		)
 		query, err := scanQuery(row)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return store.ErrNotFound
 		}
 		if err != nil {
-			if isUniqueViolation(err) {
-				return ErrAlreadyExists
+			if store.IsUniqueViolation(err) {
+				return store.ErrAlreadyExists
 			}
 			return err
 		}
 		if err := replaceScope(ctx, tx, "query_labels", "query_id", query.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = NormalizeLabelScope(cleaned.LabelScope)
+		query.LabelScope = hosts.NormalizeLabelScope(cleaned.LabelScope)
 		updated = query
 		return nil
 	})
@@ -234,7 +237,7 @@ func (s *QueryStore) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
@@ -252,7 +255,7 @@ func (s *QueryStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ScheduledForHost returns scheduled report queries applicable to host.
-func (s *QueryStore) ScheduledForHost(ctx context.Context, host Host) ([]Query, error) {
+func (s *QueryStore) ScheduledForHost(ctx context.Context, host hosts.Host) ([]Query, error) {
 	rows, err := s.db.Pool().Query(ctx, querySelectSQL+" WHERE schedule_interval > 0 ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -265,14 +268,14 @@ func (s *QueryStore) ScheduledForHost(ctx context.Context, host Host) ([]Query, 
 		if err != nil {
 			return nil, err
 		}
-		if !queryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
+		if !hosts.QueryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
 			continue
 		}
 		scope, err := s.loadScope(ctx, "query_labels", "query_id", query.ID)
 		if err != nil {
 			return nil, err
 		}
-		matches, err := HostMatchesScope(ctx, s.db, scope, host.ID)
+		matches, err := hosts.HostMatchesScope(ctx, s.db, scope, host.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +364,7 @@ func (s *QueryStore) Results(ctx context.Context, queryID int64) ([]QueryResult,
 }
 
 // HostReports returns scheduled reports and their latest host-specific result.
-func (s *QueryStore) HostReports(ctx context.Context, host Host) ([]HostReport, error) {
+func (s *QueryStore) HostReports(ctx context.Context, host hosts.Host) ([]HostReport, error) {
 	queries, err := s.ScheduledForHost(ctx, host)
 	if err != nil {
 		return nil, err
@@ -454,25 +457,25 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	if params.LoggingType == "" {
 		params.LoggingType = QueryLoggingSnapshot
 	}
-	params.LabelScope = NormalizeLabelScope(params.LabelScope)
+	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
-		return QueryCreate{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: name is required", store.ErrInvalidInput)
 	}
 	if params.Query == "" {
-		return QueryCreate{}, fmt.Errorf("%w: query is required", ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: query is required", store.ErrInvalidInput)
 	}
 	if params.ScheduleInterval < 0 {
-		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", store.ErrInvalidInput)
 	}
 	if params.LoggingType != QueryLoggingSnapshot {
-		return QueryCreate{}, fmt.Errorf("%w: logging type must be snapshot", ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: logging type must be snapshot", store.ErrInvalidInput)
 	}
 	return params, nil
 }
 
 func cleanQueryListParams(params QueryListParams) QueryListParams {
-	params.ListParams = CleanListParams(params.ListParams)
-	params.Platform = CleanPlatform(params.Platform)
+	params.ListParams = store.CleanListParams(params.ListParams)
+	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
 
@@ -592,21 +595,21 @@ func (s *QueryStore) loadHostReportState(ctx context.Context, queryID int64, hos
 }
 
 func queryListWhere(params QueryListParams) (string, []any) {
-	return nameSearchAndPlatformWhere(params.Q, params.Platform)
+	return store.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
 func queryListSQL(where string, args []any, params QueryListParams) (string, []any, error) {
-	return listQuery{
+	return store.ListQuery{
 		SelectSQL: querySelectSQL,
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]orderExpr{
-			"name":              {SQL: "name"},
-			"created_at":        {SQL: "created_at"},
-			orderUpdatedAt:      {SQL: orderUpdatedAt},
-			"schedule_interval": {SQL: "schedule_interval"},
+		OrderKeys: map[string]store.OrderExpr{
+			"name":               {SQL: "name"},
+			"created_at":         {SQL: "created_at"},
+			store.OrderUpdatedAt: {SQL: store.OrderUpdatedAt},
+			"schedule_interval":  {SQL: "schedule_interval"},
 		},
-		DefaultOrder: []orderExpr{{SQL: orderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []store.OrderExpr{{SQL: store.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}.Build()
 }
@@ -644,41 +647,41 @@ func (s *QueryStore) loadScope(
 	table string,
 	ownerColumn string,
 	ownerID int64,
-) (LabelScope, error) {
+) (hosts.LabelScope, error) {
 	rows, err := s.db.Pool().Query(ctx,
 		fmt.Sprintf("SELECT label_id, exclude, require_all FROM %s WHERE %s = $1 ORDER BY label_id", table, ownerColumn),
 		ownerID,
 	)
 	if err != nil {
-		return LabelScope{}, err
+		return hosts.LabelScope{}, err
 	}
 	defer rows.Close()
 	return scanScopeRows(rows)
 }
 
-func scanScopeRows(rows pgx.Rows) (LabelScope, error) {
-	scope := LabelScope{Mode: ScopeNone}
+func scanScopeRows(rows pgx.Rows) (hosts.LabelScope, error) {
+	scope := hosts.LabelScope{Mode: hosts.ScopeNone}
 	for rows.Next() {
 		var labelID int64
 		var exclude bool
 		var requireAll bool
 		if err := rows.Scan(&labelID, &exclude, &requireAll); err != nil {
-			return LabelScope{}, err
+			return hosts.LabelScope{}, err
 		}
 		scope.LabelIDs = append(scope.LabelIDs, labelID)
 		switch {
 		case exclude:
-			scope.Mode = ScopeExcludeAny
-		case requireAll && scope.Mode != ScopeExcludeAny:
-			scope.Mode = ScopeIncludeAll
-		case scope.Mode == ScopeNone:
-			scope.Mode = ScopeIncludeAny
+			scope.Mode = hosts.ScopeExcludeAny
+		case requireAll && scope.Mode != hosts.ScopeExcludeAny:
+			scope.Mode = hosts.ScopeIncludeAll
+		case scope.Mode == hosts.ScopeNone:
+			scope.Mode = hosts.ScopeIncludeAny
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return LabelScope{}, err
+		return hosts.LabelScope{}, err
 	}
-	return NormalizeLabelScope(scope), nil
+	return hosts.NormalizeLabelScope(scope), nil
 }
 
 func replaceScope(
@@ -687,14 +690,14 @@ func replaceScope(
 	table string,
 	ownerColumn string,
 	ownerID int64,
-	scope LabelScope,
+	scope hosts.LabelScope,
 ) error {
-	scope = NormalizeLabelScope(scope)
+	scope = hosts.NormalizeLabelScope(scope)
 	if _, err := tx.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE %s = $1", table, ownerColumn), ownerID); err != nil {
 		return err
 	}
-	exclude := scope.Mode == ScopeExcludeAny
-	requireAll := scope.Mode == ScopeIncludeAll
+	exclude := scope.Mode == hosts.ScopeExcludeAny
+	requireAll := scope.Mode == hosts.ScopeIncludeAll
 	for _, labelID := range scope.LabelIDs {
 		if _, err := tx.Exec(ctx,
 			fmt.Sprintf(

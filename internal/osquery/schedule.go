@@ -3,6 +3,7 @@ package osquery
 import (
 	"context"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -17,14 +18,14 @@ type ScheduleEntry struct {
 
 // scheduledQueryStore is the store surface BuildScheduleForHost uses.
 type scheduledQueryStore interface {
-	ScheduledForHost(context.Context, models.Host) ([]models.Query, error)
+	ScheduledForHost(context.Context, hosts.Host) ([]models.Query, error)
 }
 
 // buildScheduleForHost returns the per-host osquery schedule map for reports.
 func buildScheduleForHost(
 	ctx context.Context,
 	store scheduledQueryStore,
-	host models.Host,
+	host hosts.Host,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {
 		return map[string]ScheduleEntry{}, nil

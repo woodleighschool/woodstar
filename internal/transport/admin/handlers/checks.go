@@ -10,7 +10,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
+	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
 const (
@@ -103,7 +105,7 @@ type checkHostBody struct {
 }
 
 // RegisterChecks registers check endpoints.
-func RegisterChecks(api huma.API, store *models.CheckStore, hosts *models.HostStore) {
+func RegisterChecks(api huma.API, store *models.CheckStore, hosts *hosts.HostStore) {
 	registerListChecks(api, store)
 	registerCreateCheck(api, store)
 	registerGetCheck(api, store)
@@ -271,7 +273,7 @@ func registerCheckHosts(api huma.API, store *models.CheckStore) {
 	})
 }
 
-func registerHostChecks(api huma.API, store *models.CheckStore, hosts *models.HostStore) {
+func registerHostChecks(api huma.API, store *models.CheckStore, hosts *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-checks",
 		Method:      http.MethodGet,
@@ -285,7 +287,7 @@ func registerHostChecks(api huma.API, store *models.CheckStore, hosts *models.Ho
 			return nil, err
 		}
 		host, err := hosts.GetByID(ctx, id)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -303,7 +305,7 @@ func registerHostChecks(api huma.API, store *models.CheckStore, hosts *models.Ho
 
 func (input checkListInput) params() models.CheckListParams {
 	return models.CheckListParams{
-		ListParams: models.CleanListParams(models.ListParams{
+		ListParams: storepkg.CleanListParams(storepkg.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,

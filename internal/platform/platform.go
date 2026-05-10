@@ -1,4 +1,4 @@
-package models
+package platform
 
 import (
 	"strings"
@@ -30,7 +30,7 @@ func CleanPlatform(value string) string {
 	return ""
 }
 
-func platformMatches(selector string, hostPlatform string) bool {
+func Matches(selector string, hostPlatform string) bool {
 	hostPlatform = strings.ToLower(strings.TrimSpace(hostPlatform))
 	for item := range strings.SplitSeq(selector, ",") {
 		platform := Platform(strings.ToLower(strings.TrimSpace(item)))

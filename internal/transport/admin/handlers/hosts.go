@@ -10,7 +10,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
+	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
 const hostsTag = "Hosts"
@@ -152,27 +155,27 @@ type hostListInput struct {
 	SoftwareID      string `query:"software_id,omitempty"`
 }
 
-func (i hostListInput) params() (models.HostListParams, error) {
+func (i hostListInput) params() (hosts.HostListParams, error) {
 	titleID, err := parseOptionalPositiveID(i.SoftwareTitleID, "software_title_id")
 	if err != nil {
-		return models.HostListParams{}, err
+		return hosts.HostListParams{}, err
 	}
 	softwareID, err := parseOptionalPositiveID(i.SoftwareID, "software_id")
 	if err != nil {
-		return models.HostListParams{}, err
+		return hosts.HostListParams{}, err
 	}
 	labelID, err := parseOptionalPositiveID(i.LabelID, "label_id")
 	if err != nil {
-		return models.HostListParams{}, err
+		return hosts.HostListParams{}, err
 	}
-	listParams := models.CleanListParams(models.ListParams{
+	listParams := storepkg.CleanListParams(storepkg.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
 		OrderKey:       i.OrderKey,
 		OrderDirection: i.OrderDirection,
 	})
-	return models.HostListParams{
+	return hosts.HostListParams{
 		ListParams:      listParams,
 		Status:          strings.TrimSpace(i.Status),
 		Platform:        strings.TrimSpace(i.Platform),
@@ -197,7 +200,7 @@ func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error
 	if err != nil {
 		return 0, models.HostSoftwareListParams{}, err
 	}
-	listParams := models.CleanListParams(models.ListParams{
+	listParams := storepkg.CleanListParams(storepkg.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -206,7 +209,7 @@ func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error
 	})
 	return id, models.HostSoftwareListParams{
 		ListParams:      listParams,
-		SoftwareSources: models.SplitListValues(i.Source),
+		SoftwareSources: storepkg.SplitListValues(i.Source),
 	}, nil
 }
 
@@ -226,10 +229,10 @@ func (i hostBulkDeleteInput) ids() ([]int64, error) {
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterHosts(
 	api huma.API,
-	store *models.HostStore,
-	deviceMappings *models.DeviceMappingStore,
+	store *hosts.HostStore,
+	deviceMappings *hosts.DeviceMappingStore,
 	software *models.SoftwareStore,
-	labels *models.LabelStore,
+	labels *labels.LabelStore,
 ) {
 	registerListHosts(api, store, deviceMappings)
 	registerGetHost(api, store, deviceMappings, labels)
@@ -238,7 +241,7 @@ func RegisterHosts(
 	registerHostSoftware(api, store, software)
 }
 
-func registerListHosts(api huma.API, store *models.HostStore, mappings *models.DeviceMappingStore) {
+func registerListHosts(api huma.API, store *hosts.HostStore, mappings *hosts.DeviceMappingStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -269,9 +272,9 @@ func registerListHosts(api huma.API, store *models.HostStore, mappings *models.D
 
 func registerGetHost(
 	api huma.API,
-	store *models.HostStore,
-	mappings *models.DeviceMappingStore,
-	labels *models.LabelStore,
+	store *hosts.HostStore,
+	mappings *hosts.DeviceMappingStore,
+	labels *labels.LabelStore,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
@@ -286,7 +289,7 @@ func registerGetHost(
 			return nil, err
 		}
 		host, err := store.GetByID(ctx, id)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -303,7 +306,7 @@ func registerGetHost(
 	})
 }
 
-func registerDeleteHost(api huma.API, store *models.HostStore) {
+func registerDeleteHost(api huma.API, store *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -326,7 +329,7 @@ func registerDeleteHost(api huma.API, store *models.HostStore) {
 	})
 }
 
-func registerBulkDeleteHosts(api huma.API, store *models.HostStore) {
+func registerBulkDeleteHosts(api huma.API, store *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-hosts",
 		Method:      http.MethodPost,
@@ -351,9 +354,9 @@ func registerBulkDeleteHosts(api huma.API, store *models.HostStore) {
 
 func loadHostDetailChildren(
 	ctx context.Context,
-	store *models.HostStore,
-	labels *models.LabelStore,
-	host *models.Host,
+	store *hosts.HostStore,
+	labels *labels.LabelStore,
+	host *hosts.Host,
 ) error {
 	if labels != nil {
 		hostLabels, err := labels.ListForHost(ctx, host.ID)
@@ -375,7 +378,7 @@ func loadHostDetailChildren(
 	return nil
 }
 
-func registerHostSoftware(api huma.API, hosts *models.HostStore, software *models.SoftwareStore) {
+func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, software *models.SoftwareStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
@@ -388,7 +391,7 @@ func registerHostSoftware(api huma.API, hosts *models.HostStore, software *model
 		if err != nil {
 			return nil, err
 		}
-		if _, err := hosts.GetByID(ctx, id); errors.Is(err, models.ErrNotFound) {
+		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
@@ -407,7 +410,7 @@ func registerHostSoftware(api huma.API, hosts *models.HostStore, software *model
 	})
 }
 
-func hostResponse(ctx context.Context, host *models.Host, mappings *models.DeviceMappingStore) (hostBody, error) {
+func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceMappingStore) (hostBody, error) {
 	mappingRows, err := mappings.ListForHost(ctx, host.ID)
 	if err != nil {
 		return hostBody{}, err
@@ -466,7 +469,7 @@ func addrString(addr *netip.Addr) string {
 	return addr.String()
 }
 
-func deviceMappingResponses(rows []models.HostDeviceMapping) []deviceMappingBody {
+func deviceMappingResponses(rows []hosts.HostDeviceMapping) []deviceMappingBody {
 	out := make([]deviceMappingBody, 0, len(rows))
 	for _, mapping := range rows {
 		out = append(out, deviceMappingBody{Email: mapping.Email, Source: mapping.Source})
@@ -474,7 +477,7 @@ func deviceMappingResponses(rows []models.HostDeviceMapping) []deviceMappingBody
 	return out
 }
 
-func labelResponses(labels []models.Label) []labelBody {
+func labelResponses(labels []labels.Label) []labelBody {
 	out := make([]labelBody, 0, len(labels))
 	for i := range labels {
 		out = append(out, labelResponse(&labels[i]))
@@ -482,7 +485,7 @@ func labelResponses(labels []models.Label) []labelBody {
 	return out
 }
 
-func hostUserResponses(users []models.HostUser) []hostUserBody {
+func hostUserResponses(users []hosts.HostUser) []hostUserBody {
 	out := make([]hostUserBody, 0, len(users))
 	for _, user := range users {
 		out = append(out, hostUserBody{
@@ -497,7 +500,7 @@ func hostUserResponses(users []models.HostUser) []hostUserBody {
 	return out
 }
 
-func hostBatteryResponses(batteries []models.HostBattery) []hostBatteryBody {
+func hostBatteryResponses(batteries []hosts.HostBattery) []hostBatteryBody {
 	out := make([]hostBatteryBody, 0, len(batteries))
 	for _, battery := range batteries {
 		out = append(out, hostBatteryBody{

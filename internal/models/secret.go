@@ -13,6 +13,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // SecretKind identifies the subsystem that accepts a shared secret.
@@ -103,7 +104,7 @@ func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id int64) err
 		return err
 	}
 	if id <= 0 {
-		return ErrNotFound
+		return store.ErrNotFound
 	}
 
 	_, err := s.q.DeleteSecret(ctx, sqlc.DeleteSecretParams{
@@ -111,7 +112,7 @@ func (s *SecretStore) Delete(ctx context.Context, kind SecretKind, id int64) err
 		Kind: sqlc.SecretKind(kind),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
+		return store.ErrNotFound
 	}
 	return err
 }

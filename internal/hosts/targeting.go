@@ -1,4 +1,4 @@
-package models
+package hosts
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
 // LabelScopeMode describes how a target set uses labels.
@@ -129,7 +131,7 @@ func resolveSelectedLabelTargets(ctx context.Context, db *db.DB, labelIDs []int6
 		if err := rows.Scan(&id, &name, &labelType); err != nil {
 			return nil, err
 		}
-		if labelType == LabelTypeBuiltin {
+		if labelType == labels.LabelTypeBuiltin {
 			if name == "All Hosts" {
 				return allActiveHostIDs(ctx, db)
 			}
@@ -254,8 +256,8 @@ func mergePositiveIDs(a, b []int64) []int64 {
 
 // queryMatchesHost reports whether a query's platform and min osquery version
 // constraints are satisfied by host. Empty constraints match every host.
-func queryMatchesHost(platform *string, minOsqueryVersion *string, host Host) bool {
-	if platform != nil && !platformMatches(*platform, host.Platform) {
+func QueryMatchesHost(platformSelector *string, minOsqueryVersion *string, host Host) bool {
+	if platformSelector != nil && !platform.Matches(*platformSelector, host.Platform) {
 		return false
 	}
 	if minOsqueryVersion != nil && *minOsqueryVersion != "" {

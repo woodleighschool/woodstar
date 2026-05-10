@@ -1,4 +1,4 @@
-package models
+package labels
 
 import (
 	"context"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // Label types. LabelType separates system-seeded labels from admin-created ones.
@@ -36,7 +38,7 @@ type Label struct {
 
 // LabelListParams filters the admin label list.
 type LabelListParams struct {
-	ListParams
+	store.ListParams
 
 	LabelType           string
 	LabelMembershipType string
@@ -121,7 +123,7 @@ func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label,
 func (s *LabelStore) GetByID(ctx context.Context, id int64) (*Label, error) {
 	row, err := s.q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -157,8 +159,8 @@ func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, er
 		Platform:            platformParam(params.Platform),
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
-			return nil, ErrAlreadyExists
+		if store.IsUniqueViolation(err) {
+			return nil, store.ErrAlreadyExists
 		}
 		return nil, err
 	}
@@ -180,11 +182,11 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 		ID:                  id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	if err != nil {
-		if isUniqueViolation(err) {
-			return nil, ErrAlreadyExists
+		if store.IsUniqueViolation(err) {
+			return nil, store.ErrAlreadyExists
 		}
 		return nil, err
 	}
@@ -195,7 +197,7 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 func (s *LabelStore) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
+		return store.ErrNotFound
 	}
 	return err
 }
@@ -254,7 +256,7 @@ func cleanLabelCreate(params LabelCreate) (LabelCreate, error) {
 		return LabelCreate{}, err
 	}
 	if fields.LabelType == LabelTypeBuiltin {
-		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", ErrInvalidInput)
+		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", store.ErrInvalidInput)
 	}
 	return LabelCreate(fields), nil
 }
@@ -307,15 +309,15 @@ func cleanLabelFields(params labelFields) (labelFields, error) {
 }
 
 func cleanLabelListParams(params LabelListParams) LabelListParams {
-	params.ListParams = CleanListParams(params.ListParams)
+	params.ListParams = store.CleanListParams(params.ListParams)
 	params.LabelType = strings.TrimSpace(params.LabelType)
 	params.LabelMembershipType = strings.TrimSpace(params.LabelMembershipType)
-	params.Platform = CleanPlatform(params.Platform)
+	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
 
 func labelListSQLWithWhere(params LabelListParams, where string, args []any) (string, []any, error) {
-	return listQuery{
+	return store.ListQuery{
 		SelectSQL: `SELECT
 	l.id,
 	l.name,
@@ -332,7 +334,7 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 		WhereSQL:   where,
 		GroupBySQL: "GROUP BY l.id",
 		Args:       args,
-		OrderKeys: map[string]orderExpr{
+		OrderKeys: map[string]store.OrderExpr{
 			"name":                  {SQL: "lower(l.name)"},
 			"label_type":            {SQL: "l.label_type"},
 			"label_membership_type": {SQL: "l.label_membership_type"},
@@ -340,7 +342,7 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 			"hosts_count":           {SQL: "hosts_count"},
 			"updated_at":            {SQL: "l.updated_at"},
 		},
-		DefaultOrder: []orderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
+		DefaultOrder: []store.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
 		Params:       params.ListParams,
 	}.Build()
 }
@@ -373,24 +375,24 @@ func labelListWhere(params LabelListParams) (string, []any) {
 
 func validateLabelFields(name string, query *string, labelType, labelMembershipType string) error {
 	if name == "" {
-		return fmt.Errorf("%w: name is required", ErrInvalidInput)
+		return fmt.Errorf("%w: name is required", store.ErrInvalidInput)
 	}
 	switch labelType {
 	case LabelTypeBuiltin, LabelTypeRegular:
 	default:
-		return fmt.Errorf("%w: unknown label type", ErrInvalidInput)
+		return fmt.Errorf("%w: unknown label type", store.ErrInvalidInput)
 	}
 	switch labelMembershipType {
 	case LabelMembershipTypeDynamic:
 		if query == nil {
-			return fmt.Errorf("%w: query is required for dynamic labels", ErrInvalidInput)
+			return fmt.Errorf("%w: query is required for dynamic labels", store.ErrInvalidInput)
 		}
 	case LabelMembershipTypeManual, LabelMembershipTypeHostVitals:
 		if query != nil {
-			return fmt.Errorf("%w: query is only allowed for dynamic labels", ErrInvalidInput)
+			return fmt.Errorf("%w: query is only allowed for dynamic labels", store.ErrInvalidInput)
 		}
 	default:
-		return fmt.Errorf("%w: unknown label membership type", ErrInvalidInput)
+		return fmt.Errorf("%w: unknown label membership type", store.ErrInvalidInput)
 	}
 	return nil
 }
@@ -410,17 +412,17 @@ func cleanPlatformPtr(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cleaned := CleanPlatform(*value)
+	cleaned := platform.CleanPlatform(*value)
 	if cleaned == "" {
 		return nil
 	}
 	return &cleaned
 }
 
-func platformParam(value *string) *Platform {
+func platformParam(value *string) *platform.Platform {
 	if value == nil {
 		return nil
 	}
-	platform := Platform(*value)
+	platform := platform.Platform(*value)
 	return &platform
 }

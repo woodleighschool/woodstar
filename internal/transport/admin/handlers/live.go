@@ -11,14 +11,14 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
 )
 
 const liveQueriesTag = "Live Queries"
 
 type targetResolver interface {
-	ResolveSelectedTargets(context.Context, models.TargetSelection) ([]int64, error)
+	ResolveSelectedTargets(context.Context, hosts.TargetSelection) ([]int64, error)
 }
 
 // liveQueryCreateBody mirrors the campaign body but is one-shot — no DB row,
@@ -101,7 +101,7 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 	if resolver == nil {
 		return nil, huma.Error500InternalServerError("target resolver is not configured")
 	}
-	resolved, err := resolver.ResolveSelectedTargets(ctx, models.TargetSelection{
+	resolved, err := resolver.ResolveSelectedTargets(ctx, hosts.TargetSelection{
 		HostIDs:  hostIDs,
 		LabelIDs: labelIDs,
 	})

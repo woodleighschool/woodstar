@@ -1,4 +1,4 @@
-package models
+package store
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func isUniqueViolation(err error) bool {
+func IsUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

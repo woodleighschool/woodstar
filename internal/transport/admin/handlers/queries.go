@@ -10,7 +10,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
+	storepkg "github.com/woodleighschool/woodstar/internal/store"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
@@ -21,8 +23,8 @@ const (
 )
 
 type labelScopeBody struct {
-	Mode     models.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
-	LabelIDs []int64               `json:"label_ids,omitempty"`
+	Mode     hosts.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
+	LabelIDs []int64              `json:"label_ids,omitempty"`
 }
 
 type queryBody struct {
@@ -140,7 +142,7 @@ type hostQueryResultsInput struct {
 }
 
 // RegisterQueries registers saved-query and report endpoints.
-func RegisterQueries(api huma.API, store *models.QueryStore, hosts *models.HostStore) {
+func RegisterQueries(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
 	registerListQueries(api, store)
 	registerCreateQuery(api, store)
 	registerGetQuery(api, store)
@@ -309,7 +311,7 @@ func registerQueryResults(api huma.API, store *models.QueryStore) {
 	})
 }
 
-func registerHostQueries(api huma.API, store *models.QueryStore, hosts *models.HostStore) {
+func registerHostQueries(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-queries",
 		Method:      http.MethodGet,
@@ -323,7 +325,7 @@ func registerHostQueries(api huma.API, store *models.QueryStore, hosts *models.H
 			return nil, err
 		}
 		host, err := hosts.GetByID(ctx, id)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -339,7 +341,7 @@ func registerHostQueries(api huma.API, store *models.QueryStore, hosts *models.H
 	})
 }
 
-func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *models.HostStore) {
+func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-query-results",
 		Method:      http.MethodGet,
@@ -357,7 +359,7 @@ func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *mod
 			return nil, err
 		}
 		host, err := hosts.GetByID(ctx, hostID)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -379,7 +381,7 @@ func registerHostQueryResults(api huma.API, store *models.QueryStore, hosts *mod
 
 func (input queryListInput) params() models.QueryListParams {
 	return models.QueryListParams{
-		ListParams: models.CleanListParams(models.ListParams{
+		ListParams: storepkg.CleanListParams(storepkg.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,
@@ -475,15 +477,15 @@ func hostReportResponses(rows []models.HostReport) []hostReportBody {
 	return out
 }
 
-func (body labelScopeBody) model() (models.LabelScope, error) {
+func (body labelScopeBody) model() (hosts.LabelScope, error) {
 	ids, err := parseIDList(body.LabelIDs, "label_ids")
 	if err != nil {
-		return models.LabelScope{}, err
+		return hosts.LabelScope{}, err
 	}
-	return models.NormalizeLabelScope(models.LabelScope{Mode: body.Mode, LabelIDs: ids}), nil
+	return hosts.NormalizeLabelScope(hosts.LabelScope{Mode: body.Mode, LabelIDs: ids}), nil
 }
 
-func labelScopeResponse(scope models.LabelScope) labelScopeBody {
+func labelScopeResponse(scope hosts.LabelScope) labelScopeBody {
 	return labelScopeBody{Mode: scope.Mode, LabelIDs: append([]int64{}, scope.LabelIDs...)}
 }
 

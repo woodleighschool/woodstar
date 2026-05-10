@@ -6,7 +6,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 func TestLabelListInputParams(t *testing.T) {
@@ -25,14 +26,14 @@ func TestLabelListInputParams(t *testing.T) {
 	if got.Q != "mac" || got.Page != 2 || got.PerPage != 25 {
 		t.Fatalf("list params = %#v", got.ListParams)
 	}
-	if got.LabelType != models.LabelTypeRegular {
+	if got.LabelType != labels.LabelTypeRegular {
 		t.Fatalf("LabelType = %q, want regular", got.LabelType)
 	}
-	if got.LabelMembershipType != models.LabelMembershipTypeDynamic {
+	if got.LabelMembershipType != labels.LabelMembershipTypeDynamic {
 		t.Fatalf("LabelMembershipType = %q, want dynamic", got.LabelMembershipType)
 	}
 	if got.Platform != "darwin" {
-		t.Fatalf("Platform = %q, want darwin", got.Platform)
+		t.Fatalf("platform.Platform = %q, want darwin", got.Platform)
 	}
 }
 
@@ -42,9 +43,9 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: models.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: models.ErrAlreadyExists, wantStatus: 409},
-		{name: "validation", err: models.ErrInvalidInput, wantStatus: 400},
+		{name: "not found", err: store.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: store.ErrAlreadyExists, wantStatus: 409},
+		{name: "validation", err: store.ErrInvalidInput, wantStatus: 400},
 	}
 
 	for _, tt := range tests {

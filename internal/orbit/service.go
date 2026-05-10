@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -24,16 +25,16 @@ const nodeKeyAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
-	hosts          *models.HostStore
+	hosts          *hosts.HostStore
 	secrets        *models.SecretStore
-	deviceMappings *models.DeviceMappingStore
+	deviceMappings *hosts.DeviceMappingStore
 }
 
 // NewService returns an Orbit service.
 func NewService(
-	hosts *models.HostStore,
+	hosts *hosts.HostStore,
 	secrets *models.SecretStore,
-	deviceMappings *models.DeviceMappingStore,
+	deviceMappings *hosts.DeviceMappingStore,
 ) *Service {
 	return &Service{hosts: hosts, secrets: secrets, deviceMappings: deviceMappings}
 }
@@ -41,7 +42,7 @@ func NewService(
 // Enroll validates the request, upserts the host, and returns a fresh node key.
 // Re-enrollment of the same hardware UUID overwrites the existing key, so prior
 // keys stop authenticating immediately.
-func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*models.Host, string, error) {
+func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
 	if s.hosts == nil || s.secrets == nil {
 		return nil, "", errors.New("orbit service is not configured")
 	}
@@ -62,7 +63,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*models.Host, 
 		return nil, "", fmt.Errorf("generate node key: %w", err)
 	}
 
-	host, err := s.hosts.UpsertOnOrbitEnroll(ctx, models.EnrollParams{
+	host, err := s.hosts.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
 		HardwareUUID:   req.HardwareUUID,
 		HardwareSerial: req.HardwareSerial,
 		Hostname:       req.Hostname,
@@ -101,7 +102,7 @@ func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) e
 	if err != nil {
 		return err
 	}
-	return s.deviceMappings.Upsert(ctx, host.ID, strings.TrimSpace(email), models.DeviceMappingSourceOrbitProfile)
+	return s.deviceMappings.Upsert(ctx, host.ID, strings.TrimSpace(email), hosts.DeviceMappingSourceOrbitProfile)
 }
 
 func generateNodeKey() (string, error) {

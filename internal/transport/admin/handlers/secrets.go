@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/models"
+	storepkg "github.com/woodleighschool/woodstar/internal/store"
 )
 
 type secretDeleteInput struct {
@@ -98,7 +99,7 @@ func registerSecretRoutes(api huma.API, store *models.SecretStore, kind models.S
 			return nil, err
 		}
 		err = store.Delete(ctx, kind, id)
-		if errors.Is(err, models.ErrNotFound) {
+		if errors.Is(err, storepkg.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}
 		return nil, err

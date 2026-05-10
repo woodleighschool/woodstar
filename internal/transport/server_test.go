@@ -15,8 +15,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 	queryinfra "github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 func TestVersionEndpointPublic(t *testing.T) {
@@ -133,7 +135,7 @@ func (s *testUserStore) GetByEmail(context.Context, string) (*models.User, error
 
 func (s *testUserStore) GetByID(_ context.Context, id int64) (*models.User, error) {
 	if id != s.user.ID {
-		return nil, models.ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	return &s.user, nil
 }
@@ -180,8 +182,8 @@ func testConfig() config.Config {
 
 func testDependencies(cfg config.Config) Dependencies {
 	users := models.NewUserStore(nil)
-	hosts := models.NewHostStore(nil)
-	deviceMappings := models.NewDeviceMappingStore(nil)
+	hostStore := hosts.NewHostStore(nil)
+	deviceMappings := hosts.NewDeviceMappingStore(nil)
 	secrets := models.NewSecretStore(nil)
 	software := models.NewSoftwareStore(nil)
 
@@ -194,7 +196,7 @@ func testDependencies(cfg config.Config) Dependencies {
 		Logger:         slog.New(slog.DiscardHandler),
 		AuthService:    auth.NewService(users, sessionManager),
 		SessionManager: sessionManager,
-		HostStore:      hosts,
+		HostStore:      hostStore,
 		DeviceMappings: deviceMappings,
 		SecretStore:    secrets,
 		SoftwareStore:  software,

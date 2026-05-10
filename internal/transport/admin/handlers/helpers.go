@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // parseResourceID parses a resource path ID. Returns 404 with a resource-named
@@ -66,12 +66,12 @@ func cleanBulkIDs(values []int64, name string) ([]int64, error) {
 // triple is identical for every CRUD resource; we share it here.
 func resourceMutationError(resource string, err error) error {
 	switch {
-	case errors.Is(err, models.ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		return huma.Error404NotFound(resource + " not found")
-	case errors.Is(err, models.ErrAlreadyExists):
+	case errors.Is(err, store.ErrAlreadyExists):
 		return huma.Error409Conflict(resource + " already exists")
-	case errors.Is(err, models.ErrInvalidInput):
-		return huma.Error400BadRequest(strings.TrimPrefix(err.Error(), models.ErrInvalidInput.Error()+": "))
+	case errors.Is(err, store.ErrInvalidInput):
+		return huma.Error400BadRequest(strings.TrimPrefix(err.Error(), store.ErrInvalidInput.Error()+": "))
 	default:
 		return err
 	}

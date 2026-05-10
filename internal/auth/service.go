@@ -9,6 +9,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 const sessionUserKey = "user_id"
@@ -107,7 +108,7 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*mo
 	}
 
 	user, err := s.users.GetByEmail(ctx, email)
-	if errors.Is(err, models.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -138,7 +139,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*models.User, error) {
 		return nil, ErrNotAuthenticated
 	}
 	user, err := s.users.GetByID(ctx, id)
-	if errors.Is(err, models.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) {
 		// Session pointed at a deleted user; clear it.
 		_ = s.sessions.Destroy(ctx)
 		return nil, ErrNotAuthenticated

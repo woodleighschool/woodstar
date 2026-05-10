@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/models"
 )
 
@@ -92,15 +93,15 @@ func ingestNoop(context.Context, *Service, int64, []map[string]string) error {
 	return nil
 }
 
-func parseHostUsers(rows []map[string]string) []models.HostUser {
-	users := make([]models.HostUser, 0, len(rows))
+func parseHostUsers(rows []map[string]string) []hosts.HostUser {
+	users := make([]hosts.HostUser, 0, len(rows))
 	for _, row := range rows {
 		username := strings.TrimSpace(row["username"])
 		uid := strings.TrimSpace(row["uid"])
 		if username == "" || uid == "" {
 			continue
 		}
-		users = append(users, models.HostUser{
+		users = append(users, hosts.HostUser{
 			UID:         uid,
 			Username:    username,
 			Type:        strings.TrimSpace(row["type"]),
@@ -112,14 +113,14 @@ func parseHostUsers(rows []map[string]string) []models.HostUser {
 	return users
 }
 
-func parseHostBatteries(rows []map[string]string) []models.HostBattery {
-	batteries := make([]models.HostBattery, 0, len(rows))
+func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
+	batteries := make([]hosts.HostBattery, 0, len(rows))
 	for _, row := range rows {
 		serialNumber := strings.TrimSpace(row["serial_number"])
 		if serialNumber == "" {
 			continue
 		}
-		batteries = append(batteries, models.HostBattery{
+		batteries = append(batteries, hosts.HostBattery{
 			SerialNumber:     serialNumber,
 			Manufacturer:     strings.TrimSpace(row["manufacturer"]),
 			Model:            strings.TrimSpace(row["model"]),
@@ -135,8 +136,8 @@ func parseHostBatteries(rows []map[string]string) []models.HostBattery {
 	return batteries
 }
 
-func parseOsqueryFlags(rows []map[string]string) models.HostDetailUpdate {
-	var update models.HostDetailUpdate
+func parseOsqueryFlags(rows []map[string]string) hosts.HostDetailUpdate {
+	var update hosts.HostDetailUpdate
 	var configRefresh *int32
 	for _, row := range rows {
 		switch strings.TrimSpace(row["name"]) {

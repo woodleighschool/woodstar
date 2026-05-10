@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/store"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
@@ -111,8 +112,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: models.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: models.ErrAlreadyExists, wantStatus: 409},
+		{name: "not found", err: store.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: store.ErrAlreadyExists, wantStatus: 409},
 		{name: "weak password", err: auth.ErrWeakPassword, wantStatus: 400},
 		{name: "self role", err: auth.ErrCannotChangeOwnRole, wantStatus: 409},
 		{name: "self delete", err: auth.ErrCannotDeleteSelf, wantStatus: 409},

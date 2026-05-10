@@ -1,10 +1,12 @@
-package models
+package hosts
 
 import (
 	"context"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 func TestDisplayNamePriority(t *testing.T) {
@@ -79,7 +81,7 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 // targeting it (live queries, checks, scheduled queries) sees the new host.
 func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
-	labels := NewLabelStore(store.db)
+	labelStore := labels.NewLabelStore(store.db)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
 		HardwareUUID: "test-enroll-all-hosts",
@@ -89,7 +91,7 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 
-	hostLabels, err := labels.ListForHost(ctx, host.ID)
+	hostLabels, err := labelStore.ListForHost(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("list labels for host: %v", err)
 	}
@@ -97,8 +99,8 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	var found bool
 	for _, l := range hostLabels {
 		if l.Name == "All Hosts" &&
-			l.LabelType == LabelTypeBuiltin &&
-			l.LabelMembershipType == LabelMembershipTypeManual {
+			l.LabelType == labels.LabelTypeBuiltin &&
+			l.LabelMembershipType == labels.LabelMembershipTypeManual {
 			found = true
 			break
 		}
@@ -116,7 +118,7 @@ func newIntegrationHostStore(t *testing.T) (*HostStore, context.Context) {
 
 func TestCleanHostListParams(t *testing.T) {
 	params := cleanHostListParams(HostListParams{
-		ListParams: ListParams{
+		ListParams: store.ListParams{
 			Q:              " mac ",
 			Page:           -1,
 			PerPage:        1000,
@@ -133,8 +135,8 @@ func TestCleanHostListParams(t *testing.T) {
 	if params.Page != 1 {
 		t.Fatalf("Page = %d, want 1", params.Page)
 	}
-	if params.PerPage != maxPerPage {
-		t.Fatalf("PerPage = %d, want %d", params.PerPage, maxPerPage)
+	if params.PerPage != 200 {
+		t.Fatalf("PerPage = %d, want %d", params.PerPage, 200)
 	}
 	if params.OrderDirection != "desc" {
 		t.Fatalf("OrderDirection = %q, want desc", params.OrderDirection)

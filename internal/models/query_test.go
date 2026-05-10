@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 func TestCleanQueryCreate(t *testing.T) {
@@ -112,18 +114,18 @@ func TestCleanCheckCreate(t *testing.T) {
 }
 
 func TestNormalizeLabelScope(t *testing.T) {
-	scope := NormalizeLabelScope(LabelScope{
-		Mode:     ScopeExcludeAny,
+	scope := hosts.NormalizeLabelScope(hosts.LabelScope{
+		Mode:     hosts.ScopeExcludeAny,
 		LabelIDs: []int64{5, 2, 5, 0, -1},
 	})
-	if scope.Mode != ScopeExcludeAny {
-		t.Fatalf("Mode = %q, want %q", scope.Mode, ScopeExcludeAny)
+	if scope.Mode != hosts.ScopeExcludeAny {
+		t.Fatalf("Mode = %q, want %q", scope.Mode, hosts.ScopeExcludeAny)
 	}
 	assertInt64s(t, "LabelIDs", scope.LabelIDs, []int64{2, 5})
 
-	empty := NormalizeLabelScope(LabelScope{Mode: ScopeIncludeAll})
-	if empty.Mode != ScopeNone {
-		t.Fatalf("empty Mode = %q, want %q", empty.Mode, ScopeNone)
+	empty := hosts.NormalizeLabelScope(hosts.LabelScope{Mode: hosts.ScopeIncludeAll})
+	if empty.Mode != hosts.ScopeNone {
+		t.Fatalf("empty Mode = %q, want %q", empty.Mode, hosts.ScopeNone)
 	}
 }
 
@@ -202,5 +204,17 @@ func assertInt64s(t *testing.T, name string, got []int64, want []int64) {
 		if got[i] != want[i] {
 			t.Fatalf("%s = %#v, want %#v", name, got, want)
 		}
+	}
+}
+
+func assertStringPtr(t *testing.T, name string, got *string, want *string) {
+	t.Helper()
+	switch {
+	case got == nil && want == nil:
+		return
+	case got == nil || want == nil:
+		t.Fatalf("%s = %v, want %v", name, got, want)
+	case *got != *want:
+		t.Fatalf("%s = %q, want %q", name, *got, *want)
 	}
 }

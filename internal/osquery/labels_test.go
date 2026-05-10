@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestLabelQueryNameRoundTrips(t *testing.T) {
@@ -47,7 +48,7 @@ func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T)
 
 	err := svc.dispatchWriteResults(
 		context.Background(),
-		&models.Host{Host: sqlc.Host{ID: 9, Platform: "darwin"}},
+		&hosts.Host{Host: sqlc.Host{ID: 9, Platform: "darwin"}},
 		DistributedWriteRequest{
 			Queries: map[string][]map[string]string{
 				queryNameID(kindLabel, 1): {{"matches": "yes"}},
@@ -94,7 +95,7 @@ type fakeSetCall struct {
 	matched bool
 }
 
-func (s *fakeLabelStore) ListApplicableDynamic(context.Context, string) ([]models.Label, error) {
+func (s *fakeLabelStore) ListApplicableDynamic(context.Context, string) ([]labels.Label, error) {
 	return nil, nil
 }
 

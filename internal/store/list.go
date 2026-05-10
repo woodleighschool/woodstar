@@ -1,4 +1,4 @@
-package models
+package store
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ const (
 	orderDesc      = "desc"
 	orderSQLAsc    = "ASC"
 	orderSQLDesc   = "DESC"
-	orderUpdatedAt = "updated_at"
+	OrderUpdatedAt = "updated_at"
 )
 
 // ListParams is the common query shape for paginated list endpoints.
@@ -44,7 +44,7 @@ func CleanListParams(params ListParams) ListParams {
 	return params
 }
 
-func nameSearchAndPlatformWhere(q string, platform string) (string, []any) {
+func NameSearchAndPlatformWhere(q string, platform string) (string, []any) {
 	where := make([]string, 0)
 	args := make([]any, 0)
 	if q != "" {

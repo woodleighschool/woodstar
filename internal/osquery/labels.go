@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 type labelStore interface {
-	ListApplicableDynamic(context.Context, string) ([]models.Label, error)
+	ListApplicableDynamic(context.Context, string) ([]labels.Label, error)
 	ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error)
 	SetMembership(context.Context, int64, int64, bool) error
 	MarkHostLabelsFresh(context.Context, int64) error
 }
 
-func (s *Service) queueLabelQueries(ctx context.Context, host *models.Host, queries map[string]string) (int, error) {
+func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queries map[string]string) (int, error) {
 	if s.labels == nil {
 		return 0, nil
 	}
@@ -68,7 +69,7 @@ func (s *Service) handleLabelResult(
 	pass.labelIDs = append(pass.labelIDs, labelID)
 }
 
-func (s *Service) finalizeLabelPass(ctx context.Context, host *models.Host, pass *dispatchPass) error {
+func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass *dispatchPass) error {
 	if s.labels == nil || len(pass.labelResults) == 0 {
 		return nil
 	}

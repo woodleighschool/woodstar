@@ -1,4 +1,4 @@
-package models
+package store
 
 import (
 	"fmt"
@@ -6,24 +6,24 @@ import (
 	"strings"
 )
 
-type orderExpr struct {
+type OrderExpr struct {
 	SQL       string
 	NullsLast bool
 }
 
-type listQuery struct {
+type ListQuery struct {
 	SelectSQL    string
 	WhereSQL     string
 	GroupBySQL   string
 	Args         []any
-	OrderKeys    map[string]orderExpr
-	DefaultOrder []orderExpr
+	OrderKeys    map[string]OrderExpr
+	DefaultOrder []OrderExpr
 	Params       ListParams
 }
 
-func (q listQuery) Build() (string, []any, error) {
+func (q ListQuery) Build() (string, []any, error) {
 	params := CleanListParams(q.Params)
-	orderSQL, err := listOrderBy(params, q.OrderKeys, q.DefaultOrder)
+	orderSQL, err := OrderBy(params, q.OrderKeys, q.DefaultOrder)
 	if err != nil {
 		return "", nil, err
 	}
@@ -45,8 +45,8 @@ func (q listQuery) Build() (string, []any, error) {
 	return strings.Join(parts, "\n"), args, nil
 }
 
-func listOrderBy(params ListParams, orderKeys map[string]orderExpr, defaultOrder []orderExpr) (string, error) {
-	order := make([]orderExpr, 0, 1+len(defaultOrder))
+func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
+	order := make([]OrderExpr, 0, 1+len(defaultOrder))
 	if params.OrderKey != "" {
 		expr, ok := orderKeys[params.OrderKey]
 		if !ok {
@@ -82,8 +82,8 @@ func listOrderBy(params ListParams, orderKeys map[string]orderExpr, defaultOrder
 	return "ORDER BY " + strings.Join(parts, ", "), nil
 }
 
-func orderContains(order []orderExpr, sql string) bool {
-	return slices.ContainsFunc(order, func(expr orderExpr) bool {
+func orderContains(order []OrderExpr, sql string) bool {
+	return slices.ContainsFunc(order, func(expr OrderExpr) bool {
 		return expr.SQL == sql
 	})
 }

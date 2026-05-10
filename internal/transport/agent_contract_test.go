@@ -19,6 +19,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -73,11 +75,11 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 	t.Helper()
 
 	users := models.NewUserStore(db)
-	hosts := models.NewHostStore(db)
-	deviceMappings := models.NewDeviceMappingStore(db)
+	hostStore := hosts.NewHostStore(db)
+	deviceMappings := hosts.NewDeviceMappingStore(db)
 	secrets := models.NewSecretStore(db)
 	software := models.NewSoftwareStore(db)
-	labels := models.NewLabelStore(db)
+	labelStore := labels.NewLabelStore(db)
 	queries := models.NewQueryStore(db)
 	checks := models.NewCheckStore(db)
 	hub := queryinfra.NewHub()
@@ -99,19 +101,19 @@ func contractDependencies(t *testing.T, db *db.DB) (Dependencies, *models.UserSt
 		Logger:           logger,
 		AuthService:      authService,
 		SessionManager:   sessionManager,
-		HostStore:        hosts,
+		HostStore:        hostStore,
 		DeviceMappings:   deviceMappings,
 		SecretStore:      secrets,
 		SoftwareStore:    software,
-		LabelStore:       labels,
+		LabelStore:       labelStore,
 		QueryStore:       queries,
 		CheckStore:       checks,
 		LiveQueryManager: liveQueries,
-		OrbitService:     orbit.NewService(hosts, secrets, deviceMappings),
+		OrbitService:     orbit.NewService(hostStore, secrets, deviceMappings),
 		OsqueryService: osquery.NewService(
-			hosts,
+			hostStore,
 			software,
-			labels,
+			labelStore,
 			queries,
 			checks,
 			liveQueries,
@@ -467,11 +469,11 @@ type contractPathSignatureInformation struct {
 func assertDeviceMapping(t *testing.T, mappings []contractDeviceMapping, email string) {
 	t.Helper()
 	for _, mapping := range mappings {
-		if mapping.Email == email && mapping.Source == models.DeviceMappingSourceOrbitProfile {
+		if mapping.Email == email && mapping.Source == hosts.DeviceMappingSourceOrbitProfile {
 			return
 		}
 	}
-	t.Fatalf("device mapping %q with source %q not found", email, models.DeviceMappingSourceOrbitProfile)
+	t.Fatalf("device mapping %q with source %q not found", email, hosts.DeviceMappingSourceOrbitProfile)
 }
 
 func assertAdminHostSoftware(

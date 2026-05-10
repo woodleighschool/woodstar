@@ -10,6 +10,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/store"
 )
 
 // Check is a query-backed pass/fail policy.
@@ -20,7 +23,7 @@ type Check struct {
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
-	LabelScope        LabelScope
+	LabelScope        hosts.LabelScope
 	CreatedByUserID   *int64
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -33,7 +36,7 @@ type CheckCreate struct {
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
-	LabelScope        LabelScope
+	LabelScope        hosts.LabelScope
 	CreatedByUserID   *int64
 }
 
@@ -42,7 +45,7 @@ type CheckUpdate CheckCreate
 
 // CheckListParams filters checks.
 type CheckListParams struct {
-	ListParams
+	store.ListParams
 
 	Platform string
 }
@@ -108,7 +111,7 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
 	check, err := scanCheck(s.db.Pool().QueryRow(ctx, checkSelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -140,15 +143,15 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 		)
 		check, err := scanCheck(row)
 		if err != nil {
-			if isUniqueViolation(err) {
-				return ErrAlreadyExists
+			if store.IsUniqueViolation(err) {
+				return store.ErrAlreadyExists
 			}
 			return err
 		}
 		if err := replaceScope(ctx, tx, "check_labels", "check_id", check.ID, params.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = NormalizeLabelScope(params.LabelScope)
+		check.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 		created = check
 		return nil
 	})
@@ -174,18 +177,18 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 		)
 		check, err := scanCheck(row)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return store.ErrNotFound
 		}
 		if err != nil {
-			if isUniqueViolation(err) {
-				return ErrAlreadyExists
+			if store.IsUniqueViolation(err) {
+				return store.ErrAlreadyExists
 			}
 			return err
 		}
 		if err := replaceScope(ctx, tx, "check_labels", "check_id", check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = NormalizeLabelScope(cleaned.LabelScope)
+		check.LabelScope = hosts.NormalizeLabelScope(cleaned.LabelScope)
 		updated = check
 		return nil
 	})
@@ -199,7 +202,7 @@ func (s *CheckStore) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
@@ -217,7 +220,7 @@ func (s *CheckStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ApplicableForHost returns checks that should run on host.
-func (s *CheckStore) ApplicableForHost(ctx context.Context, host Host) ([]Check, error) {
+func (s *CheckStore) ApplicableForHost(ctx context.Context, host hosts.Host) ([]Check, error) {
 	rows, err := s.db.Pool().Query(ctx, checkSelectSQL+" ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -230,14 +233,14 @@ func (s *CheckStore) ApplicableForHost(ctx context.Context, host Host) ([]Check,
 		if err != nil {
 			return nil, err
 		}
-		if !queryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
+		if !hosts.QueryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
 			continue
 		}
 		scope, err := s.loadScope(ctx, check.ID)
 		if err != nil {
 			return nil, err
 		}
-		matches, err := HostMatchesScope(ctx, s.db, scope, host.ID)
+		matches, err := hosts.HostMatchesScope(ctx, s.db, scope, host.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -297,7 +300,7 @@ func (s *CheckStore) HostStatuses(ctx context.Context, checkID int64) ([]CheckHo
 }
 
 // HostChecks returns check status rows applicable to one host.
-func (s *CheckStore) HostChecks(ctx context.Context, host Host) ([]CheckHostStatus, error) {
+func (s *CheckStore) HostChecks(ctx context.Context, host hosts.Host) ([]CheckHostStatus, error) {
 	checks, err := s.ApplicableForHost(ctx, host)
 	if err != nil {
 		return nil, err
@@ -335,29 +338,29 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Query = strings.TrimSpace(params.Query)
 	params.Platform = cleanPlatformPtr(params.Platform)
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
-	params.LabelScope = NormalizeLabelScope(params.LabelScope)
+	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
-		return CheckCreate{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
+		return CheckCreate{}, fmt.Errorf("%w: name is required", store.ErrInvalidInput)
 	}
 	if params.Query == "" {
-		return CheckCreate{}, fmt.Errorf("%w: query is required", ErrInvalidInput)
+		return CheckCreate{}, fmt.Errorf("%w: query is required", store.ErrInvalidInput)
 	}
 	return params, nil
 }
 
 func cleanCheckListParams(params CheckListParams) CheckListParams {
-	params.ListParams = CleanListParams(params.ListParams)
-	params.Platform = CleanPlatform(params.Platform)
+	params.ListParams = store.CleanListParams(params.ListParams)
+	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
 
-func (s *CheckStore) loadScope(ctx context.Context, checkID int64) (LabelScope, error) {
+func (s *CheckStore) loadScope(ctx context.Context, checkID int64) (hosts.LabelScope, error) {
 	rows, err := s.db.Pool().Query(ctx,
 		"SELECT label_id, exclude, require_all FROM check_labels WHERE check_id = $1 ORDER BY label_id",
 		checkID,
 	)
 	if err != nil {
-		return LabelScope{}, err
+		return hosts.LabelScope{}, err
 	}
 	defer rows.Close()
 	return scanScopeRows(rows)
@@ -400,20 +403,20 @@ func scanCheckStatuses(rows pgx.Rows) ([]CheckHostStatus, error) {
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {
-	return nameSearchAndPlatformWhere(params.Q, params.Platform)
+	return store.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
 func checkListSQL(where string, args []any, params CheckListParams) (string, []any, error) {
-	return listQuery{
+	return store.ListQuery{
 		SelectSQL: checkSelectSQL,
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]orderExpr{
-			"name":         {SQL: "name"},
-			"created_at":   {SQL: "created_at"},
-			orderUpdatedAt: {SQL: orderUpdatedAt},
+		OrderKeys: map[string]store.OrderExpr{
+			"name":               {SQL: "name"},
+			"created_at":         {SQL: "created_at"},
+			store.OrderUpdatedAt: {SQL: store.OrderUpdatedAt},
 		},
-		DefaultOrder: []orderExpr{{SQL: orderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []store.OrderExpr{{SQL: store.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}.Build()
 }
