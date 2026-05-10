@@ -78,6 +78,44 @@ func TestHostListInputParamsRejectInvalidSoftwareFilter(t *testing.T) {
 	}
 }
 
+func TestHostBulkDeleteInputIDs(t *testing.T) {
+	input := hostBulkDeleteInput{Body: bulkIDsBody{IDs: []int64{3, 1, 3}}}
+
+	got, err := input.ids()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 || got[0] != 1 || got[1] != 3 {
+		t.Fatalf("ids = %#v, want [1 3]", got)
+	}
+}
+
+func TestHostBulkDeleteInputRejectsEmptyIDs(t *testing.T) {
+	input := hostBulkDeleteInput{Body: bulkIDsBody{}}
+
+	if _, err := input.ids(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestResourceBulkDeleteInputIDs(t *testing.T) {
+	checks, err := (checkBulkDeleteInput{Body: bulkIDsBody{IDs: []int64{9, 8, 9}}}).ids()
+	if err != nil {
+		t.Fatalf("check ids returned error: %v", err)
+	}
+	if len(checks) != 2 || checks[0] != 8 || checks[1] != 9 {
+		t.Fatalf("check ids = %#v, want [8 9]", checks)
+	}
+
+	reports, err := (queryBulkDeleteInput{Body: bulkIDsBody{IDs: []int64{4, 2, 4}}}).ids()
+	if err != nil {
+		t.Fatalf("report ids returned error: %v", err)
+	}
+	if len(reports) != 2 || reports[0] != 2 || reports[1] != 4 {
+		t.Fatalf("report ids = %#v, want [2 4]", reports)
+	}
+}
+
 func TestHostSoftwareInputParams(t *testing.T) {
 	input := hostSoftwareInput{
 		ID:             "9",

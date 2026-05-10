@@ -83,3 +83,13 @@ export function useDeleteQuery() {
     },
   });
 }
+
+export function useBulkDeleteQueries() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/queries/bulk-delete", { body: { ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["queries"] });
+    },
+  });
+}

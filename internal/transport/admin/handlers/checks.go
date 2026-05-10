@@ -69,6 +69,14 @@ type checkDeleteInput struct {
 	ID string `path:"id"`
 }
 
+type checkBulkDeleteInput struct {
+	Body bulkIDsBody
+}
+
+func (i checkBulkDeleteInput) ids() ([]int64, error) {
+	return cleanBulkIDs(i.Body.IDs, "check IDs")
+}
+
 type checkListOutput struct {
 	Body struct {
 		Items []checkBody `json:"items"`
@@ -103,6 +111,7 @@ func RegisterChecks(api huma.API, store *models.CheckStore, hosts *models.HostSt
 	registerGetCheck(api, store)
 	registerUpdateCheck(api, store)
 	registerDeleteCheck(api, store)
+	registerBulkDeleteChecks(api, store)
 	registerCheckHosts(api, store)
 	registerHostChecks(api, store, hosts)
 }
@@ -118,7 +127,7 @@ func registerListChecks(api huma.API, store *models.CheckStore) {
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
 		items, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError(checkResource, err)
 		}
 		out := &checkListOutput{}
 		out.Body.Items = make([]checkBody, 0, len(items))
@@ -213,6 +222,29 @@ func registerDeleteCheck(api huma.API, store *models.CheckStore) {
 		}
 		if err := store.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError(checkResource, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteChecks(api huma.API, store *models.CheckStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-checks",
+		Method:      http.MethodPost,
+		Path:        "/api/checks/bulk-delete",
+		Tags:        []string{checksTag},
+		Summary:     "Delete checks",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *checkBulkDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		ids, err := input.ids()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, ids); err != nil {
+			return nil, err
 		}
 		return &struct{}{}, nil
 	})

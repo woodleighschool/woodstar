@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -167,38 +168,34 @@ func (s *HostStore) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetail
 // List returns active hosts and the total count matching params.
 func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
 	params = cleanHostListParams(params)
-	listArgs := sqlc.ListHostsParams{
-		Q:               params.Q,
-		Platform:        params.Platform,
-		Status:          params.Status,
-		LabelID:         params.LabelID,
-		SoftwareID:      params.SoftwareID,
-		SoftwareTitleID: params.SoftwareTitleID,
-		OrderKey:        params.OrderKey,
-		OrderDirection:  params.OrderDirection,
-		LimitRows:       int32(params.PerPage),
-		OffsetRows:      int32((params.Page - 1) * params.PerPage),
-	}
-	rows, err := s.q.ListHosts(ctx, listArgs)
+	where, args, err := hostListWhere(params)
 	if err != nil {
 		return nil, 0, err
 	}
-	count, err := s.q.CountHosts(ctx, sqlc.CountHostsParams{
-		Q:               params.Q,
-		Platform:        params.Platform,
-		Status:          params.Status,
-		LabelID:         params.LabelID,
-		SoftwareID:      params.SoftwareID,
-		SoftwareTitleID: params.SoftwareTitleID,
-	})
+	var count int
+	if err := s.db.Pool().
+		QueryRow(ctx, "SELECT count(*)::integer FROM hosts "+where, args...).
+		Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	query, args, err := hostListSQLWithWhere(params, where, args)
 	if err != nil {
 		return nil, 0, err
 	}
-	hosts := make([]Host, len(rows))
-	for i, row := range rows {
+	rows, err := s.db.Pool().Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	dbHosts, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.Host])
+	if err != nil {
+		return nil, 0, err
+	}
+	hosts := make([]Host, len(dbHosts))
+	for i, row := range dbHosts {
 		hosts[i] = Host{Host: row}
 	}
-	return hosts, int(count), nil
+	return hosts, count, nil
 }
 
 // GetByID returns a single active host by database ID.
@@ -211,6 +208,27 @@ func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
 		return nil, err
 	}
 	return &Host{Host: row}, nil
+}
+
+// Delete removes one host and cascades inventory, labels, check results, and report results.
+func (s *HostStore) Delete(ctx context.Context, id int64) error {
+	_, err := s.q.DeleteHost(ctx, sqlc.DeleteHostParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}
+
+// DeleteMany removes multiple hosts. Missing IDs are ignored so repeated bulk actions are idempotent.
+func (s *HostStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	deleted, err := s.q.DeleteHosts(ctx, sqlc.DeleteHostsParams{Ids: ids})
+	if err != nil {
+		return 0, err
+	}
+	return len(deleted), nil
 }
 
 // GetByOrbitNodeKey returns an active host and refreshes last_seen_at.
@@ -357,8 +375,91 @@ func (s *HostStore) MarkDetailFresh(ctx context.Context, hostID int64, detailQue
 func cleanHostListParams(params HostListParams) HostListParams {
 	params.ListParams = CleanListParams(params.ListParams)
 	params.Status = strings.TrimSpace(params.Status)
-	params.Platform = strings.TrimSpace(params.Platform)
+	params.Platform = CleanPlatform(params.Platform)
 	return params
+}
+
+func hostListSQLWithWhere(params HostListParams, where string, args []any) (string, []any, error) {
+	return listQuery{
+		SelectSQL: "SELECT * FROM hosts",
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]orderExpr{
+			"display_name":               {SQL: "lower(display_name)"},
+			"platform":                   {SQL: "lower(platform)"},
+			"hardware_serial":            {SQL: "lower(hardware_serial)"},
+			"hardware_model":             {SQL: "lower(hardware_model)"},
+			"os_version":                 {SQL: "lower(os_version)"},
+			"last_seen_at":               {SQL: "last_seen_at", NullsLast: true},
+			"disk_space_available_bytes": {SQL: "disk_space_available_bytes", NullsLast: true},
+		},
+		DefaultOrder: []orderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
+		Params:       params.ListParams,
+	}.Build()
+}
+
+func hostListWhere(params HostListParams) (string, []any, error) {
+	clauses := []string{"deleted_at IS NULL"}
+	args := make([]any, 0)
+	if params.Q != "" {
+		args = append(args, "%"+params.Q+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, `(
+			display_name ILIKE `+placeholder+`
+			OR hostname ILIKE `+placeholder+`
+			OR computer_name ILIKE `+placeholder+`
+			OR hardware_serial ILIKE `+placeholder+`
+			OR hardware_uuid ILIKE `+placeholder+`
+			OR hardware_model ILIKE `+placeholder+`
+			OR os_version ILIKE `+placeholder+`
+			OR EXISTS (
+				SELECT 1 FROM host_emails he
+				WHERE he.host_id = hosts.id AND he.email ILIKE `+placeholder+`
+			)
+		)`)
+	}
+	if params.Platform != "" {
+		args = append(args, params.Platform)
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, `(
+			platform = `+placeholder+`
+			OR (`+placeholder+` = 'darwin' AND platform IN ('darwin', 'macos'))
+			OR (`+placeholder+` = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+		)`)
+	}
+	switch params.Status {
+	case "":
+	case "online":
+		clauses = append(clauses, "last_seen_at >= now() - interval '5 minutes'")
+	case "offline":
+		clauses = append(clauses, "(last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')")
+	default:
+		return "", nil, fmt.Errorf("%w: unknown status %q", ErrInvalidInput, params.Status)
+	}
+	if params.LabelID > 0 {
+		args = append(args, params.LabelID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1 FROM label_membership lm
+			WHERE lm.host_id = hosts.id AND lm.label_id = $%d::bigint
+		)`, len(args)))
+	}
+	if params.SoftwareID > 0 {
+		args = append(args, params.SoftwareID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1 FROM host_software hs
+			WHERE hs.host_id = hosts.id AND hs.software_id = $%d::bigint
+		)`, len(args)))
+	}
+	if params.SoftwareTitleID > 0 {
+		args = append(args, params.SoftwareTitleID)
+		clauses = append(clauses, fmt.Sprintf(`EXISTS (
+			SELECT 1
+			FROM host_software hs
+			JOIN software s ON s.id = hs.software_id
+			WHERE hs.host_id = hosts.id AND s.title_id = $%d::bigint
+		)`, len(args)))
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args, nil
 }
 
 func cleanOrbitEnrollParams(params EnrollParams) (EnrollParams, error) {

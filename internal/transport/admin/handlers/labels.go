@@ -123,7 +123,7 @@ func registerListLabels(api huma.API, store *models.LabelStore) {
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
 		labels, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError(labelResource, err)
 		}
 		out := &labelListOutput{Body: labelListBody{Items: make([]labelBody, 0, len(labels)), Count: count}}
 		for i := range labels {

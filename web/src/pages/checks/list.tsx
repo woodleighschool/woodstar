@@ -1,6 +1,7 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search, ShieldCheck, X } from "lucide-react";
+import { Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { useState } from "react";
 
 import { PageLead, PlatformBadge, TargetSummary } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,7 +11,7 @@ import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { useChecks, type Check } from "@/hooks/use-checks";
+import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
@@ -22,6 +23,8 @@ export function ChecksPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
+  const bulkDelete = useBulkDeleteChecks();
 
   const query = useChecks({
     q: search.q,
@@ -35,6 +38,16 @@ export function ChecksPage() {
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!search.platform;
+  const selectedIDs = selectedCheckIds.map(Number);
+
+  const deleteSelectedChecks = () => {
+    const count = selectedIDs.length;
+    if (count === 0) return;
+    if (!window.confirm(`Delete ${count} selected ${count === 1 ? "check" : "checks"}?`)) return;
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => setSelectedCheckIds([]),
+    });
+  };
 
   const columns: ColumnDef<Check>[] = [
     {
@@ -105,6 +118,15 @@ export function ChecksPage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedCheckIds}
+          onSelectedRowIdsChange={setSelectedCheckIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={deleteSelectedChecks} disabled={bulkDelete.isPending}>
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
+          }
           rowHref={(row) => ({ to: "/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">

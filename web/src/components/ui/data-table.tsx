@@ -4,11 +4,13 @@ import {
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
+  type RowSelectionState,
   type SortingState,
   type Updater,
 } from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,6 +35,10 @@ interface DataTableProps<TData, TValue> {
   onSortChange: (next: DataTableSort) => void;
 
   isLoading?: boolean;
+  enableRowSelection?: boolean;
+  selectedRowIds?: string[];
+  onSelectedRowIdsChange?: (ids: string[]) => void;
+  bulkActions?: ReactNode;
   /** Optional row link wrapper. */
   rowHref?: (row: TData) => { to: string; params?: Record<string, string> };
   /** Stable row id; defaults to (row as { id: string }).id. */
@@ -45,7 +51,7 @@ interface DataTableProps<TData, TValue> {
   skeletonRows?: number;
 }
 
-const DEFAULT_GET_ROW_ID = (row: unknown): string => (row as { id: string }).id;
+const DEFAULT_GET_ROW_ID = (row: unknown): string => String((row as { id: string | number }).id);
 
 export function DataTable<TData, TValue>({
   columns,
@@ -58,6 +64,10 @@ export function DataTable<TData, TValue>({
   onPerPageChange,
   onSortChange,
   isLoading = false,
+  enableRowSelection = false,
+  selectedRowIds = [],
+  onSelectedRowIdsChange,
+  bulkActions,
   rowHref,
   getRowId,
   toolbar,
@@ -65,6 +75,10 @@ export function DataTable<TData, TValue>({
   skeletonRows = 8,
 }: DataTableProps<TData, TValue>) {
   const sortingState: SortingState = sort.orderKey ? [{ id: sort.orderKey, desc: sort.orderDirection === "desc" }] : [];
+  const rowSelection: RowSelectionState = useMemo(
+    () => Object.fromEntries(selectedRowIds.map((id) => [id, true])),
+    [selectedRowIds],
+  );
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
     const next = typeof updater === "function" ? updater(sortingState) : updater;
@@ -72,16 +86,28 @@ export function DataTable<TData, TValue>({
     else onSortChange({ orderKey: next[0].id, orderDirection: next[0].desc ? "desc" : "asc" });
   };
 
+  const handleRowSelectionChange = (updater: Updater<RowSelectionState>) => {
+    const next = typeof updater === "function" ? updater(rowSelection) : updater;
+    onSelectedRowIdsChange?.(Object.keys(next).filter((id) => next[id]));
+  };
+
+  const tableColumns = useMemo(
+    () => (enableRowSelection ? [selectionColumn<TData>(), ...columns] : columns),
+    [columns, enableRowSelection],
+  );
+
   // TanStack Table returns function-bearing objects; React Compiler cannot memoize this hook safely.
 
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualSorting: true,
-    state: { sorting: sortingState },
+    enableRowSelection,
+    state: { sorting: sortingState, rowSelection },
     onSortingChange: handleSortingChange,
+    onRowSelectionChange: handleRowSelectionChange,
     getRowId: getRowId ?? DEFAULT_GET_ROW_ID,
   });
 
@@ -90,6 +116,14 @@ export function DataTable<TData, TValue>({
   return (
     <div className="flex flex-col gap-3">
       {toolbar}
+      {enableRowSelection && selectedRowIds.length > 0 ? (
+        <div className="bg-muted/50 flex min-h-10 items-center justify-between rounded-md border px-3 py-2">
+          <div className="text-muted-foreground text-sm tabular-nums">
+            {selectedRowIds.length} selected
+          </div>
+          <div className="flex items-center gap-2">{bulkActions}</div>
+        </div>
+      ) : null}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -116,7 +150,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="p-0">
+                <TableCell colSpan={tableColumns.length} className="p-0">
                   <div className="flex justify-center px-4 py-12">{empty}</div>
                 </TableCell>
               </TableRow>
@@ -181,4 +215,30 @@ export function DataTable<TData, TValue>({
 interface Meta {
   headClassName?: string;
   cellClassName?: string;
+}
+
+function selectionColumn<TData>(): ColumnDef<TData, unknown> {
+  return {
+    id: "__select",
+    enableSorting: false,
+    enableHiding: false,
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() ? "indeterminate" : false)}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all rows"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    meta: {
+      headClassName: "w-10",
+      cellClassName: "w-10",
+    },
+  };
 }

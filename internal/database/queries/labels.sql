@@ -1,40 +1,3 @@
--- name: ListLabels :many
-SELECT
-    sqlc.embed(l),
-    count(lm.host_id)::integer AS hosts_count
-FROM labels l
-LEFT JOIN label_membership lm ON lm.label_id = l.id
-WHERE
-    (@q::text = '' OR l.name ILIKE '%' || @q::text || '%' OR l.description ILIKE '%' || @q::text || '%')
-    AND (@label_type::text = '' OR l.label_type = @label_type::text)
-    AND (@label_membership_type::text = '' OR l.label_membership_type = @label_membership_type::text)
-    AND (@platform::text = '' OR l.platform = @platform::text)
-GROUP BY l.id
-ORDER BY
-    CASE WHEN @order_key::text = 'name' AND @order_direction::text = 'desc' THEN lower(l.name) END DESC,
-    CASE WHEN @order_key::text = 'label_type' AND @order_direction::text = 'asc' THEN l.label_type END ASC,
-    CASE WHEN @order_key::text = 'label_type' AND @order_direction::text = 'desc' THEN l.label_type END DESC,
-    CASE WHEN @order_key::text = 'label_membership_type' AND @order_direction::text = 'asc' THEN l.label_membership_type END ASC,
-    CASE WHEN @order_key::text = 'label_membership_type' AND @order_direction::text = 'desc' THEN l.label_membership_type END DESC,
-    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'asc' THEN l.platform END ASC NULLS LAST,
-    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'desc' THEN l.platform END DESC NULLS LAST,
-    CASE WHEN @order_key::text = 'hosts_count' AND @order_direction::text = 'asc' THEN count(lm.host_id) END ASC,
-    CASE WHEN @order_key::text = 'hosts_count' AND @order_direction::text = 'desc' THEN count(lm.host_id) END DESC,
-    CASE WHEN @order_key::text = 'updated_at' AND @order_direction::text = 'asc' THEN l.updated_at END ASC,
-    CASE WHEN @order_key::text = 'updated_at' AND @order_direction::text = 'desc' THEN l.updated_at END DESC,
-    lower(l.name),
-    l.id
-LIMIT @limit_rows OFFSET @offset_rows;
-
--- name: CountLabels :one
-SELECT count(*)::integer
-FROM labels l
-WHERE
-    (@q::text = '' OR l.name ILIKE '%' || @q::text || '%' OR l.description ILIKE '%' || @q::text || '%')
-    AND (@label_type::text = '' OR l.label_type = @label_type::text)
-    AND (@label_membership_type::text = '' OR l.label_membership_type = @label_membership_type::text)
-    AND (@platform::text = '' OR l.platform = @platform::text);
-
 -- name: GetLabelByID :one
 SELECT
     sqlc.embed(l),
@@ -88,11 +51,10 @@ WHERE
     AND (
         label_type = 'builtin'
         OR platform IS NULL
-        OR platform = ''
-        OR @platform::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        OR @platform::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND @platform::text <> ''
             AND @platform::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
         )
@@ -108,11 +70,10 @@ WHERE
     AND (
         label_type = 'builtin'
         OR platform IS NULL
-        OR platform = ''
-        OR @platform::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        OR @platform::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND @platform::text <> ''
             AND @platform::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
         )

@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
@@ -68,6 +68,26 @@ export function useHost(id: string) {
         }),
       ),
     enabled: id !== "",
+  });
+}
+
+export function useDeleteHost() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}", { params: { path: { id: String(id) } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["hosts"] });
+    },
+  });
+}
+
+export function useBulkDeleteHosts() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/hosts/bulk-delete", { body: { ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["hosts"] });
+    },
   });
 }
 

@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -106,61 +105,6 @@ func HostMatchesScope(ctx context.Context, db *database.DB, scope LabelScope, ho
 	default:
 		return true, nil
 	}
-}
-
-// HostsMatchingScope returns active hosts satisfying the given scope and platform.
-func HostsMatchingScope(ctx context.Context, db *database.DB, scope LabelScope, platform string) ([]int64, error) {
-	scope = NormalizeLabelScope(scope)
-	platform = strings.TrimSpace(platform)
-
-	where := "deleted_at IS NULL"
-	args := []any{}
-	if platform != "" {
-		args = append(args, platform)
-		where += fmt.Sprintf(` AND (
-			platform = $%d
-			OR ($%d = 'darwin' AND platform IN ('darwin', 'macos'))
-			OR ($%d = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
-		)`, len(args), len(args), len(args))
-	}
-	if scope.Mode != ScopeNone {
-		args = append(args, scope.LabelIDs)
-		switch scope.Mode {
-		case ScopeNone:
-		case ScopeIncludeAny:
-			where += fmt.Sprintf(
-				" AND EXISTS (SELECT 1 FROM label_membership lm WHERE lm.host_id = hosts.id AND lm.label_id = ANY($%d))",
-				len(args),
-			)
-		case ScopeIncludeAll:
-			where += fmt.Sprintf(
-				" AND (SELECT count(*) FROM label_membership lm WHERE lm.host_id = hosts.id AND lm.label_id = ANY($%d)) = %d",
-				len(args),
-				len(scope.LabelIDs),
-			)
-		case ScopeExcludeAny:
-			where += fmt.Sprintf(
-				" AND NOT EXISTS (SELECT 1 FROM label_membership lm WHERE lm.host_id = hosts.id AND lm.label_id = ANY($%d))",
-				len(args),
-			)
-		}
-	}
-
-	rows, err := db.Pool().Query(ctx, "SELECT id FROM hosts WHERE "+where+" ORDER BY id", args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	hostIDs := make([]int64, 0)
-	for rows.Next() {
-		var hostID int64
-		if err := rows.Scan(&hostID); err != nil {
-			return nil, err
-		}
-		hostIDs = append(hostIDs, hostID)
-	}
-	return hostIDs, rows.Err()
 }
 
 func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {

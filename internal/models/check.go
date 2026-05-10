@@ -80,10 +80,11 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 		return nil, 0, err
 	}
 
-	order := checkOrder(params.OrderKey, params.OrderDirection)
-	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
-	rows, err := s.db.Pool().Query(ctx, checkListSQL(where, order, limitIndex), args...)
+	query, args, err := checkListSQL(where, args, params)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -205,6 +206,18 @@ func (s *CheckStore) Delete(ctx context.Context, id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DeleteMany removes multiple checks. Missing IDs are ignored for bulk idempotency.
+func (s *CheckStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM checks WHERE id = ANY($1::bigint[])", ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 }
 
 // ApplicableForHost returns checks that should run on host.
@@ -396,24 +409,19 @@ func checkListWhere(params CheckListParams) (string, []any) {
 	return nameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
-func checkOrder(key string, direction string) string {
-	column := orderUpdatedAt
-	switch key {
-	case "name", "created_at", orderUpdatedAt:
-		column = key
-	}
-	if direction == orderDesc {
-		return column + " " + orderSQLDesc
-	}
-	return column + " " + orderSQLAsc
-}
-
-func checkListSQL(where string, order string, limitIndex int) string {
-	return checkSelectSQL + " " + where + " ORDER BY " + order + fmt.Sprintf(
-		" LIMIT $%d OFFSET $%d",
-		limitIndex,
-		limitIndex+1,
-	)
+func checkListSQL(where string, args []any, params CheckListParams) (string, []any, error) {
+	return listQuery{
+		SelectSQL: checkSelectSQL,
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]orderExpr{
+			"name":         {SQL: "name"},
+			"created_at":   {SQL: "created_at"},
+			orderUpdatedAt: {SQL: orderUpdatedAt},
+		},
+		DefaultOrder: []orderExpr{{SQL: orderUpdatedAt}, {SQL: "id"}},
+		Params:       params.ListParams,
+	}.Build()
 }
 
 const checkSelectSQL = `

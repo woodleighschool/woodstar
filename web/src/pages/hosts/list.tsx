@@ -1,6 +1,6 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { KeyRound, Search, ServerCog, X } from "lucide-react";
+import { KeyRound, Search, ServerCog, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
@@ -14,7 +14,7 @@ import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filte
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useHosts, type Host } from "@/hooks/use-hosts";
+import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
@@ -30,7 +30,9 @@ export function HostsListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
   const labelsQuery = useLabels({ per_page: 200, order_key: "name", order_direction: "asc" });
+  const bulkDelete = useBulkDeleteHosts();
 
   const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;
 
@@ -118,6 +120,19 @@ export function HostsListPage() {
   ];
 
   const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: String(l.id), label: l.name }));
+  const selectedIDs = selectedHostIds.map(Number);
+
+  const deleteSelectedHosts = () => {
+    const count = selectedIDs.length;
+    if (count === 0) return;
+    const confirmed = window.confirm(
+      `Delete ${count} selected ${count === 1 ? "host" : "hosts"}? Deleted hosts will re-enroll if their agent can still use a valid enroll secret.`,
+    );
+    if (!confirmed) return;
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => setSelectedHostIds([]),
+    });
+  };
 
   return (
     <>
@@ -157,6 +172,15 @@ export function HostsListPage() {
             onPerPageChange={setters.setPerPage}
             onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
             isLoading={query.isLoading}
+            enableRowSelection
+            selectedRowIds={selectedHostIds}
+            onSelectedRowIdsChange={setSelectedHostIds}
+            bulkActions={
+              <Button variant="destructive" size="sm" onClick={deleteSelectedHosts} disabled={bulkDelete.isPending}>
+                <Trash2 className="size-4" />
+                Delete
+              </Button>
+            }
             rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
             toolbar={
               <HostsToolbar

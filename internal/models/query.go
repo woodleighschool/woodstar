@@ -104,10 +104,11 @@ func (s *QueryStore) List(ctx context.Context, params QueryListParams) ([]Query,
 		return nil, 0, err
 	}
 
-	order := queryOrder(params.OrderKey, params.OrderDirection)
-	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
-	rows, err := s.db.Pool().Query(ctx, queryListSQL(where, order, limitIndex), args...)
+	query, args, err := queryListSQL(where, args, params)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -236,6 +237,18 @@ func (s *QueryStore) Delete(ctx context.Context, id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// DeleteMany removes multiple saved queries. Missing IDs are ignored for bulk idempotency.
+func (s *QueryStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM queries WHERE id = ANY($1::bigint[])", ids)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 }
 
 // ScheduledForHost returns scheduled report queries applicable to host.
@@ -582,24 +595,20 @@ func queryListWhere(params QueryListParams) (string, []any) {
 	return nameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
-func queryOrder(key string, direction string) string {
-	column := orderUpdatedAt
-	switch key {
-	case "name", "created_at", orderUpdatedAt, "schedule_interval":
-		column = key
-	}
-	if direction == orderDesc {
-		return column + " " + orderSQLDesc
-	}
-	return column + " " + orderSQLAsc
-}
-
-func queryListSQL(where string, order string, limitIndex int) string {
-	return querySelectSQL + " " + where + " ORDER BY " + order + fmt.Sprintf(
-		" LIMIT $%d OFFSET $%d",
-		limitIndex,
-		limitIndex+1,
-	)
+func queryListSQL(where string, args []any, params QueryListParams) (string, []any, error) {
+	return listQuery{
+		SelectSQL: querySelectSQL,
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]orderExpr{
+			"name":              {SQL: "name"},
+			"created_at":        {SQL: "created_at"},
+			orderUpdatedAt:      {SQL: orderUpdatedAt},
+			"schedule_interval": {SQL: "schedule_interval"},
+		},
+		DefaultOrder: []orderExpr{{SQL: orderUpdatedAt}, {SQL: "id"}},
+		Params:       params.ListParams,
+	}.Build()
 }
 
 const querySelectSQL = `

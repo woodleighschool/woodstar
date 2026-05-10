@@ -119,111 +119,20 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     deleted_at = NULL
 RETURNING *;
 
--- name: ListHosts :many
-SELECT *
-FROM hosts
-WHERE deleted_at IS NULL
-    AND (
-        @q::text = ''
-        OR display_name ILIKE '%' || @q::text || '%'
-        OR hostname ILIKE '%' || @q::text || '%'
-        OR computer_name ILIKE '%' || @q::text || '%'
-        OR hardware_serial ILIKE '%' || @q::text || '%'
-        OR hardware_uuid ILIKE '%' || @q::text || '%'
-        OR hardware_model ILIKE '%' || @q::text || '%'
-        OR os_version ILIKE '%' || @q::text || '%'
-        OR EXISTS (
-            SELECT 1 FROM host_emails he
-            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
-        )
-    )
-    AND (
-        @platform::text = ''
-        OR platform = @platform::text
-        OR (@platform::text = 'darwin' AND platform IN ('darwin', 'macos'))
-        OR (@platform::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
-    )
-    AND (
-        @status::text = ''
-        OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
-        OR (@status::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
-    )
-    AND (@label_id::bigint = 0 OR EXISTS (
-        SELECT 1 FROM label_membership lm
-        WHERE lm.host_id = hosts.id AND lm.label_id = @label_id::bigint
-    ))
-    AND (@software_id::bigint = 0 OR EXISTS (
-        SELECT 1 FROM host_software hs
-        WHERE hs.host_id = hosts.id AND hs.software_id = @software_id::bigint
-    ))
-    AND (@software_title_id::bigint = 0 OR EXISTS (
-        SELECT 1
-        FROM host_software hs
-        JOIN software s ON s.id = hs.software_id
-        WHERE hs.host_id = hosts.id AND s.title_id = @software_title_id::bigint
-    ))
-ORDER BY
-    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'asc' THEN lower(platform) END ASC,
-    CASE WHEN @order_key::text = 'platform' AND @order_direction::text = 'desc' THEN lower(platform) END DESC,
-    CASE WHEN @order_key::text = 'hardware_serial' AND @order_direction::text = 'asc' THEN lower(hardware_serial) END ASC,
-    CASE WHEN @order_key::text = 'hardware_serial' AND @order_direction::text = 'desc' THEN lower(hardware_serial) END DESC,
-    CASE WHEN @order_key::text = 'os_version' AND @order_direction::text = 'asc' THEN lower(os_version) END ASC,
-    CASE WHEN @order_key::text = 'os_version' AND @order_direction::text = 'desc' THEN lower(os_version) END DESC,
-    CASE WHEN @order_key::text = 'last_seen_at' AND @order_direction::text = 'asc' THEN last_seen_at END ASC NULLS LAST,
-    CASE WHEN @order_key::text = 'last_seen_at' AND @order_direction::text = 'desc' THEN last_seen_at END DESC NULLS LAST,
-    CASE WHEN @order_key::text = 'display_name' AND @order_direction::text = 'desc' THEN lower(display_name) END DESC,
-    lower(display_name),
-    id
-LIMIT @limit_rows OFFSET @offset_rows;
-
--- name: CountHosts :one
-SELECT count(*)::integer
-FROM hosts
-WHERE deleted_at IS NULL
-    AND (
-        @q::text = ''
-        OR display_name ILIKE '%' || @q::text || '%'
-        OR hostname ILIKE '%' || @q::text || '%'
-        OR computer_name ILIKE '%' || @q::text || '%'
-        OR hardware_serial ILIKE '%' || @q::text || '%'
-        OR hardware_uuid ILIKE '%' || @q::text || '%'
-        OR hardware_model ILIKE '%' || @q::text || '%'
-        OR os_version ILIKE '%' || @q::text || '%'
-        OR EXISTS (
-            SELECT 1 FROM host_emails he
-            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || @q::text || '%'
-        )
-    )
-    AND (
-        @platform::text = ''
-        OR platform = @platform::text
-        OR (@platform::text = 'darwin' AND platform IN ('darwin', 'macos'))
-        OR (@platform::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
-    )
-    AND (
-        @status::text = ''
-        OR (@status::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
-        OR (@status::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
-    )
-    AND (@label_id::bigint = 0 OR EXISTS (
-        SELECT 1 FROM label_membership lm
-        WHERE lm.host_id = hosts.id AND lm.label_id = @label_id::bigint
-    ))
-    AND (@software_id::bigint = 0 OR EXISTS (
-        SELECT 1 FROM host_software hs
-        WHERE hs.host_id = hosts.id AND hs.software_id = @software_id::bigint
-    ))
-    AND (@software_title_id::bigint = 0 OR EXISTS (
-        SELECT 1
-        FROM host_software hs
-        JOIN software s ON s.id = hs.software_id
-        WHERE hs.host_id = hosts.id AND s.title_id = @software_title_id::bigint
-    ));
-
 -- name: GetHostByID :one
 SELECT *
 FROM hosts
 WHERE id = @id AND deleted_at IS NULL;
+
+-- name: DeleteHost :one
+DELETE FROM hosts
+WHERE id = @id
+RETURNING id;
+
+-- name: DeleteHosts :many
+DELETE FROM hosts
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
 
 -- name: TouchHostByOrbitNodeKey :one
 UPDATE hosts

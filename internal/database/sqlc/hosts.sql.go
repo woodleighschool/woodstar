@@ -133,72 +133,21 @@ func (q *Queries) ApplyHostDetail(ctx context.Context, arg ApplyHostDetailParams
 	return err
 }
 
-const countHosts = `-- name: CountHosts :one
-SELECT count(*)::integer
-FROM hosts
-WHERE deleted_at IS NULL
-    AND (
-        $1::text = ''
-        OR display_name ILIKE '%' || $1::text || '%'
-        OR hostname ILIKE '%' || $1::text || '%'
-        OR computer_name ILIKE '%' || $1::text || '%'
-        OR hardware_serial ILIKE '%' || $1::text || '%'
-        OR hardware_uuid ILIKE '%' || $1::text || '%'
-        OR hardware_model ILIKE '%' || $1::text || '%'
-        OR os_version ILIKE '%' || $1::text || '%'
-        OR EXISTS (
-            SELECT 1 FROM host_emails he
-            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || $1::text || '%'
-        )
-    )
-    AND (
-        $2::text = ''
-        OR platform = $2::text
-        OR ($2::text = 'darwin' AND platform IN ('darwin', 'macos'))
-        OR ($2::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
-    )
-    AND (
-        $3::text = ''
-        OR ($3::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
-        OR ($3::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
-    )
-    AND ($4::bigint = 0 OR EXISTS (
-        SELECT 1 FROM label_membership lm
-        WHERE lm.host_id = hosts.id AND lm.label_id = $4::bigint
-    ))
-    AND ($5::bigint = 0 OR EXISTS (
-        SELECT 1 FROM host_software hs
-        WHERE hs.host_id = hosts.id AND hs.software_id = $5::bigint
-    ))
-    AND ($6::bigint = 0 OR EXISTS (
-        SELECT 1
-        FROM host_software hs
-        JOIN software s ON s.id = hs.software_id
-        WHERE hs.host_id = hosts.id AND s.title_id = $6::bigint
-    ))
+const deleteHost = `-- name: DeleteHost :one
+DELETE FROM hosts
+WHERE id = $1
+RETURNING id
 `
 
-type CountHostsParams struct {
-	Q               string `json:"q"`
-	Platform        string `json:"platform"`
-	Status          string `json:"status"`
-	LabelID         int64  `json:"label_id"`
-	SoftwareID      int64  `json:"software_id"`
-	SoftwareTitleID int64  `json:"software_title_id"`
+type DeleteHostParams struct {
+	ID int64 `json:"id"`
 }
 
-func (q *Queries) CountHosts(ctx context.Context, arg CountHostsParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countHosts,
-		arg.Q,
-		arg.Platform,
-		arg.Status,
-		arg.LabelID,
-		arg.SoftwareID,
-		arg.SoftwareTitleID,
-	)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
+func (q *Queries) DeleteHost(ctx context.Context, arg DeleteHostParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteHost, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deleteHostBatteries = `-- name: DeleteHostBatteries :exec
@@ -227,6 +176,36 @@ type DeleteHostUsersParams struct {
 func (q *Queries) DeleteHostUsers(ctx context.Context, arg DeleteHostUsersParams) error {
 	_, err := q.db.Exec(ctx, deleteHostUsers, arg.HostID)
 	return err
+}
+
+const deleteHosts = `-- name: DeleteHosts :many
+DELETE FROM hosts
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteHostsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteHosts(ctx context.Context, arg DeleteHostsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteHosts, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getHostByID = `-- name: GetHostByID :one
@@ -488,152 +467,6 @@ func (q *Queries) ListHostUsers(ctx context.Context, arg ListHostUsersParams) ([
 			&i.Shell,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listHosts = `-- name: ListHosts :many
-SELECT id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, platform, platform_like, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, uptime_seconds, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at, deleted_at
-FROM hosts
-WHERE deleted_at IS NULL
-    AND (
-        $1::text = ''
-        OR display_name ILIKE '%' || $1::text || '%'
-        OR hostname ILIKE '%' || $1::text || '%'
-        OR computer_name ILIKE '%' || $1::text || '%'
-        OR hardware_serial ILIKE '%' || $1::text || '%'
-        OR hardware_uuid ILIKE '%' || $1::text || '%'
-        OR hardware_model ILIKE '%' || $1::text || '%'
-        OR os_version ILIKE '%' || $1::text || '%'
-        OR EXISTS (
-            SELECT 1 FROM host_emails he
-            WHERE he.host_id = hosts.id AND he.email ILIKE '%' || $1::text || '%'
-        )
-    )
-    AND (
-        $2::text = ''
-        OR platform = $2::text
-        OR ($2::text = 'darwin' AND platform IN ('darwin', 'macos'))
-        OR ($2::text = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
-    )
-    AND (
-        $3::text = ''
-        OR ($3::text = 'online' AND last_seen_at >= now() - interval '5 minutes')
-        OR ($3::text = 'offline' AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes'))
-    )
-    AND ($4::bigint = 0 OR EXISTS (
-        SELECT 1 FROM label_membership lm
-        WHERE lm.host_id = hosts.id AND lm.label_id = $4::bigint
-    ))
-    AND ($5::bigint = 0 OR EXISTS (
-        SELECT 1 FROM host_software hs
-        WHERE hs.host_id = hosts.id AND hs.software_id = $5::bigint
-    ))
-    AND ($6::bigint = 0 OR EXISTS (
-        SELECT 1
-        FROM host_software hs
-        JOIN software s ON s.id = hs.software_id
-        WHERE hs.host_id = hosts.id AND s.title_id = $6::bigint
-    ))
-ORDER BY
-    CASE WHEN $7::text = 'platform' AND $8::text = 'asc' THEN lower(platform) END ASC,
-    CASE WHEN $7::text = 'platform' AND $8::text = 'desc' THEN lower(platform) END DESC,
-    CASE WHEN $7::text = 'hardware_serial' AND $8::text = 'asc' THEN lower(hardware_serial) END ASC,
-    CASE WHEN $7::text = 'hardware_serial' AND $8::text = 'desc' THEN lower(hardware_serial) END DESC,
-    CASE WHEN $7::text = 'os_version' AND $8::text = 'asc' THEN lower(os_version) END ASC,
-    CASE WHEN $7::text = 'os_version' AND $8::text = 'desc' THEN lower(os_version) END DESC,
-    CASE WHEN $7::text = 'last_seen_at' AND $8::text = 'asc' THEN last_seen_at END ASC NULLS LAST,
-    CASE WHEN $7::text = 'last_seen_at' AND $8::text = 'desc' THEN last_seen_at END DESC NULLS LAST,
-    CASE WHEN $7::text = 'display_name' AND $8::text = 'desc' THEN lower(display_name) END DESC,
-    lower(display_name),
-    id
-LIMIT $10 OFFSET $9
-`
-
-type ListHostsParams struct {
-	Q               string `json:"q"`
-	Platform        string `json:"platform"`
-	Status          string `json:"status"`
-	LabelID         int64  `json:"label_id"`
-	SoftwareID      int64  `json:"software_id"`
-	SoftwareTitleID int64  `json:"software_title_id"`
-	OrderKey        string `json:"order_key"`
-	OrderDirection  string `json:"order_direction"`
-	OffsetRows      int32  `json:"offset_rows"`
-	LimitRows       int32  `json:"limit_rows"`
-}
-
-func (q *Queries) ListHosts(ctx context.Context, arg ListHostsParams) ([]Host, error) {
-	rows, err := q.db.Query(ctx, listHosts,
-		arg.Q,
-		arg.Platform,
-		arg.Status,
-		arg.LabelID,
-		arg.SoftwareID,
-		arg.SoftwareTitleID,
-		arg.OrderKey,
-		arg.OrderDirection,
-		arg.OffsetRows,
-		arg.LimitRows,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Host{}
-	for rows.Next() {
-		var i Host
-		if err := rows.Scan(
-			&i.ID,
-			&i.HardwareUUID,
-			&i.DisplayName,
-			&i.Hostname,
-			&i.ComputerName,
-			&i.HardwareSerial,
-			&i.HardwareModel,
-			&i.HardwareVersion,
-			&i.HardwareVendor,
-			&i.OSName,
-			&i.OSVersion,
-			&i.OSBuild,
-			&i.Platform,
-			&i.PlatformLike,
-			&i.OsqueryVersion,
-			&i.OrbitVersion,
-			&i.OrbitNodeKey,
-			&i.OsqueryNodeKey,
-			&i.CPUType,
-			&i.CPUSubtype,
-			&i.CPUBrand,
-			&i.CPULogicalCores,
-			&i.CPUPhysicalCores,
-			&i.PhysicalMemory,
-			&i.KernelVersion,
-			&i.UptimeSeconds,
-			&i.LastRestartedAt,
-			&i.DiskSpaceAvailableBytes,
-			&i.DiskSpaceTotalBytes,
-			&i.PublicIP,
-			&i.PrimaryIP,
-			&i.PrimaryMAC,
-			&i.DistributedInterval,
-			&i.ConfigTLSRefresh,
-			&i.DetailQueryHash,
-			&i.EnrolledAt,
-			&i.LastSeenAt,
-			&i.DetailUpdatedAt,
-			&i.LabelUpdatedAt,
-			&i.SoftwareUpdatedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}

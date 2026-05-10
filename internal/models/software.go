@@ -227,7 +227,10 @@ func (s *SoftwareStore) ListTitles(ctx context.Context, params SoftwareTitleList
 		return nil, 0, err
 	}
 
-	orderSQL := softwareTitleOrder(params.OrderKey, params.OrderDirection)
+	orderSQL, err := softwareTitleOrder(params.OrderKey, params.OrderDirection)
+	if err != nil {
+		return nil, 0, err
+	}
 	limitIndex := len(args) + 1
 	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
 	rows, err := s.db.Pool().Query(ctx, softwareTitleListSQL(whereSQL, orderSQL, limitIndex), args...)
@@ -288,10 +291,14 @@ JOIN software_titles st ON st.id = s.title_id
 		return nil, 0, err
 	}
 
+	orderSQL, err := hostSoftwareOrder(params.OrderKey, params.OrderDirection)
+	if err != nil {
+		return nil, 0, err
+	}
 	titleIDs, err := s.hostSoftwareTitleIDs(
 		ctx,
 		whereSQL,
-		hostSoftwareOrder(params.OrderKey, params.OrderDirection),
+		orderSQL,
 		args,
 		params,
 	)
@@ -485,23 +492,18 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 	return " WHERE " + strings.Join(clauses, " AND "), args
 }
 
-func softwareTitleOrder(orderKey string, direction string) string {
-	directionSQL := orderSQLAsc
-	if direction == orderDesc {
-		directionSQL = orderSQLDesc
-	}
-	switch orderKey {
-	case "source":
-		return "ORDER BY lower(st.source) " + directionSQL + ", lower(st.name)"
-	case "hosts_count":
-		return "ORDER BY hosts_count " + directionSQL + ", lower(st.name)"
-	case "versions_count":
-		return "ORDER BY versions_count " + directionSQL + ", lower(st.name)"
-	case "counts_updated_at":
-		return "ORDER BY counts_updated_at " + directionSQL + " NULLS LAST, lower(st.name)"
-	default:
-		return "ORDER BY lower(st.name) " + directionSQL + ", st.id"
-	}
+func softwareTitleOrder(orderKey string, direction string) (string, error) {
+	return listOrderBy(
+		CleanListParams(ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]orderExpr{
+			"name":              {SQL: "lower(st.name)"},
+			"source":            {SQL: "lower(st.source)"},
+			"hosts_count":       {SQL: "hosts_count"},
+			"versions_count":    {SQL: "versions_count"},
+			"counts_updated_at": {SQL: "counts_updated_at", NullsLast: true},
+		},
+		[]orderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
+	)
 }
 
 func softwareTitleListSQL(whereSQL string, orderSQL string, limitIndex int) string {
@@ -667,21 +669,17 @@ func hostSoftwareWhere(params HostSoftwareListParams, args []any) (string, []any
 	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
-func hostSoftwareOrder(orderKey string, direction string) string {
-	directionSQL := orderSQLAsc
-	if direction == orderDesc {
-		directionSQL = orderSQLDesc
-	}
-	switch orderKey {
-	case "version":
-		return "ORDER BY order_version " + directionSQL + ", order_name, st.id"
-	case "source":
-		return "ORDER BY order_source " + directionSQL + ", order_name, st.id"
-	case "last_opened_at":
-		return "ORDER BY order_last_opened_at " + directionSQL + " NULLS LAST, order_name, st.id"
-	default:
-		return "ORDER BY order_name " + directionSQL + ", st.id"
-	}
+func hostSoftwareOrder(orderKey string, direction string) (string, error) {
+	return listOrderBy(
+		CleanListParams(ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]orderExpr{
+			"name":           {SQL: "order_name"},
+			"version":        {SQL: "order_version"},
+			"source":         {SQL: "order_source"},
+			"last_opened_at": {SQL: "order_last_opened_at", NullsLast: true},
+		},
+		[]orderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
+	)
 }
 
 type hostSoftwareDBRow struct {

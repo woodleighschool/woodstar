@@ -75,6 +75,14 @@ type queryDeleteInput struct {
 	ID string `path:"id"`
 }
 
+type queryBulkDeleteInput struct {
+	Body bulkIDsBody
+}
+
+func (i queryBulkDeleteInput) ids() ([]int64, error) {
+	return cleanBulkIDs(i.Body.IDs, "report IDs")
+}
+
 type queryListOutput struct {
 	Body struct {
 		Items []queryBody `json:"items"`
@@ -138,6 +146,7 @@ func RegisterQueries(api huma.API, store *models.QueryStore, hosts *models.HostS
 	registerGetQuery(api, store)
 	registerUpdateQuery(api, store)
 	registerDeleteQuery(api, store)
+	registerBulkDeleteQueries(api, store)
 	registerQueryResults(api, store)
 	registerHostQueries(api, store, hosts)
 	registerHostQueryResults(api, store, hosts)
@@ -154,7 +163,7 @@ func registerListQueries(api huma.API, store *models.QueryStore) {
 	}, func(ctx context.Context, input *queryListInput) (*queryListOutput, error) {
 		items, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError(queryResource, err)
 		}
 		out := &queryListOutput{}
 		out.Body.Items = make([]queryBody, 0, len(items))
@@ -249,6 +258,29 @@ func registerDeleteQuery(api huma.API, store *models.QueryStore) {
 		}
 		if err := store.Delete(ctx, id); err != nil {
 			return nil, resourceMutationError(queryResource, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteQueries(api huma.API, store *models.QueryStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-queries",
+		Method:      http.MethodPost,
+		Path:        "/api/queries/bulk-delete",
+		Tags:        []string{queriesTag},
+		Summary:     "Delete saved queries",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *queryBulkDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		ids, err := input.ids()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, ids); err != nil {
+			return nil, err
 		}
 		return &struct{}{}, nil
 	})

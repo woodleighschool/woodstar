@@ -9,35 +9,6 @@ import (
 	"context"
 )
 
-const countLabels = `-- name: CountLabels :one
-SELECT count(*)::integer
-FROM labels l
-WHERE
-    ($1::text = '' OR l.name ILIKE '%' || $1::text || '%' OR l.description ILIKE '%' || $1::text || '%')
-    AND ($2::text = '' OR l.label_type = $2::text)
-    AND ($3::text = '' OR l.label_membership_type = $3::text)
-    AND ($4::text = '' OR l.platform = $4::text)
-`
-
-type CountLabelsParams struct {
-	Q                   string `json:"q"`
-	LabelType           string `json:"label_type"`
-	LabelMembershipType string `json:"label_membership_type"`
-	Platform            string `json:"platform"`
-}
-
-func (q *Queries) CountLabels(ctx context.Context, arg CountLabelsParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countLabels,
-		arg.Q,
-		arg.LabelType,
-		arg.LabelMembershipType,
-		arg.Platform,
-	)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const createLabel = `-- name: CreateLabel :one
 INSERT INTO labels (
     name,
@@ -169,11 +140,10 @@ WHERE
     AND (
         label_type = 'builtin'
         OR platform IS NULL
-        OR platform = ''
-        OR $2::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND $2::text IN ('darwin', 'macos'))
+        OR $2::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND $2::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND $2::text <> ''
             AND $2::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
         )
@@ -214,11 +184,10 @@ WHERE
     AND (
         label_type = 'builtin'
         OR platform IS NULL
-        OR platform = ''
-        OR $1::text = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ',')) AND $1::text IN ('darwin', 'macos'))
+        OR $1::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND $1::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform, ' ', ''), ','))
+            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND $1::text <> ''
             AND $1::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
         )
@@ -249,91 +218,6 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 			&i.Platform,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listLabels = `-- name: ListLabels :many
-SELECT
-    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
-    count(lm.host_id)::integer AS hosts_count
-FROM labels l
-LEFT JOIN label_membership lm ON lm.label_id = l.id
-WHERE
-    ($1::text = '' OR l.name ILIKE '%' || $1::text || '%' OR l.description ILIKE '%' || $1::text || '%')
-    AND ($2::text = '' OR l.label_type = $2::text)
-    AND ($3::text = '' OR l.label_membership_type = $3::text)
-    AND ($4::text = '' OR l.platform = $4::text)
-GROUP BY l.id
-ORDER BY
-    CASE WHEN $5::text = 'name' AND $6::text = 'desc' THEN lower(l.name) END DESC,
-    CASE WHEN $5::text = 'label_type' AND $6::text = 'asc' THEN l.label_type END ASC,
-    CASE WHEN $5::text = 'label_type' AND $6::text = 'desc' THEN l.label_type END DESC,
-    CASE WHEN $5::text = 'label_membership_type' AND $6::text = 'asc' THEN l.label_membership_type END ASC,
-    CASE WHEN $5::text = 'label_membership_type' AND $6::text = 'desc' THEN l.label_membership_type END DESC,
-    CASE WHEN $5::text = 'platform' AND $6::text = 'asc' THEN l.platform END ASC NULLS LAST,
-    CASE WHEN $5::text = 'platform' AND $6::text = 'desc' THEN l.platform END DESC NULLS LAST,
-    CASE WHEN $5::text = 'hosts_count' AND $6::text = 'asc' THEN count(lm.host_id) END ASC,
-    CASE WHEN $5::text = 'hosts_count' AND $6::text = 'desc' THEN count(lm.host_id) END DESC,
-    CASE WHEN $5::text = 'updated_at' AND $6::text = 'asc' THEN l.updated_at END ASC,
-    CASE WHEN $5::text = 'updated_at' AND $6::text = 'desc' THEN l.updated_at END DESC,
-    lower(l.name),
-    l.id
-LIMIT $8 OFFSET $7
-`
-
-type ListLabelsParams struct {
-	Q                   string `json:"q"`
-	LabelType           string `json:"label_type"`
-	LabelMembershipType string `json:"label_membership_type"`
-	Platform            string `json:"platform"`
-	OrderKey            string `json:"order_key"`
-	OrderDirection      string `json:"order_direction"`
-	OffsetRows          int32  `json:"offset_rows"`
-	LimitRows           int32  `json:"limit_rows"`
-}
-
-type ListLabelsRow struct {
-	Label      Label `json:"label"`
-	HostsCount int32 `json:"hosts_count"`
-}
-
-func (q *Queries) ListLabels(ctx context.Context, arg ListLabelsParams) ([]ListLabelsRow, error) {
-	rows, err := q.db.Query(ctx, listLabels,
-		arg.Q,
-		arg.LabelType,
-		arg.LabelMembershipType,
-		arg.Platform,
-		arg.OrderKey,
-		arg.OrderDirection,
-		arg.OffsetRows,
-		arg.LimitRows,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListLabelsRow{}
-	for rows.Next() {
-		var i ListLabelsRow
-		if err := rows.Scan(
-			&i.Label.ID,
-			&i.Label.Name,
-			&i.Label.Description,
-			&i.Label.Query,
-			&i.Label.LabelType,
-			&i.Label.LabelMembershipType,
-			&i.Label.Platform,
-			&i.Label.CreatedAt,
-			&i.Label.UpdatedAt,
-			&i.HostsCount,
 		); err != nil {
 			return nil, err
 		}

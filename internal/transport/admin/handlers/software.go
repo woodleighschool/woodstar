@@ -94,7 +94,7 @@ func RegisterSoftware(api huma.API, store *models.SoftwareStore) {
 	}, func(ctx context.Context, input *softwareListInput) (*softwareListOutput, error) {
 		titles, count, err := store.ListTitles(ctx, input.params())
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError("software", err)
 		}
 		body := softwareListBody{
 			Items: make([]softwareTitleBody, 0, len(titles)),

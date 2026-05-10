@@ -1,6 +1,7 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileBarChart2, Plus, Search, X } from "lucide-react";
+import { FileBarChart2, Plus, Search, Trash2, X } from "lucide-react";
+import { useState } from "react";
 
 import { IntervalIndicator, PageLead, PlatformBadge, TargetSummary } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,7 +12,7 @@ import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filte
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useQueries, type SavedQuery } from "@/hooks/use-queries";
+import { useBulkDeleteQueries, useQueries, type SavedQuery } from "@/hooks/use-queries";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { formatRelative } from "@/lib/utils";
@@ -22,6 +23,8 @@ export function ReportsPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
+  const bulkDelete = useBulkDeleteQueries();
 
   const query = useQueries({
     q: search.q,
@@ -35,6 +38,16 @@ export function ReportsPage() {
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!search.platform;
+  const selectedIDs = selectedReportIds.map(Number);
+
+  const deleteSelectedReports = () => {
+    const count = selectedIDs.length;
+    if (count === 0) return;
+    if (!window.confirm(`Delete ${count} selected ${count === 1 ? "report" : "reports"}?`)) return;
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => setSelectedReportIds([]),
+    });
+  };
 
   const columns: ColumnDef<SavedQuery>[] = [
     {
@@ -104,6 +117,15 @@ export function ReportsPage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedReportIds}
+          onSelectedRowIdsChange={setSelectedReportIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={deleteSelectedReports} disabled={bulkDelete.isPending}>
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
+          }
           rowHref={(row) => ({ to: "/reports/$reportId", params: { reportId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">

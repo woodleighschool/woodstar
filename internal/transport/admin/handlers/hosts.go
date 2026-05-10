@@ -211,8 +211,20 @@ func (i hostSoftwareInput) params() (int64, models.HostSoftwareListParams, error
 	}, nil
 }
 
+type bulkIDsBody struct {
+	IDs []int64 `json:"ids"`
+}
+
+type hostBulkDeleteInput struct {
+	Body bulkIDsBody
+}
+
+func (i hostBulkDeleteInput) ids() ([]int64, error) {
+	return cleanBulkIDs(i.Body.IDs, "host IDs")
+}
+
 // RegisterHosts registers admin host inventory endpoints.
-// Reading hosts is open to admins and viewers; mutation is not exposed yet.
+// Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterHosts(
 	api huma.API,
 	store *models.HostStore,
@@ -222,6 +234,8 @@ func RegisterHosts(
 ) {
 	registerListHosts(api, store, deviceMappings)
 	registerGetHost(api, store, deviceMappings, labels)
+	registerDeleteHost(api, store)
+	registerBulkDeleteHosts(api, store)
 	registerHostSoftware(api, store, software)
 }
 
@@ -240,7 +254,7 @@ func registerListHosts(api huma.API, store *models.HostStore, mappings *models.D
 		}
 		hosts, count, err := store.List(ctx, params)
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError("host", err)
 		}
 		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hosts)), Count: count}}
 		for i := range hosts {
@@ -290,6 +304,52 @@ func registerGetHost(
 	})
 }
 
+func registerDeleteHost(api huma.API, store *models.HostStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-host",
+		Method:      http.MethodDelete,
+		Path:        "/api/hosts/{id}",
+		Tags:        []string{hostsTag},
+		Summary:     "Delete an enrolled host",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		id, err := parseHostID(input.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := store.Delete(ctx, id); err != nil {
+			return nil, resourceMutationError("host", err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteHosts(api huma.API, store *models.HostStore) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-hosts",
+		Method:      http.MethodPost,
+		Path:        "/api/hosts/bulk-delete",
+		Tags:        []string{hostsTag},
+		Summary:     "Delete enrolled hosts",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		ids, err := input.ids()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, ids); err != nil {
+			return nil, err
+		}
+		return &struct{}{}, nil
+	})
+}
+
 func loadHostDetailChildren(
 	ctx context.Context,
 	store *models.HostStore,
@@ -336,7 +396,7 @@ func registerHostSoftware(api huma.API, hosts *models.HostStore, software *model
 		}
 		rows, count, err := software.ListForHost(ctx, id, params)
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError("software", err)
 		}
 		out := &hostSoftwareOutput{
 			Body: hostSoftwareListBody{Items: make([]hostSoftwareBody, 0, len(rows)), Count: count},

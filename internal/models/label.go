@@ -64,44 +64,57 @@ type LabelUpdate struct {
 
 // LabelStore persists labels and host memberships.
 type LabelStore struct {
-	q *sqlc.Queries
+	db *database.DB
+	q  *sqlc.Queries
 }
 
 // NewLabelStore returns a label store backed by db.
 func NewLabelStore(db *database.DB) *LabelStore {
-	return &LabelStore{q: db.Queries()}
+	return &LabelStore{db: db, q: db.Queries()}
 }
 
 // List returns labels and the total count matching params.
 func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	params = cleanLabelListParams(params)
-	rows, err := s.q.ListLabels(ctx, sqlc.ListLabelsParams{
-		Q:                   params.Q,
-		LabelType:           params.LabelType,
-		LabelMembershipType: params.LabelMembershipType,
-		Platform:            params.Platform,
-		OrderKey:            params.OrderKey,
-		OrderDirection:      params.OrderDirection,
-		LimitRows:           int32(params.PerPage),
-		OffsetRows:          int32((params.Page - 1) * params.PerPage),
-	})
+	where, args := labelListWhere(params)
+	var count int
+	if err := s.db.Pool().
+		QueryRow(ctx, "SELECT count(*)::integer FROM labels l "+where, args...).
+		Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	query, args, err := labelListSQLWithWhere(params, where, args)
 	if err != nil {
 		return nil, 0, err
 	}
-	count, err := s.q.CountLabels(ctx, sqlc.CountLabelsParams{
-		Q:                   params.Q,
-		LabelType:           params.LabelType,
-		LabelMembershipType: params.LabelMembershipType,
-		Platform:            params.Platform,
-	})
+	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
-	labels := make([]Label, len(rows))
-	for i, row := range rows {
-		labels[i] = Label{Label: row.Label, HostsCount: int(row.HostsCount)}
+	defer rows.Close()
+	labels := make([]Label, 0)
+	for rows.Next() {
+		var label Label
+		if err := rows.Scan(
+			&label.ID,
+			&label.Name,
+			&label.Description,
+			&label.Query,
+			&label.LabelType,
+			&label.LabelMembershipType,
+			&label.Platform,
+			&label.CreatedAt,
+			&label.UpdatedAt,
+			&label.HostsCount,
+		); err != nil {
+			return nil, 0, err
+		}
+		labels = append(labels, label)
 	}
-	return labels, int(count), nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return labels, count, nil
 }
 
 // GetByID returns one label by database ID.
@@ -299,6 +312,63 @@ func cleanLabelListParams(params LabelListParams) LabelListParams {
 	params.LabelMembershipType = strings.TrimSpace(params.LabelMembershipType)
 	params.Platform = CleanPlatform(params.Platform)
 	return params
+}
+
+func labelListSQLWithWhere(params LabelListParams, where string, args []any) (string, []any, error) {
+	return listQuery{
+		SelectSQL: `SELECT
+	l.id,
+	l.name,
+	l.description,
+	l.query,
+	l.label_type,
+	l.label_membership_type,
+	l.platform,
+	l.created_at,
+	l.updated_at,
+	count(lm.host_id)::integer AS hosts_count
+FROM labels l
+LEFT JOIN label_membership lm ON lm.label_id = l.id`,
+		WhereSQL:   where,
+		GroupBySQL: "GROUP BY l.id",
+		Args:       args,
+		OrderKeys: map[string]orderExpr{
+			"name":                  {SQL: "lower(l.name)"},
+			"label_type":            {SQL: "l.label_type"},
+			"label_membership_type": {SQL: "l.label_membership_type"},
+			"platform":              {SQL: "l.platform", NullsLast: true},
+			"hosts_count":           {SQL: "hosts_count"},
+			"updated_at":            {SQL: "l.updated_at"},
+		},
+		DefaultOrder: []orderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
+		Params:       params.ListParams,
+	}.Build()
+}
+
+func labelListWhere(params LabelListParams) (string, []any) {
+	clauses := make([]string, 0, 4)
+	args := make([]any, 0)
+	if params.Q != "" {
+		args = append(args, "%"+params.Q+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, "(l.name ILIKE "+placeholder+" OR l.description ILIKE "+placeholder+")")
+	}
+	if params.LabelType != "" {
+		args = append(args, params.LabelType)
+		clauses = append(clauses, fmt.Sprintf("l.label_type = $%d", len(args)))
+	}
+	if params.LabelMembershipType != "" {
+		args = append(args, params.LabelMembershipType)
+		clauses = append(clauses, fmt.Sprintf("l.label_membership_type = $%d", len(args)))
+	}
+	if params.Platform != "" {
+		args = append(args, params.Platform)
+		clauses = append(clauses, fmt.Sprintf("l.platform = $%d", len(args)))
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func validateLabelFields(name string, query *string, labelType, labelMembershipType string) error {

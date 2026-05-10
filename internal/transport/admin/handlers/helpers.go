@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,19 @@ func parseIDList(values []int64, name string) ([]int64, error) {
 			return nil, huma.Error400BadRequest(name + " includes a non-positive ID")
 		}
 		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+func cleanBulkIDs(values []int64, name string) ([]int64, error) {
+	ids, err := parseIDList(values, name)
+	if err != nil {
+		return nil, err
+	}
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
+	if len(ids) == 0 {
+		return nil, huma.Error400BadRequest(name + " must include at least one ID")
 	}
 	return ids, nil
 }
