@@ -219,11 +219,18 @@ For multi-commit structural refactors (see **Working Discipline**), this checkli
 ## API & Database Change Rules
 
 - Database schema changes must ship as migrations.
-- SQL queries should live in a predictable query directory once database tooling exists.
+- SQL queries live in `internal/database/queries/*.sql`; sqlc-generated code lives in `internal/database/sqlc/`.
 - Generated database code must not be edited manually.
 - API contract changes must update generated or checked-in API documentation once that system exists.
 - Prefer Postgres-native, readable SQL over abstractions that hide important behavior.
-- Keep dynamic SQL carefully bounded to list filtering, sorting, search, and targeting.
+
+### Picking sqlc vs raw SQL
+
+- **Fixed CRUD on a single table** (insert with known columns, update by id, delete by id, lookup by id) → sqlc. The generated functions are concrete and discoverable.
+- **List, search, filter, and any other query whose WHERE/ORDER varies at runtime** → raw SQL via `dbutil.ListQuery`. sqlc can't model dynamic WHERE cleanly.
+- **Shared base SELECTs** consumed by both fixed and dynamic queries may stay as raw `const xxxSelectSQL` until they cause friction.
+
+Inconsistent today: query/check Create/Update/Delete use raw SQL where sqlc would fit. Acceptable as-is; migrate if/when a third caller emerges that would benefit.
 
 ## Architecture Quick Reference
 
