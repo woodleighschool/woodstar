@@ -3,7 +3,7 @@ package platform
 import (
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 type Platform = sqlc.Platform

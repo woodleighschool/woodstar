@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -28,7 +28,7 @@ type Store struct {
 }
 
 // NewStore returns a secret store backed by db.
-func NewStore(db *db.DB) *Store {
+func NewStore(db *database.DB) *Store {
 	return &Store{q: db.Queries()}
 }
 

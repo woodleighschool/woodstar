@@ -14,8 +14,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/secrets"
@@ -102,7 +102,7 @@ type orbitContractStores struct {
 	secrets        *secrets.Store
 }
 
-func newOrbitContractStores(database *db.DB) orbitContractStores {
+func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:          hosts.NewHostStore(database),
 		deviceMappings: hosts.NewDeviceMappingStore(database),
@@ -132,7 +132,7 @@ func hasDeviceMapping(mappings []hosts.HostDeviceMapping, email string) bool {
 func cleanupOrbitContractRows(
 	ctx context.Context,
 	t *testing.T,
-	database *db.DB,
+	database *database.DB,
 	hardwareUUID string,
 	secretValue string,
 ) {

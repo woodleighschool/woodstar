@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/platform"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
@@ -66,12 +66,12 @@ type LabelUpdate struct {
 
 // LabelStore persists labels and host memberships.
 type LabelStore struct {
-	db *db.DB
+	db *database.DB
 	q  *sqlc.Queries
 }
 
 // NewLabelStore returns a label store backed by db.
-func NewLabelStore(db *db.DB) *LabelStore {
+func NewLabelStore(db *database.DB) *LabelStore {
 	return &LabelStore{db: db, q: db.Queries()}
 }
 

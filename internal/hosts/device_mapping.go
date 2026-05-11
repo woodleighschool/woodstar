@@ -3,8 +3,8 @@ package hosts
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // DeviceMappingSourceOrbitProfile is sourced from the enrollment profile.
@@ -20,7 +20,7 @@ type DeviceMappingStore struct {
 }
 
 // NewDeviceMappingStore returns a device mapping store backed by db.
-func NewDeviceMappingStore(db *db.DB) *DeviceMappingStore {
+func NewDeviceMappingStore(db *database.DB) *DeviceMappingStore {
 	return &DeviceMappingStore{q: db.Queries()}
 }
 

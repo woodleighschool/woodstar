@@ -15,7 +15,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -33,7 +33,7 @@ import (
 // Dependencies contains runtime dependencies for [Server].
 type Dependencies struct {
 	Config           config.Config
-	DB               *db.DB
+	DB               *database.DB
 	Version          string
 	Logger           *slog.Logger
 	WebHandler       *web.Handler

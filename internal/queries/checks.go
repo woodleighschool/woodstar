@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
@@ -64,11 +64,11 @@ type CheckHostStatus struct {
 
 // CheckStore persists checks and per-host membership state.
 type CheckStore struct {
-	db *db.DB
+	db *database.DB
 }
 
 // NewCheckStore returns a check store backed by db.
-func NewCheckStore(db *db.DB) *CheckStore {
+func NewCheckStore(db *database.DB) *CheckStore {
 	return &CheckStore{db: db}
 }
 

@@ -3,8 +3,8 @@ package software
 import (
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -94,11 +94,11 @@ type HostSoftwareListParams struct {
 
 // SoftwareStore persists global software titles and host inventory joins.
 type SoftwareStore struct {
-	db *db.DB
+	db *database.DB
 	q  *sqlc.Queries
 }
 
 // NewSoftwareStore returns a software store backed by db.
-func NewSoftwareStore(db *db.DB) *SoftwareStore {
+func NewSoftwareStore(db *database.DB) *SoftwareStore {
 	return &SoftwareStore{db: db, q: db.Queries()}
 }

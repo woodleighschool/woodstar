@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -79,7 +79,7 @@ type osqueryContractStores struct {
 	software *software.SoftwareStore
 }
 
-func newOsqueryContractStores(database *db.DB) osqueryContractStores {
+func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 	hub := queries.NewHub()
 	return osqueryContractStores{
 		hosts:    hosts.NewHostStore(database),
@@ -310,7 +310,7 @@ func assertProjectedSoftware(
 func cleanupOsqueryContractRows(
 	ctx context.Context,
 	t *testing.T,
-	database *db.DB,
+	database *database.DB,
 	hardwareUUID string,
 	secretValue string,
 	bundleID string,

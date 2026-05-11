@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
@@ -64,11 +64,11 @@ type QueryListParams struct {
 
 // QueryStore persists saved queries and scheduled report results.
 type QueryStore struct {
-	db *db.DB
+	db *database.DB
 }
 
 // NewQueryStore returns a query store backed by db.
-func NewQueryStore(db *db.DB) *QueryStore {
+func NewQueryStore(db *database.DB) *QueryStore {
 	return &QueryStore{db: db}
 }
 

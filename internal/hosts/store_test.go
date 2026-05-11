@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )

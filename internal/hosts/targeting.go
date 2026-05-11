@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
 )
@@ -20,10 +20,10 @@ type TargetSelection struct {
 
 // TargetResolver resolves live target selections against host and label state.
 type TargetResolver struct {
-	db *db.DB
+	db *database.DB
 }
 
-func NewTargetResolver(db *db.DB) *TargetResolver {
+func NewTargetResolver(db *database.DB) *TargetResolver {
 	return &TargetResolver{db: db}
 }
 
@@ -41,7 +41,7 @@ func (r *TargetResolver) ResolveSelectedTargets(ctx context.Context, selection T
 	return mergePositiveIDs(hostIDs, matches), nil
 }
 
-func resolveSelectedLabelTargets(ctx context.Context, db *db.DB, labelIDs []int64) ([]int64, error) {
+func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx,
 		`SELECT id, name, label_type
 		 FROM labels
@@ -88,7 +88,7 @@ func resolveSelectedLabelTargets(ctx context.Context, db *db.DB, labelIDs []int6
 	}
 }
 
-func allActiveHostIDs(ctx context.Context, db *db.DB) ([]int64, error) {
+func allActiveHostIDs(ctx context.Context, db *database.DB) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx, `SELECT id FROM hosts WHERE deleted_at IS NULL ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func allActiveHostIDs(ctx context.Context, db *db.DB) ([]int64, error) {
 	return scanHostIDs(rows)
 }
 
-func hostsMatchingAnyLabel(ctx context.Context, db *db.DB, labelIDs []int64) ([]int64, error) {
+func hostsMatchingAnyLabel(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
 	rows, err := db.Pool().Query(ctx,
 		`SELECT DISTINCT h.id
 		 FROM hosts h
@@ -115,7 +115,7 @@ func hostsMatchingAnyLabel(ctx context.Context, db *db.DB, labelIDs []int64) ([]
 
 func hostsMatchingBuiltinAndRegularLabels(
 	ctx context.Context,
-	db *db.DB,
+	db *database.DB,
 	builtinIDs []int64,
 	regularIDs []int64,
 ) ([]int64, error) {

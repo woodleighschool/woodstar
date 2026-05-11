@@ -7,7 +7,7 @@ import (
 
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 
 // Open returns a migrated test database. CI is expected to provide Postgres via
 // WOODSTAR_TEST_DATABASE_URL; local tests fall back to testcontainers.
-func Open(t *testing.T) (*db.DB, context.Context) {
+func Open(t *testing.T) (*database.DB, context.Context) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -29,13 +29,13 @@ func Open(t *testing.T) (*db.DB, context.Context) {
 		databaseURL = startPostgres(t, ctx)
 	}
 
-	database, err := db.Open(ctx, databaseURL)
+	db, err := database.Open(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
 	}
-	t.Cleanup(database.Close)
+	t.Cleanup(db.Close)
 
-	return database, ctx
+	return db, ctx
 }
 
 func startPostgres(t *testing.T, ctx context.Context) string {

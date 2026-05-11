@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // ReplaceHostSoftware replaces a host's software snapshot in one transaction.

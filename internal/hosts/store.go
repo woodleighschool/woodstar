@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/db"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -33,7 +33,7 @@ type HostBattery = sqlc.HostBattery
 
 // HostStore persists Orbit-managed Macs.
 type HostStore struct {
-	db *db.DB
+	db *database.DB
 	q  *sqlc.Queries
 }
 
@@ -49,7 +49,7 @@ type HostListParams struct {
 }
 
 // NewHostStore returns a host store backed by db.
-func NewHostStore(db *db.DB) *HostStore {
+func NewHostStore(db *database.DB) *HostStore {
 	return &HostStore{db: db, q: db.Queries()}
 }
 

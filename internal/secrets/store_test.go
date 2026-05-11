@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/db/dbtest"
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 )
 
 func TestOrbitEnrollSecretLifecycle(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -81,17 +81,17 @@ func serve(parent context.Context, cfg config.Config) error {
 	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
 	logger.InfoContext(parent, "woodstar configuration loaded", "component", "config", "operation", "load")
 
-	database, err := db.Open(ctx, cfg.DatabaseURL)
+	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer database.Close()
+	defer db.Close()
 	logger.InfoContext(parent, "database ready", "component", "database", "operation", "open")
 
-	sessionManager, sessionStore := newSessionManager(database, cfg)
+	sessionManager, sessionStore := newSessionManager(db, cfg)
 	defer sessionStore.StopCleanup()
 
-	return runServer(ctx, newServer(ctx, cfg, database, sessionManager, logger))
+	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
 }
 
 func runServer(ctx context.Context, server *transport.Server) error {
@@ -116,7 +116,7 @@ func runServer(ctx context.Context, server *transport.Server) error {
 func newServer(
 	ctx context.Context,
 	cfg config.Config,
-	db *db.DB,
+	db *database.DB,
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
 ) *transport.Server {
@@ -183,7 +183,7 @@ func newServer(
 	})
 }
 
-func newSessionManager(db *db.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
 	store := pgxstore.New(db.Pool())
 	sm := scs.New()
 	sm.Store = store
