@@ -4,12 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
+
+const maxSnapshotResultRows = 1000
+
+// trimBatchSize caps how many rows are deleted per TrimResults call; unrelated
+// to the per-query retention limit maxRows.
+const trimBatchSize = 500
+
+// ErrSnapshotTooLarge is returned by OverwriteResults when the incoming
+// snapshot exceeds maxSnapshotResultRows.
+var ErrSnapshotTooLarge = errors.New("snapshot exceeds max result rows")
 
 // QueryResult is one stored report row from one host.
 type QueryResult struct {
@@ -51,8 +62,8 @@ func (s *QueryStore) OverwriteResults(
 	if err != nil {
 		return err
 	}
-	if len(resultRows) > 1000 {
-		return nil
+	if len(resultRows) > maxSnapshotResultRows {
+		return fmt.Errorf("%w: got %d rows (max %d)", ErrSnapshotTooLarge, len(resultRows), maxSnapshotResultRows)
 	}
 
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -177,7 +188,7 @@ func (s *QueryStore) TrimResults(ctx context.Context, maxRows int) error {
 		return nil
 	}
 	_, err := s.db.Pool().Exec(ctx,
-		`DELETE FROM query_results r
+		fmt.Sprintf(`DELETE FROM query_results r
 		 USING (
 		     SELECT id
 		     FROM (
@@ -188,9 +199,9 @@ func (s *QueryStore) TrimResults(ctx context.Context, maxRows int) error {
 		         WHERE q.schedule_interval > 0 AND r.data IS NOT NULL
 		     ) ranked
 		     WHERE rn > $1
-		     LIMIT 500
+		     LIMIT %d
 		 ) doomed
-		 WHERE r.id = doomed.id`,
+		 WHERE r.id = doomed.id`, trimBatchSize),
 		maxRows,
 	)
 	return err

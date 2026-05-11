@@ -16,15 +16,10 @@ type ScheduleEntry struct {
 	Platform string `json:"platform,omitempty"`
 }
 
-// scheduledQueryStore is the store surface BuildScheduleForHost uses.
-type scheduledQueryStore interface {
-	ScheduledForHost(context.Context, hosts.Host) ([]queries.Query, error)
-}
-
 // buildScheduleForHost returns the per-host osquery schedule map for reports.
 func buildScheduleForHost(
 	ctx context.Context,
-	store scheduledQueryStore,
+	store *queries.QueryStore,
 	host hosts.Host,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {

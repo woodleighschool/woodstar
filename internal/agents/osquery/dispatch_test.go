@@ -17,7 +17,6 @@ func TestQueryNameRoundTrips(t *testing.T) {
 		{name: "label", kind: kindLabel, suffix: "42"},
 		{name: "check", kind: kindCheck, suffix: "7"},
 		{name: "live", kind: kindLive, suffix: "3"},
-		{name: "report", kind: kindReport, suffix: "15"},
 	}
 
 	for _, tt := range tests {
@@ -41,6 +40,8 @@ func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 		"woodstar_label_query_",
 		"woodstar_unknown_query_1",
 		"fleet_detail_query_system_info",
+		// report names belong to /log, not /distributed/write.
+		"woodstar_report_query_15",
 	} {
 		if kind, suffix, ok := parseQueryName(name); ok || kind != "" || suffix != "" {
 			t.Fatalf("parseQueryName(%q) = %q, %q, %t; want zero values", name, kind, suffix, ok)

@@ -3,9 +3,12 @@ package osquery
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 )
 
 type resultLogRow struct {
@@ -38,6 +41,10 @@ func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.
 		}
 		fetchedAt := parseCalendarTime(item.CalendarTime)
 		if err := s.queryStore.OverwriteResults(ctx, queryID, hostID, item.Snapshot, fetchedAt); err != nil {
+			if errors.Is(err, queries.ErrSnapshotTooLarge) {
+				s.logger.WarnContext(ctx, "snapshot dropped", "query_id", queryID, "host_id", hostID, "error", err)
+				continue
+			}
 			return err
 		}
 	}

@@ -6,14 +6,11 @@ import (
 	"time"
 )
 
+const defaultMaxReportRows = 1000
+
 // CleanupOptions controls periodic query-execution maintenance.
 type CleanupOptions struct {
 	MaxReportRows int
-}
-
-// DefaultCleanupOptions returns practical single-binary defaults.
-func DefaultCleanupOptions() CleanupOptions {
-	return CleanupOptions{MaxReportRows: 1000}
 }
 
 // StartCleanup starts the periodic report-row trimmer. The goroutine exits
@@ -30,7 +27,7 @@ func StartCleanup(
 		return
 	}
 	if options.MaxReportRows <= 0 {
-		options.MaxReportRows = DefaultCleanupOptions().MaxReportRows
+		options.MaxReportRows = defaultMaxReportRows
 	}
 	go reportTrimLoop(ctx, queries, options, logger)
 }

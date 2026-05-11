@@ -286,6 +286,7 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 		if path == "" {
 			continue
 		}
+		// Read-modify-write preserves fields set by the other row source for the same path.
 		info := enrichment[path]
 		info.TeamIdentifier = strings.TrimSpace(row["team_identifier"])
 		info.CDHashSHA256 = strings.TrimSpace(row["cdhash_sha256"])
@@ -296,6 +297,7 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 		if path == "" {
 			continue
 		}
+		// Read-modify-write preserves fields set by the other row source for the same path.
 		info := enrichment[path]
 		info.ExecutableSHA256 = strings.TrimSpace(row["executable_sha256"])
 		info.ExecutablePath = strings.TrimSpace(row["executable_path"])

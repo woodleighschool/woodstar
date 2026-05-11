@@ -50,7 +50,7 @@ func parseQueryName(name string) (queryKind, string, bool) {
 	}
 	kind := queryKind(kindRaw)
 	switch kind {
-	case kindDetail, kindLabel, kindCheck, kindLive, kindReport:
+	case kindDetail, kindLabel, kindCheck, kindLive:
 		return kind, suffix, true
 	default:
 		return "", "", false
@@ -122,9 +122,9 @@ func (s *Service) dispatchWriteResults(
 		case kindCheck:
 			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, message)
 		case kindLive:
-			err = s.handleLiveResult(ctx, host, suffix, rows, status, message)
-		case kindReport:
-			// reports flow via /log, not /distributed/write — silently ignore.
+			err = s.handleLiveResult(host, suffix, rows, status, message)
+		default:
+			err = fmt.Errorf("unexpected query kind: %q", kind)
 		}
 		if err != nil {
 			return fmt.Errorf("ingest %s: %w", name, err)
@@ -254,7 +254,6 @@ func (s *Service) handleCheckResult(
 // ----- live query -----
 
 func (s *Service) handleLiveResult(
-	_ context.Context,
 	host *hosts.Host,
 	suffix string,
 	rows []map[string]string,
