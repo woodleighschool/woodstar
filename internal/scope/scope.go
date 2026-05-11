@@ -1,15 +1,18 @@
 package scope
 
-import "slices"
+import (
+	"slices"
 
-// LabelScopeMode describes how a target set uses labels.
-type LabelScopeMode string
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+)
+
+type LabelScopeMode = sqlc.LabelScopeMode
 
 const (
-	ScopeNone       LabelScopeMode = ""
-	ScopeIncludeAny LabelScopeMode = "include_any"
-	ScopeIncludeAll LabelScopeMode = "include_all"
-	ScopeExcludeAny LabelScopeMode = "exclude_any"
+	ScopeNone       = sqlc.LabelScopeModeNone
+	ScopeIncludeAny = sqlc.LabelScopeModeIncludeAny
+	ScopeIncludeAll = sqlc.LabelScopeModeIncludeAll
+	ScopeExcludeAny = sqlc.LabelScopeModeExcludeAny
 )
 
 // LabelScope is the shared label targeting shape for queries, checks, and campaigns.

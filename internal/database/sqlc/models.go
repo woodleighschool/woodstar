@@ -11,6 +11,50 @@ import (
 	"time"
 )
 
+type LabelScopeMode string
+
+const (
+	LabelScopeModeNone       LabelScopeMode = "none"
+	LabelScopeModeIncludeAny LabelScopeMode = "include_any"
+	LabelScopeModeIncludeAll LabelScopeMode = "include_all"
+	LabelScopeModeExcludeAny LabelScopeMode = "exclude_any"
+)
+
+func (e *LabelScopeMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LabelScopeMode(s)
+	case string:
+		*e = LabelScopeMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LabelScopeMode: %T", src)
+	}
+	return nil
+}
+
+type NullLabelScopeMode struct {
+	LabelScopeMode LabelScopeMode `json:"label_scope_mode"`
+	Valid          bool           `json:"valid"` // Valid is true if LabelScopeMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLabelScopeMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.LabelScopeMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LabelScopeMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLabelScopeMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LabelScopeMode), nil
+}
+
 type Platform string
 
 const (
@@ -139,22 +183,21 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Check struct {
-	ID                int64     `json:"id"`
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	Query             string    `json:"query"`
-	Platform          *Platform `json:"platform"`
-	MinOsqueryVersion *string   `json:"min_osquery_version"`
-	CreatedByUserID   *int64    `json:"created_by_user_id"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                int64          `json:"id"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	Query             string         `json:"query"`
+	Platform          *Platform      `json:"platform"`
+	MinOsqueryVersion *string        `json:"min_osquery_version"`
+	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID   *int64         `json:"created_by_user_id"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 type CheckLabel struct {
-	CheckID    int64 `json:"check_id"`
-	LabelID    int64 `json:"label_id"`
-	Exclude    bool  `json:"exclude"`
-	RequireAll bool  `json:"require_all"`
+	CheckID int64 `json:"check_id"`
+	LabelID int64 `json:"label_id"`
 }
 
 type CheckMembership struct {
@@ -290,24 +333,23 @@ type LabelMembership struct {
 }
 
 type Query struct {
-	ID                int64     `json:"id"`
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	Query             string    `json:"query"`
-	Platform          *Platform `json:"platform"`
-	MinOsqueryVersion *string   `json:"min_osquery_version"`
-	ScheduleInterval  int32     `json:"schedule_interval"`
-	LoggingType       string    `json:"logging_type"`
-	CreatedByUserID   *int64    `json:"created_by_user_id"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                int64          `json:"id"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	Query             string         `json:"query"`
+	Platform          *Platform      `json:"platform"`
+	MinOsqueryVersion *string        `json:"min_osquery_version"`
+	ScheduleInterval  int32          `json:"schedule_interval"`
+	LoggingType       string         `json:"logging_type"`
+	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID   *int64         `json:"created_by_user_id"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 type QueryLabel struct {
-	QueryID    int64 `json:"query_id"`
-	LabelID    int64 `json:"label_id"`
-	Exclude    bool  `json:"exclude"`
-	RequireAll bool  `json:"require_all"`
+	QueryID int64 `json:"query_id"`
+	LabelID int64 `json:"label_id"`
 }
 
 type QueryResult struct {

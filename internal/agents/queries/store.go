@@ -98,7 +98,7 @@ func (s *QueryStore) List(ctx context.Context, params QueryListParams) ([]Query,
 		if err != nil {
 			return nil, 0, err
 		}
-		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
+		labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -114,7 +114,7 @@ func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
+	labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, er
 			}
 			return err
 		}
-		if err := scope.ReplaceScope(ctx, tx, "query_labels", "query_id", query.ID, params.LabelScope); err != nil {
+		if err := scope.ReplaceQueryScope(ctx, tx, query.ID, params.LabelScope); err != nil {
 			return err
 		}
 		query.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -195,7 +195,7 @@ func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (
 			}
 			return err
 		}
-		if err := scope.ReplaceScope(ctx, tx, "query_labels", "query_id", query.ID, cleaned.LabelScope); err != nil {
+		if err := scope.ReplaceQueryScope(ctx, tx, query.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		query.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -246,7 +246,7 @@ func (s *QueryStore) ScheduledForHost(ctx context.Context, host hosts.Host) ([]Q
 		if !hosts.QueryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
 			continue
 		}
-		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
+		labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
 		if err != nil {
 			return nil, err
 		}

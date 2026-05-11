@@ -3,6 +3,7 @@
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE secret_kind AS ENUM ('orbit');
 CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux', 'chrome');
+CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
 -- Users, sessions, secrets ---------------------------------------------------
 
@@ -284,6 +285,7 @@ CREATE TABLE queries (
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
     logging_type TEXT NOT NULL DEFAULT 'snapshot' CHECK (logging_type IN ('snapshot')),
+    label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -315,6 +317,7 @@ CREATE TABLE checks (
     query TEXT NOT NULL,
     platform platform,
     min_osquery_version TEXT,
+    label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -336,8 +339,6 @@ CREATE INDEX check_membership_passes_idx
 CREATE TABLE query_labels (
     query_id BIGINT NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    exclude BOOLEAN NOT NULL DEFAULT FALSE,
-    require_all BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (query_id, label_id)
 );
 
@@ -346,8 +347,6 @@ CREATE INDEX query_labels_label_idx ON query_labels (label_id);
 CREATE TABLE check_labels (
     check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    exclude BOOLEAN NOT NULL DEFAULT FALSE,
-    require_all BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (check_id, label_id)
 );
 
@@ -376,4 +375,5 @@ DROP TABLE sessions;
 DROP TABLE users;
 DROP TYPE secret_kind;
 DROP TYPE platform;
+DROP TYPE label_scope_mode;
 DROP TYPE user_role;

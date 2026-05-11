@@ -99,7 +99,7 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 		if err != nil {
 			return nil, 0, err
 		}
-		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
+		labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -118,7 +118,7 @@ func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
+	labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 			}
 			return err
 		}
-		if err := scope.ReplaceScope(ctx, tx, "check_labels", "check_id", check.ID, params.LabelScope); err != nil {
+		if err := scope.ReplaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -187,7 +187,7 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 			}
 			return err
 		}
-		if err := scope.ReplaceScope(ctx, tx, "check_labels", "check_id", check.ID, cleaned.LabelScope); err != nil {
+		if err := scope.ReplaceCheckScope(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -238,7 +238,7 @@ func (s *CheckStore) ApplicableForHost(ctx context.Context, host hosts.Host) ([]
 		if !hosts.QueryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
 			continue
 		}
-		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
+		labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
 		if err != nil {
 			return nil, err
 		}
