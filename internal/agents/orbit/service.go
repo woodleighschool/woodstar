@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/agents"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 )
@@ -34,7 +34,7 @@ func NewService(
 // keys stop authenticating immediately.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
 	if strings.TrimSpace(req.HardwareUUID) == "" {
-		return nil, "", agentauth.ErrMissingHardwareUUID
+		return nil, "", agents.ErrMissingHardwareUUID
 	}
 
 	ok, err := s.secretStore.HasActiveOrbitEnrollSecret(ctx, req.EnrollSecret)
@@ -42,10 +42,10 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", fmt.Errorf("validate enroll secret: %w", err)
 	}
 	if !ok {
-		return nil, "", agentauth.ErrInvalidEnrollSecret
+		return nil, "", agents.ErrInvalidEnrollSecret
 	}
 
-	nodeKey, err := agentauth.GenerateNodeKey()
+	nodeKey, err := agents.GenerateNodeKey()
 	if err != nil {
 		return nil, "", fmt.Errorf("generate node key: %w", err)
 	}

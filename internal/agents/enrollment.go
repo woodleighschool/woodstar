@@ -1,5 +1,5 @@
-// Package agentauth contains shared authentication primitives for agent protocols.
-package agentauth
+// Package agents contains shared authentication primitives for agent protocols.
+package agents
 
 import (
 	"crypto/rand"

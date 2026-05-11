@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/agents"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
@@ -58,7 +58,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		return "", fmt.Errorf("validate enroll secret: %w", err)
 	}
 	if !ok {
-		return "", agentauth.ErrInvalidEnrollSecret
+		return "", agents.ErrInvalidEnrollSecret
 	}
 
 	update := inventory.ParseHostDetails(req.HostDetails)
@@ -66,10 +66,10 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
 	}
 	if update.HardwareUUID == "" {
-		return "", agentauth.ErrMissingHardwareUUID
+		return "", agents.ErrMissingHardwareUUID
 	}
 
-	nodeKey, err := agentauth.GenerateNodeKey()
+	nodeKey, err := agents.GenerateNodeKey()
 	if err != nil {
 		return "", fmt.Errorf("generate node key: %w", err)
 	}

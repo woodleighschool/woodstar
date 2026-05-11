@@ -17,7 +17,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
+	coreorbit "github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 )
 

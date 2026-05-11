@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
+	coreorbit "github.com/woodleighschool/woodstar/internal/agents/orbit"
 )
 
 func registerStubs(r chi.Router, svc *coreorbit.Service) {

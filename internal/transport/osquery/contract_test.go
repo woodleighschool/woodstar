@@ -18,7 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	coreosquery "github.com/woodleighschool/woodstar/internal/osquery"
+	coreosquery "github.com/woodleighschool/woodstar/internal/agents/osquery"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
