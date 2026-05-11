@@ -106,7 +106,7 @@ type checkHostBody struct {
 }
 
 // RegisterChecks registers check endpoints.
-func RegisterChecks(api huma.API, checkStore *checks.CheckStore, hostStore *hosts.HostStore) {
+func RegisterChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
 	registerListChecks(api, checkStore)
 	registerCreateCheck(api, checkStore)
 	registerGetCheck(api, checkStore)
@@ -117,7 +117,7 @@ func RegisterChecks(api huma.API, checkStore *checks.CheckStore, hostStore *host
 	registerHostChecks(api, checkStore, hostStore)
 }
 
-func registerListChecks(api huma.API, checkStore *checks.CheckStore) {
+func registerListChecks(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-checks",
 		Method:      http.MethodGet,
@@ -140,7 +140,7 @@ func registerListChecks(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerCreateCheck(api huma.API, checkStore *checks.CheckStore) {
+func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-check",
 		Method:        http.MethodPost,
@@ -162,7 +162,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerGetCheck(api huma.API, checkStore *checks.CheckStore) {
+func registerGetCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-check",
 		Method:      http.MethodGet,
@@ -183,7 +183,7 @@ func registerGetCheck(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerUpdateCheck(api huma.API, checkStore *checks.CheckStore) {
+func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-check",
 		Method:      http.MethodPut,
@@ -208,7 +208,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerDeleteCheck(api huma.API, checkStore *checks.CheckStore) {
+func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-check",
 		Method:      http.MethodDelete,
@@ -228,7 +228,7 @@ func registerDeleteCheck(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerBulkDeleteChecks(api huma.API, checkStore *checks.CheckStore) {
+func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-checks",
 		Method:      http.MethodPost,
@@ -251,7 +251,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerCheckHosts(api huma.API, checkStore *checks.CheckStore) {
+func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-check-hosts",
 		Method:      http.MethodGet,
@@ -274,7 +274,7 @@ func registerCheckHosts(api huma.API, checkStore *checks.CheckStore) {
 	})
 }
 
-func registerHostChecks(api huma.API, checkStore *checks.CheckStore, hostStore *hosts.HostStore) {
+func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-checks",
 		Method:      http.MethodGet,

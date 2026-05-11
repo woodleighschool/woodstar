@@ -15,8 +15,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
-// HostStore persists Orbit-managed Macs.
-type HostStore struct {
+// Store persists Orbit-managed Macs.
+type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
 }
@@ -32,9 +32,9 @@ type HostListParams struct {
 	SoftwareID      int64
 }
 
-// NewHostStore returns a host store backed by db.
-func NewHostStore(db *database.DB) *HostStore {
-	return &HostStore{db: db, q: db.Queries()}
+// NewStore returns a host store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
 }
 
 // EnrollParams holds the fields supplied by an Orbit enrollment request.
@@ -88,7 +88,7 @@ type HostDetailUpdate struct {
 // UpsertOnOrbitEnroll inserts a new host or refreshes an existing one keyed by
 // hardware UUID. Re-enrollment overwrites the orbit node key so prior keys
 // stop authenticating. Newly-enrolled hosts are added to the All Hosts label.
-func (s *HostStore) UpsertOnOrbitEnroll(ctx context.Context, params EnrollParams) (*Host, error) {
+func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, params EnrollParams) (*Host, error) {
 	params, err := cleanOrbitEnrollParams(params)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (s *HostStore) UpsertOnOrbitEnroll(ctx context.Context, params EnrollParams
 
 // UpsertOnOsqueryEnroll refreshes the osquery node key and host inventory.
 // Newly-enrolled hosts are added to the All Hosts label.
-func (s *HostStore) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetailUpdate) (*Host, error) {
+func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetailUpdate) (*Host, error) {
 	update, err := cleanHostDetailUpdate(update)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (s *HostStore) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetail
 }
 
 // List returns active hosts and the total count matching params.
-func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
+func (s *Store) List(ctx context.Context, params HostListParams) ([]Host, int, error) {
 	params = cleanHostListParams(params)
 	where, args, err := hostListWhere(params)
 	if err != nil {
@@ -188,7 +188,7 @@ func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, in
 }
 
 // GetByID returns a single active host by database ID.
-func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 	row, err := s.q.GetHostByID(ctx, sqlc.GetHostByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -201,7 +201,7 @@ func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
 }
 
 // Delete removes one host and cascades inventory, labels, check results, and report results.
-func (s *HostStore) Delete(ctx context.Context, id int64) error {
+func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteHost(ctx, sqlc.DeleteHostParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
@@ -210,7 +210,7 @@ func (s *HostStore) Delete(ctx context.Context, id int64) error {
 }
 
 // DeleteMany removes multiple hosts. Missing IDs are ignored so repeated bulk actions are idempotent.
-func (s *HostStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -222,7 +222,7 @@ func (s *HostStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // GetByOrbitNodeKey returns an active host and refreshes last_seen_at.
-func (s *HostStore) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
+func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	nodeKey = strings.TrimSpace(nodeKey)
 	if nodeKey == "" {
 		return nil, dbutil.ErrNotFound
@@ -239,7 +239,7 @@ func (s *HostStore) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Hos
 }
 
 // GetByOsqueryNodeKey returns an active host and refreshes last_seen_at.
-func (s *HostStore) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
+func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	nodeKey = strings.TrimSpace(nodeKey)
 	if nodeKey == "" {
 		return nil, dbutil.ErrNotFound
@@ -256,7 +256,7 @@ func (s *HostStore) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*H
 }
 
 // ApplyDetail updates the host fields reported by successful detail queries.
-func (s *HostStore) ApplyDetail(ctx context.Context, hostID int64, update HostDetailUpdate) error {
+func (s *Store) ApplyDetail(ctx context.Context, hostID int64, update HostDetailUpdate) error {
 	return s.q.ApplyHostDetail(ctx, sqlc.ApplyHostDetailParams{
 		ID:                      hostID,
 		Hostname:                update.Hostname,
@@ -292,7 +292,7 @@ func (s *HostStore) ApplyDetail(ctx context.Context, hostID int64, update HostDe
 }
 
 // ReplaceUsers replaces the local user inventory for hostID.
-func (s *HostStore) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser) error {
+func (s *Store) ReplaceUsers(ctx context.Context, hostID int64, users []HostUser) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		if err := q.DeleteHostUsers(ctx, sqlc.DeleteHostUsersParams{HostID: hostID}); err != nil {
@@ -319,7 +319,7 @@ func (s *HostStore) ReplaceUsers(ctx context.Context, hostID int64, users []Host
 }
 
 // ReplaceBatteries replaces the battery inventory for hostID.
-func (s *HostStore) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {
+func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []HostBattery) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		if err := q.DeleteHostBatteries(ctx, sqlc.DeleteHostBatteriesParams{HostID: hostID}); err != nil {
@@ -350,7 +350,7 @@ func (s *HostStore) ReplaceBatteries(ctx context.Context, hostID int64, batterie
 }
 
 // ListUsers returns local users reported for hostID.
-func (s *HostStore) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
+func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
 	rows, err := s.q.ListHostUsers(ctx, sqlc.ListHostUsersParams{HostID: hostID})
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func (s *HostStore) ListUsers(ctx context.Context, hostID int64) ([]HostUser, er
 }
 
 // ListBatteries returns batteries reported for hostID.
-func (s *HostStore) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
+func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
 	rows, err := s.q.ListHostBatteries(ctx, sqlc.ListHostBatteriesParams{HostID: hostID})
 	if err != nil {
 		return nil, err
@@ -376,7 +376,7 @@ func (s *HostStore) ListBatteries(ctx context.Context, hostID int64) ([]HostBatt
 }
 
 // MarkDetailFresh records that all built-in detail queries completed.
-func (s *HostStore) MarkDetailFresh(ctx context.Context, hostID int64, detailQueryHash string) error {
+func (s *Store) MarkDetailFresh(ctx context.Context, hostID int64, detailQueryHash string) error {
 	return s.q.MarkHostDetailFresh(ctx, sqlc.MarkHostDetailFreshParams{ID: hostID, DetailQueryHash: detailQueryHash})
 }
 

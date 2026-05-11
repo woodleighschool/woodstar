@@ -72,24 +72,24 @@ func TestOsqueryHTTPReturnsNodeInvalidForUnknownNodeKey(t *testing.T) {
 }
 
 type osqueryContractStores struct {
-	hosts    *hosts.HostStore
-	labels   *labels.LabelStore
+	hosts    *hosts.Store
+	labels   *labels.Store
 	secrets  *secrets.Store
-	queries  *queries.QueryStore
-	checks   *checks.CheckStore
+	queries  *queries.Store
+	checks   *checks.Store
 	live     *livequery.LiveQueryManager
-	software *software.SoftwareStore
+	software *software.Store
 }
 
 func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 	return osqueryContractStores{
-		hosts:    hosts.NewHostStore(database),
-		labels:   labels.NewLabelStore(database),
+		hosts:    hosts.NewStore(database),
+		labels:   labels.NewStore(database),
 		secrets:  secrets.NewStore(database),
-		queries:  queries.NewQueryStore(database),
-		checks:   checks.NewCheckStore(database),
+		queries:  queries.NewStore(database),
+		checks:   checks.NewStore(database),
 		live:     livequery.NewLiveQueryManager(time.Minute),
-		software: software.NewSoftwareStore(database),
+		software: software.NewStore(database),
 	}
 }
 
@@ -278,7 +278,7 @@ func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
 func assertProjectedSoftware(
 	t *testing.T,
 	ctx context.Context,
-	softwareStore *software.SoftwareStore,
+	softwareStore *software.Store,
 	hostID int64,
 	softwareName string,
 	bundleID string,

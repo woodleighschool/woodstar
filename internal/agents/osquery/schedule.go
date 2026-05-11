@@ -19,7 +19,7 @@ type ScheduleEntry struct {
 // buildScheduleForHost returns the per-host osquery schedule map for reports.
 func buildScheduleForHost(
 	ctx context.Context,
-	store *queries.QueryStore,
+	store *queries.Store,
 	host *hosts.Host,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {

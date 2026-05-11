@@ -97,14 +97,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 }
 
 type orbitContractStores struct {
-	hosts          *hosts.HostStore
+	hosts          *hosts.Store
 	deviceMappings *hosts.DeviceMappingStore
 	secrets        *secrets.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
-		hosts:          hosts.NewHostStore(database),
+		hosts:          hosts.NewStore(database),
 		deviceMappings: hosts.NewDeviceMappingStore(database),
 		secrets:        secrets.NewStore(database),
 	}

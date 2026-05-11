@@ -81,7 +81,7 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 // targeting it (live queries, checks, scheduled queries) sees the new host.
 func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
-	labelStore := labels.NewLabelStore(store.db)
+	labelStore := labels.NewStore(store.db)
 
 	host, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
 		HardwareUUID: "test-enroll-all-hosts",
@@ -110,10 +110,10 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	}
 }
 
-func newIntegrationHostStore(t *testing.T) (*HostStore, context.Context) {
+func newIntegrationHostStore(t *testing.T) (*Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
-	return NewHostStore(database), ctx
+	return NewStore(database), ctx
 }
 
 func TestCleanHostListParams(t *testing.T) {

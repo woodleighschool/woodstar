@@ -13,7 +13,7 @@ import (
 )
 
 // ListForHost returns software installed on a host grouped by title.
-func (s *SoftwareStore) ListForHost(
+func (s *Store) ListForHost(
 	ctx context.Context,
 	hostID int64,
 	params HostSoftwareListParams,
@@ -51,7 +51,7 @@ JOIN software_titles st ON st.id = s.title_id
 	return software, total, nil
 }
 
-func (s *SoftwareStore) hostSoftwareRows(
+func (s *Store) hostSoftwareRows(
 	ctx context.Context,
 	hostID int64,
 	titleIDs []int64,
@@ -174,7 +174,7 @@ func cleanHostSoftwareListParams(params HostSoftwareListParams) HostSoftwareList
 	return params
 }
 
-func (s *SoftwareStore) hostSoftwareTitleIDs(
+func (s *Store) hostSoftwareTitleIDs(
 	ctx context.Context,
 	whereSQL string,
 	orderSQL string,

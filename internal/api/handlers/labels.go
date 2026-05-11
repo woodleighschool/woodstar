@@ -107,7 +107,7 @@ func (i labelListInput) params() labels.LabelListParams {
 }
 
 // RegisterLabels registers admin label endpoints.
-func RegisterLabels(api huma.API, labelStore *labels.LabelStore) {
+func RegisterLabels(api huma.API, labelStore *labels.Store) {
 	registerListLabels(api, labelStore)
 	registerCreateLabel(api, labelStore)
 	registerGetLabel(api, labelStore)
@@ -115,7 +115,7 @@ func RegisterLabels(api huma.API, labelStore *labels.LabelStore) {
 	registerDeleteLabel(api, labelStore)
 }
 
-func registerListLabels(api huma.API, labelStore *labels.LabelStore) {
+func registerListLabels(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-labels",
 		Method:      http.MethodGet,
@@ -136,7 +136,7 @@ func registerListLabels(api huma.API, labelStore *labels.LabelStore) {
 	})
 }
 
-func registerCreateLabel(api huma.API, labelStore *labels.LabelStore) {
+func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-label",
 		Method:        http.MethodPost,
@@ -161,7 +161,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.LabelStore) {
 	})
 }
 
-func registerGetLabel(api huma.API, labelStore *labels.LabelStore) {
+func registerGetLabel(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-label",
 		Method:      http.MethodGet,
@@ -182,7 +182,7 @@ func registerGetLabel(api huma.API, labelStore *labels.LabelStore) {
 	})
 }
 
-func registerUpdateLabel(api huma.API, labelStore *labels.LabelStore) {
+func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-label",
 		Method:      http.MethodPut,
@@ -209,7 +209,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.LabelStore) {
 	})
 }
 
-func registerDeleteLabel(api huma.API, labelStore *labels.LabelStore) {
+func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-label",
 		Method:      http.MethodDelete,

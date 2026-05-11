@@ -12,7 +12,7 @@ import (
 )
 
 // ListTitles returns software titles and the total count matching params.
-func (s *SoftwareStore) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
+func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
 	params = cleanSoftwareTitleListParams(params)
 	whereSQL, args := softwareTitleWhere(params)
 
@@ -45,7 +45,7 @@ func (s *SoftwareStore) ListTitles(ctx context.Context, params SoftwareTitleList
 }
 
 // GetTitle returns one software title by ID.
-func (s *SoftwareStore) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
+func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	rows, err := s.db.Pool().
 		Query(ctx, softwareTitleListSQL(" WHERE st.id = $1", "ORDER BY lower(st.name)", 2), id, int32(1), int32(0))
 	if err != nil {
@@ -161,7 +161,7 @@ func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 	return titles, nil
 }
 
-func (s *SoftwareStore) loadSoftwareTitleVersions(ctx context.Context, titles []SoftwareTitle) error {
+func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []SoftwareTitle) error {
 	for i := range titles {
 		rows, err := s.db.Pool().Query(ctx, `
 SELECT

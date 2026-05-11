@@ -48,7 +48,7 @@ type snapshotResultRow struct {
 }
 
 // OverwriteResults replaces the snapshot rows for a query on one host.
-func (s *QueryStore) OverwriteResults(
+func (s *Store) OverwriteResults(
 	ctx context.Context,
 	queryID int64,
 	hostID int64,
@@ -96,7 +96,7 @@ func (s *QueryStore) OverwriteResults(
 }
 
 // Results returns stored report rows for one query.
-func (s *QueryStore) Results(ctx context.Context, queryID int64) ([]QueryResult, error) {
+func (s *Store) Results(ctx context.Context, queryID int64) ([]QueryResult, error) {
 	rows, err := s.db.Pool().Query(ctx,
 		`SELECT r.query_id, q.name, r.host_id, h.display_name, r.data, r.last_fetched
 		 FROM query_results r
@@ -123,7 +123,7 @@ func (s *QueryStore) Results(ctx context.Context, queryID int64) ([]QueryResult,
 }
 
 // HostReports returns scheduled reports and their latest host-specific result.
-func (s *QueryStore) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport, error) {
+func (s *Store) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport, error) {
 	queries, err := s.ScheduledForHost(ctx, host)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (s *QueryStore) HostReports(ctx context.Context, host *hosts.Host) ([]HostR
 }
 
 // HostQueryResults returns all stored rows for one host and report.
-func (s *QueryStore) HostQueryResults(
+func (s *Store) HostQueryResults(
 	ctx context.Context,
 	hostID int64,
 	queryID int64,
@@ -183,7 +183,7 @@ func (s *QueryStore) HostQueryResults(
 }
 
 // TrimResults keeps the newest maxRows scheduled-query result rows per query.
-func (s *QueryStore) TrimResults(ctx context.Context, maxRows int) error {
+func (s *Store) TrimResults(ctx context.Context, maxRows int) error {
 	if maxRows <= 0 {
 		return nil
 	}
@@ -255,7 +255,7 @@ func scanQueryResultRow(row pgx.Row) (QueryResult, bool, error) {
 	return result, true, nil
 }
 
-func (s *QueryStore) loadHostReportState(ctx context.Context, queryID int64, hostID int64, report *HostReport) error {
+func (s *Store) loadHostReportState(ctx context.Context, queryID int64, hostID int64, report *HostReport) error {
 	var fetched time.Time
 	err := s.db.Pool().QueryRow(ctx,
 		`SELECT last_fetched

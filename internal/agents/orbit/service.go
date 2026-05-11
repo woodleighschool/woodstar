@@ -15,14 +15,14 @@ const emptyConfigFlags = "{}"
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
-	hostStore          *hosts.HostStore
+	hostStore          *hosts.Store
 	secretStore        *secrets.Store
 	deviceMappingStore *hosts.DeviceMappingStore
 }
 
 // NewService returns an Orbit service.
 func NewService(
-	hostStore *hosts.HostStore,
+	hostStore *hosts.Store,
 	secrets *secrets.Store,
 	deviceMappings *hosts.DeviceMappingStore,
 ) *Service {

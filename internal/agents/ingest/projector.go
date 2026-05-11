@@ -15,12 +15,12 @@ import (
 const osqueryFlagConfigRefresh = "config_refresh"
 
 type Projector struct {
-	hostStore     *hosts.HostStore
-	softwareStore *software.SoftwareStore
+	hostStore     *hosts.Store
+	softwareStore *software.Store
 	logger        *slog.Logger
 }
 
-func NewProjector(hostStore *hosts.HostStore, softwareStore *software.SoftwareStore, logger *slog.Logger) *Projector {
+func NewProjector(hostStore *hosts.Store, softwareStore *software.Store, logger *slog.Logger) *Projector {
 	return &Projector{hostStore: hostStore, softwareStore: softwareStore, logger: logger}
 }
 

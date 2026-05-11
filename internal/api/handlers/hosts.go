@@ -189,12 +189,12 @@ func (i hostListInput) params() (hosts.HostListParams, error) {
 
 type hostSoftwareInput struct {
 	ID             string   `path:"id"`
-	Q              string   `          query:"q,omitempty"`
-	Page           int      `          query:"page,omitempty"`
-	PerPage        int      `          query:"per_page,omitempty"`
-	OrderKey       string   `          query:"order_key,omitempty"`
-	OrderDirection string   `          query:"order_direction,omitempty"`
-	Source         []string `          query:"source,omitempty"`
+	Q              string   `query:"q,omitempty"`
+	Page           int      `query:"page,omitempty"`
+	PerPage        int      `query:"per_page,omitempty"`
+	OrderKey       string   `query:"order_key,omitempty"`
+	OrderDirection string   `query:"order_direction,omitempty"`
+	Source         []string `query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
@@ -231,10 +231,10 @@ func (i hostBulkDeleteInput) ids() ([]int64, error) {
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterHosts(
 	api huma.API,
-	hostStore *hosts.HostStore,
+	hostStore *hosts.Store,
 	deviceMappings *hosts.DeviceMappingStore,
-	softwareStore *software.SoftwareStore,
-	labelStore *labels.LabelStore,
+	softwareStore *software.Store,
+	labelStore *labels.Store,
 ) {
 	registerListHosts(api, hostStore, deviceMappings)
 	registerGetHost(api, hostStore, deviceMappings, labelStore)
@@ -243,7 +243,7 @@ func RegisterHosts(
 	registerHostSoftware(api, hostStore, softwareStore)
 }
 
-func registerListHosts(api huma.API, hostStore *hosts.HostStore, deviceMappings *hosts.DeviceMappingStore) {
+func registerListHosts(api huma.API, hostStore *hosts.Store, deviceMappings *hosts.DeviceMappingStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -274,9 +274,9 @@ func registerListHosts(api huma.API, hostStore *hosts.HostStore, deviceMappings 
 
 func registerGetHost(
 	api huma.API,
-	hostStore *hosts.HostStore,
+	hostStore *hosts.Store,
 	deviceMappings *hosts.DeviceMappingStore,
-	labelStore *labels.LabelStore,
+	labelStore *labels.Store,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
@@ -309,7 +309,7 @@ func registerGetHost(
 	})
 }
 
-func registerDeleteHost(api huma.API, hostStore *hosts.HostStore) {
+func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -332,7 +332,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.HostStore) {
 	})
 }
 
-func registerBulkDeleteHosts(api huma.API, hostStore *hosts.HostStore) {
+func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-hosts",
 		Method:      http.MethodPost,
@@ -357,8 +357,8 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.HostStore) {
 
 func loadHostDetail(
 	ctx context.Context,
-	hostStore *hosts.HostStore,
-	labelStore *labels.LabelStore,
+	hostStore *hosts.Store,
+	labelStore *labels.Store,
 	host *hosts.Host,
 ) (*hosts.HostDetail, error) {
 	hostLabels, err := labelStore.ListForHost(ctx, host.ID)
@@ -381,7 +381,7 @@ func loadHostDetail(
 	}, nil
 }
 
-func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, softwareStore *software.SoftwareStore) {
+func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *software.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,

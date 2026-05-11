@@ -84,7 +84,7 @@ type softwareGetOutput struct {
 }
 
 // RegisterSoftware registers admin software inventory endpoints.
-func RegisterSoftware(api huma.API, softwareStore *software.SoftwareStore) {
+func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,

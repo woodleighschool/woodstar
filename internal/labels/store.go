@@ -58,19 +58,19 @@ type LabelUpdate struct {
 	Platform            *string
 }
 
-// LabelStore persists labels and host memberships.
-type LabelStore struct {
+// Store persists labels and host memberships.
+type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
 }
 
-// NewLabelStore returns a label store backed by db.
-func NewLabelStore(db *database.DB) *LabelStore {
-	return &LabelStore{db: db, q: db.Queries()}
+// NewStore returns a label store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
 }
 
 // List returns labels and the total count matching params.
-func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
+func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
 	params = cleanLabelListParams(params)
 	where, args := labelListWhere(params)
 	var count int
@@ -114,7 +114,7 @@ func (s *LabelStore) List(ctx context.Context, params LabelListParams) ([]Label,
 }
 
 // GetByID returns one label by database ID.
-func (s *LabelStore) GetByID(ctx context.Context, id int64) (*Label, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	row, err := s.q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -128,7 +128,7 @@ func (s *LabelStore) GetByID(ctx context.Context, id int64) (*Label, error) {
 }
 
 // ListForHost returns labels currently matching a host.
-func (s *LabelStore) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
+func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
 	rows, err := s.q.ListLabelsForHost(ctx, sqlc.ListLabelsForHostParams{HostID: hostID})
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (s *LabelStore) ListForHost(ctx context.Context, hostID int64) ([]Label, er
 }
 
 // Create inserts a regular label.
-func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, error) {
+func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) {
 	params, err := cleanLabelCreate(params)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, er
 }
 
 // Update replaces editable label fields.
-func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
+func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
 	params, err := cleanLabelUpdate(params)
 	if err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 }
 
 // Delete removes a regular label.
-func (s *LabelStore) Delete(ctx context.Context, id int64) error {
+func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
@@ -203,7 +203,7 @@ func (s *LabelStore) Delete(ctx context.Context, id int64) error {
 }
 
 // ListApplicableDynamic returns dynamic labels that should run for a host platform.
-func (s *LabelStore) ListApplicableDynamic(ctx context.Context, platform string) ([]Label, error) {
+func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]Label, error) {
 	rows, err := s.q.ListApplicableDynamicLabels(ctx, sqlc.ListApplicableDynamicLabelsParams{
 		Platform: strings.TrimSpace(platform),
 	})
@@ -218,7 +218,7 @@ func (s *LabelStore) ListApplicableDynamic(ctx context.Context, platform string)
 }
 
 // ApplicableDynamicIDs returns the subset of ids that are current dynamic labels for platform.
-func (s *LabelStore) ApplicableDynamicIDs(
+func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
 	platform string,
@@ -238,7 +238,7 @@ func (s *LabelStore) ApplicableDynamicIDs(
 }
 
 // SetMembership records whether hostID currently matches labelID.
-func (s *LabelStore) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
+func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
 	if matched {
 		return s.q.UpsertLabelMembership(ctx, sqlc.UpsertLabelMembershipParams{LabelID: labelID, HostID: hostID})
 	}
@@ -246,7 +246,7 @@ func (s *LabelStore) SetMembership(ctx context.Context, labelID int64, hostID in
 }
 
 // MarkHostLabelsFresh records a successful label evaluation pass.
-func (s *LabelStore) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
+func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
 }
 

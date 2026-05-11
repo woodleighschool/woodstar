@@ -41,13 +41,13 @@ type Dependencies struct {
 	AuthService      *auth.Service
 	UserService      *users.Service
 	SessionManager   *scs.SessionManager
-	HostStore        *hosts.HostStore
+	HostStore        *hosts.Store
 	DeviceMappings   *hosts.DeviceMappingStore
 	SecretStore      *secrets.Store
-	SoftwareStore    *software.SoftwareStore
-	LabelStore       *labels.LabelStore
-	QueryStore       *queries.QueryStore
-	CheckStore       *checks.CheckStore
+	SoftwareStore    *software.Store
+	LabelStore       *labels.Store
+	QueryStore       *queries.Store
+	CheckStore       *checks.Store
 	LiveQueryManager *livequery.LiveQueryManager
 	TargetResolver   *hosts.TargetResolver
 	OrbitService     *orbit.Service

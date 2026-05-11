@@ -19,7 +19,7 @@ type CleanupOptions struct {
 // per-query timeouts in-process.
 func StartCleanup(
 	ctx context.Context,
-	queries *QueryStore,
+	queries *Store,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {
@@ -34,7 +34,7 @@ func StartCleanup(
 
 func reportTrimLoop(
 	ctx context.Context,
-	queries *QueryStore,
+	queries *Store,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {

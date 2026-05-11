@@ -137,7 +137,7 @@ type hostQueryResultsInput struct {
 }
 
 // RegisterQueries registers saved-query and report endpoints.
-func RegisterQueries(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
+func RegisterQueries(api huma.API, queryStore *queries.Store, hostStore *hosts.Store) {
 	registerListQueries(api, queryStore)
 	registerCreateQuery(api, queryStore)
 	registerGetQuery(api, queryStore)
@@ -149,7 +149,7 @@ func RegisterQueries(api huma.API, queryStore *queries.QueryStore, hostStore *ho
 	registerHostQueryResults(api, queryStore, hostStore)
 }
 
-func registerListQueries(api huma.API, queryStore *queries.QueryStore) {
+func registerListQueries(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-queries",
 		Method:      http.MethodGet,
@@ -172,7 +172,7 @@ func registerListQueries(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerCreateQuery(api huma.API, queryStore *queries.QueryStore) {
+func registerCreateQuery(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-query",
 		Method:        http.MethodPost,
@@ -194,7 +194,7 @@ func registerCreateQuery(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerGetQuery(api huma.API, queryStore *queries.QueryStore) {
+func registerGetQuery(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-query",
 		Method:      http.MethodGet,
@@ -215,7 +215,7 @@ func registerGetQuery(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerUpdateQuery(api huma.API, queryStore *queries.QueryStore) {
+func registerUpdateQuery(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-query",
 		Method:      http.MethodPut,
@@ -240,7 +240,7 @@ func registerUpdateQuery(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerDeleteQuery(api huma.API, queryStore *queries.QueryStore) {
+func registerDeleteQuery(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-query",
 		Method:      http.MethodDelete,
@@ -260,7 +260,7 @@ func registerDeleteQuery(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerBulkDeleteQueries(api huma.API, queryStore *queries.QueryStore) {
+func registerBulkDeleteQueries(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-queries",
 		Method:      http.MethodPost,
@@ -283,7 +283,7 @@ func registerBulkDeleteQueries(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerQueryResults(api huma.API, queryStore *queries.QueryStore) {
+func registerQueryResults(api huma.API, queryStore *queries.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-query-results",
 		Method:      http.MethodGet,
@@ -306,7 +306,7 @@ func registerQueryResults(api huma.API, queryStore *queries.QueryStore) {
 	})
 }
 
-func registerHostQueries(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
+func registerHostQueries(api huma.API, queryStore *queries.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-queries",
 		Method:      http.MethodGet,
@@ -336,7 +336,7 @@ func registerHostQueries(api huma.API, queryStore *queries.QueryStore, hostStore
 	})
 }
 
-func registerHostQueryResults(api huma.API, queryStore *queries.QueryStore, hostStore *hosts.HostStore) {
+func registerHostQueryResults(api huma.API, queryStore *queries.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-query-results",
 		Method:      http.MethodGet,

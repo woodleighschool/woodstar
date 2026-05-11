@@ -63,18 +63,18 @@ type CheckHostStatus struct {
 	LastEvaluatedAt *time.Time
 }
 
-// CheckStore persists checks and per-host membership state.
-type CheckStore struct {
+// Store persists checks and per-host membership state.
+type Store struct {
 	db *database.DB
 }
 
-// NewCheckStore returns a check store backed by db.
-func NewCheckStore(db *database.DB) *CheckStore {
-	return &CheckStore{db: db}
+// NewStore returns a check store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db}
 }
 
 // List returns checks matching params.
-func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
+func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
 	params = cleanCheckListParams(params)
 	where, args := checkListWhere(params)
 
@@ -110,7 +110,7 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 }
 
 // GetByID returns one check.
-func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	check, err := scanCheck(s.db.Pool().QueryRow(ctx, checkSelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -127,7 +127,7 @@ func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 // Create inserts a check.
-func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, error) {
+func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) {
 	params, err := cleanCheckCreate(params)
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 }
 
 // Update replaces a check.
-func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
+func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
 	cleaned, err := cleanCheckCreate(CheckCreate(params))
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 }
 
 // Delete removes a check.
-func (s *CheckStore) Delete(ctx context.Context, id int64) error {
+func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM checks WHERE id = $1", id)
 	if err != nil {
 		return err
@@ -210,7 +210,7 @@ func (s *CheckStore) Delete(ctx context.Context, id int64) error {
 }
 
 // DeleteMany removes multiple checks. Missing IDs are ignored for bulk idempotency.
-func (s *CheckStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -222,7 +222,7 @@ func (s *CheckStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ApplicableForHost returns checks that should run on host.
-func (s *CheckStore) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
+func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
 	rows, err := s.db.Pool().Query(ctx, checkSelectSQL+" ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (s *CheckStore) ApplicableForHost(ctx context.Context, host *hosts.Host) ([
 }
 
 // UpsertMembership records a check result. A nil passes value means no-response.
-func (s *CheckStore) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
+func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
 	_, err := s.db.Pool().Exec(ctx,
 		`INSERT INTO check_membership (
 		     check_id, host_id, passes, first_failed_at, last_evaluated_at, updated_at
@@ -283,7 +283,7 @@ func (s *CheckStore) UpsertMembership(ctx context.Context, checkID int64, hostID
 }
 
 // HostStatuses returns check status rows for one check.
-func (s *CheckStore) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostStatus, error) {
+func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostStatus, error) {
 	rows, err := s.db.Pool().Query(ctx,
 		`SELECT c.id, c.name, h.id, h.display_name,
 		        m.passes, m.first_failed_at, m.last_evaluated_at
@@ -302,7 +302,7 @@ func (s *CheckStore) HostStatuses(ctx context.Context, checkID int64) ([]CheckHo
 }
 
 // HostChecks returns check status rows applicable to one host.
-func (s *CheckStore) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
+func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
 	checks, err := s.ApplicableForHost(ctx, host)
 	if err != nil {
 		return nil, err

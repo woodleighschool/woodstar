@@ -92,13 +92,13 @@ type HostSoftwareListParams struct {
 	SoftwareSources []string
 }
 
-// SoftwareStore persists global software titles and host inventory joins.
-type SoftwareStore struct {
+// Store persists global software titles and host inventory joins.
+type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
 }
 
-// NewSoftwareStore returns a software store backed by db.
-func NewSoftwareStore(db *database.DB) *SoftwareStore {
-	return &SoftwareStore{db: db, q: db.Queries()}
+// NewStore returns a software store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
 }

@@ -62,18 +62,18 @@ type QueryListParams struct {
 	Platform string
 }
 
-// QueryStore persists saved queries and scheduled report results.
-type QueryStore struct {
+// Store persists saved queries and scheduled report results.
+type Store struct {
 	db *database.DB
 }
 
-// NewQueryStore returns a query store backed by db.
-func NewQueryStore(db *database.DB) *QueryStore {
-	return &QueryStore{db: db}
+// NewStore returns a query store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db}
 }
 
 // List returns saved queries matching params.
-func (s *QueryStore) List(ctx context.Context, params QueryListParams) ([]Query, int, error) {
+func (s *Store) List(ctx context.Context, params QueryListParams) ([]Query, int, error) {
 	params = cleanQueryListParams(params)
 	where, args := queryListWhere(params)
 
@@ -109,7 +109,7 @@ func (s *QueryStore) List(ctx context.Context, params QueryListParams) ([]Query,
 }
 
 // GetByID returns a saved query by database ID.
-func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Query, error) {
 	query, err := s.getByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
 	return query, nil
 }
 
-func (s *QueryStore) getByID(ctx context.Context, id int64) (*Query, error) {
+func (s *Store) getByID(ctx context.Context, id int64) (*Query, error) {
 	query, err := scanQuery(s.db.Pool().QueryRow(ctx, querySelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -131,7 +131,7 @@ func (s *QueryStore) getByID(ctx context.Context, id int64) (*Query, error) {
 }
 
 // Create inserts a saved query.
-func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, error) {
+func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) {
 	params, err := cleanQueryCreate(params)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, er
 }
 
 // Update replaces a saved query.
-func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (*Query, error) {
+func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Query, error) {
 	cleaned, err := cleanQueryCreate(QueryCreate(params))
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (
 }
 
 // Delete removes a saved query.
-func (s *QueryStore) Delete(ctx context.Context, id int64) error {
+func (s *Store) Delete(ctx context.Context, id int64) error {
 	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM queries WHERE id = $1", id)
 	if err != nil {
 		return err
@@ -218,7 +218,7 @@ func (s *QueryStore) Delete(ctx context.Context, id int64) error {
 }
 
 // DeleteMany removes multiple saved queries. Missing IDs are ignored for bulk idempotency.
-func (s *QueryStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -230,7 +230,7 @@ func (s *QueryStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ScheduledForHost returns scheduled report queries applicable to host.
-func (s *QueryStore) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query, error) {
+func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query, error) {
 	rows, err := s.db.Pool().Query(ctx, querySelectSQL+" WHERE schedule_interval > 0 ORDER BY id")
 	if err != nil {
 		return nil, err

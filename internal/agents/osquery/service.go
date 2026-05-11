@@ -20,11 +20,11 @@ import (
 
 // Service performs osquery TLS-plugin operations.
 type Service struct {
-	hostStore          *hosts.HostStore
+	hostStore          *hosts.Store
 	inventoryProjector *ingest.Projector
 	labelEvaluator     *ingest.LabelEvaluator
-	queryStore         *queries.QueryStore
-	checkStore         *checks.CheckStore
+	queryStore         *queries.Store
+	checkStore         *checks.Store
 	liveQueries        *livequery.LiveQueryManager
 	secretStore        *secrets.Store
 	logger             *slog.Logger
@@ -32,11 +32,11 @@ type Service struct {
 
 // NewService returns an osquery service.
 func NewService(
-	hostStore *hosts.HostStore,
+	hostStore *hosts.Store,
 	inventoryProjector *ingest.Projector,
 	labelEvaluator *ingest.LabelEvaluator,
-	queryStore *queries.QueryStore,
-	checkStore *checks.CheckStore,
+	queryStore *queries.Store,
+	checkStore *checks.Store,
 	liveQueries *livequery.LiveQueryManager,
 	secrets *secrets.Store,
 	logger *slog.Logger,

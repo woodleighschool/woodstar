@@ -124,13 +124,13 @@ func newServer(
 ) *api.Server {
 	userStore := users.NewStore(db)
 	userService := users.NewService(userStore)
-	hostStore := hosts.NewHostStore(db)
+	hostStore := hosts.NewStore(db)
 	deviceMappingStore := hosts.NewDeviceMappingStore(db)
 	secretStore := secrets.NewStore(db)
-	softwareStore := software.NewSoftwareStore(db)
-	labelStore := labels.NewLabelStore(db)
-	queryStore := queries.NewQueryStore(db)
-	checkStore := checks.NewCheckStore(db)
+	softwareStore := software.NewStore(db)
+	labelStore := labels.NewStore(db)
+	queryStore := queries.NewStore(db)
+	checkStore := checks.NewStore(db)
 
 	authService := auth.NewService(userService, sessionManager)
 	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
