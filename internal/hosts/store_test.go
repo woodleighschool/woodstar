@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 func TestDisplayNamePriority(t *testing.T) {

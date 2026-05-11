@@ -9,9 +9,6 @@ import (
 )
 
 func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
-	if s.labelEvaluator == nil {
-		return 0, nil
-	}
 	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx, host)
 	if err != nil {
 		return 0, err
@@ -36,9 +33,6 @@ func (s *Service) handleLabelResult(
 	message string,
 	pass *dispatchPass,
 ) {
-	if s.labelEvaluator == nil {
-		return
-	}
 	labelID, ok := parsePositiveSuffix(suffix)
 	if !ok {
 		return

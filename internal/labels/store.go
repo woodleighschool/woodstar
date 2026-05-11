@@ -10,8 +10,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
-	"github.com/woodleighschool/woodstar/internal/platform"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
 // Label types. LabelType separates system-seeded labels from admin-created ones.

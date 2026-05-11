@@ -21,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
 	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -30,7 +31,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/transport"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
@@ -96,7 +96,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
 }
 
-func runServer(ctx context.Context, server *transport.Server) error {
+func runServer(ctx context.Context, server *api.Server) error {
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- server.ListenAndServe()
@@ -121,7 +121,7 @@ func newServer(
 	db *database.DB,
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
-) *transport.Server {
+) *api.Server {
 	userStore := users.NewStore(db)
 	userService := users.NewService(userStore)
 	hostStore := hosts.NewHostStore(db)
@@ -157,7 +157,7 @@ func newServer(
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "queries"))
 
-	return transport.NewServer(transport.Dependencies{
+	return api.NewServer(api.Dependencies{
 		Config:           cfg,
 		DB:               db,
 		Version:          buildinfo.Version,

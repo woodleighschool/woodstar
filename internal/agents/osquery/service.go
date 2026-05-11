@@ -173,9 +173,6 @@ func (s *Service) DistributedRead(
 }
 
 func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
-	if s.checkStore == nil {
-		return 0, nil
-	}
 	checks, err := s.checkStore.ApplicableForHost(ctx, *host)
 	if err != nil {
 		return 0, err
@@ -189,9 +186,6 @@ func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, query
 // queueLiveQueries injects ephemeral live queries pending for host. The
 // in-memory manager owns lifecycle; results route back through dispatch.
 func (s *Service) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
-	if s.liveQueries == nil {
-		return 0
-	}
 	work := s.liveQueries.PendingForHost(host.ID)
 	for _, item := range work {
 		queryMap[queryNameID(kindLive, item.QueryID)] = item.SQL
@@ -233,7 +227,7 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req 
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return LogResponse{}, err
 	}
-	if req.LogType == "result" && s.queryStore != nil {
+	if req.LogType == "result" {
 		if err := s.ingestReportLogs(ctx, host.ID, req.Data); err != nil {
 			s.logger.WarnContext(ctx, "report ingest failed", "host_id", host.ID, "err", err)
 		}

@@ -82,9 +82,6 @@ func (s *Service) ValidateNodeKey(ctx context.Context, nodeKey string) error {
 
 // SetDeviceMapping records a profile-provided email for the host.
 func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) error {
-	if s.deviceMappingStore == nil {
-		return nil
-	}
 	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		return err

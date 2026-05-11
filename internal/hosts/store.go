@@ -11,9 +11,9 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Host is an enrolled Mac. Labels, Users, and Batteries are populated only for

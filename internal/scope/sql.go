@@ -9,9 +9,20 @@ import (
 )
 
 // LoadScope reads label scope rows for the given owner from table.
-func LoadScope(ctx context.Context, pool *pgxpool.Pool, table string, ownerColumn string, ownerID int64) (LabelScope, error) {
-	rows, err := pool.Query(ctx,
-		fmt.Sprintf("SELECT label_id, exclude, require_all FROM %s WHERE %s = $1 ORDER BY label_id", table, ownerColumn),
+func LoadScope(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	table string,
+	ownerColumn string,
+	ownerID int64,
+) (LabelScope, error) {
+	rows, err := pool.Query(
+		ctx,
+		fmt.Sprintf(
+			"SELECT label_id, exclude, require_all FROM %s WHERE %s = $1 ORDER BY label_id",
+			table,
+			ownerColumn,
+		),
 		ownerID,
 	)
 	if err != nil {

@@ -173,9 +173,6 @@ func (s *Service) handleDetailResult(
 	if suffix == catalog.QuerySoftwareMacOS {
 		return nil
 	}
-	if s.inventoryProjector == nil {
-		return nil
-	}
 	return s.inventoryProjector.IngestDetail(ctx, suffix, hostID, rows)
 }
 
@@ -187,9 +184,6 @@ func (s *Service) finalizeDetailPass(
 ) error {
 	if rows, ok := pass.detailRowsBySuffix[catalog.QuerySoftwareMacOS]; ok &&
 		statusOK(req.Statuses[detailQueryName(catalog.QuerySoftwareMacOS)]) {
-		if s.inventoryProjector == nil {
-			return nil
-		}
 		if err := s.inventoryProjector.IngestSoftwareMacOSWithEnrichment(
 			ctx,
 			host.ID,
@@ -200,9 +194,6 @@ func (s *Service) finalizeDetailPass(
 		}
 	}
 	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry) {
-		return nil
-	}
-	if s.inventoryProjector == nil {
 		return nil
 	}
 	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
@@ -240,9 +231,6 @@ func (s *Service) handleCheckResult(
 	status json.RawMessage,
 	message string,
 ) error {
-	if s.checkStore == nil {
-		return nil
-	}
 	checkID, ok := parsePositiveSuffix(suffix)
 	if !ok {
 		return nil
@@ -273,9 +261,6 @@ func (s *Service) handleLiveResult(
 	status json.RawMessage,
 	message string,
 ) error {
-	if s.liveQueries == nil {
-		return nil
-	}
 	queryID, ok := parsePositiveSuffix(suffix)
 	if !ok {
 		return nil
