@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Host is an enrolled Mac. Labels, Users, and Batteries are populated only for
@@ -39,7 +39,7 @@ type HostStore struct {
 
 // HostListParams filters host list results.
 type HostListParams struct {
-	store.ListParams
+	dbutil.ListParams
 
 	Status          string
 	Platform        string
@@ -205,7 +205,7 @@ func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, in
 func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
 	row, err := s.q.GetHostByID(ctx, sqlc.GetHostByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -217,7 +217,7 @@ func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
 func (s *HostStore) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteHost(ctx, sqlc.DeleteHostParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 	return err
 }
@@ -238,11 +238,11 @@ func (s *HostStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 func (s *HostStore) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	nodeKey = strings.TrimSpace(nodeKey)
 	if nodeKey == "" {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.TouchHostByOrbitNodeKey(ctx, sqlc.TouchHostByOrbitNodeKeyParams{OrbitNodeKey: nodeKey})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -254,11 +254,11 @@ func (s *HostStore) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Hos
 func (s *HostStore) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
 	nodeKey = strings.TrimSpace(nodeKey)
 	if nodeKey == "" {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.TouchHostByOsqueryNodeKey(ctx, sqlc.TouchHostByOsqueryNodeKeyParams{OsqueryNodeKey: nodeKey})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -376,18 +376,18 @@ func (s *HostStore) MarkDetailFresh(ctx context.Context, hostID int64, detailQue
 }
 
 func cleanHostListParams(params HostListParams) HostListParams {
-	params.ListParams = store.CleanListParams(params.ListParams)
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Status = strings.TrimSpace(params.Status)
 	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
 
 func hostListSQLWithWhere(params HostListParams, where string, args []any) (string, []any, error) {
-	return store.ListQuery{
+	return dbutil.ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]store.OrderExpr{
+		OrderKeys: map[string]dbutil.OrderExpr{
 			"display_name":               {SQL: "lower(display_name)"},
 			"platform":                   {SQL: "lower(platform)"},
 			"hardware_serial":            {SQL: "lower(hardware_serial)"},
@@ -402,7 +402,7 @@ func hostListSQLWithWhere(params HostListParams, where string, args []any) (stri
 			"primary_ip":                 {SQL: "primary_ip", NullsLast: true},
 			"public_ip":                  {SQL: "public_ip", NullsLast: true},
 		},
-		DefaultOrder: []store.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}.Build()
 }
@@ -443,7 +443,7 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 	case "offline":
 		clauses = append(clauses, "(last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')")
 	default:
-		return "", nil, fmt.Errorf("%w: unknown status %q", store.ErrInvalidInput, params.Status)
+		return "", nil, fmt.Errorf("%w: unknown status %q", dbutil.ErrInvalidInput, params.Status)
 	}
 	if params.LabelID > 0 {
 		args = append(args, params.LabelID)

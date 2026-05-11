@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -213,7 +213,7 @@ func parseUserID(id string) (int64, error) {
 // (last-admin, self-edit, weak-password) that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
-	case errors.Is(err, store.ErrAlreadyExists):
+	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
 	case errors.Is(err, users.ErrCannotChangeOwnRole),
 		errors.Is(err, users.ErrCannotDeleteSelf),

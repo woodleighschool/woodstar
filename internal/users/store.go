@@ -9,7 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Role controls application permissions.
@@ -63,8 +63,8 @@ func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, e
 		Role:         params.Role,
 	})
 	if err != nil {
-		if store.IsUniqueViolation(err) {
-			return nil, store.ErrAlreadyExists
+		if dbutil.IsUniqueViolation(err) {
+			return nil, dbutil.ErrAlreadyExists
 		}
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, e
 func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: normalizeEmail(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -110,11 +110,11 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 		ID:           id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		if store.IsUniqueViolation(err) {
-			return nil, store.ErrAlreadyExists
+		if dbutil.IsUniqueViolation(err) {
+			return nil, dbutil.ErrAlreadyExists
 		}
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 func (s *Store) SoftDelete(ctx context.Context, id int64) error {
 	_, err := s.q.SoftDeleteUser(ctx, sqlc.SoftDeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 	return err
 }

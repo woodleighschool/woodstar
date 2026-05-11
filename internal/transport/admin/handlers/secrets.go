@@ -8,7 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/secrets"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 type secretDeleteInput struct {
@@ -79,7 +79,7 @@ func RegisterSecrets(api huma.API, secretStore *secrets.Store) {
 			return nil, err
 		}
 		err = secretStore.DeleteOrbitEnrollSecret(ctx, id)
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}
 		if err != nil {

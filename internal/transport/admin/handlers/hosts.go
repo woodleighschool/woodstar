@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const hostsTag = "Hosts"
@@ -167,7 +167,7 @@ func (i hostListInput) params() (hosts.HostListParams, error) {
 	if err != nil {
 		return hosts.HostListParams{}, err
 	}
-	listParams := store.CleanListParams(store.ListParams{
+	listParams := dbutil.CleanListParams(dbutil.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -199,7 +199,7 @@ func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, err
 	if err != nil {
 		return 0, software.HostSoftwareListParams{}, err
 	}
-	listParams := store.CleanListParams(store.ListParams{
+	listParams := dbutil.CleanListParams(dbutil.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -208,7 +208,7 @@ func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, err
 	})
 	return id, software.HostSoftwareListParams{
 		ListParams:      listParams,
-		SoftwareSources: store.SplitListValues(i.Source),
+		SoftwareSources: dbutil.SplitListValues(i.Source),
 	}, nil
 }
 
@@ -288,7 +288,7 @@ func registerGetHost(
 			return nil, err
 		}
 		host, err := hostStore.GetByID(ctx, id)
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -390,7 +390,7 @@ func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, softwareStor
 		if err != nil {
 			return nil, err
 		}
-		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, store.ErrNotFound) {
+		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err

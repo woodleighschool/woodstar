@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // ListForHost returns software installed on a host grouped by title.
@@ -169,8 +169,8 @@ func scanHostSoftwareDBRow(rows pgx.Rows) (hostSoftwareDBRow, error) {
 }
 
 func cleanHostSoftwareListParams(params HostSoftwareListParams) HostSoftwareListParams {
-	params.ListParams = store.CleanListParams(params.ListParams)
-	params.SoftwareSources = store.SplitListValues(params.SoftwareSources)
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
+	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	return params
 }
 
@@ -250,15 +250,15 @@ func hostSoftwareWhere(params HostSoftwareListParams, args []any) (string, []any
 }
 
 func hostSoftwareOrder(orderKey string, direction string) (string, error) {
-	return store.OrderBy(
-		store.CleanListParams(store.ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]store.OrderExpr{
+	return dbutil.OrderBy(
+		dbutil.CleanListParams(dbutil.ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]dbutil.OrderExpr{
 			"name":           {SQL: "order_name"},
 			"version":        {SQL: "order_version"},
 			"source":         {SQL: "order_source"},
 			"last_opened_at": {SQL: "order_last_opened_at", NullsLast: true},
 		},
-		[]store.OrderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
+		[]dbutil.OrderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
 	)
 }
 

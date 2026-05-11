@@ -10,7 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const (
@@ -92,7 +92,7 @@ type labelMutationBody struct {
 
 func (i labelListInput) params() labels.LabelListParams {
 	return labels.LabelListParams{
-		ListParams: store.CleanListParams(store.ListParams{
+		ListParams: dbutil.CleanListParams(dbutil.ListParams{
 			Q:              i.Q,
 			Page:           i.Page,
 			PerPage:        i.PerPage,

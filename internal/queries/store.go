@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // QueryLoggingType is the storage mode for scheduled query results.
@@ -56,7 +56,7 @@ type QueryUpdate QueryCreate
 
 // QueryListParams filters saved query lists.
 type QueryListParams struct {
-	store.ListParams
+	dbutil.ListParams
 
 	Platform string
 }
@@ -124,7 +124,7 @@ func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
 func (s *QueryStore) getByID(ctx context.Context, id int64) (*Query, error) {
 	query, err := scanQuery(s.db.Pool().QueryRow(ctx, querySelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	return query, err
 }
@@ -150,8 +150,8 @@ func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, er
 		)
 		query, err := scanQuery(row)
 		if err != nil {
-			if store.IsUniqueViolation(err) {
-				return store.ErrAlreadyExists
+			if dbutil.IsUniqueViolation(err) {
+				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
@@ -186,11 +186,11 @@ func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (
 		)
 		query, err := scanQuery(row)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return store.ErrNotFound
+			return dbutil.ErrNotFound
 		}
 		if err != nil {
-			if store.IsUniqueViolation(err) {
-				return store.ErrAlreadyExists
+			if dbutil.IsUniqueViolation(err) {
+				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
@@ -211,7 +211,7 @@ func (s *QueryStore) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 	return nil
 }
@@ -273,22 +273,22 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	}
 	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
-		return QueryCreate{}, fmt.Errorf("%w: name is required", store.ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	if params.Query == "" {
-		return QueryCreate{}, fmt.Errorf("%w: query is required", store.ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
 	}
 	if params.ScheduleInterval < 0 {
-		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", store.ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", dbutil.ErrInvalidInput)
 	}
 	if params.LoggingType != QueryLoggingSnapshot {
-		return QueryCreate{}, fmt.Errorf("%w: logging type must be snapshot", store.ErrInvalidInput)
+		return QueryCreate{}, fmt.Errorf("%w: logging type must be snapshot", dbutil.ErrInvalidInput)
 	}
 	return params, nil
 }
 
 func cleanQueryListParams(params QueryListParams) QueryListParams {
-	params.ListParams = store.CleanListParams(params.ListParams)
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
@@ -314,21 +314,21 @@ func scanQuery(row pgx.Row) (*Query, error) {
 }
 
 func queryListWhere(params QueryListParams) (string, []any) {
-	return store.NameSearchAndPlatformWhere(params.Q, params.Platform)
+	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
 func queryListSQL(where string, args []any, params QueryListParams) (string, []any, error) {
-	return store.ListQuery{
+	return dbutil.ListQuery{
 		SelectSQL: querySelectSQL,
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]store.OrderExpr{
+		OrderKeys: map[string]dbutil.OrderExpr{
 			"name":               {SQL: "name"},
 			"created_at":         {SQL: "created_at"},
-			store.OrderUpdatedAt: {SQL: store.OrderUpdatedAt},
+			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
 			"schedule_interval":  {SQL: "schedule_interval"},
 		},
-		DefaultOrder: []store.OrderExpr{{SQL: store.OrderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}.Build()
 }

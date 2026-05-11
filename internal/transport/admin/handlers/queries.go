@@ -12,7 +12,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/queries"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
@@ -325,7 +325,7 @@ func registerHostQueries(api huma.API, queryStore *queries.QueryStore, hostStore
 			return nil, err
 		}
 		host, err := hostStore.GetByID(ctx, id)
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -359,7 +359,7 @@ func registerHostQueryResults(api huma.API, queryStore *queries.QueryStore, host
 			return nil, err
 		}
 		host, err := hostStore.GetByID(ctx, hostID)
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
@@ -381,7 +381,7 @@ func registerHostQueryResults(api huma.API, queryStore *queries.QueryStore, host
 
 func (input queryListInput) params() queries.QueryListParams {
 	return queries.QueryListParams{
-		ListParams: store.CleanListParams(store.ListParams{
+		ListParams: dbutil.CleanListParams(dbutil.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,

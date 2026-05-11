@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // ListTitles returns software titles and the total count matching params.
@@ -58,7 +58,7 @@ func (s *SoftwareStore) GetTitle(ctx context.Context, id int64) (*SoftwareTitle,
 		return nil, err
 	}
 	if len(titles) == 0 {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
@@ -67,8 +67,8 @@ func (s *SoftwareStore) GetTitle(ctx context.Context, id int64) (*SoftwareTitle,
 }
 
 func cleanSoftwareTitleListParams(params SoftwareTitleListParams) SoftwareTitleListParams {
-	params.ListParams = store.CleanListParams(params.ListParams)
-	params.SoftwareSources = store.SplitListValues(params.SoftwareSources)
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
+	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	return params
 }
 
@@ -100,16 +100,16 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 }
 
 func softwareTitleOrder(orderKey string, direction string) (string, error) {
-	return store.OrderBy(
-		store.CleanListParams(store.ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]store.OrderExpr{
+	return dbutil.OrderBy(
+		dbutil.CleanListParams(dbutil.ListParams{OrderKey: orderKey, OrderDirection: direction}),
+		map[string]dbutil.OrderExpr{
 			"name":              {SQL: "lower(st.name)"},
 			"source":            {SQL: "lower(st.source)"},
 			"hosts_count":       {SQL: "hosts_count"},
 			"versions_count":    {SQL: "versions_count"},
 			"counts_updated_at": {SQL: "counts_updated_at", NullsLast: true},
 		},
-		[]store.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
+		[]dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 	)
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const (
@@ -27,7 +27,7 @@ type softwareListInput struct {
 }
 
 func (i softwareListInput) params() software.SoftwareTitleListParams {
-	listParams := store.CleanListParams(store.ListParams{
+	listParams := dbutil.CleanListParams(dbutil.ListParams{
 		Q:              i.Q,
 		Page:           i.Page,
 		PerPage:        i.PerPage,
@@ -36,7 +36,7 @@ func (i softwareListInput) params() software.SoftwareTitleListParams {
 	})
 	return software.SoftwareTitleListParams{
 		ListParams:      listParams,
-		SoftwareSources: store.SplitListValues(i.Source),
+		SoftwareSources: dbutil.SplitListValues(i.Source),
 	}
 }
 
@@ -119,7 +119,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.SoftwareStore) {
 			return nil, err
 		}
 		title, err := softwareStore.GetTitle(ctx, id)
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}
 		if err != nil {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // HostSoftwareEntry is one installed software version reported by a host.
@@ -80,14 +80,14 @@ type SoftwareTitle struct {
 
 // SoftwareTitleListParams controls software title list filtering and sorting.
 type SoftwareTitleListParams struct {
-	store.ListParams
+	dbutil.ListParams
 
 	SoftwareSources []string
 }
 
 // HostSoftwareListParams controls software installed on one host.
 type HostSoftwareListParams struct {
-	store.ListParams
+	dbutil.ListParams
 
 	SoftwareSources []string
 }

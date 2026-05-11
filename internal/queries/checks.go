@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Check is a query-backed pass/fail policy.
@@ -45,7 +45,7 @@ type CheckUpdate CheckCreate
 
 // CheckListParams filters checks.
 type CheckListParams struct {
-	store.ListParams
+	dbutil.ListParams
 
 	Platform string
 }
@@ -111,7 +111,7 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
 	check, err := scanCheck(s.db.Pool().QueryRow(ctx, checkSelectSQL+" WHERE id = $1", id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, store.ErrNotFound
+		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -143,8 +143,8 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 		)
 		check, err := scanCheck(row)
 		if err != nil {
-			if store.IsUniqueViolation(err) {
-				return store.ErrAlreadyExists
+			if dbutil.IsUniqueViolation(err) {
+				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
@@ -177,11 +177,11 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 		)
 		check, err := scanCheck(row)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return store.ErrNotFound
+			return dbutil.ErrNotFound
 		}
 		if err != nil {
-			if store.IsUniqueViolation(err) {
-				return store.ErrAlreadyExists
+			if dbutil.IsUniqueViolation(err) {
+				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
@@ -202,7 +202,7 @@ func (s *CheckStore) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 	return nil
 }
@@ -340,16 +340,16 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
-		return CheckCreate{}, fmt.Errorf("%w: name is required", store.ErrInvalidInput)
+		return CheckCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	if params.Query == "" {
-		return CheckCreate{}, fmt.Errorf("%w: query is required", store.ErrInvalidInput)
+		return CheckCreate{}, fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
 	}
 	return params, nil
 }
 
 func cleanCheckListParams(params CheckListParams) CheckListParams {
-	params.ListParams = store.CleanListParams(params.ListParams)
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
@@ -403,20 +403,20 @@ func scanCheckStatuses(rows pgx.Rows) ([]CheckHostStatus, error) {
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {
-	return store.NameSearchAndPlatformWhere(params.Q, params.Platform)
+	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
 func checkListSQL(where string, args []any, params CheckListParams) (string, []any, error) {
-	return store.ListQuery{
+	return dbutil.ListQuery{
 		SelectSQL: checkSelectSQL,
 		WhereSQL:  where,
 		Args:      args,
-		OrderKeys: map[string]store.OrderExpr{
+		OrderKeys: map[string]dbutil.OrderExpr{
 			"name":               {SQL: "name"},
 			"created_at":         {SQL: "created_at"},
-			store.OrderUpdatedAt: {SQL: store.OrderUpdatedAt},
+			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
 		},
-		DefaultOrder: []store.OrderExpr{{SQL: store.OrderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,
 	}.Build()
 }

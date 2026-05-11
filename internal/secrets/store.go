@@ -12,7 +12,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Secret is a reusable shared credential shown to admins.
@@ -96,7 +96,7 @@ func (s *Store) HasActiveOrbitEnrollSecret(ctx context.Context, value string) (b
 // DeleteOrbitEnrollSecret soft-deletes an Orbit enrollment token by ID.
 func (s *Store) DeleteOrbitEnrollSecret(ctx context.Context, id int64) error {
 	if id <= 0 {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 
 	_, err := s.q.DeleteSecret(ctx, sqlc.DeleteSecretParams{
@@ -104,7 +104,7 @@ func (s *Store) DeleteOrbitEnrollSecret(ctx context.Context, id int64) error {
 		Kind: sqlc.SecretKindOrbit,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return store.ErrNotFound
+		return dbutil.ErrNotFound
 	}
 	return err
 }

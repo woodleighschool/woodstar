@@ -7,7 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 func TestLabelListInputParams(t *testing.T) {
@@ -43,9 +43,9 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: store.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: store.ErrAlreadyExists, wantStatus: 409},
-		{name: "validation", err: store.ErrInvalidInput, wantStatus: 400},
+		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
+		{name: "validation", err: dbutil.ErrInvalidInput, wantStatus: 400},
 	}
 
 	for _, tt := range tests {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -110,8 +110,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		err        error
 		wantStatus int
 	}{
-		{name: "not found", err: store.ErrNotFound, wantStatus: 404},
-		{name: "already exists", err: store.ErrAlreadyExists, wantStatus: 409},
+		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
+		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
 		{name: "weak password", err: users.ErrWeakPassword, wantStatus: 400},
 		{name: "self role", err: users.ErrCannotChangeOwnRole, wantStatus: 409},
 		{name: "self delete", err: users.ErrCannotDeleteSelf, wantStatus: 409},

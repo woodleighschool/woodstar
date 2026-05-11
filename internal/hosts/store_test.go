@@ -6,7 +6,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 func TestDisplayNamePriority(t *testing.T) {
@@ -118,7 +118,7 @@ func newIntegrationHostStore(t *testing.T) (*HostStore, context.Context) {
 
 func TestCleanHostListParams(t *testing.T) {
 	params := cleanHostListParams(HostListParams{
-		ListParams: store.ListParams{
+		ListParams: dbutil.ListParams{
 			Q:              " mac ",
 			Page:           -1,
 			PerPage:        1000,

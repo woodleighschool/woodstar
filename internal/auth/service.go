@@ -7,7 +7,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -81,7 +81,7 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*us
 	}
 
 	user, err := s.users.GetByEmail(ctx, email)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
 		return nil, ErrNotAuthenticated
 	}
 	user, err := s.users.Get(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, dbutil.ErrNotFound) {
 		// Session pointed at a deleted user; clear it.
 		_ = s.sessions.Destroy(ctx)
 		return nil, ErrNotAuthenticated

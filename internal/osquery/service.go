@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Service performs osquery TLS-plugin operations.
@@ -249,7 +249,7 @@ func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publ
 
 func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
 	host, err := s.hostStore.GetByOsqueryNodeKey(ctx, nodeKey)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, false, nil
 	}
 	if err != nil {
