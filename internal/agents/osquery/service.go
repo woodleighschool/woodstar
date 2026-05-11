@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/agents"
+	"github.com/woodleighschool/woodstar/internal/agents/catalog"
+	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
@@ -19,7 +20,7 @@ import (
 // Service performs osquery TLS-plugin operations.
 type Service struct {
 	hostStore          *hosts.HostStore
-	inventoryProjector *inventory.Projector
+	inventoryProjector *ingest.Projector
 	labelStore         labelStore
 	queryStore         *queries.QueryStore
 	checkStore         *queries.CheckStore
@@ -31,7 +32,7 @@ type Service struct {
 // NewService returns an osquery service.
 func NewService(
 	hostStore *hosts.HostStore,
-	inventoryProjector *inventory.Projector,
+	inventoryProjector *ingest.Projector,
 	labelStore *labels.LabelStore,
 	queryStore *queries.QueryStore,
 	checkStore *queries.CheckStore,
@@ -61,7 +62,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		return "", agents.ErrInvalidEnrollSecret
 	}
 
-	update := inventory.ParseHostDetails(req.HostDetails)
+	update := hosts.ParseHostDetails(req.HostDetails)
 	if update.HardwareUUID == "" {
 		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
 	}
@@ -132,7 +133,7 @@ func (s *Service) DistributedRead(
 		return DistributedReadResponse{}, err
 	}
 
-	due := inventory.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	due := catalog.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
 		detailQueries[detailQueryName(suffix)] = sql

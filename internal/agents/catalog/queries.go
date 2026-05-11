@@ -1,7 +1,6 @@
-package inventory
+package catalog
 
 import (
-	"context"
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
@@ -15,26 +14,24 @@ import (
 const detailQueryCadence = time.Hour
 
 const (
-	queryOSVersion                   = "os_version"
-	querySystemInfo                  = "system_info"
-	queryOsqueryInfo                 = "osquery_info"
-	queryOsqueryFlags                = "osquery_flags"
-	queryOrbitInfo                   = "orbit_info"
-	queryUptime                      = "uptime"
-	queryRootDisk                    = "root_disk"
-	queryPrimaryInterface            = "primary_interface"
-	queryUsers                       = "users"
-	queryBatteries                   = "batteries"
-	querySoftwareMacOS               = "software_macos"
-	querySoftwareVSCodeExtensions    = "software_vscode_extensions"
-	querySoftwareJetBrainsPlugins    = "software_jetbrains_plugins"
-	querySoftwareGoBinaries          = "software_go_binaries"
-	querySoftwarePythonPackages      = "software_python_packages"
-	querySoftwareMacOSCodesign       = "software_macos_codesign"
-	querySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
+	QueryOSVersion                   = "os_version"
+	QuerySystemInfo                  = "system_info"
+	QueryOsqueryInfo                 = "osquery_info"
+	QueryOsqueryFlags                = "osquery_flags"
+	QueryOrbitInfo                   = "orbit_info"
+	QueryUptime                      = "uptime"
+	QueryRootDisk                    = "root_disk"
+	QueryPrimaryInterface            = "primary_interface"
+	QueryUsers                       = "users"
+	QueryBatteries                   = "batteries"
+	QuerySoftwareMacOS               = "software_macos"
+	QuerySoftwareVSCodeExtensions    = "software_vscode_extensions"
+	QuerySoftwareJetBrainsPlugins    = "software_jetbrains_plugins"
+	QuerySoftwareGoBinaries          = "software_go_binaries"
+	QuerySoftwarePythonPackages      = "software_python_packages"
+	QuerySoftwareMacOSCodesign       = "software_macos_codesign"
+	QuerySoftwareMacOSExecutableHash = "software_macos_executable_sha256"
 )
-
-const QuerySoftwareMacOS = querySoftwareMacOS
 
 //go:embed queries/*.sql
 var queryFS embed.FS
@@ -44,12 +41,11 @@ var detailRegistry = sync.OnceValues(func() (map[string]DetailQuery, string) {
 	return registry, hashDetailQueries(registry)
 })
 
-// DetailQuery is one built-in query and its ingest function.
+// DetailQuery is one built-in query descriptor.
 type DetailQuery struct {
 	SQL       string
 	Discovery string
 	Optional  bool
-	Ingest    func(context.Context, *Projector, int64, []map[string]string) error
 }
 
 // DueDetailQueries is the osquery distributed work due for a host.
@@ -66,50 +62,40 @@ func DetailQueries() map[string]DetailQuery {
 
 func buildDetailQueries() map[string]DetailQuery {
 	registry := map[string]DetailQuery{
-		queryOSVersion: {
-			SQL:    mustQuery("queries/os_version.sql"),
-			Ingest: ingestOSVersion,
+		QueryOSVersion: {
+			SQL: mustQuery("queries/os_version.sql"),
 		},
-		querySystemInfo: {
-			SQL:    mustQuery("queries/system_info.sql"),
-			Ingest: ingestSystemInfo,
+		QuerySystemInfo: {
+			SQL: mustQuery("queries/system_info.sql"),
 		},
-		queryOsqueryInfo: {
-			SQL:    mustQuery("queries/osquery_info.sql"),
-			Ingest: ingestOsqueryInfo,
+		QueryOsqueryInfo: {
+			SQL: mustQuery("queries/osquery_info.sql"),
 		},
-		queryOsqueryFlags: {
+		QueryOsqueryFlags: {
 			SQL:      mustQuery("queries/osquery_flags.sql"),
 			Optional: true,
-			Ingest:   ingestOsqueryFlags,
 		},
-		queryOrbitInfo: {
+		QueryOrbitInfo: {
 			SQL:       mustQuery("queries/orbit_info.sql"),
 			Discovery: discoveryTable("orbit_info"),
 			Optional:  true,
-			Ingest:    ingestOrbitInfo,
 		},
-		queryUptime: {
-			SQL:    mustQuery("queries/uptime.sql"),
-			Ingest: ingestUptime,
+		QueryUptime: {
+			SQL: mustQuery("queries/uptime.sql"),
 		},
-		queryRootDisk: {
-			SQL:    mustQuery("queries/root_disk.sql"),
-			Ingest: ingestRootDisk,
+		QueryRootDisk: {
+			SQL: mustQuery("queries/root_disk.sql"),
 		},
-		queryPrimaryInterface: {
-			SQL:    mustQuery("queries/primary_interface.sql"),
-			Ingest: ingestPrimaryInterface,
+		QueryPrimaryInterface: {
+			SQL: mustQuery("queries/primary_interface.sql"),
 		},
-		queryUsers: {
-			SQL:    mustQuery("queries/users.sql"),
-			Ingest: ingestUsers,
+		QueryUsers: {
+			SQL: mustQuery("queries/users.sql"),
 		},
-		queryBatteries: {
+		QueryBatteries: {
 			SQL:       mustQuery("queries/batteries.sql"),
 			Discovery: discoveryTable("battery"),
 			Optional:  true,
-			Ingest:    ingestBatteries,
 		},
 	}
 	maps.Copy(registry, softwareDetailQueries())
@@ -118,45 +104,38 @@ func buildDetailQueries() map[string]DetailQuery {
 
 func softwareDetailQueries() map[string]DetailQuery {
 	return map[string]DetailQuery{
-		querySoftwareMacOS: {
-			SQL:    mustQuery("queries/software_macos.sql"),
-			Ingest: ingestSoftwareMacOS,
+		QuerySoftwareMacOS: {
+			SQL: mustQuery("queries/software_macos.sql"),
 		},
-		querySoftwareVSCodeExtensions: {
+		QuerySoftwareVSCodeExtensions: {
 			SQL:       mustQuery("queries/software_vscode_extensions.sql"),
 			Discovery: discoveryTable("vscode_extensions"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
-		querySoftwareJetBrainsPlugins: {
+		QuerySoftwareJetBrainsPlugins: {
 			SQL:       mustQuery("queries/software_jetbrains_plugins.sql"),
 			Discovery: discoveryTable("jetbrains_plugins"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
-		querySoftwareGoBinaries: {
+		QuerySoftwareGoBinaries: {
 			SQL:       mustQuery("queries/software_go_binaries.sql"),
 			Discovery: discoveryTable("go_binaries"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
-		querySoftwarePythonPackages: {
+		QuerySoftwarePythonPackages: {
 			SQL:       mustQuery("queries/software_python_packages.sql"),
 			Discovery: discoveryTable("python_packages"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
-		querySoftwareMacOSCodesign: {
+		QuerySoftwareMacOSCodesign: {
 			SQL:       mustQuery("queries/software_macos_codesign.sql"),
 			Discovery: discoveryTable("codesign"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
-		querySoftwareMacOSExecutableHash: {
+		QuerySoftwareMacOSExecutableHash: {
 			SQL:       mustQuery("queries/software_macos_executable_sha256.sql"),
 			Discovery: discoveryTable("executable_hashes"),
 			Optional:  true,
-			Ingest:    ingestNoop,
 		},
 	}
 }

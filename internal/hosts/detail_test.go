@@ -1,9 +1,7 @@
-package inventory
+package hosts
 
 import (
 	"testing"
-
-	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 func TestParseHostDetails(t *testing.T) {
@@ -55,7 +53,7 @@ func TestParseHostDetails(t *testing.T) {
 	}
 
 	got := ParseHostDetails(details)
-	want := hosts.HostDetailUpdate{
+	want := HostDetailUpdate{
 		OSVersion:               "macOS 26.5 (build 25F5068a)",
 		Platform:                "darwin",
 		PlatformLike:            "darwin",
@@ -102,7 +100,7 @@ func TestParseHostDetailsMissingFields(t *testing.T) {
 	}
 }
 
-func assertHostDetailUpdate(t *testing.T, got hosts.HostDetailUpdate, want hosts.HostDetailUpdate) {
+func assertHostDetailUpdate(t *testing.T, got HostDetailUpdate, want HostDetailUpdate) {
 	t.Helper()
 	if got.HardwareUUID != want.HardwareUUID ||
 		got.Hostname != want.Hostname ||

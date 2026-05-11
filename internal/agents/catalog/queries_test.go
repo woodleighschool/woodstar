@@ -1,4 +1,4 @@
-package inventory
+package catalog
 
 import (
 	"strings"
@@ -39,9 +39,6 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 		if query.SQL == "" {
 			t.Fatalf("%s SQL is empty", name)
 		}
-		if query.Ingest == nil {
-			t.Fatalf("%s ingest func is nil", name)
-		}
 	}
 }
 
@@ -71,7 +68,7 @@ func TestDetailQueriesDueWhenHashChanges(t *testing.T) {
 }
 
 func TestRootDiskQueryUsesOrbitDiskSpace(t *testing.T) {
-	sql := DetailQueries()[queryRootDisk].SQL
+	sql := DetailQueries()[QueryRootDisk].SQL
 	if !strings.Contains(sql, "FROM disk_space") {
 		t.Fatalf("root_disk SQL = %q, want orbit disk_space table", sql)
 	}
@@ -81,7 +78,7 @@ func TestRootDiskQueryUsesOrbitDiskSpace(t *testing.T) {
 }
 
 func TestUsersQueryFiltersServiceAccounts(t *testing.T) {
-	sql := DetailQueries()[queryUsers].SQL
+	sql := DetailQueries()[QueryUsers].SQL
 	for _, want := range []string{
 		"type <> 'special'",
 		"shell NOT LIKE '%/false'",

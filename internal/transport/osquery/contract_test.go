@@ -13,12 +13,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	coreosquery "github.com/woodleighschool/woodstar/internal/agents/osquery"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	coreosquery "github.com/woodleighschool/woodstar/internal/agents/osquery"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
@@ -95,7 +95,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 	logger := slog.New(slog.DiscardHandler)
 	router := chi.NewRouter()
-	projector := inventory.NewProjector(stores.hosts, stores.software, logger.With("component", "inventory"))
+	projector := ingest.NewProjector(stores.hosts, stores.software, logger.With("component", "inventory"))
 	RegisterRoutes(
 		router,
 		coreosquery.NewService(

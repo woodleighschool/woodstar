@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/woodleighschool/woodstar/internal/agents/catalog"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
@@ -84,7 +84,7 @@ func statusOK(raw json.RawMessage) bool {
 // Detail and label kinds aggregate cross-row state finalized after the loop;
 // check and campaign are pure per-row writes.
 type dispatchPass struct {
-	registry           map[string]inventory.DetailQuery
+	registry           map[string]catalog.DetailQuery
 	detailRowsBySuffix map[string][]map[string]string
 	detailAllSucceeded bool
 
@@ -105,7 +105,7 @@ func (s *Service) dispatchWriteResults(
 	req DistributedWriteRequest,
 ) error {
 	pass := &dispatchPass{
-		registry:           inventory.DetailQueries(),
+		registry:           catalog.DetailQueries(),
 		detailRowsBySuffix: make(map[string][]map[string]string),
 		detailAllSucceeded: true,
 	}
@@ -175,13 +175,13 @@ func (s *Service) handleDetailResult(
 		)
 		return nil
 	}
-	if suffix == inventory.QuerySoftwareMacOS {
+	if suffix == catalog.QuerySoftwareMacOS {
 		return nil
 	}
 	if s.inventoryProjector == nil {
 		return nil
 	}
-	return query.Ingest(ctx, s.inventoryProjector, hostID, rows)
+	return s.inventoryProjector.IngestDetail(ctx, suffix, hostID, rows)
 }
 
 func (s *Service) finalizeDetailPass(
@@ -190,8 +190,8 @@ func (s *Service) finalizeDetailPass(
 	req DistributedWriteRequest,
 	pass *dispatchPass,
 ) error {
-	if rows, ok := pass.detailRowsBySuffix[inventory.QuerySoftwareMacOS]; ok &&
-		statusOK(req.Statuses[detailQueryName(inventory.QuerySoftwareMacOS)]) {
+	if rows, ok := pass.detailRowsBySuffix[catalog.QuerySoftwareMacOS]; ok &&
+		statusOK(req.Statuses[detailQueryName(catalog.QuerySoftwareMacOS)]) {
 		if s.inventoryProjector == nil {
 			return nil
 		}
@@ -201,7 +201,7 @@ func (s *Service) finalizeDetailPass(
 			rows,
 			pass.detailRowsBySuffix,
 		); err != nil {
-			return fmt.Errorf("ingest %s: %w", inventory.QuerySoftwareMacOS, err)
+			return fmt.Errorf("ingest %s: %w", catalog.QuerySoftwareMacOS, err)
 		}
 	}
 	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry) {
@@ -222,7 +222,7 @@ func (s *Service) finalizeDetailPass(
 	return nil
 }
 
-func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]inventory.DetailQuery) bool {
+func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]catalog.DetailQuery) bool {
 	for name, query := range registry {
 		if query.Optional {
 			continue

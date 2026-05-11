@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/inventory"
+	"github.com/woodleighschool/woodstar/internal/agents/catalog"
 )
 
 func TestQueryNameRoundTrips(t *testing.T) {
@@ -49,7 +49,7 @@ func TestParseQueryNameRejectsUnknownNames(t *testing.T) {
 }
 
 func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
-	registry := map[string]inventory.DetailQuery{
+	registry := map[string]catalog.DetailQuery{
 		"required": {},
 		"optional": {Optional: true},
 	}

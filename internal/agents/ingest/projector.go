@@ -1,4 +1,4 @@
-package inventory
+package ingest
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/woodleighschool/woodstar/internal/agents/catalog"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -24,7 +25,45 @@ func NewProjector(hostStore *hosts.HostStore, softwareStore *software.SoftwareSt
 }
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
-	return p.hostStore.MarkDetailFresh(ctx, hostID, DetailQueryHash())
+	return p.hostStore.MarkDetailFresh(ctx, hostID, catalog.DetailQueryHash())
+}
+
+// IngestDetail dispatches a single detail query result to the appropriate ingester.
+func (p *Projector) IngestDetail(ctx context.Context, name string, hostID int64, rows []map[string]string) error {
+	switch name {
+	case catalog.QueryOSVersion:
+		return ingestOSVersion(ctx, p, hostID, rows)
+	case catalog.QuerySystemInfo:
+		return ingestSystemInfo(ctx, p, hostID, rows)
+	case catalog.QueryOsqueryInfo:
+		return ingestOsqueryInfo(ctx, p, hostID, rows)
+	case catalog.QueryOsqueryFlags:
+		return ingestOsqueryFlags(ctx, p, hostID, rows)
+	case catalog.QueryOrbitInfo:
+		return ingestOrbitInfo(ctx, p, hostID, rows)
+	case catalog.QueryUptime:
+		return ingestUptime(ctx, p, hostID, rows)
+	case catalog.QueryRootDisk:
+		return ingestRootDisk(ctx, p, hostID, rows)
+	case catalog.QueryPrimaryInterface:
+		return ingestPrimaryInterface(ctx, p, hostID, rows)
+	case catalog.QueryUsers:
+		return ingestUsers(ctx, p, hostID, rows)
+	case catalog.QueryBatteries:
+		return ingestBatteries(ctx, p, hostID, rows)
+	// Software queries are handled cross-row by finalizeDetailPass in osquery/dispatch.go
+	// via IngestSoftwareMacOSWithEnrichment, which bypasses IngestDetail entirely.
+	case catalog.QuerySoftwareMacOS,
+		catalog.QuerySoftwareVSCodeExtensions,
+		catalog.QuerySoftwareJetBrainsPlugins,
+		catalog.QuerySoftwareGoBinaries,
+		catalog.QuerySoftwarePythonPackages,
+		catalog.QuerySoftwareMacOSCodesign,
+		catalog.QuerySoftwareMacOSExecutableHash:
+		return nil
+	default:
+		return nil
+	}
 }
 
 func (p *Projector) IngestSoftwareMacOSWithEnrichment(
@@ -37,13 +76,13 @@ func (p *Projector) IngestSoftwareMacOSWithEnrichment(
 		return nil
 	}
 	enrichment := softwareEnrichmentByPath(
-		queryRows[querySoftwareMacOSCodesign],
-		queryRows[querySoftwareMacOSExecutableHash],
+		queryRows[catalog.QuerySoftwareMacOSCodesign],
+		queryRows[catalog.QuerySoftwareMacOSExecutableHash],
 	)
-	rows = append(rows, queryRows[querySoftwareVSCodeExtensions]...)
-	rows = append(rows, queryRows[querySoftwareJetBrainsPlugins]...)
-	rows = append(rows, queryRows[querySoftwareGoBinaries]...)
-	rows = append(rows, queryRows[querySoftwarePythonPackages]...)
+	rows = append(rows, queryRows[catalog.QuerySoftwareVSCodeExtensions]...)
+	rows = append(rows, queryRows[catalog.QuerySoftwareJetBrainsPlugins]...)
+	rows = append(rows, queryRows[catalog.QuerySoftwareGoBinaries]...)
+	rows = append(rows, queryRows[catalog.QuerySoftwarePythonPackages]...)
 	entries := parseSoftwareRows(rows, enrichment)
 	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
 		return err
@@ -55,8 +94,8 @@ func (p *Projector) IngestSoftwareMacOSWithEnrichment(
 			"host_id", hostID,
 			"row_count", len(rows),
 			"entry_count", len(entries),
-			"codesign_count", len(queryRows[querySoftwareMacOSCodesign]),
-			"executable_hash_count", len(queryRows[querySoftwareMacOSExecutableHash]),
+			"codesign_count", len(queryRows[catalog.QuerySoftwareMacOSCodesign]),
+			"executable_hash_count", len(queryRows[catalog.QuerySoftwareMacOSExecutableHash]),
 		)
 	}
 	return nil
@@ -69,7 +108,7 @@ func ingestOSVersion(ctx context.Context, projector *Projector, hostID int64, ro
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{queryOSVersion: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOSVersion: rows[0]}),
 	)
 }
 
@@ -80,7 +119,7 @@ func ingestSystemInfo(ctx context.Context, projector *Projector, hostID int64, r
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{querySystemInfo: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QuerySystemInfo: rows[0]}),
 	)
 }
 
@@ -91,7 +130,7 @@ func ingestOsqueryInfo(ctx context.Context, projector *Projector, hostID int64, 
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{queryOsqueryInfo: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOsqueryInfo: rows[0]}),
 	)
 }
 
@@ -106,7 +145,7 @@ func ingestOrbitInfo(ctx context.Context, projector *Projector, hostID int64, ro
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{queryOrbitInfo: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOrbitInfo: rows[0]}),
 	)
 }
 
@@ -114,7 +153,7 @@ func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows 
 	if len(rows) == 0 {
 		return nil
 	}
-	update := ParseHostDetails(map[string]map[string]string{queryUptime: rows[0]})
+	update := hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]})
 	if update.UptimeSeconds != nil {
 		restarted := time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second)
 		update.LastRestartedAt = &restarted
@@ -129,7 +168,7 @@ func ingestRootDisk(ctx context.Context, projector *Projector, hostID int64, row
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{queryRootDisk: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryRootDisk: rows[0]}),
 	)
 }
 
@@ -140,7 +179,7 @@ func ingestPrimaryInterface(ctx context.Context, projector *Projector, hostID in
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		ParseHostDetails(map[string]map[string]string{queryPrimaryInterface: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryPrimaryInterface: rows[0]}),
 	)
 }
 
@@ -150,17 +189,6 @@ func ingestUsers(ctx context.Context, projector *Projector, hostID int64, rows [
 
 func ingestBatteries(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	return projector.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
-}
-
-func ingestSoftwareMacOS(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if projector.softwareStore == nil {
-		return nil
-	}
-	return projector.softwareStore.ReplaceHostSoftware(ctx, hostID, parseSoftwareRows(rows, softwareEnrichment{}))
-}
-
-func ingestNoop(context.Context, *Projector, int64, []map[string]string) error {
-	return nil
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {

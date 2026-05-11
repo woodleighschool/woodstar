@@ -1,4 +1,4 @@
-package inventory
+package ingest
 
 import (
 	"testing"
