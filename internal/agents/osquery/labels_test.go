@@ -41,11 +41,11 @@ func TestHandleLabelResultStatusFilter(t *testing.T) {
 type fakeLabelEvaluatorStore struct{}
 
 func (f *fakeLabelEvaluatorStore) ListApplicableDynamic(context.Context, string) ([]labels.Label, error) {
-	return nil, nil
+	return []labels.Label{}, nil
 }
 
 func (f *fakeLabelEvaluatorStore) ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error) {
-	return nil, nil
+	return map[int64]struct{}{}, nil
 }
 
 func (f *fakeLabelEvaluatorStore) SetMembership(context.Context, int64, int64, bool) error {

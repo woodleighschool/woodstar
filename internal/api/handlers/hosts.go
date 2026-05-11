@@ -543,4 +543,3 @@ func hostSoftwareResponse(row software.HostSoftwareRow) hostSoftwareBody {
 		InstalledVersions: versions,
 	}
 }
-
