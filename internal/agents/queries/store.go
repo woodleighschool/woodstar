@@ -267,8 +267,8 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = cleanPlatformPtr(params.Platform)
-	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
+	params.Platform = platform.CleanPtr(params.Platform)
+	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
 	if params.LoggingType == "" {
 		params.LoggingType = QueryLoggingSnapshot
 	}

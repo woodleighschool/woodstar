@@ -294,8 +294,8 @@ type labelFields struct {
 func cleanLabelFields(params labelFields) (labelFields, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
-	params.Query = cleanStringPtr(params.Query)
-	params.Platform = cleanPlatformPtr(params.Platform)
+	params.Query = dbutil.CleanStringPtr(params.Query)
+	params.Platform = platform.CleanPtr(params.Platform)
 	if params.LabelType == "" {
 		params.LabelType = LabelTypeRegular
 	}
@@ -395,28 +395,6 @@ func validateLabelFields(name string, query *string, labelType, labelMembershipT
 		return fmt.Errorf("%w: unknown label membership type", dbutil.ErrInvalidInput)
 	}
 	return nil
-}
-
-func cleanStringPtr(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	cleaned := strings.TrimSpace(*value)
-	if cleaned == "" {
-		return nil
-	}
-	return &cleaned
-}
-
-func cleanPlatformPtr(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	cleaned := platform.CleanPlatform(*value)
-	if cleaned == "" {
-		return nil
-	}
-	return &cleaned
 }
 
 func platformParam(value *string) *platform.Platform {

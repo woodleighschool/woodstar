@@ -338,8 +338,8 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = cleanPlatformPtr(params.Platform)
-	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
+	params.Platform = platform.CleanPtr(params.Platform)
+	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return CheckCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
@@ -435,25 +435,3 @@ SET name = $1,
 WHERE id = $6
 RETURNING id, name, description, query, platform, min_osquery_version,
           created_by_user_id, created_at, updated_at`
-
-func cleanStringPtr(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	cleaned := strings.TrimSpace(*value)
-	if cleaned == "" {
-		return nil
-	}
-	return &cleaned
-}
-
-func cleanPlatformPtr(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	cleaned := platform.CleanPlatform(*value)
-	if cleaned == "" {
-		return nil
-	}
-	return &cleaned
-}

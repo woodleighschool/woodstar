@@ -22,6 +22,17 @@ var canonicalPlatforms = map[Platform]struct{}{
 	PlatformChrome:  {},
 }
 
+func CleanPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	cleaned := CleanPlatform(*value)
+	if cleaned == "" {
+		return nil
+	}
+	return &cleaned
+}
+
 func CleanPlatform(value string) string {
 	platform := Platform(strings.ToLower(strings.TrimSpace(value)))
 	if _, ok := canonicalPlatforms[platform]; ok {
