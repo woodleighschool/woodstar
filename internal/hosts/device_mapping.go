@@ -10,10 +10,6 @@ import (
 // DeviceMappingSourceOrbitProfile is sourced from the enrollment profile.
 const DeviceMappingSourceOrbitProfile = "orbit_profile"
 
-// HostDeviceMapping is a user/device association observed for a host. Stored
-// in the host_emails table; the alias keeps the domain term in handler code.
-type HostDeviceMapping = sqlc.HostEmail
-
 // DeviceMappingStore persists host device mappings.
 type DeviceMappingStore struct {
 	q *sqlc.Queries
@@ -38,5 +34,24 @@ func (s *DeviceMappingStore) Upsert(ctx context.Context, hostID int64, email, so
 
 // ListForHost returns mappings in stable source order.
 func (s *DeviceMappingStore) ListForHost(ctx context.Context, hostID int64) ([]HostDeviceMapping, error) {
-	return s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: hostID})
+	rows, err := s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: hostID})
+	if err != nil {
+		return nil, err
+	}
+	mappings := make([]HostDeviceMapping, len(rows))
+	for i, row := range rows {
+		mappings[i] = hostDeviceMappingFromSQLC(row)
+	}
+	return mappings, nil
+}
+
+func hostDeviceMappingFromSQLC(s sqlc.HostEmail) HostDeviceMapping {
+	return HostDeviceMapping{
+		ID:        s.ID,
+		HostID:    s.HostID,
+		Email:     s.Email,
+		Source:    s.Source,
+		CreatedAt: s.CreatedAt,
+		UpdatedAt: s.UpdatedAt,
+	}
 }

@@ -12,24 +12,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platform"
 )
-
-// Host is an enrolled Mac. Labels, Users, and Batteries are populated only for
-// callers that need the detail view.
-type Host struct {
-	sqlc.Host
-	Labels    []labels.Label
-	Users     []HostUser
-	Batteries []HostBattery
-}
-
-// HostUser is one local account reported by osquery.
-type HostUser = sqlc.HostUser
-
-// HostBattery is one battery reported by osquery.
-type HostBattery = sqlc.HostBattery
 
 // HostStore persists Orbit-managed Macs.
 type HostStore struct {
@@ -126,7 +110,8 @@ func (s *HostStore) UpsertOnOrbitEnroll(ctx context.Context, params EnrollParams
 	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
 		return nil, err
 	}
-	return &Host{Host: row}, nil
+	h := hostFromSQLC(row)
+	return &h, nil
 }
 
 // UpsertOnOsqueryEnroll refreshes the osquery node key and host inventory.
@@ -165,7 +150,8 @@ func (s *HostStore) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetail
 	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
 		return nil, err
 	}
-	return &Host{Host: row}, nil
+	h := hostFromSQLC(row)
+	return &h, nil
 }
 
 // List returns active hosts and the total count matching params.
@@ -196,7 +182,7 @@ func (s *HostStore) List(ctx context.Context, params HostListParams) ([]Host, in
 	}
 	hosts := make([]Host, len(dbHosts))
 	for i, row := range dbHosts {
-		hosts[i] = Host{Host: row}
+		hosts[i] = hostFromSQLC(row)
 	}
 	return hosts, count, nil
 }
@@ -210,7 +196,8 @@ func (s *HostStore) GetByID(ctx context.Context, id int64) (*Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Host{Host: row}, nil
+	h := hostFromSQLC(row)
+	return &h, nil
 }
 
 // Delete removes one host and cascades inventory, labels, check results, and report results.
@@ -247,7 +234,8 @@ func (s *HostStore) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Hos
 	if err != nil {
 		return nil, err
 	}
-	return &Host{Host: row}, nil
+	h := hostFromSQLC(row)
+	return &h, nil
 }
 
 // GetByOsqueryNodeKey returns an active host and refreshes last_seen_at.
@@ -263,7 +251,8 @@ func (s *HostStore) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*H
 	if err != nil {
 		return nil, err
 	}
-	return &Host{Host: row}, nil
+	h := hostFromSQLC(row)
+	return &h, nil
 }
 
 // ApplyDetail updates the host fields reported by successful detail queries.
@@ -362,12 +351,28 @@ func (s *HostStore) ReplaceBatteries(ctx context.Context, hostID int64, batterie
 
 // ListUsers returns local users reported for hostID.
 func (s *HostStore) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
-	return s.q.ListHostUsers(ctx, sqlc.ListHostUsersParams{HostID: hostID})
+	rows, err := s.q.ListHostUsers(ctx, sqlc.ListHostUsersParams{HostID: hostID})
+	if err != nil {
+		return nil, err
+	}
+	users := make([]HostUser, len(rows))
+	for i, row := range rows {
+		users[i] = hostUserFromSQLC(row)
+	}
+	return users, nil
 }
 
 // ListBatteries returns batteries reported for hostID.
 func (s *HostStore) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery, error) {
-	return s.q.ListHostBatteries(ctx, sqlc.ListHostBatteriesParams{HostID: hostID})
+	rows, err := s.q.ListHostBatteries(ctx, sqlc.ListHostBatteriesParams{HostID: hostID})
+	if err != nil {
+		return nil, err
+	}
+	batteries := make([]HostBattery, len(rows))
+	for i, row := range rows {
+		batteries[i] = hostBatteryFromSQLC(row)
+	}
+	return batteries, nil
 }
 
 // MarkDetailFresh records that all built-in detail queries completed.
@@ -504,4 +509,86 @@ func displayName(hardwareUUID, hostname, computerName string) string {
 		return v
 	}
 	return strings.TrimSpace(hardwareUUID)
+}
+
+func hostFromSQLC(s sqlc.Host) Host {
+	return Host{
+		ID:                      s.ID,
+		HardwareUUID:            s.HardwareUUID,
+		DisplayName:             s.DisplayName,
+		Hostname:                s.Hostname,
+		ComputerName:            s.ComputerName,
+		HardwareSerial:          s.HardwareSerial,
+		HardwareModel:           s.HardwareModel,
+		HardwareVersion:         s.HardwareVersion,
+		HardwareVendor:          s.HardwareVendor,
+		OSName:                  s.OSName,
+		OSVersion:               s.OSVersion,
+		OSBuild:                 s.OSBuild,
+		Platform:                s.Platform,
+		PlatformLike:            s.PlatformLike,
+		OsqueryVersion:          s.OsqueryVersion,
+		OrbitVersion:            s.OrbitVersion,
+		OrbitNodeKey:            s.OrbitNodeKey,
+		OsqueryNodeKey:          s.OsqueryNodeKey,
+		CPUType:                 s.CPUType,
+		CPUSubtype:              s.CPUSubtype,
+		CPUBrand:                s.CPUBrand,
+		CPULogicalCores:         s.CPULogicalCores,
+		CPUPhysicalCores:        s.CPUPhysicalCores,
+		PhysicalMemory:          s.PhysicalMemory,
+		KernelVersion:           s.KernelVersion,
+		UptimeSeconds:           s.UptimeSeconds,
+		LastRestartedAt:         s.LastRestartedAt,
+		DiskSpaceAvailableBytes: s.DiskSpaceAvailableBytes,
+		DiskSpaceTotalBytes:     s.DiskSpaceTotalBytes,
+		PublicIP:                s.PublicIP,
+		PrimaryIP:               s.PrimaryIP,
+		PrimaryMAC:              s.PrimaryMAC,
+		DistributedInterval:     s.DistributedInterval,
+		ConfigTLSRefresh:        s.ConfigTLSRefresh,
+		DetailQueryHash:         s.DetailQueryHash,
+		EnrolledAt:              s.EnrolledAt,
+		LastSeenAt:              s.LastSeenAt,
+		DetailUpdatedAt:         s.DetailUpdatedAt,
+		LabelUpdatedAt:          s.LabelUpdatedAt,
+		SoftwareUpdatedAt:       s.SoftwareUpdatedAt,
+		CreatedAt:               s.CreatedAt,
+		UpdatedAt:               s.UpdatedAt,
+		DeletedAt:               s.DeletedAt,
+	}
+}
+
+func hostUserFromSQLC(s sqlc.HostUser) HostUser {
+	return HostUser{
+		ID:          s.ID,
+		HostID:      s.HostID,
+		UID:         s.UID,
+		Username:    s.Username,
+		Type:        s.Type,
+		Description: s.Description,
+		Directory:   s.Directory,
+		Shell:       s.Shell,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+	}
+}
+
+func hostBatteryFromSQLC(s sqlc.HostBattery) HostBattery {
+	return HostBattery{
+		ID:               s.ID,
+		HostID:           s.HostID,
+		SerialNumber:     s.SerialNumber,
+		Manufacturer:     s.Manufacturer,
+		Model:            s.Model,
+		Chemistry:        s.Chemistry,
+		CycleCount:       s.CycleCount,
+		Health:           s.Health,
+		DesignedCapacity: s.DesignedCapacity,
+		MaxCapacity:      s.MaxCapacity,
+		CurrentCapacity:  s.CurrentCapacity,
+		PercentRemaining: s.PercentRemaining,
+		CreatedAt:        s.CreatedAt,
+		UpdatedAt:        s.UpdatedAt,
+	}
 }

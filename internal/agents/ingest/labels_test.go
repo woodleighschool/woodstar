@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -13,7 +12,7 @@ import (
 func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
 	store := &fakeLabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
-	host := &hosts.Host{Host: sqlc.Host{ID: 9, Platform: "darwin"}}
+	host := &hosts.Host{ID: 9, Platform: "darwin"}
 
 	results := []LabelResult{
 		{LabelID: 1, Matched: true},
@@ -42,7 +41,7 @@ func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.
 func TestLabelEvaluatorFinalizeNoOpOnEmpty(t *testing.T) {
 	store := &fakeLabelStore{applicable: map[int64]struct{}{1: {}}}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
-	host := &hosts.Host{Host: sqlc.Host{ID: 5, Platform: "darwin"}}
+	host := &hosts.Host{ID: 5, Platform: "darwin"}
 
 	if err := evaluator.Finalize(context.Background(), host, nil); err != nil {
 		t.Fatalf("Finalize returned error: %v", err)

@@ -30,12 +30,6 @@ const (
 	LabelMembershipTypeHostVitals = "host_vitals"
 )
 
-// Label is a host grouping and targeting primitive.
-type Label struct {
-	sqlc.Label
-	HostsCount int
-}
-
 // LabelListParams filters the admin label list.
 type LabelListParams struct {
 	dbutil.ListParams
@@ -128,7 +122,9 @@ func (s *LabelStore) GetByID(ctx context.Context, id int64) (*Label, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Label{Label: row.Label, HostsCount: int(row.HostsCount)}, nil
+	l := labelFromSQLC(row.Label)
+	l.HostsCount = int(row.HostsCount)
+	return &l, nil
 }
 
 // ListForHost returns labels currently matching a host.
@@ -139,7 +135,9 @@ func (s *LabelStore) ListForHost(ctx context.Context, hostID int64) ([]Label, er
 	}
 	labels := make([]Label, len(rows))
 	for i, row := range rows {
-		labels[i] = Label{Label: row.Label, HostsCount: int(row.HostsCount)}
+		l := labelFromSQLC(row.Label)
+		l.HostsCount = int(row.HostsCount)
+		labels[i] = l
 	}
 	return labels, nil
 }
@@ -164,7 +162,8 @@ func (s *LabelStore) Create(ctx context.Context, params LabelCreate) (*Label, er
 		}
 		return nil, err
 	}
-	return &Label{Label: row}, nil
+	l := labelFromSQLC(row)
+	return &l, nil
 }
 
 // Update replaces editable label fields.
@@ -190,7 +189,8 @@ func (s *LabelStore) Update(ctx context.Context, id int64, params LabelUpdate) (
 		}
 		return nil, err
 	}
-	return &Label{Label: row}, nil
+	l := labelFromSQLC(row)
+	return &l, nil
 }
 
 // Delete removes a regular label.
@@ -212,7 +212,7 @@ func (s *LabelStore) ListApplicableDynamic(ctx context.Context, platform string)
 	}
 	labels := make([]Label, len(rows))
 	for i, row := range rows {
-		labels[i] = Label{Label: row}
+		labels[i] = labelFromSQLC(row)
 	}
 	return labels, nil
 }
@@ -425,4 +425,18 @@ func platformParam(value *string) *platform.Platform {
 	}
 	platform := platform.Platform(*value)
 	return &platform
+}
+
+func labelFromSQLC(s sqlc.Label) Label {
+	return Label{
+		ID:                  s.ID,
+		Name:                s.Name,
+		Description:         s.Description,
+		Query:               s.Query,
+		LabelType:           s.LabelType,
+		LabelMembershipType: s.LabelMembershipType,
+		Platform:            s.Platform,
+		CreatedAt:           s.CreatedAt,
+		UpdatedAt:           s.UpdatedAt,
+	}
 }

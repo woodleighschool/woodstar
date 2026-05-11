@@ -12,17 +12,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Role controls application permissions.
-type Role = sqlc.UserRole
-
 // User roles are intentionally small.
 const (
 	RoleAdmin  = sqlc.UserRoleAdmin
 	RoleViewer = sqlc.UserRoleViewer
 )
-
-// User is a local Woodstar account.
-type User = sqlc.User
 
 // Store persists local accounts.
 type Store struct {
@@ -68,7 +62,8 @@ func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, e
 		}
 		return nil, err
 	}
-	return &row, nil
+	u := userFromSQLC(row)
+	return &u, nil
 }
 
 // GetByEmail returns an active user by email.
@@ -80,7 +75,8 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &row, nil
+	u := userFromSQLC(row)
+	return &u, nil
 }
 
 // GetByID returns an active user by database ID.
@@ -92,12 +88,21 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &row, nil
+	u := userFromSQLC(row)
+	return &u, nil
 }
 
 // List returns active users ordered by creation time.
 func (s *Store) List(ctx context.Context) ([]User, error) {
-	return s.q.ListUsers(ctx)
+	rows, err := s.q.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	users := make([]User, len(rows))
+	for i, row := range rows {
+		users[i] = userFromSQLC(row)
+	}
+	return users, nil
 }
 
 // Update writes the writable fields of a user. Name and Role are required;
@@ -118,7 +123,8 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 		}
 		return nil, err
 	}
-	return &row, nil
+	u := userFromSQLC(row)
+	return &u, nil
 }
 
 // SoftDelete marks the user with id as deleted.
@@ -138,4 +144,17 @@ func (s *Store) CountAdmins(ctx context.Context) (int, error) {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func userFromSQLC(s sqlc.User) User {
+	return User{
+		ID:           s.ID,
+		Email:        s.Email,
+		Name:         s.Name,
+		PasswordHash: s.PasswordHash,
+		Role:         s.Role,
+		CreatedAt:    s.CreatedAt,
+		UpdatedAt:    s.UpdatedAt,
+		DeletedAt:    s.DeletedAt,
+	}
 }
