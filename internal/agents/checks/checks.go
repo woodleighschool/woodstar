@@ -222,7 +222,7 @@ func (s *CheckStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ApplicableForHost returns checks that should run on host.
-func (s *CheckStore) ApplicableForHost(ctx context.Context, host hosts.Host) ([]Check, error) {
+func (s *CheckStore) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
 	rows, err := s.db.Pool().Query(ctx, checkSelectSQL+" ORDER BY id")
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func (s *CheckStore) HostStatuses(ctx context.Context, checkID int64) ([]CheckHo
 }
 
 // HostChecks returns check status rows applicable to one host.
-func (s *CheckStore) HostChecks(ctx context.Context, host hosts.Host) ([]CheckHostStatus, error) {
+func (s *CheckStore) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
 	checks, err := s.ApplicableForHost(ctx, host)
 	if err != nil {
 		return nil, err

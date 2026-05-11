@@ -326,7 +326,7 @@ func registerHostQueries(api huma.API, queryStore *queries.QueryStore, hostStore
 		if err != nil {
 			return nil, err
 		}
-		rows, err := queryStore.HostReports(ctx, *host)
+		rows, err := queryStore.HostReports(ctx, host)
 		if err != nil {
 			return nil, err
 		}

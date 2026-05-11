@@ -294,7 +294,7 @@ func registerHostChecks(api huma.API, checkStore *checks.CheckStore, hostStore *
 		if err != nil {
 			return nil, err
 		}
-		rows, err := checkStore.HostChecks(ctx, *host)
+		rows, err := checkStore.HostChecks(ctx, host)
 		if err != nil {
 			return nil, err
 		}

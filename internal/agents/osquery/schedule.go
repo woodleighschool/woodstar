@@ -20,7 +20,7 @@ type ScheduleEntry struct {
 func buildScheduleForHost(
 	ctx context.Context,
 	store *queries.QueryStore,
-	host hosts.Host,
+	host *hosts.Host,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {
 		return map[string]ScheduleEntry{}, nil

@@ -123,7 +123,7 @@ func (s *QueryStore) Results(ctx context.Context, queryID int64) ([]QueryResult,
 }
 
 // HostReports returns scheduled reports and their latest host-specific result.
-func (s *QueryStore) HostReports(ctx context.Context, host hosts.Host) ([]HostReport, error) {
+func (s *QueryStore) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport, error) {
 	queries, err := s.ScheduledForHost(ctx, host)
 	if err != nil {
 		return nil, err

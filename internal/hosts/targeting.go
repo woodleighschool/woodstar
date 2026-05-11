@@ -188,7 +188,7 @@ func mergePositiveIDs(a, b []int64) []int64 {
 
 // queryMatchesHost reports whether a query's platform and min osquery version
 // constraints are satisfied by host. Empty constraints match every host.
-func QueryMatchesHost(platformSelector *string, minOsqueryVersion *string, host Host) bool {
+func QueryMatchesHost(platformSelector *string, minOsqueryVersion *string, host *Host) bool {
 	if platformSelector != nil && !platform.Matches(*platformSelector, host.Platform) {
 		return false
 	}

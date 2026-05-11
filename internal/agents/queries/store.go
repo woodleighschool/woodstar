@@ -230,7 +230,7 @@ func (s *QueryStore) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 // ScheduledForHost returns scheduled report queries applicable to host.
-func (s *QueryStore) ScheduledForHost(ctx context.Context, host hosts.Host) ([]Query, error) {
+func (s *QueryStore) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query, error) {
 	rows, err := s.db.Pool().Query(ctx, querySelectSQL+" WHERE schedule_interval > 0 ORDER BY id")
 	if err != nil {
 		return nil, err

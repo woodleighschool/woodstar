@@ -103,7 +103,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return ConfigResponse{}, err
 	}
-	schedule, err := buildScheduleForHost(ctx, s.queryStore, *host)
+	schedule, err := buildScheduleForHost(ctx, s.queryStore, host)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -173,7 +173,7 @@ func (s *Service) DistributedRead(
 }
 
 func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
-	checks, err := s.checkStore.ApplicableForHost(ctx, *host)
+	checks, err := s.checkStore.ApplicableForHost(ctx, host)
 	if err != nil {
 		return 0, err
 	}
