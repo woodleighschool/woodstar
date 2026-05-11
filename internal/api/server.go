@@ -119,26 +119,31 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("ready\n"))
 	})
 
-	r.Group(func(agent chi.Router) {
-		agent.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
-		agentapi.RegisterOrbitRoutes(agent, deps.OrbitService, deps.Logger.With("component", "orbit"))
-		agentapi.RegisterOsqueryRoutes(agent, deps.OsqueryService, deps.Logger.With("component", "osquery"))
-	})
-
-	r.Group(func(browser chi.Router) {
-		browser.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
-		if deps.SessionManager != nil {
-			browser.Use(deps.SessionManager.LoadAndSave)
-		}
-		if !deps.Config.IsHTTPS() {
-			browser.Use(middleware.PlaintextHTTP)
-		}
-		browser.Use(middleware.CSRF(deps.Config, config.SessionLifetime))
-		Mount(browser, deps)
-		if deps.WebHandler != nil {
-			deps.WebHandler.RegisterRoutes(browser)
-		}
-	})
+	r.Group(s.agentRoutes)
+	r.Group(s.browserRoutes)
 
 	return r
+}
+
+func (s *Server) agentRoutes(r chi.Router) {
+	deps := s.deps
+	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
+	agentapi.RegisterOrbitRoutes(r, deps.OrbitService, deps.Logger.With("component", "orbit"))
+	agentapi.RegisterOsqueryRoutes(r, deps.OsqueryService, deps.Logger.With("component", "osquery"))
+}
+
+func (s *Server) browserRoutes(r chi.Router) {
+	deps := s.deps
+	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
+	if deps.SessionManager != nil {
+		r.Use(deps.SessionManager.LoadAndSave)
+	}
+	if !deps.Config.IsHTTPS() {
+		r.Use(middleware.PlaintextHTTP)
+	}
+	r.Use(middleware.CSRF(deps.Config, config.SessionLifetime))
+	Mount(r, deps)
+	if deps.WebHandler != nil {
+		deps.WebHandler.RegisterRoutes(r)
+	}
 }

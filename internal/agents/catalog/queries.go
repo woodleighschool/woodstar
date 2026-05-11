@@ -77,7 +77,7 @@ func buildDetailQueries() map[string]DetailQuery {
 		},
 		QueryOrbitInfo: {
 			SQL:       mustQuery("queries/orbit_info.sql"),
-			Discovery: discoveryTable("orbit_info"),
+			Discovery: tableExistsSQL("orbit_info"),
 			Optional:  true,
 		},
 		QueryUptime: {
@@ -94,7 +94,7 @@ func buildDetailQueries() map[string]DetailQuery {
 		},
 		QueryBatteries: {
 			SQL:       mustQuery("queries/batteries.sql"),
-			Discovery: discoveryTable("battery"),
+			Discovery: tableExistsSQL("battery"),
 			Optional:  true,
 		},
 	}
@@ -109,32 +109,32 @@ func softwareDetailQueries() map[string]DetailQuery {
 		},
 		QuerySoftwareVSCodeExtensions: {
 			SQL:       mustQuery("queries/software_vscode_extensions.sql"),
-			Discovery: discoveryTable("vscode_extensions"),
+			Discovery: tableExistsSQL("vscode_extensions"),
 			Optional:  true,
 		},
 		QuerySoftwareJetBrainsPlugins: {
 			SQL:       mustQuery("queries/software_jetbrains_plugins.sql"),
-			Discovery: discoveryTable("jetbrains_plugins"),
+			Discovery: tableExistsSQL("jetbrains_plugins"),
 			Optional:  true,
 		},
 		QuerySoftwareGoBinaries: {
 			SQL:       mustQuery("queries/software_go_binaries.sql"),
-			Discovery: discoveryTable("go_binaries"),
+			Discovery: tableExistsSQL("go_binaries"),
 			Optional:  true,
 		},
 		QuerySoftwarePythonPackages: {
 			SQL:       mustQuery("queries/software_python_packages.sql"),
-			Discovery: discoveryTable("python_packages"),
+			Discovery: tableExistsSQL("python_packages"),
 			Optional:  true,
 		},
 		QuerySoftwareMacOSCodesign: {
 			SQL:       mustQuery("queries/software_macos_codesign.sql"),
-			Discovery: discoveryTable("codesign"),
+			Discovery: tableExistsSQL("codesign"),
 			Optional:  true,
 		},
 		QuerySoftwareMacOSExecutableHash: {
 			SQL:       mustQuery("queries/software_macos_executable_sha256.sql"),
-			Discovery: discoveryTable("executable_hashes"),
+			Discovery: tableExistsSQL("executable_hashes"),
 			Optional:  true,
 		},
 	}
@@ -143,7 +143,7 @@ func softwareDetailQueries() map[string]DetailQuery {
 func DetailQueriesDue(lastUpdated *time.Time, lastHash string) DueDetailQueries {
 	registry, hash := detailRegistry()
 	if lastUpdated != nil && lastHash == hash && time.Since(*lastUpdated) < detailQueryCadence {
-		return DueDetailQueries{Queries: map[string]string{}, Discovery: map[string]string{}}
+		return DueDetailQueries{}
 	}
 
 	querySQL := make(map[string]string, len(registry))
@@ -174,7 +174,7 @@ func hashDetailQueries(registry map[string]DetailQuery) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func discoveryTable(name string) string {
+func tableExistsSQL(name string) string {
 	return "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '" + name + "'"
 }
 

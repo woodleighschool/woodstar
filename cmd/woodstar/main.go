@@ -91,6 +91,8 @@ func serve(parent context.Context, cfg config.Config) error {
 	logger.InfoContext(parent, "database ready", "component", "database", "operation", "open")
 
 	sessionManager, sessionStore := newSessionManager(db, cfg)
+	// StopCleanup must be deferred after db.Close so it runs first (LIFO); the
+	// cleanup goroutine queries the pool, which must still be open when it stops.
 	defer sessionStore.StopCleanup()
 
 	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
