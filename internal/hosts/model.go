@@ -7,7 +7,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-// Host is an enrolled Mac.
+// Host is an enrolled Mac. Used for list rows and as the base of HostDetail.
 type Host struct {
 	ID                      int64       `json:"id"`
 	HardwareUUID            string      `json:"hardware_uuid"`
@@ -52,11 +52,14 @@ type Host struct {
 	CreatedAt               time.Time   `json:"created_at"`
 	UpdatedAt               time.Time   `json:"updated_at"`
 	DeletedAt               *time.Time  `json:"deleted_at"`
+}
 
-	// Populated only for detail views.
-	Labels    []labels.Label
-	Users     []HostUser
-	Batteries []HostBattery
+// HostDetail is a host plus its loaded children.
+type HostDetail struct {
+	Host
+	Labels    []labels.Label `json:"labels,omitempty"`
+	Users     []HostUser     `json:"users,omitempty"`
+	Batteries []HostBattery  `json:"batteries,omitempty"`
 }
 
 // HostUser is one local account reported by osquery.

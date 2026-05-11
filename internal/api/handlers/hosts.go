@@ -50,9 +50,6 @@ type hostBody struct {
 	DistributedInterval     *int32              `json:"distributed_interval,omitempty"`
 	ConfigTLSRefresh        *int32              `json:"config_tls_refresh,omitempty"`
 	DeviceMappings          []deviceMappingBody `json:"device_mappings"`
-	Labels                  []labelBody         `json:"labels"`
-	Users                   []hostUserBody      `json:"users"`
-	Batteries               []hostBatteryBody   `json:"batteries"`
 	EnrolledAt              *time.Time          `json:"enrolled_at,omitempty"`
 	LastSeenAt              *time.Time          `json:"last_seen_at,omitempty"`
 	DetailUpdatedAt         *time.Time          `json:"detail_updated_at,omitempty"`
@@ -60,6 +57,13 @@ type hostBody struct {
 	SoftwareUpdatedAt       *time.Time          `json:"software_updated_at,omitempty"`
 	CreatedAt               time.Time           `json:"created_at"`
 	UpdatedAt               time.Time           `json:"updated_at"`
+}
+
+type hostDetailBody struct {
+	hostBody
+	Labels    []labelBody       `json:"labels"`
+	Users     []hostUserBody    `json:"users"`
+	Batteries []hostBatteryBody `json:"batteries"`
 }
 
 type hostUserBody struct {
@@ -118,8 +122,8 @@ type hostListOutput struct {
 	Body hostListBody
 }
 
-type hostOutput struct {
-	Body hostBody
+type hostDetailOutput struct {
+	Body hostDetailBody
 }
 
 type hostSoftwareOutput struct {
@@ -185,12 +189,12 @@ func (i hostListInput) params() (hosts.HostListParams, error) {
 
 type hostSoftwareInput struct {
 	ID             string   `path:"id"`
-	Q              string   `query:"q,omitempty"`
-	Page           int      `query:"page,omitempty"`
-	PerPage        int      `query:"per_page,omitempty"`
-	OrderKey       string   `query:"order_key,omitempty"`
-	OrderDirection string   `query:"order_direction,omitempty"`
-	Source         []string `query:"source,omitempty"`
+	Q              string   `          query:"q,omitempty"`
+	Page           int      `          query:"page,omitempty"`
+	PerPage        int      `          query:"per_page,omitempty"`
+	OrderKey       string   `          query:"order_key,omitempty"`
+	OrderDirection string   `          query:"order_direction,omitempty"`
+	Source         []string `          query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
@@ -258,7 +262,7 @@ func registerListHosts(api huma.API, hostStore *hosts.HostStore, deviceMappings 
 		}
 		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hostRows)), Count: count}}
 		for i := range hostRows {
-			body, err := hostResponse(ctx, &hostRows[i], deviceMappings)
+			body, err := hostListResponse(ctx, &hostRows[i], deviceMappings)
 			if err != nil {
 				return nil, err
 			}
@@ -281,7 +285,7 @@ func registerGetHost(
 		Tags:        []string{apihelpers.HostsTag},
 		Summary:     "Get an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostOutput, error) {
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		id, err := apihelpers.ParseHostID(input.ID)
 		if err != nil {
 			return nil, err
@@ -293,14 +297,15 @@ func registerGetHost(
 		if err != nil {
 			return nil, err
 		}
-		if err := loadHostDetailChildren(ctx, hostStore, labelStore, host); err != nil {
-			return nil, err
-		}
-		body, err := hostResponse(ctx, host, deviceMappings)
+		detail, err := loadHostDetail(ctx, hostStore, labelStore, host)
 		if err != nil {
 			return nil, err
 		}
-		return &hostOutput{Body: body}, nil
+		body, err := hostDetailResponse(ctx, detail, deviceMappings)
+		if err != nil {
+			return nil, err
+		}
+		return &hostDetailOutput{Body: body}, nil
 	})
 }
 
@@ -350,28 +355,30 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.HostStore) {
 	})
 }
 
-func loadHostDetailChildren(
+func loadHostDetail(
 	ctx context.Context,
 	hostStore *hosts.HostStore,
 	labelStore *labels.LabelStore,
 	host *hosts.Host,
-) error {
+) (*hosts.HostDetail, error) {
 	hostLabels, err := labelStore.ListForHost(ctx, host.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	host.Labels = hostLabels
 	users, err := hostStore.ListUsers(ctx, host.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	host.Users = users
 	batteries, err := hostStore.ListBatteries(ctx, host.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	host.Batteries = batteries
-	return nil
+	return &hosts.HostDetail{
+		Host:      *host,
+		Labels:    hostLabels,
+		Users:     users,
+		Batteries: batteries,
+	}, nil
 }
 
 func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, softwareStore *software.SoftwareStore) {
@@ -406,7 +413,7 @@ func registerHostSoftware(api huma.API, hostStore *hosts.HostStore, softwareStor
 	})
 }
 
-func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceMappingStore) (hostBody, error) {
+func hostListResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceMappingStore) (hostBody, error) {
 	mappingRows, err := mappings.ListForHost(ctx, host.ID)
 	if err != nil {
 		return hostBody{}, err
@@ -443,9 +450,6 @@ func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceM
 		DistributedInterval:     host.DistributedInterval,
 		ConfigTLSRefresh:        host.ConfigTLSRefresh,
 		DeviceMappings:          deviceMappingResponses(mappingRows),
-		Labels:                  labelResponses(host.Labels),
-		Users:                   hostUserResponses(host.Users),
-		Batteries:               hostBatteryResponses(host.Batteries),
 		EnrolledAt:              host.EnrolledAt,
 		LastSeenAt:              host.LastSeenAt,
 		DetailUpdatedAt:         host.DetailUpdatedAt,
@@ -461,6 +465,23 @@ func hostResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceM
 		body.PrimaryIP = host.PrimaryIP.String()
 	}
 	return body, nil
+}
+
+func hostDetailResponse(
+	ctx context.Context,
+	detail *hosts.HostDetail,
+	mappings *hosts.DeviceMappingStore,
+) (hostDetailBody, error) {
+	base, err := hostListResponse(ctx, &detail.Host, mappings)
+	if err != nil {
+		return hostDetailBody{}, err
+	}
+	return hostDetailBody{
+		hostBody:  base,
+		Labels:    labelResponses(detail.Labels),
+		Users:     hostUserResponses(detail.Users),
+		Batteries: hostBatteryResponses(detail.Batteries),
+	}, nil
 }
 
 func deviceMappingResponses(rows []hosts.HostDeviceMapping) []deviceMappingBody {
