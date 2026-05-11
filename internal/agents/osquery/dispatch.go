@@ -9,8 +9,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agents/catalog"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
 // queryKind tags each kind of query Woodstar emits to osquery agents.
@@ -280,7 +280,7 @@ func (s *Service) handleLiveResult(
 	if !ok {
 		return nil
 	}
-	resultStatus := queries.LiveStatusSuccess
+	resultStatus := livequery.LiveStatusSuccess
 	var data json.RawMessage
 	if statusOK(status) {
 		encoded, err := json.Marshal(rows)
@@ -289,7 +289,7 @@ func (s *Service) handleLiveResult(
 		}
 		data = encoded
 	} else {
-		resultStatus = queries.LiveStatusError
+		resultStatus = livequery.LiveStatusError
 	}
 	s.liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
 	return nil

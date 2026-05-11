@@ -10,8 +10,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
 const liveQueriesTag = "Live Queries"
@@ -52,7 +52,7 @@ type liveQueryCreateOutput struct {
 // matching SSE stream endpoint is wired directly on Chi (see routes.go).
 func RegisterLiveQueries(
 	api huma.API,
-	manager *queries.LiveQueryManager,
+	manager *livequery.LiveQueryManager,
 	resolver targetResolver,
 ) {
 	huma.Register(api, huma.Operation{
@@ -73,7 +73,7 @@ func RegisterLiveQueries(
 	})
 }
 
-func liveQueryHandleResponse(h *queries.LiveQueryHandle) liveQueryHandleBody {
+func liveQueryHandleResponse(h *livequery.LiveQueryHandle) liveQueryHandleBody {
 	return liveQueryHandleBody{
 		ID:                h.ID,
 		SQL:               h.SQL,
@@ -109,7 +109,7 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 
 // LiveQueryStreamHandler returns the SSE handler for /api/live-queries/{id}/stream.
 // Auth must be applied by the caller via middleware.
-func LiveQueryStreamHandler(manager *queries.LiveQueryManager) http.HandlerFunc {
+func LiveQueryStreamHandler(manager *livequery.LiveQueryManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		id, ok := parseLiveQueryStreamID(req)
 		if !ok {
@@ -135,7 +135,7 @@ func parseLiveQueryStreamID(req *http.Request) (int64, bool) {
 func streamLiveQuery(
 	ctx context.Context,
 	w http.ResponseWriter,
-	manager *queries.LiveQueryManager,
+	manager *livequery.LiveQueryManager,
 	id int64,
 ) {
 	flusher, ok := w.(http.Flusher)

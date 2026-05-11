@@ -3,8 +3,8 @@ package osquery
 import (
 	"context"
 
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.

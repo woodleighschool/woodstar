@@ -15,9 +15,12 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/spf13/cobra"
 
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -25,7 +28,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport"
@@ -128,12 +130,11 @@ func newServer(
 	softwareStore := software.NewSoftwareStore(db)
 	labelStore := labels.NewLabelStore(db)
 	queryStore := queries.NewQueryStore(db)
-	checkStore := queries.NewCheckStore(db)
+	checkStore := checks.NewCheckStore(db)
 
 	authService := auth.NewService(userService, sessionManager)
 	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
-	hub := queries.NewHub()
-	liveQueries := queries.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
+	liveQueries := livequery.NewLiveQueryManager(time.Duration(cfg.LiveQueryTimeoutSeconds) * time.Second)
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
 		softwareStore,

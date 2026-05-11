@@ -9,10 +9,12 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agents"
 	"github.com/woodleighschool/woodstar/internal/agents/catalog"
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 )
 
@@ -22,8 +24,8 @@ type Service struct {
 	inventoryProjector *ingest.Projector
 	labelEvaluator     *ingest.LabelEvaluator
 	queryStore         *queries.QueryStore
-	checkStore         *queries.CheckStore
-	liveQueries        *queries.LiveQueryManager
+	checkStore         *checks.CheckStore
+	liveQueries        *livequery.LiveQueryManager
 	secretStore        *secrets.Store
 	logger             *slog.Logger
 }
@@ -34,8 +36,8 @@ func NewService(
 	inventoryProjector *ingest.Projector,
 	labelEvaluator *ingest.LabelEvaluator,
 	queryStore *queries.QueryStore,
-	checkStore *queries.CheckStore,
-	liveQueries *queries.LiveQueryManager,
+	checkStore *checks.CheckStore,
+	liveQueries *livequery.LiveQueryManager,
 	secrets *secrets.Store,
 	logger *slog.Logger,
 ) *Service {

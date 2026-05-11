@@ -1,4 +1,5 @@
-package queries
+// Package checks persists query-backed pass/fail policies and per-host results.
+package checks
 
 import (
 	"context"
@@ -401,8 +402,8 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":               {SQL: "name"},
-			"created_at":         {SQL: "created_at"},
+			"name":                {SQL: "name"},
+			"created_at":          {SQL: "created_at"},
 			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
@@ -434,3 +435,25 @@ SET name = $1,
 WHERE id = $6
 RETURNING id, name, description, query, platform, min_osquery_version,
           created_by_user_id, created_at, updated_at`
+
+func cleanStringPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	cleaned := strings.TrimSpace(*value)
+	if cleaned == "" {
+		return nil
+	}
+	return &cleaned
+}
+
+func cleanPlatformPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	cleaned := platform.CleanPlatform(*value)
+	if cleaned == "" {
+		return nil
+	}
+	return &cleaned
+}

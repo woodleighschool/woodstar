@@ -1,4 +1,4 @@
-package queries
+package checks
 
 import "testing"
 
@@ -19,4 +19,16 @@ func TestCleanCheckCreate(t *testing.T) {
 		t.Fatalf("Query = %q, want trimmed SQL", got.Query)
 	}
 	assertStringPtr(t, "Platform", got.Platform, new("darwin"))
+}
+
+func assertStringPtr(t *testing.T, name string, got *string, want *string) {
+	t.Helper()
+	switch {
+	case got == nil && want == nil:
+		return
+	case got == nil || want == nil:
+		t.Fatalf("%s = %v, want %v", name, got, want)
+	case *got != *want:
+		t.Fatalf("%s = %q, want %q", name, *got, *want)
+	}
 }

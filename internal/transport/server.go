@@ -13,14 +13,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
+	"github.com/woodleighschool/woodstar/internal/agents/orbit"
+	"github.com/woodleighschool/woodstar/internal/agents/osquery"
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/agents/orbit"
-	"github.com/woodleighschool/woodstar/internal/agents/osquery"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
@@ -46,8 +48,8 @@ type Dependencies struct {
 	SoftwareStore    *software.SoftwareStore
 	LabelStore       *labels.LabelStore
 	QueryStore       *queries.QueryStore
-	CheckStore       *queries.CheckStore
-	LiveQueryManager *queries.LiveQueryManager
+	CheckStore       *checks.CheckStore
+	LiveQueryManager *livequery.LiveQueryManager
 	TargetResolver   *hosts.TargetResolver
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service

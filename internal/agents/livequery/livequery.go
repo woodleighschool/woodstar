@@ -1,4 +1,6 @@
-package queries
+// Package livequery runs ephemeral live queries entirely in-process and fans
+// result events out to SSE subscribers.
+package livequery
 
 import (
 	"encoding/json"
@@ -34,7 +36,7 @@ type LiveQueryHandle struct {
 	ResolvedHostCount int
 }
 
-// LiveQueryEvent is published to the hub for SSE subscribers.
+// LiveQueryEvent is published to subscribers for SSE delivery.
 type LiveQueryEvent struct {
 	HostID   int64           `json:"host_id,omitempty"`
 	HostName string          `json:"host_name,omitempty"`
@@ -44,13 +46,19 @@ type LiveQueryEvent struct {
 }
 
 // LiveQueryManager runs ephemeral live queries entirely in-process.
+// Fan-out subscriber state is held inline — no separate Hub type.
 type LiveQueryManager struct {
-	hub     *Hub
 	timeout time.Duration
 
+	// active query state
 	next   atomic.Int64
 	mu     sync.RWMutex
 	active map[int64]*liveQuery
+
+	// fan-out subscriber state (inlined from Hub)
+	subsMu  sync.RWMutex
+	subs    map[int64]map[int64]chan LiveQueryEvent
+	subNext atomic.Int64
 }
 
 type liveQuery struct {
@@ -64,14 +72,14 @@ type liveQuery struct {
 
 // NewLiveQueryManager returns a manager that times out individual live queries
 // after the given duration.
-func NewLiveQueryManager(hub *Hub, timeout time.Duration) *LiveQueryManager {
+func NewLiveQueryManager(timeout time.Duration) *LiveQueryManager {
 	if timeout <= 0 {
 		timeout = 60 * time.Second
 	}
 	return &LiveQueryManager{
-		hub:     hub,
 		timeout: timeout,
 		active:  make(map[int64]*liveQuery),
+		subs:    make(map[int64]map[int64]chan LiveQueryEvent),
 	}
 }
 
@@ -96,7 +104,7 @@ func (m *LiveQueryManager) Start(sql string, hostIDs []int64) *LiveQueryHandle {
 		// No targets — synthesize an immediate completion so the SSE stream
 		// closes cleanly.
 		m.mu.Unlock()
-		m.publishCompleted(id)
+		m.fanPublish(id, LiveQueryEvent{Status: "completed"})
 		m.removeLocked(id)
 		return &LiveQueryHandle{ID: id, SQL: sql, StartedAt: q.startedAt}
 	}
@@ -111,10 +119,7 @@ func (m *LiveQueryManager) Start(sql string, hostIDs []int64) *LiveQueryHandle {
 	}
 }
 
-// PendingForHost returns live queries currently targeting host. Live queries
-// stay queued until the host responds (or the query times out), so a
-// retrying agent sees the same SQL again — osquery's distributed runner is
-// idempotent against re-sends.
+// PendingForHost returns live queries currently targeting host.
 func (m *LiveQueryManager) PendingForHost(hostID int64) []LiveQueryWork {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -130,8 +135,6 @@ func (m *LiveQueryManager) PendingForHost(hostID int64) []LiveQueryWork {
 
 // RecordResult marks a host as having responded for a live query, publishes
 // the result event, and finishes the query if no hosts remain pending.
-// Drops silently if the query has already completed or timed out — the
-// admin's stream is gone, there is no replay path.
 func (m *LiveQueryManager) RecordResult(
 	queryID int64,
 	hostID int64,
@@ -160,7 +163,7 @@ func (m *LiveQueryManager) RecordResult(
 	}
 	m.mu.Unlock()
 
-	m.hub.Publish(queryID, LiveQueryEvent{
+	m.fanPublish(queryID, LiveQueryEvent{
 		HostID:   hostID,
 		HostName: hostName,
 		Status:   string(status),
@@ -168,23 +171,23 @@ func (m *LiveQueryManager) RecordResult(
 		Error:    errMsg,
 	})
 	if finished {
-		m.publishCompleted(queryID)
+		m.fanPublish(queryID, LiveQueryEvent{Status: "completed"})
 		m.removeLocked(queryID)
 	}
 }
 
-// Subscribe returns the live event channel for queryID and a release. Errors
-// with ErrLiveQueryNotFound when the query has already completed/timed out
-// (no replay buffer — admins must reconnect before completion).
+// Subscribe returns the live event channel for queryID and a release function.
+// Errors with ErrLiveQueryNotFound when the query has already completed/timed out.
 func (m *LiveQueryManager) Subscribe(queryID int64) (<-chan LiveQueryEvent, func(), error) {
 	m.mu.RLock()
-	_, ok := m.active[queryID]
-	m.mu.RUnlock()
-	if !ok {
+	defer m.mu.RUnlock()
+
+	if _, ok := m.active[queryID]; !ok {
 		return nil, nil, ErrLiveQueryNotFound
 	}
-	events, release := m.hub.Subscribe(queryID)
-	return events, release, nil
+
+	ch, release := m.fanSubscribe(queryID)
+	return ch, release, nil
 }
 
 func (m *LiveQueryManager) expire(queryID int64) {
@@ -203,21 +206,60 @@ func (m *LiveQueryManager) expire(queryID int64) {
 	m.mu.Unlock()
 
 	for _, hostID := range timedOut {
-		m.hub.Publish(queryID, LiveQueryEvent{
+		m.fanPublish(queryID, LiveQueryEvent{
 			HostID: hostID,
 			Status: string(LiveStatusTimeout),
 		})
 	}
-	m.publishCompleted(queryID)
+	m.fanPublish(queryID, LiveQueryEvent{Status: "completed"})
 	m.removeLocked(queryID)
-}
-
-func (m *LiveQueryManager) publishCompleted(queryID int64) {
-	m.hub.Publish(queryID, LiveQueryEvent{Status: "completed"})
 }
 
 func (m *LiveQueryManager) removeLocked(queryID int64) {
 	m.mu.Lock()
 	delete(m.active, queryID)
 	m.mu.Unlock()
+}
+
+// fanSubscribe registers a buffered event channel for queryID and returns a
+// release function. The caller must invoke release when done.
+func (m *LiveQueryManager) fanSubscribe(queryID int64) (<-chan LiveQueryEvent, func()) {
+	id := m.subNext.Add(1)
+	ch := make(chan LiveQueryEvent, 32)
+
+	m.subsMu.Lock()
+	if m.subs[queryID] == nil {
+		m.subs[queryID] = make(map[int64]chan LiveQueryEvent)
+	}
+	m.subs[queryID][id] = ch
+	m.subsMu.Unlock()
+
+	return ch, func() {
+		m.subsMu.Lock()
+		defer m.subsMu.Unlock()
+		subs := m.subs[queryID]
+		if subs == nil {
+			return
+		}
+		if _, ok := subs[id]; !ok {
+			return
+		}
+		delete(subs, id)
+		if len(subs) == 0 {
+			delete(m.subs, queryID)
+		}
+		close(ch)
+	}
+}
+
+// fanPublish delivers event to all current subscribers without blocking.
+func (m *LiveQueryManager) fanPublish(queryID int64, event LiveQueryEvent) {
+	m.subsMu.RLock()
+	defer m.subsMu.RUnlock()
+	for _, ch := range m.subs[queryID] {
+		select {
+		case ch <- event:
+		default:
+		}
+	}
 }

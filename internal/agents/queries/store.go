@@ -324,10 +324,10 @@ func queryListSQL(where string, args []any, params QueryListParams) (string, []a
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":               {SQL: "name"},
-			"created_at":         {SQL: "created_at"},
+			"name":                {SQL: "name"},
+			"created_at":          {SQL: "created_at"},
 			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
-			"schedule_interval":  {SQL: "schedule_interval"},
+			"schedule_interval":   {SQL: "schedule_interval"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,

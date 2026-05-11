@@ -12,10 +12,10 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -61,7 +61,7 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.UserService = userService
 	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.LiveQueryManager = queries.NewLiveQueryManager(queries.NewHub(), time.Minute)
+	deps.LiveQueryManager = livequery.NewLiveQueryManager(time.Minute)
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()

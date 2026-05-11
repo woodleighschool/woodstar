@@ -6,11 +6,13 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/handlers"
@@ -29,8 +31,8 @@ type Dependencies struct {
 	SoftwareStore    *software.SoftwareStore
 	LabelStore       *labels.LabelStore
 	QueryStore       *queries.QueryStore
-	CheckStore       *queries.CheckStore
-	LiveQueryManager *queries.LiveQueryManager
+	CheckStore       *checks.CheckStore
+	LiveQueryManager *livequery.LiveQueryManager
 	TargetResolver   *hosts.TargetResolver
 }
 

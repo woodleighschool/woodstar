@@ -13,13 +13,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	coreosquery "github.com/woodleighschool/woodstar/internal/agents/osquery"
+	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -74,20 +76,19 @@ type osqueryContractStores struct {
 	labels   *labels.LabelStore
 	secrets  *secrets.Store
 	queries  *queries.QueryStore
-	checks   *queries.CheckStore
-	live     *queries.LiveQueryManager
+	checks   *checks.CheckStore
+	live     *livequery.LiveQueryManager
 	software *software.SoftwareStore
 }
 
 func newOsqueryContractStores(database *database.DB) osqueryContractStores {
-	hub := queries.NewHub()
 	return osqueryContractStores{
 		hosts:    hosts.NewHostStore(database),
 		labels:   labels.NewLabelStore(database),
 		secrets:  secrets.NewStore(database),
 		queries:  queries.NewQueryStore(database),
-		checks:   queries.NewCheckStore(database),
-		live:     queries.NewLiveQueryManager(hub, time.Minute),
+		checks:   checks.NewCheckStore(database),
+		live:     livequery.NewLiveQueryManager(time.Minute),
 		software: software.NewSoftwareStore(database),
 	}
 }

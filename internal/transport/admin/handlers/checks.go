@@ -10,9 +10,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/queries"
 )
 
 const (
@@ -105,7 +105,7 @@ type checkHostBody struct {
 }
 
 // RegisterChecks registers check endpoints.
-func RegisterChecks(api huma.API, checkStore *queries.CheckStore, hostStore *hosts.HostStore) {
+func RegisterChecks(api huma.API, checkStore *checks.CheckStore, hostStore *hosts.HostStore) {
 	registerListChecks(api, checkStore)
 	registerCreateCheck(api, checkStore)
 	registerGetCheck(api, checkStore)
@@ -116,7 +116,7 @@ func RegisterChecks(api huma.API, checkStore *queries.CheckStore, hostStore *hos
 	registerHostChecks(api, checkStore, hostStore)
 }
 
-func registerListChecks(api huma.API, checkStore *queries.CheckStore) {
+func registerListChecks(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-checks",
 		Method:      http.MethodGet,
@@ -139,7 +139,7 @@ func registerListChecks(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerCreateCheck(api huma.API, checkStore *queries.CheckStore) {
+func registerCreateCheck(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-check",
 		Method:        http.MethodPost,
@@ -161,7 +161,7 @@ func registerCreateCheck(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerGetCheck(api huma.API, checkStore *queries.CheckStore) {
+func registerGetCheck(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-check",
 		Method:      http.MethodGet,
@@ -182,7 +182,7 @@ func registerGetCheck(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerUpdateCheck(api huma.API, checkStore *queries.CheckStore) {
+func registerUpdateCheck(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-check",
 		Method:      http.MethodPut,
@@ -207,7 +207,7 @@ func registerUpdateCheck(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerDeleteCheck(api huma.API, checkStore *queries.CheckStore) {
+func registerDeleteCheck(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-check",
 		Method:      http.MethodDelete,
@@ -227,7 +227,7 @@ func registerDeleteCheck(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerBulkDeleteChecks(api huma.API, checkStore *queries.CheckStore) {
+func registerBulkDeleteChecks(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-checks",
 		Method:      http.MethodPost,
@@ -250,7 +250,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerCheckHosts(api huma.API, checkStore *queries.CheckStore) {
+func registerCheckHosts(api huma.API, checkStore *checks.CheckStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-check-hosts",
 		Method:      http.MethodGet,
@@ -273,7 +273,7 @@ func registerCheckHosts(api huma.API, checkStore *queries.CheckStore) {
 	})
 }
 
-func registerHostChecks(api huma.API, checkStore *queries.CheckStore, hostStore *hosts.HostStore) {
+func registerHostChecks(api huma.API, checkStore *checks.CheckStore, hostStore *hosts.HostStore) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-checks",
 		Method:      http.MethodGet,
@@ -303,8 +303,8 @@ func registerHostChecks(api huma.API, checkStore *queries.CheckStore, hostStore 
 	})
 }
 
-func (input checkListInput) params() queries.CheckListParams {
-	return queries.CheckListParams{
+func (input checkListInput) params() checks.CheckListParams {
+	return checks.CheckListParams{
 		ListParams: dbutil.CleanListParams(dbutil.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
@@ -316,12 +316,12 @@ func (input checkListInput) params() queries.CheckListParams {
 	}
 }
 
-func (body checkMutationBody) createParams(userID *int64) (queries.CheckCreate, error) {
+func (body checkMutationBody) createParams(userID *int64) (checks.CheckCreate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return queries.CheckCreate{}, err
+		return checks.CheckCreate{}, err
 	}
-	return queries.CheckCreate{
+	return checks.CheckCreate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
@@ -332,12 +332,12 @@ func (body checkMutationBody) createParams(userID *int64) (queries.CheckCreate, 
 	}, nil
 }
 
-func (body checkMutationBody) updateParams() (queries.CheckUpdate, error) {
+func (body checkMutationBody) updateParams() (checks.CheckUpdate, error) {
 	scope, err := body.LabelScope.model()
 	if err != nil {
-		return queries.CheckUpdate{}, err
+		return checks.CheckUpdate{}, err
 	}
-	return queries.CheckUpdate{
+	return checks.CheckUpdate{
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
@@ -347,7 +347,7 @@ func (body checkMutationBody) updateParams() (queries.CheckUpdate, error) {
 	}, nil
 }
 
-func checkResponse(check *queries.Check) checkBody {
+func checkResponse(check *checks.Check) checkBody {
 	return checkBody{
 		ID:                check.ID,
 		Name:              check.Name,
@@ -362,7 +362,7 @@ func checkResponse(check *queries.Check) checkBody {
 	}
 }
 
-func checkHostResponses(rows []queries.CheckHostStatus) []checkHostBody {
+func checkHostResponses(rows []checks.CheckHostStatus) []checkHostBody {
 	out := make([]checkHostBody, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, checkHostBody{
