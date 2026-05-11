@@ -7,9 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 const (
@@ -28,10 +27,10 @@ type userOutput struct {
 
 type userCreateInput struct {
 	Body struct {
-		Email    string          `json:"email"    format:"email"`
-		Name     string          `json:"name,omitempty"`
-		Role     models.UserRole `json:"role"     enum:"admin,viewer"`
-		Password string          `json:"password" minLength:"12"`
+		Email    string     `json:"email"    format:"email"`
+		Name     string     `json:"name,omitempty"`
+		Role     users.Role `json:"role"     enum:"admin,viewer"`
+		Password string     `json:"password" minLength:"12"`
 	}
 }
 
@@ -40,9 +39,9 @@ type userGetInput struct {
 }
 
 type userPutBody struct {
-	Name     string          `json:"name"`
-	Role     models.UserRole `json:"role"               enum:"admin,viewer"`
-	Password *string         `json:"password,omitempty"`
+	Name     string     `json:"name"`
+	Role     users.Role `json:"role"               enum:"admin,viewer"`
+	Password *string    `json:"password,omitempty"`
 }
 
 type userPutInput struct {
@@ -55,15 +54,15 @@ type userDeleteInput struct {
 }
 
 // RegisterUsers registers admin user management endpoints.
-func RegisterUsers(api huma.API, authService *auth.Service) {
-	registerListUsers(api, authService)
-	registerCreateUser(api, authService)
-	registerGetUser(api, authService)
-	registerPutUser(api, authService)
-	registerDeleteUser(api, authService)
+func RegisterUsers(api huma.API, userService *users.Service) {
+	registerListUsers(api, userService)
+	registerCreateUser(api, userService)
+	registerGetUser(api, userService)
+	registerPutUser(api, userService)
+	registerDeleteUser(api, userService)
 }
 
-func registerListUsers(api huma.API, authService *auth.Service) {
+func registerListUsers(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,
@@ -75,7 +74,7 @@ func registerListUsers(api huma.API, authService *auth.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		users, err := authService.ListUsers(ctx)
+		users, err := userService.List(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +86,7 @@ func registerListUsers(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerCreateUser(api huma.API, authService *auth.Service) {
+func registerCreateUser(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-user",
 		Method:        http.MethodPost,
@@ -105,7 +104,7 @@ func registerCreateUser(api huma.API, authService *auth.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		user, err := authService.CreateUser(ctx, auth.CreateUserParams{
+		user, err := userService.Create(ctx, users.CreateParams{
 			Email:    input.Body.Email,
 			Name:     input.Body.Name,
 			Role:     input.Body.Role,
@@ -118,7 +117,7 @@ func registerCreateUser(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerGetUser(api huma.API, authService *auth.Service) {
+func registerGetUser(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-user",
 		Method:      http.MethodGet,
@@ -134,7 +133,7 @@ func registerGetUser(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		user, err := authService.GetUser(ctx, id)
+		user, err := userService.Get(ctx, id)
 		if err != nil {
 			return nil, userMutationError(err)
 		}
@@ -142,7 +141,7 @@ func registerGetUser(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerPutUser(api huma.API, authService *auth.Service) {
+func registerPutUser(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-user",
 		Method:      http.MethodPut,
@@ -165,7 +164,7 @@ func registerPutUser(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		user, err := authService.UpdateUser(ctx, actor, targetID, auth.UpdateUserParams{
+		user, err := userService.Update(ctx, actor, targetID, users.UpdateParams{
 			Name:     input.Body.Name,
 			Role:     input.Body.Role,
 			Password: input.Body.Password,
@@ -177,7 +176,7 @@ func registerPutUser(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerDeleteUser(api huma.API, authService *auth.Service) {
+func registerDeleteUser(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-user",
 		Method:      http.MethodDelete,
@@ -199,7 +198,7 @@ func registerDeleteUser(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		if err := authService.DeleteUser(ctx, actor.ID, targetID); err != nil {
+		if err := userService.Delete(ctx, actor.ID, targetID); err != nil {
 			return nil, userMutationError(err)
 		}
 		return &struct{}{}, nil
@@ -216,12 +215,12 @@ func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, store.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, auth.ErrCannotChangeOwnRole),
-		errors.Is(err, auth.ErrCannotDeleteSelf),
-		errors.Is(err, auth.ErrCannotRemoveLastAdmin):
+	case errors.Is(err, users.ErrCannotChangeOwnRole),
+		errors.Is(err, users.ErrCannotDeleteSelf),
+		errors.Is(err, users.ErrCannotRemoveLastAdmin):
 		return huma.Error409Conflict(err.Error())
-	case errors.Is(err, auth.ErrWeakPassword):
-		return huma.Error400BadRequest(auth.ErrWeakPassword.Error())
+	case errors.Is(err, users.ErrWeakPassword):
+		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
 	default:
 		return resourceMutationError(userResource, err)
 	}

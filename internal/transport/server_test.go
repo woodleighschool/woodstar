@@ -14,10 +14,9 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 	"github.com/woodleighschool/woodstar/internal/queries"
-	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 func TestProtectedAPIRoutesRequireSession(t *testing.T) {
@@ -47,9 +46,21 @@ func TestLiveQueryStreamRequiresSession(t *testing.T) {
 }
 
 func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userStore := users.NewStore(database)
+	userService := users.NewService(userStore)
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Test Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+
 	deps := testDependencies(testConfig())
-	store := newTestUserStore(t)
-	deps.AuthService = auth.NewService(store, deps.SessionManager)
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
 	deps.LiveQueryManager = queries.NewLiveQueryManager(queries.NewHub(), time.Minute)
 	server := NewServer(deps)
 
@@ -101,63 +112,6 @@ func TestNewServerBuildsHTTPServer(t *testing.T) {
 
 const testUserPassword = "test-user-password"
 
-type testUserStore struct {
-	user models.User
-}
-
-func newTestUserStore(t *testing.T) *testUserStore {
-	t.Helper()
-
-	hash, err := auth.HashPassword(testUserPassword)
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
-	}
-	return &testUserStore{
-		user: models.User{User: sqlc.User{
-			ID:           7,
-			Email:        "admin@example.test",
-			Name:         "Test Admin",
-			PasswordHash: hash,
-			Role:         models.RoleAdmin,
-		}},
-	}
-}
-
-func (s *testUserStore) Exists(context.Context) (bool, error) {
-	return true, nil
-}
-
-func (s *testUserStore) Create(context.Context, models.CreateUserParams) (*models.User, error) {
-	return &s.user, nil
-}
-
-func (s *testUserStore) GetByEmail(context.Context, string) (*models.User, error) {
-	return &s.user, nil
-}
-
-func (s *testUserStore) GetByID(_ context.Context, id int64) (*models.User, error) {
-	if id != s.user.ID {
-		return nil, store.ErrNotFound
-	}
-	return &s.user, nil
-}
-
-func (s *testUserStore) List(context.Context) ([]models.User, error) {
-	return []models.User{s.user}, nil
-}
-
-func (s *testUserStore) Update(context.Context, int64, models.UpdateUserParams) (*models.User, error) {
-	return &s.user, nil
-}
-
-func (s *testUserStore) SoftDelete(context.Context, int64) error {
-	return nil
-}
-
-func (s *testUserStore) CountAdmins(context.Context) (int, error) {
-	return 1, nil
-}
-
 func loginTestUser(t *testing.T, authService *auth.Service, sessionManager *scs.SessionManager) *http.Cookie {
 	t.Helper()
 
@@ -185,12 +139,14 @@ func testConfig() config.Config {
 func testDependencies(cfg config.Config) Dependencies {
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
+	userService := users.NewService(&users.Store{})
 
 	return Dependencies{
 		Config:         cfg,
 		Version:        "test",
 		Logger:         slog.New(slog.DiscardHandler),
-		AuthService:    auth.NewService(&testUserStore{}, sessionManager),
+		AuthService:    auth.NewService(userService, sessionManager),
+		UserService:    userService,
 		SessionManager: sessionManager,
 	}
 }

@@ -75,7 +75,10 @@ func normalizePublicURL(value string) (string, string, error) {
 		return "", "", fmt.Errorf("%w: must include host and omit query or fragment", ErrInvalidPublicURL)
 	}
 	if path := strings.Trim(parsed.Path, "/"); path != "" {
-		return "", "", fmt.Errorf("%w: must not include a path; use a reverse proxy if you need a sub-path", ErrInvalidPublicURL)
+		return "", "", fmt.Errorf(
+			"%w: must not include a path; use a reverse proxy if you need a sub-path",
+			ErrInvalidPublicURL,
+		)
 	}
 	parsed.Path = ""
 	return strings.TrimRight(parsed.String(), "/"), parsed.Scheme, nil

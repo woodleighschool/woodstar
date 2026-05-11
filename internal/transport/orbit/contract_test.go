@@ -17,8 +17,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/db/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/models"
 	coreorbit "github.com/woodleighschool/woodstar/internal/orbit"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 )
 
 func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
@@ -30,7 +30,7 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 	hardwareUUID := "orbit-contract-" + suffix
 	deviceEmail := "student-" + suffix + "@example.test"
 
-	secret, err := stores.secrets.Create(ctx, models.SecretOrbit)
+	secret, err := stores.secrets.CreateOrbitEnrollSecret(ctx)
 	if err != nil {
 		t.Fatalf("create enroll secret: %v", err)
 	}
@@ -54,9 +54,15 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 	}
 
 	var configBody coreorbit.ConfigResponse
-	doOrbitJSON(t, router, http.MethodPost, "/api/fleet/orbit/config", coreorbit.ConfigRequest{
-		OrbitNodeKey: enrollBody.OrbitNodeKey,
-	}, http.StatusOK, &configBody)
+	doOrbitJSON(
+		t,
+		router,
+		http.MethodPost,
+		"/api/fleet/orbit/config",
+		coreorbit.ConfigRequest(enrollBody),
+		http.StatusOK,
+		&configBody,
+	)
 	if string(configBody.Flags) != "{}" {
 		t.Fatalf("config flags = %s, want {}", configBody.Flags)
 	}
@@ -93,14 +99,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 type orbitContractStores struct {
 	hosts          *hosts.HostStore
 	deviceMappings *hosts.DeviceMappingStore
-	secrets        *models.SecretStore
+	secrets        *secrets.Store
 }
 
 func newOrbitContractStores(database *db.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:          hosts.NewHostStore(database),
 		deviceMappings: hosts.NewDeviceMappingStore(database),
-		secrets:        models.NewSecretStore(database),
+		secrets:        secrets.NewStore(database),
 	}
 }
 

@@ -9,16 +9,16 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
+	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 type userBody struct {
-	ID        int64           `json:"id"`
-	Email     string          `json:"email"`
-	Name      string          `json:"name"`
-	Role      models.UserRole `json:"role"       enum:"admin,viewer"`
-	CreatedAt time.Time       `json:"created_at"`
+	ID        int64      `json:"id"`
+	Email     string     `json:"email"`
+	Name      string     `json:"name"`
+	Role      users.Role `json:"role"       enum:"admin,viewer"`
+	CreatedAt time.Time  `json:"created_at"`
 }
 
 type sessionOutput struct {
@@ -141,7 +141,7 @@ func registerLogin(api huma.API, authService *auth.Service) {
 	})
 }
 
-func userResponse(user *models.User) userBody {
+func userResponse(user *users.User) userBody {
 	return userBody{
 		ID:        user.ID,
 		Email:     user.Email,
@@ -153,12 +153,12 @@ func userResponse(user *models.User) userBody {
 
 // requireAdmin returns the authenticated admin user from ctx.
 // It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
-func requireAdmin(ctx context.Context) (*models.User, error) {
+func requireAdmin(ctx context.Context) (*users.User, error) {
 	user, ok := adminctx.UserFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
-	if user.Role != models.RoleAdmin {
+	if user.Role != users.RoleAdmin {
 		return nil, huma.Error403Forbidden("admin role required")
 	}
 	return user, nil
@@ -172,8 +172,8 @@ func authError(err error) error {
 		return huma.Error409Conflict("setup required")
 	case errors.Is(err, auth.ErrAlreadySetup):
 		return huma.Error409Conflict("woodstar is already set up")
-	case errors.Is(err, auth.ErrWeakPassword):
-		return huma.Error400BadRequest(auth.ErrWeakPassword.Error())
+	case errors.Is(err, users.ErrWeakPassword):
+		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
 	default:
 		return err
 	}

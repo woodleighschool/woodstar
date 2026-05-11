@@ -1,8 +1,13 @@
-package auth
+package users
 
 import (
+	"errors"
+
 	"github.com/alexedwards/argon2id"
 )
+
+// ErrWeakPassword is returned when a local password is too short.
+var ErrWeakPassword = errors.New("password must be at least 12 characters")
 
 // passwordParams pins Argon2id cost so changes are explicit. Library defaults
 // are documented as dev-only.

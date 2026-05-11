@@ -8,7 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 )
 
 const emptyConfigFlags = "{}"
@@ -16,14 +16,14 @@ const emptyConfigFlags = "{}"
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
 	hostStore          *hosts.HostStore
-	secretStore        *models.SecretStore
+	secretStore        *secrets.Store
 	deviceMappingStore *hosts.DeviceMappingStore
 }
 
 // NewService returns an Orbit service.
 func NewService(
 	hostStore *hosts.HostStore,
-	secrets *models.SecretStore,
+	secrets *secrets.Store,
 	deviceMappings *hosts.DeviceMappingStore,
 ) *Service {
 	return &Service{hostStore: hostStore, secretStore: secrets, deviceMappingStore: deviceMappings}
@@ -37,7 +37,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", agentauth.ErrMissingHardwareUUID
 	}
 
-	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
+	ok, err := s.secretStore.HasActiveOrbitEnrollSecret(ctx, req.EnrollSecret)
 	if err != nil {
 		return nil, "", fmt.Errorf("validate enroll secret: %w", err)
 	}

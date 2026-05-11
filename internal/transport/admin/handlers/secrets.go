@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -16,16 +16,16 @@ type secretDeleteInput struct {
 }
 
 type secretListOutput struct {
-	Body []models.Secret
+	Body []secrets.Secret
 }
 
 type secretCreateOutput struct {
-	Body models.Secret
+	Body secrets.Secret
 }
 
 // RegisterSecrets registers shared credential endpoints for Orbit enroll secrets.
 // Santa and Munki return when their modules ship.
-func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
+func RegisterSecrets(api huma.API, secretStore *secrets.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-orbit-enroll-secrets",
 		Method:      http.MethodGet,
@@ -37,7 +37,7 @@ func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secrets, err := secretStore.List(ctx, models.SecretOrbit)
+		secrets, err := secretStore.ListOrbitEnrollSecrets(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -56,11 +56,11 @@ func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		secret, err := secretStore.Create(ctx, models.SecretOrbit)
+		secret, err := secretStore.CreateOrbitEnrollSecret(ctx)
 		if err != nil {
 			return nil, err
 		}
-		return &secretCreateOutput{Body: *secret}, nil
+		return &secretCreateOutput{Body: secret}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -78,7 +78,7 @@ func RegisterSecrets(api huma.API, secretStore *models.SecretStore) {
 		if err != nil {
 			return nil, err
 		}
-		err = secretStore.Delete(ctx, models.SecretOrbit, id)
+		err = secretStore.DeleteOrbitEnrollSecret(ctx, id)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil, huma.Error404NotFound("secret not found")
 		}

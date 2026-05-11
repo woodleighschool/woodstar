@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/alexedwards/scs/v2"
 
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/store"
+	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 const sessionUserKey = "user_id"
@@ -20,24 +19,12 @@ var (
 	ErrInvalidCredentials = errors.New("invalid email or password")
 	ErrNotAuthenticated   = errors.New("not authenticated")
 	ErrNotSetup           = errors.New("woodstar setup is required")
-	ErrWeakPassword       = errors.New("password must be at least 12 characters")
 )
 
 // Service owns local setup, login, and session lookup behavior.
 type Service struct {
-	users    userStore
+	users    *users.Service
 	sessions *scs.SessionManager
-}
-
-type userStore interface {
-	Exists(context.Context) (bool, error)
-	Create(context.Context, models.CreateUserParams) (*models.User, error)
-	GetByEmail(context.Context, string) (*models.User, error)
-	GetByID(context.Context, int64) (*models.User, error)
-	List(context.Context) ([]models.User, error)
-	Update(context.Context, int64, models.UpdateUserParams) (*models.User, error)
-	SoftDelete(context.Context, int64) error
-	CountAdmins(context.Context) (int, error)
 }
 
 // SetupParams contains the first administrator account fields.
@@ -47,8 +34,8 @@ type SetupParams struct {
 	Password string
 }
 
-// NewService creates an auth service backed by a user store and an scs session manager.
-func NewService(users userStore, sessions *scs.SessionManager) *Service {
+// NewService creates an auth service backed by a user service and an scs session manager.
+func NewService(users *users.Service, sessions *scs.SessionManager) *Service {
 	return &Service{users: users, sessions: sessions}
 }
 
@@ -58,7 +45,7 @@ func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
 }
 
 // Setup creates the first administrator account and starts a session.
-func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, error) {
+func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, error) {
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -67,16 +54,11 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, 
 		return nil, ErrAlreadySetup
 	}
 
-	hash, err := HashPassword(params.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := s.users.Create(ctx, models.CreateUserParams{
-		Email:        params.Email,
-		Name:         fallbackName(params.Name, params.Email),
-		PasswordHash: hash,
-		Role:         models.RoleAdmin,
+	user, err := s.users.Create(ctx, users.CreateParams{
+		Email:    params.Email,
+		Name:     params.Name,
+		Password: params.Password,
+		Role:     users.RoleAdmin,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create setup user: %w", err)
@@ -89,7 +71,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*models.User, 
 }
 
 // Login checks local credentials and starts a session.
-func (s *Service) Login(ctx context.Context, email string, password string) (*models.User, error) {
+func (s *Service) Login(ctx context.Context, email string, password string) (*users.User, error) {
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -106,7 +88,7 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*mo
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	valid, err := VerifyPassword(password, user.PasswordHash)
+	valid, err := users.VerifyPassword(password, user.PasswordHash)
 	if err != nil {
 		return nil, fmt.Errorf("verify password: %w", err)
 	}
@@ -121,12 +103,12 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*mo
 }
 
 // CurrentUser returns the user attached to the session loaded into ctx by scs middleware.
-func (s *Service) CurrentUser(ctx context.Context) (*models.User, error) {
+func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
 	id := s.sessions.GetInt64(ctx, sessionUserKey)
 	if id == 0 {
 		return nil, ErrNotAuthenticated
 	}
-	user, err := s.users.GetByID(ctx, id)
+	user, err := s.users.Get(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		// Session pointed at a deleted user; clear it.
 		_ = s.sessions.Destroy(ctx)
@@ -153,12 +135,4 @@ func (s *Service) startSession(ctx context.Context, userID int64) error {
 	}
 	s.sessions.Put(ctx, sessionUserKey, userID)
 	return nil
-}
-
-func fallbackName(name string, email string) string {
-	name = strings.TrimSpace(name)
-	if name != "" {
-		return name
-	}
-	return strings.TrimSpace(email)
 }

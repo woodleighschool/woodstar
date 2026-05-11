@@ -1,4 +1,4 @@
-package models
+package users
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
-// UserRole controls application permissions.
-type UserRole = sqlc.UserRole
+// Role controls application permissions.
+type Role = sqlc.UserRole
 
 // User roles are intentionally small.
 const (
@@ -21,43 +21,41 @@ const (
 	RoleViewer = sqlc.UserRoleViewer
 )
 
-// User is a local account.
-type User struct {
-	sqlc.User
-}
+// User is a local Woodstar account.
+type User = sqlc.User
 
-// UserStore persists local accounts.
-type UserStore struct {
+// Store persists local accounts.
+type Store struct {
 	q *sqlc.Queries
 }
 
-// CreateUserParams contains fields needed to create a local account.
-type CreateUserParams struct {
+// CreateRecordParams contains fields needed to persist a local account.
+type CreateRecordParams struct {
 	Email        string
 	Name         string
 	PasswordHash string
-	Role         UserRole
+	Role         Role
 }
 
-// UpdateUserParams replaces the writable fields of a user.
-type UpdateUserParams struct {
+// UpdateRecordParams replaces the writable fields of a user.
+type UpdateRecordParams struct {
 	Name         string
-	Role         UserRole
+	Role         Role
 	PasswordHash *string
 }
 
-// NewUserStore returns a user store backed by db.
-func NewUserStore(db *db.DB) *UserStore {
-	return &UserStore{q: db.Queries()}
+// NewStore returns a user store backed by db.
+func NewStore(db *db.DB) *Store {
+	return &Store{q: db.Queries()}
 }
 
 // Exists reports whether any active local user exists.
-func (s *UserStore) Exists(ctx context.Context) (bool, error) {
+func (s *Store) Exists(ctx context.Context) (bool, error) {
 	return s.q.UserExists(ctx)
 }
 
 // Create inserts a local user.
-func (s *UserStore) Create(ctx context.Context, params CreateUserParams) (*User, error) {
+func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, error) {
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:        normalizeEmail(params.Email),
 		Name:         strings.TrimSpace(params.Name),
@@ -70,11 +68,11 @@ func (s *UserStore) Create(ctx context.Context, params CreateUserParams) (*User,
 		}
 		return nil, err
 	}
-	return &User{User: row}, nil
+	return &row, nil
 }
 
 // GetByEmail returns an active user by email.
-func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
+func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: normalizeEmail(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, store.ErrNotFound
@@ -82,11 +80,11 @@ func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error)
 	if err != nil {
 		return nil, err
 	}
-	return &User{User: row}, nil
+	return &row, nil
 }
 
 // GetByID returns an active user by database ID.
-func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, store.ErrNotFound
@@ -94,25 +92,17 @@ func (s *UserStore) GetByID(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &User{User: row}, nil
+	return &row, nil
 }
 
 // List returns active users ordered by creation time.
-func (s *UserStore) List(ctx context.Context) ([]User, error) {
-	rows, err := s.q.ListUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	users := make([]User, len(rows))
-	for i, row := range rows {
-		users[i] = User{User: row}
-	}
-	return users, nil
+func (s *Store) List(ctx context.Context) ([]User, error) {
+	return s.q.ListUsers(ctx)
 }
 
 // Update writes the writable fields of a user. Name and Role are required;
 // PasswordHash is optional and left untouched when nil.
-func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParams) (*User, error) {
+func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams) (*User, error) {
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
 		Name:         strings.TrimSpace(params.Name),
 		Role:         params.Role,
@@ -128,11 +118,11 @@ func (s *UserStore) Update(ctx context.Context, id int64, params UpdateUserParam
 		}
 		return nil, err
 	}
-	return &User{User: row}, nil
+	return &row, nil
 }
 
 // SoftDelete marks the user with id as deleted.
-func (s *UserStore) SoftDelete(ctx context.Context, id int64) error {
+func (s *Store) SoftDelete(ctx context.Context, id int64) error {
 	_, err := s.q.SoftDeleteUser(ctx, sqlc.SoftDeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return store.ErrNotFound
@@ -141,7 +131,7 @@ func (s *UserStore) SoftDelete(ctx context.Context, id int64) error {
 }
 
 // CountAdmins returns the number of active admin users.
-func (s *UserStore) CountAdmins(ctx context.Context) (int, error) {
+func (s *Store) CountAdmins(ctx context.Context) (int, error) {
 	count, err := s.q.CountAdminUsers(ctx)
 	return int(count), err
 }

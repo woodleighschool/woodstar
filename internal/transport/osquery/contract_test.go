@@ -18,9 +18,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/models"
 	coreosquery "github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
@@ -34,7 +34,7 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	softwareName := "Example App " + suffix
 	bundleID := "com.example.osquery." + suffix
 
-	secret, err := stores.secrets.Create(ctx, models.SecretOrbit)
+	secret, err := stores.secrets.CreateOrbitEnrollSecret(ctx)
 	if err != nil {
 		t.Fatalf("create enroll secret: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestOsqueryHTTPReturnsNodeInvalidForUnknownNodeKey(t *testing.T) {
 type osqueryContractStores struct {
 	hosts    *hosts.HostStore
 	labels   *labels.LabelStore
-	secrets  *models.SecretStore
+	secrets  *secrets.Store
 	queries  *queries.QueryStore
 	checks   *queries.CheckStore
 	live     *queries.LiveQueryManager
@@ -84,7 +84,7 @@ func newOsqueryContractStores(database *db.DB) osqueryContractStores {
 	return osqueryContractStores{
 		hosts:    hosts.NewHostStore(database),
 		labels:   labels.NewLabelStore(database),
-		secrets:  models.NewSecretStore(database),
+		secrets:  secrets.NewStore(database),
 		queries:  queries.NewQueryStore(database),
 		checks:   queries.NewCheckStore(database),
 		live:     queries.NewLiveQueryManager(hub, time.Minute),

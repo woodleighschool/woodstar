@@ -7,11 +7,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/db/sqlc"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/store"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
+	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 func TestRequireAdmin(t *testing.T) {
@@ -25,7 +23,7 @@ func TestRequireAdmin(t *testing.T) {
 			name: "admin in context",
 			ctx: adminctx.WithUser(
 				context.Background(),
-				&models.User{User: sqlc.User{ID: 1, Role: models.RoleAdmin}},
+				&users.User{ID: 1, Role: users.RoleAdmin},
 			),
 			wantStatus: 0,
 			wantOK:     true,
@@ -34,7 +32,7 @@ func TestRequireAdmin(t *testing.T) {
 			name: "viewer is forbidden",
 			ctx: adminctx.WithUser(
 				context.Background(),
-				&models.User{User: sqlc.User{ID: 2, Role: models.RoleViewer}},
+				&users.User{ID: 2, Role: users.RoleViewer},
 			),
 			wantStatus: 403,
 		},
@@ -114,10 +112,10 @@ func TestUserMutationErrorMapping(t *testing.T) {
 	}{
 		{name: "not found", err: store.ErrNotFound, wantStatus: 404},
 		{name: "already exists", err: store.ErrAlreadyExists, wantStatus: 409},
-		{name: "weak password", err: auth.ErrWeakPassword, wantStatus: 400},
-		{name: "self role", err: auth.ErrCannotChangeOwnRole, wantStatus: 409},
-		{name: "self delete", err: auth.ErrCannotDeleteSelf, wantStatus: 409},
-		{name: "last admin", err: auth.ErrCannotRemoveLastAdmin, wantStatus: 409},
+		{name: "weak password", err: users.ErrWeakPassword, wantStatus: 400},
+		{name: "self role", err: users.ErrCannotChangeOwnRole, wantStatus: 409},
+		{name: "self delete", err: users.ErrCannotDeleteSelf, wantStatus: 409},
+		{name: "last admin", err: users.ErrCannotRemoveLastAdmin, wantStatus: 409},
 	}
 
 	for _, tt := range tests {

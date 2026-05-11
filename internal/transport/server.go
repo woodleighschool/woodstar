@@ -18,14 +18,15 @@ import (
 	"github.com/woodleighschool/woodstar/internal/db"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport/admin"
 	transportorbit "github.com/woodleighschool/woodstar/internal/transport/orbit"
 	transportosquery "github.com/woodleighschool/woodstar/internal/transport/osquery"
+	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
@@ -37,10 +38,11 @@ type Dependencies struct {
 	Logger           *slog.Logger
 	WebHandler       *web.Handler
 	AuthService      *auth.Service
+	UserService      *users.Service
 	SessionManager   *scs.SessionManager
 	HostStore        *hosts.HostStore
 	DeviceMappings   *hosts.DeviceMappingStore
-	SecretStore      *models.SecretStore
+	SecretStore      *secrets.Store
 	SoftwareStore    *software.SoftwareStore
 	LabelStore       *labels.LabelStore
 	QueryStore       *queries.QueryStore
@@ -135,6 +137,7 @@ func (s *Server) routes() http.Handler {
 			DB:               deps.DB,
 			Version:          deps.Version,
 			AuthService:      deps.AuthService,
+			UserService:      deps.UserService,
 			HostStore:        deps.HostStore,
 			DeviceMappings:   deps.DeviceMappings,
 			SecretStore:      deps.SecretStore,

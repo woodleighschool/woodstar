@@ -11,8 +11,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/store"
 )
 
@@ -24,7 +24,7 @@ type Service struct {
 	queryStore         *queries.QueryStore
 	checkStore         *queries.CheckStore
 	liveQueries        *queries.LiveQueryManager
-	secretStore        *models.SecretStore
+	secretStore        *secrets.Store
 	logger             *slog.Logger
 }
 
@@ -36,7 +36,7 @@ func NewService(
 	queryStore *queries.QueryStore,
 	checkStore *queries.CheckStore,
 	liveQueries *queries.LiveQueryManager,
-	secrets *models.SecretStore,
+	secrets *secrets.Store,
 	logger *slog.Logger,
 ) *Service {
 	return &Service{
@@ -53,7 +53,7 @@ func NewService(
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	ok, err := s.secretStore.ValidateActive(ctx, models.SecretOrbit, req.EnrollSecret)
+	ok, err := s.secretStore.HasActiveOrbitEnrollSecret(ctx, req.EnrollSecret)
 	if err != nil {
 		return "", fmt.Errorf("validate enroll secret: %w", err)
 	}

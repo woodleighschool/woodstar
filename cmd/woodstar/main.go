@@ -23,12 +23,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
-	"github.com/woodleighschool/woodstar/internal/models"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/queries"
+	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/transport"
+	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webfs "github.com/woodleighschool/woodstar/web"
 )
@@ -119,16 +120,17 @@ func newServer(
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
 ) *transport.Server {
-	userStore := models.NewUserStore(db)
+	userStore := users.NewStore(db)
+	userService := users.NewService(userStore)
 	hostStore := hosts.NewHostStore(db)
 	deviceMappingStore := hosts.NewDeviceMappingStore(db)
-	secretStore := models.NewSecretStore(db)
+	secretStore := secrets.NewStore(db)
 	softwareStore := software.NewSoftwareStore(db)
 	labelStore := labels.NewLabelStore(db)
 	queryStore := queries.NewQueryStore(db)
 	checkStore := queries.NewCheckStore(db)
 
-	authService := auth.NewService(userStore, sessionManager)
+	authService := auth.NewService(userService, sessionManager)
 	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
 	hub := queries.NewHub()
 	liveQueries := queries.NewLiveQueryManager(hub, time.Duration(cfg.LiveQueryTimeoutSeconds)*time.Second)
@@ -159,6 +161,7 @@ func newServer(
 		Version:          buildinfo.Version,
 		Logger:           logger,
 		AuthService:      authService,
+		UserService:      userService,
 		SessionManager:   sessionManager,
 		HostStore:        hostStore,
 		DeviceMappings:   deviceMappingStore,

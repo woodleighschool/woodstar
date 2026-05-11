@@ -1260,7 +1260,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 282557b-dirty
+  version: 2650b0e-dirty
 openapi: 3.1.0
 paths:
   /api/auth/login:
