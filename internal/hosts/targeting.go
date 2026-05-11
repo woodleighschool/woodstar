@@ -12,22 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
-// LabelScopeMode describes how a target set uses labels.
-type LabelScopeMode string
-
-const (
-	ScopeNone       LabelScopeMode = ""
-	ScopeIncludeAny LabelScopeMode = "include_any"
-	ScopeIncludeAll LabelScopeMode = "include_all"
-	ScopeExcludeAny LabelScopeMode = "exclude_any"
-)
-
-// LabelScope is the shared label targeting shape for queries, checks, and campaigns.
-type LabelScope struct {
-	Mode     LabelScopeMode
-	LabelIDs []int64
-}
-
 // TargetSelection is the live targeting shape.
 type TargetSelection struct {
 	HostIDs  []int64
@@ -43,20 +27,6 @@ func NewTargetResolver(db *db.DB) *TargetResolver {
 	return &TargetResolver{db: db}
 }
 
-// NormalizeLabelScope sorts label IDs, removes invalid duplicates, and collapses empty scopes.
-func NormalizeLabelScope(scope LabelScope) LabelScope {
-	scope.LabelIDs = cleanPositiveIDs(scope.LabelIDs)
-	switch scope.Mode {
-	case ScopeNone, ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny:
-	default:
-		scope.Mode = ScopeNone
-	}
-	if len(scope.LabelIDs) == 0 {
-		scope.Mode = ScopeNone
-	}
-	return scope
-}
-
 // ResolveSelectedTargets returns active host ids for a live target selection.
 func (r *TargetResolver) ResolveSelectedTargets(ctx context.Context, selection TargetSelection) ([]int64, error) {
 	hostIDs := cleanPositiveIDs(selection.HostIDs)
@@ -69,40 +39,6 @@ func (r *TargetResolver) ResolveSelectedTargets(ctx context.Context, selection T
 		return nil, err
 	}
 	return mergePositiveIDs(hostIDs, matches), nil
-}
-
-// HostMatchesScope reports whether a host satisfies a label scope.
-func HostMatchesScope(ctx context.Context, db *db.DB, scope LabelScope, hostID int64) (bool, error) {
-	scope = NormalizeLabelScope(scope)
-	if scope.Mode == ScopeNone {
-		return true, nil
-	}
-
-	var count int
-	err := db.Pool().QueryRow(
-		ctx,
-		`SELECT count(*)
-		 FROM label_membership
-		 WHERE host_id = $1 AND label_id = ANY($2)`,
-		hostID,
-		scope.LabelIDs,
-	).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-
-	switch scope.Mode {
-	case ScopeNone:
-		return true, nil
-	case ScopeIncludeAny:
-		return count > 0, nil
-	case ScopeIncludeAll:
-		return count == len(scope.LabelIDs), nil
-	case ScopeExcludeAny:
-		return count == 0, nil
-	default:
-		return true, nil
-	}
 }
 
 func resolveSelectedLabelTargets(ctx context.Context, db *db.DB, labelIDs []int64) ([]int64, error) {

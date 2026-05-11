@@ -1,16 +1,16 @@
-package hosts
+package scope
 
 import "testing"
 
 func TestNormalizeLabelScope(t *testing.T) {
-	scope := NormalizeLabelScope(LabelScope{
+	s := NormalizeLabelScope(LabelScope{
 		Mode:     ScopeExcludeAny,
 		LabelIDs: []int64{5, 2, 5, 0, -1},
 	})
-	if scope.Mode != ScopeExcludeAny {
-		t.Fatalf("Mode = %q, want %q", scope.Mode, ScopeExcludeAny)
+	if s.Mode != ScopeExcludeAny {
+		t.Fatalf("Mode = %q, want %q", s.Mode, ScopeExcludeAny)
 	}
-	assertInt64s(t, "LabelIDs", scope.LabelIDs, []int64{2, 5})
+	assertInt64s(t, "LabelIDs", s.LabelIDs, []int64{2, 5})
 
 	empty := NormalizeLabelScope(LabelScope{Mode: ScopeIncludeAll})
 	if empty.Mode != ScopeNone {

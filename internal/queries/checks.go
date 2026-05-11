@@ -10,9 +10,10 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Check is a query-backed pass/fail policy.
@@ -23,7 +24,7 @@ type Check struct {
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
-	LabelScope        hosts.LabelScope
+	LabelScope        scope.LabelScope
 	CreatedByUserID   *int64
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -36,7 +37,7 @@ type CheckCreate struct {
 	Query             string
 	Platform          *string
 	MinOsqueryVersion *string
-	LabelScope        hosts.LabelScope
+	LabelScope        scope.LabelScope
 	CreatedByUserID   *int64
 }
 
@@ -97,11 +98,11 @@ func (s *CheckStore) List(ctx context.Context, params CheckListParams) ([]Check,
 		if err != nil {
 			return nil, 0, err
 		}
-		scope, err := s.loadScope(ctx, check.ID)
+		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
 		if err != nil {
 			return nil, 0, err
 		}
-		check.LabelScope = scope
+		check.LabelScope = labelScope
 		checks = append(checks, *check)
 	}
 	return checks, count, rows.Err()
@@ -116,11 +117,11 @@ func (s *CheckStore) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if err != nil {
 		return nil, err
 	}
-	scope, err := s.loadScope(ctx, check.ID)
+	labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
 	if err != nil {
 		return nil, err
 	}
-	check.LabelScope = scope
+	check.LabelScope = labelScope
 	return check, nil
 }
 
@@ -148,10 +149,10 @@ func (s *CheckStore) Create(ctx context.Context, params CheckCreate) (*Check, er
 			}
 			return err
 		}
-		if err := replaceScope(ctx, tx, "check_labels", "check_id", check.ID, params.LabelScope); err != nil {
+		if err := scope.ReplaceScope(ctx, tx, "check_labels", "check_id", check.ID, params.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
+		check.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 		created = check
 		return nil
 	})
@@ -185,10 +186,10 @@ func (s *CheckStore) Update(ctx context.Context, id int64, params CheckUpdate) (
 			}
 			return err
 		}
-		if err := replaceScope(ctx, tx, "check_labels", "check_id", check.ID, cleaned.LabelScope); err != nil {
+		if err := scope.ReplaceScope(ctx, tx, "check_labels", "check_id", check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = hosts.NormalizeLabelScope(cleaned.LabelScope)
+		check.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
 		updated = check
 		return nil
 	})
@@ -236,18 +237,18 @@ func (s *CheckStore) ApplicableForHost(ctx context.Context, host hosts.Host) ([]
 		if !hosts.QueryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
 			continue
 		}
-		scope, err := s.loadScope(ctx, check.ID)
+		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "check_labels", "check_id", check.ID)
 		if err != nil {
 			return nil, err
 		}
-		matches, err := hosts.HostMatchesScope(ctx, s.db, scope, host.ID)
+		matches, err := scope.HostMatches(ctx, s.db.Pool(), labelScope, host.ID)
 		if err != nil {
 			return nil, err
 		}
 		if !matches {
 			continue
 		}
-		check.LabelScope = scope
+		check.LabelScope = labelScope
 		checks = append(checks, *check)
 	}
 	return checks, rows.Err()
@@ -338,7 +339,7 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Query = strings.TrimSpace(params.Query)
 	params.Platform = cleanPlatformPtr(params.Platform)
 	params.MinOsqueryVersion = cleanStringPtr(params.MinOsqueryVersion)
-	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
+	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return CheckCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
@@ -352,18 +353,6 @@ func cleanCheckListParams(params CheckListParams) CheckListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
-}
-
-func (s *CheckStore) loadScope(ctx context.Context, checkID int64) (hosts.LabelScope, error) {
-	rows, err := s.db.Pool().Query(ctx,
-		"SELECT label_id, exclude, require_all FROM check_labels WHERE check_id = $1 ORDER BY label_id",
-		checkID,
-	)
-	if err != nil {
-		return hosts.LabelScope{}, err
-	}
-	defer rows.Close()
-	return scanScopeRows(rows)
 }
 
 func scanCheck(row pgx.Row) (*Check, error) {

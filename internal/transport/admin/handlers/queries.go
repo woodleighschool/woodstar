@@ -10,9 +10,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/queries"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/transport/admin/adminctx"
 )
 
@@ -23,7 +24,7 @@ const (
 )
 
 type labelScopeBody struct {
-	Mode     hosts.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
+	Mode     scope.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
 	LabelIDs []int64              `json:"label_ids,omitempty"`
 }
 
@@ -477,16 +478,16 @@ func hostReportResponses(rows []queries.HostReport) []hostReportBody {
 	return out
 }
 
-func (body labelScopeBody) model() (hosts.LabelScope, error) {
+func (body labelScopeBody) model() (scope.LabelScope, error) {
 	ids, err := parseIDList(body.LabelIDs, "label_ids")
 	if err != nil {
-		return hosts.LabelScope{}, err
+		return scope.LabelScope{}, err
 	}
-	return hosts.NormalizeLabelScope(hosts.LabelScope{Mode: body.Mode, LabelIDs: ids}), nil
+	return scope.NormalizeLabelScope(scope.LabelScope{Mode: body.Mode, LabelIDs: ids}), nil
 }
 
-func labelScopeResponse(scope hosts.LabelScope) labelScopeBody {
-	return labelScopeBody{Mode: scope.Mode, LabelIDs: append([]int64{}, scope.LabelIDs...)}
+func labelScopeResponse(s scope.LabelScope) labelScopeBody {
+	return labelScopeBody{Mode: s.Mode, LabelIDs: append([]int64{}, s.LabelIDs...)}
 }
 
 func currentUserID(ctx context.Context) *int64 {

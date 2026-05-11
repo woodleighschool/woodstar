@@ -10,9 +10,10 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/db"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // QueryLoggingType is the storage mode for scheduled query results.
@@ -32,7 +33,7 @@ type Query struct {
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LoggingType       QueryLoggingType
-	LabelScope        hosts.LabelScope
+	LabelScope        scope.LabelScope
 	CreatedByUserID   *int64
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -47,7 +48,7 @@ type QueryCreate struct {
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LoggingType       QueryLoggingType
-	LabelScope        hosts.LabelScope
+	LabelScope        scope.LabelScope
 	CreatedByUserID   *int64
 }
 
@@ -97,11 +98,11 @@ func (s *QueryStore) List(ctx context.Context, params QueryListParams) ([]Query,
 		if err != nil {
 			return nil, 0, err
 		}
-		scope, err := s.loadScope(ctx, "query_labels", "query_id", query.ID)
+		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
 		if err != nil {
 			return nil, 0, err
 		}
-		query.LabelScope = scope
+		query.LabelScope = labelScope
 		queries = append(queries, *query)
 	}
 	return queries, count, rows.Err()
@@ -113,11 +114,11 @@ func (s *QueryStore) GetByID(ctx context.Context, id int64) (*Query, error) {
 	if err != nil {
 		return nil, err
 	}
-	scope, err := s.loadScope(ctx, "query_labels", "query_id", query.ID)
+	labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
 	if err != nil {
 		return nil, err
 	}
-	query.LabelScope = scope
+	query.LabelScope = labelScope
 	return query, nil
 }
 
@@ -155,10 +156,10 @@ func (s *QueryStore) Create(ctx context.Context, params QueryCreate) (*Query, er
 			}
 			return err
 		}
-		if err := replaceScope(ctx, tx, "query_labels", "query_id", query.ID, params.LabelScope); err != nil {
+		if err := scope.ReplaceScope(ctx, tx, "query_labels", "query_id", query.ID, params.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
+		query.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 		created = query
 		return nil
 	})
@@ -194,10 +195,10 @@ func (s *QueryStore) Update(ctx context.Context, id int64, params QueryUpdate) (
 			}
 			return err
 		}
-		if err := replaceScope(ctx, tx, "query_labels", "query_id", query.ID, cleaned.LabelScope); err != nil {
+		if err := scope.ReplaceScope(ctx, tx, "query_labels", "query_id", query.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = hosts.NormalizeLabelScope(cleaned.LabelScope)
+		query.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
 		updated = query
 		return nil
 	})
@@ -245,18 +246,18 @@ func (s *QueryStore) ScheduledForHost(ctx context.Context, host hosts.Host) ([]Q
 		if !hosts.QueryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
 			continue
 		}
-		scope, err := s.loadScope(ctx, "query_labels", "query_id", query.ID)
+		labelScope, err := scope.LoadScope(ctx, s.db.Pool(), "query_labels", "query_id", query.ID)
 		if err != nil {
 			return nil, err
 		}
-		matches, err := hosts.HostMatchesScope(ctx, s.db, scope, host.ID)
+		matches, err := scope.HostMatches(ctx, s.db.Pool(), labelScope, host.ID)
 		if err != nil {
 			return nil, err
 		}
 		if !matches {
 			continue
 		}
-		query.LabelScope = scope
+		query.LabelScope = labelScope
 		queries = append(queries, *query)
 	}
 	return queries, rows.Err()
@@ -271,7 +272,7 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	if params.LoggingType == "" {
 		params.LoggingType = QueryLoggingSnapshot
 	}
-	params.LabelScope = hosts.NormalizeLabelScope(params.LabelScope)
+	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return QueryCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
