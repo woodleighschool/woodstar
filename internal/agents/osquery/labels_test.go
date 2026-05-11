@@ -6,113 +6,52 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
-	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-func TestLabelQueryNameRoundTrips(t *testing.T) {
-	name := queryNameID(kindLabel, 42)
-	if name != "woodstar_label_query_42" {
-		t.Fatalf("queryNameID = %q, want woodstar_label_query_42", name)
+func TestHandleLabelResultStatusFilter(t *testing.T) {
+	svc := &Service{
+		labelEvaluator: ingest.NewLabelEvaluator(&fakeLabelEvaluatorStore{}, slog.New(slog.DiscardHandler)),
+		logger:         slog.New(slog.DiscardHandler),
 	}
-	kind, suffix, ok := parseQueryName(name)
-	if !ok || kind != kindLabel {
-		t.Fatalf("parseQueryName(%q) = %q, %q, %t; want label query", name, kind, suffix, ok)
-	}
-	id, _ := parsePositiveSuffix(suffix)
-	if id != 42 {
-		t.Fatalf("parsePositiveSuffix id = %d, want 42", id)
-	}
-}
+	rows := []map[string]string{{"col": "val"}}
 
-func TestParseLabelQueryNameRejectsOtherQueries(t *testing.T) {
-	for _, name := range []string{
-		"system_info",
-		"woodstar_label_query_",
-		"woodstar_label_query_nope",
-		"woodstar_check_query_42",
-	} {
-		kind, suffix, ok := parseQueryName(name)
-		if ok && kind == kindLabel {
-			if id, ok := parsePositiveSuffix(suffix); ok || id != 0 {
-				t.Fatalf("parsePositiveSuffix(%q) = %d, %t; want 0, false", suffix, id, ok)
-			}
+	t.Run("failed status skips accumulation", func(t *testing.T) {
+		pass := &dispatchPass{}
+		svc.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("1"), "", pass)
+		if len(pass.labelResults) != 0 {
+			t.Fatalf("labelResults = %v, want empty", pass.labelResults)
 		}
-	}
+	})
+
+	t.Run("success status appends matched result", func(t *testing.T) {
+		pass := &dispatchPass{}
+		svc.handleLabelResult(context.Background(), 1, "10", rows, json.RawMessage("0"), "", pass)
+		if len(pass.labelResults) != 1 {
+			t.Fatalf("labelResults len = %d, want 1", len(pass.labelResults))
+		}
+		if pass.labelResults[0].LabelID != 10 || !pass.labelResults[0].Matched {
+			t.Fatalf("labelResults[0] = %+v, want {LabelID:10 Matched:true}", pass.labelResults[0])
+		}
+	})
 }
 
-func TestDispatchLabelResultsUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
-	labelStore := &fakeLabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
-	svc := &Service{labelStore: labelStore, logger: slog.New(slog.DiscardHandler)}
+// fakeLabelEvaluatorStore satisfies ingest.LabelStore with no-op behaviour.
+type fakeLabelEvaluatorStore struct{}
 
-	err := svc.dispatchWriteResults(
-		context.Background(),
-		&hosts.Host{Host: sqlc.Host{ID: 9, Platform: "darwin"}},
-		DistributedWriteRequest{
-			Queries: map[string][]map[string]string{
-				queryNameID(kindLabel, 1): {{"matches": "yes"}},
-				queryNameID(kindLabel, 2): {},
-				queryNameID(kindLabel, 3): {{"stale": "ignored"}},
-				queryNameID(kindLabel, 4): {{"failed": "preserved"}},
-				"system_info":             {{"ignored_unprefixed": "true"}},
-			},
-			Statuses: map[string]json.RawMessage{
-				queryNameID(kindLabel, 4): json.RawMessage(`1`),
-			},
-			Messages: map[string]string{
-				queryNameID(kindLabel, 4): "constraint failed",
-			},
-		},
-	)
-	if err != nil {
-		t.Fatalf("dispatchWriteResults returned error: %v", err)
-	}
-
-	if len(labelStore.setCalls) != 2 {
-		t.Fatalf("set calls = %#v, want 2 applicable successful labels", labelStore.setCalls)
-	}
-	if labelStore.setCalls[0] != (fakeSetCall{labelID: 1, hostID: 9, matched: true}) {
-		t.Fatalf("first set call = %#v", labelStore.setCalls[0])
-	}
-	if labelStore.setCalls[1] != (fakeSetCall{labelID: 2, hostID: 9, matched: false}) {
-		t.Fatalf("second set call = %#v", labelStore.setCalls[1])
-	}
-	if labelStore.markedHostID != 9 {
-		t.Fatalf("markedHostID = %d, want 9", labelStore.markedHostID)
-	}
-}
-
-type fakeLabelStore struct {
-	applicable   map[int64]struct{}
-	setCalls     []fakeSetCall
-	markedHostID int64
-}
-
-type fakeSetCall struct {
-	labelID int64
-	hostID  int64
-	matched bool
-}
-
-func (s *fakeLabelStore) ListApplicableDynamic(context.Context, string) ([]labels.Label, error) {
+func (f *fakeLabelEvaluatorStore) ListApplicableDynamic(context.Context, string) ([]labels.Label, error) {
 	return nil, nil
 }
 
-func (s *fakeLabelStore) ApplicableDynamicIDs(
-	_ context.Context,
-	_ []int64,
-	_ string,
-) (map[int64]struct{}, error) {
-	return s.applicable, nil
+func (f *fakeLabelEvaluatorStore) ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error) {
+	return nil, nil
 }
 
-func (s *fakeLabelStore) SetMembership(_ context.Context, labelID int64, hostID int64, matched bool) error {
-	s.setCalls = append(s.setCalls, fakeSetCall{labelID: labelID, hostID: hostID, matched: matched})
+func (f *fakeLabelEvaluatorStore) SetMembership(context.Context, int64, int64, bool) error {
 	return nil
 }
 
-func (s *fakeLabelStore) MarkHostLabelsFresh(_ context.Context, hostID int64) error {
-	s.markedHostID = hostID
+func (f *fakeLabelEvaluatorStore) MarkHostLabelsFresh(context.Context, int64) error {
 	return nil
 }

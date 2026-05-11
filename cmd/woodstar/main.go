@@ -139,10 +139,11 @@ func newServer(
 		softwareStore,
 		logger.With("component", "inventory"),
 	)
+	labelEvaluator := ingest.NewLabelEvaluator(labelStore, logger.With("component", "labels"))
 	osqueryService := osquery.NewService(
 		hostStore,
 		inventoryProjector,
-		labelStore,
+		labelEvaluator,
 		queryStore,
 		checkStore,
 		liveQueries,

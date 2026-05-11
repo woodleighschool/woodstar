@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/agents/catalog"
+	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/queries"
 )
@@ -88,13 +89,7 @@ type dispatchPass struct {
 	detailRowsBySuffix map[string][]map[string]string
 	detailAllSucceeded bool
 
-	labelResults []labelQueryResult
-	labelIDs     []int64
-}
-
-type labelQueryResult struct {
-	labelID int64
-	matched bool
+	labelResults []ingest.LabelResult
 }
 
 // dispatchWriteResults runs a single pass over req.Queries, routing each

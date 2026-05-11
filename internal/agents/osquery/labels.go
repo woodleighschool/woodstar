@@ -3,24 +3,16 @@ package osquery
 import (
 	"context"
 	"encoding/json"
-	"slices"
 
+	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-type labelStore interface {
-	ListApplicableDynamic(context.Context, string) ([]labels.Label, error)
-	ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error)
-	SetMembership(context.Context, int64, int64, bool) error
-	MarkHostLabelsFresh(context.Context, int64) error
-}
-
 func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
-	if s.labelStore == nil {
+	if s.labelEvaluator == nil {
 		return 0, nil
 	}
-	labelRows, err := s.labelStore.ListApplicableDynamic(ctx, host.Platform)
+	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx, host)
 	if err != nil {
 		return 0, err
 	}
@@ -35,9 +27,6 @@ func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, query
 	return count, nil
 }
 
-// handleLabelResult accumulates per-label result state for finalize. It never
-// errors at this stage because applicability checks and DB writes happen after
-// the full request has been parsed.
 func (s *Service) handleLabelResult(
 	ctx context.Context,
 	hostID int64,
@@ -47,7 +36,7 @@ func (s *Service) handleLabelResult(
 	message string,
 	pass *dispatchPass,
 ) {
-	if s.labelStore == nil {
+	if s.labelEvaluator == nil {
 		return
 	}
 	labelID, ok := parsePositiveSuffix(suffix)
@@ -65,42 +54,9 @@ func (s *Service) handleLabelResult(
 		)
 		return
 	}
-	pass.labelResults = append(pass.labelResults, labelQueryResult{labelID: labelID, matched: len(rows) > 0})
-	pass.labelIDs = append(pass.labelIDs, labelID)
+	pass.labelResults = append(pass.labelResults, ingest.LabelResult{LabelID: labelID, Matched: len(rows) > 0})
 }
 
 func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass *dispatchPass) error {
-	if s.labelStore == nil || len(pass.labelResults) == 0 {
-		return nil
-	}
-	slices.SortFunc(pass.labelResults, func(a, b labelQueryResult) int {
-		return int(a.labelID - b.labelID)
-	})
-	applicable, err := s.labelStore.ApplicableDynamicIDs(ctx, pass.labelIDs, host.Platform)
-	if err != nil {
-		return err
-	}
-	handled := 0
-	for _, result := range pass.labelResults {
-		if _, ok := applicable[result.labelID]; !ok {
-			continue
-		}
-		if err := s.labelStore.SetMembership(ctx, result.labelID, host.ID, result.matched); err != nil {
-			return err
-		}
-		handled++
-	}
-	if handled == 0 {
-		return nil
-	}
-	if err := s.labelStore.MarkHostLabelsFresh(ctx, host.ID); err != nil {
-		return err
-	}
-	s.logger.DebugContext(
-		ctx,
-		"osquery label results ingested", "operation", "label_evaluation",
-		"host_id", host.ID,
-		"result_count", handled,
-	)
-	return nil
+	return s.labelEvaluator.Finalize(ctx, host, pass.labelResults)
 }

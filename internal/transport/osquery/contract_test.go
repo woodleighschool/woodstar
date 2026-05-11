@@ -96,12 +96,13 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 	logger := slog.New(slog.DiscardHandler)
 	router := chi.NewRouter()
 	projector := ingest.NewProjector(stores.hosts, stores.software, logger.With("component", "inventory"))
+	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	RegisterRoutes(
 		router,
 		coreosquery.NewService(
 			stores.hosts,
 			projector,
-			stores.labels,
+			labelEvaluator,
 			stores.queries,
 			stores.checks,
 			stores.live,

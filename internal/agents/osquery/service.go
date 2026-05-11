@@ -10,18 +10,17 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents"
 	"github.com/woodleighschool/woodstar/internal/agents/catalog"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/queries"
 	"github.com/woodleighschool/woodstar/internal/secrets"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Service performs osquery TLS-plugin operations.
 type Service struct {
 	hostStore          *hosts.HostStore
 	inventoryProjector *ingest.Projector
-	labelStore         labelStore
+	labelEvaluator     *ingest.LabelEvaluator
 	queryStore         *queries.QueryStore
 	checkStore         *queries.CheckStore
 	liveQueries        *queries.LiveQueryManager
@@ -33,7 +32,7 @@ type Service struct {
 func NewService(
 	hostStore *hosts.HostStore,
 	inventoryProjector *ingest.Projector,
-	labelStore *labels.LabelStore,
+	labelEvaluator *ingest.LabelEvaluator,
 	queryStore *queries.QueryStore,
 	checkStore *queries.CheckStore,
 	liveQueries *queries.LiveQueryManager,
@@ -43,7 +42,7 @@ func NewService(
 	return &Service{
 		hostStore:          hostStore,
 		inventoryProjector: inventoryProjector,
-		labelStore:         labelStore,
+		labelEvaluator:     labelEvaluator,
 		queryStore:         queryStore,
 		checkStore:         checkStore,
 		liveQueries:        liveQueries,
