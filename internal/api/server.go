@@ -13,11 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
-	agentapi "github.com/woodleighschool/woodstar/internal/agents/api"
 	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
+	"github.com/woodleighschool/woodstar/internal/agents/protocol"
 	"github.com/woodleighschool/woodstar/internal/agents/queries"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
@@ -128,8 +128,8 @@ func (s *Server) routes() http.Handler {
 func (s *Server) agentRoutes(r chi.Router) {
 	deps := s.deps
 	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
-	agentapi.RegisterOrbitRoutes(r, deps.OrbitService, deps.Logger.With("component", "orbit"))
-	agentapi.RegisterOsqueryRoutes(r, deps.OsqueryService, deps.Logger.With("component", "osquery"))
+	protocol.RegisterOrbitRoutes(r, deps.OrbitService, deps.Logger.With("component", "orbit"))
+	protocol.RegisterOsqueryRoutes(r, deps.OsqueryService, deps.Logger.With("component", "osquery"))
 }
 
 func (s *Server) browserRoutes(r chi.Router) {

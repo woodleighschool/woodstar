@@ -1,6 +1,6 @@
-// Package agentapi exposes Orbit and osquery HTTP edges and agent-facing Huma
-// handlers (queries, checks, live queries).
-package agentapi
+// Package protocol exposes Orbit and osquery agent-facing HTTP endpoints
+// (enrollment, config, log ingestion, distributed read/write).
+package protocol
 
 import (
 	"encoding/json"

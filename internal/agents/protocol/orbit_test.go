@@ -1,4 +1,4 @@
-package agentapi
+package protocol
 
 import (
 	"log/slog"

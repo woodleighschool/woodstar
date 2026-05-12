@@ -1,5 +1,5 @@
 //nolint:dupl // Huma route registration is intentionally explicit per resource.
-package agentapi
+package handlers
 
 import (
 	"context"

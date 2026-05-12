@@ -30,7 +30,8 @@ For single-commit changes (bugfix, small feature) the usual "code compiles, touc
 - `internal/dbutil/` for pagination, sentinel errors, pgx helpers.
 - `internal/agents/` for the Orbit + osquery substrate (the canonical observation root).
 - `internal/santa/` and `internal/munki/` for the optional native capabilities (subtrees materialise when that work begins).
-- `internal/api/` for HTTP composition only — routes, middleware, server lifecycle.
+- `internal/api/` owns the **admin HTTP surface**: Huma route registration, handlers, middleware, server lifecycle. Every admin (session-authed, JSON, OpenAPI-documented) endpoint lives in `internal/api/handlers/`, regardless of which domain package owns the entity. Capability packages register handlers here; they do not host them.
+- `internal/{capability}/protocol/` owns **agent-facing HTTP endpoints** for that capability (chi-routed, node-key auth, protocol-shaped). Today: `internal/agents/protocol/` (Orbit + osquery). When Santa or Munki ship their own agent protocols, they get `internal/santa/protocol/` / `internal/munki/protocol/`.
 - `web/src/` for the React/Vite frontend; `web/public/` for static assets.
 - `docs/` for focused engineering notes (working notes, uncommitted).
 - `deploy/`, `charts/`, or root-level compose files for deployment artefacts.
@@ -59,7 +60,9 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 - `agents/ingest` writes observed `hosts` / `software` / `labels` membership.
 - `labels` must not import `agents`, `santa`, or `munki`.
 - `santa` and `munki` may import `hosts`, `labels`, `scope`, `software`. Never the reverse.
-- `internal/api/` composes from capability `api/` subpackages. Capability `api/` packages do not import each other.
+- `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `agents/queries`, `agents/checks`, `agents/livequery`, etc.). Domain packages never import `handlers`.
+- `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `agents/protocol` may import `agents/orbit`, `agents/osquery`, `agents/livequery`, but does not import `handlers` and does not import other capabilities).
+- Route-shape rule for new endpoints: session-authed REST/JSON → `internal/api/handlers/`; agent-authed protocol (Orbit/osquery TLS plugin/etc.) → `internal/{capability}/protocol/`. Do not split admin handlers by domain ownership.
 - `dbutil`, `database`, `config`, `buildinfo`, `logging`, `platform` are leaves: stdlib + third-party only.
 - Cross-capability host enrichment: `hosts` defines an enricher interface; each capability registers an implementation at wiring time. `hosts` never imports `agents` / `santa` / `munki`.
 
@@ -259,29 +262,36 @@ internal/
   agents/
     store.go             enroll-secret + node-key + agent-identity helpers
     service.go           enrollment / config coordination shared by orbit + osquery
-    orbit/               Orbit wrapper endpoints + compatibility stubs
-    osquery/             osquery TLS API endpoints
+    orbit/               Orbit service (config + enrollment business logic)
+    osquery/             osquery service (config + enrollment + dispatch)
     catalog/             osquery query catalog
-    queries/             saved queries + query reports
-    checks/              boolean query-backed checks
-    livequery/           live-query hub + manager merged
+    queries/             saved queries + query reports (domain + store)
+    checks/              boolean query-backed checks (domain + store)
+    livequery/           live-query hub + manager
     ingest/              inventory projection + label-membership evaluation
-    api/                 admin/frontend handlers for the agent capability
+    protocol/            agent-facing HTTP endpoints (chi, node-key auth):
+                         Orbit wrapper, osquery TLS plugin
 
   # future Santa capability (skeleton lands when Santa work begins)
   santa/
-    sync/  rules/  events/  configurations/  bundles/  ingest/  api/
+    sync/  rules/  events/  configurations/  bundles/  ingest/
+    protocol/            Santa sync protocol endpoints (when applicable)
 
   # future Munki capability (skeleton lands when Munki work begins)
   munki/
     repo/  manifests/  catalogs/  packages/
     storage/  cache/  pipeline/  importer/
-    reports/  ingest/  api/
+    reports/  ingest/
+    protocol/            Munki repo HTTP endpoints (when applicable)
 
-  # transport composition
+  # admin HTTP surface — every admin Huma route, regardless of which
+  # domain package owns the entity
   api/
-    routes.go            composes routes from agents/api + santa/api + munki/api + shared
+    handlers/            Huma route registration per resource
+                         (hosts, labels, users, software, secrets,
+                          queries, checks, live_queries, auth, …)
     middleware/
+    routes.go            wires handlers onto the chi router
     server.go            *http.Server lifecycle
 
 web/                     React/Vite frontend
