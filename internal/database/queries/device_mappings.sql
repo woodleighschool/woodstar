@@ -18,3 +18,9 @@ SELECT *
 FROM host_emails
 WHERE host_id = @host_id
 ORDER BY source;
+
+-- name: ListHostDeviceMappingsForHosts :many
+SELECT *
+FROM host_emails
+WHERE host_id = ANY(@host_ids::bigint[])
+ORDER BY host_id, source;

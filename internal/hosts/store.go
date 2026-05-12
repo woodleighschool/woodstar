@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -21,68 +20,9 @@ type Store struct {
 	q  *sqlc.Queries
 }
 
-// HostListParams filters host list results.
-type HostListParams struct {
-	dbutil.ListParams
-
-	Status          string
-	Platform        string
-	LabelID         int64
-	SoftwareTitleID int64
-	SoftwareID      int64
-}
-
 // NewStore returns a host store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
-}
-
-// EnrollParams holds the fields supplied by an Orbit enrollment request.
-// Only HardwareUUID and OrbitNodeKey are required.
-type EnrollParams struct {
-	HardwareUUID   string
-	HardwareSerial string
-	Hostname       string
-	ComputerName   string
-	HardwareModel  string
-	Platform       string
-	PlatformLike   string
-	OrbitNodeKey   string
-}
-
-// HostDetailUpdate is inventory reported by osquery detail queries.
-type HostDetailUpdate struct {
-	HardwareUUID            string
-	Hostname                string
-	ComputerName            string
-	HardwareSerial          string
-	HardwareModel           string
-	HardwareVersion         string
-	OSName                  string
-	OSVersion               string
-	OSBuild                 string
-	Platform                string
-	PlatformLike            string
-	KernelVersion           string
-	HardwareVendor          string
-	OrbitVersion            string
-	CPUType                 string
-	CPUSubtype              string
-	CPUBrand                string
-	CPULogicalCores         int
-	CPUPhysicalCores        int
-	PhysicalMemory          int64
-	OsqueryVersion          string
-	OsqueryNodeKey          string
-	UptimeSeconds           *int64
-	LastRestartedAt         *time.Time
-	DiskSpaceAvailableBytes *int64
-	DiskSpaceTotalBytes     *int64
-	PublicIP                string
-	PrimaryIP               string
-	PrimaryMAC              string
-	DistributedInterval     *int32
-	ConfigTLSRefresh        *int32
 }
 
 // UpsertOnOrbitEnroll inserts a new host or refreshes an existing one keyed by

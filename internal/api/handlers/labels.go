@@ -4,14 +4,12 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
 const (
@@ -20,30 +18,17 @@ const (
 	labelIDPath   = "/api/labels/{id}"
 )
 
-type labelBody struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Query       *string   `json:"query,omitempty"`
-	LabelType   string    `json:"label_type"`
-	Membership  string    `json:"label_membership_type"`
-	Platform    *string   `json:"platform,omitempty"`
-	HostsCount  int       `json:"hosts_count"`
-	CreatedAt   time.Time `json:"created_at,omitzero"`
-	UpdatedAt   time.Time `json:"updated_at,omitzero"`
-}
-
 type labelListOutput struct {
 	Body labelListBody
 }
 
 type labelOutput struct {
-	Body labelBody
+	Body labels.Label
 }
 
 type labelListBody struct {
-	Items []labelBody `json:"items"`
-	Count int         `json:"count"`
+	Items []labels.Label `json:"items"`
+	Count int            `json:"count"`
 }
 
 type labelListInput struct {
@@ -124,15 +109,11 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 		Summary:     "List labels",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
-		labelRows, count, err := labelStore.List(ctx, input.params())
+		rows, count, err := labelStore.List(ctx, input.params())
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(labelResource, err)
 		}
-		out := &labelListOutput{Body: labelListBody{Items: make([]labelBody, 0, len(labelRows)), Count: count}}
-		for i := range labelRows {
-			out.Body.Items = append(out.Body.Items, labelResponse(&labelRows[i]))
-		}
-		return out, nil
+		return &labelListOutput{Body: labelListBody{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -157,7 +138,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(labelResource, err)
 		}
-		return &labelOutput{Body: labelResponse(label)}, nil
+		return &labelOutput{Body: *label}, nil
 	})
 }
 
@@ -178,7 +159,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(labelResource, err)
 		}
-		return &labelOutput{Body: labelResponse(label)}, nil
+		return &labelOutput{Body: *label}, nil
 	})
 }
 
@@ -205,7 +186,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(labelResource, err)
 		}
-		return &labelOutput{Body: labelResponse(label)}, nil
+		return &labelOutput{Body: *label}, nil
 	})
 }
 
@@ -227,29 +208,6 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func labelResponse(label *labels.Label) labelBody {
-	return labelBody{
-		ID:          label.ID,
-		Name:        label.Name,
-		Description: label.Description,
-		Query:       label.Query,
-		LabelType:   label.LabelType,
-		Membership:  label.LabelMembershipType,
-		Platform:    labelPlatform(label.Platform),
-		HostsCount:  label.HostsCount,
-		CreatedAt:   label.CreatedAt,
-		UpdatedAt:   label.UpdatedAt,
-	}
-}
-
-func labelPlatform(platform *platform.Platform) *string {
-	if platform == nil {
-		return nil
-	}
-	value := string(*platform)
-	return &value
 }
 
 func parseLabelID(id string) (int64, error) {

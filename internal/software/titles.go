@@ -153,12 +153,24 @@ func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 		); err != nil {
 			return nil, err
 		}
+		title.Browser = browserFor(title.Source, title.ExtensionFor)
 		titles = append(titles, title)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return titles, nil
+}
+
+// browserFor returns the browser name when source indicates a browser
+// extension; otherwise empty.
+func browserFor(source, extensionFor string) string {
+	switch source {
+	case SourceChromeExtensions, SourceFirefoxAddons, SourceSafariExtensions:
+		return extensionFor
+	default:
+		return ""
+	}
 }
 
 func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []SoftwareTitle) error {

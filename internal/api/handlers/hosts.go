@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -16,114 +15,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
-type hostBody struct {
-	ID                      int64               `json:"id"`
-	HardwareUUID            string              `json:"hardware_uuid"`
-	DisplayName             string              `json:"display_name"`
-	Hostname                string              `json:"hostname"`
-	ComputerName            string              `json:"computer_name"`
-	HardwareSerial          string              `json:"hardware_serial"`
-	HardwareModel           string              `json:"hardware_model"`
-	HardwareVersion         string              `json:"hardware_version"`
-	OSName                  string              `json:"os_name"`
-	Platform                string              `json:"platform"`
-	PlatformLike            string              `json:"platform_like"`
-	OSVersion               string              `json:"os_version"`
-	OSBuild                 string              `json:"os_build"`
-	OsqueryVersion          string              `json:"osquery_version"`
-	OrbitVersion            string              `json:"orbit_version"`
-	CPUType                 string              `json:"cpu_type"`
-	CPUSubtype              string              `json:"cpu_subtype"`
-	CPUBrand                string              `json:"cpu_brand"`
-	CPULogicalCores         int                 `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int                 `json:"cpu_physical_cores"`
-	PhysicalMemory          int64               `json:"physical_memory"`
-	HardwareVendor          string              `json:"hardware_vendor"`
-	KernelVersion           string              `json:"kernel_version"`
-	UptimeSeconds           *int64              `json:"uptime_seconds,omitempty"`
-	LastRestartedAt         *time.Time          `json:"last_restarted_at,omitempty"`
-	DiskSpaceAvailableBytes *int64              `json:"disk_space_available_bytes,omitempty"`
-	DiskSpaceTotalBytes     *int64              `json:"disk_space_total_bytes,omitempty"`
-	PublicIP                string              `json:"public_ip,omitempty"`
-	PrimaryIP               string              `json:"primary_ip,omitempty"`
-	PrimaryMAC              string              `json:"primary_mac"`
-	DistributedInterval     *int32              `json:"distributed_interval,omitempty"`
-	ConfigTLSRefresh        *int32              `json:"config_tls_refresh,omitempty"`
-	DeviceMappings          []deviceMappingBody `json:"device_mappings"`
-	EnrolledAt              *time.Time          `json:"enrolled_at,omitempty"`
-	LastSeenAt              *time.Time          `json:"last_seen_at,omitempty"`
-	DetailUpdatedAt         *time.Time          `json:"detail_updated_at,omitempty"`
-	LabelUpdatedAt          *time.Time          `json:"label_updated_at,omitempty"`
-	SoftwareUpdatedAt       *time.Time          `json:"software_updated_at,omitempty"`
-	CreatedAt               time.Time           `json:"created_at"`
-	UpdatedAt               time.Time           `json:"updated_at"`
-}
-
-type hostDetailBody struct {
-	hostBody
-	Labels    []labelBody       `json:"labels"`
-	Users     []hostUserBody    `json:"users"`
-	Batteries []hostBatteryBody `json:"batteries"`
-}
-
-type hostUserBody struct {
-	UID         string `json:"uid"`
-	Username    string `json:"username"`
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Directory   string `json:"directory"`
-	Shell       string `json:"shell"`
-}
-
-type hostBatteryBody struct {
-	SerialNumber     string   `json:"serial_number"`
-	Manufacturer     string   `json:"manufacturer"`
-	Model            string   `json:"model"`
-	Chemistry        string   `json:"chemistry"`
-	CycleCount       *int32   `json:"cycle_count,omitempty"`
-	Health           string   `json:"health"`
-	DesignedCapacity *int32   `json:"designed_capacity,omitempty"`
-	MaxCapacity      *int32   `json:"max_capacity,omitempty"`
-	CurrentCapacity  *int32   `json:"current_capacity,omitempty"`
-	PercentRemaining *float64 `json:"percent_remaining,omitempty"`
-}
-
-type deviceMappingBody struct {
-	Email  string `json:"email"`
-	Source string `json:"source"`
-}
-
-type hostSoftwareBody struct {
-	ID                int64                              `json:"id"`
-	Name              string                             `json:"name"`
-	DisplayName       string                             `json:"display_name"`
-	Source            string                             `json:"source"`
-	ExtensionFor      string                             `json:"extension_for"`
-	InstalledVersions []hostSoftwareInstalledVersionBody `json:"installed_versions"`
-}
-
-type hostSoftwareInstalledVersionBody struct {
-	Version              string                         `json:"version"`
-	BundleIdentifier     string                         `json:"bundle_identifier"`
-	InstalledPaths       []string                       `json:"installed_paths"`
-	SignatureInformation []pathSignatureInformationBody `json:"signature_information"`
-	LastOpenedAt         *time.Time                     `json:"last_opened_at,omitempty"`
-}
-
-type pathSignatureInformationBody struct {
-	InstalledPath    string `json:"installed_path"`
-	TeamIdentifier   string `json:"team_identifier"`
-	CDHashSHA256     string `json:"hash_sha256"`
-	ExecutableSHA256 string `json:"executable_sha256"`
-	ExecutablePath   string `json:"executable_path"`
-}
-
 type hostListOutput struct {
 	Body hostListBody
 }
 
 type hostDetailOutput struct {
-	Body hostDetailBody
+	Body hosts.HostDetail
 }
 
 type hostSoftwareOutput struct {
@@ -131,13 +28,13 @@ type hostSoftwareOutput struct {
 }
 
 type hostListBody struct {
-	Items []hostBody `json:"items"`
-	Count int        `json:"count"`
+	Items []hosts.Host `json:"items"`
+	Count int          `json:"count"`
 }
 
 type hostSoftwareListBody struct {
-	Items []hostSoftwareBody `json:"items"`
-	Count int                `json:"count"`
+	Items []software.HostSoftwareRow `json:"items"`
+	Count int                        `json:"count"`
 }
 
 type hostGetInput struct {
@@ -256,20 +153,34 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, deviceMappings *hos
 		if err != nil {
 			return nil, err
 		}
-		hostRows, count, err := hostStore.List(ctx, params)
+		rows, count, err := hostStore.List(ctx, params)
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError("host", err)
 		}
-		out := &hostListOutput{Body: hostListBody{Items: make([]hostBody, 0, len(hostRows)), Count: count}}
-		for i := range hostRows {
-			body, err := hostListResponse(ctx, &hostRows[i], deviceMappings)
-			if err != nil {
-				return nil, err
-			}
-			out.Body.Items = append(out.Body.Items, body)
+		if err := attachDeviceMappings(ctx, deviceMappings, rows); err != nil {
+			return nil, err
 		}
-		return out, nil
+		return &hostListOutput{Body: hostListBody{Items: rows, Count: count}}, nil
 	})
+}
+
+// attachDeviceMappings fills DeviceMappings on each host via one bulk query.
+func attachDeviceMappings(ctx context.Context, store *hosts.DeviceMappingStore, rows []hosts.Host) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	ids := make([]int64, len(rows))
+	for i := range rows {
+		ids[i] = rows[i].ID
+	}
+	grouped, err := store.ListForHosts(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range rows {
+		rows[i].DeviceMappings = grouped[rows[i].ID]
+	}
+	return nil
 }
 
 func registerGetHost(
@@ -297,15 +208,11 @@ func registerGetHost(
 		if err != nil {
 			return nil, err
 		}
-		detail, err := loadHostDetail(ctx, hostStore, labelStore, host)
+		detail, err := loadHostDetail(ctx, hostStore, labelStore, deviceMappings, host)
 		if err != nil {
 			return nil, err
 		}
-		body, err := hostDetailResponse(ctx, detail, deviceMappings)
-		if err != nil {
-			return nil, err
-		}
-		return &hostDetailOutput{Body: body}, nil
+		return &hostDetailOutput{Body: *detail}, nil
 	})
 }
 
@@ -359,13 +266,14 @@ func loadHostDetail(
 	ctx context.Context,
 	hostStore *hosts.Store,
 	labelStore *labels.Store,
+	deviceMappings *hosts.DeviceMappingStore,
 	host *hosts.Host,
 ) (*hosts.HostDetail, error) {
 	hostLabels, err := labelStore.ListForHost(ctx, host.ID)
 	if err != nil {
 		return nil, err
 	}
-	users, err := hostStore.ListUsers(ctx, host.ID)
+	hostUsers, err := hostStore.ListUsers(ctx, host.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -373,10 +281,15 @@ func loadHostDetail(
 	if err != nil {
 		return nil, err
 	}
+	mappings, err := deviceMappings.ListForHost(ctx, host.ID)
+	if err != nil {
+		return nil, err
+	}
+	host.DeviceMappings = mappings
 	return &hosts.HostDetail{
 		Host:      *host,
 		Labels:    hostLabels,
-		Users:     users,
+		Users:     hostUsers,
 		Batteries: batteries,
 	}, nil
 }
@@ -403,164 +316,6 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError("software", err)
 		}
-		out := &hostSoftwareOutput{
-			Body: hostSoftwareListBody{Items: make([]hostSoftwareBody, 0, len(rows)), Count: count},
-		}
-		for _, row := range rows {
-			out.Body.Items = append(out.Body.Items, hostSoftwareResponse(row))
-		}
-		return out, nil
+		return &hostSoftwareOutput{Body: hostSoftwareListBody{Items: rows, Count: count}}, nil
 	})
-}
-
-func hostListResponse(ctx context.Context, host *hosts.Host, mappings *hosts.DeviceMappingStore) (hostBody, error) {
-	mappingRows, err := mappings.ListForHost(ctx, host.ID)
-	if err != nil {
-		return hostBody{}, err
-	}
-	body := hostBody{
-		ID:                      host.ID,
-		HardwareUUID:            host.HardwareUUID,
-		DisplayName:             host.DisplayName,
-		Hostname:                host.Hostname,
-		ComputerName:            host.ComputerName,
-		HardwareSerial:          host.HardwareSerial,
-		HardwareModel:           host.HardwareModel,
-		HardwareVersion:         host.HardwareVersion,
-		OSName:                  host.OSName,
-		Platform:                host.Platform,
-		PlatformLike:            host.PlatformLike,
-		OSVersion:               host.OSVersion,
-		OSBuild:                 host.OSBuild,
-		OsqueryVersion:          host.OsqueryVersion,
-		OrbitVersion:            host.OrbitVersion,
-		CPUType:                 host.CPUType,
-		CPUSubtype:              host.CPUSubtype,
-		CPUBrand:                host.CPUBrand,
-		CPULogicalCores:         host.CPULogicalCores,
-		CPUPhysicalCores:        host.CPUPhysicalCores,
-		PhysicalMemory:          host.PhysicalMemory,
-		HardwareVendor:          host.HardwareVendor,
-		KernelVersion:           host.KernelVersion,
-		UptimeSeconds:           host.UptimeSeconds,
-		LastRestartedAt:         host.LastRestartedAt,
-		DiskSpaceAvailableBytes: host.DiskSpaceAvailableBytes,
-		DiskSpaceTotalBytes:     host.DiskSpaceTotalBytes,
-		PrimaryMAC:              host.PrimaryMAC,
-		DistributedInterval:     host.DistributedInterval,
-		ConfigTLSRefresh:        host.ConfigTLSRefresh,
-		DeviceMappings:          deviceMappingResponses(mappingRows),
-		EnrolledAt:              host.EnrolledAt,
-		LastSeenAt:              host.LastSeenAt,
-		DetailUpdatedAt:         host.DetailUpdatedAt,
-		LabelUpdatedAt:          host.LabelUpdatedAt,
-		SoftwareUpdatedAt:       host.SoftwareUpdatedAt,
-		CreatedAt:               host.CreatedAt,
-		UpdatedAt:               host.UpdatedAt,
-	}
-	if host.PublicIP != nil {
-		body.PublicIP = host.PublicIP.String()
-	}
-	if host.PrimaryIP != nil {
-		body.PrimaryIP = host.PrimaryIP.String()
-	}
-	return body, nil
-}
-
-func hostDetailResponse(
-	ctx context.Context,
-	detail *hosts.HostDetail,
-	mappings *hosts.DeviceMappingStore,
-) (hostDetailBody, error) {
-	base, err := hostListResponse(ctx, &detail.Host, mappings)
-	if err != nil {
-		return hostDetailBody{}, err
-	}
-	return hostDetailBody{
-		hostBody:  base,
-		Labels:    labelResponses(detail.Labels),
-		Users:     hostUserResponses(detail.Users),
-		Batteries: hostBatteryResponses(detail.Batteries),
-	}, nil
-}
-
-func deviceMappingResponses(rows []hosts.HostDeviceMapping) []deviceMappingBody {
-	out := make([]deviceMappingBody, 0, len(rows))
-	for _, mapping := range rows {
-		out = append(out, deviceMappingBody{Email: mapping.Email, Source: mapping.Source})
-	}
-	return out
-}
-
-func labelResponses(labels []labels.Label) []labelBody {
-	out := make([]labelBody, 0, len(labels))
-	for i := range labels {
-		out = append(out, labelResponse(&labels[i]))
-	}
-	return out
-}
-
-func hostUserResponses(users []hosts.HostUser) []hostUserBody {
-	out := make([]hostUserBody, 0, len(users))
-	for _, user := range users {
-		out = append(out, hostUserBody{
-			UID:         user.UID,
-			Username:    user.Username,
-			Type:        user.Type,
-			Description: user.Description,
-			Directory:   user.Directory,
-			Shell:       user.Shell,
-		})
-	}
-	return out
-}
-
-func hostBatteryResponses(batteries []hosts.HostBattery) []hostBatteryBody {
-	out := make([]hostBatteryBody, 0, len(batteries))
-	for _, battery := range batteries {
-		out = append(out, hostBatteryBody{
-			SerialNumber:     battery.SerialNumber,
-			Manufacturer:     battery.Manufacturer,
-			Model:            battery.Model,
-			Chemistry:        battery.Chemistry,
-			CycleCount:       battery.CycleCount,
-			Health:           battery.Health,
-			DesignedCapacity: battery.DesignedCapacity,
-			MaxCapacity:      battery.MaxCapacity,
-			CurrentCapacity:  battery.CurrentCapacity,
-			PercentRemaining: battery.PercentRemaining,
-		})
-	}
-	return out
-}
-
-func hostSoftwareResponse(row software.HostSoftwareRow) hostSoftwareBody {
-	versions := make([]hostSoftwareInstalledVersionBody, 0, len(row.InstalledVersions))
-	for _, version := range row.InstalledVersions {
-		signatures := make([]pathSignatureInformationBody, 0, len(version.SignatureInformation))
-		for _, signature := range version.SignatureInformation {
-			signatures = append(signatures, pathSignatureInformationBody{
-				InstalledPath:    signature.InstalledPath,
-				TeamIdentifier:   signature.TeamIdentifier,
-				CDHashSHA256:     signature.CDHashSHA256,
-				ExecutableSHA256: signature.ExecutableSHA256,
-				ExecutablePath:   signature.ExecutablePath,
-			})
-		}
-		versions = append(versions, hostSoftwareInstalledVersionBody{
-			Version:              version.Version,
-			BundleIdentifier:     version.BundleIdentifier,
-			InstalledPaths:       version.InstalledPaths,
-			SignatureInformation: signatures,
-			LastOpenedAt:         version.LastOpenedAt,
-		})
-	}
-	return hostSoftwareBody{
-		ID:                row.ID,
-		Name:              row.Name,
-		DisplayName:       row.DisplayName,
-		Source:            row.Source,
-		ExtensionFor:      row.ExtensionFor,
-		InstalledVersions: versions,
-	}
 }

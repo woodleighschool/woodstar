@@ -4,7 +4,7 @@ import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type User = Schemas["UserBody"];
+export type User = Schemas["User"];
 export type UserCreateBody = Schemas["UserCreateInputBody"];
 export type UserUpdateBody = Schemas["UserPutBody"];
 

@@ -5,12 +5,13 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Host = Schemas["HostBody"];
-export type HostSoftware = Schemas["HostSoftwareBody"];
+export type Host = Schemas["Host"];
+export type HostDetail = Schemas["HostDetail"];
+export type HostSoftware = Schemas["HostSoftwareRow"];
 export type HostListResult = Schemas["HostListBody"];
 export type HostSoftwareListResult = Schemas["HostSoftwareListBody"];
 export type HostQueriesResult = Schemas["HostReportsOutputBody"];
-export type HostReport = Schemas["HostReportBody"];
+export type HostReport = Schemas["HostReport"];
 export type HostQueryResultsResult = Schemas["HostQueryResultsOutputBody"];
 export type HostChecksResult = Schemas["CheckHostsOutputBody"];
 
@@ -58,7 +59,7 @@ export function useHosts(params: HostListParams = {}) {
 }
 
 export function useHost(id: string) {
-  return useQuery<Host, ApiError>({
+  return useQuery<HostDetail, ApiError>({
     queryKey: queryKeys.host(id),
     queryFn: ({ signal }) =>
       unwrap(

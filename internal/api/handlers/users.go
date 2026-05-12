@@ -19,11 +19,11 @@ const (
 )
 
 type userListOutput struct {
-	Body []userBody
+	Body []users.User
 }
 
 type userOutput struct {
-	Body userBody
+	Body users.User
 }
 
 type userCreateInput struct {
@@ -75,15 +75,11 @@ func registerListUsers(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		users, err := userService.List(ctx)
+		list, err := userService.List(ctx)
 		if err != nil {
 			return nil, err
 		}
-		out := &userListOutput{Body: make([]userBody, 0, len(users))}
-		for i := range users {
-			out.Body = append(out.Body, userResponse(&users[i]))
-		}
-		return out, nil
+		return &userListOutput{Body: list}, nil
 	})
 }
 
@@ -114,7 +110,7 @@ func registerCreateUser(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, userMutationError(err)
 		}
-		return &userOutput{Body: userResponse(user)}, nil
+		return &userOutput{Body: *user}, nil
 	})
 }
 
@@ -138,7 +134,7 @@ func registerGetUser(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, userMutationError(err)
 		}
-		return &userOutput{Body: userResponse(user)}, nil
+		return &userOutput{Body: *user}, nil
 	})
 }
 
@@ -173,7 +169,7 @@ func registerPutUser(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, userMutationError(err)
 		}
-		return &userOutput{Body: userResponse(user)}, nil
+		return &userOutput{Body: *user}, nil
 	})
 }
 

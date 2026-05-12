@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const (
@@ -22,26 +22,13 @@ const (
 	checkIDPath   = "/api/checks/{id}"
 )
 
-type checkBody struct {
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	LabelScope        labelScopeBody `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64         `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-}
-
 type checkMutationBody struct {
-	Name              string         `json:"name"`
-	Description       string         `json:"description,omitempty"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	LabelScope        labelScopeBody `json:"label_scope"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description,omitempty"`
+	Query             string           `json:"query"`
+	Platform          *string          `json:"platform,omitempty"`
+	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
+	LabelScope        scope.LabelScope `json:"label_scope"`
 }
 
 type checkListInput struct {
@@ -80,29 +67,19 @@ func (i checkBulkDeleteInput) ids() ([]int64, error) {
 
 type checkListOutput struct {
 	Body struct {
-		Items []checkBody `json:"items"`
-		Count int         `json:"count"`
+		Items []checks.Check `json:"items"`
+		Count int            `json:"count"`
 	}
 }
 
 type checkOutput struct {
-	Body checkBody
+	Body checks.Check
 }
 
 type checkHostsOutput struct {
 	Body struct {
-		Items []checkHostBody `json:"items"`
+		Items []checks.CheckHostStatus `json:"items"`
 	}
-}
-
-type checkHostBody struct {
-	CheckID         int64      `json:"check_id"`
-	CheckName       string     `json:"check_name"`
-	HostID          int64      `json:"host_id"`
-	HostName        string     `json:"host_name"`
-	Passes          *bool      `json:"passes,omitempty"`
-	FirstFailedAt   *time.Time `json:"first_failed_at,omitempty"`
-	LastEvaluatedAt *time.Time `json:"last_evaluated_at,omitempty"`
 }
 
 // RegisterChecks registers check endpoints.
@@ -131,11 +108,8 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 			return nil, apihelpers.ResourceMutationError(checkResource, err)
 		}
 		out := &checkListOutput{}
-		out.Body.Items = make([]checkBody, 0, len(items))
+		out.Body.Items = items
 		out.Body.Count = count
-		for i := range items {
-			out.Body.Items = append(out.Body.Items, checkResponse(&items[i]))
-		}
 		return out, nil
 	})
 }
@@ -158,7 +132,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(checkResource, err)
 		}
-		return &checkOutput{Body: checkResponse(check)}, nil
+		return &checkOutput{Body: *check}, nil
 	})
 }
 
@@ -179,7 +153,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(checkResource, err)
 		}
-		return &checkOutput{Body: checkResponse(check)}, nil
+		return &checkOutput{Body: *check}, nil
 	})
 }
 
@@ -204,7 +178,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(checkResource, err)
 		}
-		return &checkOutput{Body: checkResponse(check)}, nil
+		return &checkOutput{Body: *check}, nil
 	})
 }
 
@@ -269,7 +243,7 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 			return nil, err
 		}
 		out := &checkHostsOutput{}
-		out.Body.Items = checkHostResponses(rows)
+		out.Body.Items = rows
 		return out, nil
 	})
 }
@@ -299,7 +273,7 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 			return nil, err
 		}
 		out := &checkHostsOutput{}
-		out.Body.Items = checkHostResponses(rows)
+		out.Body.Items = rows
 		return out, nil
 	})
 }
@@ -318,7 +292,7 @@ func (input checkListInput) params() checks.CheckListParams {
 }
 
 func (body checkMutationBody) createParams(userID *int64) (checks.CheckCreate, error) {
-	scope, err := body.LabelScope.model()
+	s, err := normalizeLabelScope(body.LabelScope)
 	if err != nil {
 		return checks.CheckCreate{}, err
 	}
@@ -328,13 +302,13 @@ func (body checkMutationBody) createParams(userID *int64) (checks.CheckCreate, e
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
-		LabelScope:        scope,
+		LabelScope:        s,
 		CreatedByUserID:   userID,
 	}, nil
 }
 
 func (body checkMutationBody) updateParams() (checks.CheckUpdate, error) {
-	scope, err := body.LabelScope.model()
+	s, err := normalizeLabelScope(body.LabelScope)
 	if err != nil {
 		return checks.CheckUpdate{}, err
 	}
@@ -344,37 +318,6 @@ func (body checkMutationBody) updateParams() (checks.CheckUpdate, error) {
 		Query:             body.Query,
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
-		LabelScope:        scope,
+		LabelScope:        s,
 	}, nil
-}
-
-func checkResponse(check *checks.Check) checkBody {
-	return checkBody{
-		ID:                check.ID,
-		Name:              check.Name,
-		Description:       check.Description,
-		Query:             check.Query,
-		Platform:          check.Platform,
-		MinOsqueryVersion: check.MinOsqueryVersion,
-		LabelScope:        labelScopeResponse(check.LabelScope),
-		CreatedByUserID:   check.CreatedByUserID,
-		CreatedAt:         check.CreatedAt,
-		UpdatedAt:         check.UpdatedAt,
-	}
-}
-
-func checkHostResponses(rows []checks.CheckHostStatus) []checkHostBody {
-	out := make([]checkHostBody, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, checkHostBody{
-			CheckID:         row.CheckID,
-			CheckName:       row.CheckName,
-			HostID:          row.HostID,
-			HostName:        row.HostName,
-			Passes:          row.Passes,
-			FirstFailedAt:   row.FirstFailedAt,
-			LastEvaluatedAt: row.LastEvaluatedAt,
-		})
-	}
-	return out
 }

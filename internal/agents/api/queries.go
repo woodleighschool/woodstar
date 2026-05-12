@@ -14,6 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const (
@@ -22,28 +23,14 @@ const (
 	queryIDPath   = "/api/queries/{id}"
 )
 
-type queryBody struct {
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int            `json:"schedule_interval"`
-	LabelScope        labelScopeBody `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64         `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-}
-
 type queryMutationBody struct {
-	Name              string         `json:"name"`
-	Description       string         `json:"description,omitempty"`
-	Query             string         `json:"query"`
-	Platform          *string        `json:"platform,omitempty"`
-	MinOsqueryVersion *string        `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int            `json:"schedule_interval,omitempty"`
-	LabelScope        labelScopeBody `json:"label_scope"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description,omitempty"`
+	Query             string           `json:"query"`
+	Platform          *string          `json:"platform,omitempty"`
+	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope `json:"label_scope"`
 }
 
 type queryListInput struct {
@@ -82,52 +69,34 @@ func (i queryBulkDeleteInput) ids() ([]int64, error) {
 
 type queryListOutput struct {
 	Body struct {
-		Items []queryBody `json:"items"`
-		Count int         `json:"count"`
+		Items []queries.Query `json:"items"`
+		Count int             `json:"count"`
 	}
 }
 
 type queryOutput struct {
-	Body queryBody
+	Body queries.Query
 }
 
 type queryResultsOutput struct {
 	Body struct {
-		Items []queryResultBody `json:"items"`
+		Items []queries.QueryResult `json:"items"`
 	}
-}
-
-type queryResultBody struct {
-	QueryID     int64             `json:"query_id"`
-	QueryName   string            `json:"query_name"`
-	HostID      int64             `json:"host_id"`
-	HostName    string            `json:"host_name"`
-	Columns     map[string]string `json:"columns"`
-	LastFetched *time.Time        `json:"last_fetched,omitempty"`
 }
 
 type hostReportsOutput struct {
 	Body struct {
-		Items []hostReportBody `json:"items"`
+		Items []queries.HostReport `json:"items"`
 	}
-}
-
-type hostReportBody struct {
-	ReportID        int64             `json:"report_id"`
-	Name            string            `json:"name"`
-	Description     string            `json:"description"`
-	LastFetched     *time.Time        `json:"last_fetched,omitempty"`
-	FirstResult     map[string]string `json:"first_result,omitempty"`
-	HostResultCount int               `json:"n_host_results"`
 }
 
 type hostQueryResultsOutput struct {
 	Body struct {
-		QueryID     int64             `json:"query_id"`
-		HostID      int64             `json:"host_id"`
-		HostName    string            `json:"host_name"`
-		LastFetched *time.Time        `json:"last_fetched,omitempty"`
-		Items       []queryResultBody `json:"items"`
+		QueryID     int64                 `json:"query_id"`
+		HostID      int64                 `json:"host_id"`
+		HostName    string                `json:"host_name"`
+		LastFetched *time.Time            `json:"last_fetched,omitempty"`
+		Items       []queries.QueryResult `json:"items"`
 	}
 }
 
@@ -163,11 +132,8 @@ func registerListQueries(api huma.API, queryStore *queries.Store) {
 			return nil, apihelpers.ResourceMutationError(queryResource, err)
 		}
 		out := &queryListOutput{}
-		out.Body.Items = make([]queryBody, 0, len(items))
+		out.Body.Items = items
 		out.Body.Count = count
-		for i := range items {
-			out.Body.Items = append(out.Body.Items, queryResponse(&items[i]))
-		}
 		return out, nil
 	})
 }
@@ -190,7 +156,7 @@ func registerCreateQuery(api huma.API, queryStore *queries.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(queryResource, err)
 		}
-		return &queryOutput{Body: queryResponse(query)}, nil
+		return &queryOutput{Body: *query}, nil
 	})
 }
 
@@ -211,7 +177,7 @@ func registerGetQuery(api huma.API, queryStore *queries.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(queryResource, err)
 		}
-		return &queryOutput{Body: queryResponse(query)}, nil
+		return &queryOutput{Body: *query}, nil
 	})
 }
 
@@ -236,7 +202,7 @@ func registerUpdateQuery(api huma.API, queryStore *queries.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError(queryResource, err)
 		}
-		return &queryOutput{Body: queryResponse(query)}, nil
+		return &queryOutput{Body: *query}, nil
 	})
 }
 
@@ -301,7 +267,7 @@ func registerQueryResults(api huma.API, queryStore *queries.Store) {
 			return nil, err
 		}
 		out := &queryResultsOutput{}
-		out.Body.Items = queryResultResponses(rows)
+		out.Body.Items = rows
 		return out, nil
 	})
 }
@@ -331,7 +297,7 @@ func registerHostQueries(api huma.API, queryStore *queries.Store, hostStore *hos
 			return nil, err
 		}
 		out := &hostReportsOutput{}
-		out.Body.Items = hostReportResponses(rows)
+		out.Body.Items = rows
 		return out, nil
 	})
 }
@@ -369,7 +335,7 @@ func registerHostQueryResults(api huma.API, queryStore *queries.Store, hostStore
 		out.Body.HostID = hostID
 		out.Body.HostName = host.DisplayName
 		out.Body.LastFetched = lastFetched
-		out.Body.Items = queryResultResponses(rows)
+		out.Body.Items = rows
 		return out, nil
 	})
 }
@@ -388,7 +354,7 @@ func (input queryListInput) params() queries.QueryListParams {
 }
 
 func (body queryMutationBody) createParams(userID *int64) (queries.QueryCreate, error) {
-	s, err := body.LabelScope.model()
+	s, err := normalizeLabelScope(body.LabelScope)
 	if err != nil {
 		return queries.QueryCreate{}, err
 	}
@@ -406,7 +372,7 @@ func (body queryMutationBody) createParams(userID *int64) (queries.QueryCreate, 
 }
 
 func (body queryMutationBody) updateParams() (queries.QueryUpdate, error) {
-	s, err := body.LabelScope.model()
+	s, err := normalizeLabelScope(body.LabelScope)
 	if err != nil {
 		return queries.QueryUpdate{}, err
 	}
@@ -420,54 +386,4 @@ func (body queryMutationBody) updateParams() (queries.QueryUpdate, error) {
 		LoggingType:       queries.QueryLoggingSnapshot,
 		LabelScope:        s,
 	}, nil
-}
-
-func queryResponse(query *queries.Query) queryBody {
-	return queryBody{
-		ID:                query.ID,
-		Name:              query.Name,
-		Description:       query.Description,
-		Query:             query.Query,
-		Platform:          query.Platform,
-		MinOsqueryVersion: query.MinOsqueryVersion,
-		ScheduleInterval:  query.ScheduleInterval,
-		LabelScope:        labelScopeResponse(query.LabelScope),
-		CreatedByUserID:   query.CreatedByUserID,
-		CreatedAt:         query.CreatedAt,
-		UpdatedAt:         query.UpdatedAt,
-	}
-}
-
-func queryResultResponses(rows []queries.QueryResult) []queryResultBody {
-	out := make([]queryResultBody, 0, len(rows))
-	for _, row := range rows {
-		var lastFetched *time.Time
-		if !row.LastFetched.IsZero() {
-			lastFetched = &row.LastFetched
-		}
-		out = append(out, queryResultBody{
-			QueryID:     row.QueryID,
-			QueryName:   row.QueryName,
-			HostID:      row.HostID,
-			HostName:    row.HostName,
-			Columns:     row.Columns,
-			LastFetched: lastFetched,
-		})
-	}
-	return out
-}
-
-func hostReportResponses(rows []queries.HostReport) []hostReportBody {
-	out := make([]hostReportBody, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, hostReportBody{
-			ReportID:        row.ReportID,
-			Name:            row.Name,
-			Description:     row.Description,
-			LastFetched:     row.LastFetched,
-			FirstResult:     row.FirstResult,
-			HostResultCount: row.HostResultCount,
-		})
-	}
-	return out
 }

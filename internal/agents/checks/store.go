@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -16,52 +15,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platform"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
-
-// Check is a query-backed pass/fail policy.
-type Check struct {
-	ID                int64
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-}
-
-// CheckCreate contains editable check fields.
-type CheckCreate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
-}
-
-// CheckUpdate replaces editable check fields.
-type CheckUpdate CheckCreate
-
-// CheckListParams filters checks.
-type CheckListParams struct {
-	dbutil.ListParams
-
-	Platform string
-}
-
-// CheckHostStatus is a check's current state for one host.
-type CheckHostStatus struct {
-	CheckID         int64
-	CheckName       string
-	HostID          int64
-	HostName        string
-	Passes          *bool
-	FirstFailedAt   *time.Time
-	LastEvaluatedAt *time.Time
-}
 
 // Store persists checks and per-host membership state.
 type Store struct {

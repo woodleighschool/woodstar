@@ -22,26 +22,6 @@ const trimBatchSize = 500
 // snapshot exceeds maxSnapshotResultRows.
 var ErrSnapshotTooLarge = errors.New("snapshot exceeds max result rows")
 
-// QueryResult is one stored report row from one host.
-type QueryResult struct {
-	QueryID     int64
-	QueryName   string
-	HostID      int64
-	HostName    string
-	Columns     map[string]string
-	LastFetched time.Time
-}
-
-// HostReport is a scheduled report as it appears on one host detail page.
-type HostReport struct {
-	ReportID        int64
-	Name            string
-	Description     string
-	LastFetched     *time.Time
-	FirstResult     map[string]string
-	HostResultCount int
-}
-
 type snapshotResultRow struct {
 	data        *json.RawMessage
 	lastFetched time.Time

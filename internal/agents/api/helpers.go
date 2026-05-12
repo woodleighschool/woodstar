@@ -21,22 +21,13 @@ type bulkIDsBody struct {
 	IDs []int64 `json:"ids"`
 }
 
-// labelScopeBody is the shared request/response shape for label scope fields.
-type labelScopeBody struct {
-	Mode     scope.LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
-	LabelIDs []int64              `json:"label_ids,omitempty"`
-}
-
-func (body labelScopeBody) model() (scope.LabelScope, error) {
-	ids, err := apihelpers.ParseIDList(body.LabelIDs, "label_ids")
+// normalizeLabelScope cleans label IDs and applies the scope normalisation rules.
+func normalizeLabelScope(s scope.LabelScope) (scope.LabelScope, error) {
+	ids, err := apihelpers.ParseIDList(s.LabelIDs, "label_ids")
 	if err != nil {
 		return scope.LabelScope{}, err
 	}
-	return scope.NormalizeLabelScope(scope.LabelScope{Mode: body.Mode, LabelIDs: ids}), nil
-}
-
-func labelScopeResponse(s scope.LabelScope) labelScopeBody {
-	return labelScopeBody{Mode: s.Mode, LabelIDs: append([]int64{}, s.LabelIDs...)}
+	return scope.NormalizeLabelScope(scope.LabelScope{Mode: s.Mode, LabelIDs: ids}), nil
 }
 
 func requireAdmin(ctx context.Context) (*users.User, error) {

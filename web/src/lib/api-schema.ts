@@ -507,11 +507,11 @@ export interface components {
             readonly $schema?: string;
             ids: number[] | null;
         };
-        CheckBody: {
+        Check: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CheckBody.json
+             * @example https://example.com/api/schemas/Check.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -521,7 +521,7 @@ export interface components {
             description: string;
             /** Format: int64 */
             id: number;
-            label_scope?: components["schemas"]["LabelScopeBody"];
+            label_scope?: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
             platform?: string;
@@ -529,7 +529,7 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        CheckHostBody: {
+        CheckHostStatus: {
             /** Format: int64 */
             check_id: number;
             check_name: string;
@@ -549,7 +549,7 @@ export interface components {
              * @example https://example.com/api/schemas/CheckHostsOutputBody.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["CheckHostBody"][] | null;
+            items: components["schemas"]["CheckHostStatus"][] | null;
         };
         CheckListOutputBody: {
             /**
@@ -560,7 +560,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["CheckBody"][] | null;
+            items: components["schemas"]["Check"][] | null;
         };
         CheckMutationBody: {
             /**
@@ -570,15 +570,11 @@ export interface components {
              */
             readonly $schema?: string;
             description?: string;
-            label_scope: components["schemas"]["LabelScopeBody"];
+            label_scope: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
             platform?: string;
             query: string;
-        };
-        DeviceMappingBody: {
-            email: string;
-            source: string;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
@@ -627,31 +623,7 @@ export interface components {
              */
             type: string;
         };
-        HostBatteryBody: {
-            chemistry: string;
-            /** Format: int32 */
-            current_capacity?: number;
-            /** Format: int32 */
-            cycle_count?: number;
-            /** Format: int32 */
-            designed_capacity?: number;
-            health: string;
-            manufacturer: string;
-            /** Format: int32 */
-            max_capacity?: number;
-            model: string;
-            /** Format: double */
-            percent_remaining?: number;
-            serial_number: string;
-        };
-        HostBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostBody.json
-             */
-            readonly $schema?: string;
-            batteries: components["schemas"]["HostBatteryBody"][] | null;
+        Host: {
             computer_name: string;
             /** Format: int32 */
             config_tls_refresh?: number;
@@ -666,7 +638,7 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             detail_updated_at?: string;
-            device_mappings: components["schemas"]["DeviceMappingBody"][] | null;
+            device_mappings?: components["schemas"]["HostDeviceMapping"][] | null;
             /** Format: int64 */
             disk_space_available_bytes?: number;
             /** Format: int64 */
@@ -687,7 +659,6 @@ export interface components {
             kernel_version: string;
             /** Format: date-time */
             label_updated_at?: string;
-            labels: components["schemas"]["LabelBody"][] | null;
             /** Format: date-time */
             last_restarted_at?: string;
             /** Format: date-time */
@@ -701,8 +672,10 @@ export interface components {
             physical_memory: number;
             platform: string;
             platform_like: string;
+            /** Format: ip */
             primary_ip?: string;
             primary_mac: string;
+            /** Format: ip */
             public_ip?: string;
             /** Format: date-time */
             software_updated_at?: string;
@@ -710,7 +683,106 @@ export interface components {
             updated_at: string;
             /** Format: int64 */
             uptime_seconds?: number;
-            users: components["schemas"]["HostUserBody"][] | null;
+        };
+        HostBattery: {
+            chemistry: string;
+            /** Format: int32 */
+            current_capacity?: number;
+            /** Format: int32 */
+            cycle_count?: number;
+            /** Format: int32 */
+            designed_capacity?: number;
+            health: string;
+            manufacturer: string;
+            /** Format: int32 */
+            max_capacity?: number;
+            model: string;
+            /** Format: double */
+            percent_remaining?: number;
+            serial_number: string;
+        };
+        HostBulkIDsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/HostBulkIDsBody.json
+             */
+            readonly $schema?: string;
+            ids: number[] | null;
+        };
+        HostDetail: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/HostDetail.json
+             */
+            readonly $schema?: string;
+            batteries: components["schemas"]["HostBattery"][] | null;
+            computer_name: string;
+            /** Format: int32 */
+            config_tls_refresh?: number;
+            cpu_brand: string;
+            /** Format: int64 */
+            cpu_logical_cores: number;
+            /** Format: int64 */
+            cpu_physical_cores: number;
+            cpu_subtype: string;
+            cpu_type: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            detail_updated_at?: string;
+            device_mappings?: components["schemas"]["HostDeviceMapping"][] | null;
+            /** Format: int64 */
+            disk_space_available_bytes?: number;
+            /** Format: int64 */
+            disk_space_total_bytes?: number;
+            display_name: string;
+            /** Format: int32 */
+            distributed_interval?: number;
+            /** Format: date-time */
+            enrolled_at?: string;
+            hardware_model: string;
+            hardware_serial: string;
+            hardware_uuid: string;
+            hardware_vendor: string;
+            hardware_version: string;
+            hostname: string;
+            /** Format: int64 */
+            id: number;
+            kernel_version: string;
+            /** Format: date-time */
+            label_updated_at?: string;
+            labels: components["schemas"]["Label"][] | null;
+            /** Format: date-time */
+            last_restarted_at?: string;
+            /** Format: date-time */
+            last_seen_at?: string;
+            orbit_version: string;
+            os_build: string;
+            os_name: string;
+            os_version: string;
+            osquery_version: string;
+            /** Format: int64 */
+            physical_memory: number;
+            platform: string;
+            platform_like: string;
+            /** Format: ip */
+            primary_ip?: string;
+            primary_mac: string;
+            /** Format: ip */
+            public_ip?: string;
+            /** Format: date-time */
+            software_updated_at?: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            uptime_seconds?: number;
+            users: components["schemas"]["HostUser"][] | null;
+        };
+        HostDeviceMapping: {
+            email: string;
+            source: string;
         };
         HostListBody: {
             /**
@@ -721,7 +793,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["HostBody"][] | null;
+            items: components["schemas"]["Host"][] | null;
         };
         HostQueryResultsOutputBody: {
             /**
@@ -733,13 +805,13 @@ export interface components {
             /** Format: int64 */
             host_id: number;
             host_name: string;
-            items: components["schemas"]["QueryResultBody"][] | null;
+            items: components["schemas"]["QueryResult"][] | null;
             /** Format: date-time */
             last_fetched?: string;
             /** Format: int64 */
             query_id: number;
         };
-        HostReportBody: {
+        HostReport: {
             description: string;
             first_result?: {
                 [key: string]: string;
@@ -759,23 +831,14 @@ export interface components {
              * @example https://example.com/api/schemas/HostReportsOutputBody.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["HostReportBody"][] | null;
+            items: components["schemas"]["HostReport"][] | null;
         };
-        HostSoftwareBody: {
-            display_name: string;
-            extension_for: string;
-            /** Format: int64 */
-            id: number;
-            installed_versions: components["schemas"]["HostSoftwareInstalledVersionBody"][] | null;
-            name: string;
-            source: string;
-        };
-        HostSoftwareInstalledVersionBody: {
+        HostSoftwareInstalledVersion: {
             bundle_identifier: string;
             installed_paths: string[] | null;
             /** Format: date-time */
             last_opened_at?: string;
-            signature_information: components["schemas"]["PathSignatureInformationBody"][] | null;
+            signature_information: components["schemas"]["PathSignatureInformation"][] | null;
             version: string;
         };
         HostSoftwareListBody: {
@@ -787,9 +850,18 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["HostSoftwareBody"][] | null;
+            items: components["schemas"]["HostSoftwareRow"][] | null;
         };
-        HostUserBody: {
+        HostSoftwareRow: {
+            display_name: string;
+            extension_for: string;
+            /** Format: int64 */
+            id: number;
+            installed_versions: components["schemas"]["HostSoftwareInstalledVersion"][] | null;
+            name: string;
+            source: string;
+        };
+        HostUser: {
             description: string;
             directory: string;
             shell: string;
@@ -797,11 +869,11 @@ export interface components {
             uid: string;
             username: string;
         };
-        LabelBody: {
+        Label: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/LabelBody.json
+             * @example https://example.com/api/schemas/Label.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -842,7 +914,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["LabelBody"][] | null;
+            items: components["schemas"]["Label"][] | null;
         };
         LabelMutationBody: {
             /**
@@ -857,7 +929,7 @@ export interface components {
             platform?: string;
             query?: string;
         };
-        LabelScopeBody: {
+        LabelScope: {
             label_ids?: number[] | null;
             /** @enum {string} */
             mode?: "include_any" | "include_all" | "exclude_any";
@@ -904,18 +976,18 @@ export interface components {
             email: string;
             password: string;
         };
-        PathSignatureInformationBody: {
+        PathSignatureInformation: {
             executable_path: string;
             executable_sha256: string;
             hash_sha256: string;
             installed_path: string;
             team_identifier: string;
         };
-        QueryBody: {
+        Query: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/QueryBody.json
+             * @example https://example.com/api/schemas/Query.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -925,7 +997,7 @@ export interface components {
             description: string;
             /** Format: int64 */
             id: number;
-            label_scope?: components["schemas"]["LabelScopeBody"];
+            label_scope?: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
             platform?: string;
@@ -944,7 +1016,7 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["QueryBody"][] | null;
+            items: components["schemas"]["Query"][] | null;
         };
         QueryMutationBody: {
             /**
@@ -954,7 +1026,7 @@ export interface components {
              */
             readonly $schema?: string;
             description?: string;
-            label_scope: components["schemas"]["LabelScopeBody"];
+            label_scope: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
             platform?: string;
@@ -962,7 +1034,7 @@ export interface components {
             /** Format: int64 */
             schedule_interval?: number;
         };
-        QueryResultBody: {
+        QueryResult: {
             columns: {
                 [key: string]: string;
             };
@@ -982,7 +1054,7 @@ export interface components {
              * @example https://example.com/api/schemas/QueryResultsOutputBody.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["QueryResultBody"][] | null;
+            items: components["schemas"]["QueryResult"][] | null;
         };
         Secret: {
             /**
@@ -1005,7 +1077,7 @@ export interface components {
              */
             readonly $schema?: string;
             setup_complete: boolean;
-            user?: components["schemas"]["UserBody"];
+            user?: components["schemas"]["User"];
         };
         SetupInputBody: {
             /**
@@ -1026,7 +1098,7 @@ export interface components {
              * @example https://example.com/api/schemas/SoftwareGetBody.json
              */
             readonly $schema?: string;
-            software_title: components["schemas"]["SoftwareTitleBody"];
+            software_title: components["schemas"]["SoftwareTitle"];
         };
         SoftwareListBody: {
             /**
@@ -1037,9 +1109,9 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["SoftwareTitleBody"][] | null;
+            items: components["schemas"]["SoftwareTitle"][] | null;
         };
-        SoftwareTitleBody: {
+        SoftwareTitle: {
             browser: string;
             bundle_identifier?: string;
             /** Format: date-time */
@@ -1052,11 +1124,11 @@ export interface components {
             id: number;
             name: string;
             source: string;
-            versions: components["schemas"]["SoftwareVersionBody"][] | null;
+            versions: components["schemas"]["SoftwareVersion"][] | null;
             /** Format: int64 */
             versions_count: number;
         };
-        SoftwareVersionBody: {
+        SoftwareVersion: {
             bundle_identifier?: string;
             /** Format: int64 */
             hosts_count: number;
@@ -1064,21 +1136,24 @@ export interface components {
             id: number;
             version: string;
         };
-        UserBody: {
+        User: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/UserBody.json
+             * @example https://example.com/api/schemas/User.json
              */
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
+            /** Format: email */
             email: string;
             /** Format: int64 */
             id: number;
             name: string;
             /** @enum {string} */
             role: "admin" | "viewer";
+            /** Format: date-time */
+            updated_at: string;
         };
         UserCreateInputBody: {
             /**
@@ -1134,7 +1209,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
             /** @description Bad Request */
@@ -1313,7 +1388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckBody"];
+                    "application/json": components["schemas"]["Check"];
                 };
             };
             /** @description Bad Request */
@@ -1447,7 +1522,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckBody"];
+                    "application/json": components["schemas"]["Check"];
                 };
             };
             /** @description Unauthorized */
@@ -1509,7 +1584,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckBody"];
+                    "application/json": components["schemas"]["Check"];
                 };
             };
             /** @description Bad Request */
@@ -1749,7 +1824,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkIDsBody"];
+                "application/json": components["schemas"]["HostBulkIDsBody"];
             };
         };
         responses: {
@@ -1824,7 +1899,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostBody"];
+                    "application/json": components["schemas"]["HostDetail"];
                 };
             };
             /** @description Unauthorized */
@@ -2245,7 +2320,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LabelBody"];
+                    "application/json": components["schemas"]["Label"];
                 };
             };
             /** @description Bad Request */
@@ -2312,7 +2387,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LabelBody"];
+                    "application/json": components["schemas"]["Label"];
                 };
             };
             /** @description Unauthorized */
@@ -2374,7 +2449,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LabelBody"];
+                    "application/json": components["schemas"]["Label"];
                 };
             };
             /** @description Bad Request */
@@ -2781,7 +2856,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryBody"];
+                    "application/json": components["schemas"]["Query"];
                 };
             };
             /** @description Bad Request */
@@ -2915,7 +2990,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryBody"];
+                    "application/json": components["schemas"]["Query"];
                 };
             };
             /** @description Unauthorized */
@@ -2977,7 +3052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryBody"];
+                    "application/json": components["schemas"]["Query"];
                 };
             };
             /** @description Bad Request */
@@ -3169,7 +3244,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
             /** @description Bad Request */
@@ -3337,7 +3412,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"][] | null;
+                    "application/json": components["schemas"]["User"][] | null;
                 };
             };
             /** @description Unauthorized */
@@ -3388,7 +3463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
             /** @description Bad Request */
@@ -3464,7 +3539,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
             /** @description Unauthorized */
@@ -3535,7 +3610,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserBody"];
+                    "application/json": components["schemas"]["User"];
                 };
             };
             /** @description Bad Request */

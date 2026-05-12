@@ -1,6 +1,6 @@
 import type { Schemas } from "@/lib/api";
 
-type LabelScope = Schemas["LabelScopeBody"];
+type LabelScope = Schemas["LabelScope"];
 
 export function targetSummary(scope: LabelScope | undefined, platform?: string | null) {
   const labels = scope?.label_ids?.length ?? 0;

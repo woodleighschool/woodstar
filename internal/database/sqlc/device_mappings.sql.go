@@ -47,6 +47,44 @@ func (q *Queries) ListHostDeviceMappings(ctx context.Context, arg ListHostDevice
 	return items, nil
 }
 
+const listHostDeviceMappingsForHosts = `-- name: ListHostDeviceMappingsForHosts :many
+SELECT id, host_id, email, source, created_at, updated_at
+FROM host_emails
+WHERE host_id = ANY($1::bigint[])
+ORDER BY host_id, source
+`
+
+type ListHostDeviceMappingsForHostsParams struct {
+	HostIds []int64 `json:"host_ids"`
+}
+
+func (q *Queries) ListHostDeviceMappingsForHosts(ctx context.Context, arg ListHostDeviceMappingsForHostsParams) ([]HostEmail, error) {
+	rows, err := q.db.Query(ctx, listHostDeviceMappingsForHosts, arg.HostIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HostEmail{}
+	for rows.Next() {
+		var i HostEmail
+		if err := rows.Scan(
+			&i.ID,
+			&i.HostID,
+			&i.Email,
+			&i.Source,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertHostDeviceMapping = `-- name: UpsertHostDeviceMapping :exec
 INSERT INTO host_emails (
     host_id,

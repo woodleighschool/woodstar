@@ -5,9 +5,9 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SoftwareTitle = Schemas["SoftwareTitleBody"];
+export type SoftwareTitle = Schemas["SoftwareTitle"];
 export type SoftwareListResult = Schemas["SoftwareListBody"];
-export type SoftwareVersion = Schemas["SoftwareVersionBody"];
+export type SoftwareVersion = Schemas["SoftwareVersion"];
 export type SoftwareTitleResult = Schemas["SoftwareGetBody"];
 
 export interface SoftwareListParams {

@@ -5,7 +5,7 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Label = Schemas["LabelBody"];
+export type Label = Schemas["Label"];
 export type LabelListResult = Schemas["LabelListBody"];
 export type LabelCreate = Schemas["LabelCreateBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];

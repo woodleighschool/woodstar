@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -15,52 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platform"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
-
-// QueryLoggingType is the storage mode for scheduled query results.
-type QueryLoggingType string
-
-const (
-	QueryLoggingSnapshot QueryLoggingType = "snapshot"
-)
-
-// Query is admin-authored osquery SQL. Scheduled snapshot queries are reports.
-type Query struct {
-	ID                int64
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	ScheduleInterval  int
-	LoggingType       QueryLoggingType
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-}
-
-// QueryCreate contains editable query fields.
-type QueryCreate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	ScheduleInterval  int
-	LoggingType       QueryLoggingType
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
-}
-
-// QueryUpdate replaces editable query fields.
-type QueryUpdate QueryCreate
-
-// QueryListParams filters saved query lists.
-type QueryListParams struct {
-	dbutil.ListParams
-
-	Platform string
-}
 
 // Store persists saved queries and scheduled report results.
 type Store struct {

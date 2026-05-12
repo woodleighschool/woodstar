@@ -13,7 +13,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { formString } from "@/lib/utils";
 
 type LoginInput = Schemas["LoginInputBody"];
-type UserBody = Schemas["UserBody"];
+type UserBody = Schemas["User"];
 
 export function LoginPage() {
   const queryClient = useQueryClient();

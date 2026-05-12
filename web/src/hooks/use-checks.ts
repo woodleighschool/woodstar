@@ -5,11 +5,11 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Check = Schemas["CheckBody"];
+export type Check = Schemas["Check"];
 export type CheckListResult = Schemas["CheckListOutputBody"];
 export type CheckMutation = Schemas["CheckMutationBody"];
 export type CheckHosts = Schemas["CheckHostsOutputBody"];
-export type CheckHostStatus = Schemas["CheckHostBody"];
+export type CheckHostStatus = Schemas["CheckHostStatus"];
 
 export interface CheckListParams {
   q?: string;

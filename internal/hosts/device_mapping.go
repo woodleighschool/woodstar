@@ -45,6 +45,23 @@ func (s *DeviceMappingStore) ListForHost(ctx context.Context, hostID int64) ([]H
 	return mappings, nil
 }
 
+// ListForHosts returns mappings grouped by host_id for bulk list responses.
+// Hosts with no mappings get a nil slice in the result map (omit on the wire).
+func (s *DeviceMappingStore) ListForHosts(ctx context.Context, hostIDs []int64) (map[int64][]HostDeviceMapping, error) {
+	if len(hostIDs) == 0 {
+		return map[int64][]HostDeviceMapping{}, nil
+	}
+	rows, err := s.q.ListHostDeviceMappingsForHosts(ctx, sqlc.ListHostDeviceMappingsForHostsParams{HostIds: hostIDs})
+	if err != nil {
+		return nil, err
+	}
+	grouped := make(map[int64][]HostDeviceMapping, len(hostIDs))
+	for _, row := range rows {
+		grouped[row.HostID] = append(grouped[row.HostID], hostDeviceMappingFromSQLC(row))
+	}
+	return grouped, nil
+}
+
 func hostDeviceMappingFromSQLC(s sqlc.HostEmail) HostDeviceMapping {
 	return HostDeviceMapping{
 		ID:        s.ID,

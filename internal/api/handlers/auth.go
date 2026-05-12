@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -13,25 +12,17 @@ import (
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
-type userBody struct {
-	ID        int64      `json:"id"`
-	Email     string     `json:"email"`
-	Name      string     `json:"name"`
-	Role      users.Role `json:"role"       enum:"admin,viewer"`
-	CreatedAt time.Time  `json:"created_at"`
-}
-
 type sessionOutput struct {
 	Body sessionBody
 }
 
 type sessionBody struct {
-	SetupComplete bool      `json:"setup_complete"`
-	User          *userBody `json:"user,omitempty"`
+	SetupComplete bool        `json:"setup_complete"`
+	User          *users.User `json:"user,omitempty"`
 }
 
 type authUserOutput struct {
-	Body userBody
+	Body users.User
 }
 
 type setupInput struct {
@@ -79,7 +70,7 @@ func registerSetup(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, authError(err)
 		}
-		return &authUserOutput{Body: userResponse(user)}, nil
+		return &authUserOutput{Body: *user}, nil
 	})
 }
 
@@ -106,8 +97,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 			}
 			return nil, err
 		}
-		body := userResponse(user)
-		out.Body.User = &body
+		out.Body.User = user
 		return out, nil
 	})
 }
@@ -125,7 +115,7 @@ func registerLogin(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, authError(err)
 		}
-		return &authUserOutput{Body: userResponse(user)}, nil
+		return &authUserOutput{Body: *user}, nil
 	})
 	huma.Register(api, huma.Operation{
 		OperationID: "logout",
@@ -139,16 +129,6 @@ func registerLogin(api huma.API, authService *auth.Service) {
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func userResponse(user *users.User) userBody {
-	return userBody{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		Role:      user.Role,
-		CreatedAt: user.CreatedAt,
-	}
 }
 
 // requireAdmin returns the authenticated admin user from ctx.

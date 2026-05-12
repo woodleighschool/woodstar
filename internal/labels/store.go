@@ -14,50 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
-// Label types. LabelType separates system-seeded labels from admin-created ones.
-const (
-	LabelTypeBuiltin = "builtin"
-	LabelTypeRegular = "regular"
-)
-
-// Label membership types. LabelMembershipType controls how membership rows are produced:
-//   - dynamic: an osquery query result drives membership
-//   - manual: the server writes membership rows (e.g. All Hosts on enroll)
-//   - host_vitals: membership is derived from host fields, not osquery
-const (
-	LabelMembershipTypeDynamic    = "dynamic"
-	LabelMembershipTypeManual     = "manual"
-	LabelMembershipTypeHostVitals = "host_vitals"
-)
-
-// LabelListParams filters the admin label list.
-type LabelListParams struct {
-	dbutil.ListParams
-
-	LabelType           string
-	LabelMembershipType string
-	Platform            string
-}
-
-// LabelCreate contains fields for an admin-created label.
-type LabelCreate struct {
-	Name                string
-	Description         string
-	Query               *string
-	LabelType           string
-	LabelMembershipType string
-	Platform            *string
-}
-
-// LabelUpdate contains the full editable label state.
-type LabelUpdate struct {
-	Name                string
-	Description         string
-	Query               *string
-	LabelMembershipType string
-	Platform            *string
-}
-
 // Store persists labels and host memberships.
 type Store struct {
 	db *database.DB

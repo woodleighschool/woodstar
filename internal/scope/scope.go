@@ -1,25 +1,7 @@
+// Package scope encodes label-based targeting shared by queries, checks, and campaigns.
 package scope
 
-import (
-	"slices"
-
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
-)
-
-type LabelScopeMode = sqlc.LabelScopeMode
-
-const (
-	ScopeNone       = sqlc.LabelScopeModeNone
-	ScopeIncludeAny = sqlc.LabelScopeModeIncludeAny
-	ScopeIncludeAll = sqlc.LabelScopeModeIncludeAll
-	ScopeExcludeAny = sqlc.LabelScopeModeExcludeAny
-)
-
-// LabelScope is the shared label targeting shape for queries, checks, and campaigns.
-type LabelScope struct {
-	Mode     LabelScopeMode
-	LabelIDs []int64
-}
+import "slices"
 
 // NormalizeLabelScope sorts label IDs, removes invalid duplicates, and collapses empty scopes.
 func NormalizeLabelScope(s LabelScope) LabelScope {

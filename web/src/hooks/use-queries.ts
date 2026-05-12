@@ -5,7 +5,7 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SavedQuery = Schemas["QueryBody"];
+export type SavedQuery = Schemas["Query"];
 export type QueryListResult = Schemas["QueryListOutputBody"];
 export type QueryMutation = Schemas["QueryMutationBody"];
 export type QueryResults = Schemas["QueryResultsOutputBody"];

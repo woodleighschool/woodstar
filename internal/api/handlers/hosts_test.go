@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestParseHostID(t *testing.T) {
@@ -126,41 +125,5 @@ func TestHostSoftwareInputParams(t *testing.T) {
 	if len(params.SoftwareSources) != 2 || params.SoftwareSources[0] != "apps" ||
 		params.SoftwareSources[1] != "chrome_extensions" {
 		t.Fatalf("sources = %#v", params.SoftwareSources)
-	}
-}
-
-func TestHostSoftwareResponseGroupsInstalledVersions(t *testing.T) {
-	row := software.HostSoftwareRow{
-		ID:           7,
-		Name:         "Example",
-		DisplayName:  "Example",
-		Source:       "apps",
-		ExtensionFor: "",
-		InstalledVersions: []software.HostSoftwareInstalledVersion{{
-			Version:          "1.2.3",
-			BundleIdentifier: "com.example.app",
-			InstalledPaths:   []string{"/Applications/Example.app"},
-			SignatureInformation: []software.PathSignatureInformation{{
-				InstalledPath:    "/Applications/Example.app",
-				TeamIdentifier:   "ABCD123456",
-				CDHashSHA256:     "cdhash",
-				ExecutableSHA256: "executable",
-				ExecutablePath:   "/Applications/Example.app/Contents/MacOS/Example",
-			}},
-		}},
-	}
-
-	got := hostSoftwareResponse(row)
-	if got.ID != 7 {
-		t.Fatalf("unexpected top-level response: %#v", got)
-	}
-	if len(got.InstalledVersions) != 1 {
-		t.Fatalf("installed_versions len = %d, want 1", len(got.InstalledVersions))
-	}
-	if got.InstalledVersions[0].InstalledPaths[0] != "/Applications/Example.app" {
-		t.Fatalf("installed path = %#v", got.InstalledVersions[0].InstalledPaths)
-	}
-	if got.InstalledVersions[0].SignatureInformation[0].TeamIdentifier != "ABCD123456" {
-		t.Fatalf("signature info = %#v", got.InstalledVersions[0].SignatureInformation)
 	}
 }

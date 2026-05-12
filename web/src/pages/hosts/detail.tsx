@@ -29,8 +29,8 @@ import type { Schemas } from "@/lib/api";
 import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
 
-type InstalledVersion = Schemas["HostSoftwareInstalledVersionBody"];
-type SignatureInfo = Schemas["PathSignatureInformationBody"];
+type InstalledVersion = Schemas["HostSoftwareInstalledVersion"];
+type SignatureInfo = Schemas["PathSignatureInformation"];
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
 

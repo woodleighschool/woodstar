@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Host } from "@/hooks/use-hosts";
+import type { Host, HostDetail } from "@/hooks/use-hosts";
 import { deviceMappingSourceLabel } from "@/lib/device-mapping-source-labels";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ interface Tile {
   value: ReactNode;
 }
 
-export function HostInfoCard({ host }: { host: Host }) {
+export function HostInfoCard({ host }: { host: HostDetail }) {
   const tiles: Tile[] = [];
 
   tiles.push({
@@ -90,7 +90,7 @@ export function HostInfoCard({ host }: { host: Host }) {
   );
 }
 
-export function HostLabelsCard({ host }: { host: Host }) {
+export function HostLabelsCard({ host }: { host: HostDetail }) {
   const labels = (host.labels ?? []).filter((l) => l.label_type === "regular");
   if (labels.length === 0) return null;
   return (
@@ -113,7 +113,7 @@ export function HostLabelsCard({ host }: { host: Host }) {
   );
 }
 
-export function HostUsersCard({ host }: { host: Host }) {
+export function HostUsersCard({ host }: { host: HostDetail }) {
   const primary = host.device_mappings?.[0];
   const users = (host.users ?? []).filter((u) => u.username);
   if (users.length === 0 && !primary) return null;

@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -14,13 +13,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
-
-// Secret is a reusable shared credential shown to admins.
-type Secret struct {
-	ID        int64     `json:"id"`
-	Value     string    `json:"value"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 // Store persists shared credentials.
 type Store struct {

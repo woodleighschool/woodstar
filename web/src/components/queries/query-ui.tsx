@@ -18,7 +18,7 @@ import type { Schemas } from "@/lib/api";
 import { platformLabel, targetSummary } from "@/lib/targeting";
 import { cn, formatInterval } from "@/lib/utils";
 
-type LabelScope = Schemas["LabelScopeBody"];
+type LabelScope = Schemas["LabelScope"];
 
 export function PageLead({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
   return (

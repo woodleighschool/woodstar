@@ -9,7 +9,7 @@ import { useLabels } from "@/hooks/use-labels";
 import type { Schemas } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type LabelScope = Schemas["LabelScopeBody"];
+type LabelScope = Schemas["LabelScope"];
 type LabelScopeMode = NonNullable<LabelScope["mode"]>;
 
 const includeAny: LabelScopeMode = "include_any";

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -13,10 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
-const (
-	softwareTag            = "Software"
-	sourceChromeExtensions = "chrome_extensions"
-)
+const softwareTag = "Software"
 
 type softwareListInput struct {
 	Page           int      `query:"page,omitempty"`
@@ -45,30 +41,9 @@ type softwareGetInput struct {
 	ID string `path:"id"`
 }
 
-type softwareTitleBody struct {
-	ID               int64                 `json:"id"`
-	Name             string                `json:"name"`
-	DisplayName      string                `json:"display_name"`
-	Source           string                `json:"source"`
-	ExtensionFor     string                `json:"extension_for"`
-	Browser          string                `json:"browser"`
-	BundleIdentifier string                `json:"bundle_identifier,omitempty"`
-	HostsCount       int                   `json:"hosts_count"`
-	VersionsCount    int                   `json:"versions_count"`
-	Versions         []softwareVersionBody `json:"versions"`
-	CountsUpdatedAt  *time.Time            `json:"counts_updated_at"`
-}
-
-type softwareVersionBody struct {
-	ID               int64  `json:"id"`
-	Version          string `json:"version"`
-	BundleIdentifier string `json:"bundle_identifier,omitempty"`
-	HostsCount       int    `json:"hosts_count"`
-}
-
 type softwareListBody struct {
-	Items []softwareTitleBody `json:"items"`
-	Count int                 `json:"count"`
+	Items []software.SoftwareTitle `json:"items"`
+	Count int                      `json:"count"`
 }
 
 type softwareListOutput struct {
@@ -76,7 +51,7 @@ type softwareListOutput struct {
 }
 
 type softwareGetBody struct {
-	SoftwareTitle softwareTitleBody `json:"software_title"`
+	SoftwareTitle software.SoftwareTitle `json:"software_title"`
 }
 
 type softwareGetOutput struct {
@@ -97,14 +72,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 		if err != nil {
 			return nil, apihelpers.ResourceMutationError("software", err)
 		}
-		body := softwareListBody{
-			Items: make([]softwareTitleBody, 0, len(titles)),
-			Count: count,
-		}
-		for _, title := range titles {
-			body.Items = append(body.Items, softwareTitleResponse(title))
-		}
-		return &softwareListOutput{Body: body}, nil
+		return &softwareListOutput{Body: softwareListBody{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -126,40 +94,6 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &softwareGetOutput{Body: softwareGetBody{SoftwareTitle: softwareTitleResponse(*title)}}, nil
+		return &softwareGetOutput{Body: softwareGetBody{SoftwareTitle: *title}}, nil
 	})
-}
-
-func softwareTitleResponse(title software.SoftwareTitle) softwareTitleBody {
-	versions := make([]softwareVersionBody, 0, len(title.Versions))
-	for _, version := range title.Versions {
-		versions = append(versions, softwareVersionBody{
-			ID:               version.ID,
-			Version:          version.Version,
-			BundleIdentifier: version.BundleIdentifier,
-			HostsCount:       version.HostsCount,
-		})
-	}
-	return softwareTitleBody{
-		ID:               title.ID,
-		Name:             title.Name,
-		DisplayName:      title.DisplayName,
-		Source:           title.Source,
-		ExtensionFor:     title.ExtensionFor,
-		Browser:          browserForSoftware(title.Source, title.ExtensionFor),
-		BundleIdentifier: title.BundleIdentifier,
-		HostsCount:       title.HostsCount,
-		VersionsCount:    title.VersionsCount,
-		Versions:         versions,
-		CountsUpdatedAt:  title.CountsUpdatedAt,
-	}
-}
-
-func browserForSoftware(source string, extensionFor string) string {
-	switch source {
-	case sourceChromeExtensions, "firefox_addons", "safari_extensions":
-		return extensionFor
-	default:
-		return ""
-	}
 }
