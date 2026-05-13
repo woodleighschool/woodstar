@@ -127,9 +127,9 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 	return &u, nil
 }
 
-// SoftDelete marks the user with id as deleted.
-func (s *Store) SoftDelete(ctx context.Context, id int64) error {
-	_, err := s.q.SoftDeleteUser(ctx, sqlc.SoftDeleteUserParams{ID: id})
+// Delete removes the user with id.
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
@@ -155,6 +155,5 @@ func userFromSQLC(s sqlc.User) User {
 		Role:         s.Role,
 		CreatedAt:    s.CreatedAt,
 		UpdatedAt:    s.UpdatedAt,
-		DeletedAt:    s.DeletedAt,
 	}
 }

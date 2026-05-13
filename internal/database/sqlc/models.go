@@ -318,6 +318,7 @@ type Label struct {
 	Name                string    `json:"name"`
 	Description         string    `json:"description"`
 	Query               *string   `json:"query"`
+	Criteria            []byte    `json:"criteria"`
 	LabelType           string    `json:"label_type"`
 	LabelMembershipType string    `json:"label_membership_type"`
 	Platform            *Platform `json:"platform"`
@@ -403,12 +404,11 @@ type SoftwareTitle struct {
 }
 
 type User struct {
-	ID           int64      `json:"id"`
-	Email        string     `json:"email"`
-	Name         string     `json:"name"`
-	PasswordHash string     `json:"password_hash"`
-	Role         UserRole   `json:"role"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `json:"deleted_at"`
+	ID           int64     `json:"id"`
+	Email        string    `json:"email"`
+	Name         string    `json:"name"`
+	PasswordHash string    `json:"password_hash"`
+	Role         UserRole  `json:"role"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }

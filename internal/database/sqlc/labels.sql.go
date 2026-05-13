@@ -26,7 +26,7 @@ VALUES (
     $5,
     $6
 )
-RETURNING id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
+RETURNING id, name, description, query, criteria, label_type, label_membership_type, platform, created_at, updated_at
 `
 
 type CreateLabelParams struct {
@@ -53,6 +53,7 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		&i.Name,
 		&i.Description,
 		&i.Query,
+		&i.Criteria,
 		&i.LabelType,
 		&i.LabelMembershipType,
 		&i.Platform,
@@ -96,7 +97,7 @@ func (q *Queries) DeleteRegularLabel(ctx context.Context, arg DeleteRegularLabel
 
 const getLabelByID = `-- name: GetLabelByID :one
 SELECT
-    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
     count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
@@ -121,6 +122,7 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 		&i.Label.Name,
 		&i.Label.Description,
 		&i.Label.Query,
+		&i.Label.Criteria,
 		&i.Label.LabelType,
 		&i.Label.LabelMembershipType,
 		&i.Label.Platform,
@@ -177,7 +179,7 @@ func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApp
 }
 
 const listApplicableDynamicLabels = `-- name: ListApplicableDynamicLabels :many
-SELECT id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
+SELECT id, name, description, query, criteria, label_type, label_membership_type, platform, created_at, updated_at
 FROM labels
 WHERE
     label_membership_type = 'dynamic'
@@ -213,6 +215,7 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 			&i.Name,
 			&i.Description,
 			&i.Query,
+			&i.Criteria,
 			&i.LabelType,
 			&i.LabelMembershipType,
 			&i.Platform,
@@ -231,7 +234,7 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 
 const listLabelsForHost = `-- name: ListLabelsForHost :many
 SELECT
-    l.id, l.name, l.description, l.query, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.platform, l.created_at, l.updated_at,
     count(lm_all.host_id)::integer AS hosts_count
 FROM labels l
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
@@ -263,6 +266,7 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 			&i.Label.Name,
 			&i.Label.Description,
 			&i.Label.Query,
+			&i.Label.Criteria,
 			&i.Label.LabelType,
 			&i.Label.LabelMembershipType,
 			&i.Label.Platform,
@@ -305,7 +309,7 @@ SET
     platform = $5,
     updated_at = now()
 WHERE id = $6 AND label_type = 'regular'
-RETURNING id, name, description, query, label_type, label_membership_type, platform, created_at, updated_at
+RETURNING id, name, description, query, criteria, label_type, label_membership_type, platform, created_at, updated_at
 `
 
 type UpdateLabelParams struct {
@@ -332,6 +336,7 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		&i.Name,
 		&i.Description,
 		&i.Query,
+		&i.Criteria,
 		&i.LabelType,
 		&i.LabelMembershipType,
 		&i.Platform,

@@ -343,7 +343,7 @@ func validateLabelFields(name string, query *string, labelType, labelMembershipT
 		if query == nil {
 			return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
 		}
-	case LabelMembershipTypeManual, LabelMembershipTypeHostVitals:
+	case LabelMembershipTypeManual, LabelMembershipTypeDerived:
 		if query != nil {
 			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
 		}

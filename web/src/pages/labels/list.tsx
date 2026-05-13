@@ -36,7 +36,7 @@ import { formatRelative } from "@/lib/utils";
 const MEMBERSHIP_OPTIONS = [
   { value: "dynamic", label: "Dynamic" },
   { value: "manual", label: "Manual" },
-  { value: "host_vitals", label: "Host vitals" },
+  { value: "derived", label: "Derived" },
 ];
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));

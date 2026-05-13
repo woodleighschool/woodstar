@@ -2,7 +2,6 @@
 SELECT EXISTS (
     SELECT 1
     FROM users
-    WHERE deleted_at IS NULL
 );
 
 -- name: CreateUser :one
@@ -23,17 +22,16 @@ RETURNING *;
 -- name: GetUserByEmail :one
 SELECT *
 FROM users
-WHERE email = @email AND deleted_at IS NULL;
+WHERE email = @email;
 
 -- name: GetUserByID :one
 SELECT *
 FROM users
-WHERE id = @id AND deleted_at IS NULL;
+WHERE id = @id;
 
 -- name: ListUsers :many
 SELECT *
 FROM users
-WHERE deleted_at IS NULL
 ORDER BY created_at;
 
 -- name: UpdateUser :one
@@ -43,16 +41,15 @@ SET
     role = @role::user_role,
     password_hash = COALESCE(sqlc.narg(password_hash), password_hash),
     updated_at = now()
-WHERE id = @id AND deleted_at IS NULL
+WHERE id = @id
 RETURNING *;
 
--- name: SoftDeleteUser :one
-UPDATE users
-SET deleted_at = now(), updated_at = now()
-WHERE id = @id AND deleted_at IS NULL
+-- name: DeleteUser :one
+DELETE FROM users
+WHERE id = @id
 RETURNING id;
 
 -- name: CountAdminUsers :one
 SELECT count(*)::integer
 FROM users
-WHERE role = 'admin' AND deleted_at IS NULL;
+WHERE role = 'admin';

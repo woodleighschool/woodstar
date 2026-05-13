@@ -17,7 +17,7 @@ import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelM
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 
-type MembershipType = "dynamic" | "manual" | "host_vitals";
+type MembershipType = "dynamic" | "manual" | "derived";
 
 const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: string }[] = [
   {
@@ -31,9 +31,9 @@ const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: stri
     helpText: "Membership is managed by the server. Useful for ad-hoc grouping and host targeting.",
   },
   {
-    value: "host_vitals",
-    label: "Host vitals",
-    helpText: "Membership is derived from host fields. Currently reserved for future host-vitals criteria.",
+    value: "derived",
+    label: "Derived",
+    helpText: "Membership is computed from non-osquery host attributes such as directory department or group.",
   },
 ];
 
@@ -250,7 +250,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
 function membershipFromString(value: string | undefined): MembershipType {
   switch (value) {
     case "manual":
-    case "host_vitals":
+    case "derived":
       return value;
     default:
       return "dynamic";

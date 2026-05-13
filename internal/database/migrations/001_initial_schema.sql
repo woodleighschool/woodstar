@@ -14,8 +14,7 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     role user_role NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Owned by alexedwards/scs/pgxstore.
@@ -232,23 +231,25 @@ CREATE INDEX host_software_installed_paths_host_software_idx
 -- Labels ---------------------------------------------------------------------
 -- Labels are first-class targeting primitives. label_type separates system
 -- labels from admin-created labels; label_membership_type is how membership is produced:
---   dynamic     - osquery query result drives membership
---   manual      - membership is written by the server (e.g. All Hosts on enroll)
---   host_vitals - membership is derived from host fields, not osquery
+--   dynamic - osquery query result drives membership
+--   manual  - membership is written by the server (e.g. All Hosts on enroll)
+--   derived - membership is computed from non-osquery host attributes (criteria JSON)
 
 CREATE TABLE labels (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT,
+    criteria JSONB,
     label_type TEXT NOT NULL CHECK (label_type IN ('builtin', 'regular')),
-    label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'host_vitals')),
+    label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'derived')),
     platform platform,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
-        (label_membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL)
-        OR (label_membership_type IN ('manual', 'host_vitals') AND query IS NULL)
+        (label_membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL AND criteria IS NULL)
+        OR (label_membership_type = 'manual' AND query IS NULL AND criteria IS NULL)
+        OR (label_membership_type = 'derived' AND query IS NULL AND criteria IS NOT NULL)
     )
 );
 

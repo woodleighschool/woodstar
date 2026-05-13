@@ -12,7 +12,7 @@ import (
 const countAdminUsers = `-- name: CountAdminUsers :one
 SELECT count(*)::integer
 FROM users
-WHERE role = 'admin' AND deleted_at IS NULL
+WHERE role = 'admin'
 `
 
 func (q *Queries) CountAdminUsers(ctx context.Context) (int32, error) {
@@ -35,7 +35,7 @@ VALUES (
     $3,
     $4
 )
-RETURNING id, email, name, password_hash, role, created_at, updated_at, deleted_at
+RETURNING id, email, name, password_hash, role, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -61,15 +61,31 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :one
+DELETE FROM users
+WHERE id = $1
+RETURNING id
+`
+
+type DeleteUserParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteUser, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at
 FROM users
-WHERE email = $1 AND deleted_at IS NULL
+WHERE email = $1
 `
 
 type GetUserByEmailParams struct {
@@ -87,15 +103,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at
 FROM users
-WHERE id = $1 AND deleted_at IS NULL
+WHERE id = $1
 `
 
 type GetUserByIDParams struct {
@@ -113,15 +128,13 @@ func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (User,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, name, password_hash, role, created_at, updated_at, deleted_at
+SELECT id, email, name, password_hash, role, created_at, updated_at
 FROM users
-WHERE deleted_at IS NULL
 ORDER BY created_at
 `
 
@@ -142,7 +155,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -154,24 +166,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :one
-UPDATE users
-SET deleted_at = now(), updated_at = now()
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id
-`
-
-type SoftDeleteUserParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) (int64, error) {
-	row := q.db.QueryRow(ctx, softDeleteUser, arg.ID)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET
@@ -179,8 +173,8 @@ SET
     role = $2::user_role,
     password_hash = COALESCE($3, password_hash),
     updated_at = now()
-WHERE id = $4 AND deleted_at IS NULL
-RETURNING id, email, name, password_hash, role, created_at, updated_at, deleted_at
+WHERE id = $4
+RETURNING id, email, name, password_hash, role, created_at, updated_at
 `
 
 type UpdateUserParams struct {
@@ -206,7 +200,6 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -215,7 +208,6 @@ const userExists = `-- name: UserExists :one
 SELECT EXISTS (
     SELECT 1
     FROM users
-    WHERE deleted_at IS NULL
 )
 `
 

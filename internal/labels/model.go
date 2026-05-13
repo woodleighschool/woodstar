@@ -16,11 +16,11 @@ const (
 // Label membership types. LabelMembershipType controls how membership rows are produced:
 //   - dynamic: an osquery query result drives membership
 //   - manual: the server writes membership rows (e.g. All Hosts on enroll)
-//   - host_vitals: membership is derived from host fields, not osquery
+//   - derived: membership is computed from non-osquery host attributes (criteria JSON)
 const (
-	LabelMembershipTypeDynamic    = "dynamic"
-	LabelMembershipTypeManual     = "manual"
-	LabelMembershipTypeHostVitals = "host_vitals"
+	LabelMembershipTypeDynamic = "dynamic"
+	LabelMembershipTypeManual  = "manual"
+	LabelMembershipTypeDerived = "derived"
 )
 
 // Label is a host grouping and targeting primitive.

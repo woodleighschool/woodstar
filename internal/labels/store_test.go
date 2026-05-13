@@ -47,11 +47,11 @@ func TestCleanLabelCreate(t *testing.T) {
 			wantErr: "query is only allowed for dynamic labels",
 		},
 		{
-			name: "host_vitals label with query is invalid",
+			name: "derived label with query is invalid",
 			in: LabelCreate{
 				Name:                "Department",
 				Query:               &staticQuery,
-				LabelMembershipType: LabelMembershipTypeHostVitals,
+				LabelMembershipType: LabelMembershipTypeDerived,
 			},
 			wantErr: "query is only allowed for dynamic labels",
 		},
