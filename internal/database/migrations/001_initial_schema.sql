@@ -44,6 +44,45 @@ CREATE INDEX secrets_kind_active_idx
     ON secrets (kind, created_at DESC)
     WHERE deleted_at IS NULL;
 
+-- Directory (Entra-only MVP; table shape stays portable) ---------------------
+
+CREATE TABLE directory_users (
+    id BIGSERIAL PRIMARY KEY,
+    external_id TEXT NOT NULL UNIQUE,
+    user_principal_name TEXT NOT NULL UNIQUE,
+    mail TEXT,
+    mail_nickname TEXT,
+    display_name TEXT NOT NULL DEFAULT '',
+    given_name TEXT,
+    family_name TEXT,
+    department TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_synced_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX directory_users_upn_idx ON directory_users (user_principal_name);
+CREATE INDEX directory_users_department_idx ON directory_users (department);
+
+CREATE TABLE directory_groups (
+    id BIGSERIAL PRIMARY KEY,
+    external_id TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    mail_nickname TEXT,
+    last_synced_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE directory_user_groups (
+    directory_user_id BIGINT NOT NULL REFERENCES directory_users (id) ON DELETE CASCADE,
+    directory_group_id BIGINT NOT NULL REFERENCES directory_groups (id) ON DELETE CASCADE,
+    PRIMARY KEY (directory_user_id, directory_group_id)
+);
+
+CREATE INDEX directory_user_groups_group_idx ON directory_user_groups (directory_group_id);
+
 -- Hosts ----------------------------------------------------------------------
 
 CREATE TABLE hosts (

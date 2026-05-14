@@ -209,6 +209,37 @@ type CheckMembership struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
+type DirectoryGroup struct {
+	ID           int64     `json:"id"`
+	ExternalID   string    `json:"external_id"`
+	DisplayName  string    `json:"display_name"`
+	MailNickname *string   `json:"mail_nickname"`
+	LastSyncedAt time.Time `json:"last_synced_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type DirectoryUser struct {
+	ID                int64     `json:"id"`
+	ExternalID        string    `json:"external_id"`
+	UserPrincipalName string    `json:"user_principal_name"`
+	Mail              *string   `json:"mail"`
+	MailNickname      *string   `json:"mail_nickname"`
+	DisplayName       string    `json:"display_name"`
+	GivenName         *string   `json:"given_name"`
+	FamilyName        *string   `json:"family_name"`
+	Department        *string   `json:"department"`
+	Active            bool      `json:"active"`
+	LastSyncedAt      time.Time `json:"last_synced_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type DirectoryUserGroup struct {
+	DirectoryUserID  int64 `json:"directory_user_id"`
+	DirectoryGroupID int64 `json:"directory_group_id"`
+}
+
 type Host struct {
 	ID                      int64       `json:"id"`
 	HardwareUUID            string      `json:"hardware_uuid"`

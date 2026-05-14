@@ -26,6 +26,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
@@ -175,6 +176,18 @@ func newServer(
 	queries.StartCleanup(ctx, queryStore, queries.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "queries"))
+
+	if cfg.EntraEnabled() {
+		directoryStore := directory.NewStore(db)
+		entraClient := directory.NewEntraClient(directory.EntraConfig{
+			TenantID:         cfg.EntraTenantID,
+			ClientID:         cfg.EntraClientID,
+			ClientSecret:     cfg.EntraClientSecret,
+			TransitiveGroups: cfg.EntraTransitiveGroups,
+		})
+		directorySvc := directory.NewService(directoryStore, entraClient, logger.With("component", "directory"))
+		directorySvc.StartScheduler(ctx, cfg.EntraSyncInterval)
+	}
 
 	return api.NewServer(api.Dependencies{
 		Config:           cfg,

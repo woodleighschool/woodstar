@@ -39,12 +39,25 @@ type Config struct {
 	OIDCScopes       []string `env:"OIDC_SCOPES"        envDefault:"openid,email,profile"`
 	OIDCEmailClaim   string   `env:"OIDC_EMAIL_CLAIM"   envDefault:"email"`
 
+	// Entra directory sync is capability-gated: TenantID, ClientID, and
+	// ClientSecret must all be set for the sync loop to start.
+	EntraTenantID         string        `env:"ENTRA_TENANT_ID"`
+	EntraClientID         string        `env:"ENTRA_CLIENT_ID"`
+	EntraClientSecret     string        `env:"ENTRA_CLIENT_SECRET"`
+	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
+	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     envDefault:"1h"`
+
 	publicURLScheme string
 }
 
 // OIDCEnabled reports whether the required OIDC settings are present.
 func (cfg *Config) OIDCEnabled() bool {
 	return cfg.OIDCIssuerURL != "" && cfg.OIDCClientID != "" && cfg.OIDCClientSecret != ""
+}
+
+// EntraEnabled reports whether the required Entra directory settings are present.
+func (cfg *Config) EntraEnabled() bool {
+	return cfg.EntraTenantID != "" && cfg.EntraClientID != "" && cfg.EntraClientSecret != ""
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.
