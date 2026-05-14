@@ -135,6 +135,23 @@ func newServer(
 	checkStore := checks.NewStore(db)
 
 	authService := auth.NewService(userService, sessionManager)
+	if cfg.OIDCEnabled() {
+		oidcErr := authService.ConfigureOIDC(ctx, auth.OIDCConfig{
+			IssuerURL:    cfg.OIDCIssuerURL,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			RedirectURL:  cfg.PublicURL + "/api/auth/sso/callback",
+			Scopes:       cfg.OIDCScopes,
+			EmailClaim:   cfg.OIDCEmailClaim,
+		})
+		if oidcErr != nil {
+			logger.WarnContext(ctx, "sso disabled: oidc discovery failed",
+				"component", "auth", "operation", "oidc-configure", "err", oidcErr)
+		} else {
+			logger.InfoContext(ctx, "sso enabled",
+				"component", "auth", "operation", "oidc-configure", "issuer", cfg.OIDCIssuerURL)
+		}
+	}
 	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
 	liveQueries := livequery.NewLiveQueryManager(time.Duration(cfg.LiveQueryTimeoutSeconds) * time.Second)
 	inventoryProjector := ingest.NewProjector(

@@ -31,7 +31,20 @@ type Config struct {
 	LiveQueryTimeoutSeconds int `env:"LIVE_QUERY_TIMEOUT_SECONDS" envDefault:"60"`
 	ShutdownTimeoutSeconds  int `env:"SHUTDOWN_TIMEOUT_SECONDS"   envDefault:"15"`
 
+	// OIDC is capability-gated: SSO endpoints only mount when IssuerURL,
+	// ClientID, and ClientSecret are all set.
+	OIDCIssuerURL    string   `env:"OIDC_ISSUER_URL"`
+	OIDCClientID     string   `env:"OIDC_CLIENT_ID"`
+	OIDCClientSecret string   `env:"OIDC_CLIENT_SECRET"`
+	OIDCScopes       []string `env:"OIDC_SCOPES"        envDefault:"openid,email,profile"`
+	OIDCEmailClaim   string   `env:"OIDC_EMAIL_CLAIM"   envDefault:"email"`
+
 	publicURLScheme string
+}
+
+// OIDCEnabled reports whether the required OIDC settings are present.
+func (cfg *Config) OIDCEnabled() bool {
+	return cfg.OIDCIssuerURL != "" && cfg.OIDCClientID != "" && cfg.OIDCClientSecret != ""
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.

@@ -16,6 +16,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	protected.UseMiddleware(middleware.RequireAuth(humaAPI, deps.AuthService))
 
 	handlers.RegisterPublicAuth(humaAPI, deps.AuthService)
+	handlers.RegisterSSO(r, deps.AuthService)
 	handlers.RegisterAccount(protected, deps.AuthService)
 	handlers.RegisterUsers(protected, deps.UserService)
 	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)

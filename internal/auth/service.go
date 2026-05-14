@@ -27,11 +27,24 @@ var (
 type Service struct {
 	users    *users.Service
 	sessions *scs.SessionManager
+	oidc     *oidcProvider
 }
 
 // NewService creates an auth service backed by a user service and an scs session manager.
 func NewService(users *users.Service, sessions *scs.SessionManager) *Service {
 	return &Service{users: users, sessions: sessions}
+}
+
+// ConfigureOIDC performs OIDC issuer discovery and enables the SSO flow.
+// Safe to call once at startup; subsequent calls overwrite the previous
+// configuration. A discovery failure leaves SSO disabled.
+func (s *Service) ConfigureOIDC(ctx context.Context, cfg OIDCConfig) error {
+	provider, err := configureOIDC(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	s.oidc = provider
+	return nil
 }
 
 // CurrentUser returns the user attached to the session loaded into ctx by scs middleware.

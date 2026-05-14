@@ -10,13 +10,15 @@ import (
 // enforces invariants that protect the system from being locked out.
 var (
 	ErrCannotDeleteInitialUser = errors.New("the initial user cannot be deleted")
-	ErrCannotModifyInitialUser = errors.New("the initial user's name and role are locked; only the password may be changed")
+	ErrCannotModifyInitialUser = errors.New(
+		"the initial user's name and role are locked; only the password may be changed",
+	)
 )
 
-// initialUserID is the row created by the setup wizard. That account is
+// InitialUserID is the row created by the setup wizard. That account is
 // pinned as a permanent local password login: it cannot be deleted and only
 // its password may be updated, so an admin always has a working login path.
-const initialUserID int64 = 1
+const InitialUserID int64 = 1
 
 // Service owns local Woodstar account management.
 type Service struct {
@@ -81,7 +83,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*User, error
 // Update writes the full target record. The initial user's name and role are
 // locked.
 func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParams) (*User, error) {
-	if targetID == initialUserID {
+	if targetID == InitialUserID {
 		current, err := s.store.GetByID(ctx, targetID)
 		if err != nil {
 			return nil, err
@@ -110,7 +112,7 @@ func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParam
 // admin login always exists; the immutable id:1 admin floor also makes
 // "last admin removed" structurally impossible.
 func (s *Service) Delete(ctx context.Context, targetID int64) error {
-	if targetID == initialUserID {
+	if targetID == InitialUserID {
 		return ErrCannotDeleteInitialUser
 	}
 	return s.store.Delete(ctx, targetID)
@@ -130,4 +132,3 @@ func (s *Service) SetAPIKey(ctx context.Context, userID int64, key string) (*Use
 func (s *Service) ClearAPIKey(ctx context.Context, userID int64) (*User, error) {
 	return s.store.ClearAPIKey(ctx, userID)
 }
-

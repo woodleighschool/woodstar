@@ -1217,10 +1217,13 @@ components:
           type: string
         setup_complete:
           type: boolean
+        sso_enabled:
+          type: boolean
         user:
           $ref: "#/components/schemas/User"
       required:
         - setup_complete
+        - sso_enabled
       type: object
     SetupInputBody:
       additionalProperties: false

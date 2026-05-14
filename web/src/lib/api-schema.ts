@@ -1124,6 +1124,7 @@ export interface components {
              */
             readonly $schema?: string;
             setup_complete: boolean;
+            sso_enabled: boolean;
             user?: components["schemas"]["User"];
         };
         SetupInputBody: {

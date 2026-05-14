@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter, useSearch } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { useSession } from "@/hooks/use-auth";
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -18,7 +20,11 @@ type UserBody = Schemas["User"];
 export function LoginPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const { session } = useSession();
+  const search: { sso_error?: string } = useSearch({ strict: false });
+  const [error, setError] = useState<string | null>(search.sso_error ?? null);
+
+  const ssoEnabled = session?.sso_enabled ?? false;
 
   const login = useMutation<UserBody, ApiError, LoginInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/auth/login", { body })),
@@ -40,9 +46,8 @@ export function LoginPage() {
             <Star className="size-5" />
           </div>
           <CardTitle>Sign in to Woodstar</CardTitle>
-          <CardDescription>Local administrator sign-in or OIDC, when configured.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <form
             className="flex flex-col gap-4"
             onSubmit={(event) => {
@@ -71,6 +76,15 @@ export function LoginPage() {
               {login.isPending ? "Signing in..." : "Sign in"}
             </Button>
           </form>
+
+          {ssoEnabled ? (
+            <>
+              <Separator />
+              <Button asChild type="button" variant="outline" className="w-full">
+                <a href="/api/auth/sso/start">Sign in with SSO</a>
+              </Button>
+            </>
+          ) : null}
         </CardContent>
       </Card>
     </div>

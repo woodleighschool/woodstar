@@ -18,6 +18,7 @@ type sessionOutput struct {
 
 type sessionBody struct {
 	SetupComplete bool        `json:"setup_complete"`
+	SSOEnabled    bool        `json:"sso_enabled"`
 	User          *users.User `json:"user,omitempty"`
 }
 
@@ -86,7 +87,10 @@ func registerSession(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		out := &sessionOutput{Body: sessionBody{SetupComplete: complete}}
+		out := &sessionOutput{Body: sessionBody{
+			SetupComplete: complete,
+			SSOEnabled:    authService.SSOEnabled(),
+		}}
 		if !complete {
 			return out, nil
 		}
