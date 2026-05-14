@@ -62,6 +62,8 @@ type Server struct {
 
 // NewServer returns an HTTP server.
 func NewServer(deps Dependencies) *Server {
+	installHumaErrorHandler(deps.Logger)
+
 	server := &Server{deps: deps}
 	server.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
