@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
@@ -20,12 +20,13 @@ import (
 // Store persists checks and per-host membership state.
 type Store struct {
 	db     *database.DB
+	q      *sqlc.Queries
 	scopes *scope.Store
 }
 
 // NewStore returns a check store backed by db.
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, scopes: scope.NewStore(db)}
+	return &Store{db: db, q: sqlc.New(db.Pool()), scopes: scope.NewStore(db)}
 }
 
 // List returns checks matching params.
@@ -227,50 +228,22 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 	return out, nil
 }
 
-// UpsertMembership records a check result. A nil passes value means no-response.
+// UpsertMembership records a check result. A nil passes value means not run.
 func (s *Store) UpsertMembership(ctx context.Context, checkID int64, hostID int64, passes *bool) error {
-	_, err := s.db.Pool().Exec(ctx,
-		`INSERT INTO check_membership (
-		     check_id, host_id, passes, first_failed_at, last_evaluated_at, updated_at
-		 )
-		 VALUES ($1, $2, $3, CASE WHEN $3::boolean IS FALSE THEN now() ELSE NULL END, now(), now())
-		 ON CONFLICT (check_id, host_id) DO UPDATE SET
-		     passes = EXCLUDED.passes,
-		     first_failed_at = CASE
-		         WHEN EXCLUDED.passes IS TRUE THEN NULL
-		         WHEN EXCLUDED.passes IS FALSE THEN
-		             CASE
-		                 WHEN check_membership.passes IS FALSE THEN check_membership.first_failed_at
-		                 ELSE now()
-		             END
-		         ELSE check_membership.first_failed_at
-		     END,
-		     last_evaluated_at = now(),
-		     updated_at = now()`,
-		checkID,
-		hostID,
-		passes,
-	)
-	return err
+	return s.q.UpsertCheckMembership(ctx, sqlc.UpsertCheckMembershipParams{
+		CheckID: checkID,
+		HostID:  hostID,
+		Passes:  passes,
+	})
 }
 
 // HostStatuses returns check status rows for one check.
 func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostStatus, error) {
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT c.id, c.name, h.id, h.display_name,
-		        m.passes, m.first_failed_at, m.last_evaluated_at
-		 FROM checks c
-		 CROSS JOIN hosts h
-		 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-		 WHERE c.id = $1 AND h.deleted_at IS NULL
-		 ORDER BY m.passes ASC NULLS FIRST, h.display_name`,
-		checkID,
-	)
+	rows, err := s.q.ListCheckHostStatuses(ctx, sqlc.ListCheckHostStatusesParams{CheckID: checkID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return scanCheckStatuses(rows)
+	return checkHostStatusesFromCheckRows(rows), nil
 }
 
 // HostChecks returns check status rows applicable to one host.
@@ -283,64 +256,17 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 	for _, check := range checks {
 		checkIDs = append(checkIDs, check.ID)
 	}
-	states, err := s.hostCheckStates(ctx, host.ID, checkIDs)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]CheckHostStatus, 0, len(checks))
-	for _, check := range checks {
-		status := CheckHostStatus{
-			CheckID:   check.ID,
-			CheckName: check.Name,
-			HostID:    host.ID,
-			HostName:  host.DisplayName,
-		}
-		if state, ok := states[check.ID]; ok {
-			status.Passes = state.passes
-			status.FirstFailedAt = state.firstFailedAt
-			status.LastEvaluatedAt = state.lastEvaluatedAt
-		}
-		out = append(out, status)
-	}
-	return out, nil
-}
-
-type hostCheckState struct {
-	passes          *bool
-	firstFailedAt   *time.Time
-	lastEvaluatedAt *time.Time
-}
-
-func (s *Store) hostCheckStates(
-	ctx context.Context,
-	hostID int64,
-	checkIDs []int64,
-) (map[int64]hostCheckState, error) {
-	states := make(map[int64]hostCheckState, len(checkIDs))
 	if len(checkIDs) == 0 {
-		return states, nil
+		return nil, nil
 	}
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT check_id, passes, first_failed_at, last_evaluated_at
-		 FROM check_membership
-		 WHERE host_id = $1 AND check_id = ANY($2::bigint[])`,
-		hostID,
-		checkIDs,
-	)
+	rows, err := s.q.ListHostCheckStatuses(ctx, sqlc.ListHostCheckStatusesParams{
+		HostID:   host.ID,
+		CheckIds: checkIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var checkID int64
-		var state hostCheckState
-		if err := rows.Scan(&checkID, &state.passes, &state.firstFailedAt, &state.lastEvaluatedAt); err != nil {
-			return nil, err
-		}
-		states[checkID] = state
-	}
-	return states, rows.Err()
+	return checkHostStatusesFromHostRows(rows), nil
 }
 
 func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
@@ -381,24 +307,45 @@ func scanCheck(row pgx.Row) (*Check, error) {
 	return &check, err
 }
 
-func scanCheckStatuses(rows pgx.Rows) ([]CheckHostStatus, error) {
-	statuses := make([]CheckHostStatus, 0)
-	for rows.Next() {
-		var status CheckHostStatus
-		if err := rows.Scan(
-			&status.CheckID,
-			&status.CheckName,
-			&status.HostID,
-			&status.HostName,
-			&status.Passes,
-			&status.FirstFailedAt,
-			&status.LastEvaluatedAt,
-		); err != nil {
-			return nil, err
-		}
-		statuses = append(statuses, status)
+func checkHostStatusesFromCheckRows(rows []sqlc.ListCheckHostStatusesRow) []CheckHostStatus {
+	statuses := make([]CheckHostStatus, 0, len(rows))
+	for _, row := range rows {
+		statuses = append(statuses, CheckHostStatus{
+			CheckID:   row.CheckID,
+			CheckName: row.CheckName,
+			HostID:    row.HostID,
+			HostName:  row.HostName,
+			Response:  checkStatusFromPasses(row.Passes),
+			UpdatedAt: row.UpdatedAt,
+		})
 	}
-	return statuses, rows.Err()
+	return statuses
+}
+
+func checkHostStatusesFromHostRows(rows []sqlc.ListHostCheckStatusesRow) []CheckHostStatus {
+	statuses := make([]CheckHostStatus, 0, len(rows))
+	for _, row := range rows {
+		statuses = append(statuses, CheckHostStatus{
+			CheckID:   row.CheckID,
+			CheckName: row.CheckName,
+			HostID:    row.HostID,
+			HostName:  row.HostName,
+			Response:  checkStatusFromPasses(row.Passes),
+			UpdatedAt: row.UpdatedAt,
+		})
+	}
+	return statuses
+}
+
+func checkStatusFromPasses(passes *bool) *CheckStatus {
+	if passes == nil {
+		return nil
+	}
+	status := CheckStatusFail
+	if *passes {
+		status = CheckStatusPass
+	}
+	return &status
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {

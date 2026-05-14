@@ -597,14 +597,13 @@ export interface components {
             /** Format: int64 */
             check_id: number;
             check_name: string;
-            /** Format: date-time */
-            first_failed_at?: string;
             /** Format: int64 */
             host_id: number;
             host_name: string;
+            /** @enum {string|null} */
+            response: "pass" | "fail" | null;
             /** Format: date-time */
-            last_evaluated_at?: string;
-            passes?: boolean;
+            updated_at?: string;
         };
         CheckHostsOutputBody: {
             /**

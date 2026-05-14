@@ -90,24 +90,27 @@ components:
           type: integer
         check_name:
           type: string
-        first_failed_at:
-          format: date-time
-          type: string
         host_id:
           format: int64
           type: integer
         host_name:
           type: string
-        last_evaluated_at:
+        response:
+          enum:
+            - pass
+            - fail
+          type:
+            - string
+            - "null"
+        updated_at:
           format: date-time
           type: string
-        passes:
-          type: boolean
       required:
         - check_id
         - check_name
         - host_id
         - host_name
+        - response
       type: object
     CheckHostsOutputBody:
       additionalProperties: false

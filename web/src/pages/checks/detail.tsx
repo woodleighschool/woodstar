@@ -39,8 +39,8 @@ export function CheckDetailPage() {
   }
 
   const hostRows = hosts.data?.items ?? [];
-  const failing = hostRows.filter((row) => row.passes === false).length;
-  const passing = hostRows.filter((row) => row.passes === true).length;
+  const failing = hostRows.filter((row) => row.response === "fail").length;
+  const passing = hostRows.filter((row) => row.response === "pass").length;
 
   return (
     <div className="flex flex-col gap-5 p-6">
@@ -104,14 +104,10 @@ export function CheckDetailPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <CheckStatusBadge passes={row.passes} />
+                      <CheckStatusBadge response={row.response} />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {row.first_failed_at
-                        ? formatRelative(row.first_failed_at)
-                        : row.last_evaluated_at
-                          ? formatRelative(row.last_evaluated_at)
-                          : "-"}
+                      {row.updated_at ? formatRelative(row.updated_at) : "-"}
                     </TableCell>
                   </TableRow>
                 ))

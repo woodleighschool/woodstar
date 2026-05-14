@@ -42,13 +42,20 @@ type CheckListParams struct {
 	Platform string
 }
 
+// CheckStatus is a check's current response value for a host.
+type CheckStatus string
+
+const (
+	CheckStatusPass CheckStatus = "pass"
+	CheckStatusFail CheckStatus = "fail"
+)
+
 // CheckHostStatus is a check's current state for one host.
 type CheckHostStatus struct {
-	CheckID         int64      `json:"check_id"`
-	CheckName       string     `json:"check_name"`
-	HostID          int64      `json:"host_id"`
-	HostName        string     `json:"host_name"`
-	Passes          *bool      `json:"passes,omitempty"`
-	FirstFailedAt   *time.Time `json:"first_failed_at,omitempty"`
-	LastEvaluatedAt *time.Time `json:"last_evaluated_at,omitempty"`
+	CheckID   int64        `json:"check_id"`
+	CheckName string       `json:"check_name"`
+	HostID    int64        `json:"host_id"`
+	HostName  string       `json:"host_name"`
+	Response  *CheckStatus `json:"response"             enum:"pass,fail"`
+	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
 }

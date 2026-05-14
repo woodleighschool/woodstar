@@ -200,10 +200,10 @@ function HostChecksTab({ hostId }: { hostId: string }) {
                 </Link>
               </TableCell>
               <TableCell>
-                <CheckStatusBadge passes={row.passes} />
+                <CheckStatusBadge response={row.response} />
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {row.last_evaluated_at ? formatRelative(row.last_evaluated_at) : "-"}
+                {row.updated_at ? formatRelative(row.updated_at) : "-"}
               </TableCell>
             </TableRow>
           ))}

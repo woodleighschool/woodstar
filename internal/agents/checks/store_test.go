@@ -102,6 +102,13 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
+	failing, err := store.Create(ctx, CheckCreate{
+		Name:  "Failing check",
+		Query: "select 0;",
+	})
+	if err != nil {
+		t.Fatalf("create failing check: %v", err)
+	}
 	unevaluated, err := store.Create(ctx, CheckCreate{
 		Name:  "Unevaluated check",
 		Query: "select 2;",
@@ -113,13 +120,23 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	if err := store.UpsertMembership(ctx, passing.ID, host.ID, &passes); err != nil {
 		t.Fatalf("upsert membership: %v", err)
 	}
+	fails := false
+	if err := store.UpsertMembership(ctx, failing.ID, host.ID, &fails); err != nil {
+		t.Fatalf("upsert failing membership: %v", err)
+	}
 
 	got, err := store.HostChecks(ctx, host)
 	if err != nil {
 		t.Fatalf("host checks: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("HostChecks returned %d checks, want 2: %+v", len(got), got)
+	if len(got) != 3 {
+		t.Fatalf("HostChecks returned %d checks, want 3: %+v", len(got), got)
+	}
+	wantOrder := []int64{failing.ID, unevaluated.ID, passing.ID}
+	for i, wantID := range wantOrder {
+		if got[i].CheckID != wantID {
+			t.Fatalf("HostChecks order = %+v, want fail/not-run/pass", got)
+		}
 	}
 	byID := make(map[int64]CheckHostStatus, len(got))
 	for _, status := range got {
@@ -127,18 +144,87 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	}
 
 	passingStatus := byID[passing.ID]
-	if passingStatus.Passes == nil || !*passingStatus.Passes {
-		t.Fatalf("passing status Passes = %v, want true", passingStatus.Passes)
+	if passingStatus.Response == nil || *passingStatus.Response != CheckStatusPass {
+		t.Fatalf("passing status Response = %v, want pass", passingStatus.Response)
 	}
-	if passingStatus.LastEvaluatedAt == nil {
-		t.Fatalf("passing status LastEvaluatedAt is nil, want evaluated timestamp")
+	if passingStatus.UpdatedAt == nil {
+		t.Fatalf("passing status UpdatedAt is nil, want evaluated timestamp")
+	}
+	failingStatus := byID[failing.ID]
+	if failingStatus.Response == nil || *failingStatus.Response != CheckStatusFail || failingStatus.UpdatedAt == nil {
+		t.Fatalf("failing status = %+v, want fail with evaluated timestamp", failingStatus)
 	}
 
 	unevaluatedStatus := byID[unevaluated.ID]
-	if unevaluatedStatus.Passes != nil ||
-		unevaluatedStatus.FirstFailedAt != nil ||
-		unevaluatedStatus.LastEvaluatedAt != nil {
+	if unevaluatedStatus.Response != nil || unevaluatedStatus.UpdatedAt != nil {
 		t.Fatalf("unevaluated status = %+v, want empty membership state", unevaluatedStatus)
+	}
+}
+
+func TestHostStatusesIncludeMembershipState(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	check, err := store.Create(ctx, CheckCreate{
+		Name:  "Status list check",
+		Query: "select 1;",
+	})
+	if err != nil {
+		t.Fatalf("create check: %v", err)
+	}
+	failingHost := enrollTestHost(t, ctx, hostStore, "aaa-failing-host")
+	notRunHost := enrollTestHost(t, ctx, hostStore, "bbb-not-run-host")
+	passingHost := enrollTestHost(t, ctx, hostStore, "ccc-passing-host")
+
+	fails := false
+	if err := store.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
+		t.Fatalf("upsert failing membership: %v", err)
+	}
+	passes := true
+	if err := store.UpsertMembership(ctx, check.ID, passingHost.ID, &passes); err != nil {
+		t.Fatalf("upsert passing membership: %v", err)
+	}
+
+	got, err := store.HostStatuses(ctx, check.ID)
+	if err != nil {
+		t.Fatalf("host statuses: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("HostStatuses returned %d hosts, want 3: %+v", len(got), got)
+	}
+	failStatus := CheckStatusFail
+	passStatus := CheckStatusPass
+	want := []struct {
+		hostID   int64
+		response *CheckStatus
+		updated  bool
+	}{
+		{hostID: failingHost.ID, response: &failStatus, updated: true},
+		{hostID: notRunHost.ID},
+		{hostID: passingHost.ID, response: &passStatus, updated: true},
+	}
+	for i, wantStatus := range want {
+		if got[i].HostID != wantStatus.hostID ||
+			!equalCheckStatusPtr(got[i].Response, wantStatus.response) ||
+			(got[i].UpdatedAt != nil) != wantStatus.updated {
+			t.Fatalf(
+				"HostStatuses[%d] = %+v, want host=%d response=%v updated=%v",
+				i,
+				got[i],
+				wantStatus.hostID,
+				wantStatus.response,
+				wantStatus.updated,
+			)
+		}
+	}
+}
+
+func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
+	switch {
+	case a == nil && b == nil:
+		return true
+	case a == nil || b == nil:
+		return false
+	default:
+		return *a == *b
 	}
 }
 

@@ -201,12 +201,11 @@ type CheckLabel struct {
 }
 
 type CheckMembership struct {
-	CheckID         int64      `json:"check_id"`
-	HostID          int64      `json:"host_id"`
-	Passes          *bool      `json:"passes"`
-	FirstFailedAt   *time.Time `json:"first_failed_at"`
-	LastEvaluatedAt time.Time  `json:"last_evaluated_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	CheckID   int64     `json:"check_id"`
+	HostID    int64     `json:"host_id"`
+	Passes    *bool     `json:"passes"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DirectoryGroup struct {
