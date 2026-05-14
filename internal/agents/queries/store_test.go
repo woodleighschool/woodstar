@@ -1,8 +1,15 @@
 package queries
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestCleanQueryCreate(t *testing.T) {
@@ -90,6 +97,138 @@ func TestCleanQueryCreate(t *testing.T) {
 	}
 }
 
+func TestListIncludesLabelScope(t *testing.T) {
+	store, labelStore, _, ctx := newIntegrationQueryStore(t)
+	labelA := createManualLabel(t, ctx, labelStore, "Query A")
+	labelB := createManualLabel(t, ctx, labelStore, "Query B")
+
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:             "Scoped query",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		LabelScope: scope.LabelScope{
+			Mode:     scope.ScopeIncludeAll,
+			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
+		},
+	}); err != nil {
+		t.Fatalf("create query: %v", err)
+	}
+
+	got, count, err := store.List(ctx, QueryListParams{})
+	if err != nil {
+		t.Fatalf("list queries: %v", err)
+	}
+	if count != 1 || len(got) != 1 {
+		t.Fatalf("List returned count=%d len=%d, want one query", count, len(got))
+	}
+	if got[0].LabelScope.Mode != scope.ScopeIncludeAll {
+		t.Fatalf("LabelScope.Mode = %q, want %q", got[0].LabelScope.Mode, scope.ScopeIncludeAll)
+	}
+	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
+}
+
+func TestScheduledForHostUsesLabelScope(t *testing.T) {
+	store, labelStore, hostStore, ctx := newIntegrationQueryStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "query-scope-host")
+	matching := createManualLabel(t, ctx, labelStore, "Query match")
+	other := createManualLabel(t, ctx, labelStore, "Query other")
+	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
+		t.Fatalf("set matching label membership: %v", err)
+	}
+
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:             "Matching scheduled query",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
+	}); err != nil {
+		t.Fatalf("create matching query: %v", err)
+	}
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:             "Nonmatching scheduled query",
+		Query:            "select 2;",
+		ScheduleInterval: 60,
+		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
+	}); err != nil {
+		t.Fatalf("create nonmatching query: %v", err)
+	}
+
+	got, err := store.ScheduledForHost(ctx, host)
+	if err != nil {
+		t.Fatalf("scheduled for host: %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "Matching scheduled query" {
+		t.Fatalf("ScheduledForHost returned %+v, want only matching query", got)
+	}
+}
+
+func TestHostReportsIncludeLatestHostState(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationQueryStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "query-report-host")
+	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
+
+	reportWithRows, err := store.Create(ctx, QueryCreate{
+		Name:             "Report with rows",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+	})
+	if err != nil {
+		t.Fatalf("create report with rows: %v", err)
+	}
+	reportEmpty, err := store.Create(ctx, QueryCreate{
+		Name:             "Report empty",
+		Query:            "select name from missing_apps;",
+		ScheduleInterval: 60,
+	})
+	if err != nil {
+		t.Fatalf("create empty report: %v", err)
+	}
+	if err := store.OverwriteResults(ctx, reportWithRows.ID, host.ID, []map[string]string{
+		{"name": "Alpha"},
+		{"name": "Bravo"},
+	}, fetchedAt); err != nil {
+		t.Fatalf("overwrite report rows: %v", err)
+	}
+	if err := store.OverwriteResults(ctx, reportEmpty.ID, host.ID, nil, fetchedAt.Add(time.Minute)); err != nil {
+		t.Fatalf("overwrite empty report: %v", err)
+	}
+
+	got, err := store.HostReports(ctx, host)
+	if err != nil {
+		t.Fatalf("host reports: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("HostReports returned %d reports, want 2: %+v", len(got), got)
+	}
+	byID := make(map[int64]HostReport, len(got))
+	for _, report := range got {
+		byID[report.ReportID] = report
+	}
+
+	withRows := byID[reportWithRows.ID]
+	if withRows.HostResultCount != 2 {
+		t.Fatalf("HostResultCount = %d, want 2", withRows.HostResultCount)
+	}
+	if withRows.LastFetched == nil || !withRows.LastFetched.Equal(fetchedAt) {
+		t.Fatalf("LastFetched = %v, want %s", withRows.LastFetched, fetchedAt)
+	}
+	if withRows.FirstResult["name"] != "Bravo" {
+		t.Fatalf("FirstResult = %#v, want latest row", withRows.FirstResult)
+	}
+
+	empty := byID[reportEmpty.ID]
+	if empty.HostResultCount != 0 {
+		t.Fatalf("empty HostResultCount = %d, want 0", empty.HostResultCount)
+	}
+	wantEmptyFetched := fetchedAt.Add(time.Minute)
+	if empty.LastFetched == nil || !empty.LastFetched.Equal(wantEmptyFetched) {
+		t.Fatalf("empty LastFetched = %v, want %s", empty.LastFetched, wantEmptyFetched)
+	}
+	if empty.FirstResult != nil {
+		t.Fatalf("empty FirstResult = %#v, want nil", empty.FirstResult)
+	}
+}
+
 func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
 	t.Helper()
 	if got.Name != want.Name {
@@ -119,5 +258,47 @@ func assertStringPtr(t *testing.T, name string, got *string, want *string) {
 		t.Fatalf("%s = %v, want %v", name, got, want)
 	case *got != *want:
 		t.Fatalf("%s = %q, want %q", name, *got, *want)
+	}
+}
+
+func newIntegrationQueryStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
+	t.Helper()
+	database, ctx := dbtest.Open(t)
+	return NewStore(database), labels.NewStore(database), hosts.NewStore(database), ctx
+}
+
+func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {
+	t.Helper()
+	label, err := store.Create(ctx, labels.LabelCreate{
+		Name:                name,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label %q: %v", name, err)
+	}
+	return label
+}
+
+func enrollTestHost(t *testing.T, ctx context.Context, store *hosts.Store, hardwareUUID string) *hosts.Host {
+	t.Helper()
+	host, err := store.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+		HardwareUUID: hardwareUUID,
+		OrbitNodeKey: hardwareUUID + "-node-key",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	return host
+}
+
+func assertInt64s(t *testing.T, name string, got []int64, want []int64) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s = %#v, want %#v", name, got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("%s = %#v, want %#v", name, got, want)
+		}
 	}
 }

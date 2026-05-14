@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -18,12 +19,13 @@ import (
 
 // Store persists checks and per-host membership state.
 type Store struct {
-	db *database.DB
+	db     *database.DB
+	scopes *scope.Store
 }
 
 // NewStore returns a check store backed by db.
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+	return &Store{db: db, scopes: scope.NewStore(db)}
 }
 
 // List returns checks matching params.
@@ -47,19 +49,26 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	defer rows.Close()
 
 	checks := make([]Check, 0)
+	checkIDs := make([]int64, 0)
 	for rows.Next() {
 		check, err := scanCheck(rows)
 		if err != nil {
 			return nil, 0, err
 		}
-		labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
-		if err != nil {
-			return nil, 0, err
-		}
-		check.LabelScope = labelScope
 		checks = append(checks, *check)
+		checkIDs = append(checkIDs, check.ID)
 	}
-	return checks, count, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	scopes, err := s.scopes.LoadChecks(ctx, checkIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range checks {
+		checks[i].LabelScope = scopes[checks[i].ID]
+	}
+	return checks, count, nil
 }
 
 // GetByID returns one check.
@@ -71,7 +80,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
+	labelScope, err := s.scopes.LoadCheck(ctx, check.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +112,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			}
 			return err
 		}
-		if err := scope.ReplaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
+		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -140,7 +149,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			}
 			return err
 		}
-		if err := scope.ReplaceCheckScope(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
+		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -183,6 +192,7 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 	defer rows.Close()
 
 	checks := make([]Check, 0)
+	checkIDs := make([]int64, 0)
 	for rows.Next() {
 		check, err := scanCheck(rows)
 		if err != nil {
@@ -191,21 +201,30 @@ func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Chec
 		if !hosts.QueryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
 			continue
 		}
-		labelScope, err := scope.LoadCheckScope(ctx, s.db.Pool(), check.ID)
-		if err != nil {
-			return nil, err
-		}
-		matches, err := scope.HostMatches(ctx, s.db.Pool(), labelScope, host.ID)
-		if err != nil {
-			return nil, err
-		}
-		if !matches {
+		checks = append(checks, *check)
+		checkIDs = append(checkIDs, check.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	scopes, err := s.scopes.LoadChecks(ctx, checkIDs)
+	if err != nil {
+		return nil, err
+	}
+	matches, err := s.scopes.MatchHostScopes(ctx, host.ID, scopes)
+	if err != nil {
+		return nil, err
+	}
+	out := checks[:0]
+	for _, check := range checks {
+		labelScope := scopes[check.ID]
+		if !matches[check.ID] {
 			continue
 		}
 		check.LabelScope = labelScope
-		checks = append(checks, *check)
+		out = append(out, check)
 	}
-	return checks, rows.Err()
+	return out, nil
 }
 
 // UpsertMembership records a check result. A nil passes value means no-response.
@@ -260,6 +279,14 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 	if err != nil {
 		return nil, err
 	}
+	checkIDs := make([]int64, 0, len(checks))
+	for _, check := range checks {
+		checkIDs = append(checkIDs, check.ID)
+	}
+	states, err := s.hostCheckStates(ctx, host.ID, checkIDs)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]CheckHostStatus, 0, len(checks))
 	for _, check := range checks {
 		status := CheckHostStatus{
@@ -268,23 +295,52 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 			HostID:    host.ID,
 			HostName:  host.DisplayName,
 		}
-		err := s.db.Pool().QueryRow(ctx,
-			`SELECT passes, first_failed_at, last_evaluated_at
-			 FROM check_membership
-			 WHERE check_id = $1 AND host_id = $2`,
-			check.ID,
-			host.ID,
-		).Scan(&status.Passes, &status.FirstFailedAt, &status.LastEvaluatedAt)
-		if errors.Is(err, pgx.ErrNoRows) {
-			out = append(out, status)
-			continue
-		}
-		if err != nil {
-			return nil, err
+		if state, ok := states[check.ID]; ok {
+			status.Passes = state.passes
+			status.FirstFailedAt = state.firstFailedAt
+			status.LastEvaluatedAt = state.lastEvaluatedAt
 		}
 		out = append(out, status)
 	}
 	return out, nil
+}
+
+type hostCheckState struct {
+	passes          *bool
+	firstFailedAt   *time.Time
+	lastEvaluatedAt *time.Time
+}
+
+func (s *Store) hostCheckStates(
+	ctx context.Context,
+	hostID int64,
+	checkIDs []int64,
+) (map[int64]hostCheckState, error) {
+	states := make(map[int64]hostCheckState, len(checkIDs))
+	if len(checkIDs) == 0 {
+		return states, nil
+	}
+	rows, err := s.db.Pool().Query(ctx,
+		`SELECT check_id, passes, first_failed_at, last_evaluated_at
+		 FROM check_membership
+		 WHERE host_id = $1 AND check_id = ANY($2::bigint[])`,
+		hostID,
+		checkIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var checkID int64
+		var state hostCheckState
+		if err := rows.Scan(&checkID, &state.passes, &state.firstFailedAt, &state.lastEvaluatedAt); err != nil {
+			return nil, err
+		}
+		states[checkID] = state
+	}
+	return states, rows.Err()
 }
 
 func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {

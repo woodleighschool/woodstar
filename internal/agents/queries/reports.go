@@ -108,15 +108,23 @@ func (s *Store) HostReports(ctx context.Context, host *hosts.Host) ([]HostReport
 	if err != nil {
 		return nil, err
 	}
+	queryIDs := make([]int64, 0, len(queries))
+	for _, query := range queries {
+		queryIDs = append(queryIDs, query.ID)
+	}
+	states, err := s.loadHostReportStates(ctx, host.ID, queryIDs)
+	if err != nil {
+		return nil, err
+	}
 	results := make([]HostReport, 0, len(queries))
 	for _, query := range queries {
 		report := HostReport{
-			ReportID:    query.ID,
-			Name:        query.Name,
-			Description: query.Description,
-		}
-		if err := s.loadHostReportState(ctx, query.ID, host.ID, &report); err != nil {
-			return nil, err
+			ReportID:        query.ID,
+			Name:            query.Name,
+			Description:     query.Description,
+			LastFetched:     states[query.ID].lastFetched,
+			FirstResult:     states[query.ID].firstResult,
+			HostResultCount: states[query.ID].hostResultCount,
 		}
 		results = append(results, report)
 	}
@@ -234,49 +242,70 @@ func scanQueryResultRow(row pgx.Row) (QueryResult, bool, error) {
 	return result, true, nil
 }
 
-func (s *Store) loadHostReportState(ctx context.Context, queryID int64, hostID int64, report *HostReport) error {
-	var fetched time.Time
-	err := s.db.Pool().QueryRow(ctx,
-		`SELECT last_fetched
-		 FROM query_results
-		 WHERE query_id = $1 AND host_id = $2
-		 ORDER BY last_fetched DESC, id DESC
-		 LIMIT 1`,
-		queryID,
-		hostID,
-	).Scan(&fetched)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
-	if err == nil {
-		report.LastFetched = new(fetched)
+type hostReportState struct {
+	lastFetched     *time.Time
+	firstResult     map[string]string
+	hostResultCount int
+}
+
+func (s *Store) loadHostReportStates(
+	ctx context.Context,
+	hostID int64,
+	queryIDs []int64,
+) (map[int64]hostReportState, error) {
+	states := make(map[int64]hostReportState, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return states, nil
 	}
 
-	if err := s.db.Pool().QueryRow(ctx,
-		`SELECT count(*)
-		 FROM query_results
-		 WHERE query_id = $1 AND host_id = $2 AND data IS NOT NULL`,
-		queryID,
+	rows, err := s.db.Pool().Query(ctx,
+		`WITH requested AS (
+		     SELECT unnest($1::bigint[]) AS query_id
+		 ),
+		 latest_fetch AS (
+		     SELECT DISTINCT ON (query_id) query_id, last_fetched
+		     FROM query_results
+		     WHERE host_id = $2 AND query_id = ANY($1::bigint[])
+		     ORDER BY query_id, last_fetched DESC, id DESC
+		 ),
+		 result_counts AS (
+		     SELECT query_id, count(*)::integer AS host_result_count
+		     FROM query_results
+		     WHERE host_id = $2 AND query_id = ANY($1::bigint[]) AND data IS NOT NULL
+		     GROUP BY query_id
+		 ),
+		 latest_data AS (
+		     SELECT DISTINCT ON (query_id) query_id, data
+		     FROM query_results
+		     WHERE host_id = $2 AND query_id = ANY($1::bigint[]) AND data IS NOT NULL
+		     ORDER BY query_id, last_fetched DESC, id DESC
+		 )
+		 SELECT r.query_id, lf.last_fetched, coalesce(rc.host_result_count, 0), ld.data
+		 FROM requested r
+		 LEFT JOIN latest_fetch lf ON lf.query_id = r.query_id
+		 LEFT JOIN result_counts rc ON rc.query_id = r.query_id
+		 LEFT JOIN latest_data ld ON ld.query_id = r.query_id`,
+		queryIDs,
 		hostID,
-	).Scan(&report.HostResultCount); err != nil {
-		return err
-	}
-
-	var data []byte
-	err = s.db.Pool().QueryRow(ctx,
-		`SELECT data
-		 FROM query_results
-		 WHERE query_id = $1 AND host_id = $2 AND data IS NOT NULL
-		 ORDER BY last_fetched DESC, id DESC
-		 LIMIT 1`,
-		queryID,
-		hostID,
-	).Scan(&data)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
+	)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return json.Unmarshal(data, &report.FirstResult)
+	defer rows.Close()
+
+	for rows.Next() {
+		var queryID int64
+		var state hostReportState
+		var data []byte
+		if err := rows.Scan(&queryID, &state.lastFetched, &state.hostResultCount, &data); err != nil {
+			return nil, err
+		}
+		if data != nil {
+			if err := json.Unmarshal(data, &state.firstResult); err != nil {
+				return nil, err
+			}
+		}
+		states[queryID] = state
+	}
+	return states, rows.Err()
 }

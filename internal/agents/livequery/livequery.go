@@ -230,12 +230,6 @@ func (m *Manager) forgetCompletedLater(queryID int64) {
 	})
 }
 
-func (m *Manager) fanSubscribe(queryID int64) (<-chan Event, func()) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.subscribeLocked(queryID)
-}
-
 func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
 	id := m.subNext.Add(1)
 	ch := make(chan Event, 32)
@@ -261,12 +255,6 @@ func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
 		}
 		close(ch)
 	}
-}
-
-func (m *Manager) fanPublish(queryID int64, event Event) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.publishLocked(queryID, event)
 }
 
 func (m *Manager) publishLocked(queryID int64, event Event) {

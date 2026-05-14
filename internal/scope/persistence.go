@@ -2,114 +2,189 @@ package scope
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// LoadQueryScope reads the label scope for a saved query.
-func LoadQueryScope(ctx context.Context, pool *pgxpool.Pool, queryID int64) (LabelScope, error) {
-	var mode LabelScopeMode
-	if err := pool.QueryRow(ctx,
-		"SELECT label_scope_mode FROM queries WHERE id = $1",
-		queryID,
-	).Scan(&mode); err != nil {
-		return LabelScope{}, err
+// Store persists label scopes for resources that target labels.
+type Store struct {
+	db *database.DB
+}
+
+// NewStore returns a label-scope store backed by db.
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db}
+}
+
+type owner struct {
+	table           string
+	idColumn        string
+	modeColumn      string
+	joinTable       string
+	joinOwnerColumn string
+}
+
+var (
+	queryOwner = owner{
+		table:           "queries",
+		idColumn:        "id",
+		modeColumn:      "label_scope_mode",
+		joinTable:       "query_labels",
+		joinOwnerColumn: "query_id",
 	}
-	rows, err := pool.Query(ctx,
-		"SELECT label_id FROM query_labels WHERE query_id = $1 ORDER BY label_id",
-		queryID,
-	)
+	checkOwner = owner{
+		table:           "checks",
+		idColumn:        "id",
+		modeColumn:      "label_scope_mode",
+		joinTable:       "check_labels",
+		joinOwnerColumn: "check_id",
+	}
+)
+
+// LoadQuery reads the label scope for a saved query.
+func (s *Store) LoadQuery(ctx context.Context, queryID int64) (LabelScope, error) {
+	return s.load(ctx, queryOwner, queryID)
+}
+
+// LoadQueries reads label scopes for saved queries keyed by query ID.
+func (s *Store) LoadQueries(ctx context.Context, queryIDs []int64) (map[int64]LabelScope, error) {
+	return s.loadMany(ctx, queryOwner, queryIDs)
+}
+
+// LoadCheck reads the label scope for a check.
+func (s *Store) LoadCheck(ctx context.Context, checkID int64) (LabelScope, error) {
+	return s.load(ctx, checkOwner, checkID)
+}
+
+// LoadChecks reads label scopes for checks keyed by check ID.
+func (s *Store) LoadChecks(ctx context.Context, checkIDs []int64) (map[int64]LabelScope, error) {
+	return s.loadMany(ctx, checkOwner, checkIDs)
+}
+
+// ReplaceQuery replaces the label scope for a saved query inside tx.
+func (s *Store) ReplaceQuery(ctx context.Context, tx pgx.Tx, queryID int64, lscope LabelScope) error {
+	return replace(ctx, tx, queryOwner, queryID, lscope)
+}
+
+// ReplaceCheck replaces the label scope for a check inside tx.
+func (s *Store) ReplaceCheck(ctx context.Context, tx pgx.Tx, checkID int64, lscope LabelScope) error {
+	return replace(ctx, tx, checkOwner, checkID, lscope)
+}
+
+func (s *Store) load(ctx context.Context, owner owner, ownerID int64) (LabelScope, error) {
+	scopes, err := s.loadMany(ctx, owner, []int64{ownerID})
 	if err != nil {
 		return LabelScope{}, err
 	}
-	defer rows.Close()
-	return scanScopeRows(mode, rows)
+	lscope, ok := scopes[ownerID]
+	if !ok {
+		return LabelScope{}, dbutil.ErrNotFound
+	}
+	return lscope, nil
 }
 
-// LoadCheckScope reads the label scope for a check.
-func LoadCheckScope(ctx context.Context, pool *pgxpool.Pool, checkID int64) (LabelScope, error) {
-	var mode LabelScopeMode
-	if err := pool.QueryRow(ctx,
-		"SELECT label_scope_mode FROM checks WHERE id = $1",
-		checkID,
-	).Scan(&mode); err != nil {
-		return LabelScope{}, err
+func (s *Store) loadMany(ctx context.Context, owner owner, ownerIDs []int64) (map[int64]LabelScope, error) {
+	ownerIDs = cleanPositiveIDs(ownerIDs)
+	scopes := make(map[int64]LabelScope, len(ownerIDs))
+	if len(ownerIDs) == 0 {
+		return scopes, nil
 	}
-	rows, err := pool.Query(ctx,
-		"SELECT label_id FROM check_labels WHERE check_id = $1 ORDER BY label_id",
-		checkID,
+
+	rows, err := s.db.Pool().Query(ctx,
+		fmt.Sprintf(
+			"SELECT %s, %s FROM %s WHERE %s = ANY($1::bigint[])",
+			owner.idColumn,
+			owner.modeColumn,
+			owner.table,
+			owner.idColumn,
+		),
+		ownerIDs,
 	)
 	if err != nil {
-		return LabelScope{}, err
+		return nil, err
 	}
-	defer rows.Close()
-	return scanScopeRows(mode, rows)
-}
-
-// ReplaceQueryScope replaces the label scope for a saved query inside tx.
-func ReplaceQueryScope(ctx context.Context, tx pgx.Tx, queryID int64, lscope LabelScope) error {
-	lscope = NormalizeLabelScope(lscope)
-	if _, err := tx.Exec(ctx,
-		"UPDATE queries SET label_scope_mode = $2 WHERE id = $1",
-		queryID, lscope.Mode,
-	); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx,
-		"DELETE FROM query_labels WHERE query_id = $1",
-		queryID,
-	); err != nil {
-		return err
-	}
-	for _, labelID := range lscope.LabelIDs {
-		if _, err := tx.Exec(ctx,
-			"INSERT INTO query_labels (query_id, label_id) VALUES ($1, $2)",
-			queryID, labelID,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ReplaceCheckScope replaces the label scope for a check inside tx.
-func ReplaceCheckScope(ctx context.Context, tx pgx.Tx, checkID int64, lscope LabelScope) error {
-	lscope = NormalizeLabelScope(lscope)
-	if _, err := tx.Exec(ctx,
-		"UPDATE checks SET label_scope_mode = $2 WHERE id = $1",
-		checkID, lscope.Mode,
-	); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx,
-		"DELETE FROM check_labels WHERE check_id = $1",
-		checkID,
-	); err != nil {
-		return err
-	}
-	for _, labelID := range lscope.LabelIDs {
-		if _, err := tx.Exec(ctx,
-			"INSERT INTO check_labels (check_id, label_id) VALUES ($1, $2)",
-			checkID, labelID,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func scanScopeRows(mode LabelScopeMode, rows pgx.Rows) (LabelScope, error) {
-	s := LabelScope{Mode: mode}
 	for rows.Next() {
-		var labelID int64
-		if err := rows.Scan(&labelID); err != nil {
-			return LabelScope{}, err
+		var ownerID int64
+		var mode LabelScopeMode
+		if err := rows.Scan(&ownerID, &mode); err != nil {
+			rows.Close()
+			return nil, err
 		}
-		s.LabelIDs = append(s.LabelIDs, labelID)
+		scopes[ownerID] = LabelScope{Mode: mode}
 	}
 	if err := rows.Err(); err != nil {
-		return LabelScope{}, err
+		rows.Close()
+		return nil, err
 	}
-	return NormalizeLabelScope(s), nil
+	rows.Close()
+
+	rows, err = s.db.Pool().Query(ctx,
+		fmt.Sprintf(
+			"SELECT %s, label_id FROM %s WHERE %s = ANY($1::bigint[]) ORDER BY %s, label_id",
+			owner.joinOwnerColumn,
+			owner.joinTable,
+			owner.joinOwnerColumn,
+			owner.joinOwnerColumn,
+		),
+		ownerIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var ownerID int64
+		var labelID int64
+		if err := rows.Scan(&ownerID, &labelID); err != nil {
+			return nil, err
+		}
+		lscope := scopes[ownerID]
+		lscope.LabelIDs = append(lscope.LabelIDs, labelID)
+		scopes[ownerID] = lscope
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for ownerID, lscope := range scopes {
+		scopes[ownerID] = NormalizeLabelScope(lscope)
+	}
+	return scopes, nil
+}
+
+func replace(ctx context.Context, tx pgx.Tx, owner owner, ownerID int64, lscope LabelScope) error {
+	lscope = NormalizeLabelScope(lscope)
+	if _, err := tx.Exec(ctx,
+		fmt.Sprintf(
+			"UPDATE %s SET %s = $2 WHERE %s = $1",
+			owner.table,
+			owner.modeColumn,
+			owner.idColumn,
+		),
+		ownerID, lscope.Mode,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		fmt.Sprintf("DELETE FROM %s WHERE %s = $1", owner.joinTable, owner.joinOwnerColumn),
+		ownerID,
+	); err != nil {
+		return err
+	}
+	if len(lscope.LabelIDs) == 0 {
+		return nil
+	}
+	_, err := tx.Exec(ctx,
+		fmt.Sprintf(
+			"INSERT INTO %s (%s, label_id) SELECT $1, unnest($2::bigint[])",
+			owner.joinTable,
+			owner.joinOwnerColumn,
+		),
+		ownerID,
+		lscope.LabelIDs,
+	)
+	return err
 }

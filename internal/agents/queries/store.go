@@ -17,12 +17,13 @@ import (
 
 // Store persists saved queries and scheduled report results.
 type Store struct {
-	db *database.DB
+	db     *database.DB
+	scopes *scope.Store
 }
 
 // NewStore returns a query store backed by db.
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+	return &Store{db: db, scopes: scope.NewStore(db)}
 }
 
 // List returns saved queries matching params.
@@ -46,19 +47,26 @@ func (s *Store) List(ctx context.Context, params QueryListParams) ([]Query, int,
 	defer rows.Close()
 
 	queries := make([]Query, 0)
+	queryIDs := make([]int64, 0)
 	for rows.Next() {
 		query, err := scanQuery(rows)
 		if err != nil {
 			return nil, 0, err
 		}
-		labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
-		if err != nil {
-			return nil, 0, err
-		}
-		query.LabelScope = labelScope
 		queries = append(queries, *query)
+		queryIDs = append(queryIDs, query.ID)
 	}
-	return queries, count, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	scopes, err := s.scopes.LoadQueries(ctx, queryIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range queries {
+		queries[i].LabelScope = scopes[queries[i].ID]
+	}
+	return queries, count, nil
 }
 
 // GetByID returns a saved query by database ID.
@@ -67,7 +75,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Query, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
+	labelScope, err := s.scopes.LoadQuery(ctx, query.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +117,7 @@ func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) 
 			}
 			return err
 		}
-		if err := scope.ReplaceQueryScope(ctx, tx, query.ID, params.LabelScope); err != nil {
+		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, params.LabelScope); err != nil {
 			return err
 		}
 		query.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -148,7 +156,7 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 			}
 			return err
 		}
-		if err := scope.ReplaceQueryScope(ctx, tx, query.ID, cleaned.LabelScope); err != nil {
+		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		query.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -191,6 +199,7 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query
 	defer rows.Close()
 
 	queries := make([]Query, 0)
+	queryIDs := make([]int64, 0)
 	for rows.Next() {
 		query, err := scanQuery(rows)
 		if err != nil {
@@ -199,21 +208,30 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query
 		if !hosts.QueryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
 			continue
 		}
-		labelScope, err := scope.LoadQueryScope(ctx, s.db.Pool(), query.ID)
-		if err != nil {
-			return nil, err
-		}
-		matches, err := scope.HostMatches(ctx, s.db.Pool(), labelScope, host.ID)
-		if err != nil {
-			return nil, err
-		}
-		if !matches {
+		queries = append(queries, *query)
+		queryIDs = append(queryIDs, query.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	scopes, err := s.scopes.LoadQueries(ctx, queryIDs)
+	if err != nil {
+		return nil, err
+	}
+	matches, err := s.scopes.MatchHostScopes(ctx, host.ID, scopes)
+	if err != nil {
+		return nil, err
+	}
+	out := queries[:0]
+	for _, query := range queries {
+		labelScope := scopes[query.ID]
+		if !matches[query.ID] {
 			continue
 		}
 		query.LabelScope = labelScope
-		queries = append(queries, *query)
+		out = append(out, query)
 	}
-	return queries, rows.Err()
+	return out, nil
 }
 
 func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
