@@ -7,13 +7,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// QueryLoggingType is the storage mode for scheduled query results.
-type QueryLoggingType string
-
-const (
-	QueryLoggingSnapshot QueryLoggingType = "snapshot"
-)
-
 // Query is admin-authored osquery SQL. Scheduled snapshot queries are reports.
 type Query struct {
 	ID                int64            `json:"id"`
@@ -23,7 +16,6 @@ type Query struct {
 	Platform          *string          `json:"platform,omitempty"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int              `json:"schedule_interval"`
-	LoggingType       QueryLoggingType `json:"-"`
 	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
 	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
 	CreatedAt         time.Time        `json:"created_at"`
@@ -38,13 +30,20 @@ type QueryCreate struct {
 	Platform          *string
 	MinOsqueryVersion *string
 	ScheduleInterval  int
-	LoggingType       QueryLoggingType
 	LabelScope        scope.LabelScope
 	CreatedByUserID   *int64
 }
 
 // QueryUpdate replaces editable query fields.
-type QueryUpdate QueryCreate
+type QueryUpdate struct {
+	Name              string
+	Description       string
+	Query             string
+	Platform          *string
+	MinOsqueryVersion *string
+	ScheduleInterval  int
+	LabelScope        scope.LabelScope
+}
 
 // QueryListParams filters saved query lists.
 type QueryListParams struct {

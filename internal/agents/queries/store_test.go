@@ -20,7 +20,7 @@ func TestCleanQueryCreate(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name: "saved query defaults to unscheduled snapshot",
+			name: "saved query trims fields",
 			in: QueryCreate{
 				Name:        " Local admins ",
 				Description: " Users with admin rights ",
@@ -32,7 +32,6 @@ func TestCleanQueryCreate(t *testing.T) {
 				Description: "Users with admin rights",
 				Query:       "select * from users;",
 				Platform:    new("darwin"),
-				LoggingType: QueryLoggingSnapshot,
 			},
 		},
 		{
@@ -46,7 +45,6 @@ func TestCleanQueryCreate(t *testing.T) {
 				Name:             "Battery health",
 				Query:            "select * from battery;",
 				ScheduleInterval: 3600,
-				LoggingType:      QueryLoggingSnapshot,
 			},
 		},
 		{
@@ -67,15 +65,6 @@ func TestCleanQueryCreate(t *testing.T) {
 				ScheduleInterval: -1,
 			},
 			wantErr: "schedule interval cannot be negative",
-		},
-		{
-			name: "unsupported logging type is invalid",
-			in: QueryCreate{
-				Name:        "Differential",
-				Query:       "select 1;",
-				LoggingType: "differential",
-			},
-			wantErr: "logging type must be snapshot",
 		},
 	}
 
@@ -242,9 +231,6 @@ func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
 	}
 	if got.ScheduleInterval != want.ScheduleInterval {
 		t.Fatalf("ScheduleInterval = %d, want %d", got.ScheduleInterval, want.ScheduleInterval)
-	}
-	if got.LoggingType != want.LoggingType {
-		t.Fatalf("LoggingType = %q, want %q", got.LoggingType, want.LoggingType)
 	}
 	assertStringPtr(t, "Platform", got.Platform, want.Platform)
 }

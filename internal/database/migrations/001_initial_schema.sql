@@ -347,7 +347,6 @@ CREATE TABLE queries (
     platform platform,
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
-    logging_type TEXT NOT NULL DEFAULT 'snapshot' CHECK (logging_type IN ('snapshot')),
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -33,7 +33,14 @@ type CheckCreate struct {
 }
 
 // CheckUpdate replaces editable check fields.
-type CheckUpdate CheckCreate
+type CheckUpdate struct {
+	Name              string
+	Description       string
+	Query             string
+	Platform          *string
+	MinOsqueryVersion *string
+	LabelScope        scope.LabelScope
+}
 
 // CheckListParams filters checks.
 type CheckListParams struct {

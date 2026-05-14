@@ -125,7 +125,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 
 // Update replaces a check.
 func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
-	cleaned, err := cleanCheckCreate(CheckCreate(params))
+	cleaned, err := cleanCheckUpdate(params)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +283,28 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 		return CheckCreate{}, fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
 	}
 	return params, nil
+}
+
+func cleanCheckUpdate(params CheckUpdate) (CheckUpdate, error) {
+	cleaned, err := cleanCheckCreate(CheckCreate{
+		Name:              params.Name,
+		Description:       params.Description,
+		Query:             params.Query,
+		Platform:          params.Platform,
+		MinOsqueryVersion: params.MinOsqueryVersion,
+		LabelScope:        params.LabelScope,
+	})
+	if err != nil {
+		return CheckUpdate{}, err
+	}
+	return CheckUpdate{
+		Name:              cleaned.Name,
+		Description:       cleaned.Description,
+		Query:             cleaned.Query,
+		Platform:          cleaned.Platform,
+		MinOsqueryVersion: cleaned.MinOsqueryVersion,
+		LabelScope:        cleaned.LabelScope,
+	}, nil
 }
 
 func cleanCheckListParams(params CheckListParams) CheckListParams {

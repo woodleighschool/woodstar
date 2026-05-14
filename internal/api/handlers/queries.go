@@ -365,7 +365,6 @@ func (body queryMutationBody) createParams(userID *int64) (queries.QueryCreate, 
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       queries.QueryLoggingSnapshot,
 		LabelScope:        s,
 		CreatedByUserID:   userID,
 	}, nil
@@ -383,7 +382,6 @@ func (body queryMutationBody) updateParams() (queries.QueryUpdate, error) {
 		Platform:          body.Platform,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
-		LoggingType:       queries.QueryLoggingSnapshot,
 		LabelScope:        s,
 	}, nil
 }

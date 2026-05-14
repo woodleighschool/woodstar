@@ -107,7 +107,6 @@ func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) 
 			params.Platform,
 			params.MinOsqueryVersion,
 			params.ScheduleInterval,
-			string(params.LoggingType),
 			params.CreatedByUserID,
 		)
 		query, err := scanQuery(row)
@@ -129,7 +128,7 @@ func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) 
 
 // Update replaces a saved query.
 func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Query, error) {
-	cleaned, err := cleanQueryCreate(QueryCreate(params))
+	cleaned, err := cleanQueryUpdate(params)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +142,6 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 			cleaned.Platform,
 			cleaned.MinOsqueryVersion,
 			cleaned.ScheduleInterval,
-			string(cleaned.LoggingType),
 			id,
 		)
 		query, err := scanQuery(row)
@@ -240,9 +238,6 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	params.Query = strings.TrimSpace(params.Query)
 	params.Platform = platform.CleanPtr(params.Platform)
 	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
-	if params.LoggingType == "" {
-		params.LoggingType = QueryLoggingSnapshot
-	}
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return QueryCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
@@ -253,10 +248,31 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	if params.ScheduleInterval < 0 {
 		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", dbutil.ErrInvalidInput)
 	}
-	if params.LoggingType != QueryLoggingSnapshot {
-		return QueryCreate{}, fmt.Errorf("%w: logging type must be snapshot", dbutil.ErrInvalidInput)
-	}
 	return params, nil
+}
+
+func cleanQueryUpdate(params QueryUpdate) (QueryUpdate, error) {
+	cleaned, err := cleanQueryCreate(QueryCreate{
+		Name:              params.Name,
+		Description:       params.Description,
+		Query:             params.Query,
+		Platform:          params.Platform,
+		MinOsqueryVersion: params.MinOsqueryVersion,
+		ScheduleInterval:  params.ScheduleInterval,
+		LabelScope:        params.LabelScope,
+	})
+	if err != nil {
+		return QueryUpdate{}, err
+	}
+	return QueryUpdate{
+		Name:              cleaned.Name,
+		Description:       cleaned.Description,
+		Query:             cleaned.Query,
+		Platform:          cleaned.Platform,
+		MinOsqueryVersion: cleaned.MinOsqueryVersion,
+		ScheduleInterval:  cleaned.ScheduleInterval,
+		LabelScope:        cleaned.LabelScope,
+	}, nil
 }
 
 func cleanQueryListParams(params QueryListParams) QueryListParams {
@@ -267,7 +283,6 @@ func cleanQueryListParams(params QueryListParams) QueryListParams {
 
 func scanQuery(row pgx.Row) (*Query, error) {
 	var query Query
-	var loggingType string
 	err := row.Scan(
 		&query.ID,
 		&query.Name,
@@ -276,12 +291,10 @@ func scanQuery(row pgx.Row) (*Query, error) {
 		&query.Platform,
 		&query.MinOsqueryVersion,
 		&query.ScheduleInterval,
-		&loggingType,
 		&query.CreatedByUserID,
 		&query.CreatedAt,
 		&query.UpdatedAt,
 	)
-	query.LoggingType = QueryLoggingType(loggingType)
 	return &query, err
 }
 
@@ -307,17 +320,17 @@ func queryListSQL(where string, args []any, params QueryListParams) (string, []a
 
 const querySelectSQL = `
 SELECT id, name, description, query, platform, min_osquery_version, schedule_interval,
-       logging_type, created_by_user_id, created_at, updated_at
+       created_by_user_id, created_at, updated_at
 FROM queries`
 
 const queryInsertSQL = `
 INSERT INTO queries (
     name, description, query, platform, min_osquery_version, schedule_interval,
-    logging_type, created_by_user_id
+    created_by_user_id
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, name, description, query, platform, min_osquery_version, schedule_interval,
-          logging_type, created_by_user_id, created_at, updated_at`
+          created_by_user_id, created_at, updated_at`
 
 const queryUpdateSQL = `
 UPDATE queries
@@ -327,8 +340,7 @@ SET name = $1,
     platform = $4,
     min_osquery_version = $5,
     schedule_interval = $6,
-    logging_type = $7,
     updated_at = now()
-WHERE id = $8
+WHERE id = $7
 RETURNING id, name, description, query, platform, min_osquery_version, schedule_interval,
-          logging_type, created_by_user_id, created_at, updated_at`
+          created_by_user_id, created_at, updated_at`

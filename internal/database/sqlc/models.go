@@ -379,7 +379,6 @@ type Query struct {
 	Platform          *Platform      `json:"platform"`
 	MinOsqueryVersion *string        `json:"min_osquery_version"`
 	ScheduleInterval  int32          `json:"schedule_interval"`
-	LoggingType       string         `json:"logging_type"`
 	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
 	CreatedByUserID   *int64         `json:"created_by_user_id"`
 	CreatedAt         time.Time      `json:"created_at"`
