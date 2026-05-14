@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/sse"
 
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
@@ -49,11 +47,25 @@ type liveQueryCreateOutput struct {
 	Body liveQueryHandleBody
 }
 
+type liveQueryStreamInput struct {
+	ID int64 `path:"id" minimum:"1"`
+}
+
+type liveQueryPingEvent struct {
+	Status string `json:"status"`
+}
+
+type liveQueryCompletedEvent struct {
+	Status string `json:"status"`
+}
+
+type liveQueryResultEvent livequery.Event
+
 // RegisterLiveQueries registers the one-shot live query create endpoint. The
-// matching SSE stream endpoint is wired directly on Chi (see routes.go).
+// matching SSE stream endpoint is registered through Huma's SSE support.
 func RegisterLiveQueries(
 	api huma.API,
-	manager *livequery.LiveQueryManager,
+	manager *livequery.Manager,
 	resolver targetResolver,
 ) {
 	huma.Register(api, huma.Operation{
@@ -72,9 +84,24 @@ func RegisterLiveQueries(
 		handle := manager.Start(input.Body.SQL, hostIDs)
 		return &liveQueryCreateOutput{Body: liveQueryHandleResponse(handle)}, nil
 	})
+
+	sse.Register(api, huma.Operation{
+		OperationID: "stream-live-query",
+		Method:      http.MethodGet,
+		Path:        "/api/live-queries/{id}/stream",
+		Tags:        []string{liveQueriesTag},
+		Summary:     "Stream live query results",
+		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, map[string]any{
+		"ping":      liveQueryPingEvent{},
+		"result":    liveQueryResultEvent{},
+		"completed": liveQueryCompletedEvent{},
+	}, func(ctx context.Context, input *liveQueryStreamInput, send sse.Sender) {
+		streamLiveQuery(ctx, manager, input.ID, send)
+	})
 }
 
-func liveQueryHandleResponse(h *livequery.LiveQueryHandle) liveQueryHandleBody {
+func liveQueryHandleResponse(h livequery.Handle) liveQueryHandleBody {
 	return liveQueryHandleBody{
 		ID:                h.ID,
 		SQL:               h.SQL,
@@ -108,54 +135,18 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 	return resolved, nil
 }
 
-// LiveQueryStreamHandler returns the SSE handler for /api/live-queries/{id}/stream.
-// Auth must be applied by the caller via middleware.
-func LiveQueryStreamHandler(manager *livequery.LiveQueryManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		id, ok := parseLiveQueryStreamID(req)
-		if !ok {
-			http.NotFound(w, req)
-			return
-		}
-		streamLiveQuery(req.Context(), w, manager, id)
-	}
-}
-
-func parseLiveQueryStreamID(req *http.Request) (int64, bool) {
-	id := req.PathValue("id")
-	if id == "" {
-		return 0, false
-	}
-	parsed, err := strconv.ParseInt(id, 10, 64)
-	if err != nil || parsed <= 0 {
-		return 0, false
-	}
-	return parsed, true
-}
-
 func streamLiveQuery(
 	ctx context.Context,
-	w http.ResponseWriter,
-	manager *livequery.LiveQueryManager,
+	manager *livequery.Manager,
 	id int64,
+	send sse.Sender,
 ) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("X-Accel-Buffering", "no")
-
 	events, release, err := manager.Subscribe(id)
 	if err != nil {
-		writeSSE(w, "completed", map[string]string{"status": "completed"})
-		flusher.Flush()
+		_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
 		return
 	}
 	defer release()
-	flusher.Flush()
 
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -165,34 +156,21 @@ func streamLiveQuery(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if !writeSSE(w, "ping", map[string]string{"status": "ok"}) {
+			if err := send.Data(liveQueryPingEvent{Status: "ok"}); err != nil {
 				return
 			}
-			flusher.Flush()
 		case event, ok := <-events:
 			if !ok {
+				_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
 				return
 			}
 			if event.Status == "completed" {
-				if !writeSSE(w, "completed", event) {
-					return
-				}
-				flusher.Flush()
+				_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
 				return
 			}
-			if !writeSSE(w, "result", event) {
+			if err := send.Data(liveQueryResultEvent(event)); err != nil {
 				return
 			}
-			flusher.Flush()
 		}
 	}
-}
-
-func writeSSE(w http.ResponseWriter, event string, payload any) bool {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return false
-	}
-	_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
-	return err == nil
 }

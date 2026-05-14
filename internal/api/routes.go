@@ -27,10 +27,5 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.TargetResolver)
 	handlers.RegisterSecrets(protected, deps.SecretStore)
 
-	// SSE lives outside the Huma group (Huma's typed-body model doesn't fit
-	// text/event-stream). Auth uses the Chi-compatible session middleware.
-	r.With(middleware.RequireAuthChi(deps.AuthService)).
-		Get("/api/live-queries/{id}/stream", handlers.LiveQueryStreamHandler(deps.LiveQueryManager))
-
 	return humaAPI
 }

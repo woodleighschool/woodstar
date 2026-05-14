@@ -15,7 +15,7 @@ type CleanupOptions struct {
 
 // StartCleanup starts the periodic report-row trimmer. The goroutine exits
 // when ctx is cancelled. Live queries are not persisted, so no campaign
-// timeout/TTL ticker is needed here — the LiveQueryManager handles its own
+// timeout/TTL ticker is needed here — the livequery manager handles its own
 // per-query timeouts in-process.
 func StartCleanup(
 	ctx context.Context,

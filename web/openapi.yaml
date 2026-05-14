@@ -932,6 +932,14 @@ components:
             - exclude_any
           type: string
       type: object
+    LiveQueryCompletedEvent:
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+      required:
+        - status
+      type: object
     LiveQueryCreateBody:
       additionalProperties: false
       properties:
@@ -978,6 +986,30 @@ components:
         - sql
         - started_at
         - resolved_host_count
+      type: object
+    LiveQueryPingEvent:
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+      required:
+        - status
+      type: object
+    LiveQueryResultEvent:
+      additionalProperties: false
+      properties:
+        data: {}
+        error:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        status:
+          type: string
+      required:
+        - status
       type: object
     LiveQuerySelectedBody:
       additionalProperties: false
@@ -1359,9 +1391,6 @@ components:
             - https://example.com/api/schemas/User.json
           format: uri
           readOnly: true
-          type: string
-        api_key_created_at:
-          format: date-time
           type: string
         created_at:
           format: date-time
@@ -2692,6 +2721,109 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Start a live query against online hosts
+      tags:
+        - Live Queries
+  /api/live-queries/{id}/stream:
+    get:
+      operationId: stream-live-query
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                description: Each oneOf object in the array represents one possible Server Sent Events (SSE) message, serialized as UTF-8 text according to the SSE specification.
+                items:
+                  oneOf:
+                    - properties:
+                        data:
+                          $ref: "#/components/schemas/LiveQueryCompletedEvent"
+                        event:
+                          const: completed
+                          description: The event name.
+                          type: string
+                        id:
+                          description: The event ID.
+                          type: integer
+                        retry:
+                          description: The retry time in milliseconds.
+                          type: integer
+                      required:
+                        - data
+                        - event
+                      title: Event completed
+                      type: object
+                    - properties:
+                        data:
+                          $ref: "#/components/schemas/LiveQueryPingEvent"
+                        event:
+                          const: ping
+                          description: The event name.
+                          type: string
+                        id:
+                          description: The event ID.
+                          type: integer
+                        retry:
+                          description: The retry time in milliseconds.
+                          type: integer
+                      required:
+                        - data
+                        - event
+                      title: Event ping
+                      type: object
+                    - properties:
+                        data:
+                          $ref: "#/components/schemas/LiveQueryResultEvent"
+                        event:
+                          const: result
+                          description: The event name.
+                          type: string
+                        id:
+                          description: The event ID.
+                          type: integer
+                        retry:
+                          description: The retry time in milliseconds.
+                          type: integer
+                      required:
+                        - data
+                        - event
+                      title: Event result
+                      type: object
+                title: Server Sent Events
+                type: array
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Stream live query results
       tags:
         - Live Queries
   /api/orbit/enroll-secrets:

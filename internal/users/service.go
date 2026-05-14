@@ -60,6 +60,11 @@ func (s *Service) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetByID(ctx, id)
 }
 
+// GetAccount returns the signed-in user's self-view, including API key fields.
+func (s *Service) GetAccount(ctx context.Context, id int64) (*Account, error) {
+	return s.store.GetAccountByID(ctx, id)
+}
+
 // List returns every active user.
 func (s *Service) List(ctx context.Context) ([]User, error) {
 	return s.store.List(ctx)
@@ -124,11 +129,11 @@ func (s *Service) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 }
 
 // SetAPIKey stores key as the API key for userID, replacing any prior key.
-func (s *Service) SetAPIKey(ctx context.Context, userID int64, key string) (*User, error) {
+func (s *Service) SetAPIKey(ctx context.Context, userID int64, key string) (*Account, error) {
 	return s.store.SetAPIKey(ctx, userID, key)
 }
 
 // ClearAPIKey removes the API key for userID.
-func (s *Service) ClearAPIKey(ctx context.Context, userID int64) (*User, error) {
+func (s *Service) ClearAPIKey(ctx context.Context, userID int64) (*Account, error) {
 	return s.store.ClearAPIKey(ctx, userID)
 }

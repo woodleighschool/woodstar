@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -61,7 +62,7 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.UserService = userService
 	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.LiveQueryManager = livequery.NewLiveQueryManager(time.Minute)
+	deps.LiveQueryManager = livequery.NewManager(time.Minute)
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
@@ -91,6 +92,87 @@ func TestAgentRoutesBypassBrowserAuth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestBearerMutationBypassesBrowserCSRF(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	user, err := userService.Create(ctx, users.CreateParams{
+		Email:    "api@example.test",
+		Name:     "API User",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	})
+	if err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+	const apiKey = "fleet-style-retrievable-key"
+	if _, err := userService.SetAPIKey(ctx, user.ID, apiKey); err != nil {
+		t.Fatalf("set api key: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.DB = database
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	server := NewServer(deps)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/account/api-key", nil)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+}
+
+func TestAccountReadOwnsRetrievableAPIKey(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	user, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Account User",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	})
+	if err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+	const apiKey = "fleet-style-visible-key"
+	if _, err := userService.SetAPIKey(ctx, user.ID, apiKey); err != nil {
+		t.Fatalf("set api key: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.DB = database
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	server := NewServer(deps)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/account", nil)
+	req.AddCookie(loginTestUser(t, deps.AuthService, deps.SessionManager))
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		APIKey string         `json:"api_key"`
+		User   map[string]any `json:"user"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body %q: %v", rec.Body.String(), err)
+	}
+	if body.APIKey != apiKey {
+		t.Fatalf("api_key = %q, want %q", body.APIKey, apiKey)
+	}
+	if _, ok := body.User["api_key"]; ok {
+		t.Fatalf("account user leaked api_key: %#v", body.User)
 	}
 }
 

@@ -16,28 +16,36 @@ import (
 // generated key. 24 bytes encode to 32 url-safe base64 characters.
 const apiKeyByteLen = 24
 
-// RotateAPIKey generates a fresh API key for userID, persists it, and
-// returns the updated user with the plaintext key in User.APIKey. Callers
-// must hand it to the user immediately.
-func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.User, error) {
+// Account returns the signed-in user's self-view, including their retrievable API key.
+func (s *Service) Account(ctx context.Context, userID int64) (*users.Account, error) {
+	account, err := s.users.GetAccount(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get account: %w", err)
+	}
+	return account, nil
+}
+
+// RotateAPIKey generates a fresh API key for userID, persists it, and returns
+// the updated account self-view with the retrievable plaintext key.
+func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
 	key, err := generateAPIKey()
 	if err != nil {
 		return nil, err
 	}
-	user, err := s.users.SetAPIKey(ctx, userID, key)
+	account, err := s.users.SetAPIKey(ctx, userID, key)
 	if err != nil {
 		return nil, fmt.Errorf("set api key: %w", err)
 	}
-	return user, nil
+	return account, nil
 }
 
 // RevokeAPIKey clears the API key on userID and returns the updated user.
-func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*users.User, error) {
-	user, err := s.users.ClearAPIKey(ctx, userID)
+func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
+	account, err := s.users.ClearAPIKey(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("clear api key: %w", err)
 	}
-	return user, nil
+	return account, nil
 }
 
 // userByAPIKey returns the user owning the given API key and best-effort

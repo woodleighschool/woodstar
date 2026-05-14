@@ -11,18 +11,18 @@ type Role = sqlc.UserRole
 
 // User is a local Woodstar account.
 type User struct {
-	ID              int64      `json:"id"`
-	Email           string     `json:"email"                        format:"email"`
-	Name            string     `json:"name"`
-	PasswordHash    string     `json:"-"`
-	Role            Role       `json:"role"                                        enum:"admin,viewer"`
-	APIKey          string     `json:"-"`
-	APIKeyCreatedAt *time.Time `json:"api_key_created_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID           int64     `json:"id"`
+	Email        string    `json:"email"      format:"email"`
+	Name         string    `json:"name"`
+	PasswordHash string    `json:"-"`
+	Role         Role      `json:"role"                      enum:"admin,viewer"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// HasAPIKey reports whether the user has an API key currently set.
-func (u User) HasAPIKey() bool {
-	return u.APIKey != ""
+// Account is the signed-in user's self-view, including their retrievable API key.
+type Account struct {
+	User            User
+	APIKey          string
+	APIKeyCreatedAt *time.Time
 }

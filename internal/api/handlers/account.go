@@ -32,12 +32,12 @@ type accountOutput struct {
 // processor, future woodstarctl); the SPA continues to authenticate via
 // the scs session cookie.
 func RegisterAccount(api huma.API, authService *auth.Service) {
-	registerGetAccount(api)
+	registerGetAccount(api, authService)
 	registerRotateAPIKey(api, authService)
 	registerRevokeAPIKey(api, authService)
 }
 
-func registerGetAccount(api huma.API) {
+func registerGetAccount(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-account",
 		Method:      http.MethodGet,
@@ -50,7 +50,11 @@ func registerGetAccount(api huma.API) {
 		if err != nil {
 			return nil, err
 		}
-		return &accountOutput{Body: accountBodyFor(*user)}, nil
+		account, err := authService.Account(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &accountOutput{Body: accountBodyFor(*account)}, nil
 	})
 }
 
@@ -109,10 +113,10 @@ func requireUser(ctx context.Context) (*users.User, error) {
 	return user, nil
 }
 
-func accountBodyFor(user users.User) accountBody {
+func accountBodyFor(account users.Account) accountBody {
 	return accountBody{
-		User:            user,
-		APIKey:          user.APIKey,
-		APIKeyCreatedAt: user.APIKeyCreatedAt,
+		User:            account.User,
+		APIKey:          account.APIKey,
+		APIKeyCreatedAt: account.APIKeyCreatedAt,
 	}
 }

@@ -263,7 +263,7 @@ func (s *Service) handleLiveResult(
 	if !ok {
 		return nil
 	}
-	resultStatus := livequery.LiveStatusSuccess
+	resultStatus := livequery.StatusSuccess
 	var data json.RawMessage
 	if statusOK(status) {
 		encoded, err := json.Marshal(rows)
@@ -272,7 +272,7 @@ func (s *Service) handleLiveResult(
 		}
 		data = encoded
 	} else {
-		resultStatus = livequery.LiveStatusError
+		resultStatus = livequery.StatusError
 	}
 	s.liveQueries.RecordResult(queryID, host.ID, host.DisplayName, resultStatus, data, message)
 	return nil

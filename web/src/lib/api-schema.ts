@@ -335,6 +335,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live-queries/{id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream live query results */
+        get: operations["stream-live-query"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/orbit/enroll-secrets": {
         parameters: {
             query?: never;
@@ -981,6 +998,9 @@ export interface components {
             /** @enum {string} */
             mode?: "include_any" | "include_all" | "exclude_any";
         };
+        LiveQueryCompletedEvent: {
+            status: string;
+        };
         LiveQueryCreateBody: {
             /**
              * Format: uri
@@ -1007,6 +1027,17 @@ export interface components {
             sql: string;
             /** Format: date-time */
             started_at: string;
+        };
+        LiveQueryPingEvent: {
+            status: string;
+        };
+        LiveQueryResultEvent: {
+            data?: unknown;
+            error?: string;
+            /** Format: int64 */
+            host_id?: number;
+            host_name?: string;
+            status: string;
         };
         LiveQuerySelectedBody: {
             hosts?: number[] | null;
@@ -1191,8 +1222,6 @@ export interface components {
              * @example https://example.com/api/schemas/User.json
              */
             readonly $schema?: string;
-            /** Format: date-time */
-            api_key_created_at?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: email */
@@ -2761,6 +2790,97 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "stream-live-query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": ({
+                        data: components["schemas"]["LiveQueryCompletedEvent"];
+                        /**
+                         * @description The event name.
+                         * @constant
+                         */
+                        event: "completed";
+                        /** @description The event ID. */
+                        id?: number;
+                        /** @description The retry time in milliseconds. */
+                        retry?: number;
+                    } | {
+                        data: components["schemas"]["LiveQueryPingEvent"];
+                        /**
+                         * @description The event name.
+                         * @constant
+                         */
+                        event: "ping";
+                        /** @description The event ID. */
+                        id?: number;
+                        /** @description The retry time in milliseconds. */
+                        retry?: number;
+                    } | {
+                        data: components["schemas"]["LiveQueryResultEvent"];
+                        /**
+                         * @description The event name.
+                         * @constant
+                         */
+                        event: "result";
+                        /** @description The event ID. */
+                        id?: number;
+                        /** @description The retry time in milliseconds. */
+                        retry?: number;
+                    })[];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

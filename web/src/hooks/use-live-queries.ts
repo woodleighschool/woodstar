@@ -6,19 +6,12 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 
 export type LiveQueryHandle = Schemas["LiveQueryHandleBody"];
 export type LiveQueryCreate = Schemas["LiveQueryCreateBody"];
+export type LiveQueryResult = Schemas["LiveQueryResultEvent"];
 
-interface LiveQueryEvent {
-  host_id?: number | string;
-  host_name?: string;
-  status: string;
-  data?: unknown;
-  error?: string;
-}
-
-export interface LiveQueryRow extends LiveQueryEvent {
+export type LiveQueryRow = LiveQueryResult & {
   // monotonic per-stream id for stable React keys; not from the server
   _seq: number;
-}
+};
 
 interface StreamState {
   results: LiveQueryRow[];
@@ -29,7 +22,7 @@ interface StreamState {
 
 type StreamAction =
   | { type: "open" }
-  | { type: "result"; result: LiveQueryEvent }
+  | { type: "result"; result: LiveQueryResult }
   | { type: "completed" }
   | { type: "error"; message: string }
   | { type: "reset" };
@@ -60,8 +53,7 @@ export function useCreateLiveQuery() {
 }
 
 // useLiveQueryStream opens an EventSource against /api/live-queries/{id}/stream
-// and accumulates result events until the server publishes `completed`. There
-// is no replay buffer — reconnects after completion show empty.
+// and accumulates result events until the server publishes `completed`.
 export function useLiveQueryStream(liveQueryId: string) {
   const [state, dispatch] = useReducer(streamReducer, { results: [], nextSeq: 0, status: "idle" });
 
@@ -73,7 +65,7 @@ export function useLiveQueryStream(liveQueryId: string) {
     source.addEventListener("open", () => dispatch({ type: "open" }));
     source.addEventListener("result", (event: MessageEvent<string>) => {
       try {
-        const parsed = JSON.parse(event.data) as LiveQueryEvent;
+        const parsed = JSON.parse(event.data) as LiveQueryResult;
         dispatch({ type: "result", result: parsed });
       } catch {
         // server controls the schema — drop malformed payloads silently

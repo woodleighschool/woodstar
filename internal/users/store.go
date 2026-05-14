@@ -89,6 +89,18 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	return new(userFromSQLC(row)), nil
 }
 
+// GetAccountByID returns the signed-in user's self-view, including API key fields.
+func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) {
+	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return new(accountFromSQLC(row)), nil
+}
+
 // List returns active users ordered by creation time.
 func (s *Store) List(ctx context.Context) ([]User, error) {
 	rows, err := s.q.ListUsers(ctx)
@@ -146,7 +158,7 @@ func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 
 // SetAPIKey writes a freshly generated API key for id and resets the
 // created_at and last_used_at timestamps.
-func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*User, error) {
+func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
 	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -157,11 +169,11 @@ func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*User, err
 		}
 		return nil, err
 	}
-	return new(userFromSQLC(row)), nil
+	return new(accountFromSQLC(row)), nil
 }
 
 // ClearAPIKey removes the API key for id.
-func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*User, error) {
+func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -169,7 +181,7 @@ func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	return new(userFromSQLC(row)), nil
+	return new(accountFromSQLC(row)), nil
 }
 
 func normalizeEmail(email string) string {
@@ -177,18 +189,24 @@ func normalizeEmail(email string) string {
 }
 
 func userFromSQLC(s sqlc.User) User {
-	u := User{
-		ID:              s.ID,
-		Email:           s.Email,
-		Name:            s.Name,
-		PasswordHash:    s.PasswordHash,
-		Role:            s.Role,
+	return User{
+		ID:           s.ID,
+		Email:        s.Email,
+		Name:         s.Name,
+		PasswordHash: s.PasswordHash,
+		Role:         s.Role,
+		CreatedAt:    s.CreatedAt,
+		UpdatedAt:    s.UpdatedAt,
+	}
+}
+
+func accountFromSQLC(s sqlc.User) Account {
+	account := Account{
+		User:            userFromSQLC(s),
 		APIKeyCreatedAt: s.APIKeyCreatedAt,
-		CreatedAt:       s.CreatedAt,
-		UpdatedAt:       s.UpdatedAt,
 	}
 	if s.APIKey != nil {
-		u.APIKey = *s.APIKey
+		account.APIKey = *s.APIKey
 	}
-	return u
+	return account
 }

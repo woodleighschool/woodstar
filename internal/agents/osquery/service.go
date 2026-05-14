@@ -25,7 +25,7 @@ type Service struct {
 	labelEvaluator     *ingest.LabelEvaluator
 	queryStore         *queries.Store
 	checkStore         *checks.Store
-	liveQueries        *livequery.LiveQueryManager
+	liveQueries        *livequery.Manager
 	secretStore        *secrets.Store
 	logger             *slog.Logger
 }
@@ -37,7 +37,7 @@ func NewService(
 	labelEvaluator *ingest.LabelEvaluator,
 	queryStore *queries.Store,
 	checkStore *checks.Store,
-	liveQueries *livequery.LiveQueryManager,
+	liveQueries *livequery.Manager,
 	secrets *secrets.Store,
 	logger *slog.Logger,
 ) *Service {

@@ -77,7 +77,7 @@ type osqueryContractStores struct {
 	secrets  *secrets.Store
 	queries  *queries.Store
 	checks   *checks.Store
-	live     *livequery.LiveQueryManager
+	live     *livequery.Manager
 	software *software.Store
 }
 
@@ -88,7 +88,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		secrets:  secrets.NewStore(database),
 		queries:  queries.NewStore(database),
 		checks:   checks.NewStore(database),
-		live:     livequery.NewLiveQueryManager(time.Minute),
+		live:     livequery.NewManager(time.Minute),
 		software: software.NewStore(database),
 	}
 }

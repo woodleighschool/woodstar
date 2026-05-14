@@ -1,136 +1,107 @@
 package livequery
 
 import (
-	"sync"
+	"encoding/json"
 	"testing"
 	"time"
 )
 
-// fanSubscribe and fanPublish are tested here as package-internal methods via
-// the white-box test. The Hub type no longer exists; this package owns all
-// fan-out state inside LiveQueryManager.
+func TestRecordResultPublishesResultAndCompletion(t *testing.T) {
+	m := NewManager(time.Minute)
+	handle := m.Start("select 1", []int64{4})
 
-func newTestManager() *LiveQueryManager {
-	return NewLiveQueryManager(time.Minute)
-}
-
-func TestFanPublishesToSubscribers(t *testing.T) {
-	m := newTestManager()
-	events, release := m.fanSubscribe(12)
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
 	defer release()
 
-	m.fanPublish(12, LiveQueryEvent{HostID: 4, Status: "success"})
+	m.RecordResult(handle.ID, 4, "mac-4", StatusSuccess, json.RawMessage(`[{"answer":"1"}]`), "")
 
-	got := <-events
-	if got.HostID != 4 || got.Status != "success" {
-		t.Fatalf("event = %#v, want host 4 success", got)
+	result := receiveEvent(t, events)
+	if result.HostID != 4 || result.HostName != "mac-4" || result.Status != "success" {
+		t.Fatalf("result = %#v, want host 4 success", result)
+	}
+	if string(result.Data) != `[{"answer":"1"}]` {
+		t.Fatalf("data = %s, want query rows", result.Data)
+	}
+
+	completed := receiveEvent(t, events)
+	if completed.Status != "completed" {
+		t.Fatalf("completed = %#v, want completed event", completed)
 	}
 }
 
-func TestFanReleaseStopsDelivery(t *testing.T) {
-	m := newTestManager()
-	events, release := m.fanSubscribe(12)
-	release()
+func TestPendingForHostClearsAfterResult(t *testing.T) {
+	m := NewManager(time.Minute)
+	handle := m.Start("select 1", []int64{4, 5})
 
-	m.fanPublish(12, LiveQueryEvent{HostID: 4, Status: "success"})
+	if work := m.PendingForHost(4); len(work) != 1 || work[0].QueryID != handle.ID || work[0].SQL != "select 1" {
+		t.Fatalf("work for host 4 = %#v, want live query work", work)
+	}
 
+	m.RecordResult(handle.ID, 4, "mac-4", StatusSuccess, nil, "")
+
+	if work := m.PendingForHost(4); len(work) != 0 {
+		t.Fatalf("work for completed host = %#v, want none", work)
+	}
+	if work := m.PendingForHost(5); len(work) != 1 || work[0].QueryID != handle.ID {
+		t.Fatalf("work for pending host = %#v, want still pending", work)
+	}
+}
+
+func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
+	m := NewManager(time.Minute)
+	handle := m.Start("select 1", nil)
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+
+	got := receiveEvent(t, events)
+	if got.Status != "completed" {
+		t.Fatalf("event = %#v, want completed", got)
+	}
+}
+
+func TestTimeoutPublishesPendingHostsAndCompletion(t *testing.T) {
+	m := NewManager(10 * time.Millisecond)
+	handle := m.Start("select 1", []int64{4, 5})
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	defer release()
+
+	first := receiveEvent(t, events)
+	second := receiveEvent(t, events)
+	if first.Status != "timeout" || second.Status != "timeout" {
+		t.Fatalf("timeout events = %#v %#v, want timeouts", first, second)
+	}
+	seen := map[int64]bool{first.HostID: true, second.HostID: true}
+	if !seen[4] || !seen[5] {
+		t.Fatalf("timeout hosts = %#v, want hosts 4 and 5", seen)
+	}
+
+	completed := receiveEvent(t, events)
+	if completed.Status != "completed" {
+		t.Fatalf("completed = %#v, want completed event", completed)
+	}
+}
+
+func receiveEvent(t *testing.T, events <-chan Event) Event {
+	t.Helper()
 	select {
-	case got, ok := <-events:
-		if ok {
-			t.Fatalf("received event after release: %#v", got)
+	case event, ok := <-events:
+		if !ok {
+			t.Fatal("event channel closed")
 		}
-	default:
-		t.Fatalf("released subscription channel was not closed")
+		return event
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for event")
+		return Event{}
 	}
-}
-
-func TestFanFansOutToAllSubscribers(t *testing.T) {
-	m := newTestManager()
-	a, releaseA := m.fanSubscribe(7)
-	defer releaseA()
-	b, releaseB := m.fanSubscribe(7)
-	defer releaseB()
-
-	m.fanPublish(7, LiveQueryEvent{HostID: 1, Status: "success"})
-
-	if got := <-a; got.HostID != 1 || got.Status != "success" {
-		t.Fatalf("subscriber a got %#v", got)
-	}
-	if got := <-b; got.HostID != 1 || got.Status != "success" {
-		t.Fatalf("subscriber b got %#v", got)
-	}
-}
-
-func TestFanDoesNotBlockSlowSubscribers(t *testing.T) {
-	m := newTestManager()
-	events, release := m.fanSubscribe(9)
-	defer release()
-
-	// Fill the cap-32 buffer plus extras; fanPublish must never block on a slow
-	// consumer. The extras land on the floor — we verify only that fanPublish
-	// returned and the first 32 are queued.
-	for range 64 {
-		m.fanPublish(9, LiveQueryEvent{HostID: 1, Status: "success"})
-	}
-
-	delivered := 0
-	for {
-		select {
-		case <-events:
-			delivered++
-		default:
-			if delivered != 32 {
-				t.Fatalf("delivered = %d, want 32 (channel cap)", delivered)
-			}
-			return
-		}
-	}
-}
-
-func TestFanPublishIsSafeUnderConcurrency(t *testing.T) {
-	m := newTestManager()
-	events, release := m.fanSubscribe(11)
-	defer release()
-
-	const publishers = 4
-	const perPublisher = 8
-
-	var wg sync.WaitGroup
-	wg.Add(publishers)
-	for range publishers {
-		go func() {
-			defer wg.Done()
-			for range perPublisher {
-				m.fanPublish(11, LiveQueryEvent{HostID: 1, Status: "success"})
-			}
-		}()
-	}
-	wg.Wait()
-
-	deadline := time.After(50 * time.Millisecond)
-	delivered := 0
-	for {
-		select {
-		case <-events:
-			delivered++
-			if delivered == publishers*perPublisher {
-				return
-			}
-		case <-deadline:
-			// Some events may have been dropped if subscriber lagged behind
-			// publishers; we only assert no race and that *some* events arrived.
-			if delivered == 0 {
-				t.Fatal("no events delivered under concurrent publish")
-			}
-			return
-		}
-	}
-}
-
-func TestFanReleaseUnknownSubscriberIsNoOp(_ *testing.T) {
-	m := newTestManager()
-	_, release := m.fanSubscribe(3)
-	release()
-	// Releasing a second time on a now-empty campaign is a safe no-op.
-	release()
 }

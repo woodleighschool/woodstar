@@ -48,7 +48,7 @@ type Dependencies struct {
 	LabelStore       *labels.Store
 	QueryStore       *queries.Store
 	CheckStore       *checks.Store
-	LiveQueryManager *livequery.LiveQueryManager
+	LiveQueryManager *livequery.Manager
 	TargetResolver   *hosts.TargetResolver
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service
@@ -139,9 +139,6 @@ func (s *Server) browserRoutes(r chi.Router) {
 	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
 	if deps.SessionManager != nil {
 		r.Use(deps.SessionManager.LoadAndSave)
-	}
-	if !deps.Config.IsHTTPS() {
-		r.Use(middleware.PlaintextHTTP)
 	}
 	r.Use(middleware.CSRF(deps.Config, config.SessionLifetime))
 	Mount(r, deps)

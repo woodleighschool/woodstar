@@ -150,7 +150,9 @@ func requireAdmin(ctx context.Context) (*users.User, error) {
 
 func authError(err error) error {
 	switch {
-	case errors.Is(err, auth.ErrInvalidCredentials), errors.Is(err, auth.ErrNotAuthenticated):
+	case errors.Is(err, auth.ErrInvalidCredentials):
+		return huma.Error401Unauthorized("invalid email or password")
+	case errors.Is(err, auth.ErrNotAuthenticated):
 		return huma.Error401Unauthorized("not authenticated")
 	case errors.Is(err, auth.ErrNotSetup):
 		return huma.Error409Conflict("setup required")

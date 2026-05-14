@@ -81,7 +81,13 @@ export function APIKeyCard() {
               <Button type="button" size="sm" variant="outline" onClick={() => void handleCopy()}>
                 <Copy data-icon="inline-start" /> Copy
               </Button>
-              <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => setConfirmRotate(true)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setConfirmRotate(true)}
+              >
                 <RefreshCw data-icon="inline-start" /> Rotate
               </Button>
               <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmRevoke(true)}>
@@ -127,7 +133,13 @@ export function APIKeyCard() {
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="button" variant="destructive" size="sm" disabled={revoke.isPending} onClick={() => void handleRevoke()}>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={revoke.isPending}
+              onClick={() => void handleRevoke()}
+            >
               Revoke
             </Button>
           </DialogFooter>

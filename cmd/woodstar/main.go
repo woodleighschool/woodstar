@@ -154,7 +154,7 @@ func newServer(
 		}
 	}
 	orbitService := orbit.NewService(hostStore, secretStore, deviceMappingStore)
-	liveQueries := livequery.NewLiveQueryManager(time.Duration(cfg.LiveQueryTimeoutSeconds) * time.Second)
+	liveQueries := livequery.NewManager(time.Duration(cfg.LiveQueryTimeoutSeconds) * time.Second)
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
 		softwareStore,
