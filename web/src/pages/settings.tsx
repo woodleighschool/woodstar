@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { APIKeyCard } from "@/components/account/api-key-card";
 import { runtime } from "@/lib/runtime";
 
 function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
@@ -17,7 +18,8 @@ function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
 
 export function SettingsPage() {
   return (
-    <div className="p-6">
+    <div className="flex flex-col gap-6 p-6">
+      <APIKeyCard />
       <DefinitionList
         rows={[
           ["Version", runtime.version || "unknown"],

@@ -1,5 +1,6 @@
 export const queryKeys = {
   session: ["auth", "session"] as const,
+  account: ["account"] as const,
   users: ["users"] as const,
   osquerySchema: ["osquery-schema"] as const,
   hosts: (params?: unknown) => ["hosts", params ?? {}] as const,

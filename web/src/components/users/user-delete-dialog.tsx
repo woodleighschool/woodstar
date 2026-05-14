@@ -38,7 +38,7 @@ export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogP
         <DialogHeader>
           <DialogTitle>Delete user</DialogTitle>
           <DialogDescription>
-            This soft-deletes the user and revokes all of their sessions. They will be signed out immediately.
+            This permanently deletes the user. Their next request will sign them out automatically.
           </DialogDescription>
         </DialogHeader>
 
