@@ -41,8 +41,9 @@ export function SetupPage() {
           </div>
           <CardTitle>Set up Woodstar</CardTitle>
           <CardDescription>
-            Create the first administrator account. Subsequent accounts can be invited or provisioned via OIDC after
-            sign-in.
+            Create the first administrator account. This account is permanent: it cannot be deleted and cannot sign in
+            with SSO. Use a generic or break-glass identity so an admin can always log in. Only the password may be
+            changed later. Other accounts can be added after sign-in.
           </CardDescription>
         </CardHeader>
         <CardContent>

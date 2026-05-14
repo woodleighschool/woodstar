@@ -9,19 +9,6 @@ import (
 	"context"
 )
 
-const countAdminUsers = `-- name: CountAdminUsers :one
-SELECT count(*)::integer
-FROM users
-WHERE role = 'admin'
-`
-
-func (q *Queries) CountAdminUsers(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, countAdminUsers)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     email,

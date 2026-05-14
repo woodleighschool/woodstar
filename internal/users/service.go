@@ -3,16 +3,21 @@ package users
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 )
 
-// User management errors describe expected admin failures.
+// User management errors describe expected admin failures. The frontend
+// gates self-mutation and last-admin removal in the UI; the backend only
+// enforces invariants that protect the system from being locked out.
 var (
-	ErrCannotChangeOwnRole   = errors.New("cannot change your own role")
-	ErrCannotDeleteSelf      = errors.New("cannot delete your own account")
-	ErrCannotRemoveLastAdmin = errors.New("cannot remove the last admin")
+	ErrCannotDeleteInitialUser = errors.New("the initial user cannot be deleted")
+	ErrCannotModifyInitialUser = errors.New("the initial user's name and role are locked; only the password may be changed")
 )
+
+// initialUserID is the row created by the setup wizard. That account is
+// pinned as a permanent local password login: it cannot be deleted and only
+// its password may be updated, so an admin always has a working login path.
+const initialUserID int64 = 1
 
 // Service owns local Woodstar account management.
 type Service struct {
@@ -74,19 +79,17 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*User, error
 	})
 }
 
-// Update writes the full target record. Self-mutation guards.
-func (s *Service) Update(
-	ctx context.Context,
-	actor *User,
-	targetID int64,
-	params UpdateParams,
-) (*User, error) {
-	if actor != nil && actor.ID == targetID && actor.Role != params.Role {
-		return nil, ErrCannotChangeOwnRole
-	}
-
-	if err := s.guardLastAdminOnRoleChange(ctx, targetID, params.Role); err != nil {
-		return nil, err
+// Update writes the full target record. The initial user's name and role are
+// locked.
+func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParams) (*User, error) {
+	if targetID == initialUserID {
+		current, err := s.store.GetByID(ctx, targetID)
+		if err != nil {
+			return nil, err
+		}
+		if params.Name != current.Name || params.Role != current.Role {
+			return nil, ErrCannotModifyInitialUser
+		}
 	}
 
 	storeParams := UpdateRecordParams{
@@ -104,59 +107,14 @@ func (s *Service) Update(
 	return s.store.Update(ctx, targetID, storeParams)
 }
 
-// Delete hard-deletes targetID. Active sessions whose user is gone are
-// rejected by auth.CurrentUser on the next request because GetByID misses,
-// and the session rows expire on their own.
-// actorID may not equal targetID, and the last admin cannot be removed.
-func (s *Service) Delete(ctx context.Context, actorID int64, targetID int64) error {
-	if actorID == targetID {
-		return ErrCannotDeleteSelf
+// Delete hard-deletes targetID. The initial user is protected so a working
+// admin login always exists; the immutable id:1 admin floor also makes
+// "last admin removed" structurally impossible.
+func (s *Service) Delete(ctx context.Context, targetID int64) error {
+	if targetID == initialUserID {
+		return ErrCannotDeleteInitialUser
 	}
-
-	target, err := s.store.GetByID(ctx, targetID)
-	if err != nil {
-		return err
-	}
-	if target.Role == RoleAdmin {
-		count, err := s.store.CountAdmins(ctx)
-		if err != nil {
-			return fmt.Errorf("count admins: %w", err)
-		}
-		if count <= 1 {
-			return ErrCannotRemoveLastAdmin
-		}
-	}
-
-	if err := s.store.Delete(ctx, targetID); err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-	return nil
-}
-
-// guardLastAdminOnRoleChange refuses a role change that would leave zero admins.
-func (s *Service) guardLastAdminOnRoleChange(
-	ctx context.Context,
-	targetID int64,
-	newRole Role,
-) error {
-	if newRole == RoleAdmin {
-		return nil
-	}
-	target, err := s.store.GetByID(ctx, targetID)
-	if err != nil {
-		return err
-	}
-	if target.Role != RoleAdmin {
-		return nil
-	}
-	count, err := s.store.CountAdmins(ctx)
-	if err != nil {
-		return fmt.Errorf("count admins: %w", err)
-	}
-	if count <= 1 {
-		return ErrCannotRemoveLastAdmin
-	}
-	return nil
+	return s.store.Delete(ctx, targetID)
 }
 
 func fallbackName(name string, email string) string {

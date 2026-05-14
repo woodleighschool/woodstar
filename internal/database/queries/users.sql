@@ -48,8 +48,3 @@ RETURNING *;
 DELETE FROM users
 WHERE id = @id
 RETURNING id;
-
--- name: CountAdminUsers :one
-SELECT count(*)::integer
-FROM users
-WHERE role = 'admin';

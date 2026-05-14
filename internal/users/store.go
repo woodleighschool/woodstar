@@ -136,12 +136,6 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-// CountAdmins returns the number of active admin users.
-func (s *Store) CountAdmins(ctx context.Context) (int, error) {
-	count, err := s.q.CountAdminUsers(ctx)
-	return int(count), err
-}
-
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }

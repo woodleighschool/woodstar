@@ -113,9 +113,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
 		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
 		{name: "weak password", err: users.ErrWeakPassword, wantStatus: 400},
-		{name: "self role", err: users.ErrCannotChangeOwnRole, wantStatus: 409},
-		{name: "self delete", err: users.ErrCannotDeleteSelf, wantStatus: 409},
-		{name: "last admin", err: users.ErrCannotRemoveLastAdmin, wantStatus: 409},
+		{name: "initial user delete", err: users.ErrCannotDeleteInitialUser, wantStatus: 409},
+		{name: "initial user modify", err: users.ErrCannotModifyInitialUser, wantStatus: 409},
 	}
 
 	for _, tt := range tests {

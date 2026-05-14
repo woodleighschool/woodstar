@@ -153,15 +153,14 @@ func registerPutUser(api huma.API, userService *users.Service) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userPutInput) (*userOutput, error) {
-		actor, err := requireAdmin(ctx)
-		if err != nil {
+		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		targetID, err := parseUserID(input.ID)
 		if err != nil {
 			return nil, err
 		}
-		user, err := userService.Update(ctx, actor, targetID, users.UpdateParams{
+		user, err := userService.Update(ctx, targetID, users.UpdateParams{
 			Name:     input.Body.Name,
 			Role:     input.Body.Role,
 			Password: input.Body.Password,
@@ -187,15 +186,14 @@ func registerDeleteUser(api huma.API, userService *users.Service) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userDeleteInput) (*struct{}, error) {
-		actor, err := requireAdmin(ctx)
-		if err != nil {
+		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		targetID, err := parseUserID(input.ID)
 		if err != nil {
 			return nil, err
 		}
-		if err := userService.Delete(ctx, actor.ID, targetID); err != nil {
+		if err := userService.Delete(ctx, targetID); err != nil {
 			return nil, userMutationError(err)
 		}
 		return &struct{}{}, nil
@@ -206,15 +204,14 @@ func parseUserID(id string) (int64, error) {
 	return apihelpers.ParseResourceID(id, userResource)
 }
 
-// userMutationError extends ResourceMutationError with auth-specific cases
-// (last-admin, self-edit, weak-password) that don't apply to other resources.
+// userMutationError extends ResourceMutationError with the initial-user
+// lockout and weak-password cases that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, users.ErrCannotChangeOwnRole),
-		errors.Is(err, users.ErrCannotDeleteSelf),
-		errors.Is(err, users.ErrCannotRemoveLastAdmin):
+	case errors.Is(err, users.ErrCannotDeleteInitialUser),
+		errors.Is(err, users.ErrCannotModifyInitialUser):
 		return huma.Error409Conflict(err.Error())
 	case errors.Is(err, users.ErrWeakPassword):
 		return huma.Error400BadRequest(users.ErrWeakPassword.Error())

@@ -20,8 +20,10 @@ type Role = User["role"];
 interface BaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // canChangeRole gates the role select. False when editing self.
+  // canChangeRole gates the role select. False when editing self or the initial user.
   canChangeRole?: boolean;
+  // isInitialUser locks name and role; only the password may be changed.
+  isInitialUser?: boolean;
 }
 
 interface CreateProps extends BaseProps {
@@ -50,6 +52,7 @@ export function UserFormDialog(props: UserFormDialogProps) {
             mode={props.mode}
             editing={props.mode === "edit" ? props.user : null}
             canChangeRole={props.canChangeRole ?? true}
+            isInitialUser={props.isInitialUser ?? false}
             onClose={() => props.onOpenChange(false)}
           />
         ) : null}
@@ -62,10 +65,11 @@ interface UserFormBodyProps {
   mode: "create" | "edit";
   editing: User | null;
   canChangeRole: boolean;
+  isInitialUser: boolean;
   onClose: () => void;
 }
 
-function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyProps) {
+function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: UserFormBodyProps) {
   const create = useCreateUser();
   const update = useUpdateUser();
   const pending = create.isPending || update.isPending;
@@ -85,7 +89,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
     }
 
     const body: UserUpdateBody = {
-      name,
+      name: isInitialUser ? editing!.name : name,
       role: canChangeRole ? role : editing!.role,
     };
     if (password.trim() !== "") body.password = password;
@@ -97,7 +101,9 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
   const description =
     mode === "create"
       ? "Create a new Woodstar user. Roles control whether the user can manage other users and secrets."
-      : "Update name, role, or reset password. Email cannot change.";
+      : isInitialUser
+        ? "The initial account is permanent. Only the password may be changed."
+        : "Update name, role, or reset password. Email cannot change.";
 
   return (
     <>
@@ -127,13 +133,14 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
             />
           </Field>
 
-          <Field>
+          <Field data-disabled={isInitialUser}>
             <FieldLabel htmlFor="user-name">Name</FieldLabel>
             <Input
               id="user-name"
               type="text"
               autoComplete="off"
               value={name}
+              disabled={isInitialUser}
               onChange={(event) => setName(event.target.value)}
               placeholder={mode === "create" ? "Optional, defaults to email" : ""}
             />
@@ -152,7 +159,11 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {!canChangeRole ? <FieldDescription>You cannot change your own role.</FieldDescription> : null}
+            {!canChangeRole ? (
+              <FieldDescription>
+                {isInitialUser ? "The initial user's role is locked." : "You cannot change your own role."}
+              </FieldDescription>
+            ) : null}
           </Field>
 
           <Field>

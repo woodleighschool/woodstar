@@ -20,6 +20,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUsers, type User } from "@/hooks/use-users";
 import { formatRelative } from "@/lib/utils";
 
+const INITIAL_USER_ID = 1;
+
 export function UsersPage() {
   const query = useUsers();
   const { user: currentUser } = useAuth();
@@ -50,7 +52,8 @@ export function UsersPage() {
             if (!open) setEditing(null);
           }}
           user={editing}
-          canChangeRole={editing.id !== currentUser?.id}
+          isInitialUser={editing.id === INITIAL_USER_ID}
+          canChangeRole={editing.id !== currentUser?.id && editing.id !== INITIAL_USER_ID}
         />
       ) : null}
 
@@ -125,11 +128,13 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
         <TableBody>
           {data.map((row) => {
             const isSelf = row.id === currentUserId;
+            const isInitial = row.id === INITIAL_USER_ID;
             return (
               <TableRow key={row.id}>
                 <TableCell className="font-medium">
                   {row.email}
                   {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
+                  {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{row.name || "-"}</TableCell>
                 <TableCell>
@@ -148,7 +153,7 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                     <DropdownMenuContent align="end">
                       <DropdownMenuGroup>
                         <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
-                        {!isSelf ? (
+                        {!isSelf && !isInitial ? (
                           <DropdownMenuItem variant="destructive" onSelect={() => onDelete(row)}>
                             Delete
                           </DropdownMenuItem>
