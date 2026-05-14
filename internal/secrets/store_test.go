@@ -29,24 +29,24 @@ func TestOrbitEnrollSecretLifecycle(t *testing.T) {
 		t.Fatalf("created secret %q not found in list", secret.Value)
 	}
 
-	validated, ok, err := store.ValidateOrbitEnrollSecret(ctx, secret.Value)
+	ok, err := store.HasActiveOrbitEnrollSecret(ctx, secret.Value)
 	if err != nil {
-		t.Fatalf("validate orbit enroll secret: %v", err)
+		t.Fatalf("check orbit enroll secret: %v", err)
 	}
-	if !ok || validated.ID != secret.ID {
-		t.Fatalf("validated secret = %#v, want id %d", validated, secret.ID)
+	if !ok {
+		t.Fatal("created secret not active")
 	}
 
 	if err := store.DeleteOrbitEnrollSecret(ctx, secret.ID); err != nil {
 		t.Fatalf("delete orbit enroll secret: %v", err)
 	}
 
-	validated, ok, err = store.ValidateOrbitEnrollSecret(ctx, secret.Value)
+	ok, err = store.HasActiveOrbitEnrollSecret(ctx, secret.Value)
 	if err != nil {
-		t.Fatalf("validate deleted orbit enroll secret: %v", err)
+		t.Fatalf("check deleted orbit enroll secret: %v", err)
 	}
 	if ok {
-		t.Fatalf("validated deleted secret = %#v, want not found", validated)
+		t.Fatal("deleted secret is still active")
 	}
 }
 

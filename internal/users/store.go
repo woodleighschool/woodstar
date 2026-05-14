@@ -62,8 +62,7 @@ func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, e
 		}
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // GetByEmail returns an active user by email.
@@ -75,8 +74,7 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // GetByID returns an active user by database ID.
@@ -88,8 +86,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // List returns active users ordered by creation time.
@@ -123,8 +120,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 		}
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // Delete removes the user with id.
@@ -145,8 +141,7 @@ func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // SetAPIKey writes a freshly generated API key for id and resets the
@@ -162,8 +157,7 @@ func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*User, err
 		}
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 // ClearAPIKey removes the API key for id.
@@ -175,8 +169,7 @@ func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-	u := userFromSQLC(row)
-	return &u, nil
+	return new(userFromSQLC(row)), nil
 }
 
 func normalizeEmail(email string) string {

@@ -12,8 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
-const osqueryFlagConfigRefresh = "config_refresh"
-
 type Projector struct {
 	hostStore     *hosts.Store
 	softwareStore *software.Store
@@ -155,8 +153,7 @@ func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows 
 	}
 	update := hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]})
 	if update.UptimeSeconds != nil {
-		restarted := time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second)
-		update.LastRestartedAt = &restarted
+		update.LastRestartedAt = new(time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second))
 	}
 	return projector.hostStore.ApplyDetail(ctx, hostID, update)
 }
@@ -236,19 +233,13 @@ func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
 
 func parseOsqueryFlags(rows []map[string]string) hosts.HostDetailUpdate {
 	var update hosts.HostDetailUpdate
-	var configRefresh *int32
 	for _, row := range rows {
 		switch strings.TrimSpace(row["name"]) {
 		case "distributed_interval":
 			update.DistributedInterval = parseInt32Ptr(row["value"])
 		case "config_tls_refresh":
 			update.ConfigTLSRefresh = parseInt32Ptr(row["value"])
-		case osqueryFlagConfigRefresh:
-			configRefresh = parseInt32Ptr(row["value"])
 		}
-	}
-	if update.ConfigTLSRefresh == nil {
-		update.ConfigTLSRefresh = configRefresh
 	}
 	return update
 }
@@ -258,8 +249,7 @@ func parseInt32Ptr(value string) *int32 {
 	if err != nil {
 		return nil
 	}
-	out := int32(parsed)
-	return &out
+	return new(int32(parsed))
 }
 
 func parseFloat64Ptr(value string) *float64 {
@@ -267,7 +257,7 @@ func parseFloat64Ptr(value string) *float64 {
 	if err != nil {
 		return nil
 	}
-	return &parsed
+	return new(parsed)
 }
 
 type softwareEnrichment map[string]softwarePathEnrichment
@@ -313,11 +303,11 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 		if name == "" {
 			continue
 		}
-		installedPath := installedPathForSoftware(row)
+		installedPath := strings.TrimSpace(row["installed_path"])
 		pathEnrichment := enrichment[installedPath]
 		entries = append(entries, software.HostSoftwareEntry{
 			Name:             name,
-			Version:          versionForSoftware(row),
+			Version:          strings.TrimSpace(row["version"]),
 			Source:           strings.TrimSpace(row["source"]),
 			BundleIdentifier: strings.TrimSpace(row["bundle_identifier"]),
 			ExtensionID:      strings.TrimSpace(row["extension_id"]),
@@ -336,25 +326,8 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 	return entries
 }
 
-func versionForSoftware(row map[string]string) string {
-	if version := strings.TrimSpace(row["version"]); version != "" {
-		return version
-	}
-	return strings.TrimSpace(row["bundle_short_version"])
-}
-
-func installedPathForSoftware(row map[string]string) string {
-	if path := strings.TrimSpace(row["installed_path"]); path != "" {
-		return path
-	}
-	return strings.TrimSpace(row["path"])
-}
-
 func parseSoftwareLastOpenedAt(row map[string]string) *time.Time {
-	if value := strings.TrimSpace(row["last_opened_at"]); value != "" {
-		return parseUnixTime(value)
-	}
-	return parseUnixTime(row["last_opened_time"])
+	return parseUnixTime(row["last_opened_at"])
 }
 
 func parseUnixTime(value string) *time.Time {
@@ -366,8 +339,7 @@ func parseUnixTime(value string) *time.Time {
 	if !ok {
 		return nil
 	}
-	opened := time.Unix(seconds, nanos).UTC()
-	return &opened
+	return new(time.Unix(seconds, nanos).UTC())
 }
 
 func parseUnixTimeParts(value string) (int64, int64, bool) {

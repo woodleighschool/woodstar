@@ -78,9 +78,9 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := labelFromSQLC(row.Label)
-	l.HostsCount = int(row.HostsCount)
-	return &l, nil
+	label := new(labelFromSQLC(row.Label))
+	label.HostsCount = int(row.HostsCount)
+	return label, nil
 }
 
 // ListForHost returns labels currently matching a host.
@@ -118,8 +118,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		}
 		return nil, err
 	}
-	l := labelFromSQLC(row)
-	return &l, nil
+	return new(labelFromSQLC(row)), nil
 }
 
 // Update replaces editable label fields.
@@ -145,8 +144,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		}
 		return nil, err
 	}
-	l := labelFromSQLC(row)
-	return &l, nil
+	return new(labelFromSQLC(row)), nil
 }
 
 // Delete removes a regular label.
@@ -357,8 +355,7 @@ func platformParam(value *string) *platform.Platform {
 	if value == nil {
 		return nil
 	}
-	platform := platform.Platform(*value)
-	return &platform
+	return new(platform.Platform(*value))
 }
 
 func labelFromSQLC(s sqlc.Label) Label {

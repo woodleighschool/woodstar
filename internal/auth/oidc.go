@@ -46,11 +46,10 @@ type oidcProvider struct {
 	emailClaim string
 }
 
-// configureOIDC discovers the OIDC issuer and returns a provider. Returns
-// nil, nil when cfg is zero (capability-gated).
+// configureOIDC discovers the OIDC issuer and returns a provider.
 func configureOIDC(ctx context.Context, cfg OIDCConfig) (*oidcProvider, error) {
 	if cfg.IssuerURL == "" {
-		return nil, nil
+		return nil, ErrSSONotConfigured
 	}
 	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
 	if err != nil {

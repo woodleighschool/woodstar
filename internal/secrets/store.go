@@ -55,25 +55,6 @@ func (s *Store) CreateOrbitEnrollSecret(ctx context.Context) (Secret, error) {
 	return secretFromRecord(row), nil
 }
 
-// ValidateOrbitEnrollSecret returns the active Orbit enrollment token matching value.
-// Comparison is plaintext because admins can view and reuse these secrets.
-func (s *Store) ValidateOrbitEnrollSecret(ctx context.Context, value string) (Secret, bool, error) {
-	if strings.TrimSpace(value) == "" {
-		return Secret{}, false, nil
-	}
-
-	secrets, err := s.ListOrbitEnrollSecrets(ctx)
-	if err != nil {
-		return Secret{}, false, err
-	}
-	for _, secret := range secrets {
-		if secret.Value == value {
-			return secret, true, nil
-		}
-	}
-	return Secret{}, false, nil
-}
-
 // HasActiveOrbitEnrollSecret reports whether value matches an active Orbit enrollment token.
 func (s *Store) HasActiveOrbitEnrollSecret(ctx context.Context, value string) (bool, error) {
 	if strings.TrimSpace(value) == "" {

@@ -8,13 +8,12 @@ import (
 func TestParseSoftwareRows(t *testing.T) {
 	rows := []map[string]string{
 		{
-			"name":                 "Safari",
-			"version":              "26.0",
-			"source":               "apps",
-			"bundle_identifier":    "com.apple.Safari",
-			"installed_path":       "/Applications/Safari.app",
-			"last_opened_at":       "1745999192.82046",
-			"bundle_short_version": "ignored",
+			"name":              "Safari",
+			"version":           "26.0",
+			"source":            "apps",
+			"bundle_identifier": "com.apple.Safari",
+			"installed_path":    "/Applications/Safari.app",
+			"last_opened_at":    "1745999192.82046",
 		},
 		{
 			"name":              "node",
@@ -45,7 +44,7 @@ func TestParseSoftwareRows(t *testing.T) {
 func TestParseOsqueryFlags(t *testing.T) {
 	got := parseOsqueryFlags([]map[string]string{
 		{"name": "distributed_interval", "value": "15"},
-		{"name": "config_refresh", "value": "60"},
+		{"name": "config_tls_refresh", "value": "60"},
 	})
 	if got.DistributedInterval == nil || *got.DistributedInterval != 15 {
 		t.Fatalf("DistributedInterval = %v, want 15", got.DistributedInterval)
@@ -54,12 +53,9 @@ func TestParseOsqueryFlags(t *testing.T) {
 		t.Fatalf("ConfigTLSRefresh = %v, want 60", got.ConfigTLSRefresh)
 	}
 
-	got = parseOsqueryFlags([]map[string]string{
-		{"name": "config_refresh", "value": "60"},
-		{"name": "config_tls_refresh", "value": "30"},
-	})
+	got = parseOsqueryFlags([]map[string]string{{"name": "config_tls_refresh", "value": "30"}})
 	if got.ConfigTLSRefresh == nil || *got.ConfigTLSRefresh != 30 {
-		t.Fatalf("ConfigTLSRefresh = %v, want config_tls_refresh value 30", got.ConfigTLSRefresh)
+		t.Fatalf("ConfigTLSRefresh = %v, want 30", got.ConfigTLSRefresh)
 	}
 }
 

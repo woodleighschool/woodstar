@@ -102,7 +102,7 @@ func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParam
 		if err != nil {
 			return nil, err
 		}
-		storeParams.PasswordHash = &hash
+		storeParams.PasswordHash = new(hash)
 	}
 
 	return s.store.Update(ctx, targetID, storeParams)

@@ -110,10 +110,10 @@ func (c *EntraClient) fetchUsers(ctx context.Context) ([]SnapshotUser, error) {
 }
 
 type graphGroup struct {
-	ID            string  `json:"id"`
-	DisplayName   string  `json:"displayName"`
-	MailNickname  *string `json:"mailNickname"`
-	ODataType     string  `json:"@odata.type"`
+	ID           string  `json:"id"`
+	DisplayName  string  `json:"displayName"`
+	MailNickname *string `json:"mailNickname"`
+	ODataType    string  `json:"@odata.type"`
 }
 
 func (c *EntraClient) fetchGroups(ctx context.Context) ([]SnapshotGroup, error) {

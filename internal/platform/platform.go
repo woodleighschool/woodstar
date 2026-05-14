@@ -30,7 +30,7 @@ func CleanPtr(value *string) *string {
 	if cleaned == "" {
 		return nil
 	}
-	return &cleaned
+	return new(cleaned)
 }
 
 func CleanPlatform(value string) string {

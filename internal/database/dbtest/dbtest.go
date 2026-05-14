@@ -17,7 +17,7 @@ const (
 
 // Open returns a migrated test database. CI is expected to provide Postgres via
 // WOODSTAR_TEST_DATABASE_URL; local tests fall back to testcontainers.
-func Open(t *testing.T) (*database.DB, context.Context) {
+func Open(t testing.TB) (*database.DB, context.Context) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -38,7 +38,7 @@ func Open(t *testing.T) (*database.DB, context.Context) {
 	return db, ctx
 }
 
-func startPostgres(t *testing.T, ctx context.Context) string {
+func startPostgres(t testing.TB, ctx context.Context) string {
 	t.Helper()
 
 	ctr, err := postgres.Run(

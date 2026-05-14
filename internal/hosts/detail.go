@@ -47,9 +47,9 @@ func ParseHostDetails(details map[string]map[string]string) HostDetailUpdate {
 		total := parseInt64(row["bytes_total"])
 		available := parseInt64(row["bytes_available"])
 		if total > 0 {
-			update.DiskSpaceTotalBytes = &total
+			update.DiskSpaceTotalBytes = new(total)
 			if available >= 0 {
-				update.DiskSpaceAvailableBytes = &available
+				update.DiskSpaceAvailableBytes = new(available)
 			}
 		}
 	}
@@ -100,8 +100,8 @@ func parseInt64(value string) int64 {
 }
 
 func parsePositiveInt64Ptr(value string) *int64 {
-	parsed := parseInt64(value)
-	if parsed <= 0 {
+	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	if err != nil || parsed <= 0 {
 		return nil
 	}
 	return new(parsed)

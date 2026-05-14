@@ -75,12 +75,3 @@ SELECT @directory_user_id, g.id
 FROM directory_groups g
 WHERE g.external_id = ANY(@group_external_ids::text[])
 ON CONFLICT DO NOTHING;
-
--- name: ListDirectoryUsers :many
-SELECT * FROM directory_users ORDER BY user_principal_name;
-
--- name: ListDirectoryGroups :many
-SELECT * FROM directory_groups ORDER BY display_name;
-
--- name: GetDirectoryUserByUPN :one
-SELECT * FROM directory_users WHERE user_principal_name = @user_principal_name;

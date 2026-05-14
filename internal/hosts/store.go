@@ -50,8 +50,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, params EnrollParams) (*
 	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
 		return nil, err
 	}
-	h := hostFromSQLC(row)
-	return &h, nil
+	return new(hostFromSQLC(row)), nil
 }
 
 // UpsertOnOsqueryEnroll refreshes the osquery node key and host inventory.
@@ -90,8 +89,7 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update HostDetailUpda
 	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
 		return nil, err
 	}
-	h := hostFromSQLC(row)
-	return &h, nil
+	return new(hostFromSQLC(row)), nil
 }
 
 // List returns active hosts and the total count matching params.
@@ -136,8 +134,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := hostFromSQLC(row)
-	return &h, nil
+	return new(hostFromSQLC(row)), nil
 }
 
 // Delete removes one host and cascades inventory, labels, check results, and report results.
@@ -174,8 +171,7 @@ func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, e
 	if err != nil {
 		return nil, err
 	}
-	h := hostFromSQLC(row)
-	return &h, nil
+	return new(hostFromSQLC(row)), nil
 }
 
 // GetByOsqueryNodeKey returns an active host and refreshes last_seen_at.
@@ -191,8 +187,7 @@ func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host,
 	if err != nil {
 		return nil, err
 	}
-	h := hostFromSQLC(row)
-	return &h, nil
+	return new(hostFromSQLC(row)), nil
 }
 
 // ApplyDetail updates the host fields reported by successful detail queries.

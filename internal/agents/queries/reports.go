@@ -152,8 +152,7 @@ func (s *Store) HostQueryResults(
 			return nil, nil, err
 		}
 		if lastFetched == nil {
-			fetched := result.LastFetched
-			lastFetched = &fetched
+			lastFetched = new(result.LastFetched)
 		}
 		if hasData {
 			results = append(results, result)
@@ -250,7 +249,7 @@ func (s *Store) loadHostReportState(ctx context.Context, queryID int64, hostID i
 		return err
 	}
 	if err == nil {
-		report.LastFetched = &fetched
+		report.LastFetched = new(fetched)
 	}
 
 	if err := s.db.Pool().QueryRow(ctx,

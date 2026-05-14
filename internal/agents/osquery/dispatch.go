@@ -237,8 +237,7 @@ func (s *Service) handleCheckResult(
 	}
 	var passes *bool
 	if statusOK(status) {
-		value := len(rows) > 0
-		passes = &value
+		passes = new(len(rows) > 0)
 	} else {
 		s.logger.WarnContext(
 			ctx,

@@ -10,5 +10,5 @@ func CleanStringPtr(value *string) *string {
 	if cleaned == "" {
 		return nil
 	}
-	return &cleaned
+	return new(cleaned)
 }
