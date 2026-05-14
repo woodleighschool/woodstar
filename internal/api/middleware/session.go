@@ -10,10 +10,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 )
 
-// RequireAuth attaches the signed-in user to protected admin Huma operations.
+// RequireAuth attaches the signed-in user to protected admin Huma
+// operations. Accepts an "Authorization: Bearer <api-key>" header first and
+// falls back to the scs session cookie when no Bearer token is present.
 func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		user, err := authService.CurrentUser(ctx.Context())
+		user, err := authService.Authenticate(ctx.Context(), ctx.Header("Authorization"))
 		if err != nil {
 			if errors.Is(err, auth.ErrNotAuthenticated) {
 				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "not authenticated")
@@ -32,7 +34,7 @@ func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, fun
 func RequireAuthChi(authService *auth.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, err := authService.CurrentUser(r.Context())
+			user, err := authService.Authenticate(r.Context(), r.Header.Get("Authorization"))
 			if err != nil {
 				if errors.Is(err, auth.ErrNotAuthenticated) {
 					http.Error(w, "not authenticated", http.StatusUnauthorized)

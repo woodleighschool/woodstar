@@ -13,9 +13,15 @@ CREATE TABLE users (
     name TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL,
     role user_role NOT NULL,
+    api_key TEXT,
+    api_key_created_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX users_api_key_idx
+    ON users (api_key)
+    WHERE api_key IS NOT NULL;
 
 -- Owned by alexedwards/scs/pgxstore.
 CREATE TABLE sessions (

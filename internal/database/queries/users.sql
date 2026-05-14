@@ -48,3 +48,26 @@ RETURNING *;
 DELETE FROM users
 WHERE id = @id
 RETURNING id;
+
+-- name: GetUserByAPIKey :one
+SELECT *
+FROM users
+WHERE api_key = @api_key;
+
+-- name: SetUserAPIKey :one
+UPDATE users
+SET
+    api_key = @api_key,
+    api_key_created_at = now(),
+    updated_at = now()
+WHERE id = @id
+RETURNING *;
+
+-- name: ClearUserAPIKey :one
+UPDATE users
+SET
+    api_key = NULL,
+    api_key_created_at = NULL,
+    updated_at = now()
+WHERE id = @id
+RETURNING *;

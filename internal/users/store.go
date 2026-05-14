@@ -136,18 +136,66 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// GetByAPIKey returns the user owning the given API key, or ErrNotFound.
+func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
+	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	u := userFromSQLC(row)
+	return &u, nil
+}
+
+// SetAPIKey writes a freshly generated API key for id and resets the
+// created_at and last_used_at timestamps.
+func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*User, error) {
+	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		if dbutil.IsUniqueViolation(err) {
+			return nil, dbutil.ErrAlreadyExists
+		}
+		return nil, err
+	}
+	u := userFromSQLC(row)
+	return &u, nil
+}
+
+// ClearAPIKey removes the API key for id.
+func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*User, error) {
+	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	u := userFromSQLC(row)
+	return &u, nil
+}
+
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
 func userFromSQLC(s sqlc.User) User {
-	return User{
-		ID:           s.ID,
-		Email:        s.Email,
-		Name:         s.Name,
-		PasswordHash: s.PasswordHash,
-		Role:         s.Role,
-		CreatedAt:    s.CreatedAt,
-		UpdatedAt:    s.UpdatedAt,
+	u := User{
+		ID:              s.ID,
+		Email:           s.Email,
+		Name:            s.Name,
+		PasswordHash:    s.PasswordHash,
+		Role:            s.Role,
+		APIKeyCreatedAt: s.APIKeyCreatedAt,
+		CreatedAt:       s.CreatedAt,
+		UpdatedAt:       s.UpdatedAt,
 	}
+	if s.APIKey != nil {
+		u.APIKey = *s.APIKey
+	}
+	return u
 }

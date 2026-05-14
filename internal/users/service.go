@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"errors"
-	"strings"
 )
 
 // User management errors describe expected admin failures. The frontend
@@ -73,7 +72,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*User, error
 
 	return s.store.Create(ctx, CreateRecordParams{
 		Email:        params.Email,
-		Name:         fallbackName(params.Name, params.Email),
+		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         params.Role,
 	})
@@ -117,10 +116,18 @@ func (s *Service) Delete(ctx context.Context, targetID int64) error {
 	return s.store.Delete(ctx, targetID)
 }
 
-func fallbackName(name string, email string) string {
-	name = strings.TrimSpace(name)
-	if name != "" {
-		return name
-	}
-	return strings.TrimSpace(email)
+// GetByAPIKey returns the user owning the given API key, or ErrNotFound.
+func (s *Service) GetByAPIKey(ctx context.Context, key string) (*User, error) {
+	return s.store.GetByAPIKey(ctx, key)
 }
+
+// SetAPIKey stores key as the API key for userID, replacing any prior key.
+func (s *Service) SetAPIKey(ctx context.Context, userID int64, key string) (*User, error) {
+	return s.store.SetAPIKey(ctx, userID, key)
+}
+
+// ClearAPIKey removes the API key for userID.
+func (s *Service) ClearAPIKey(ctx context.Context, userID int64) (*User, error) {
+	return s.store.ClearAPIKey(ctx, userID)
+}
+
