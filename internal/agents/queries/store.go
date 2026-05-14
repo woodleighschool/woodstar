@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/platform"
@@ -18,12 +19,13 @@ import (
 // Store persists saved queries and scheduled report results.
 type Store struct {
 	db     *database.DB
+	q      *sqlc.Queries
 	scopes *scope.Store
 }
 
 // NewStore returns a query store backed by db.
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, scopes: scope.NewStore(db)}
+	return &Store{db: db, q: sqlc.New(db.Pool()), scopes: scope.NewStore(db)}
 }
 
 // List returns saved queries matching params.
@@ -84,11 +86,14 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Query, error) {
 }
 
 func (s *Store) getByID(ctx context.Context, id int64) (*Query, error) {
-	query, err := scanQuery(s.db.Pool().QueryRow(ctx, querySelectSQL+" WHERE id = $1", id))
+	row, err := s.q.GetSavedQueryByID(ctx, sqlc.GetSavedQueryByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
-	return query, err
+	if err != nil {
+		return nil, err
+	}
+	return queryFromSQLC(row), nil
 }
 
 // Create inserts a saved query.
@@ -100,22 +105,22 @@ func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) 
 
 	var created *Query
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, queryInsertSQL,
-			params.Name,
-			params.Description,
-			params.Query,
-			params.Platform,
-			params.MinOsqueryVersion,
-			params.ScheduleInterval,
-			params.CreatedByUserID,
-		)
-		query, err := scanQuery(row)
+		row, err := s.q.WithTx(tx).CreateSavedQuery(ctx, sqlc.CreateSavedQueryParams{
+			Name:              params.Name,
+			Description:       params.Description,
+			Query:             params.Query,
+			Platform:          platformSQLCParam(params.Platform),
+			MinOsqueryVersion: params.MinOsqueryVersion,
+			ScheduleInterval:  int32(params.ScheduleInterval),
+			CreatedByUserID:   params.CreatedByUserID,
+		})
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
 				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
+		query := queryFromSQLC(row)
 		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, params.LabelScope); err != nil {
 			return err
 		}
@@ -135,16 +140,15 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 
 	var updated *Query
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, queryUpdateSQL,
-			cleaned.Name,
-			cleaned.Description,
-			cleaned.Query,
-			cleaned.Platform,
-			cleaned.MinOsqueryVersion,
-			cleaned.ScheduleInterval,
-			id,
-		)
-		query, err := scanQuery(row)
+		row, err := s.q.WithTx(tx).UpdateSavedQuery(ctx, sqlc.UpdateSavedQueryParams{
+			Name:              cleaned.Name,
+			Description:       cleaned.Description,
+			Query:             cleaned.Query,
+			Platform:          platformSQLCParam(cleaned.Platform),
+			MinOsqueryVersion: cleaned.MinOsqueryVersion,
+			ScheduleInterval:  int32(cleaned.ScheduleInterval),
+			ID:                id,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		}
@@ -154,6 +158,7 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 			}
 			return err
 		}
+		query := queryFromSQLC(row)
 		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
@@ -166,12 +171,12 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 
 // Delete removes a saved query.
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM queries WHERE id = $1", id)
+	_, err := s.q.DeleteSavedQuery(ctx, sqlc.DeleteSavedQueryParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
 	if err != nil {
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
 	}
 	return nil
 }
@@ -181,11 +186,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM queries WHERE id = ANY($1::bigint[])", ids)
+	deletedIDs, err := s.q.DeleteSavedQueries(ctx, sqlc.DeleteSavedQueriesParams{Ids: ids})
 	if err != nil {
 		return 0, err
 	}
-	return int(tag.RowsAffected()), nil
+	return len(deletedIDs), nil
 }
 
 // ScheduledForHost returns scheduled report queries applicable to host.
@@ -298,6 +303,37 @@ func scanQuery(row pgx.Row) (*Query, error) {
 	return &query, err
 }
 
+func queryFromSQLC(row sqlc.Query) *Query {
+	return &Query{
+		ID:                row.ID,
+		Name:              row.Name,
+		Description:       row.Description,
+		Query:             row.Query,
+		Platform:          stringPtrFromPlatform(row.Platform),
+		MinOsqueryVersion: row.MinOsqueryVersion,
+		ScheduleInterval:  int(row.ScheduleInterval),
+		CreatedByUserID:   row.CreatedByUserID,
+		CreatedAt:         row.CreatedAt,
+		UpdatedAt:         row.UpdatedAt,
+	}
+}
+
+func platformSQLCParam(value *string) *sqlc.Platform {
+	if value == nil {
+		return nil
+	}
+	platform := sqlc.Platform(*value)
+	return &platform
+}
+
+func stringPtrFromPlatform(value *sqlc.Platform) *string {
+	if value == nil {
+		return nil
+	}
+	platform := string(*value)
+	return &platform
+}
+
 func queryListWhere(params QueryListParams) (string, []any) {
 	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
@@ -322,25 +358,3 @@ const querySelectSQL = `
 SELECT id, name, description, query, platform, min_osquery_version, schedule_interval,
        created_by_user_id, created_at, updated_at
 FROM queries`
-
-const queryInsertSQL = `
-INSERT INTO queries (
-    name, description, query, platform, min_osquery_version, schedule_interval,
-    created_by_user_id
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, description, query, platform, min_osquery_version, schedule_interval,
-          created_by_user_id, created_at, updated_at`
-
-const queryUpdateSQL = `
-UPDATE queries
-SET name = $1,
-    description = $2,
-    query = $3,
-    platform = $4,
-    min_osquery_version = $5,
-    schedule_interval = $6,
-    updated_at = now()
-WHERE id = $7
-RETURNING id, name, description, query, platform, min_osquery_version, schedule_interval,
-          created_by_user_id, created_at, updated_at`

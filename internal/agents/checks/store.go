@@ -74,13 +74,14 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 
 // GetByID returns one check.
 func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
-	check, err := scanCheck(s.db.Pool().QueryRow(ctx, checkSelectSQL+" WHERE id = $1", id))
+	row, err := s.q.GetCheckByID(ctx, sqlc.GetCheckByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
+	check := checkFromSQLC(row)
 	labelScope, err := s.scopes.LoadCheck(ctx, check.ID)
 	if err != nil {
 		return nil, err
@@ -98,21 +99,21 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 
 	var created *Check
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, checkInsertSQL,
-			params.Name,
-			params.Description,
-			params.Query,
-			params.Platform,
-			params.MinOsqueryVersion,
-			params.CreatedByUserID,
-		)
-		check, err := scanCheck(row)
+		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
+			Name:              params.Name,
+			Description:       params.Description,
+			Query:             params.Query,
+			Platform:          platformSQLCParam(params.Platform),
+			MinOsqueryVersion: params.MinOsqueryVersion,
+			CreatedByUserID:   params.CreatedByUserID,
+		})
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
 				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
+		check := checkFromSQLC(row)
 		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
@@ -132,15 +133,14 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 
 	var updated *Check
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx, checkUpdateSQL,
-			cleaned.Name,
-			cleaned.Description,
-			cleaned.Query,
-			cleaned.Platform,
-			cleaned.MinOsqueryVersion,
-			id,
-		)
-		check, err := scanCheck(row)
+		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
+			Name:              cleaned.Name,
+			Description:       cleaned.Description,
+			Query:             cleaned.Query,
+			Platform:          platformSQLCParam(cleaned.Platform),
+			MinOsqueryVersion: cleaned.MinOsqueryVersion,
+			ID:                id,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		}
@@ -150,6 +150,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			}
 			return err
 		}
+		check := checkFromSQLC(row)
 		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
@@ -162,12 +163,12 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 
 // Delete removes a check.
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM checks WHERE id = $1", id)
+	_, err := s.q.DeleteCheck(ctx, sqlc.DeleteCheckParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
 	if err != nil {
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return dbutil.ErrNotFound
 	}
 	return nil
 }
@@ -177,11 +178,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	tag, err := s.db.Pool().Exec(ctx, "DELETE FROM checks WHERE id = ANY($1::bigint[])", ids)
+	deletedIDs, err := s.q.DeleteChecks(ctx, sqlc.DeleteChecksParams{Ids: ids})
 	if err != nil {
 		return 0, err
 	}
-	return int(tag.RowsAffected()), nil
+	return len(deletedIDs), nil
 }
 
 // ApplicableForHost returns checks that should run on host.
@@ -329,6 +330,20 @@ func scanCheck(row pgx.Row) (*Check, error) {
 	return &check, err
 }
 
+func checkFromSQLC(row sqlc.Check) *Check {
+	return &Check{
+		ID:                row.ID,
+		Name:              row.Name,
+		Description:       row.Description,
+		Query:             row.Query,
+		Platform:          stringPtrFromPlatform(row.Platform),
+		MinOsqueryVersion: row.MinOsqueryVersion,
+		CreatedByUserID:   row.CreatedByUserID,
+		CreatedAt:         row.CreatedAt,
+		UpdatedAt:         row.UpdatedAt,
+	}
+}
+
 func checkHostStatusesFromCheckRows(rows []sqlc.ListCheckHostStatusesRow) []CheckHostStatus {
 	statuses := make([]CheckHostStatus, 0, len(rows))
 	for _, row := range rows {
@@ -370,6 +385,22 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 	return &status
 }
 
+func platformSQLCParam(value *string) *sqlc.Platform {
+	if value == nil {
+		return nil
+	}
+	platform := sqlc.Platform(*value)
+	return &platform
+}
+
+func stringPtrFromPlatform(value *sqlc.Platform) *string {
+	if value == nil {
+		return nil
+	}
+	platform := string(*value)
+	return &platform
+}
+
 func checkListWhere(params CheckListParams) (string, []any) {
 	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
@@ -393,23 +424,3 @@ const checkSelectSQL = `
 SELECT id, name, description, query, platform, min_osquery_version,
        created_by_user_id, created_at, updated_at
 FROM checks`
-
-const checkInsertSQL = `
-INSERT INTO checks (
-    name, description, query, platform, min_osquery_version, created_by_user_id
-)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, name, description, query, platform, min_osquery_version,
-          created_by_user_id, created_at, updated_at`
-
-const checkUpdateSQL = `
-UPDATE checks
-SET name = $1,
-    description = $2,
-    query = $3,
-    platform = $4,
-    min_osquery_version = $5,
-    updated_at = now()
-WHERE id = $6
-RETURNING id, name, description, query, platform, min_osquery_version,
-          created_by_user_id, created_at, updated_at`

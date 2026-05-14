@@ -1,3 +1,79 @@
+-- name: GetCheckByID :one
+SELECT
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at
+FROM checks
+WHERE id = @id;
+
+-- name: CreateCheck :one
+INSERT INTO checks (
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    created_by_user_id
+)
+VALUES (
+    @name,
+    @description,
+    @query,
+    sqlc.narg(platform),
+    sqlc.narg(min_osquery_version),
+    sqlc.narg(created_by_user_id)
+)
+RETURNING
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at;
+
+-- name: UpdateCheck :one
+UPDATE checks
+SET
+    name = @name,
+    description = @description,
+    query = @query,
+    platform = sqlc.narg(platform),
+    min_osquery_version = sqlc.narg(min_osquery_version),
+    updated_at = now()
+WHERE id = @id
+RETURNING
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at;
+
+-- name: DeleteCheck :one
+DELETE FROM checks
+WHERE id = @id
+RETURNING id;
+
+-- name: DeleteChecks :many
+DELETE FROM checks
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
+
 -- name: UpsertCheckMembership :exec
 INSERT INTO check_membership (
     check_id,

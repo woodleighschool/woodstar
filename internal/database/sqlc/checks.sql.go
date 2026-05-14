@@ -10,6 +10,155 @@ import (
 	"time"
 )
 
+const createCheck = `-- name: CreateCheck :one
+INSERT INTO checks (
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    created_by_user_id
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6
+)
+RETURNING
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at
+`
+
+type CreateCheckParams struct {
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	Query             string    `json:"query"`
+	Platform          *Platform `json:"platform"`
+	MinOsqueryVersion *string   `json:"min_osquery_version"`
+	CreatedByUserID   *int64    `json:"created_by_user_id"`
+}
+
+func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check, error) {
+	row := q.db.QueryRow(ctx, createCheck,
+		arg.Name,
+		arg.Description,
+		arg.Query,
+		arg.Platform,
+		arg.MinOsqueryVersion,
+		arg.CreatedByUserID,
+	)
+	var i Check
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Query,
+		&i.Platform,
+		&i.MinOsqueryVersion,
+		&i.LabelScopeMode,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteCheck = `-- name: DeleteCheck :one
+DELETE FROM checks
+WHERE id = $1
+RETURNING id
+`
+
+type DeleteCheckParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteCheck(ctx context.Context, arg DeleteCheckParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteCheck, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteChecks = `-- name: DeleteChecks :many
+DELETE FROM checks
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteChecksParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteChecks(ctx context.Context, arg DeleteChecksParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteChecks, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCheckByID = `-- name: GetCheckByID :one
+SELECT
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at
+FROM checks
+WHERE id = $1
+`
+
+type GetCheckByIDParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Check, error) {
+	row := q.db.QueryRow(ctx, getCheckByID, arg.ID)
+	var i Check
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Query,
+		&i.Platform,
+		&i.MinOsqueryVersion,
+		&i.LabelScopeMode,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listCheckHostStatuses = `-- name: ListCheckHostStatuses :many
 SELECT
     c.id AS check_id,
@@ -133,6 +282,63 @@ func (q *Queries) ListHostCheckStatuses(ctx context.Context, arg ListHostCheckSt
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCheck = `-- name: UpdateCheck :one
+UPDATE checks
+SET
+    name = $1,
+    description = $2,
+    query = $3,
+    platform = $4,
+    min_osquery_version = $5,
+    updated_at = now()
+WHERE id = $6
+RETURNING
+    id,
+    name,
+    description,
+    query,
+    platform,
+    min_osquery_version,
+    label_scope_mode,
+    created_by_user_id,
+    created_at,
+    updated_at
+`
+
+type UpdateCheckParams struct {
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	Query             string    `json:"query"`
+	Platform          *Platform `json:"platform"`
+	MinOsqueryVersion *string   `json:"min_osquery_version"`
+	ID                int64     `json:"id"`
+}
+
+func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check, error) {
+	row := q.db.QueryRow(ctx, updateCheck,
+		arg.Name,
+		arg.Description,
+		arg.Query,
+		arg.Platform,
+		arg.MinOsqueryVersion,
+		arg.ID,
+	)
+	var i Check
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Query,
+		&i.Platform,
+		&i.MinOsqueryVersion,
+		&i.LabelScopeMode,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertCheckMembership = `-- name: UpsertCheckMembership :exec
