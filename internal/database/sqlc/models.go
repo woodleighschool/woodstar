@@ -303,6 +303,14 @@ type HostBattery struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type HostDirectoryUser struct {
+	HostID          int64     `json:"host_id"`
+	DirectoryUserID int64     `json:"directory_user_id"`
+	Source          string    `json:"source"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 type HostEmail struct {
 	ID        int64     `json:"id"`
 	HostID    int64     `json:"host_id"`

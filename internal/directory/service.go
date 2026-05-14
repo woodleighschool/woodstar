@@ -39,6 +39,13 @@ func (s *Service) Sync(ctx context.Context) error {
 	if err := s.store.Apply(ctx, snapshot); err != nil {
 		return err
 	}
+	if err := s.store.ReconcileLinks(ctx); err != nil {
+		s.logger.WarnContext(ctx, "directory link reconcile failed",
+			"component", "directory",
+			"operation", "reconcile",
+			"err", err.Error(),
+		)
+	}
 	s.logger.InfoContext(ctx, "directory sync complete",
 		"component", "directory",
 		"operation", "sync",

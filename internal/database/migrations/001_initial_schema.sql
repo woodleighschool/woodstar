@@ -85,6 +85,12 @@ CREATE INDEX directory_user_groups_group_idx ON directory_user_groups (directory
 
 -- Hosts ----------------------------------------------------------------------
 
+-- host_directory_user links one host to one directory user (1:1). The link
+-- has a source: 'manual' is set by an admin and is sticky; 'mdm_email' is
+-- inferred by the reconciler from an Orbit MCX device-mapping email and is
+-- overwritten by future manual links and overwrites future mdm_email
+-- inferences when the matched directory user changes.
+
 CREATE TABLE hosts (
     id BIGSERIAL PRIMARY KEY,
     hardware_uuid TEXT NOT NULL UNIQUE,
@@ -161,6 +167,17 @@ CREATE TABLE host_emails (
 
 CREATE INDEX host_emails_host_idx ON host_emails (host_id);
 CREATE INDEX host_emails_email_idx ON host_emails (email);
+
+CREATE TABLE host_directory_user (
+    host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
+    directory_user_id BIGINT NOT NULL REFERENCES directory_users (id) ON DELETE CASCADE,
+    source TEXT NOT NULL CHECK (source IN ('manual', 'mdm_email')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX host_directory_user_directory_user_idx
+    ON host_directory_user (directory_user_id);
 
 CREATE TABLE host_users (
     id BIGSERIAL PRIMARY KEY,
@@ -414,8 +431,12 @@ DROP TABLE software;
 DROP TABLE software_titles;
 DROP TABLE host_batteries;
 DROP TABLE host_users;
+DROP TABLE host_directory_user;
 DROP TABLE host_emails;
 DROP TABLE hosts;
+DROP TABLE directory_user_groups;
+DROP TABLE directory_groups;
+DROP TABLE directory_users;
 DROP TABLE secrets;
 DROP TABLE sessions;
 DROP TABLE users;
