@@ -13,6 +13,22 @@ func humaConfig(version string) huma.Config {
 	cfg.DocsPath = "/api/docs"
 	cfg.OpenAPIPath = "/api/openapi"
 	cfg.SchemasPath = "/api/schemas"
+
+	cfg.Components = &huma.Components{
+		SecuritySchemes: map[string]*huma.SecurityScheme{
+			"bearerAuth": {
+				Type:         "http",
+				Scheme:       "bearer",
+				BearerFormat: "API key",
+			},
+			"cookieAuth": {
+				Type: "apiKey",
+				In:   "cookie",
+				Name: "woodstar_session",
+			},
+		},
+	}
+
 	return cfg
 }
 
