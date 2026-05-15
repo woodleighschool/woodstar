@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -201,10 +200,10 @@ func registerDeleteUser(api huma.API, userService *users.Service) {
 }
 
 func parseUserID(id string) (int64, error) {
-	return apihelpers.ParseResourceID(id, userResource)
+	return parseResourceID(id, userResource)
 }
 
-// userMutationError extends ResourceMutationError with the initial-user
+// userMutationError extends resourceMutationError with the initial-user
 // lockout and weak-password cases that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
@@ -216,6 +215,6 @@ func userMutationError(err error) error {
 	case errors.Is(err, users.ErrWeakPassword):
 		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
 	default:
-		return apihelpers.ResourceMutationError(userResource, err)
+		return resourceMutationError(userResource, err)
 	}
 }

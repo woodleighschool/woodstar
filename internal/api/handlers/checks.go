@@ -10,7 +10,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/agents/checks"
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/scope"
@@ -60,10 +59,6 @@ type checkBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
-func (i checkBulkDeleteInput) ids() ([]int64, error) {
-	return apihelpers.CleanBulkIDs(i.Body.IDs, "check IDs")
-}
-
 type checkListOutput struct {
 	Body struct {
 		Items []checks.Check `json:"items"`
@@ -104,7 +99,7 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkListInput) (*checkListOutput, error) {
 		items, count, err := checkStore.List(ctx, input.params())
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(checkResource, err)
+			return nil, resourceMutationError(checkResource, err)
 		}
 		out := &checkListOutput{}
 		out.Body.Items = items
@@ -129,7 +124,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 		}
 		check, err := checkStore.Create(ctx, params)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(checkResource, err)
+			return nil, resourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -144,13 +139,13 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Get a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, checkResource)
+		id, err := parseResourceID(input.ID, checkResource)
 		if err != nil {
 			return nil, err
 		}
 		check, err := checkStore.GetByID(ctx, id)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(checkResource, err)
+			return nil, resourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -165,7 +160,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Replace a check",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, checkResource)
+		id, err := parseResourceID(input.ID, checkResource)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +170,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 		}
 		check, err := checkStore.Update(ctx, id, params)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(checkResource, err)
+			return nil, resourceMutationError(checkResource, err)
 		}
 		return &checkOutput{Body: *check}, nil
 	})
@@ -190,12 +185,12 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Delete a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, checkResource)
+		id, err := parseResourceID(input.ID, checkResource)
 		if err != nil {
 			return nil, err
 		}
 		if err := checkStore.Delete(ctx, id); err != nil {
-			return nil, apihelpers.ResourceMutationError(checkResource, err)
+			return nil, resourceMutationError(checkResource, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -213,7 +208,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		ids, err := input.ids()
+		ids, err := input.Body.ids("check IDs")
 		if err != nil {
 			return nil, err
 		}
@@ -233,7 +228,7 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 		Summary:     "List check host status",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkHostsOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, checkResource)
+		id, err := parseResourceID(input.ID, checkResource)
 		if err != nil {
 			return nil, err
 		}
@@ -252,11 +247,11 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 		OperationID: "list-host-checks",
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/checks",
-		Tags:        []string{checksTag, apihelpers.HostsTag},
+		Tags:        []string{checksTag, hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*checkHostsOutput, error) {
-		id, err := apihelpers.ParseHostID(input.ID)
+		id, err := parseResourceID(input.ID, hostResource)
 		if err != nil {
 			return nil, err
 		}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 )
@@ -75,7 +74,7 @@ func RegisterSecrets(api huma.API, secretStore *secrets.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		id, err := apihelpers.ParseResourceID(input.ID, "secret")
+		id, err := parseResourceID(input.ID, "secret")
 		if err != nil {
 			return nil, err
 		}

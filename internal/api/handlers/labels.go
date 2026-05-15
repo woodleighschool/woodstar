@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -111,7 +110,7 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 	}, func(ctx context.Context, input *labelListInput) (*labelListOutput, error) {
 		rows, count, err := labelStore.List(ctx, input.params())
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(labelResource, err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelListOutput{Body: labelListBody{Items: rows, Count: count}}, nil
 	})
@@ -136,7 +135,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Platform:            input.Body.Platform,
 		})
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(labelResource, err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
@@ -157,7 +156,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 		}
 		label, err := labelStore.GetByID(ctx, id)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(labelResource, err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
@@ -184,7 +183,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 			Platform:            input.Body.Platform,
 		})
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(labelResource, err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &labelOutput{Body: *label}, nil
 	})
@@ -204,12 +203,12 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
 			return nil, err
 		}
 		if err := labelStore.Delete(ctx, id); err != nil {
-			return nil, apihelpers.ResourceMutationError(labelResource, err)
+			return nil, resourceMutationError(labelResource, err)
 		}
 		return &struct{}{}, nil
 	})
 }
 
 func parseLabelID(id string) (int64, error) {
-	return apihelpers.ParseResourceID(id, labelResource)
+	return parseResourceID(id, labelResource)
 }

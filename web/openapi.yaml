@@ -422,26 +422,6 @@ components:
         - chemistry
         - health
       type: object
-    HostBulkIDsBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostBulkIDsBody.json
-          format: uri
-          readOnly: true
-          type: string
-        ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-      required:
-        - ids
-      type: object
     HostCertificate:
       additionalProperties: false
       properties:
@@ -1599,7 +1579,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 2515524-dirty
+  version: 795f11c-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2191,7 +2171,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/HostBulkIDsBody"
+              $ref: "#/components/schemas/BulkIDsBody"
         required: true
       responses:
         "204":

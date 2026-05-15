@@ -11,7 +11,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/agents/queries"
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/scope"
@@ -61,10 +60,6 @@ type queryDeleteInput struct {
 
 type queryBulkDeleteInput struct {
 	Body bulkIDsBody
-}
-
-func (i queryBulkDeleteInput) ids() ([]int64, error) {
-	return apihelpers.CleanBulkIDs(i.Body.IDs, "query IDs")
 }
 
 type queryListOutput struct {
@@ -129,7 +124,7 @@ func registerListQueries(api huma.API, queryStore *queries.Store) {
 	}, func(ctx context.Context, input *queryListInput) (*queryListOutput, error) {
 		items, count, err := queryStore.List(ctx, input.params())
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(queryResource, err)
+			return nil, resourceMutationError(queryResource, err)
 		}
 		out := &queryListOutput{}
 		out.Body.Items = items
@@ -154,7 +149,7 @@ func registerCreateQuery(api huma.API, queryStore *queries.Store) {
 		}
 		query, err := queryStore.Create(ctx, params)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(queryResource, err)
+			return nil, resourceMutationError(queryResource, err)
 		}
 		return &queryOutput{Body: *query}, nil
 	})
@@ -169,13 +164,13 @@ func registerGetQuery(api huma.API, queryStore *queries.Store) {
 		Summary:     "Get a saved query",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *queryGetInput) (*queryOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, queryResource)
+		id, err := parseResourceID(input.ID, queryResource)
 		if err != nil {
 			return nil, err
 		}
 		query, err := queryStore.GetByID(ctx, id)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(queryResource, err)
+			return nil, resourceMutationError(queryResource, err)
 		}
 		return &queryOutput{Body: *query}, nil
 	})
@@ -190,7 +185,7 @@ func registerUpdateQuery(api huma.API, queryStore *queries.Store) {
 		Summary:     "Replace a saved query",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *queryPutInput) (*queryOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, queryResource)
+		id, err := parseResourceID(input.ID, queryResource)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +195,7 @@ func registerUpdateQuery(api huma.API, queryStore *queries.Store) {
 		}
 		query, err := queryStore.Update(ctx, id, params)
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError(queryResource, err)
+			return nil, resourceMutationError(queryResource, err)
 		}
 		return &queryOutput{Body: *query}, nil
 	})
@@ -215,12 +210,12 @@ func registerDeleteQuery(api huma.API, queryStore *queries.Store) {
 		Summary:     "Delete a saved query",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *queryDeleteInput) (*struct{}, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, queryResource)
+		id, err := parseResourceID(input.ID, queryResource)
 		if err != nil {
 			return nil, err
 		}
 		if err := queryStore.Delete(ctx, id); err != nil {
-			return nil, apihelpers.ResourceMutationError(queryResource, err)
+			return nil, resourceMutationError(queryResource, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -238,7 +233,7 @@ func registerBulkDeleteQueries(api huma.API, queryStore *queries.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		ids, err := input.ids()
+		ids, err := input.Body.ids("query IDs")
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +253,7 @@ func registerQueryResults(api huma.API, queryStore *queries.Store) {
 		Summary:     "List latest report snapshots for a query",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *queryGetInput) (*queryResultsOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, queryResource)
+		id, err := parseResourceID(input.ID, queryResource)
 		if err != nil {
 			return nil, err
 		}
@@ -277,11 +272,11 @@ func registerHostQueries(api huma.API, queryStore *queries.Store, hostStore *hos
 		OperationID: "list-host-queries",
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/queries",
-		Tags:        []string{queriesTag, apihelpers.HostsTag},
+		Tags:        []string{queriesTag, hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostReportsOutput, error) {
-		id, err := apihelpers.ParseHostID(input.ID)
+		id, err := parseResourceID(input.ID, hostResource)
 		if err != nil {
 			return nil, err
 		}
@@ -307,15 +302,15 @@ func registerHostQueryResults(api huma.API, queryStore *queries.Store, hostStore
 		OperationID: "list-host-query-results",
 		Method:      http.MethodGet,
 		Path:        "/api/hosts/{id}/queries/{query_id}",
-		Tags:        []string{queriesTag, apihelpers.HostsTag},
+		Tags:        []string{queriesTag, hostsTag},
 		Summary:     "List report rows for one host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostQueryResultsInput) (*hostQueryResultsOutput, error) {
-		hostID, err := apihelpers.ParseHostID(input.ID)
+		hostID, err := parseResourceID(input.ID, hostResource)
 		if err != nil {
 			return nil, err
 		}
-		queryID, err := apihelpers.ParseResourceID(input.QueryID, queryResource)
+		queryID, err := parseResourceID(input.QueryID, queryResource)
 		if err != nil {
 			return nil, err
 		}

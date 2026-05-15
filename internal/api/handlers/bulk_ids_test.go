@@ -3,7 +3,7 @@ package handlers
 import "testing"
 
 func TestResourceBulkDeleteInputIDs(t *testing.T) {
-	checks, err := (checkBulkDeleteInput{Body: bulkIDsBody{IDs: []int64{9, 8, 9}}}).ids()
+	checks, err := (bulkIDsBody{IDs: []int64{9, 8, 9}}).ids("check IDs")
 	if err != nil {
 		t.Fatalf("check ids returned error: %v", err)
 	}
@@ -11,7 +11,7 @@ func TestResourceBulkDeleteInputIDs(t *testing.T) {
 		t.Fatalf("check ids = %#v, want [8 9]", checks)
 	}
 
-	reports, err := (queryBulkDeleteInput{Body: bulkIDsBody{IDs: []int64{4, 2, 4}}}).ids()
+	reports, err := (bulkIDsBody{IDs: []int64{4, 2, 4}}).ids("query IDs")
 	if err != nil {
 		t.Fatalf("report ids returned error: %v", err)
 	}

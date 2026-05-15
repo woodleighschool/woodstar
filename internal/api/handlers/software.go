@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -70,7 +69,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 	}, func(ctx context.Context, input *softwareListInput) (*softwareListOutput, error) {
 		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
-			return nil, apihelpers.ResourceMutationError("software", err)
+			return nil, resourceMutationError("software", err)
 		}
 		return &softwareListOutput{Body: softwareListBody{Items: titles, Count: count}}, nil
 	})
@@ -83,7 +82,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 		Summary:     "Get a software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareGetInput) (*softwareGetOutput, error) {
-		id, err := apihelpers.ParseResourceID(input.ID, "software title")
+		id, err := parseResourceID(input.ID, "software title")
 		if err != nil {
 			return nil, err
 		}

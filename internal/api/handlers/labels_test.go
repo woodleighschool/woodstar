@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -52,7 +51,7 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			mapped := apihelpers.ResourceMutationError("label", tt.err)
+			mapped := resourceMutationError("label", tt.err)
 			var status huma.StatusError
 			if !errors.As(mapped, &status) {
 				t.Fatalf("not a huma.StatusError: %v", mapped)

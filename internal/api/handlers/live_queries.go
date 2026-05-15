@@ -9,7 +9,6 @@ import (
 	"github.com/danielgtaylor/huma/v2/sse"
 
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
-	"github.com/woodleighschool/woodstar/internal/api/apihelpers"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -173,11 +172,11 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *h
 }
 
 func (body liveQuerySelectedBody) targetSelection() (hosts.TargetSelection, error) {
-	hostIDs, err := apihelpers.ParseIDList(body.Hosts, "selected.hosts")
+	hostIDs, err := parseIDList(body.Hosts, "selected.hosts")
 	if err != nil {
 		return hosts.TargetSelection{}, err
 	}
-	labelIDs, err := apihelpers.ParseIDList(body.Labels, "selected.labels")
+	labelIDs, err := parseIDList(body.Labels, "selected.labels")
 	if err != nil {
 		return hosts.TargetSelection{}, err
 	}

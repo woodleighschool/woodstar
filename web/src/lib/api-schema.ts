@@ -785,15 +785,6 @@ export interface components {
             percent_remaining?: number;
             serial_number: string;
         };
-        HostBulkIDsBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostBulkIDsBody.json
-             */
-            readonly $schema?: string;
-            ids: number[] | null;
-        };
         HostCertificate: {
             certificate_authority: boolean;
             common_name: string;
@@ -2085,7 +2076,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["HostBulkIDsBody"];
+                "application/json": components["schemas"]["BulkIDsBody"];
             };
         };
         responses: {
