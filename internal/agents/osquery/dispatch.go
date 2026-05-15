@@ -137,8 +137,6 @@ func (s *Service) dispatchWriteResults(
 	return s.finalizeLabelPass(ctx, host, pass)
 }
 
-// ----- detail -----
-
 func (s *Service) handleDetailResult(
 	ctx context.Context,
 	hostID int64,
@@ -221,8 +219,6 @@ func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[strin
 	return true
 }
 
-// ----- check -----
-
 func (s *Service) handleCheckResult(
 	ctx context.Context,
 	hostID int64,
@@ -249,8 +245,6 @@ func (s *Service) handleCheckResult(
 	}
 	return s.checkStore.UpsertMembership(ctx, checkID, hostID, passes)
 }
-
-// ----- live query -----
 
 func (s *Service) handleLiveResult(
 	host *hosts.Host,

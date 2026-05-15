@@ -351,11 +351,12 @@ func validateLabelFields(name string, query *string, labelType, labelMembershipT
 	return nil
 }
 
-func platformParam(value *string) *platform.Platform {
+func platformParam(value *string) *sqlc.Platform {
 	if value == nil {
 		return nil
 	}
-	return new(platform.Platform(*value))
+	platform := sqlc.Platform(*value)
+	return &platform
 }
 
 func labelFromSQLC(s sqlc.Label) Label {
@@ -366,8 +367,16 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Query:               s.Query,
 		LabelType:           s.LabelType,
 		LabelMembershipType: s.LabelMembershipType,
-		Platform:            s.Platform,
+		Platform:            platformFromSQLC(s.Platform),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
+}
+
+func platformFromSQLC(value *sqlc.Platform) *platform.Platform {
+	if value == nil {
+		return nil
+	}
+	platform := platform.Platform(*value)
+	return &platform
 }

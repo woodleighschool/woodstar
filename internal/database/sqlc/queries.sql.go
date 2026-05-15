@@ -166,6 +166,108 @@ func (q *Queries) GetSavedQueryByID(ctx context.Context, arg GetSavedQueryByIDPa
 	return i, err
 }
 
+const listScheduledQueriesForHost = `-- name: ListScheduledQueriesForHost :many
+WITH host_row AS (
+    SELECT
+        id,
+        lower(platform) AS platform
+    FROM hosts h
+    WHERE h.id = $1 AND h.deleted_at IS NULL
+)
+SELECT
+    q.id,
+    q.name,
+    q.description,
+    q.query,
+    q.platform,
+    q.min_osquery_version,
+    q.schedule_interval,
+    q.label_scope_mode,
+    q.created_by_user_id,
+    q.created_at,
+    q.updated_at
+FROM queries q
+JOIN host_row h ON true
+WHERE q.schedule_interval > 0
+  AND (
+      q.platform IS NULL
+      OR q.platform::text = h.platform
+      OR (q.platform = 'darwin' AND h.platform = 'macos')
+      OR (q.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+  )
+  AND (
+      q.label_scope_mode = 'none'
+      OR (
+          q.label_scope_mode = 'include_any'
+          AND EXISTS (
+              SELECT 1
+              FROM query_labels ql
+              JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = h.id
+              WHERE ql.query_id = q.id
+          )
+      )
+      OR (
+          q.label_scope_mode = 'include_all'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM query_labels ql
+              WHERE ql.query_id = q.id
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM label_membership lm
+                    WHERE lm.label_id = ql.label_id AND lm.host_id = h.id
+                )
+          )
+      )
+      OR (
+          q.label_scope_mode = 'exclude_any'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM query_labels ql
+              JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = h.id
+              WHERE ql.query_id = q.id
+          )
+      )
+  )
+ORDER BY q.id
+`
+
+type ListScheduledQueriesForHostParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+func (q *Queries) ListScheduledQueriesForHost(ctx context.Context, arg ListScheduledQueriesForHostParams) ([]Query, error) {
+	rows, err := q.db.Query(ctx, listScheduledQueriesForHost, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Query{}
+	for rows.Next() {
+		var i Query
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Query,
+			&i.Platform,
+			&i.MinOsqueryVersion,
+			&i.ScheduleInterval,
+			&i.LabelScopeMode,
+			&i.CreatedByUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSavedQuery = `-- name: UpdateSavedQuery :one
 UPDATE queries
 SET

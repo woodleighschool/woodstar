@@ -14,6 +14,7 @@ type ScheduleEntry struct {
 	Snapshot bool   `json:"snapshot"`
 	Removed  bool   `json:"removed"`
 	Platform string `json:"platform,omitempty"`
+	Version  string `json:"version,omitempty"`
 }
 
 // buildScheduleForHost returns the per-host osquery schedule map for reports.
@@ -38,6 +39,9 @@ func buildScheduleForHost(
 		}
 		if item.Platform != nil {
 			entry.Platform = *item.Platform
+		}
+		if item.MinOsqueryVersion != nil {
+			entry.Version = *item.MinOsqueryVersion
 		}
 		schedule[queryNameID(kindReport, item.ID)] = entry
 	}

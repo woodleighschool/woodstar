@@ -100,12 +100,11 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 	var created *Check
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
-			Name:              params.Name,
-			Description:       params.Description,
-			Query:             params.Query,
-			Platform:          platformSQLCParam(params.Platform),
-			MinOsqueryVersion: params.MinOsqueryVersion,
-			CreatedByUserID:   params.CreatedByUserID,
+			Name:            params.Name,
+			Description:     params.Description,
+			Query:           params.Query,
+			Platform:        platformSQLCParam(params.Platform),
+			CreatedByUserID: params.CreatedByUserID,
 		})
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
@@ -134,12 +133,11 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 	var updated *Check
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
-			Name:              cleaned.Name,
-			Description:       cleaned.Description,
-			Query:             cleaned.Query,
-			Platform:          platformSQLCParam(cleaned.Platform),
-			MinOsqueryVersion: cleaned.MinOsqueryVersion,
-			ID:                id,
+			Name:        cleaned.Name,
+			Description: cleaned.Description,
+			Query:       cleaned.Query,
+			Platform:    platformSQLCParam(cleaned.Platform),
+			ID:          id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
@@ -187,46 +185,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 // ApplicableForHost returns checks that should run on host.
 func (s *Store) ApplicableForHost(ctx context.Context, host *hosts.Host) ([]Check, error) {
-	rows, err := s.db.Pool().Query(ctx, checkSelectSQL+" ORDER BY id")
+	rows, err := s.q.ListApplicableChecksForHost(ctx, sqlc.ListApplicableChecksForHostParams{HostID: host.ID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	checks := make([]Check, 0)
-	checkIDs := make([]int64, 0)
-	for rows.Next() {
-		check, err := scanCheck(rows)
-		if err != nil {
-			return nil, err
-		}
-		if !hosts.QueryMatchesHost(check.Platform, check.MinOsqueryVersion, host) {
-			continue
-		}
-		checks = append(checks, *check)
-		checkIDs = append(checkIDs, check.ID)
+	checks := make([]Check, 0, len(rows))
+	for _, row := range rows {
+		checks = append(checks, *checkFromSQLC(row))
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	scopes, err := s.scopes.LoadChecks(ctx, checkIDs)
-	if err != nil {
-		return nil, err
-	}
-	matches, err := s.scopes.MatchHostScopes(ctx, host.ID, scopes)
-	if err != nil {
-		return nil, err
-	}
-	out := checks[:0]
-	for _, check := range checks {
-		labelScope := scopes[check.ID]
-		if !matches[check.ID] {
-			continue
-		}
-		check.LabelScope = labelScope
-		out = append(out, check)
-	}
-	return out, nil
+	return checks, nil
 }
 
 // UpsertMembership records a check result. A nil passes value means not run.
@@ -249,21 +216,7 @@ func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostSta
 
 // HostChecks returns check status rows applicable to one host.
 func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
-	checks, err := s.ApplicableForHost(ctx, host)
-	if err != nil {
-		return nil, err
-	}
-	checkIDs := make([]int64, 0, len(checks))
-	for _, check := range checks {
-		checkIDs = append(checkIDs, check.ID)
-	}
-	if len(checkIDs) == 0 {
-		return nil, nil
-	}
-	rows, err := s.q.ListHostCheckStatuses(ctx, sqlc.ListHostCheckStatusesParams{
-		HostID:   host.ID,
-		CheckIds: checkIDs,
-	})
+	rows, err := s.q.ListHostCheckStatusesForHost(ctx, sqlc.ListHostCheckStatusesForHostParams{HostID: host.ID})
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +228,6 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
 	params.Platform = platform.CleanPtr(params.Platform)
-	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return CheckCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
@@ -288,23 +240,21 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 
 func cleanCheckUpdate(params CheckUpdate) (CheckUpdate, error) {
 	cleaned, err := cleanCheckCreate(CheckCreate{
-		Name:              params.Name,
-		Description:       params.Description,
-		Query:             params.Query,
-		Platform:          params.Platform,
-		MinOsqueryVersion: params.MinOsqueryVersion,
-		LabelScope:        params.LabelScope,
+		Name:        params.Name,
+		Description: params.Description,
+		Query:       params.Query,
+		Platform:    params.Platform,
+		LabelScope:  params.LabelScope,
 	})
 	if err != nil {
 		return CheckUpdate{}, err
 	}
 	return CheckUpdate{
-		Name:              cleaned.Name,
-		Description:       cleaned.Description,
-		Query:             cleaned.Query,
-		Platform:          cleaned.Platform,
-		MinOsqueryVersion: cleaned.MinOsqueryVersion,
-		LabelScope:        cleaned.LabelScope,
+		Name:        cleaned.Name,
+		Description: cleaned.Description,
+		Query:       cleaned.Query,
+		Platform:    cleaned.Platform,
+		LabelScope:  cleaned.LabelScope,
 	}, nil
 }
 
@@ -322,7 +272,6 @@ func scanCheck(row pgx.Row) (*Check, error) {
 		&check.Description,
 		&check.Query,
 		&check.Platform,
-		&check.MinOsqueryVersion,
 		&check.CreatedByUserID,
 		&check.CreatedAt,
 		&check.UpdatedAt,
@@ -332,15 +281,14 @@ func scanCheck(row pgx.Row) (*Check, error) {
 
 func checkFromSQLC(row sqlc.Check) *Check {
 	return &Check{
-		ID:                row.ID,
-		Name:              row.Name,
-		Description:       row.Description,
-		Query:             row.Query,
-		Platform:          stringPtrFromPlatform(row.Platform),
-		MinOsqueryVersion: row.MinOsqueryVersion,
-		CreatedByUserID:   row.CreatedByUserID,
-		CreatedAt:         row.CreatedAt,
-		UpdatedAt:         row.UpdatedAt,
+		ID:              row.ID,
+		Name:            row.Name,
+		Description:     row.Description,
+		Query:           row.Query,
+		Platform:        stringPtrFromPlatform(row.Platform),
+		CreatedByUserID: row.CreatedByUserID,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
 	}
 }
 
@@ -359,7 +307,7 @@ func checkHostStatusesFromCheckRows(rows []sqlc.ListCheckHostStatusesRow) []Chec
 	return statuses
 }
 
-func checkHostStatusesFromHostRows(rows []sqlc.ListHostCheckStatusesRow) []CheckHostStatus {
+func checkHostStatusesFromHostRows(rows []sqlc.ListHostCheckStatusesForHostRow) []CheckHostStatus {
 	statuses := make([]CheckHostStatus, 0, len(rows))
 	for _, row := range rows {
 		statuses = append(statuses, CheckHostStatus{
@@ -421,6 +369,6 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 }
 
 const checkSelectSQL = `
-SELECT id, name, description, query, platform, min_osquery_version,
+SELECT id, name, description, query, platform,
        created_by_user_id, created_at, updated_at
 FROM checks`

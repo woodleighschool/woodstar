@@ -3,13 +3,9 @@ package hosts
 import (
 	"context"
 	"slices"
-	"strings"
-
-	"golang.org/x/mod/semver"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platform"
 )
 
 // TargetSelection is the live targeting shape.
@@ -184,39 +180,6 @@ func mergePositiveIDs(a, b []int64) []int64 {
 		out = append(out, id)
 	}
 	return out
-}
-
-// queryMatchesHost reports whether a query's platform and min osquery version
-// constraints are satisfied by host. Empty constraints match every host.
-func QueryMatchesHost(platformSelector *string, minOsqueryVersion *string, host *Host) bool {
-	if platformSelector != nil && !platform.Matches(*platformSelector, host.Platform) {
-		return false
-	}
-	if minOsqueryVersion != nil && *minOsqueryVersion != "" {
-		got := canonicalSemver(host.OsqueryVersion)
-		want := canonicalSemver(*minOsqueryVersion)
-		if got == "" || want == "" {
-			return false
-		}
-		if semver.Compare(got, want) < 0 {
-			return false
-		}
-	}
-	return true
-}
-
-// canonicalSemver returns the canonical "v"-prefixed form of a version string,
-// or empty if the input is not a valid semver. osquery emits unprefixed
-// versions like "5.22.1", which semver.Canonical accepts after we add "v".
-func canonicalSemver(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	if !strings.HasPrefix(value, "v") {
-		value = "v" + value
-	}
-	return semver.Canonical(value)
 }
 
 func cleanPositiveIDs(ids []int64) []int64 {

@@ -195,46 +195,15 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 // ScheduledForHost returns scheduled report queries applicable to host.
 func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query, error) {
-	rows, err := s.db.Pool().Query(ctx, querySelectSQL+" WHERE schedule_interval > 0 ORDER BY id")
+	rows, err := s.q.ListScheduledQueriesForHost(ctx, sqlc.ListScheduledQueriesForHostParams{HostID: host.ID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	queries := make([]Query, 0)
-	queryIDs := make([]int64, 0)
-	for rows.Next() {
-		query, err := scanQuery(rows)
-		if err != nil {
-			return nil, err
-		}
-		if !hosts.QueryMatchesHost(query.Platform, query.MinOsqueryVersion, host) {
-			continue
-		}
-		queries = append(queries, *query)
-		queryIDs = append(queryIDs, query.ID)
+	queries := make([]Query, 0, len(rows))
+	for _, row := range rows {
+		queries = append(queries, *queryFromSQLC(row))
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	scopes, err := s.scopes.LoadQueries(ctx, queryIDs)
-	if err != nil {
-		return nil, err
-	}
-	matches, err := s.scopes.MatchHostScopes(ctx, host.ID, scopes)
-	if err != nil {
-		return nil, err
-	}
-	out := queries[:0]
-	for _, query := range queries {
-		labelScope := scopes[query.ID]
-		if !matches[query.ID] {
-			continue
-		}
-		query.LabelScope = labelScope
-		out = append(out, query)
-	}
-	return out, nil
+	return queries, nil
 }
 
 func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {

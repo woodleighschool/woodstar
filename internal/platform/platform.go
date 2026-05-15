@@ -1,18 +1,14 @@
 package platform
 
-import (
-	"strings"
+import "strings"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
-)
-
-type Platform = sqlc.Platform
+type Platform string
 
 const (
-	PlatformDarwin  = sqlc.PlatformDarwin
-	PlatformWindows = sqlc.PlatformWindows
-	PlatformLinux   = sqlc.PlatformLinux
-	PlatformChrome  = sqlc.PlatformChrome
+	PlatformDarwin  Platform = "darwin"
+	PlatformWindows Platform = "windows"
+	PlatformLinux   Platform = "linux"
+	PlatformChrome  Platform = "chrome"
 )
 
 var canonicalPlatforms = map[Platform]struct{}{

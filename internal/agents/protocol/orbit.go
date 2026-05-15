@@ -129,8 +129,6 @@ func writeOrbitError(w http.ResponseWriter, status int, message string) {
 	writeError(w, status, message)
 }
 
-// ----- stubs -----
-
 func registerOrbitStubs(r chi.Router, svc *orbit.Service) {
 	r.Post("/api/fleet/orbit/scripts/request", requireOrbitNodeKey(svc, func(w http.ResponseWriter, _ *http.Request) {
 		writeOrbitJSON(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})

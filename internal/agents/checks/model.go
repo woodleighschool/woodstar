@@ -9,37 +9,34 @@ import (
 
 // Check is a query-backed pass/fail policy.
 type Check struct {
-	ID                int64            `json:"id"`
-	Name              string           `json:"name"`
-	Description       string           `json:"description"`
-	Query             string           `json:"query"`
-	Platform          *string          `json:"platform,omitempty"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID              int64            `json:"id"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description"`
+	Query           string           `json:"query"`
+	Platform        *string          `json:"platform,omitempty"`
+	LabelScope      scope.LabelScope `json:"label_scope,omitzero"`
+	CreatedByUserID *int64           `json:"created_by_user_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
 }
 
 // CheckCreate contains editable check fields.
 type CheckCreate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
+	Name            string
+	Description     string
+	Query           string
+	Platform        *string
+	LabelScope      scope.LabelScope
+	CreatedByUserID *int64
 }
 
 // CheckUpdate replaces editable check fields.
 type CheckUpdate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platform          *string
-	MinOsqueryVersion *string
-	LabelScope        scope.LabelScope
+	Name        string
+	Description string
+	Query       string
+	Platform    *string
+	LabelScope  scope.LabelScope
 }
 
 // CheckListParams filters checks.

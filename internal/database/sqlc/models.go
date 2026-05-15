@@ -183,16 +183,15 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 }
 
 type Check struct {
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Query             string         `json:"query"`
-	Platform          *Platform      `json:"platform"`
-	MinOsqueryVersion *string        `json:"min_osquery_version"`
-	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID   *int64         `json:"created_by_user_id"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	ID              int64          `json:"id"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	Query           string         `json:"query"`
+	Platform        *Platform      `json:"platform"`
+	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID *int64         `json:"created_by_user_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 type CheckLabel struct {

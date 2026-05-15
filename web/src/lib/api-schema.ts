@@ -586,7 +586,6 @@ export interface components {
             /** Format: int64 */
             id: number;
             label_scope?: components["schemas"]["LabelScope"];
-            min_osquery_version?: string;
             name: string;
             platform?: string;
             query: string;
@@ -634,7 +633,6 @@ export interface components {
             readonly $schema?: string;
             description?: string;
             label_scope: components["schemas"]["LabelScope"];
-            min_osquery_version?: string;
             name: string;
             platform?: string;
             query: string;

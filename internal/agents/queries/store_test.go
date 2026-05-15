@@ -151,6 +151,56 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
+func TestScheduledForHostUsesHostApplicability(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationQueryStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "query-applicable-host", "darwin", "5.22.1")
+
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:              "Matching scheduled query",
+		Query:             "select 1;",
+		Platform:          new("darwin"),
+		MinOsqueryVersion: new("5.0.0"),
+		ScheduleInterval:  60,
+	}); err != nil {
+		t.Fatalf("create matching query: %v", err)
+	}
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:             "Unscheduled query",
+		Query:            "select 2;",
+		Platform:         new("darwin"),
+		ScheduleInterval: 0,
+	}); err != nil {
+		t.Fatalf("create unscheduled query: %v", err)
+	}
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:             "Wrong platform query",
+		Query:            "select 3;",
+		Platform:         new("windows"),
+		ScheduleInterval: 60,
+	}); err != nil {
+		t.Fatalf("create wrong platform query: %v", err)
+	}
+	if _, err := store.Create(ctx, QueryCreate{
+		Name:              "Version-gated scheduled query",
+		Query:             "select 4;",
+		MinOsqueryVersion: new("6.0.0"),
+		ScheduleInterval:  60,
+	}); err != nil {
+		t.Fatalf("create version-gated query: %v", err)
+	}
+
+	got, err := store.ScheduledForHost(ctx, host)
+	if err != nil {
+		t.Fatalf("scheduled for host: %v", err)
+	}
+	if len(got) != 2 || got[0].Name != "Matching scheduled query" || got[1].Name != "Version-gated scheduled query" {
+		t.Fatalf("ScheduledForHost returned %+v, want matching platform/schedule queries", got)
+	}
+	if got[1].MinOsqueryVersion == nil || *got[1].MinOsqueryVersion != "6.0.0" {
+		t.Fatalf("ScheduledForHost min version = %v, want preserved schedule metadata", got[1].MinOsqueryVersion)
+	}
+}
+
 func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationQueryStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "query-report-host")
@@ -273,6 +323,27 @@ func enrollTestHost(t *testing.T, ctx context.Context, store *hosts.Store, hardw
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
+	}
+	return host
+}
+
+func enrollTestHostDetail(
+	t *testing.T,
+	ctx context.Context,
+	store *hosts.Store,
+	hardwareUUID string,
+	hostPlatform string,
+	osqueryVersion string,
+) *hosts.Host {
+	t.Helper()
+	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.HostDetailUpdate{
+		HardwareUUID:   hardwareUUID,
+		OsqueryNodeKey: hardwareUUID + "-node-key",
+		Platform:       hostPlatform,
+		OsqueryVersion: osqueryVersion,
+	})
+	if err != nil {
+		t.Fatalf("enroll osquery host: %v", err)
 	}
 	return host
 }

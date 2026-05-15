@@ -164,7 +164,7 @@ func replace(ctx context.Context, tx pgx.Tx, owner owner, ownerID int64, lscope 
 			owner.modeColumn,
 			owner.idColumn,
 		),
-		ownerID, lscope.Mode,
+		ownerID, string(lscope.Mode),
 	); err != nil {
 		return err
 	}

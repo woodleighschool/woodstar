@@ -71,6 +71,53 @@ func TestOsqueryHTTPReturnsNodeInvalidForUnknownNodeKey(t *testing.T) {
 	}
 }
 
+func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	stores := newOsqueryContractStores(database)
+	router := newOsqueryContractRouter(stores)
+
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	hardwareUUID := "osquery-schedule-" + suffix
+	secret, err := stores.secrets.CreateOrbitEnrollSecret(ctx)
+	if err != nil {
+		t.Fatalf("create enroll secret: %v", err)
+	}
+	platform := "darwin"
+	minVersion := "6.0.0"
+	query, err := stores.queries.Create(ctx, queries.QueryCreate{
+		Name:              "Versioned query " + suffix,
+		Query:             "select 42;",
+		Platform:          &platform,
+		MinOsqueryVersion: &minVersion,
+		ScheduleInterval:  60,
+	})
+	if err != nil {
+		t.Fatalf("create scheduled query: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := stores.queries.Delete(context.Background(), query.ID); err != nil {
+			t.Fatalf("cleanup scheduled query: %v", err)
+		}
+		cleanupOsqueryContractRows(context.Background(), t, database, hardwareUUID, secret.Value, "unused-"+suffix)
+	})
+
+	nodeKey := enrollOsqueryContractHost(t, router, secret.Value, hardwareUUID)
+	var body osquery.ConfigResponse
+	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/config", osquery.ConfigRequest{
+		NodeKey: nodeKey,
+	}, http.StatusOK, &body)
+
+	for _, entry := range body.Schedule {
+		if entry.Query == "select 42;" {
+			if entry.Version != "6.0.0" || entry.Platform != "darwin" {
+				t.Fatalf("schedule entry = %+v, want version and platform carried through", entry)
+			}
+			return
+		}
+	}
+	t.Fatalf("scheduled query missing from config: %+v", body.Schedule)
+}
+
 type osqueryContractStores struct {
 	hosts    *hosts.Store
 	labels   *labels.Store

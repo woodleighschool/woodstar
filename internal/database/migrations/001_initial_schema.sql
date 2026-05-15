@@ -378,7 +378,6 @@ CREATE TABLE checks (
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
     platform platform,
-    min_osquery_version TEXT,
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
@@ -56,7 +56,6 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
           description: detail.data.description,
           query: detail.data.query,
           platform: detail.data.platform,
-          min_osquery_version: detail.data.min_osquery_version,
           label_scope: detail.data.label_scope ?? {},
         }
       : emptyCheck;
@@ -78,7 +77,6 @@ function CheckEditForm({
   const updateCheck = useUpdateCheck(checkId);
   const [form, setForm] = useState<CheckMutation>(initial);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
   const error = createCheck.error ?? updateCheck.error;
@@ -164,30 +162,6 @@ function CheckEditForm({
           value={form.label_scope}
           onChange={(label_scope) => setForm({ ...form, label_scope })}
         />
-      </div>
-
-      <div className="grid max-w-3xl gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-fit px-0"
-          onClick={() => setAdvancedOpen((open) => !open)}
-        >
-          {advancedOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
-          Advanced options
-        </Button>
-        {advancedOpen ? (
-          <div className="grid gap-2">
-            <Label htmlFor="check-min-version">Minimum osquery version</Label>
-            <Input
-              id="check-min-version"
-              value={form.min_osquery_version ?? ""}
-              placeholder="5.18.1"
-              onChange={(event) => setForm({ ...form, min_osquery_version: event.target.value || undefined })}
-            />
-          </div>
-        ) : null}
       </div>
 
       <div className="flex flex-1">

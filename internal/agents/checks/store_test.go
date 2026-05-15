@@ -91,6 +91,42 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
+func TestHostChecksUseApplicability(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "darwin", "5.22.1")
+
+	matching, err := store.Create(ctx, CheckCreate{
+		Name:     "Matching check",
+		Query:    "select 1;",
+		Platform: new("darwin"),
+	})
+	if err != nil {
+		t.Fatalf("create matching check: %v", err)
+	}
+	wrongPlatform, err := store.Create(ctx, CheckCreate{
+		Name:     "Wrong platform check",
+		Query:    "select 2;",
+		Platform: new("windows"),
+	})
+	if err != nil {
+		t.Fatalf("create wrong platform check: %v", err)
+	}
+	for _, checkID := range []int64{matching.ID, wrongPlatform.ID} {
+		passes := false
+		if err := store.UpsertMembership(ctx, checkID, host.ID, &passes); err != nil {
+			t.Fatalf("upsert membership for check %d: %v", checkID, err)
+		}
+	}
+
+	got, err := store.HostChecks(ctx, host)
+	if err != nil {
+		t.Fatalf("host checks: %v", err)
+	}
+	if len(got) != 1 || got[0].CheckID != matching.ID {
+		t.Fatalf("HostChecks returned %+v, want only matching check", got)
+	}
+}
+
 func TestHostChecksIncludeMembershipState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "check-status-host")
@@ -266,6 +302,27 @@ func enrollTestHost(t *testing.T, ctx context.Context, store *hosts.Store, hardw
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
+	}
+	return host
+}
+
+func enrollTestHostDetail(
+	t *testing.T,
+	ctx context.Context,
+	store *hosts.Store,
+	hardwareUUID string,
+	hostPlatform string,
+	osqueryVersion string,
+) *hosts.Host {
+	t.Helper()
+	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.HostDetailUpdate{
+		HardwareUUID:   hardwareUUID,
+		OsqueryNodeKey: hardwareUUID + "-node-key",
+		Platform:       hostPlatform,
+		OsqueryVersion: osqueryVersion,
+	})
+	if err != nil {
+		t.Fatalf("enroll osquery host: %v", err)
 	}
 	return host
 }

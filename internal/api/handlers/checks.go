@@ -23,12 +23,11 @@ const (
 )
 
 type checkMutationBody struct {
-	Name              string           `json:"name"`
-	Description       string           `json:"description,omitempty"`
-	Query             string           `json:"query"`
-	Platform          *string          `json:"platform,omitempty"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	LabelScope        scope.LabelScope `json:"label_scope"`
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Query       string           `json:"query"`
+	Platform    *string          `json:"platform,omitempty"`
+	LabelScope  scope.LabelScope `json:"label_scope"`
 }
 
 type checkListInput struct {
@@ -297,13 +296,12 @@ func (body checkMutationBody) createParams(userID *int64) (checks.CheckCreate, e
 		return checks.CheckCreate{}, err
 	}
 	return checks.CheckCreate{
-		Name:              body.Name,
-		Description:       body.Description,
-		Query:             body.Query,
-		Platform:          body.Platform,
-		MinOsqueryVersion: body.MinOsqueryVersion,
-		LabelScope:        s,
-		CreatedByUserID:   userID,
+		Name:            body.Name,
+		Description:     body.Description,
+		Query:           body.Query,
+		Platform:        body.Platform,
+		LabelScope:      s,
+		CreatedByUserID: userID,
 	}, nil
 }
 
@@ -313,11 +311,10 @@ func (body checkMutationBody) updateParams() (checks.CheckUpdate, error) {
 		return checks.CheckUpdate{}, err
 	}
 	return checks.CheckUpdate{
-		Name:              body.Name,
-		Description:       body.Description,
-		Query:             body.Query,
-		Platform:          body.Platform,
-		MinOsqueryVersion: body.MinOsqueryVersion,
-		LabelScope:        s,
+		Name:        body.Name,
+		Description: body.Description,
+		Query:       body.Query,
+		Platform:    body.Platform,
+		LabelScope:  s,
 	}, nil
 }
