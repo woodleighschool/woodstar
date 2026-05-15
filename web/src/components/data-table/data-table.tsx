@@ -45,6 +45,8 @@ interface DataTableProps<TData, TValue> {
   bulkActions?: ReactNode;
   /** When set, the entire row navigates on click (skipping interactive children). */
   rowHref?: (row: TData) => { to: string; params?: Record<string, string> };
+  /** When set, the entire row invokes an action on click (skipping interactive children). */
+  onRowClick?: (row: TData) => void;
   /** Stable row id; defaults to (row as { id: string }).id. */
   getRowId?: (row: TData) => string;
   /** Slot above the table (toolbar with search + filters). */
@@ -79,6 +81,7 @@ export function DataTable<TData, TValue>({
   onSelectedRowIdsChange,
   bulkActions,
   rowHref,
+  onRowClick,
   getRowId,
   toolbar,
   empty,
@@ -183,19 +186,24 @@ export function DataTable<TData, TValue>({
             ) : (
               table.getRowModel().rows.map((row) => {
                 const linkProps = rowHref?.(row.original);
+                const hasRowAction = linkProps !== undefined || onRowClick !== undefined;
                 const cells = row.getVisibleCells();
                 const firstDataIndex = enableRowSelection ? 1 : 0;
                 return (
                   <TableRow
                     key={row.id}
-                    className={cn(linkProps && "cursor-pointer")}
+                    className={cn(hasRowAction && "cursor-pointer")}
                     onClick={
-                      linkProps
+                      hasRowAction
                         ? (e) => {
                             const target = e.target as HTMLElement;
                             if (target.closest(INTERACTIVE_SELECTOR)) return;
                             if (window.getSelection()?.toString()) return;
-                            void navigate({ to: linkProps.to, params: linkProps.params });
+                            if (linkProps !== undefined) {
+                              void navigate({ to: linkProps.to, params: linkProps.params });
+                            } else {
+                              onRowClick?.(row.original);
+                            }
                           }
                         : undefined
                     }

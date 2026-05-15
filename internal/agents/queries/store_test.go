@@ -268,6 +268,99 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	}
 }
 
+func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationQueryStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "query-overwrite-host")
+	query, err := store.Create(ctx, QueryCreate{
+		Name:             "Overwrite report",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+	})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	firstFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
+	if err := store.OverwriteResults(ctx, query.ID, host.ID, []map[string]string{
+		{"name": "Alpha"},
+		{"name": "Bravo"},
+	}, firstFetchedAt); err != nil {
+		t.Fatalf("overwrite first snapshot: %v", err)
+	}
+	secondFetchedAt := firstFetchedAt.Add(time.Hour)
+	if err := store.OverwriteResults(ctx, query.ID, host.ID, []map[string]string{
+		{"name": "Charlie"},
+	}, secondFetchedAt); err != nil {
+		t.Fatalf("overwrite second snapshot: %v", err)
+	}
+
+	got, lastFetched, err := store.HostQueryResults(ctx, host.ID, query.ID)
+	if err != nil {
+		t.Fatalf("host query results: %v", err)
+	}
+	if len(got) != 1 || got[0].Columns["name"] != "Charlie" {
+		t.Fatalf("HostQueryResults = %+v, want only replacement row", got)
+	}
+	if lastFetched == nil || !lastFetched.Equal(secondFetchedAt) {
+		t.Fatalf("last fetched = %v, want %s", lastFetched, secondFetchedAt)
+	}
+
+	emptyFetchedAt := secondFetchedAt.Add(time.Hour)
+	if err := store.OverwriteResults(ctx, query.ID, host.ID, nil, emptyFetchedAt); err != nil {
+		t.Fatalf("overwrite empty snapshot: %v", err)
+	}
+	got, lastFetched, err = store.HostQueryResults(ctx, host.ID, query.ID)
+	if err != nil {
+		t.Fatalf("host query results after empty snapshot: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("HostQueryResults after empty snapshot = %+v, want no data rows", got)
+	}
+	if lastFetched == nil || !lastFetched.Equal(emptyFetchedAt) {
+		t.Fatalf("empty last fetched = %v, want %s", lastFetched, emptyFetchedAt)
+	}
+}
+
+func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationQueryStore(t)
+	query, err := store.Create(ctx, QueryCreate{
+		Name:             "Trimmed report",
+		Query:            "select name from apps;",
+		ScheduleInterval: 60,
+	})
+	if err != nil {
+		t.Fatalf("create scheduled report: %v", err)
+	}
+	baseFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
+	for i, name := range []string{"oldest", "middle", "newest"} {
+		host := enrollTestHost(t, ctx, hostStore, "query-trim-host-"+name)
+		if err := store.OverwriteResults(
+			ctx,
+			query.ID,
+			host.ID,
+			[]map[string]string{{"name": name}},
+			baseFetchedAt.Add(time.Duration(i)*time.Minute),
+		); err != nil {
+			t.Fatalf("overwrite %s snapshot: %v", name, err)
+		}
+	}
+
+	if err := store.TrimResults(ctx, 2); err != nil {
+		t.Fatalf("trim results: %v", err)
+	}
+
+	got, err := store.Results(ctx, query.ID)
+	if err != nil {
+		t.Fatalf("query results: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("Results returned %d rows, want 2: %+v", len(got), got)
+	}
+	if got[0].Columns["name"] != "newest" || got[1].Columns["name"] != "middle" {
+		t.Fatalf("Results kept %+v, want newest and middle rows", got)
+	}
+}
+
 func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
 	t.Helper()
 	if got.Name != want.Name {

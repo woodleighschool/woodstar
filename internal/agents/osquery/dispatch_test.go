@@ -54,7 +54,11 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 		"required": {},
 		"optional": {Optional: true},
 	}
-	if sawEveryRequiredDetailQuery(DistributedWriteRequest{Queries: map[string][]map[string]string{}}, registry) {
+	if sawEveryRequiredDetailQuery(
+		DistributedWriteRequest{Queries: map[string][]map[string]string{}},
+		registry,
+		"darwin",
+	) {
 		t.Fatal("missing required query was treated as complete")
 	}
 	if sawEveryRequiredDetailQuery(
@@ -63,12 +67,14 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 			Statuses: map[string]json.RawMessage{detailQueryName("required"): json.RawMessage(`1`)},
 		},
 		registry,
+		"darwin",
 	) {
 		t.Fatal("failed required query was treated as complete")
 	}
 	if !sawEveryRequiredDetailQuery(
 		DistributedWriteRequest{Queries: map[string][]map[string]string{detailQueryName("required"): {}}},
 		registry,
+		"darwin",
 	) {
 		t.Fatal("empty successful required query was not treated as complete")
 	}

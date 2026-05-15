@@ -8,7 +8,12 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { HostInfoCard, HostLabelsCard, HostUsersCard } from "@/components/hosts/host-detail-cards";
+import {
+  HostCertificatesCard,
+  HostInfoCard,
+  HostLabelsCard,
+  HostUsersCard,
+} from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -74,10 +79,13 @@ export function HostDetailPage() {
         </PageTabsList>
 
         <PageTabsContent value="details">
-          <HostInfoCard host={host} />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <HostLabelsCard host={host} />
-            <HostUsersCard host={host} />
+          <div className="flex flex-col gap-4">
+            <HostInfoCard host={host} />
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+              <HostLabelsCard host={host} />
+              <HostUsersCard host={host} />
+            </div>
+            <HostCertificatesCard host={host} />
           </div>
         </PageTabsContent>
 

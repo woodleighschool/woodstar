@@ -301,6 +301,34 @@ type HostBattery struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type HostCertificate struct {
+	ID                        int64      `json:"id"`
+	HostID                    int64      `json:"host_id"`
+	Sha1                      string     `json:"sha1"`
+	CommonName                string     `json:"common_name"`
+	SubjectCountry            string     `json:"subject_country"`
+	SubjectOrganization       string     `json:"subject_organization"`
+	SubjectOrganizationalUnit string     `json:"subject_organizational_unit"`
+	SubjectCommonName         string     `json:"subject_common_name"`
+	IssuerCountry             string     `json:"issuer_country"`
+	IssuerOrganization        string     `json:"issuer_organization"`
+	IssuerOrganizationalUnit  string     `json:"issuer_organizational_unit"`
+	IssuerCommonName          string     `json:"issuer_common_name"`
+	KeyAlgorithm              string     `json:"key_algorithm"`
+	KeyStrength               *int32     `json:"key_strength"`
+	KeyUsage                  string     `json:"key_usage"`
+	SigningAlgorithm          string     `json:"signing_algorithm"`
+	NotValidAfter             *time.Time `json:"not_valid_after"`
+	NotValidBefore            *time.Time `json:"not_valid_before"`
+	Serial                    string     `json:"serial"`
+	CertificateAuthority      bool       `json:"certificate_authority"`
+	Source                    string     `json:"source"`
+	Username                  string     `json:"username"`
+	Path                      string     `json:"path"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+}
+
 type HostDirectoryUser struct {
 	HostID          int64     `json:"host_id"`
 	DirectoryUserID int64     `json:"directory_user_id"`

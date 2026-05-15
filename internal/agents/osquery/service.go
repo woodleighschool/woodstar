@@ -134,7 +134,7 @@ func (s *Service) DistributedRead(
 		return DistributedReadResponse{}, err
 	}
 
-	due := catalog.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	due := catalog.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash, host.Platform)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
 		detailQueries[detailQueryName(suffix)] = sql

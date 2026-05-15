@@ -40,6 +40,23 @@ components:
       required:
         - ids
       type: object
+    CertificateName:
+      additionalProperties: false
+      properties:
+        common_name:
+          type: string
+        country:
+          type: string
+        organization:
+          type: string
+        organizational_unit:
+          type: string
+      required:
+        - country
+        - organization
+        - organizational_unit
+        - common_name
+      type: object
     Check:
       additionalProperties: false
       properties:
@@ -425,6 +442,54 @@ components:
       required:
         - ids
       type: object
+    HostCertificate:
+      additionalProperties: false
+      properties:
+        certificate_authority:
+          type: boolean
+        common_name:
+          type: string
+        id:
+          format: int64
+          type: integer
+        issuer:
+          $ref: "#/components/schemas/CertificateName"
+        key_algorithm:
+          type: string
+        key_strength:
+          format: int32
+          type: integer
+        key_usage:
+          type: string
+        not_valid_after:
+          format: date-time
+          type: string
+        not_valid_before:
+          format: date-time
+          type: string
+        serial:
+          type: string
+        signing_algorithm:
+          type: string
+        source:
+          type: string
+        subject:
+          $ref: "#/components/schemas/CertificateName"
+        username:
+          type: string
+      required:
+        - id
+        - common_name
+        - subject
+        - issuer
+        - key_algorithm
+        - key_usage
+        - signing_algorithm
+        - serial
+        - certificate_authority
+        - source
+        - username
+      type: object
     HostDetail:
       additionalProperties: false
       properties:
@@ -438,6 +503,12 @@ components:
         batteries:
           items:
             $ref: "#/components/schemas/HostBattery"
+          type:
+            - array
+            - "null"
+        certificates:
+          items:
+            $ref: "#/components/schemas/HostCertificate"
           type:
             - array
             - "null"
@@ -560,6 +631,7 @@ components:
         - labels
         - users
         - batteries
+        - certificates
         - id
         - hardware_uuid
         - display_name
@@ -1483,7 +1555,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 31abe7e-dirty
+  version: a4c45fc-dirty
 openapi: 3.1.0
 paths:
   /api/account:

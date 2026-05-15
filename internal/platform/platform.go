@@ -36,32 +36,3 @@ func CleanPlatform(value string) string {
 	}
 	return ""
 }
-
-func Matches(selector string, hostPlatform string) bool {
-	hostPlatform = strings.ToLower(strings.TrimSpace(hostPlatform))
-	for item := range strings.SplitSeq(selector, ",") {
-		platform := Platform(strings.ToLower(strings.TrimSpace(item)))
-		if platform == "" {
-			continue
-		}
-		if string(platform) == hostPlatform {
-			return true
-		}
-		if platform == PlatformDarwin && hostPlatform == "macos" {
-			return true
-		}
-		if platform == PlatformLinux && isLinuxPlatform(hostPlatform) {
-			return true
-		}
-	}
-	return strings.TrimSpace(selector) == ""
-}
-
-func isLinuxPlatform(platform string) bool {
-	switch platform {
-	case "", "darwin", "macos", "windows", "chrome":
-		return false
-	default:
-		return true
-	}
-}

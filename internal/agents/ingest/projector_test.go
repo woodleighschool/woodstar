@@ -59,6 +59,51 @@ func TestParseOsqueryFlags(t *testing.T) {
 	}
 }
 
+func TestParseHostCertificatesStructuresDistinguishedNames(t *testing.T) {
+	got := parseHostCertificates("certificates_darwin", []map[string]string{{
+		"sha1":        "sha1",
+		"common_name": "Subject CN",
+		"subject":     `/C=AU/O=Example Org/OU=One/OU=Two\/WithSlash/CN=Subject CN`,
+		"issuer":      `/C=US/O=Issuer Org/OU=Root/CN=Issuer CN`,
+		"path":        "/Users/alice/Library/Keychains/login.keychain-db",
+	}})
+
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	certificate := got[0]
+	if certificate.Subject.Country != "AU" ||
+		certificate.Subject.Organization != "Example Org" ||
+		certificate.Subject.OrganizationalUnit != "One+OU=Two/WithSlash" ||
+		certificate.Subject.CommonName != "Subject CN" ||
+		certificate.Issuer.CommonName != "Issuer CN" {
+		t.Fatalf(
+			"certificate names = %#v / %#v, want parsed subject and issuer",
+			certificate.Subject,
+			certificate.Issuer,
+		)
+	}
+	if certificate.Source != "user" || certificate.Username != "alice" {
+		t.Fatalf("source/username = %q/%q, want user/alice", certificate.Source, certificate.Username)
+	}
+}
+
+func TestParseHostCertificatesUsesWindowsDistinguishedNameAsCommonName(t *testing.T) {
+	got := parseHostCertificates("certificates_windows", []map[string]string{{
+		"sha1":    "sha1",
+		"subject": "Contoso Root CA, Contoso, AU",
+		"issuer":  "Contoso Issuer CA, Contoso, AU",
+	}})
+
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if got[0].Subject.CommonName != "Contoso Root CA, Contoso, AU" ||
+		got[0].Issuer.CommonName != "Contoso Issuer CA, Contoso, AU" {
+		t.Fatalf("certificate names = %#v / %#v, want raw Windows distinguished names", got[0].Subject, got[0].Issuer)
+	}
+}
+
 func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 	rows := []map[string]string{
 		{

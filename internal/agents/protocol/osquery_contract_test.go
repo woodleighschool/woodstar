@@ -55,6 +55,7 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 		t.Fatalf("get host by osquery node key: %v", err)
 	}
 	assertProjectedHostDetails(t, host)
+	assertProjectedCertificates(t, ctx, stores.hosts, host.ID)
 	assertProjectedSoftware(t, ctx, stores.software, host.ID, softwareName, bundleID)
 }
 
@@ -217,8 +218,8 @@ func assertRequiredDetailQueries(t *testing.T, querySQL map[string]string) {
 		"woodstar_detail_query_system_info",
 		"woodstar_detail_query_osquery_info",
 		"woodstar_detail_query_uptime",
-		"woodstar_detail_query_root_disk",
-		"woodstar_detail_query_primary_interface",
+		"woodstar_detail_query_root_disk_darwin",
+		"woodstar_detail_query_primary_interface_unix",
 		"woodstar_detail_query_users",
 		"woodstar_detail_query_software_macos",
 	} {
@@ -256,11 +257,11 @@ func writeOsqueryContractDetails(
 			"cpu_physical_cores": "10",
 			"physical_memory":    "68719476736",
 		}},
-		prefix + "osquery_info": {{"version": "5.22.1"}},
-		prefix + "orbit_info":   {{"version": "1.47.0"}},
-		prefix + "uptime":       {{"total_seconds": "3600"}},
-		prefix + "root_disk":    {{"bytes_available": "1073741824", "bytes_total": "4294967296"}},
-		prefix + "primary_interface": {{
+		prefix + "osquery_info":     {{"version": "5.22.1"}},
+		prefix + "orbit_info":       {{"version": "1.47.0"}},
+		prefix + "uptime":           {{"total_seconds": "3600"}},
+		prefix + "root_disk_darwin": {{"bytes_available": "1073741824", "bytes_total": "4294967296"}},
+		prefix + "primary_interface_unix": {{
 			"primary_ip":  "192.168.1.10",
 			"primary_mac": "aa:bb:cc:dd:ee:ff",
 		}},
@@ -289,6 +290,22 @@ func writeOsqueryContractDetails(
 			"path":              "/Applications/Example App.app",
 			"executable_sha256": "executable-hash",
 			"executable_path":   "/Applications/Example App.app/Contents/MacOS/Example",
+		}},
+		prefix + "certificates_darwin": {{
+			"sha1":              "certificate-sha1",
+			"common_name":       "Example Root CA",
+			"subject":           "/C=AU/O=Example Org/OU=Security/CN=Example Root CA",
+			"issuer":            "/C=AU/O=Example Issuer/OU=Platform/CN=Example Issuer CA",
+			"ca":                "1",
+			"not_valid_after":   "1777435200",
+			"not_valid_before":  "1745899200",
+			"path":              "/Users/contract/Library/Keychains/login.keychain-db",
+			"source":            "user",
+			"key_algorithm":     "rsa",
+			"key_strength":      "2048",
+			"key_usage":         "Certificate Sign",
+			"signing_algorithm": "sha256WithRSAEncryption",
+			"serial":            "01",
 		}},
 	}
 	statuses := make(map[string]json.RawMessage, len(queryRows))
@@ -319,6 +336,28 @@ func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
 	}
 	if host.DiskSpaceTotalBytes == nil || *host.DiskSpaceTotalBytes != 4294967296 {
 		t.Fatalf("host disk_space_total_bytes = %v, want 4294967296", host.DiskSpaceTotalBytes)
+	}
+}
+
+func assertProjectedCertificates(t *testing.T, ctx context.Context, hostStore *hosts.Store, hostID int64) {
+	t.Helper()
+	certificates, err := hostStore.ListCertificates(ctx, hostID)
+	if err != nil {
+		t.Fatalf("list host certificates: %v", err)
+	}
+	if len(certificates) != 1 {
+		t.Fatalf("certificate count = %d, want 1: %#v", len(certificates), certificates)
+	}
+	certificate := certificates[0]
+	if certificate.SHA1 != "certificate-sha1" ||
+		certificate.CommonName != "Example Root CA" ||
+		certificate.Subject.CommonName != "Example Root CA" ||
+		certificate.Subject.Organization != "Example Org" ||
+		certificate.Issuer.CommonName != "Example Issuer CA" ||
+		certificate.Source != "user" ||
+		certificate.Username != "contract" ||
+		!certificate.CertificateAuthority {
+		t.Fatalf("certificate = %#v, want projected darwin user certificate", certificate)
 	}
 }
 

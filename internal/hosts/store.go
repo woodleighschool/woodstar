@@ -284,6 +284,48 @@ func (s *Store) ReplaceBatteries(ctx context.Context, hostID int64, batteries []
 	})
 }
 
+// ReplaceCertificates replaces the certificate inventory for hostID.
+func (s *Store) ReplaceCertificates(ctx context.Context, hostID int64, certificates []HostCertificate) error {
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		if err := q.DeleteHostCertificates(ctx, sqlc.DeleteHostCertificatesParams{HostID: hostID}); err != nil {
+			return err
+		}
+		for _, certificate := range certificates {
+			if certificate.SHA1 == "" {
+				continue
+			}
+			if err := q.InsertHostCertificate(ctx, sqlc.InsertHostCertificateParams{
+				HostID:                    hostID,
+				Sha1:                      certificate.SHA1,
+				CommonName:                certificate.CommonName,
+				SubjectCountry:            certificate.Subject.Country,
+				SubjectOrganization:       certificate.Subject.Organization,
+				SubjectOrganizationalUnit: certificate.Subject.OrganizationalUnit,
+				SubjectCommonName:         certificate.Subject.CommonName,
+				IssuerCountry:             certificate.Issuer.Country,
+				IssuerOrganization:        certificate.Issuer.Organization,
+				IssuerOrganizationalUnit:  certificate.Issuer.OrganizationalUnit,
+				IssuerCommonName:          certificate.Issuer.CommonName,
+				KeyAlgorithm:              certificate.KeyAlgorithm,
+				KeyStrength:               certificate.KeyStrength,
+				KeyUsage:                  certificate.KeyUsage,
+				SigningAlgorithm:          certificate.SigningAlgorithm,
+				NotValidAfter:             certificate.NotValidAfter,
+				NotValidBefore:            certificate.NotValidBefore,
+				Serial:                    certificate.Serial,
+				CertificateAuthority:      certificate.CertificateAuthority,
+				Source:                    certificate.Source,
+				Username:                  certificate.Username,
+				Path:                      certificate.Path,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // ListUsers returns local users reported for hostID.
 func (s *Store) ListUsers(ctx context.Context, hostID int64) ([]HostUser, error) {
 	rows, err := s.q.ListHostUsers(ctx, sqlc.ListHostUsersParams{HostID: hostID})
@@ -308,6 +350,19 @@ func (s *Store) ListBatteries(ctx context.Context, hostID int64) ([]HostBattery,
 		batteries[i] = hostBatteryFromSQLC(row)
 	}
 	return batteries, nil
+}
+
+// ListCertificates returns certificates reported for hostID.
+func (s *Store) ListCertificates(ctx context.Context, hostID int64) ([]HostCertificate, error) {
+	rows, err := s.q.ListHostCertificates(ctx, sqlc.ListHostCertificatesParams{HostID: hostID})
+	if err != nil {
+		return nil, err
+	}
+	certificates := make([]HostCertificate, len(rows))
+	for i, row := range rows {
+		certificates[i] = hostCertificateFromSQLC(row)
+	}
+	return certificates, nil
 }
 
 // MarkDetailFresh records that all built-in detail queries completed.
@@ -525,5 +580,39 @@ func hostBatteryFromSQLC(s sqlc.HostBattery) HostBattery {
 		PercentRemaining: s.PercentRemaining,
 		CreatedAt:        s.CreatedAt,
 		UpdatedAt:        s.UpdatedAt,
+	}
+}
+
+func hostCertificateFromSQLC(s sqlc.HostCertificate) HostCertificate {
+	return HostCertificate{
+		ID:         s.ID,
+		HostID:     s.HostID,
+		SHA1:       s.Sha1,
+		CommonName: s.CommonName,
+		Subject: CertificateName{
+			Country:            s.SubjectCountry,
+			Organization:       s.SubjectOrganization,
+			OrganizationalUnit: s.SubjectOrganizationalUnit,
+			CommonName:         s.SubjectCommonName,
+		},
+		Issuer: CertificateName{
+			Country:            s.IssuerCountry,
+			Organization:       s.IssuerOrganization,
+			OrganizationalUnit: s.IssuerOrganizationalUnit,
+			CommonName:         s.IssuerCommonName,
+		},
+		KeyAlgorithm:         s.KeyAlgorithm,
+		KeyStrength:          s.KeyStrength,
+		KeyUsage:             s.KeyUsage,
+		SigningAlgorithm:     s.SigningAlgorithm,
+		NotValidAfter:        s.NotValidAfter,
+		NotValidBefore:       s.NotValidBefore,
+		Serial:               s.Serial,
+		CertificateAuthority: s.CertificateAuthority,
+		Source:               s.Source,
+		Username:             s.Username,
+		Path:                 s.Path,
+		CreatedAt:            s.CreatedAt,
+		UpdatedAt:            s.UpdatedAt,
 	}
 }

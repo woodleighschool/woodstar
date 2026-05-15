@@ -215,6 +215,38 @@ CREATE TABLE host_batteries (
 
 CREATE INDEX host_batteries_host_idx ON host_batteries (host_id);
 
+CREATE TABLE host_certificates (
+    id BIGSERIAL PRIMARY KEY,
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    sha1 TEXT NOT NULL,
+    common_name TEXT NOT NULL DEFAULT '',
+    subject_country TEXT NOT NULL DEFAULT '',
+    subject_organization TEXT NOT NULL DEFAULT '',
+    subject_organizational_unit TEXT NOT NULL DEFAULT '',
+    subject_common_name TEXT NOT NULL DEFAULT '',
+    issuer_country TEXT NOT NULL DEFAULT '',
+    issuer_organization TEXT NOT NULL DEFAULT '',
+    issuer_organizational_unit TEXT NOT NULL DEFAULT '',
+    issuer_common_name TEXT NOT NULL DEFAULT '',
+    key_algorithm TEXT NOT NULL DEFAULT '',
+    key_strength INTEGER,
+    key_usage TEXT NOT NULL DEFAULT '',
+    signing_algorithm TEXT NOT NULL DEFAULT '',
+    not_valid_after TIMESTAMPTZ,
+    not_valid_before TIMESTAMPTZ,
+    serial TEXT NOT NULL DEFAULT '',
+    certificate_authority BOOLEAN NOT NULL DEFAULT FALSE,
+    source TEXT NOT NULL DEFAULT '',
+    username TEXT NOT NULL DEFAULT '',
+    path TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (host_id, sha1, source, username)
+);
+
+CREATE INDEX host_certificates_host_idx ON host_certificates (host_id);
+CREATE INDEX host_certificates_sha1_idx ON host_certificates (sha1);
+
 -- Software -------------------------------------------------------------------
 
 CREATE TABLE software_titles (

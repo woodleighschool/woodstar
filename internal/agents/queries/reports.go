@@ -55,23 +55,16 @@ func (s *Store) OverwriteResults(
 		); err != nil {
 			return err
 		}
-		for _, row := range resultRows {
-			var data any
-			if row.data != nil {
-				data = []byte(*row.data)
-			}
-			if _, err := tx.Exec(ctx,
-				`INSERT INTO query_results (query_id, host_id, data, last_fetched)
-				 VALUES ($1, $2, $3::jsonb, $4)`,
-				queryID,
-				hostID,
-				data,
-				row.lastFetched,
-			); err != nil {
-				return err
-			}
+		if len(resultRows) == 0 {
+			return nil
 		}
-		return nil
+		_, err := tx.CopyFrom(
+			ctx,
+			pgx.Identifier{"query_results"},
+			[]string{"query_id", "host_id", "data", "last_fetched"},
+			pgx.CopyFromRows(copyFromSnapshotRows(queryID, hostID, resultRows)),
+		)
+		return err
 	})
 }
 
@@ -175,7 +168,7 @@ func (s *Store) TrimResults(ctx context.Context, maxRows int) error {
 		return nil
 	}
 	_, err := s.db.Pool().Exec(ctx,
-		fmt.Sprintf(`DELETE FROM query_results r
+		`DELETE FROM query_results r
 		 USING (
 		     SELECT id
 		     FROM (
@@ -186,12 +179,25 @@ func (s *Store) TrimResults(ctx context.Context, maxRows int) error {
 		         WHERE q.schedule_interval > 0 AND r.data IS NOT NULL
 		     ) ranked
 		     WHERE rn > $1
-		     LIMIT %d
+		     LIMIT $2
 		 ) doomed
-		 WHERE r.id = doomed.id`, trimBatchSize),
+		 WHERE r.id = doomed.id`,
 		maxRows,
+		trimBatchSize,
 	)
 	return err
+}
+
+func copyFromSnapshotRows(queryID int64, hostID int64, rows []snapshotResultRow) [][]any {
+	out := make([][]any, 0, len(rows))
+	for _, row := range rows {
+		var data any
+		if row.data != nil {
+			data = []byte(*row.data)
+		}
+		out = append(out, []any{queryID, hostID, data, row.lastFetched})
+	}
+	return out
 }
 
 func snapshotResultRows(rows []map[string]string, fetchedAt time.Time) ([]snapshotResultRow, error) {

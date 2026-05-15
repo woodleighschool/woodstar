@@ -281,16 +281,21 @@ func loadHostDetail(
 	if err != nil {
 		return nil, err
 	}
+	certificates, err := hostStore.ListCertificates(ctx, host.ID)
+	if err != nil {
+		return nil, err
+	}
 	mappings, err := deviceMappings.ListForHost(ctx, host.ID)
 	if err != nil {
 		return nil, err
 	}
 	host.DeviceMappings = mappings
 	return &hosts.HostDetail{
-		Host:      *host,
-		Labels:    hostLabels,
-		Users:     hostUsers,
-		Batteries: batteries,
+		Host:         *host,
+		Labels:       hostLabels,
+		Users:        hostUsers,
+		Batteries:    batteries,
+		Certificates: certificates,
 	}, nil
 }
 

@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useState, type ReactNode } from "react";
 
+import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Host, HostDetail } from "@/hooks/use-hosts";
 import { deviceMappingSourceLabel } from "@/lib/device-mapping-source-labels";
@@ -12,6 +16,10 @@ interface Tile {
   label: string;
   value: ReactNode;
 }
+
+type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
+
+const CERTIFICATES_PAGE_SIZE = 25;
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
   const tiles: Tile[] = [];
@@ -160,6 +168,207 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
   );
 }
 
+export function HostCertificatesCard({ host }: { host: HostDetail }) {
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(CERTIFICATES_PAGE_SIZE);
+  const [selectedCertificate, setSelectedCertificate] = useState<HostCertificate | null>(null);
+  const [sort, setSort] = useState<DataTableSort>({
+    orderKey: "common_name",
+    orderDirection: "asc",
+  });
+  const certificates = useMemo(() => host.certificates ?? [], [host.certificates]);
+  const sortedCertificates = useMemo(() => sortCertificates(certificates, sort), [certificates, sort]);
+  const pageCount = Math.max(1, Math.ceil(sortedCertificates.length / perPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleCertificates = sortedCertificates.slice((currentPage - 1) * perPage, currentPage * perPage);
+  if (certificates.length === 0) return null;
+
+  return (
+    <Card size="sm">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle>Certificates</CardTitle>
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {certificates.length} {certificates.length === 1 ? "certificate" : "certificates"}
+        </span>
+      </CardHeader>
+      <CardContent>
+        <DataTable
+          columns={certificateColumns}
+          data={visibleCertificates}
+          totalCount={certificates.length}
+          page={currentPage}
+          perPage={perPage}
+          sort={sort}
+          onPageChange={setPage}
+          onPerPageChange={(next) => {
+            setPerPage(next);
+            setPage(1);
+          }}
+          onSortChange={(next) => {
+            setSort(next);
+            setPage(1);
+          }}
+          onRowClick={setSelectedCertificate}
+          getRowId={(certificate) => String(certificate.id)}
+          empty={<span className="text-muted-foreground text-sm">No certificates</span>}
+        />
+        <CertificateDetailsDialog certificate={selectedCertificate} onOpenChange={setSelectedCertificate} />
+      </CardContent>
+    </Card>
+  );
+}
+
+const certificateColumns: ColumnDef<HostCertificate>[] = [
+  {
+    id: "common_name",
+    accessorFn: (certificate) => certificateName(certificate),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+    cell: ({ row }) => (
+      <span className="block truncate font-medium" title={certificateName(row.original)}>
+        {certificateName(row.original)}
+      </span>
+    ),
+    meta: {
+      cellClassName: "max-w-[360px] py-1.5",
+      headClassName: "h-8",
+    },
+  },
+  {
+    id: "issuer",
+    accessorFn: (certificate) => certificate.issuer.common_name,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Issuer" />,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground block max-w-[360px] truncate" title={row.original.issuer.common_name}>
+        {row.original.issuer.common_name || "-"}
+      </span>
+    ),
+    meta: {
+      cellClassName: "py-1.5",
+      headClassName: "h-8",
+    },
+  },
+  {
+    id: "source",
+    accessorFn: (certificate) => certificateKeychain(certificate),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Keychain" />,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground" title={row.original.username !== "" ? row.original.username : undefined}>
+        {certificateKeychain(row.original)}
+      </span>
+    ),
+    meta: {
+      cellClassName: "py-1.5",
+      headClassName: "h-8",
+    },
+  },
+  {
+    id: "not_valid_before",
+    accessorKey: "not_valid_before",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Issued" />,
+    cell: ({ row }) =>
+      row.original.not_valid_before ? (
+        <span className="text-muted-foreground" title={new Date(row.original.not_valid_before).toLocaleString()}>
+          {formatDate(row.original.not_valid_before)}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+    meta: {
+      cellClassName: "py-1.5",
+      headClassName: "h-8",
+    },
+  },
+  {
+    id: "not_valid_after",
+    accessorKey: "not_valid_after",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Expires" />,
+    cell: ({ row }) =>
+      row.original.not_valid_after ? (
+        <span className="text-muted-foreground" title={new Date(row.original.not_valid_after).toLocaleString()}>
+          {formatDate(row.original.not_valid_after)}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">-</span>
+      ),
+    meta: {
+      cellClassName: "py-1.5",
+      headClassName: "h-8",
+    },
+  },
+];
+
+function CertificateDetailsDialog({
+  certificate,
+  onOpenChange,
+}: {
+  certificate: HostCertificate | null;
+  onOpenChange: (certificate: HostCertificate | null) => void;
+}) {
+  return (
+    <Dialog open={certificate !== null} onOpenChange={(open) => !open && onOpenChange(null)}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Certificate details</DialogTitle>
+          <DialogDescription>{certificate ? certificateName(certificate) : ""}</DialogDescription>
+        </DialogHeader>
+        {certificate ? (
+          <div className="grid gap-5">
+            <CertificateDetailSection
+              title="Subject"
+              rows={certificateNameRows(certificate.subject, certificate.common_name)}
+            />
+            <CertificateDetailSection title="Issuer" rows={certificateNameRows(certificate.issuer)} />
+            <CertificateDetailSection
+              title="Validity"
+              rows={[
+                ["Issued", formatDate(certificate.not_valid_before)],
+                ["Expires", formatDate(certificate.not_valid_after)],
+                ["Certificate authority", certificate.certificate_authority ? "Yes" : "No"],
+              ]}
+            />
+            <CertificateDetailSection
+              title="Key"
+              rows={[
+                ["Algorithm", certificate.key_algorithm],
+                ["Strength", certificate.key_strength ? `${certificate.key_strength} bits` : ""],
+                ["Usage", certificate.key_usage],
+                ["Serial", certificate.serial],
+              ]}
+            />
+            <CertificateDetailSection
+              title="Signature and keychain"
+              rows={[
+                ["Signing algorithm", certificate.signing_algorithm],
+                ["Keychain", certificateKeychain(certificate)],
+                ["Username", certificate.username],
+              ]}
+            />
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CertificateDetailSection({ title, rows }: { title: string; rows: Array<[string, ReactNode]> }) {
+  const visibleRows = rows.filter(([, value]) => value !== "" && value !== null && value !== undefined);
+  if (visibleRows.length === 0) return null;
+
+  return (
+    <section className="grid gap-2">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <dl className="grid grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+        {visibleRows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function agentSummary(osqueryVersion: string, orbitVersion: string): ReactNode {
   if (osqueryVersion && orbitVersion) {
     return (
@@ -169,6 +378,67 @@ function agentSummary(osqueryVersion: string, orbitVersion: string): ReactNode {
     );
   }
   return osqueryVersion || orbitVersion;
+}
+
+function certificateKeychain(certificate: HostCertificate) {
+  if (certificate.source === "system") return "System";
+  if (certificate.source === "user") return "User";
+  return firstNonEmpty(certificate.source, "-");
+}
+
+function certificateName(certificate: HostCertificate) {
+  return firstNonEmpty(
+    certificate.common_name,
+    certificate.subject.common_name,
+    certificate.serial,
+    `Certificate ${certificate.id}`,
+  );
+}
+
+function sortCertificates(certificates: HostCertificate[], sort: DataTableSort) {
+  const direction = sort.orderDirection === "desc" ? -1 : 1;
+  const key = sort.orderKey ?? "common_name";
+  return [...certificates].sort((a, b) => {
+    const aValue = certificateSortValue(a, key);
+    const bValue = certificateSortValue(b, key);
+    return aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: "base" }) * direction;
+  });
+}
+
+function certificateSortValue(certificate: HostCertificate, key: string) {
+  switch (key) {
+    case "issuer":
+      return certificate.issuer.common_name;
+    case "source":
+      return certificateKeychain(certificate);
+    case "not_valid_before":
+      return certificate.not_valid_before ?? "";
+    case "not_valid_after":
+      return certificate.not_valid_after ?? "";
+    case "common_name":
+    default:
+      return certificateName(certificate);
+  }
+}
+
+function certificateNameRows(name: HostCertificate["subject"], commonNameFallback = ""): Array<[string, ReactNode]> {
+  return [
+    ["Country", name.country],
+    ["Organization", name.organization],
+    ["Organizational unit", name.organizational_unit],
+    ["Common name", firstNonEmpty(name.common_name, commonNameFallback)],
+  ];
+}
+
+function firstNonEmpty(...values: string[]) {
+  return values.find((value) => value !== "") ?? "";
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function diskPercent(host: Host) {

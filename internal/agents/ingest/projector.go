@@ -3,6 +3,7 @@ package ingest
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -27,47 +28,34 @@ func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
 }
 
 // IngestDetail dispatches a single detail query result to the appropriate ingester.
-func (p *Projector) IngestDetail(ctx context.Context, name string, hostID int64, rows []map[string]string) error {
-	switch name {
-	case catalog.QueryOSVersion:
-		return ingestOSVersion(ctx, p, hostID, rows)
-	case catalog.QuerySystemInfo:
-		return ingestSystemInfo(ctx, p, hostID, rows)
-	case catalog.QueryOsqueryInfo:
-		return ingestOsqueryInfo(ctx, p, hostID, rows)
-	case catalog.QueryOsqueryFlags:
+func (p *Projector) IngestDetail(
+	ctx context.Context,
+	query catalog.DetailQuery,
+	name string,
+	hostID int64,
+	rows []map[string]string,
+) error {
+	switch query.Ingest {
+	case catalog.IngestHostDetail:
+		return ingestHostDetail(ctx, p, hostID, name, rows)
+	case catalog.IngestOsqueryFlags:
 		return ingestOsqueryFlags(ctx, p, hostID, rows)
-	case catalog.QueryOrbitInfo:
-		return ingestOrbitInfo(ctx, p, hostID, rows)
-	case catalog.QueryUptime:
+	case catalog.IngestUptime:
 		return ingestUptime(ctx, p, hostID, rows)
-	case catalog.QueryRootDisk:
-		return ingestRootDisk(ctx, p, hostID, rows)
-	case catalog.QueryPrimaryInterface:
-		return ingestPrimaryInterface(ctx, p, hostID, rows)
-	case catalog.QueryUsers:
+	case catalog.IngestUsers:
 		return ingestUsers(ctx, p, hostID, rows)
-	case catalog.QueryBatteries:
+	case catalog.IngestBatteries:
 		return ingestBatteries(ctx, p, hostID, rows)
-	// Software queries are handled cross-row by finalizeDetailPass in osquery/dispatch.go
-	// via IngestSoftwareMacOSWithEnrichment, which bypasses IngestDetail entirely.
-	case catalog.QuerySoftwareMacOS,
-		catalog.QuerySoftwareVSCodeExtensions,
-		catalog.QuerySoftwareJetBrainsPlugins,
-		catalog.QuerySoftwareGoBinaries,
-		catalog.QuerySoftwarePythonPackages,
-		catalog.QuerySoftwareMacOSCodesign,
-		catalog.QuerySoftwareMacOSExecutableHash:
-		return nil
+	case catalog.IngestCertificates:
+		return ingestCertificates(ctx, p, hostID, name, rows)
 	default:
 		return nil
 	}
 }
 
-func (p *Projector) IngestSoftwareMacOSWithEnrichment(
+func (p *Projector) IngestSoftware(
 	ctx context.Context,
 	hostID int64,
-	rows []map[string]string,
 	queryRows map[string][]map[string]string,
 ) error {
 	if p.softwareStore == nil {
@@ -77,10 +65,7 @@ func (p *Projector) IngestSoftwareMacOSWithEnrichment(
 		queryRows[catalog.QuerySoftwareMacOSCodesign],
 		queryRows[catalog.QuerySoftwareMacOSExecutableHash],
 	)
-	rows = append(rows, queryRows[catalog.QuerySoftwareVSCodeExtensions]...)
-	rows = append(rows, queryRows[catalog.QuerySoftwareJetBrainsPlugins]...)
-	rows = append(rows, queryRows[catalog.QuerySoftwareGoBinaries]...)
-	rows = append(rows, queryRows[catalog.QuerySoftwarePythonPackages]...)
+	rows := softwareRows(queryRows)
 	entries := parseSoftwareRows(rows, enrichment)
 	if err := p.softwareStore.ReplaceHostSoftware(ctx, hostID, entries); err != nil {
 		return err
@@ -99,52 +84,55 @@ func (p *Projector) IngestSoftwareMacOSWithEnrichment(
 	return nil
 }
 
-func ingestOSVersion(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+func softwareRows(queryRows map[string][]map[string]string) []map[string]string {
+	keys := []string{
+		catalog.QuerySoftwareMacOS,
+		catalog.QuerySoftwareLinux,
+		catalog.QuerySoftwareWindows,
+		catalog.QuerySoftwareVSCodeExtensions,
+		catalog.QuerySoftwareJetBrainsPlugins,
+		catalog.QuerySoftwareGoBinaries,
+		catalog.QuerySoftwarePythonPackages,
+		catalog.QuerySoftwarePythonPackagesLegacy,
+	}
+	var rows []map[string]string
+	for _, key := range keys {
+		rows = append(rows, queryRows[key]...)
+	}
+	return rows
+}
+
+func ingestHostDetail(
+	ctx context.Context,
+	projector *Projector,
+	hostID int64,
+	name string,
+	rows []map[string]string,
+) error {
 	if len(rows) == 0 {
 		return nil
 	}
+	name = canonicalHostDetailName(name)
 	return projector.hostStore.ApplyDetail(
 		ctx,
 		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOSVersion: rows[0]}),
+		hosts.ParseHostDetails(map[string]map[string]string{name: rows[0]}),
 	)
 }
 
-func ingestSystemInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
+func canonicalHostDetailName(name string) string {
+	switch name {
+	case catalog.QueryRootDiskDarwin:
+		return "root_disk"
+	case catalog.QueryPrimaryInterfaceUnix, catalog.QueryPrimaryInterfaceWindows, catalog.QueryPrimaryInterfaceChrome:
+		return "primary_interface"
+	default:
+		return name
 	}
-	return projector.hostStore.ApplyDetail(
-		ctx,
-		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QuerySystemInfo: rows[0]}),
-	)
-}
-
-func ingestOsqueryInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return projector.hostStore.ApplyDetail(
-		ctx,
-		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOsqueryInfo: rows[0]}),
-	)
 }
 
 func ingestOsqueryFlags(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	return projector.hostStore.ApplyDetail(ctx, hostID, parseOsqueryFlags(rows))
-}
-
-func ingestOrbitInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return projector.hostStore.ApplyDetail(
-		ctx,
-		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryOrbitInfo: rows[0]}),
-	)
 }
 
 func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
@@ -158,34 +146,22 @@ func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows 
 	return projector.hostStore.ApplyDetail(ctx, hostID, update)
 }
 
-func ingestRootDisk(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return projector.hostStore.ApplyDetail(
-		ctx,
-		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryRootDisk: rows[0]}),
-	)
-}
-
-func ingestPrimaryInterface(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return projector.hostStore.ApplyDetail(
-		ctx,
-		hostID,
-		hosts.ParseHostDetails(map[string]map[string]string{catalog.QueryPrimaryInterface: rows[0]}),
-	)
-}
-
 func ingestUsers(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	return projector.hostStore.ReplaceUsers(ctx, hostID, parseHostUsers(rows))
 }
 
 func ingestBatteries(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	return projector.hostStore.ReplaceBatteries(ctx, hostID, parseHostBatteries(rows))
+}
+
+func ingestCertificates(
+	ctx context.Context,
+	projector *Projector,
+	hostID int64,
+	name string,
+	rows []map[string]string,
+) error {
+	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(name, rows))
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {
@@ -229,6 +205,119 @@ func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
 		})
 	}
 	return batteries
+}
+
+func parseHostCertificates(queryName string, rows []map[string]string) []hosts.HostCertificate {
+	certificates := make([]hosts.HostCertificate, 0, len(rows))
+	for _, row := range rows {
+		sha1 := strings.TrimSpace(row["sha1"])
+		if sha1 == "" {
+			continue
+		}
+		subject := parseCertificateName(queryName, row["subject"])
+		issuer := parseCertificateName(queryName, row["issuer"])
+		commonName := strings.TrimSpace(row["common_name"])
+		if commonName == "" {
+			commonName = subject.CommonName
+		}
+		certificates = append(certificates, hosts.HostCertificate{
+			SHA1:                 sha1,
+			CommonName:           commonName,
+			Subject:              subject,
+			Issuer:               issuer,
+			KeyAlgorithm:         strings.TrimSpace(row["key_algorithm"]),
+			KeyStrength:          parseInt32Ptr(row["key_strength"]),
+			KeyUsage:             strings.TrimSpace(row["key_usage"]),
+			SigningAlgorithm:     strings.TrimSpace(row["signing_algorithm"]),
+			NotValidAfter:        parseUnixTime(row["not_valid_after"]),
+			NotValidBefore:       parseUnixTime(row["not_valid_before"]),
+			Serial:               strings.TrimSpace(row["serial"]),
+			CertificateAuthority: parseBool(row["ca"]),
+			Source:               certificateSource(row),
+			Username:             certificateUsername(row),
+			Path:                 strings.TrimSpace(row["path"]),
+		})
+	}
+	return certificates
+}
+
+func parseCertificateName(queryName string, value string) hosts.CertificateName {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return hosts.CertificateName{}
+	}
+	if queryName == catalog.QueryCertificatesWindows {
+		return hosts.CertificateName{CommonName: value}
+	}
+	return parseDarwinCertificateName(value)
+}
+
+func parseDarwinCertificateName(value string) hosts.CertificateName {
+	dn := strings.Trim(strings.TrimSpace(value), "/")
+	escapedSlash := "\x00SLASH\x00"
+	dn = strings.ReplaceAll(dn, `\/`, escapedSlash)
+	parts := strings.Split(dn, "/")
+	if len(parts) == 1 {
+		parts = strings.Split(dn, "+")
+	}
+
+	var name hosts.CertificateName
+	var organizationalUnits []string
+	for _, part := range parts {
+		key, val, ok := strings.Cut(part, "=")
+		if !ok {
+			continue
+		}
+		val = strings.ReplaceAll(strings.TrimSpace(val), escapedSlash, "/")
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "C":
+			name.Country = val
+		case "O":
+			name.Organization = val
+		case "OU":
+			organizationalUnits = append(organizationalUnits, val)
+		case "CN":
+			name.CommonName = val
+		}
+	}
+	name.OrganizationalUnit = strings.Join(organizationalUnits, "+OU=")
+	if name == (hosts.CertificateName{}) {
+		name.CommonName = value
+	}
+	return name
+}
+
+func certificateSource(row map[string]string) string {
+	source := strings.TrimSpace(row["source"])
+	if source != "" {
+		return source
+	}
+	if strings.EqualFold(strings.TrimSpace(row["username"]), "SYSTEM") {
+		return "system"
+	}
+	return "user"
+}
+
+func certificateUsername(row map[string]string) string {
+	if username := strings.TrimSpace(row["username"]); username != "" && !strings.EqualFold(username, "SYSTEM") {
+		return username
+	}
+	path := filepath.Clean(strings.TrimSpace(row["path"]))
+	const prefix = "/Users/"
+	const suffix = "/Library/Keychains/login.keychain-db"
+	if strings.HasPrefix(path, prefix) && strings.HasSuffix(path, suffix) {
+		return strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	}
+	return ""
+}
+
+func parseBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "t", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 func parseOsqueryFlags(rows []map[string]string) hosts.HostDetailUpdate {

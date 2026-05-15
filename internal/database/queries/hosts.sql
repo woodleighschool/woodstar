@@ -272,6 +272,86 @@ FROM host_batteries
 WHERE host_id = @host_id
 ORDER BY serial_number, id;
 
+-- name: DeleteHostCertificates :exec
+DELETE FROM host_certificates
+WHERE host_id = @host_id;
+
+-- name: InsertHostCertificate :exec
+INSERT INTO host_certificates (
+    host_id,
+    sha1,
+    common_name,
+    subject_country,
+    subject_organization,
+    subject_organizational_unit,
+    subject_common_name,
+    issuer_country,
+    issuer_organization,
+    issuer_organizational_unit,
+    issuer_common_name,
+    key_algorithm,
+    key_strength,
+    key_usage,
+    signing_algorithm,
+    not_valid_after,
+    not_valid_before,
+    serial,
+    certificate_authority,
+    source,
+    username,
+    path
+)
+VALUES (
+    @host_id,
+    @sha1,
+    @common_name,
+    @subject_country,
+    @subject_organization,
+    @subject_organizational_unit,
+    @subject_common_name,
+    @issuer_country,
+    @issuer_organization,
+    @issuer_organizational_unit,
+    @issuer_common_name,
+    @key_algorithm,
+    @key_strength,
+    @key_usage,
+    @signing_algorithm,
+    @not_valid_after,
+    @not_valid_before,
+    @serial,
+    @certificate_authority,
+    @source,
+    @username,
+    @path
+)
+ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
+    common_name = EXCLUDED.common_name,
+    subject_country = EXCLUDED.subject_country,
+    subject_organization = EXCLUDED.subject_organization,
+    subject_organizational_unit = EXCLUDED.subject_organizational_unit,
+    subject_common_name = EXCLUDED.subject_common_name,
+    issuer_country = EXCLUDED.issuer_country,
+    issuer_organization = EXCLUDED.issuer_organization,
+    issuer_organizational_unit = EXCLUDED.issuer_organizational_unit,
+    issuer_common_name = EXCLUDED.issuer_common_name,
+    key_algorithm = EXCLUDED.key_algorithm,
+    key_strength = EXCLUDED.key_strength,
+    key_usage = EXCLUDED.key_usage,
+    signing_algorithm = EXCLUDED.signing_algorithm,
+    not_valid_after = EXCLUDED.not_valid_after,
+    not_valid_before = EXCLUDED.not_valid_before,
+    serial = EXCLUDED.serial,
+    certificate_authority = EXCLUDED.certificate_authority,
+    path = EXCLUDED.path,
+    updated_at = now();
+
+-- name: ListHostCertificates :many
+SELECT *
+FROM host_certificates
+WHERE host_id = @host_id
+ORDER BY common_name, sha1, id;
+
 -- name: AddHostToAllHostsLabel :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, @host_id

@@ -146,8 +146,6 @@ func (s *Service) handleDetailResult(
 	message string,
 	pass *dispatchPass,
 ) error {
-	// software_macos depends on cross-query enrichment — keep the rows for
-	// finalize, but do not run its registry ingest now.
 	pass.detailRowsBySuffix[suffix] = rows
 
 	query, ok := pass.registry[suffix]
@@ -168,10 +166,10 @@ func (s *Service) handleDetailResult(
 		)
 		return nil
 	}
-	if suffix == catalog.QuerySoftwareMacOS {
+	if query.Deferred() {
 		return nil
 	}
-	return s.inventoryProjector.IngestDetail(ctx, suffix, hostID, rows)
+	return s.inventoryProjector.IngestDetail(ctx, query, suffix, hostID, rows)
 }
 
 func (s *Service) finalizeDetailPass(
@@ -180,18 +178,12 @@ func (s *Service) finalizeDetailPass(
 	req DistributedWriteRequest,
 	pass *dispatchPass,
 ) error {
-	if rows, ok := pass.detailRowsBySuffix[catalog.QuerySoftwareMacOS]; ok &&
-		statusOK(req.Statuses[detailQueryName(catalog.QuerySoftwareMacOS)]) {
-		if err := s.inventoryProjector.IngestSoftwareMacOSWithEnrichment(
-			ctx,
-			host.ID,
-			rows,
-			pass.detailRowsBySuffix,
-		); err != nil {
-			return fmt.Errorf("ingest %s: %w", catalog.QuerySoftwareMacOS, err)
+	if softwareRows, ok := successfulSoftwareRows(req, pass); ok {
+		if err := s.inventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
+			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry) {
+	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry, host.Platform) {
 		return nil
 	}
 	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
@@ -206,9 +198,38 @@ func (s *Service) finalizeDetailPass(
 	return nil
 }
 
-func sawEveryRequiredDetailQuery(req DistributedWriteRequest, registry map[string]catalog.DetailQuery) bool {
+func successfulSoftwareRows(
+	req DistributedWriteRequest,
+	pass *dispatchPass,
+) (map[string][]map[string]string, bool) {
+	rowsBySuffix := make(map[string][]map[string]string)
+	baseSucceeded := false
+	for suffix, query := range pass.registry {
+		if query.Ingest != catalog.IngestSoftwareBase && query.Ingest != catalog.IngestSoftwareEnrichment {
+			continue
+		}
+		if !statusOK(req.Statuses[detailQueryName(suffix)]) {
+			continue
+		}
+		rows, ok := pass.detailRowsBySuffix[suffix]
+		if !ok {
+			continue
+		}
+		rowsBySuffix[suffix] = rows
+		if query.Ingest == catalog.IngestSoftwareBase {
+			baseSucceeded = true
+		}
+	}
+	return rowsBySuffix, baseSucceeded
+}
+
+func sawEveryRequiredDetailQuery(
+	req DistributedWriteRequest,
+	registry map[string]catalog.DetailQuery,
+	hostPlatform string,
+) bool {
 	for name, query := range registry {
-		if query.Optional {
+		if query.Optional || !query.RunsForPlatform(hostPlatform) {
 			continue
 		}
 		emitted := queryName(kindDetail, name)

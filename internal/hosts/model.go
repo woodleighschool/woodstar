@@ -118,9 +118,10 @@ type Host struct {
 // HostDetail is a host plus its loaded children.
 type HostDetail struct {
 	Host
-	Labels    []labels.Label `json:"labels"`
-	Users     []HostUser     `json:"users"`
-	Batteries []HostBattery  `json:"batteries"`
+	Labels       []labels.Label    `json:"labels"`
+	Users        []HostUser        `json:"users"`
+	Batteries    []HostBattery     `json:"batteries"`
+	Certificates []HostCertificate `json:"certificates"`
 }
 
 // HostUser is one local account reported by osquery.
@@ -153,6 +154,37 @@ type HostBattery struct {
 	PercentRemaining *float64  `json:"percent_remaining,omitempty"`
 	CreatedAt        time.Time `json:"-"`
 	UpdatedAt        time.Time `json:"-"`
+}
+
+// HostCertificate is one system or user certificate reported by osquery.
+type HostCertificate struct {
+	ID                   int64           `json:"id"`
+	HostID               int64           `json:"-"`
+	SHA1                 string          `json:"-"`
+	CommonName           string          `json:"common_name"`
+	Subject              CertificateName `json:"subject"`
+	Issuer               CertificateName `json:"issuer"`
+	KeyAlgorithm         string          `json:"key_algorithm"`
+	KeyStrength          *int32          `json:"key_strength,omitempty"`
+	KeyUsage             string          `json:"key_usage"`
+	SigningAlgorithm     string          `json:"signing_algorithm"`
+	NotValidAfter        *time.Time      `json:"not_valid_after,omitempty"`
+	NotValidBefore       *time.Time      `json:"not_valid_before,omitempty"`
+	Serial               string          `json:"serial"`
+	CertificateAuthority bool            `json:"certificate_authority"`
+	Source               string          `json:"source"`
+	Username             string          `json:"username"`
+	Path                 string          `json:"-"`
+	CreatedAt            time.Time       `json:"-"`
+	UpdatedAt            time.Time       `json:"-"`
+}
+
+// CertificateName is the structured subject or issuer name for a certificate.
+type CertificateName struct {
+	Country            string `json:"country"`
+	Organization       string `json:"organization"`
+	OrganizationalUnit string `json:"organizational_unit"`
+	CommonName         string `json:"common_name"`
 }
 
 // HostDeviceMapping is a user/device association observed for a host.

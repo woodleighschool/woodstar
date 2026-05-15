@@ -571,6 +571,12 @@ export interface components {
             readonly $schema?: string;
             ids: number[] | null;
         };
+        CertificateName: {
+            common_name: string;
+            country: string;
+            organization: string;
+            organizational_unit: string;
+        };
         Check: {
             /**
              * Format: uri
@@ -771,6 +777,26 @@ export interface components {
             readonly $schema?: string;
             ids: number[] | null;
         };
+        HostCertificate: {
+            certificate_authority: boolean;
+            common_name: string;
+            /** Format: int64 */
+            id: number;
+            issuer: components["schemas"]["CertificateName"];
+            key_algorithm: string;
+            /** Format: int32 */
+            key_strength?: number;
+            key_usage: string;
+            /** Format: date-time */
+            not_valid_after?: string;
+            /** Format: date-time */
+            not_valid_before?: string;
+            serial: string;
+            signing_algorithm: string;
+            source: string;
+            subject: components["schemas"]["CertificateName"];
+            username: string;
+        };
         HostDetail: {
             /**
              * Format: uri
@@ -779,6 +805,7 @@ export interface components {
              */
             readonly $schema?: string;
             batteries: components["schemas"]["HostBattery"][] | null;
+            certificates: components["schemas"]["HostCertificate"][] | null;
             computer_name: string;
             /** Format: int32 */
             config_tls_refresh?: number;

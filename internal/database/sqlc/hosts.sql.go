@@ -164,6 +164,20 @@ func (q *Queries) DeleteHostBatteries(ctx context.Context, arg DeleteHostBatteri
 	return err
 }
 
+const deleteHostCertificates = `-- name: DeleteHostCertificates :exec
+DELETE FROM host_certificates
+WHERE host_id = $1
+`
+
+type DeleteHostCertificatesParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+func (q *Queries) DeleteHostCertificates(ctx context.Context, arg DeleteHostCertificatesParams) error {
+	_, err := q.db.Exec(ctx, deleteHostCertificates, arg.HostID)
+	return err
+}
+
 const deleteHostUsers = `-- name: DeleteHostUsers :exec
 DELETE FROM host_users
 WHERE host_id = $1
@@ -340,6 +354,130 @@ func (q *Queries) InsertHostBattery(ctx context.Context, arg InsertHostBatteryPa
 	return err
 }
 
+const insertHostCertificate = `-- name: InsertHostCertificate :exec
+INSERT INTO host_certificates (
+    host_id,
+    sha1,
+    common_name,
+    subject_country,
+    subject_organization,
+    subject_organizational_unit,
+    subject_common_name,
+    issuer_country,
+    issuer_organization,
+    issuer_organizational_unit,
+    issuer_common_name,
+    key_algorithm,
+    key_strength,
+    key_usage,
+    signing_algorithm,
+    not_valid_after,
+    not_valid_before,
+    serial,
+    certificate_authority,
+    source,
+    username,
+    path
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11,
+    $12,
+    $13,
+    $14,
+    $15,
+    $16,
+    $17,
+    $18,
+    $19,
+    $20,
+    $21,
+    $22
+)
+ON CONFLICT (host_id, sha1, source, username) DO UPDATE SET
+    common_name = EXCLUDED.common_name,
+    subject_country = EXCLUDED.subject_country,
+    subject_organization = EXCLUDED.subject_organization,
+    subject_organizational_unit = EXCLUDED.subject_organizational_unit,
+    subject_common_name = EXCLUDED.subject_common_name,
+    issuer_country = EXCLUDED.issuer_country,
+    issuer_organization = EXCLUDED.issuer_organization,
+    issuer_organizational_unit = EXCLUDED.issuer_organizational_unit,
+    issuer_common_name = EXCLUDED.issuer_common_name,
+    key_algorithm = EXCLUDED.key_algorithm,
+    key_strength = EXCLUDED.key_strength,
+    key_usage = EXCLUDED.key_usage,
+    signing_algorithm = EXCLUDED.signing_algorithm,
+    not_valid_after = EXCLUDED.not_valid_after,
+    not_valid_before = EXCLUDED.not_valid_before,
+    serial = EXCLUDED.serial,
+    certificate_authority = EXCLUDED.certificate_authority,
+    path = EXCLUDED.path,
+    updated_at = now()
+`
+
+type InsertHostCertificateParams struct {
+	HostID                    int64      `json:"host_id"`
+	Sha1                      string     `json:"sha1"`
+	CommonName                string     `json:"common_name"`
+	SubjectCountry            string     `json:"subject_country"`
+	SubjectOrganization       string     `json:"subject_organization"`
+	SubjectOrganizationalUnit string     `json:"subject_organizational_unit"`
+	SubjectCommonName         string     `json:"subject_common_name"`
+	IssuerCountry             string     `json:"issuer_country"`
+	IssuerOrganization        string     `json:"issuer_organization"`
+	IssuerOrganizationalUnit  string     `json:"issuer_organizational_unit"`
+	IssuerCommonName          string     `json:"issuer_common_name"`
+	KeyAlgorithm              string     `json:"key_algorithm"`
+	KeyStrength               *int32     `json:"key_strength"`
+	KeyUsage                  string     `json:"key_usage"`
+	SigningAlgorithm          string     `json:"signing_algorithm"`
+	NotValidAfter             *time.Time `json:"not_valid_after"`
+	NotValidBefore            *time.Time `json:"not_valid_before"`
+	Serial                    string     `json:"serial"`
+	CertificateAuthority      bool       `json:"certificate_authority"`
+	Source                    string     `json:"source"`
+	Username                  string     `json:"username"`
+	Path                      string     `json:"path"`
+}
+
+func (q *Queries) InsertHostCertificate(ctx context.Context, arg InsertHostCertificateParams) error {
+	_, err := q.db.Exec(ctx, insertHostCertificate,
+		arg.HostID,
+		arg.Sha1,
+		arg.CommonName,
+		arg.SubjectCountry,
+		arg.SubjectOrganization,
+		arg.SubjectOrganizationalUnit,
+		arg.SubjectCommonName,
+		arg.IssuerCountry,
+		arg.IssuerOrganization,
+		arg.IssuerOrganizationalUnit,
+		arg.IssuerCommonName,
+		arg.KeyAlgorithm,
+		arg.KeyStrength,
+		arg.KeyUsage,
+		arg.SigningAlgorithm,
+		arg.NotValidAfter,
+		arg.NotValidBefore,
+		arg.Serial,
+		arg.CertificateAuthority,
+		arg.Source,
+		arg.Username,
+		arg.Path,
+	)
+	return err
+}
+
 const insertHostUser = `-- name: InsertHostUser :exec
 INSERT INTO host_users (
     host_id,
@@ -423,6 +561,63 @@ func (q *Queries) ListHostBatteries(ctx context.Context, arg ListHostBatteriesPa
 			&i.MaxCapacity,
 			&i.CurrentCapacity,
 			&i.PercentRemaining,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHostCertificates = `-- name: ListHostCertificates :many
+SELECT id, host_id, sha1, common_name, subject_country, subject_organization, subject_organizational_unit, subject_common_name, issuer_country, issuer_organization, issuer_organizational_unit, issuer_common_name, key_algorithm, key_strength, key_usage, signing_algorithm, not_valid_after, not_valid_before, serial, certificate_authority, source, username, path, created_at, updated_at
+FROM host_certificates
+WHERE host_id = $1
+ORDER BY common_name, sha1, id
+`
+
+type ListHostCertificatesParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+func (q *Queries) ListHostCertificates(ctx context.Context, arg ListHostCertificatesParams) ([]HostCertificate, error) {
+	rows, err := q.db.Query(ctx, listHostCertificates, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HostCertificate{}
+	for rows.Next() {
+		var i HostCertificate
+		if err := rows.Scan(
+			&i.ID,
+			&i.HostID,
+			&i.Sha1,
+			&i.CommonName,
+			&i.SubjectCountry,
+			&i.SubjectOrganization,
+			&i.SubjectOrganizationalUnit,
+			&i.SubjectCommonName,
+			&i.IssuerCountry,
+			&i.IssuerOrganization,
+			&i.IssuerOrganizationalUnit,
+			&i.IssuerCommonName,
+			&i.KeyAlgorithm,
+			&i.KeyStrength,
+			&i.KeyUsage,
+			&i.SigningAlgorithm,
+			&i.NotValidAfter,
+			&i.NotValidBefore,
+			&i.Serial,
+			&i.CertificateAuthority,
+			&i.Source,
+			&i.Username,
+			&i.Path,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
