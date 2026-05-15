@@ -18,7 +18,7 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
-UNION ALL
+UNION
 SELECT
   name,
   version,
@@ -30,7 +30,7 @@ SELECT
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-UNION ALL
+UNION
 SELECT
   name,
   version,
@@ -42,7 +42,7 @@ SELECT
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION ALL
+UNION
 SELECT
   name,
   version,
@@ -54,7 +54,7 @@ SELECT
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
-UNION ALL
+UNION
 SELECT
   name,
   version,
@@ -67,7 +67,19 @@ SELECT
   path AS installed_path
 FROM homebrew_packages
 WHERE type = 'formula'
-UNION ALL
+UNION
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  'npm_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM npm_packages
+UNION
 SELECT
   name,
   version,
@@ -83,19 +95,7 @@ WHERE type = 'cask'
 AND NOT EXISTS (
   SELECT 1
   FROM file
-  WHERE file.path LIKE homebrew_packages.path || '/%'
-  AND file.path LIKE '%.app%'
+  WHERE file.directory LIKE homebrew_packages.path || '/%'
+  AND file.filename LIKE '%.app'
   LIMIT 1
-)
-UNION ALL
-SELECT
-  name,
-  version,
-  '' AS bundle_identifier,
-  '' AS extension_id,
-  '' AS extension_for,
-  'npm_packages' AS source,
-  '' AS vendor,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM npm_packages;
+);
