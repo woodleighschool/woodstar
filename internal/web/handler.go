@@ -14,34 +14,30 @@ import (
 )
 
 type runtimeConfig struct {
-	Version   string `json:"version"`
-	CSRFToken string `json:"csrfToken"`
+	Version string `json:"version"`
 }
 
 // HandlerOptions configures the embedded web UI handler.
 type HandlerOptions struct {
-	FS        fs.FS
-	Version   string
-	CSRFToken func(*http.Request) string
-	Logger    *slog.Logger
+	FS      fs.FS
+	Version string
+	Logger  *slog.Logger
 }
 
 // Handler serves the embedded frontend bundle and runtime config.
 type Handler struct {
-	fs        fs.FS
-	version   string
-	csrfToken func(*http.Request) string
-	assets    http.Handler
-	logger    *slog.Logger
+	fs      fs.FS
+	version string
+	assets  http.Handler
+	logger  *slog.Logger
 }
 
 // NewHandler returns an HTTP handler for the embedded web UI.
 func NewHandler(opts HandlerOptions) *Handler {
 	h := &Handler{
-		fs:        opts.FS,
-		version:   opts.Version,
-		csrfToken: opts.CSRFToken,
-		logger:    opts.Logger,
+		fs:      opts.FS,
+		version: opts.Version,
+		logger:  opts.Logger,
 	}
 	if opts.FS != nil {
 		h.assets = http.FileServer(http.FS(opts.FS))
@@ -109,15 +105,9 @@ func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) injectRuntime(r *http.Request, content []byte) []byte {
-	csrf := ""
-	if h.csrfToken != nil {
-		csrf = h.csrfToken(r)
-	}
-
+func (h *Handler) injectRuntime(_ *http.Request, content []byte) []byte {
 	data, err := json.Marshal(runtimeConfig{
-		Version:   h.version,
-		CSRFToken: csrf,
+		Version: h.version,
 	})
 	if err != nil {
 		return content

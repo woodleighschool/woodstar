@@ -85,6 +85,93 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	}
 }
 
+func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Test Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.DB = database
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	deps.HostStore = hosts.NewStore(database)
+	server := NewServer(deps)
+
+	sessionCookie := loginTestUser(t, deps.AuthService, deps.SessionManager)
+
+	postRec := httptest.NewRecorder()
+	postReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/api/live-queries/targets/count",
+		strings.NewReader(`{"selected":{"hosts":[],"labels":[]}}`),
+	)
+	postReq.Header.Set("Content-Type", "application/json")
+	postReq.Header.Set("Origin", "http://evil.example")
+	postReq.AddCookie(sessionCookie)
+
+	server.routes().ServeHTTP(postRec, postReq)
+
+	if postRec.Code != http.StatusForbidden {
+		t.Fatalf(
+			"cross-origin status = %d, want %d; body = %q",
+			postRec.Code,
+			http.StatusForbidden,
+			postRec.Body.String(),
+		)
+	}
+	if postRec.Body.String() != "forbidden origin" {
+		t.Fatalf("cross-origin body = %q, want forbidden origin", postRec.Body.String())
+	}
+
+	postRec = httptest.NewRecorder()
+	postReq = httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"http://localhost:8080/api/live-queries/targets/count",
+		strings.NewReader(`{"selected":{"hosts":[],"labels":[]}}`),
+	)
+	postReq.Header.Set("Content-Type", "application/json")
+	postReq.Header.Set("Origin", "http://localhost:5173")
+	postReq.Header.Set("Sec-Fetch-Site", "same-origin")
+	postReq.AddCookie(sessionCookie)
+
+	server.routes().ServeHTTP(postRec, postReq)
+
+	if postRec.Code != http.StatusOK {
+		t.Fatalf(
+			"same-origin fetch metadata status = %d, want %d; body = %q",
+			postRec.Code,
+			http.StatusOK,
+			postRec.Body.String(),
+		)
+	}
+
+	postRec = httptest.NewRecorder()
+	postReq = httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"http://localhost:8080/api/live-queries/targets/count",
+		strings.NewReader(`{"selected":{"hosts":[],"labels":[]}}`),
+	)
+	postReq.Header.Set("Content-Type", "application/json")
+	postReq.Header.Set("Origin", "http://localhost:8080")
+	postReq.AddCookie(sessionCookie)
+
+	server.routes().ServeHTTP(postRec, postReq)
+
+	if postRec.Code != http.StatusOK {
+		t.Fatalf("same-origin status = %d, want %d; body = %q", postRec.Code, http.StatusOK, postRec.Body.String())
+	}
+}
+
 func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
@@ -209,7 +296,7 @@ func TestAgentRoutesBypassBrowserAuth(t *testing.T) {
 	}
 }
 
-func TestBearerMutationBypassesBrowserCSRF(t *testing.T) {
+func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
 	user, err := userService.Create(ctx, users.CreateParams{

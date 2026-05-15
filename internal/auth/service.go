@@ -83,7 +83,7 @@ func (s *Service) Logout(ctx context.Context) error {
 	return nil
 }
 
-// startSession rotates the session ID (CSRF defense on privilege change) and binds the user.
+// startSession rotates the session ID on privilege change and binds the user.
 func (s *Service) startSession(ctx context.Context, userID int64) error {
 	if err := s.sessions.RenewToken(ctx); err != nil {
 		return fmt.Errorf("renew session: %w", err)

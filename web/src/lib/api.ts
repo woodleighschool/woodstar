@@ -1,24 +1,19 @@
 import createClient, { type Middleware } from "openapi-fetch";
 
 import type { components, paths } from "@/lib/api-schema";
-import { runtime } from "@/lib/runtime";
 
 export type Schemas = components["schemas"];
-
-const MUTATING_METHODS = new Set(["POST", "PUT", "DELETE"]);
 
 const requestMiddleware: Middleware = {
   onRequest({ request }) {
     request.headers.set("Accept", "application/json");
-    if (runtime.csrfToken && MUTATING_METHODS.has(request.method.toUpperCase())) {
-      request.headers.set("X-CSRF-Token", runtime.csrfToken);
-    }
     return request;
   },
 };
 
 export const apiClient = createClient<paths>({
   credentials: "same-origin",
+  querySerializer: { array: { style: "form", explode: false } },
 });
 apiClient.use(requestMiddleware);
 

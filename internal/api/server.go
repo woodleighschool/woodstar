@@ -139,7 +139,7 @@ func (s *Server) browserRoutes(r chi.Router) {
 	if deps.SessionManager != nil {
 		r.Use(deps.SessionManager.LoadAndSave)
 	}
-	r.Use(middleware.CSRF(deps.Config, config.SessionLifetime))
+	r.Use(middleware.CrossOriginProtection())
 	Mount(r, deps)
 	if deps.WebHandler != nil {
 		deps.WebHandler.RegisterRoutes(r)

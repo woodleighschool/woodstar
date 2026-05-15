@@ -12,7 +12,6 @@ import (
 
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
-	"github.com/gorilla/csrf"
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/agents/checks"
@@ -206,10 +205,9 @@ func newServer(
 		OrbitService:     orbitService,
 		OsqueryService:   osqueryService,
 		WebHandler: web.NewHandler(web.HandlerOptions{
-			FS:        webfs.DistDirFS,
-			Version:   buildinfo.Version,
-			CSRFToken: csrf.Token,
-			Logger:    logger.With("component", "web"),
+			FS:      webfs.DistDirFS,
+			Version: buildinfo.Version,
+			Logger:  logger.With("component", "web"),
 		}),
 	})
 }
