@@ -119,6 +119,69 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	t.Fatalf("scheduled query missing from config: %+v", body.Schedule)
 }
 
+func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	stores := newOsqueryContractStores(database)
+	router := newOsqueryContractRouter(stores)
+
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	hardwareUUID := "osquery-report-" + suffix
+	secret, err := stores.secrets.CreateOrbitEnrollSecret(ctx)
+	if err != nil {
+		t.Fatalf("create enroll secret: %v", err)
+	}
+	report, err := stores.queries.Create(ctx, queries.QueryCreate{
+		Name:             "Installed apps " + suffix,
+		Query:            "select name, version from apps;",
+		ScheduleInterval: 60,
+	})
+	if err != nil {
+		t.Fatalf("create scheduled report: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := stores.queries.Delete(context.Background(), report.ID); err != nil {
+			t.Fatalf("cleanup scheduled report: %v", err)
+		}
+		cleanupOsqueryContractRows(context.Background(), t, database, hardwareUUID, secret.Value, "unused-"+suffix)
+	})
+
+	nodeKey := enrollOsqueryContractHost(t, router, secret.Value, hardwareUUID)
+	host, err := stores.hosts.GetByOsqueryNodeKey(ctx, nodeKey)
+	if err != nil {
+		t.Fatalf("get host by osquery node key: %v", err)
+	}
+
+	doOsqueryJSON(t, router, http.MethodPost, "/api/v1/osquery/log", osquery.LogRequest{
+		NodeKey: nodeKey,
+		LogType: "result",
+		Data: json.RawMessage(`[
+			{
+				"name": "woodstar_report_query_` + strconv.FormatInt(report.ID, 10) + `",
+				"calendarTime": "Fri May 15 12:34:56 2026 UTC",
+				"action": "snapshot",
+				"snapshot": [
+					{"name": "Alpha", "version": "1.0"},
+					{"name": "Bravo", "version": "2.0"}
+				]
+			}
+		]`),
+	}, http.StatusOK, nil)
+
+	results, lastFetched, err := stores.queries.HostQueryResults(ctx, host.ID, report.ID)
+	if err != nil {
+		t.Fatalf("host query results: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("stored result count = %d, want 2: %+v", len(results), results)
+	}
+	if lastFetched == nil || !lastFetched.Equal(time.Date(2026, 5, 15, 12, 34, 56, 0, time.UTC)) {
+		t.Fatalf("last fetched = %v, want parsed calendar time", lastFetched)
+	}
+	if results[0].Columns["name"] != "Alpha" || results[1].Columns["version"] != "2.0" {
+		t.Fatalf("stored results = %+v, want snapshot rows", results)
+	}
+}
+
 type osqueryContractStores struct {
 	hosts    *hosts.Store
 	labels   *labels.Store

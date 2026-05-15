@@ -55,6 +55,7 @@ interface DataTableProps<TData, TValue> {
   empty: ReactNode;
   /** Skeleton row count during initial load. */
   skeletonRows?: number;
+  perPageOptions?: readonly number[];
   /**
    * Use TanStack's internal sorting instead of the server. Pass when the table
    * data is a fixed snapshot (e.g. query results) rather than a paginated list.
@@ -86,6 +87,7 @@ export function DataTable<TData, TValue>({
   toolbar,
   empty,
   skeletonRows = 8,
+  perPageOptions,
   clientSort = false,
 }: DataTableProps<TData, TValue>) {
   const navigate = useNavigate();
@@ -234,6 +236,7 @@ export function DataTable<TData, TValue>({
           visibleCount={data.length}
           onPageChange={onPageChange}
           onPerPageChange={onPerPageChange}
+          perPageOptions={perPageOptions}
         />
       )}
     </div>

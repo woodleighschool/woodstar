@@ -31,7 +31,7 @@ func (s *Service) handleLabelResult(
 	rows []map[string]string,
 	status json.RawMessage,
 	message string,
-	pass *dispatchPass,
+	pass *labelDispatchPass,
 ) {
 	labelID, ok := parsePositiveSuffix(suffix)
 	if !ok {
@@ -48,9 +48,9 @@ func (s *Service) handleLabelResult(
 		)
 		return
 	}
-	pass.labelResults = append(pass.labelResults, ingest.LabelResult{LabelID: labelID, Matched: len(rows) > 0})
+	pass.results = append(pass.results, ingest.LabelResult{LabelID: labelID, Matched: len(rows) > 0})
 }
 
-func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass *dispatchPass) error {
-	return s.labelEvaluator.Finalize(ctx, host, pass.labelResults)
+func (s *Service) finalizeLabelPass(ctx context.Context, host *hosts.Host, pass *labelDispatchPass) error {
+	return s.labelEvaluator.Finalize(ctx, host, pass.results)
 }

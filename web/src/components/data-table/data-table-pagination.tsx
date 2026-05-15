@@ -12,6 +12,7 @@ interface DataTablePaginationProps {
   visibleCount: number;
   onPageChange: (page: number) => void;
   onPerPageChange: (perPage: number) => void;
+  perPageOptions?: readonly number[];
 }
 
 export function DataTablePagination({
@@ -21,6 +22,7 @@ export function DataTablePagination({
   visibleCount,
   onPageChange,
   onPerPageChange,
+  perPageOptions = PER_PAGE_OPTIONS,
 }: DataTablePaginationProps) {
   const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
   const fromIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
@@ -40,7 +42,7 @@ export function DataTablePagination({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {PER_PAGE_OPTIONS.map((n) => (
+                {perPageOptions.map((n) => (
                   <SelectItem key={n} value={String(n)}>
                     {n}
                   </SelectItem>

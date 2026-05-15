@@ -31,11 +31,7 @@ func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.
 	}
 
 	for _, item := range logs {
-		kind, suffix, ok := parseQueryName(item.Name)
-		if !ok || kind != kindReport {
-			continue
-		}
-		queryID, ok := parsePositiveSuffix(suffix)
+		queryID, ok := parseReportQueryName(item.Name)
 		if !ok {
 			continue
 		}
@@ -49,6 +45,14 @@ func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.
 		}
 	}
 	return nil
+}
+
+func parseReportQueryName(name string) (int64, bool) {
+	suffix, ok := strings.CutPrefix(name, queryName(kindReport, ""))
+	if !ok {
+		return 0, false
+	}
+	return parsePositiveSuffix(suffix)
 }
 
 func parseCalendarTime(value string) time.Time {

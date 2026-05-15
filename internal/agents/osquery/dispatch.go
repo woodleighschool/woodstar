@@ -81,15 +81,28 @@ func statusOK(raw json.RawMessage) bool {
 	return false
 }
 
-// dispatchPass accumulates per-kind state during one DistributedWrite call.
-// Detail and label kinds aggregate cross-row state finalized after the loop;
-// check and campaign are pure per-row writes.
-type dispatchPass struct {
-	registry           map[string]catalog.DetailQuery
-	detailRowsBySuffix map[string][]map[string]string
-	detailAllSucceeded bool
+// detailDispatchPass accumulates detail-query state during one DistributedWrite call.
+type detailDispatchPass struct {
+	registry     map[string]catalog.DetailQuery
+	results      map[string]detailResult
+	allSucceeded bool
+}
 
-	labelResults []ingest.LabelResult
+type detailResult struct {
+	rows   []map[string]string
+	status json.RawMessage
+}
+
+func newDetailDispatchPass() *detailDispatchPass {
+	return &detailDispatchPass{
+		registry:     catalog.DetailQueries(),
+		results:      make(map[string]detailResult),
+		allSucceeded: true,
+	}
+}
+
+type labelDispatchPass struct {
+	results []ingest.LabelResult
 }
 
 // dispatchWriteResults runs a single pass over req.Queries, routing each
@@ -99,11 +112,8 @@ func (s *Service) dispatchWriteResults(
 	host *hosts.Host,
 	req DistributedWriteRequest,
 ) error {
-	pass := &dispatchPass{
-		registry:           catalog.DetailQueries(),
-		detailRowsBySuffix: make(map[string][]map[string]string),
-		detailAllSucceeded: true,
-	}
+	details := newDetailDispatchPass()
+	labels := &labelDispatchPass{}
 
 	for name, rows := range req.Queries {
 		kind, suffix, ok := parseQueryName(name)
@@ -116,9 +126,9 @@ func (s *Service) dispatchWriteResults(
 		var err error
 		switch kind {
 		case kindDetail:
-			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, message, pass)
+			err = s.handleDetailResult(ctx, host.ID, suffix, rows, status, message, details)
 		case kindLabel:
-			s.handleLabelResult(ctx, host.ID, suffix, rows, status, message, pass)
+			s.handleLabelResult(ctx, host.ID, suffix, rows, status, message, labels)
 		case kindCheck:
 			err = s.handleCheckResult(ctx, host.ID, suffix, rows, status, message)
 		case kindLive:
@@ -131,10 +141,10 @@ func (s *Service) dispatchWriteResults(
 		}
 	}
 
-	if err := s.finalizeDetailPass(ctx, host, req, pass); err != nil {
+	if err := s.finalizeDetailPass(ctx, host, details); err != nil {
 		return err
 	}
-	return s.finalizeLabelPass(ctx, host, pass)
+	return s.finalizeLabelPass(ctx, host, labels)
 }
 
 func (s *Service) handleDetailResult(
@@ -144,9 +154,9 @@ func (s *Service) handleDetailResult(
 	rows []map[string]string,
 	status json.RawMessage,
 	message string,
-	pass *dispatchPass,
+	pass *detailDispatchPass,
 ) error {
-	pass.detailRowsBySuffix[suffix] = rows
+	pass.results[suffix] = detailResult{rows: rows, status: status}
 
 	query, ok := pass.registry[suffix]
 	if !ok {
@@ -154,7 +164,7 @@ func (s *Service) handleDetailResult(
 	}
 	if !statusOK(status) {
 		if !query.Optional {
-			pass.detailAllSucceeded = false
+			pass.allSucceeded = false
 		}
 		s.logger.WarnContext(
 			ctx,
@@ -175,15 +185,14 @@ func (s *Service) handleDetailResult(
 func (s *Service) finalizeDetailPass(
 	ctx context.Context,
 	host *hosts.Host,
-	req DistributedWriteRequest,
-	pass *dispatchPass,
+	pass *detailDispatchPass,
 ) error {
-	if softwareRows, ok := successfulSoftwareRows(req, pass); ok {
+	if softwareRows, ok := successfulSoftwareRows(pass); ok {
 		if err := s.inventoryProjector.IngestSoftware(ctx, host.ID, softwareRows); err != nil {
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if !pass.detailAllSucceeded || !sawEveryRequiredDetailQuery(req, pass.registry, host.Platform) {
+	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass, host.Platform) {
 		return nil
 	}
 	if err := s.inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
@@ -193,14 +202,13 @@ func (s *Service) finalizeDetailPass(
 		ctx,
 		"osquery detail inventory refreshed", "operation", "inventory_refresh",
 		"host_id", host.ID,
-		"query_count", len(req.Queries),
+		"query_count", len(pass.results),
 	)
 	return nil
 }
 
 func successfulSoftwareRows(
-	req DistributedWriteRequest,
-	pass *dispatchPass,
+	pass *detailDispatchPass,
 ) (map[string][]map[string]string, bool) {
 	rowsBySuffix := make(map[string][]map[string]string)
 	baseSucceeded := false
@@ -208,14 +216,11 @@ func successfulSoftwareRows(
 		if query.Ingest != catalog.IngestSoftwareBase && query.Ingest != catalog.IngestSoftwareEnrichment {
 			continue
 		}
-		if !statusOK(req.Statuses[detailQueryName(suffix)]) {
+		result, ok := pass.results[suffix]
+		if !ok || !statusOK(result.status) {
 			continue
 		}
-		rows, ok := pass.detailRowsBySuffix[suffix]
-		if !ok {
-			continue
-		}
-		rowsBySuffix[suffix] = rows
+		rowsBySuffix[suffix] = result.rows
 		if query.Ingest == catalog.IngestSoftwareBase {
 			baseSucceeded = true
 		}
@@ -224,16 +229,15 @@ func successfulSoftwareRows(
 }
 
 func sawEveryRequiredDetailQuery(
-	req DistributedWriteRequest,
-	registry map[string]catalog.DetailQuery,
+	pass *detailDispatchPass,
 	hostPlatform string,
 ) bool {
-	for name, query := range registry {
+	for name, query := range pass.registry {
 		if query.Optional || !query.RunsForPlatform(hostPlatform) {
 			continue
 		}
-		emitted := queryName(kindDetail, name)
-		if _, ok := req.Queries[emitted]; !ok || !statusOK(req.Statuses[emitted]) {
+		result, ok := pass.results[name]
+		if !ok || !statusOK(result.status) {
 			return false
 		}
 	}

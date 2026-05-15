@@ -1,10 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Package } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
@@ -38,6 +38,8 @@ type InstalledVersion = Schemas["HostSoftwareInstalledVersion"];
 type SignatureInfo = Schemas["PathSignatureInformation"];
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
+const HOST_REPORTS_PAGE_SIZE = 4;
+const HOST_REPORTS_PER_PAGE_OPTIONS = [4, 8, 25] as const;
 
 export function HostDetailPage() {
   const { hostId } = useParams({ from: "/_authenticated/hosts/$hostId" });
@@ -107,79 +109,143 @@ export function HostDetailPage() {
 
 function HostReportsTab({ hostId }: { hostId: string }) {
   const query = useHostQueries(hostId);
-  const rows = query.data?.items ?? [];
-  if (query.isLoading) {
+  const queryItems = query.data?.items;
+  const rows = useMemo(() => queryItems ?? [], [queryItems]);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(HOST_REPORTS_PAGE_SIZE);
+  const [sort, setSort] = useState<DataTableSort>({ orderKey: "name", orderDirection: "asc" });
+
+  const sortedRows = useMemo(() => sortHostReports(rows, sort), [rows, sort]);
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / perPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = sortedRows.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+  const columns = useMemo<ColumnDef<HostReport>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        cell: ({ row }) => (
+          <Link
+            to="/hosts/$hostId/reports/$reportId"
+            params={{ hostId, reportId: String(row.original.report_id) }}
+            className="font-medium hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      },
+      {
+        accessorKey: "last_fetched",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Last updated" />,
+        cell: ({ row }) =>
+          row.original.last_fetched ? (
+            <span className="tabular-nums">{formatRelative(row.original.last_fetched)}</span>
+          ) : (
+            <span className="text-muted-foreground">Collecting results</span>
+          ),
+      },
+      {
+        accessorKey: "n_host_results",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Rows" align="right" />,
+        cell: ({ row }) => <span className="block text-right tabular-nums">{row.original.n_host_results}</span>,
+        meta: {
+          headClassName: "w-24",
+          cellClassName: "w-24",
+        },
+      },
+      {
+        id: "actions",
+        enableSorting: false,
+        header: "",
+        cell: ({ row }) => (
+          <div className="flex justify-end">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/reports/$reportId" params={{ reportId: String(row.original.report_id) }}>
+                All hosts
+              </Link>
+            </Button>
+          </div>
+        ),
+        meta: {
+          headClassName: "w-28",
+          cellClassName: "w-28",
+        },
+      },
+    ],
+    [hostId],
+  );
+
+  if (query.error) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading reports...
-      </div>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>No reports</EmptyTitle>
-          <EmptyDescription>Add a scheduled report to view custom vitals for this host.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <Alert variant="destructive">
+        <AlertTitle>Failed to load reports</AlertTitle>
+        <AlertDescription>{query.error.message}</AlertDescription>
+      </Alert>
     );
   }
   return (
-    <div className="grid gap-3">
-      {rows.map((report) => (
-        <HostReportCard key={report.report_id} hostId={hostId} report={report} />
-      ))}
-    </div>
+    <DataTable
+      columns={columns}
+      data={visibleRows}
+      totalCount={sortedRows.length}
+      page={currentPage}
+      perPage={perPage}
+      sort={sort}
+      onPageChange={setPage}
+      onPerPageChange={(next) => {
+        setPerPage(next);
+        setPage(1);
+      }}
+      onSortChange={(next) => {
+        setSort(next);
+        setPage(1);
+      }}
+      perPageOptions={HOST_REPORTS_PER_PAGE_OPTIONS}
+      isLoading={query.isLoading}
+      getRowId={(row) => String(row.report_id)}
+      rowHref={(row) => ({
+        to: "/hosts/$hostId/reports/$reportId",
+        params: { hostId, reportId: String(row.report_id) },
+      })}
+      empty={
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No reports</EmptyTitle>
+            <EmptyDescription>Add a scheduled report to view custom vitals for this host.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      }
+      skeletonRows={HOST_REPORTS_PAGE_SIZE}
+    />
   );
 }
 
-function HostReportCard({ hostId, report }: { hostId: string; report: HostReport }) {
-  const entries = Object.entries(report.first_result ?? {}).sort(([a], [b]) => a.localeCompare(b));
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            to="/hosts/$hostId/reports/$reportId"
-            params={{ hostId, reportId: String(report.report_id) }}
-            className="font-medium hover:underline"
-          >
-            {report.name}
-          </Link>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {report.last_fetched ? `Updated ${formatRelative(report.last_fetched)}` : "Collecting results"}
-            {report.n_host_results > 0
-              ? ` · ${report.n_host_results} row${report.n_host_results === 1 ? "" : "s"}`
-              : ""}
-          </p>
-        </div>
-        <Button asChild size="sm" variant="outline">
-          <Link to="/reports/$reportId" params={{ reportId: String(report.report_id) }}>
-            All hosts
-          </Link>
-        </Button>
-      </div>
-      {entries.length > 0 ? (
-        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-          {entries.map(([key, value]) => (
-            <div key={key} className="flex min-w-0 flex-col gap-1">
-              <dt className="text-muted-foreground text-xs font-semibold">{key}</dt>
-              <dd className="text-foreground truncate text-sm" title={value}>
-                {value || "-"}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          {report.last_fetched
-            ? "This report ran but returned no rows for this host."
-            : "Waiting for this host to run the report."}
-        </p>
-      )}
-    </div>
-  );
+function sortHostReports(rows: HostReport[], sort: DataTableSort) {
+  const sorted = [...rows];
+  const orderKey = sort.orderKey ?? "name";
+  const multiplier = sort.orderDirection === "desc" ? -1 : 1;
+  sorted.sort((a, b) => compareHostReports(a, b, orderKey) * multiplier);
+  return sorted;
+}
+
+function compareHostReports(a: HostReport, b: HostReport, orderKey: string) {
+  switch (orderKey) {
+    case "last_fetched":
+      return compareOptionalTime(a.last_fetched, b.last_fetched);
+    case "n_host_results":
+      return a.n_host_results - b.n_host_results;
+    case "name":
+    default:
+      return a.name.localeCompare(b.name);
+  }
+}
+
+function compareOptionalTime(a: string | undefined, b: string | undefined) {
+  if (a === b) return 0;
+  if (a === undefined) return 1;
+  if (b === undefined) return -1;
+  return new Date(a).getTime() - new Date(b).getTime();
 }
 
 function HostChecksTab({ hostId }: { hostId: string }) {
