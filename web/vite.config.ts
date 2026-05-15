@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
+export default defineConfig(() => ({
   plugins: [
     react({
       jsxRuntime: "automatic",
@@ -49,11 +49,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8080",
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
     fs: {
       // Allow Vite to serve the vendored osquery schema from the repo root.
       allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
     },
   },
-});
+}));

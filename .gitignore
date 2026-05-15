@@ -10,6 +10,8 @@
 /vendor/
 /.gocache/
 /woodstar
+/tmp/
+build-errors.log
 go.work
 go.work.sum
 

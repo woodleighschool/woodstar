@@ -22,7 +22,7 @@ var ErrInvalidPublicURL = errors.New("invalid WOODSTAR_PUBLIC_URL")
 type Config struct {
 	Host          string `env:"HOST"                             envDefault:"0.0.0.0"`
 	Port          int    `env:"PORT"                             envDefault:"8080"`
-	PublicURL     string `env:"PUBLIC_URL"                       envDefault:"http://localhost:8080"`
+	PublicURL     string `env:"PUBLIC_URL,required,notEmpty"`
 	SessionSecret string `env:"SESSION_SECRET,required,notEmpty"`
 	DatabaseURL   string `env:"DATABASE_URL"`
 	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
@@ -87,9 +87,6 @@ func (cfg *Config) normalize() error {
 
 func normalizePublicURL(value string) (string, string, error) {
 	value = strings.TrimSpace(value)
-	if value == "" {
-		value = "http://localhost:8080"
-	}
 	parsed, err := url.Parse(value)
 	if err != nil {
 		return "", "", fmt.Errorf("%w: parse URL", ErrInvalidPublicURL)

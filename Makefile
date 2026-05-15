@@ -31,7 +31,7 @@ dev:
 	$(MAKE) -j 2 dev-backend dev-frontend
 
 dev-backend:
-	go run $(LDFLAGS) ./cmd/woodstar serve
+	air -c .air.toml
 
 dev-frontend:
 	cd $(WEB_DIR) && pnpm dev

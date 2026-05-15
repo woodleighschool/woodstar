@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func TestApplyEnvironmentDefaultsRequireSessionSecret(t *testing.T) {
+func TestApplyEnvironmentRequiresSessionSecret(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
-	t.Setenv("WOODSTAR_PUBLIC_URL", "")
+	t.Setenv("WOODSTAR_PUBLIC_URL", "http://localhost:8080")
 	t.Setenv("WOODSTAR_SESSION_SECRET", "")
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
@@ -22,10 +22,20 @@ func TestApplyEnvironmentDefaultsRequireSessionSecret(t *testing.T) {
 	}
 }
 
+func TestApplyEnvironmentRequiresPublicURL(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "")
+	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
+
+	err := ApplyEnvironment(&Config{})
+	if err == nil {
+		t.Fatal("ApplyEnvironment returned nil error, want required public URL error")
+	}
+}
+
 func TestApplyEnvironmentDefaults(t *testing.T) {
 	t.Setenv("WOODSTAR_HOST", "")
 	t.Setenv("WOODSTAR_PORT", "")
-	t.Setenv("WOODSTAR_PUBLIC_URL", "")
+	t.Setenv("WOODSTAR_PUBLIC_URL", "http://localhost:8080")
 	t.Setenv("WOODSTAR_SESSION_SECRET", strings.Repeat("s", minSessionSecretLength))
 	t.Setenv("WOODSTAR_DATABASE_URL", "")
 	t.Setenv("WOODSTAR_LOG_LEVEL", "")
@@ -41,9 +51,6 @@ func TestApplyEnvironmentDefaults(t *testing.T) {
 	}
 	if cfg.Port != 8080 {
 		t.Fatalf("Port = %d, want 8080", cfg.Port)
-	}
-	if cfg.PublicURL != "http://localhost:8080" {
-		t.Fatalf("PublicURL = %q, want http://localhost:8080", cfg.PublicURL)
 	}
 	if cfg.IsHTTPS() {
 		t.Fatalf("IsHTTPS = true, want false for http URL")
@@ -105,6 +112,7 @@ func TestApplyEnvironmentRejectsURLWithPath(t *testing.T) {
 }
 
 func TestApplyEnvironmentRejectsWeakSessionSecret(t *testing.T) {
+	t.Setenv("WOODSTAR_PUBLIC_URL", "http://localhost:8080")
 	t.Setenv("WOODSTAR_SESSION_SECRET", "too-short")
 
 	err := ApplyEnvironment(&Config{})
