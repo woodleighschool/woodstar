@@ -49,7 +49,6 @@ type Dependencies struct {
 	QueryStore       *queries.Store
 	CheckStore       *checks.Store
 	LiveQueryManager *livequery.Manager
-	TargetResolver   *hosts.TargetResolver
 	OrbitService     *orbit.Service
 	OsqueryService   *osquery.Service
 }

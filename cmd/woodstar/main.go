@@ -171,8 +171,6 @@ func newServer(
 		secretStore,
 		logger.With("component", "osquery"),
 	)
-	targetResolver := hosts.NewTargetResolver(db)
-
 	queries.StartCleanup(ctx, queryStore, queries.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "queries"))
@@ -205,7 +203,6 @@ func newServer(
 		QueryStore:       queryStore,
 		CheckStore:       checkStore,
 		LiveQueryManager: liveQueries,
-		TargetResolver:   targetResolver,
 		OrbitService:     orbitService,
 		OsqueryService:   osqueryService,
 		WebHandler: web.NewHandler(web.HandlerOptions{

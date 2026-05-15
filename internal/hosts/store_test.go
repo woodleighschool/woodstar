@@ -3,6 +3,7 @@ package hosts
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -108,6 +109,136 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	if !found {
 		t.Fatalf("All Hosts membership missing; got labels = %+v", hostLabels)
 	}
+}
+
+func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	labelStore := labels.NewStore(store.db)
+
+	directHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-target-direct",
+		OrbitNodeKey: "orbit-key-direct",
+	})
+	if err != nil {
+		t.Fatalf("enroll direct host: %v", err)
+	}
+	labelHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-target-label",
+		OrbitNodeKey: "orbit-key-label",
+	})
+	if err != nil {
+		t.Fatalf("enroll label host: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelCreate{
+		Name:                "Live Target Test",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, label.ID, labelHost.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+
+	got, err := store.ResolveSelectedTargets(ctx, TargetSelection{
+		HostIDs:  []int64{directHost.ID, directHost.ID, -1},
+		LabelIDs: []int64{label.ID},
+	})
+	if err != nil {
+		t.Fatalf("resolve selected targets: %v", err)
+	}
+	if !sameIDs(got, []int64{directHost.ID, labelHost.ID}) {
+		t.Fatalf("resolved host ids = %v, want direct and label hosts", got)
+	}
+}
+
+func TestCountSelectedTargetsReturnsFleetStyleStatusTotals(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	labelStore := labels.NewStore(store.db)
+	now := time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC)
+
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-count-online",
+		OrbitNodeKey: "orbit-key-count-online",
+	})
+	if err != nil {
+		t.Fatalf("enroll online host: %v", err)
+	}
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-count-offline",
+		OrbitNodeKey: "orbit-key-count-offline",
+	})
+	if err != nil {
+		t.Fatalf("enroll offline host: %v", err)
+	}
+	missingHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-count-missing",
+		OrbitNodeKey: "orbit-key-count-missing",
+	})
+	if err != nil {
+		t.Fatalf("enroll missing host: %v", err)
+	}
+	if _, err := store.db.Pool().Exec(ctx,
+		`UPDATE hosts
+		 SET last_seen_at = CASE id
+		     WHEN $1 THEN $4::timestamptz
+		     WHEN $2 THEN $5::timestamptz
+		     WHEN $3 THEN $6::timestamptz
+		 END
+		 WHERE id = ANY($7::bigint[])`,
+		onlineHost.ID,
+		offlineHost.ID,
+		missingHost.ID,
+		now.Add(-time.Minute),
+		now.Add(-10*time.Minute),
+		now.Add(-31*24*time.Hour),
+		[]int64{onlineHost.ID, offlineHost.ID, missingHost.ID},
+	); err != nil {
+		t.Fatalf("set host seen times: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelCreate{
+		Name:                "Live Count Test",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	for _, hostID := range []int64{offlineHost.ID, missingHost.ID} {
+		if err := labelStore.SetMembership(ctx, label.ID, hostID, true); err != nil {
+			t.Fatalf("set label membership: %v", err)
+		}
+	}
+
+	got, err := store.CountSelectedTargets(ctx, TargetSelection{
+		HostIDs:  []int64{onlineHost.ID, offlineHost.ID, onlineHost.ID, -1},
+		LabelIDs: []int64{label.ID},
+	}, now)
+	if err != nil {
+		t.Fatalf("count selected targets: %v", err)
+	}
+	want := TargetMetrics{Total: 3, Online: 1, Offline: 2, MissingInAction: 1}
+	if got != want {
+		t.Fatalf("target metrics = %+v, want %+v", got, want)
+	}
+}
+
+func sameIDs(got []int64, want []int64) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	seen := make(map[int64]int, len(got))
+	for _, id := range got {
+		seen[id]++
+	}
+	for _, id := range want {
+		if seen[id] == 0 {
+			return false
+		}
+		seen[id]--
+	}
+	return true
 }
 
 func newIntegrationHostStore(t *testing.T) (*Store, context.Context) {

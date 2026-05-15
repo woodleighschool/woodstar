@@ -13,9 +13,12 @@ import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
 import {
   useCreateLiveQuery,
+  useLiveQueryTargetCount,
   useLiveQueryStream,
   type LiveQueryCreate,
   type LiveQueryRow,
+  type LiveQueryTargetCount,
+  type LiveQueryTargetCountBody,
 } from "@/hooks/use-live-queries";
 import { useQueryDetail } from "@/hooks/use-queries";
 
@@ -50,17 +53,33 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
   const [selectedHosts, setSelectedHosts] = useState<Host[]>([]);
   const [liveQueryId, setLiveQueryId] = useState("");
   const stream = useLiveQueryStream(liveQueryId);
+  const selectedHostIDs = useMemo(() => selectedHosts.map((host) => host.id), [selectedHosts]);
+  const selectedLabelIDs = useMemo(() => selectedLabels.map((label) => label.id), [selectedLabels]);
   const targetCount = selectedLabels.length + selectedHosts.length;
   const hasTargets = targetCount > 0;
+  const targetSelection = useMemo<LiveQueryTargetCountBody>(
+    () => ({
+      query_id: Number(reportId),
+      selected: {
+        hosts: selectedHostIDs,
+        labels: selectedLabelIDs,
+      },
+    }),
+    [reportId, selectedHostIDs, selectedLabelIDs],
+  );
+  const targetMetrics = useLiveQueryTargetCount(targetSelection, hasTargets);
+  const canRun =
+    hasTargets &&
+    !targetMetrics.isFetching &&
+    targetMetrics.data?.targets_count !== 0 &&
+    !create.isPending &&
+    stream.status !== "open";
 
   async function run() {
     const body: LiveQueryCreate = {
       sql,
-      query_id: Number(reportId),
-      selected: {
-        hosts: selectedHosts.map((host) => host.id),
-        labels: selectedLabels.map((label) => label.id),
-      },
+      query_id: targetSelection.query_id,
+      selected: targetSelection.selected,
     };
     const handle = await create.mutateAsync(body);
     setLiveQueryId(String(handle.id));
@@ -101,19 +120,16 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold">Results</h2>
-              <p className="text-muted-foreground text-sm">
-                {create.data
-                  ? `Targeted ${create.data.resolved_host_count} host${create.data.resolved_host_count === 1 ? "" : "s"}.`
-                  : hasTargets
-                    ? `${targetCount} target${targetCount === 1 ? "" : "s"} selected.`
-                    : "Select a target to run this report."}
-              </p>
+              <LiveTargetSummary
+                selectedCount={targetCount}
+                hasTargets={hasTargets}
+                metrics={targetMetrics.data}
+                isLoading={targetMetrics.isFetching}
+                error={targetMetrics.error?.message}
+                resolvedHostCount={create.data?.resolved_host_count}
+              />
             </div>
-            <Button
-              size="sm"
-              onClick={() => void run()}
-              disabled={!hasTargets || create.isPending || stream.status === "open"}
-            >
+            <Button size="sm" onClick={() => void run()} disabled={!canRun}>
               {create.isPending || stream.status === "open" ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
@@ -126,6 +142,54 @@ function LiveReportRunner({ reportId, name, sql }: { reportId: string; name: str
         </div>
       </div>
     </div>
+  );
+}
+
+function LiveTargetSummary({
+  selectedCount,
+  hasTargets,
+  metrics,
+  isLoading,
+  error,
+  resolvedHostCount,
+}: {
+  selectedCount: number;
+  hasTargets: boolean;
+  metrics?: LiveQueryTargetCount;
+  isLoading: boolean;
+  error?: string;
+  resolvedHostCount?: number;
+}) {
+  if (resolvedHostCount !== undefined) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Targeted {resolvedHostCount} host{resolvedHostCount === 1 ? "" : "s"}.
+      </p>
+    );
+  }
+  if (!hasTargets) {
+    return <p className="text-muted-foreground text-sm">Select a target to run this report.</p>;
+  }
+  if (isLoading) {
+    return <p className="text-muted-foreground text-sm">Counting {selectedCount} selected target groups...</p>;
+  }
+  if (metrics) {
+    const missing =
+      metrics.targets_missing_in_action > 0 ? `, ${metrics.targets_missing_in_action} missing in action` : "";
+    return (
+      <p className="text-muted-foreground text-sm">
+        {metrics.targets_count} target host{metrics.targets_count === 1 ? "" : "s"}: {metrics.targets_online} online,{" "}
+        {metrics.targets_offline} offline{missing}.
+      </p>
+    );
+  }
+  if (error) {
+    return <p className="text-destructive text-sm">{error}</p>;
+  }
+  return (
+    <p className="text-muted-foreground text-sm">
+      {selectedCount} target{selectedCount === 1 ? "" : "s"} selected.
+    </p>
   );
 }
 

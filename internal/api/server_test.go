@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -17,6 +18,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -79,6 +82,117 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	}
 	if body := rec.Body.String(); !strings.Contains(body, "event: completed") {
 		t.Fatalf("body = %q, want completed event", body)
+	}
+}
+
+func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	user, err := userService.Create(ctx, users.CreateParams{
+		Email:    "api@example.test",
+		Name:     "API User",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	})
+	if err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+	const apiKey = "fleet-style-target-count-key"
+	if _, err := userService.SetAPIKey(ctx, user.ID, apiKey); err != nil {
+		t.Fatalf("set api key: %v", err)
+	}
+
+	hostStore := hosts.NewStore(database)
+	labelStore := labels.NewStore(database)
+	onlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+		HardwareUUID: "test-api-target-count-online",
+		OrbitNodeKey: "orbit-key-api-target-count-online",
+	})
+	if err != nil {
+		t.Fatalf("enroll online host: %v", err)
+	}
+	offlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+		HardwareUUID: "test-api-target-count-offline",
+		OrbitNodeKey: "orbit-key-api-target-count-offline",
+	})
+	if err != nil {
+		t.Fatalf("enroll offline host: %v", err)
+	}
+	if _, err := database.Pool().Exec(ctx,
+		`UPDATE hosts
+		 SET last_seen_at = CASE id
+		     WHEN $1 THEN now() - interval '1 minute'
+		     WHEN $2 THEN now() - interval '10 minutes'
+		 END
+		 WHERE id = ANY($3::bigint[])`,
+		onlineHost.ID,
+		offlineHost.ID,
+		[]int64{onlineHost.ID, offlineHost.ID},
+	); err != nil {
+		t.Fatalf("set host seen times: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelCreate{
+		Name:                "API Target Count Test",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, label.ID, offlineHost.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.DB = database
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	deps.HostStore = hostStore
+	server := NewServer(deps)
+
+	body, err := json.Marshal(struct {
+		Selected struct {
+			Hosts  []int64 `json:"hosts"`
+			Labels []int64 `json:"labels"`
+		} `json:"selected"`
+	}{
+		Selected: struct {
+			Hosts  []int64 `json:"hosts"`
+			Labels []int64 `json:"labels"`
+		}{
+			Hosts:  []int64{onlineHost.ID, onlineHost.ID},
+			Labels: []int64{label.ID},
+		},
+	})
+	if err != nil {
+		t.Fatalf("encode request body: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/api/live-queries/targets/count",
+		bytes.NewReader(body),
+	)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var got struct {
+		TargetsCount           int `json:"targets_count"`
+		TargetsOnline          int `json:"targets_online"`
+		TargetsOffline         int `json:"targets_offline"`
+		TargetsMissingInAction int `json:"targets_missing_in_action"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode body %q: %v", rec.Body.String(), err)
+	}
+	if got.TargetsCount != 2 || got.TargetsOnline != 1 || got.TargetsOffline != 1 || got.TargetsMissingInAction != 0 {
+		t.Fatalf("target counts = %+v, want 2 total, 1 online, 1 offline, 0 missing", got)
 	}
 }
 

@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useReducer } from "react";
 
 import type { ApiError } from "@/lib/api";
@@ -7,6 +7,8 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 export type LiveQueryHandle = Schemas["LiveQueryHandleBody"];
 export type LiveQueryCreate = Schemas["LiveQueryCreateBody"];
 export type LiveQueryResult = Schemas["LiveQueryResultEvent"];
+export type LiveQueryTargetCount = Schemas["LiveQueryTargetCountOutputBody"];
+export type LiveQueryTargetCountBody = Schemas["LiveQueryTargetCountBody"];
 
 export type LiveQueryRow = LiveQueryResult & {
   // monotonic per-stream id for stable React keys; not from the server
@@ -47,9 +49,19 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
 }
 
 export function useCreateLiveQuery() {
-  return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/live-queries", { body })),
-  });
+	return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
+		mutationFn: (body) => unwrap(apiClient.POST("/api/live-queries", { body })),
+	});
+}
+
+export function useLiveQueryTargetCount(body: LiveQueryTargetCountBody, enabled: boolean) {
+	const hosts = body.selected?.hosts ?? [];
+	const labels = body.selected?.labels ?? [];
+	return useQuery<LiveQueryTargetCount, ApiError>({
+		queryKey: ["live-query-target-count", body.query_id ?? null, hosts, labels],
+		queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
+		enabled,
+	});
 }
 
 // useLiveQueryStream opens an EventSource against /api/live-queries/{id}/stream

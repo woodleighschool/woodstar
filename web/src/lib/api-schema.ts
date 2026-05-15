@@ -335,6 +335,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/live-queries/targets/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Count live query targets */
+        post: operations["count-live-query-targets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/live-queries/{id}/stream": {
         parameters: {
             query?: never;
@@ -1066,6 +1083,33 @@ export interface components {
         LiveQuerySelectedBody: {
             hosts?: number[] | null;
             labels?: number[] | null;
+        };
+        LiveQueryTargetCountBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/LiveQueryTargetCountBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            query_id?: number;
+            selected?: components["schemas"]["LiveQuerySelectedBody"];
+        };
+        LiveQueryTargetCountOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/LiveQueryTargetCountOutputBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            targets_count: number;
+            /** Format: int64 */
+            targets_missing_in_action: number;
+            /** Format: int64 */
+            targets_offline: number;
+            /** Format: int64 */
+            targets_online: number;
         };
         LoginInputBody: {
             /**
@@ -2801,6 +2845,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveQueryHandleBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "count-live-query-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveQueryTargetCountBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveQueryTargetCountOutputBody"];
                 };
             };
             /** @description Bad Request */

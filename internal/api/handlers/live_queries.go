@@ -15,10 +15,6 @@ import (
 
 const liveQueriesTag = "Live Queries"
 
-type targetResolver interface {
-	ResolveSelectedTargets(context.Context, hosts.TargetSelection) ([]int64, error)
-}
-
 // liveQueryCreateBody mirrors the campaign body but is one-shot — no DB row,
 // no detail page, no list page. Result events stream and disappear.
 type liveQueryCreateBody struct {
@@ -30,6 +26,18 @@ type liveQueryCreateBody struct {
 type liveQuerySelectedBody struct {
 	Hosts  []int64 `json:"hosts,omitempty"`
 	Labels []int64 `json:"labels,omitempty"`
+}
+
+type liveQueryTargetCountBody struct {
+	QueryID  *int64                `json:"query_id,omitempty"`
+	Selected liveQuerySelectedBody `json:"selected,omitzero"`
+}
+
+type liveQueryTargetCountOutputBody struct {
+	TargetsCount           int `json:"targets_count"`
+	TargetsOnline          int `json:"targets_online"`
+	TargetsOffline         int `json:"targets_offline"`
+	TargetsMissingInAction int `json:"targets_missing_in_action"`
 }
 
 type liveQueryHandleBody struct {
@@ -45,6 +53,14 @@ type liveQueryCreateInput struct {
 
 type liveQueryCreateOutput struct {
 	Body liveQueryHandleBody
+}
+
+type liveQueryTargetCountInput struct {
+	Body liveQueryTargetCountBody
+}
+
+type liveQueryTargetCountOutput struct {
+	Body liveQueryTargetCountOutputBody
 }
 
 type liveQueryStreamInput struct {
@@ -66,7 +82,7 @@ type liveQueryResultEvent livequery.Event
 func RegisterLiveQueries(
 	api huma.API,
 	manager *livequery.Manager,
-	resolver targetResolver,
+	hostStore *hosts.Store,
 ) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-live-query",
@@ -77,12 +93,31 @@ func RegisterLiveQueries(
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
-		hostIDs, err := input.Body.resolveTargets(ctx, resolver)
+		hostIDs, err := input.Body.resolveTargets(ctx, hostStore)
 		if err != nil {
 			return nil, err
 		}
 		handle := manager.Start(input.Body.SQL, hostIDs)
 		return &liveQueryCreateOutput{Body: liveQueryHandleResponse(handle)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "count-live-query-targets",
+		Method:      http.MethodPost,
+		Path:        "/api/live-queries/targets/count",
+		Tags:        []string{liveQueriesTag},
+		Summary:     "Count live query targets",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
+	}, func(ctx context.Context, input *liveQueryTargetCountInput) (*liveQueryTargetCountOutput, error) {
+		selection, err := input.Body.Selected.targetSelection()
+		if err != nil {
+			return nil, err
+		}
+		metrics, err := hostStore.CountSelectedTargets(ctx, selection, time.Now().UTC())
+		if err != nil {
+			return nil, err
+		}
+		return &liveQueryTargetCountOutput{Body: liveQueryTargetCountResponse(metrics)}, nil
 	})
 
 	sse.Register(api, huma.Operation{
@@ -110,22 +145,24 @@ func liveQueryHandleResponse(h livequery.Handle) liveQueryHandleBody {
 	}
 }
 
-func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver targetResolver) ([]int64, error) {
+func liveQueryTargetCountResponse(metrics hosts.TargetMetrics) liveQueryTargetCountOutputBody {
+	return liveQueryTargetCountOutputBody{
+		TargetsCount:           metrics.Total,
+		TargetsOnline:          metrics.Online,
+		TargetsOffline:         metrics.Offline,
+		TargetsMissingInAction: metrics.MissingInAction,
+	}
+}
+
+func (body liveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *hosts.Store) ([]int64, error) {
 	if body.SQL == "" {
 		return nil, huma.Error400BadRequest("sql is required")
 	}
-	hostIDs, err := apihelpers.ParseIDList(body.Selected.Hosts, "selected.hosts")
+	selection, err := body.Selected.targetSelection()
 	if err != nil {
 		return nil, err
 	}
-	labelIDs, err := apihelpers.ParseIDList(body.Selected.Labels, "selected.labels")
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := resolver.ResolveSelectedTargets(ctx, hosts.TargetSelection{
-		HostIDs:  hostIDs,
-		LabelIDs: labelIDs,
-	})
+	resolved, err := hostStore.ResolveSelectedTargets(ctx, selection)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +170,18 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, resolver tar
 		return nil, huma.Error400BadRequest("no hosts targeted")
 	}
 	return resolved, nil
+}
+
+func (body liveQuerySelectedBody) targetSelection() (hosts.TargetSelection, error) {
+	hostIDs, err := apihelpers.ParseIDList(body.Hosts, "selected.hosts")
+	if err != nil {
+		return hosts.TargetSelection{}, err
+	}
+	labelIDs, err := apihelpers.ParseIDList(body.Labels, "selected.labels")
+	if err != nil {
+		return hosts.TargetSelection{}, err
+	}
+	return hosts.TargetSelection{HostIDs: hostIDs, LabelIDs: labelIDs}, nil
 }
 
 func streamLiveQuery(
