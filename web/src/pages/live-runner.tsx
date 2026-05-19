@@ -10,8 +10,8 @@ import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
 import {
@@ -342,20 +342,20 @@ function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: bo
   const resultRows = reportResultRows(rows);
   const errorRows = liveErrorRows(rows);
   return (
-    <Tabs defaultValue="results" className="gap-3">
-      <TabsList>
-        <TabsTrigger value="results">Results</TabsTrigger>
-        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
+    <PageTabs defaultValue="results">
+      <PageTabsList>
+        <PageTabsTrigger value="results">Results</PageTabsTrigger>
+        <PageTabsTrigger value="errors" disabled={errorRows.length === 0}>
           Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="results">
+        </PageTabsTrigger>
+      </PageTabsList>
+      <PageTabsContent value="results">
         <ReportRowsTable rows={resultRows} running={running} />
-      </TabsContent>
-      <TabsContent value="errors">
+      </PageTabsContent>
+      <PageTabsContent value="errors">
         <ErrorRowsTable rows={errorRows} />
-      </TabsContent>
-    </Tabs>
+      </PageTabsContent>
+    </PageTabs>
   );
 }
 
@@ -365,14 +365,14 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
   const passing = hostRows.filter((row) => row.response === "pass").length;
   const failing = hostRows.filter((row) => row.response === "fail").length;
   return (
-    <Tabs defaultValue="results" className="gap-3">
-      <TabsList>
-        <TabsTrigger value="results">Results</TabsTrigger>
-        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
+    <PageTabs defaultValue="results">
+      <PageTabsList>
+        <PageTabsTrigger value="results">Results</PageTabsTrigger>
+        <PageTabsTrigger value="errors" disabled={errorRows.length === 0}>
           Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="results">
+        </PageTabsTrigger>
+      </PageTabsList>
+      <PageTabsContent value="results">
         <div className="grid gap-3">
           {hostRows.length ? (
             <p className="text-muted-foreground text-sm">
@@ -381,11 +381,11 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
           ) : null}
           <CheckRowsTable rows={hostRows} running={running} />
         </div>
-      </TabsContent>
-      <TabsContent value="errors">
+      </PageTabsContent>
+      <PageTabsContent value="errors">
         <ErrorRowsTable rows={errorRows} />
-      </TabsContent>
-    </Tabs>
+      </PageTabsContent>
+    </PageTabs>
   );
 }
 
