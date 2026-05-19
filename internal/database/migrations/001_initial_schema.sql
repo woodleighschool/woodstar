@@ -2,7 +2,7 @@
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE secret_kind AS ENUM ('orbit');
-CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux', 'chrome');
+CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
 -- Users, sessions, secrets ---------------------------------------------------
@@ -366,8 +366,7 @@ VALUES
     ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', NULL),
     ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', 'darwin'),
     ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', 'windows'),
-    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'', ''chrome'');', 'builtin', 'dynamic', 'linux'),
-    ('ChromeOS', 'All ChromeOS hosts', 'select 1 from os_version where platform = ''chrome'';', 'builtin', 'dynamic', 'chrome');
+    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'');', 'builtin', 'dynamic', 'linux');
 
 -- Queries / Checks -----------------------------------------------------------
 

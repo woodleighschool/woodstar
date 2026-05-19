@@ -147,7 +147,7 @@ WHERE
         OR (
             'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND $2::text <> ''
-            AND $2::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+            AND $2::text NOT IN ('darwin', 'macos', 'windows')
         )
     )
 ORDER BY id
@@ -191,7 +191,7 @@ WHERE
         OR (
             'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
             AND $1::text <> ''
-            AND $1::text NOT IN ('darwin', 'macos', 'windows', 'chrome')
+            AND $1::text NOT IN ('darwin', 'macos', 'windows')
         )
     )
 ORDER BY id

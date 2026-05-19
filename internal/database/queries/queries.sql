@@ -107,7 +107,7 @@ WHERE q.schedule_interval > 0
       q.platform IS NULL
       OR q.platform::text = h.platform
       OR (q.platform = 'darwin' AND h.platform = 'macos')
-      OR (q.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+      OR (q.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       q.label_scope_mode = 'none'

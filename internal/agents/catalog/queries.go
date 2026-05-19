@@ -23,7 +23,6 @@ const (
 	QueryRootDiskDarwin               = "root_disk_darwin"
 	QueryPrimaryInterfaceUnix         = "primary_interface_unix"
 	QueryPrimaryInterfaceWindows      = "primary_interface_windows"
-	QueryPrimaryInterfaceChrome       = "primary_interface_chrome"
 	QueryUsers                        = "users"
 	QueryBatteries                    = "batteries"
 	QueryCertificatesDarwin           = "certificates_darwin"
@@ -100,7 +99,7 @@ func (q DetailQuery) RunsForPlatform(hostPlatform string) bool {
 			}
 		case "linux":
 			if hostPlatform != "" && hostPlatform != "darwin" && hostPlatform != "macos" &&
-				hostPlatform != "windows" && hostPlatform != "chrome" {
+				hostPlatform != "windows" {
 				return true
 			}
 		}
@@ -169,11 +168,6 @@ func buildDetailQueries() map[string]DetailQuery {
 		QueryPrimaryInterfaceWindows: {
 			SQL:       mustQuery("queries/primary_interface_windows.sql"),
 			Platforms: []string{"windows"},
-			Ingest:    IngestHostDetail,
-		},
-		QueryPrimaryInterfaceChrome: {
-			SQL:       mustQuery("queries/primary_interface_chrome.sql"),
-			Platforms: []string{"chrome"},
 			Ingest:    IngestHostDetail,
 		},
 		QueryUsers: {

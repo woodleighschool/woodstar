@@ -92,7 +92,7 @@ WHERE (
       c.platform IS NULL
       OR c.platform::text = h.platform
       OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -175,7 +175,7 @@ WHERE (
       c.platform IS NULL
       OR c.platform::text = h.platform
       OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -243,7 +243,7 @@ WHERE (
       c.platform IS NULL
       OR c.platform::text = h.platform
       OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'

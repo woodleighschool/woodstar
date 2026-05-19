@@ -697,7 +697,7 @@ function displayLabel(label: Label) {
 function isPrimaryPlatformLabel(label: Label) {
   return (
     label.label_type === "builtin" &&
-    (label.name === "macOS" || label.name === "Windows" || label.name === "Linux" || label.name === "ChromeOS")
+    (label.name === "macOS" || label.name === "Windows" || label.name === "Linux")
   );
 }
 
@@ -709,8 +709,6 @@ function targetIcon(label: Label): ReactNode {
       return <PlatformIcon platform="windows" className="size-3.5" />;
     case "Linux":
       return <PlatformIcon platform="linux" className="size-3.5" />;
-    case "ChromeOS":
-      return <PlatformIcon platform="chrome" className="size-3.5" />;
     default:
       return undefined;
   }

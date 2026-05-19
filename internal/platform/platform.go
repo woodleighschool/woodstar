@@ -8,14 +8,12 @@ const (
 	PlatformDarwin  Platform = "darwin"
 	PlatformWindows Platform = "windows"
 	PlatformLinux   Platform = "linux"
-	PlatformChrome  Platform = "chrome"
 )
 
 var canonicalPlatforms = map[Platform]struct{}{
 	PlatformDarwin:  {},
 	PlatformWindows: {},
 	PlatformLinux:   {},
-	PlatformChrome:  {},
 }
 
 func CleanPtr(value *string) *string {

@@ -14,7 +14,6 @@ export const PLATFORM_ICONS: Record<QueryablePlatform, IconPath> = {
   darwin: siApple,
   windows: windowsIcon,
   linux: siLinux,
-  chrome: siGooglechrome,
 };
 
 export const PLATFORM_ICON_TARGETS = QUERYABLE_PLATFORMS;

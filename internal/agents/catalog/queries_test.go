@@ -18,7 +18,6 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 		"root_disk_darwin",
 		"primary_interface_unix",
 		"primary_interface_windows",
-		"primary_interface_chrome",
 		"users",
 		"batteries",
 		"certificates_darwin",
@@ -67,7 +66,6 @@ func TestDetailQueriesDue(t *testing.T) {
 	}
 	for _, name := range []string{
 		QueryPrimaryInterfaceWindows,
-		QueryPrimaryInterfaceChrome,
 		QuerySoftwareLinux,
 		QuerySoftwareWindows,
 	} {

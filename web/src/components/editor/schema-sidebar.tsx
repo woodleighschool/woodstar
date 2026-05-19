@@ -11,12 +11,11 @@ import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 
-const PLATFORM_ORDER = ["darwin", "windows", "linux", "chrome"];
+const PLATFORM_ORDER = ["darwin", "windows", "linux"];
 const PLATFORM_LABELS: Record<string, string> = {
   darwin: "macOS",
   windows: "Windows",
   linux: "Linux",
-  chrome: "ChromeOS",
 };
 
 interface SchemaSidebarProps {

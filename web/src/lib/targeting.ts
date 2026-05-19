@@ -34,7 +34,7 @@ export function platformLabel(platform?: string | null) {
   return labels.join(", ");
 }
 
-export const QUERYABLE_PLATFORMS = ["darwin", "windows", "linux", "chrome"] as const;
+export const QUERYABLE_PLATFORMS = ["darwin", "windows", "linux"] as const;
 
 export type QueryablePlatform = (typeof QUERYABLE_PLATFORMS)[number];
 
@@ -42,7 +42,6 @@ export const PLATFORM_LABELS: Record<QueryablePlatform, string> = {
   darwin: "macOS",
   windows: "Windows",
   linux: "Linux",
-  chrome: "ChromeOS",
 };
 
 const PLATFORM_DISPLAY_LABELS: Partial<Record<string, string>> = {

@@ -124,7 +124,7 @@ func canonicalHostDetailName(name string) string {
 	switch name {
 	case catalog.QueryRootDiskDarwin:
 		return "root_disk"
-	case catalog.QueryPrimaryInterfaceUnix, catalog.QueryPrimaryInterfaceWindows, catalog.QueryPrimaryInterfaceChrome:
+	case catalog.QueryPrimaryInterfaceUnix, catalog.QueryPrimaryInterfaceWindows:
 		return "primary_interface"
 	default:
 		return name

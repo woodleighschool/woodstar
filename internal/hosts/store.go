@@ -428,7 +428,7 @@ func hostListWhere(params HostListParams) (string, []any, error) {
 		clauses = append(clauses, `(
 			platform = `+placeholder+`
 			OR (`+placeholder+` = 'darwin' AND platform IN ('darwin', 'macos'))
-			OR (`+placeholder+` = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows', 'chrome'))
+			OR (`+placeholder+` = 'linux' AND platform <> '' AND platform NOT IN ('darwin', 'macos', 'windows'))
 		)`)
 	}
 	switch params.Status {

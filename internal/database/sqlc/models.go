@@ -61,7 +61,6 @@ const (
 	PlatformDarwin  Platform = "darwin"
 	PlatformWindows Platform = "windows"
 	PlatformLinux   Platform = "linux"
-	PlatformChrome  Platform = "chrome"
 )
 
 func (e *Platform) Scan(src interface{}) error {
