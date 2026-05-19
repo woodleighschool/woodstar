@@ -170,7 +170,6 @@ function CheckEditForm({
           value={form.query}
           onChange={(query) => setForm({ ...form, query })}
           placeholder="SELECT ..."
-          minHeight="24rem"
           className="flex-1"
         />
       </div>

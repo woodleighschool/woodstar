@@ -95,7 +95,6 @@ export function ShowQueryButton({ sql }: { sql: string }) {
           value={sql}
           onChange={() => null}
           readOnly
-          minHeight="12rem"
           className="max-h-[60vh] overflow-auto"
         />
       </DialogContent>

@@ -230,7 +230,6 @@ function ReportEditForm({
           value={form.query}
           onChange={(query) => setForm({ ...form, query })}
           placeholder="SELECT ..."
-          minHeight="28rem"
           className="flex-1"
         />
       </div>

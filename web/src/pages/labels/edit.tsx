@@ -234,7 +234,6 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
             value={form.query}
             onChange={(query) => setForm({ ...form, query })}
             placeholder="SELECT ..."
-            minHeight="20rem"
             className="flex-1"
           />
         </div>

@@ -18,7 +18,17 @@ interface SQLEditorProps {
   placeholder?: string;
   readOnly?: boolean;
   className?: string;
-  minHeight?: string;
+}
+
+const MIN_EDITOR_LINES = 1;
+const MAX_EDITOR_LINES = 20;
+const EDITOR_LINE_HEIGHT_REM = 1.275;
+const EDITOR_VERTICAL_CHROME_REM = 1;
+
+function editorHeightFor(value: string) {
+  const lineCount = Math.max(MIN_EDITOR_LINES, value.split(/\r\n|\r|\n/).length);
+  const visibleLines = Math.min(lineCount, MAX_EDITOR_LINES);
+  return `${visibleLines * EDITOR_LINE_HEIGHT_REM + EDITOR_VERTICAL_CHROME_REM}rem`;
 }
 
 const surfaceTheme = EditorView.theme({
@@ -77,12 +87,13 @@ const darkHighlight = HighlightStyle.define([
 ]);
 
 export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function SQLEditor(
-  { value, onChange, placeholder, readOnly, className, minHeight = "20rem" },
+  { value, onChange, placeholder, readOnly, className },
   ref,
 ) {
   const schema = useOsquerySchema();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const maxHeight = editorHeightFor(value);
 
   const extensions = useMemo(() => {
     const base = [
@@ -103,7 +114,8 @@ export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function
         ref={ref}
         value={value}
         height="auto"
-        minHeight={minHeight}
+        minHeight={editorHeightFor("")}
+        maxHeight={maxHeight}
         theme={isDark ? "dark" : "light"}
         extensions={extensions}
         onChange={onChange}
