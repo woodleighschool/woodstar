@@ -48,6 +48,37 @@ func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSele
 	return mergePositiveIDs(directHostIDs, matches), nil
 }
 
+// ResolveOnlineSelectedTargets returns active selected host IDs that are online
+// at the moment the live run starts.
+func (s *Store) ResolveOnlineSelectedTargets(
+	ctx context.Context,
+	selection TargetSelection,
+	now time.Time,
+) ([]int64, error) {
+	hostIDs, err := s.ResolveSelectedTargets(ctx, selection)
+	if err != nil {
+		return nil, err
+	}
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := s.db.Pool().Query(ctx,
+		`SELECT id
+		 FROM hosts
+		 WHERE deleted_at IS NULL
+		   AND id = ANY($1::bigint[])
+		   AND last_seen_at >= $2
+		 ORDER BY id`,
+		hostIDs,
+		now.Add(-hostOnlineWindow),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanHostIDs(rows)
+}
+
 // CountSelectedTargets returns Fleet-style target status totals for a selection.
 func (s *Store) CountSelectedTargets(
 	ctx context.Context,

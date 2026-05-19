@@ -7,7 +7,7 @@ import (
 )
 
 func TestRecordResultPublishesResultAndCompletion(t *testing.T) {
-	m := NewManager(time.Minute)
+	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4})
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -33,7 +33,7 @@ func TestRecordResultPublishesResultAndCompletion(t *testing.T) {
 }
 
 func TestPendingForHostClearsAfterResult(t *testing.T) {
-	m := NewManager(time.Minute)
+	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4, 5})
 
 	if work := m.PendingForHost(4); len(work) != 1 || work[0].QueryID != handle.ID || work[0].SQL != "select 1" {
@@ -51,7 +51,7 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 }
 
 func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
-	m := NewManager(time.Minute)
+	m := newManager(time.Minute)
 	handle := m.Start("select 1", nil)
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -66,8 +66,28 @@ func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
 	}
 }
 
-func TestTimeoutPublishesPendingHostsAndCompletion(t *testing.T) {
-	m := NewManager(10 * time.Millisecond)
+func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
+	m := newManager(10 * time.Millisecond)
+	handle := m.Start("select 1", []int64{4, 5})
+
+	events, release, err := m.Subscribe(handle.ID)
+	if err != nil {
+		t.Fatalf("Subscribe returned error: %v", err)
+	}
+	release()
+	<-events
+
+	time.Sleep(20 * time.Millisecond)
+	if work := m.PendingForHost(4); len(work) != 0 {
+		t.Fatalf("work for orphaned host = %#v, want none", work)
+	}
+	if work := m.PendingForHost(5); len(work) != 0 {
+		t.Fatalf("work for orphaned host = %#v, want none", work)
+	}
+}
+
+func TestStopClearsPendingHostsAndPublishesCompletion(t *testing.T) {
+	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4, 5})
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -76,14 +96,24 @@ func TestTimeoutPublishesPendingHostsAndCompletion(t *testing.T) {
 	}
 	defer release()
 
+	if err := m.Stop(handle.ID); err != nil {
+		t.Fatalf("Stop returned error: %v", err)
+	}
+	if work := m.PendingForHost(4); len(work) != 0 {
+		t.Fatalf("work for stopped host = %#v, want none", work)
+	}
+	if work := m.PendingForHost(5); len(work) != 0 {
+		t.Fatalf("work for stopped host = %#v, want none", work)
+	}
+
 	first := receiveEvent(t, events)
 	second := receiveEvent(t, events)
-	if first.Status != "timeout" || second.Status != "timeout" {
-		t.Fatalf("timeout events = %#v %#v, want timeouts", first, second)
+	if first.Status != "stopped" || second.Status != "stopped" {
+		t.Fatalf("stopped events = %#v %#v, want stopped", first, second)
 	}
 	seen := map[int64]bool{first.HostID: true, second.HostID: true}
 	if !seen[4] || !seen[5] {
-		t.Fatalf("timeout hosts = %#v, want hosts 4 and 5", seen)
+		t.Fatalf("stopped hosts = %#v, want hosts 4 and 5", seen)
 	}
 
 	completed := receiveEvent(t, events)

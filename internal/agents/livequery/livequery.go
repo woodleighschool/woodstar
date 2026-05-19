@@ -1,5 +1,4 @@
-// Package livequery runs ephemeral live queries entirely in-process and fans
-// result events out to SSE subscribers.
+// Package livequery runs ephemeral browser-scoped live queries in-process.
 package livequery
 
 import (
@@ -13,13 +12,15 @@ import (
 // ErrLiveQueryNotFound is returned when the manager has no live query for an id.
 var ErrLiveQueryNotFound = errors.New("live query not found")
 
+const orphanCleanupAfter = time.Minute
+
 // Status is the per-host outcome reported back to the SSE stream.
 type Status string
 
 const (
 	StatusSuccess Status = "success"
 	StatusError   Status = "error"
-	StatusTimeout Status = "timeout"
+	StatusStopped Status = "stopped"
 )
 
 // Work is one queued live query for a host (read by /distributed/read).
@@ -47,7 +48,7 @@ type Event struct {
 
 // Manager runs ephemeral live queries entirely in-process.
 type Manager struct {
-	timeout time.Duration
+	cleanupAfter time.Duration
 
 	next    atomic.Int64
 	subNext atomic.Int64
@@ -59,30 +60,32 @@ type Manager struct {
 }
 
 type liveQuery struct {
-	id        int64
-	sql       string
-	startedAt time.Time
-	pending   map[int64]struct{}
-	timer     *time.Timer
-	stopped   bool
+	id           int64
+	sql          string
+	startedAt    time.Time
+	pending      map[int64]struct{}
+	cleanupTimer *time.Timer
 }
 
-// NewManager returns a manager that times out individual live queries after the
-// given duration.
-func NewManager(timeout time.Duration) *Manager {
-	if timeout <= 0 {
-		timeout = 60 * time.Second
+// NewManager returns a manager for ephemeral browser-scoped live runs.
+func NewManager() *Manager {
+	return newManager(orphanCleanupAfter)
+}
+
+func newManager(cleanupAfter time.Duration) *Manager {
+	if cleanupAfter <= 0 {
+		cleanupAfter = orphanCleanupAfter
 	}
 	return &Manager{
-		timeout:   timeout,
-		active:    make(map[int64]*liveQuery),
-		completed: make(map[int64]struct{}),
-		subs:      make(map[int64]map[int64]chan Event),
+		cleanupAfter: cleanupAfter,
+		active:       make(map[int64]*liveQuery),
+		completed:    make(map[int64]struct{}),
+		subs:         make(map[int64]map[int64]chan Event),
 	}
 }
 
-// Start registers a live query against a resolved host set and arms its
-// timeout. The returned handle is what the admin sees in the create response.
+// Start registers a live query against the host set resolved when the browser
+// starts the run. The returned handle is what the admin uses to attach a stream.
 func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 	id := m.next.Add(1)
 	pending := make(map[int64]struct{}, len(hostIDs))
@@ -104,7 +107,7 @@ func (m *Manager) Start(sql string, hostIDs []int64) Handle {
 		return Handle{ID: id, SQL: sql, StartedAt: q.startedAt}
 	}
 	m.active[id] = q
-	q.timer = time.AfterFunc(m.timeout, func() { m.expire(id) })
+	q.cleanupTimer = time.AfterFunc(m.cleanupAfter, func() { m.stopOrphan(id) })
 	m.mu.Unlock()
 
 	return Handle{
@@ -129,6 +132,25 @@ func (m *Manager) PendingForHost(hostID int64) []Work {
 	return out
 }
 
+// Stop cancels a running live query and removes pending work from targeted
+// hosts. Already-completed live queries are treated as stopped.
+func (m *Manager) Stop(queryID int64) error {
+	m.mu.Lock()
+	q, ok := m.active[queryID]
+	if !ok {
+		if _, completed := m.completed[queryID]; completed {
+			m.mu.Unlock()
+			return nil
+		}
+		m.mu.Unlock()
+		return ErrLiveQueryNotFound
+	}
+	m.stopLocked(q, StatusStopped)
+	m.mu.Unlock()
+	m.forgetCompletedLater(queryID)
+	return nil
+}
+
 // RecordResult marks a host as having responded for a live query, publishes
 // the result event, and finishes the query if no hosts remain pending.
 func (m *Manager) RecordResult(
@@ -141,7 +163,7 @@ func (m *Manager) RecordResult(
 ) {
 	m.mu.Lock()
 	q, ok := m.active[queryID]
-	if !ok || q.stopped {
+	if !ok {
 		m.mu.Unlock()
 		return
 	}
@@ -152,12 +174,7 @@ func (m *Manager) RecordResult(
 	delete(q.pending, hostID)
 	finished := len(q.pending) == 0
 	if finished {
-		q.stopped = true
-		if q.timer != nil {
-			q.timer.Stop()
-		}
-		delete(m.active, queryID)
-		m.completed[queryID] = struct{}{}
+		m.completeLocked(q)
 	}
 
 	m.publishLocked(queryID, Event{
@@ -195,35 +212,70 @@ func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
 	return nil, nil, ErrLiveQueryNotFound
 }
 
-func (m *Manager) expire(queryID int64) {
+func (m *Manager) stopOrphan(queryID int64) {
 	m.mu.Lock()
-	q, ok := m.active[queryID]
-	if !ok || q.stopped {
+	if len(m.subs[queryID]) > 0 {
 		m.mu.Unlock()
 		return
 	}
-	q.stopped = true
-	timedOut := make([]int64, 0, len(q.pending))
+	stopped := false
+	if q, ok := m.active[queryID]; ok {
+		m.stopLocked(q, StatusStopped)
+		stopped = true
+	}
+	m.mu.Unlock()
+	if stopped {
+		m.forgetCompletedLater(queryID)
+	}
+}
+
+func (m *Manager) completeLocked(q *liveQuery) {
+	if q.cleanupTimer != nil {
+		q.cleanupTimer.Stop()
+	}
+	delete(m.active, q.id)
+	m.completed[q.id] = struct{}{}
+}
+
+func (m *Manager) stopLocked(q *liveQuery, status Status) {
+	stopped := make([]int64, 0, len(q.pending))
 	for hostID := range q.pending {
-		timedOut = append(timedOut, hostID)
+		stopped = append(stopped, hostID)
 	}
 	q.pending = nil
-	delete(m.active, queryID)
-	m.completed[queryID] = struct{}{}
+	m.completeLocked(q)
 
-	for _, hostID := range timedOut {
-		m.publishLocked(queryID, Event{
+	for _, hostID := range stopped {
+		m.publishLocked(q.id, Event{
 			HostID: hostID,
-			Status: string(StatusTimeout),
+			Status: string(status),
 		})
 	}
-	m.publishLocked(queryID, Event{Status: "completed"})
-	m.mu.Unlock()
-	m.forgetCompletedLater(queryID)
+	m.publishLocked(q.id, Event{Status: "completed"})
+}
+
+func (m *Manager) scheduleCleanupLocked(queryID int64) {
+	q, ok := m.active[queryID]
+	if !ok {
+		return
+	}
+	if q.cleanupTimer != nil {
+		q.cleanupTimer.Stop()
+	}
+	q.cleanupTimer = time.AfterFunc(m.cleanupAfter, func() { m.stopOrphan(queryID) })
+}
+
+func (m *Manager) cancelCleanupLocked(queryID int64) {
+	q, ok := m.active[queryID]
+	if !ok || q.cleanupTimer == nil {
+		return
+	}
+	q.cleanupTimer.Stop()
+	q.cleanupTimer = nil
 }
 
 func (m *Manager) forgetCompletedLater(queryID int64) {
-	time.AfterFunc(m.timeout, func() {
+	time.AfterFunc(m.cleanupAfter, func() {
 		m.mu.Lock()
 		delete(m.completed, queryID)
 		m.mu.Unlock()
@@ -233,6 +285,7 @@ func (m *Manager) forgetCompletedLater(queryID int64) {
 func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
 	id := m.subNext.Add(1)
 	ch := make(chan Event, 32)
+	m.cancelCleanupLocked(queryID)
 
 	if m.subs[queryID] == nil {
 		m.subs[queryID] = make(map[int64]chan Event)
@@ -252,6 +305,7 @@ func (m *Manager) subscribeLocked(queryID int64) (<-chan Event, func()) {
 		delete(subs, id)
 		if len(subs) == 0 {
 			delete(m.subs, queryID)
+			m.scheduleCleanupLocked(queryID)
 		}
 		close(ch)
 	}

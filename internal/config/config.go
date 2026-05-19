@@ -27,9 +27,8 @@ type Config struct {
 	DatabaseURL   string `env:"DATABASE_URL"`
 	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
 
-	MaxReportRows           int `env:"MAX_REPORT_ROWS"            envDefault:"1000"`
-	LiveQueryTimeoutSeconds int `env:"LIVE_QUERY_TIMEOUT_SECONDS" envDefault:"60"`
-	ShutdownTimeoutSeconds  int `env:"SHUTDOWN_TIMEOUT_SECONDS"   envDefault:"15"`
+	MaxReportRows          int `env:"MAX_REPORT_ROWS"          envDefault:"1000"`
+	ShutdownTimeoutSeconds int `env:"SHUTDOWN_TIMEOUT_SECONDS" envDefault:"15"`
 
 	// OIDC is capability-gated: SSO endpoints only mount when IssuerURL,
 	// ClientID, and ClientSecret are all set.

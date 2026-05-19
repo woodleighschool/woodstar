@@ -224,6 +224,64 @@ func TestCountSelectedTargetsReturnsFleetStyleStatusTotals(t *testing.T) {
 	}
 }
 
+func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+	labelStore := labels.NewStore(store.db)
+	now := time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC)
+
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-online-target-online",
+		OrbitNodeKey: "orbit-key-live-online",
+	})
+	if err != nil {
+		t.Fatalf("enroll online host: %v", err)
+	}
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+		HardwareUUID: "test-live-online-target-offline",
+		OrbitNodeKey: "orbit-key-live-offline",
+	})
+	if err != nil {
+		t.Fatalf("enroll offline host: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelCreate{
+		Name:                "Live Online Target Test",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, label.ID, offlineHost.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+	if _, err := store.db.Pool().Exec(ctx,
+		`UPDATE hosts
+		 SET last_seen_at = CASE id
+		     WHEN $1 THEN $3::timestamptz
+		     WHEN $2 THEN $4::timestamptz
+		 END
+		 WHERE id = ANY($5::bigint[])`,
+		onlineHost.ID,
+		offlineHost.ID,
+		now.Add(-time.Minute),
+		now.Add(-10*time.Minute),
+		[]int64{onlineHost.ID, offlineHost.ID},
+	); err != nil {
+		t.Fatalf("set host seen times: %v", err)
+	}
+
+	got, err := store.ResolveOnlineSelectedTargets(ctx, TargetSelection{
+		HostIDs:  []int64{onlineHost.ID},
+		LabelIDs: []int64{label.ID},
+	}, now)
+	if err != nil {
+		t.Fatalf("resolve online selected targets: %v", err)
+	}
+	if !sameIDs(got, []int64{onlineHost.ID}) {
+		t.Fatalf("online host ids = %v, want only online host", got)
+	}
+}
+
 func sameIDs(got []int64, want []int64) bool {
 	if len(got) != len(want) {
 		return false

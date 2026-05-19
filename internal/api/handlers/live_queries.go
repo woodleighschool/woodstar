@@ -66,6 +66,12 @@ type liveQueryStreamInput struct {
 	ID int64 `path:"id" minimum:"1"`
 }
 
+type liveQueryStopInput struct {
+	ID int64 `path:"id" minimum:"1"`
+}
+
+type liveQueryStopOutput struct{}
+
 type liveQueryPingEvent struct {
 	Status string `json:"status"`
 }
@@ -88,7 +94,7 @@ func RegisterLiveQueries(
 		Method:        http.MethodPost,
 		Path:          "/api/live-queries",
 		Tags:          []string{liveQueriesTag},
-		Summary:       "Start a live query against online hosts",
+		Summary:       "Start a live run against online hosts",
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *liveQueryCreateInput) (*liveQueryCreateOutput, error) {
@@ -117,6 +123,21 @@ func RegisterLiveQueries(
 			return nil, err
 		}
 		return &liveQueryTargetCountOutput{Body: liveQueryTargetCountResponse(metrics)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "stop-live-query",
+		Method:        http.MethodPost,
+		Path:          "/api/live-queries/{id}/stop",
+		Tags:          []string{liveQueriesTag},
+		Summary:       "Stop a running live query",
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusUnauthorized, http.StatusNotFound},
+	}, func(ctx context.Context, input *liveQueryStopInput) (*liveQueryStopOutput, error) {
+		if err := manager.Stop(input.ID); err != nil {
+			return nil, huma.Error404NotFound("live query not found")
+		}
+		return &liveQueryStopOutput{}, nil
 	})
 
 	sse.Register(api, huma.Operation{
@@ -161,12 +182,12 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *h
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := hostStore.ResolveSelectedTargets(ctx, selection)
+	resolved, err := hostStore.ResolveOnlineSelectedTargets(ctx, selection, time.Now().UTC())
 	if err != nil {
 		return nil, err
 	}
 	if len(resolved) == 0 {
-		return nil, huma.Error400BadRequest("no hosts targeted")
+		return nil, huma.Error400BadRequest("no online hosts targeted")
 	}
 	return resolved, nil
 }

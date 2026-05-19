@@ -18,12 +18,12 @@ export type LiveQueryRow = LiveQueryResult & {
 interface StreamState {
   results: LiveQueryRow[];
   nextSeq: number;
-  status: "idle" | "open" | "completed" | "error";
+  status: "idle" | "running" | "completed" | "error";
   error?: string;
 }
 
 type StreamAction =
-  | { type: "open" }
+  | { type: "running" }
   | { type: "result"; result: LiveQueryResult }
   | { type: "completed" }
   | { type: "error"; message: string }
@@ -31,8 +31,8 @@ type StreamAction =
 
 function streamReducer(state: StreamState, action: StreamAction): StreamState {
   switch (action.type) {
-    case "open":
-      return { ...state, status: "open", error: undefined };
+    case "running":
+      return { ...state, status: "running", error: undefined };
     case "result":
       return {
         ...state,
@@ -49,19 +49,27 @@ function streamReducer(state: StreamState, action: StreamAction): StreamState {
 }
 
 export function useCreateLiveQuery() {
-	return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
-		mutationFn: (body) => unwrap(apiClient.POST("/api/live-queries", { body })),
-	});
+  return useMutation<LiveQueryHandle, ApiError, LiveQueryCreate>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/live-queries", { body })),
+  });
+}
+
+export function useStopLiveQuery() {
+  return useMutation<void, ApiError, number>({
+    mutationFn: async (id) => {
+      await unwrap(apiClient.POST("/api/live-queries/{id}/stop", { params: { path: { id } } }));
+    },
+  });
 }
 
 export function useLiveQueryTargetCount(body: LiveQueryTargetCountBody, enabled: boolean) {
-	const hosts = body.selected?.hosts ?? [];
-	const labels = body.selected?.labels ?? [];
-	return useQuery<LiveQueryTargetCount, ApiError>({
-		queryKey: ["live-query-target-count", body.query_id ?? null, hosts, labels],
-		queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
-		enabled,
-	});
+  const hosts = body.selected?.hosts ?? [];
+  const labels = body.selected?.labels ?? [];
+  return useQuery<LiveQueryTargetCount, ApiError>({
+    queryKey: ["live-query-target-count", body.query_id ?? null, hosts, labels],
+    queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
+    enabled,
+  });
 }
 
 // useLiveQueryStream opens an EventSource against /api/live-queries/{id}/stream
@@ -72,9 +80,10 @@ export function useLiveQueryStream(liveQueryId: string) {
   useEffect(() => {
     if (liveQueryId === "") return;
     dispatch({ type: "reset" });
+    dispatch({ type: "running" });
 
     const source = new EventSource(`/api/live-queries/${encodeURIComponent(liveQueryId)}/stream`);
-    source.addEventListener("open", () => dispatch({ type: "open" }));
+    source.addEventListener("open", () => dispatch({ type: "running" }));
     source.addEventListener("result", (event: MessageEvent<string>) => {
       try {
         const parsed = JSON.parse(event.data) as LiveQueryResult;

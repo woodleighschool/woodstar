@@ -3,41 +3,41 @@ import { Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useQueryDetail } from "@/hooks/use-queries";
+import { useCheck } from "@/hooks/use-checks";
 import { LiveRunner } from "@/pages/live-runner";
 
-export function ReportLivePage() {
-  const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
-  const report = useQueryDetail(reportId);
+export function CheckLivePage() {
+  const { checkId } = useParams({ from: "/_authenticated/checks/$checkId" });
+  const check = useCheck(checkId);
 
-  if (report.error) {
+  if (check.error) {
     return (
       <div className="p-6">
         <Alert variant="destructive">
-          <AlertTitle>Failed to load report</AlertTitle>
-          <AlertDescription>{report.error.message}</AlertDescription>
+          <AlertTitle>Failed to load check</AlertTitle>
+          <AlertDescription>{check.error.message}</AlertDescription>
         </Alert>
       </div>
     );
   }
-  if (!report.data) {
+  if (!check.data) {
     return (
       <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading report...
+        <Loader2 className="size-4 animate-spin" /> Loading check...
       </div>
     );
   }
 
   return (
     <LiveRunner
-      kind="report"
-      itemId={reportId}
-      name={report.data.name}
-      sql={report.data.query}
+      kind="check"
+      itemId={checkId}
+      name={check.data.name}
+      sql={check.data.query}
       editAction={
         <Button asChild variant="outline" size="sm">
-          <Link to="/reports/$reportId/edit" params={{ reportId }}>
-            Edit report
+          <Link to="/checks/$checkId/edit" params={{ checkId }}>
+            Edit check
           </Link>
         </Button>
       }

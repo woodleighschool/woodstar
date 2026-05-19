@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
@@ -65,7 +65,7 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.UserService = userService
 	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.LiveQueryManager = livequery.NewManager(time.Minute)
+	deps.LiveQueryManager = livequery.NewManager()
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
@@ -82,6 +82,48 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	}
 	if body := rec.Body.String(); !strings.Contains(body, "event: completed") {
 		t.Fatalf("body = %q, want completed event", body)
+	}
+}
+
+func TestLiveQueryStopUsesBrowserSession(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Test Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create test user: %v", err)
+	}
+
+	manager := livequery.NewManager()
+	handle := manager.Start("select 1", []int64{4})
+
+	deps := testDependencies(testConfig())
+	deps.DB = database
+	deps.UserService = userService
+	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	deps.LiveQueryManager = manager
+	server := NewServer(deps)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		fmt.Sprintf("/api/live-queries/%d/stop", handle.ID),
+		nil,
+	)
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(loginTestUser(t, deps.AuthService, deps.SessionManager))
+
+	server.routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+	if work := manager.PendingForHost(4); len(work) != 0 {
+		t.Fatalf("work after stop = %#v, want none", work)
 	}
 }
 

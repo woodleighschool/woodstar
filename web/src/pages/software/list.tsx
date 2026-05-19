@@ -13,7 +13,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
+import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 
 export function SoftwarePage() {
   const search = useSearch({ strict: false });
@@ -24,7 +24,7 @@ export function SoftwarePage() {
 
   const query = useSoftware({
     q: search.q,
-    source: sources,
+    source: expandSoftwareSourceFilters(sources),
     page: state.page,
     per_page: state.perPage,
     order_key: state.orderKey,

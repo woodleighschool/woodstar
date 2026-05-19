@@ -31,7 +31,7 @@ import {
   type HostSoftware,
 } from "@/hooks/use-hosts";
 import type { Schemas } from "@/lib/api";
-import { softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
+import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
 
 type InstalledVersion = Schemas["HostSoftwareInstalledVersion"];
@@ -308,7 +308,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
 
   const query = useHostSoftware(hostId, {
     q: activeQuery,
-    source: sources,
+    source: expandSoftwareSourceFilters(sources),
     page,
     per_page: perPage,
     order_key: orderKey,
@@ -388,7 +388,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
         const typeLabel = softwareSourceLabel(row.original.source, row.original.extension_for);
         return <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />;
       },
-      meta: { cellClassName: "max-w-[28rem] whitespace-normal break-all" },
+      meta: { headClassName: "w-[18rem]", cellClassName: "max-w-[18rem] min-w-32" },
     },
     {
       id: "hash",
@@ -508,7 +508,7 @@ function InstalledPathCell({
   }
   if (paths.length === 1) {
     return (
-      <span className="text-muted-foreground" title={paths[0].path}>
+      <span className="text-muted-foreground block truncate" title={paths[0].path}>
         {paths[0].path}
       </span>
     );

@@ -199,7 +199,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		secrets:  secrets.NewStore(database),
 		queries:  queries.NewStore(database),
 		checks:   checks.NewStore(database),
-		live:     livequery.NewManager(time.Minute),
+		live:     livequery.NewManager(),
 		software: software.NewStore(database),
 	}
 }

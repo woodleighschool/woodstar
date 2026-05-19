@@ -5,6 +5,7 @@ import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import {
   DetailSettings,
   EditButton,
+  LiveRunButton,
   PlatformBadge,
   SettingItem,
   ShowQueryButton,
@@ -53,6 +54,7 @@ export function CheckDetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ShowQueryButton sql={check.data.query} />
+          <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} />
           <EditButton to="/checks/$checkId/edit" params={{ checkId }}>
             Edit check
           </EditButton>

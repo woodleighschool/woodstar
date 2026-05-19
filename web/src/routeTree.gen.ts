@@ -37,6 +37,7 @@ import { Route as AuthenticatedSoftwareTitlesSoftwareIdRouteImport } from './rou
 import { Route as AuthenticatedReportsReportIdLiveRouteImport } from './routes/_authenticated/reports.$reportId.live'
 import { Route as AuthenticatedReportsReportIdEditRouteImport } from './routes/_authenticated/reports.$reportId.edit'
 import { Route as AuthenticatedLabelsLabelIdEditRouteImport } from './routes/_authenticated/labels.$labelId.edit'
+import { Route as AuthenticatedChecksCheckIdLiveRouteImport } from './routes/_authenticated/checks.$checkId.live'
 import { Route as AuthenticatedChecksCheckIdEditRouteImport } from './routes/_authenticated/checks.$checkId.edit'
 import { Route as AuthenticatedHostsHostIdReportsReportIdRouteImport } from './routes/_authenticated/hosts.$hostId.reports.$reportId'
 
@@ -192,6 +193,12 @@ const AuthenticatedLabelsLabelIdEditRoute =
     path: '/$labelId/edit',
     getParentRoute: () => AuthenticatedLabelsRoute,
   } as any)
+const AuthenticatedChecksCheckIdLiveRoute =
+  AuthenticatedChecksCheckIdLiveRouteImport.update({
+    id: '/live',
+    path: '/live',
+    getParentRoute: () => AuthenticatedChecksCheckIdRoute,
+  } as any)
 const AuthenticatedChecksCheckIdEditRoute =
   AuthenticatedChecksCheckIdEditRouteImport.update({
     id: '/edit',
@@ -228,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/reports/': typeof AuthenticatedReportsIndexRoute
   '/software/': typeof AuthenticatedSoftwareIndexRoute
   '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/checks/$checkId/live': typeof AuthenticatedChecksCheckIdLiveRoute
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
@@ -252,6 +260,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
   '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/checks/$checkId/live': typeof AuthenticatedChecksCheckIdLiveRoute
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
@@ -285,6 +294,7 @@ export interface FileRoutesById {
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
   '/_authenticated/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
+  '/_authenticated/checks/$checkId/live': typeof AuthenticatedChecksCheckIdLiveRoute
   '/_authenticated/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/_authenticated/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/_authenticated/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/software/'
     | '/checks/$checkId/edit'
+    | '/checks/$checkId/live'
     | '/labels/$labelId/edit'
     | '/reports/$reportId/edit'
     | '/reports/$reportId/live'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/software'
     | '/checks/$checkId/edit'
+    | '/checks/$checkId/live'
     | '/labels/$labelId/edit'
     | '/reports/$reportId/edit'
     | '/reports/$reportId/live'
@@ -374,6 +386,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports/'
     | '/_authenticated/software/'
     | '/_authenticated/checks/$checkId/edit'
+    | '/_authenticated/checks/$checkId/live'
     | '/_authenticated/labels/$labelId/edit'
     | '/_authenticated/reports/$reportId/edit'
     | '/_authenticated/reports/$reportId/live'
@@ -588,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabelsLabelIdEditRouteImport
       parentRoute: typeof AuthenticatedLabelsRoute
     }
+    '/_authenticated/checks/$checkId/live': {
+      id: '/_authenticated/checks/$checkId/live'
+      path: '/live'
+      fullPath: '/checks/$checkId/live'
+      preLoaderRoute: typeof AuthenticatedChecksCheckIdLiveRouteImport
+      parentRoute: typeof AuthenticatedChecksCheckIdRoute
+    }
     '/_authenticated/checks/$checkId/edit': {
       id: '/_authenticated/checks/$checkId/edit'
       path: '/edit'
@@ -607,12 +627,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedChecksCheckIdRouteChildren {
   AuthenticatedChecksCheckIdEditRoute: typeof AuthenticatedChecksCheckIdEditRoute
+  AuthenticatedChecksCheckIdLiveRoute: typeof AuthenticatedChecksCheckIdLiveRoute
   AuthenticatedChecksCheckIdIndexRoute: typeof AuthenticatedChecksCheckIdIndexRoute
 }
 
 const AuthenticatedChecksCheckIdRouteChildren: AuthenticatedChecksCheckIdRouteChildren =
   {
     AuthenticatedChecksCheckIdEditRoute: AuthenticatedChecksCheckIdEditRoute,
+    AuthenticatedChecksCheckIdLiveRoute: AuthenticatedChecksCheckIdLiveRoute,
     AuthenticatedChecksCheckIdIndexRoute: AuthenticatedChecksCheckIdIndexRoute,
   }
 
