@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Apple, Check, Globe, Loader2, Monitor, Play, Plus, Server, Square, X } from "lucide-react";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { PlatformIcon } from "@/components/platform/platform-icons";
 import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -527,12 +528,12 @@ function TargetChip({
   label,
   selected,
   onClick,
-  icon: Icon,
+  icon,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
-  icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  icon?: ReactNode;
 }) {
   return (
     <button
@@ -542,7 +543,7 @@ function TargetChip({
       className="border-input data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-muted inline-flex h-8 items-center rounded-full border px-3 text-sm transition-colors data-[selected=true]:border-primary"
     >
       {selected ? <Check className="mr-1 size-3.5" /> : <Plus className="mr-1 size-3.5" />}
-      {Icon ? <Icon className="mr-1 size-3.5" /> : null}
+      {icon ? <span className="mr-1 inline-flex size-3.5 items-center">{icon}</span> : null}
       {label}
     </button>
   );
@@ -700,16 +701,16 @@ function isPrimaryPlatformLabel(label: Label) {
   );
 }
 
-function targetIcon(label: Label): ComponentType<SVGProps<SVGSVGElement>> | undefined {
+function targetIcon(label: Label): ReactNode {
   switch (label.name) {
     case "macOS":
-      return Apple;
+      return <PlatformIcon platform="darwin" className="size-3.5" />;
     case "Windows":
-      return Monitor;
+      return <PlatformIcon platform="windows" className="size-3.5" />;
     case "Linux":
-      return Server;
+      return <PlatformIcon platform="linux" className="size-3.5" />;
     case "ChromeOS":
-      return Globe;
+      return <PlatformIcon platform="chrome" className="size-3.5" />;
     default:
       return undefined;
   }

@@ -7,7 +7,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PageLead, PlatformBadge, TargetSummary } from "@/components/queries/query-ui";
+import { PageLead, PlatformBadge } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -15,7 +15,6 @@ import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
-import { formatRelative } from "@/lib/utils";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
@@ -68,18 +67,6 @@ export function ChecksPage() {
       header: "Platforms",
       enableSorting: false,
       cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
-    },
-    {
-      id: "targets",
-      header: () => "Targets",
-      enableSorting: false,
-      cell: ({ row }) => <TargetSummary scope={row.original.label_scope} platform={row.original.platform} />,
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Last modified" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{formatRelative(row.original.updated_at)}</span>,
     },
   ];
 

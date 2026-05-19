@@ -3,7 +3,8 @@ import { Download, FileCode2, Play, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { SQLEditor } from "@/components/editor/sql-editor";
-import { Badge } from "@/components/ui/badge";
+import { selectedPlatformIconTargets } from "@/components/platform/platform-icon-data";
+import { PlatformIconList } from "@/components/platform/platform-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Schemas } from "@/lib/api";
-import { platformLabel, targetSummary } from "@/lib/targeting";
+import { targetScopeLabel } from "@/lib/targeting";
 import { cn, formatInterval } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
@@ -33,36 +34,29 @@ export function PageLead({ title, description, actions }: { title: string; descr
 }
 
 export function PlatformBadge({ platform }: { platform?: string | null }) {
-  return (
-    <Badge variant="outline" className="capitalize">
-      {platformLabel(platform)}
-    </Badge>
-  );
+  return <PlatformIconList platforms={selectedPlatformIconTargets(platform)} iconClassName="size-4" />;
 }
 
 export function TargetSummary({ scope, platform }: { scope?: LabelScope; platform?: string | null }) {
-  return <span>{targetSummary(scope, platform)}</span>;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span>{targetScopeLabel(scope)}</span>
+      <PlatformIconList platforms={selectedPlatformIconTargets(platform)} iconClassName="size-3.5" />
+    </span>
+  );
 }
 
 export function IntervalIndicator({ interval }: { interval?: number | null }) {
-  if (!interval) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="muted">Off</Badge>
-          </TooltipTrigger>
-          <TooltipContent>Assign an interval to collect report data on a schedule.</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
+  if (interval) return <span>Every {formatInterval(interval)}</span>;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Badge variant="default">On</Badge>
-      <span className="text-muted-foreground text-xs">Every {formatInterval(interval)}</span>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-muted-foreground">Off</span>
+        </TooltipTrigger>
+        <TooltipContent>Assign an interval to collect report data on a schedule.</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

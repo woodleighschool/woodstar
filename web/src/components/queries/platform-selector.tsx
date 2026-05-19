@@ -1,6 +1,4 @@
-import { Apple, Globe, Monitor, Server } from "lucide-react";
-import type { ComponentType, SVGProps } from "react";
-
+import { PlatformIcon } from "@/components/platform/platform-icons";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -10,13 +8,6 @@ import {
   platformsToValue,
   type QueryablePlatform,
 } from "@/lib/targeting";
-
-const ICONS: Record<QueryablePlatform, ComponentType<SVGProps<SVGSVGElement>>> = {
-  darwin: Apple,
-  windows: Monitor,
-  linux: Server,
-  chrome: Globe,
-};
 
 export function PlatformSelector({
   value,
@@ -45,10 +36,9 @@ export function PlatformSelector({
         className="flex-wrap justify-start"
       >
         {QUERYABLE_PLATFORMS.map((platform) => {
-          const Icon = ICONS[platform];
           return (
             <ToggleGroupItem key={platform} value={platform} className="gap-2">
-              <Icon className="size-4" />
+              <PlatformIcon platform={platform} className="size-4" />
               {PLATFORM_LABELS[platform]}
             </ToggleGroupItem>
           );
