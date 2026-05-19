@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -7,7 +7,7 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { PageLead } from "@/components/queries/query-ui";
+import { LiveRunButton, PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,20 +128,6 @@ function ReportEditForm({
       <PageLead
         title={mode === "create" ? "New report" : "Edit report"}
         description="Use osquery SQL to gather data about hosts. Add an interval to collect snapshot results on a schedule."
-        actions={
-          <>
-            {mode === "edit" ? (
-              <Button asChild type="button" variant="outline" size="sm">
-                <Link to="/reports/$reportId" params={{ reportId }}>
-                  Cancel
-                </Link>
-              </Button>
-            ) : null}
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? "Saving..." : mode === "create" ? "Save report" : "Save"}
-            </Button>
-          </>
-        }
       />
       {error ? (
         <Alert variant="destructive">
@@ -171,7 +157,7 @@ function ReportEditForm({
         </div>
       </div>
       <div className="grid gap-4">
-        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="grid max-w-3xl gap-4">
           <div className="grid gap-2">
             <Label htmlFor="report-interval">Interval</Label>
             <Select
@@ -196,6 +182,16 @@ function ReportEditForm({
           <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
         </div>
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
+      </div>
+
+      <div className="grid max-w-5xl gap-2">
+        <Label>Query</Label>
+        <SQLEditor
+          ref={editorRef}
+          value={form.query}
+          onChange={(query) => setForm({ ...form, query })}
+          placeholder="SELECT ..."
+        />
       </div>
 
       <div className="grid max-w-3xl gap-3">
@@ -224,14 +220,11 @@ function ReportEditForm({
         ) : null}
       </div>
 
-      <div className="flex flex-1">
-        <SQLEditor
-          ref={editorRef}
-          value={form.query}
-          onChange={(query) => setForm({ ...form, query })}
-          placeholder="SELECT ..."
-          className="flex-1"
-        />
+      <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+        {mode === "edit" ? <LiveRunButton to="/reports/$reportId/live" params={{ reportId }} /> : null}
       </div>
       <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
     </form>

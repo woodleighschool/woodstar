@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -7,7 +7,7 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { PageLead } from "@/components/queries/query-ui";
+import { LiveRunButton, PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,20 +110,6 @@ function CheckEditForm({
       <PageLead
         title={mode === "create" ? "New check" : "Edit check"}
         description="Checks pass when their SQL returns rows and fail when it returns none."
-        actions={
-          <>
-            {mode === "edit" ? (
-              <Button asChild type="button" variant="outline" size="sm">
-                <Link to="/checks/$checkId" params={{ checkId }}>
-                  Cancel
-                </Link>
-              </Button>
-            ) : null}
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? "Saving..." : mode === "create" ? "Save check" : "Save"}
-            </Button>
-          </>
-        }
       />
       {error ? (
         <Alert variant="destructive">
@@ -154,7 +140,7 @@ function CheckEditForm({
       </div>
 
       <div className="grid gap-4">
-        <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="grid max-w-3xl gap-4">
           <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
         </div>
         <LabelScopeSelector
@@ -164,14 +150,20 @@ function CheckEditForm({
         />
       </div>
 
-      <div className="flex flex-1">
+      <div className="grid max-w-5xl gap-2">
+        <Label>Query</Label>
         <SQLEditor
           ref={editorRef}
           value={form.query}
           onChange={(query) => setForm({ ...form, query })}
           placeholder="SELECT ..."
-          className="flex-1"
         />
+      </div>
+      <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Saving..." : "Save"}
+        </Button>
+        {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} /> : null}
       </div>
       <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
     </form>
