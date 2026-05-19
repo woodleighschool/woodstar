@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PlatformIcon } from "@/components/platform/platform-icons";
+import { PlatformToggleGroup } from "@/components/queries/platform-selector";
 import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   type LiveQueryTargetCount,
   type LiveQueryTargetCountBody,
 } from "@/hooks/use-live-queries";
+import type { QueryablePlatform } from "@/lib/targeting";
 
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
@@ -452,6 +453,17 @@ function TargetPicker({
     setHostSearch("");
   }
 
+  function changePlatforms(next: QueryablePlatform[]) {
+    const platformLabels = grouped.platforms.filter((label) => {
+      const platform = platformForLabel(label);
+      return platform ? next.includes(platform) : false;
+    });
+    const nonPlatformLabels = selectedLabels.filter(
+      (label) => !isPrimaryPlatformLabel(label) && !(label.label_type === "builtin" && label.name === "All Hosts"),
+    );
+    onLabelsChange([...nonPlatformLabels, ...platformLabels]);
+  }
+
   return (
     <div className="grid content-start gap-5 rounded-md border p-4">
       <div>
@@ -460,7 +472,10 @@ function TargetPicker({
       </div>
 
       <TargetSection title="" labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
-      <TargetSection title="Platforms" labels={grouped.platforms} selected={selectedLabels} onToggle={toggleLabel} />
+      <div className="grid gap-2">
+        <h3 className="text-sm font-medium">Platforms</h3>
+        <PlatformToggleGroup selected={selectedPlatforms(selectedLabels)} onChange={changePlatforms} />
+      </div>
       <TargetSection title="Labels" labels={grouped.other} selected={selectedLabels} onToggle={toggleLabel} />
 
       <div className="grid gap-2">
@@ -533,7 +548,6 @@ function TargetSection({
             key={label.id}
             selected={selected.some((item) => item.id === label.id)}
             label={displayLabel(label)}
-            icon={targetIcon(label)}
             onClick={() => onToggle(label)}
           />
         ))}
@@ -542,17 +556,7 @@ function TargetSection({
   );
 }
 
-function TargetChip({
-  label,
-  selected,
-  onClick,
-  icon,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-  icon?: ReactNode;
-}) {
+function TargetChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -561,7 +565,6 @@ function TargetChip({
       className="border-input data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-muted inline-flex h-8 items-center rounded-full border px-3 text-sm transition-colors data-[selected=true]:border-primary"
     >
       {selected ? <Check className="mr-1 size-3.5" /> : <Plus className="mr-1 size-3.5" />}
-      {icon ? <span className="mr-1 inline-flex size-3.5 items-center">{icon}</span> : null}
       {label}
     </button>
   );
@@ -729,17 +732,24 @@ function isPrimaryPlatformLabel(label: Label) {
   );
 }
 
-function targetIcon(label: Label): ReactNode {
+function platformForLabel(label: Label): QueryablePlatform | undefined {
   switch (label.name) {
     case "macOS":
-      return <PlatformIcon platform="darwin" className="size-3.5" />;
+      return "darwin";
     case "Windows":
-      return <PlatformIcon platform="windows" className="size-3.5" />;
+      return "windows";
     case "Linux":
-      return <PlatformIcon platform="linux" className="size-3.5" />;
+      return "linux";
     default:
       return undefined;
   }
+}
+
+function selectedPlatforms(labels: Label[]) {
+  return labels.flatMap((label) => {
+    const platform = platformForLabel(label);
+    return platform ? [platform] : [];
+  });
 }
 
 function reportResultRows(rows: LiveQueryRow[]) {
