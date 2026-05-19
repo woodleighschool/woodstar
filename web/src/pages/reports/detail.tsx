@@ -5,15 +5,10 @@ import { Loader2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import {
-  DetailSettings,
   EditButton,
   ExportButton,
-  IntervalIndicator,
   LiveRunButton,
-  PlatformBadge,
-  SettingItem,
   ShowQueryButton,
-  TargetSummary,
 } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -49,7 +44,6 @@ export function ReportDetailPage() {
     );
   }
 
-  const interval = query.data.schedule_interval;
   const rows = reportRows(results.data?.items);
   const resultColumns: ColumnDef<ReportTableRow>[] = resultColumnNames(rows).map((name) => ({
     id: name,
@@ -81,18 +75,6 @@ export function ReportDetailPage() {
           </EditButton>
         </div>
       </div>
-
-      <DetailSettings>
-        <SettingItem label="Interval">
-          <IntervalIndicator interval={interval} />
-        </SettingItem>
-        <SettingItem label="Targeted platforms">
-          <PlatformBadge platform={query.data.platform} />
-        </SettingItem>
-        <SettingItem label="Targets">
-          <TargetSummary scope={query.data.label_scope} platform={query.data.platform} />
-        </SettingItem>
-      </DetailSettings>
 
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
