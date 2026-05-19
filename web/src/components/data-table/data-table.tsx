@@ -147,7 +147,7 @@ export function DataTable<TData, TValue>({
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       {toolbar}
       {enableRowSelection && selectedRowIds.length > 0 ? (
         <div className="bg-muted/50 flex min-h-10 items-center justify-between rounded-md border px-3 py-2">

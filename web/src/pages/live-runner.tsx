@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
+import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PlatformIcon } from "@/components/platform/platform-icons";
 import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
@@ -11,7 +13,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
 import {
@@ -28,6 +29,23 @@ import {
 
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
+type ReportResultRow = Record<string, string>;
+
+const STATIC_TABLE_SORT: DataTableSort = {};
+const STATIC_TABLE_PAGE = 1;
+const STATIC_TABLE_PER_PAGE = 500;
+
+function ignoreTablePageChange(_page: number) {
+  return undefined;
+}
+
+function ignoreTablePerPageChange(_perPage: number) {
+  return undefined;
+}
+
+function ignoreTableSortChange(_next: DataTableSort) {
+  return undefined;
+}
 
 export function LiveRunner({
   kind,
@@ -115,7 +133,7 @@ export function LiveRunner({
   const title = step === "targets" ? `Run ${name}` : `${name} live run`;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
+    <div className="flex min-w-0 flex-col gap-5 p-6">
       <PageLead
         title={title}
         description={
@@ -291,7 +309,7 @@ function RunResults({
   const isRunning = status === "running";
   const finished = status === "completed";
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div>
           <h2 className="text-base font-semibold">{runHeading(status, stopped)}</h2>
@@ -549,125 +567,134 @@ function TargetChip({
   );
 }
 
-function ReportRowsTable({ rows, running }: { rows: Array<Record<string, string>>; running: boolean }) {
-  const columns = reportColumns(rows);
+function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: boolean }) {
+  const resultColumns = reportColumns(rows);
+  const columns: ColumnDef<ReportResultRow>[] = [
+    {
+      accessorKey: "host_name",
+      header: "Host",
+      cell: ({ row }) => (
+        <Link to="/hosts/$hostId" params={{ hostId: row.original.host_id }} className="font-medium hover:underline">
+          {row.original.host_name}
+        </Link>
+      ),
+      meta: {
+        headClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap",
+      },
+    },
+    ...resultColumns.map<ColumnDef<ReportResultRow>>((name) => ({
+      id: name,
+      accessorFn: (row) => row[name] ?? "-",
+      header: name,
+      cell: ({ row }) => row.original[name] ?? "-",
+      meta: {
+        headClassName: "whitespace-nowrap",
+        cellClassName: "whitespace-nowrap",
+      },
+    })),
+  ];
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Host</TableHead>
-            {columns.map((name) => (
-              <TableHead key={name}>{name}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={Math.max(columns.length + 1, 1)} className="h-40">
-                <RunEmptyState
-                  title={running ? "Waiting for results" : "No rows returned"}
-                  description={
-                    running
-                      ? "Results will appear as online hosts respond."
-                      : "The report ran successfully but did not return any rows."
-                  }
-                />
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={`${row.host_id}-${JSON.stringify(row)}`}>
-                <TableCell className="font-medium">
-                  <Link to="/hosts/$hostId" params={{ hostId: row.host_id }} className="hover:underline">
-                    {row.host_name}
-                  </Link>
-                </TableCell>
-                {columns.map((name) => (
-                  <TableCell key={name}>{row[name] ?? "-"}</TableCell>
-                ))}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      totalCount={rows.length}
+      page={STATIC_TABLE_PAGE}
+      perPage={STATIC_TABLE_PER_PAGE}
+      sort={STATIC_TABLE_SORT}
+      onPageChange={ignoreTablePageChange}
+      onPerPageChange={ignoreTablePerPageChange}
+      onSortChange={ignoreTableSortChange}
+      getRowId={(row) => `${row.host_id}-${JSON.stringify(row)}`}
+      clientSort
+      empty={
+        <RunEmptyState
+          title={running ? "Waiting for results" : "No rows returned"}
+          description={
+            running
+              ? "Results will appear as online hosts respond."
+              : "The report ran successfully but did not return any rows."
+          }
+        />
+      }
+    />
   );
 }
 
 function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: boolean }) {
+  const columns: ColumnDef<CheckLiveRow>[] = [
+    {
+      accessorKey: "host_name",
+      header: "Host",
+      cell: ({ row }) => (
+        <Link
+          to="/hosts/$hostId"
+          params={{ hostId: String(row.original.host_id) }}
+          className="font-medium hover:underline"
+        >
+          {row.original.host_name ?? row.original.host_id}
+        </Link>
+      ),
+    },
+    {
+      accessorKey: "response",
+      header: "Result",
+      cell: ({ row }) => <CheckStatusBadge response={row.original.response} />,
+    },
+  ];
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Host</TableHead>
-            <TableHead>Result</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={2} className="h-40">
-                <RunEmptyState
-                  title={running ? "Waiting for hosts" : "No host results"}
-                  description={
-                    running
-                      ? "Check results will appear as online hosts respond."
-                      : "No hosts returned a check result for this run."
-                  }
-                />
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.host_id}>
-                <TableCell className="font-medium">
-                  <Link to="/hosts/$hostId" params={{ hostId: String(row.host_id) }} className="hover:underline">
-                    {row.host_name ?? row.host_id}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <CheckStatusBadge response={row.response} />
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      totalCount={rows.length}
+      page={STATIC_TABLE_PAGE}
+      perPage={STATIC_TABLE_PER_PAGE}
+      sort={STATIC_TABLE_SORT}
+      onPageChange={ignoreTablePageChange}
+      onPerPageChange={ignoreTablePerPageChange}
+      onSortChange={ignoreTableSortChange}
+      getRowId={(row) => String(row.host_id)}
+      clientSort
+      empty={
+        <RunEmptyState
+          title={running ? "Waiting for hosts" : "No host results"}
+          description={
+            running ? "Check results will appear as online hosts respond." : "No hosts returned a check result for this run."
+          }
+        />
+      }
+    />
   );
 }
 
 function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
+  const columns: ColumnDef<LiveQueryRow>[] = [
+    {
+      id: "host",
+      header: "Host",
+      cell: ({ row }) => row.original.host_name ?? row.original.host_id ?? "?",
+    },
+    {
+      id: "error",
+      header: "Error",
+      cell: ({ row }) => <span className="text-destructive">{row.original.error ?? row.original.status}</span>,
+    },
+  ];
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Host</TableHead>
-            <TableHead>Error</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={2} className="h-40">
-                <RunEmptyState title="No errors" description="No host errors have been reported for this run." />
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row._seq}>
-                <TableCell>{row.host_name ?? row.host_id ?? "?"}</TableCell>
-                <TableCell className="text-destructive">{row.error ?? row.status}</TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      totalCount={rows.length}
+      page={STATIC_TABLE_PAGE}
+      perPage={STATIC_TABLE_PER_PAGE}
+      sort={STATIC_TABLE_SORT}
+      onPageChange={ignoreTablePageChange}
+      onPerPageChange={ignoreTablePerPageChange}
+      onSortChange={ignoreTableSortChange}
+      getRowId={(row) => String(row._seq)}
+      clientSort
+      empty={<RunEmptyState title="No errors" description="No host errors have been reported for this run." />}
+    />
   );
 }
 
