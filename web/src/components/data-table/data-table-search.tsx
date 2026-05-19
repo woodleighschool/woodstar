@@ -11,21 +11,16 @@ interface DataTableSearchProps {
   className?: string;
 }
 
-export function DataTableSearch({ value, onChange, placeholder, label, className }: DataTableSearchProps) {
+export function DataTableSearch({ value, onChange, placeholder, className }: DataTableSearchProps) {
   return (
     <InputGroup className={cn("max-w-md flex-1", className)}>
-      <InputGroupInput
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        aria-label={label}
-      />
+      <InputGroupInput value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
       <InputGroupAddon align="inline-start">
         <SearchIcon />
       </InputGroupAddon>
       {value ? (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" onClick={() => onChange("")} aria-label={`Clear ${label.toLowerCase()}`}>
+          <InputGroupButton size="icon-xs" onClick={() => onChange("")}>
             <XIcon />
           </InputGroupButton>
         </InputGroupAddon>

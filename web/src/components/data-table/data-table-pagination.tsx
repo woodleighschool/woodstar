@@ -55,14 +55,7 @@ export function DataTablePagination({
           Page {page} of {pageCount}
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-7"
-            disabled={page <= 1}
-            onClick={() => onPageChange(1)}
-            aria-label="First page"
-          >
+          <Button variant="outline" size="icon" className="size-7" disabled={page <= 1} onClick={() => onPageChange(1)}>
             <ChevronsLeft />
           </Button>
           <Button
@@ -71,7 +64,6 @@ export function DataTablePagination({
             className="size-7"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
-            aria-label="Previous page"
           >
             <ChevronLeft />
           </Button>
@@ -81,7 +73,6 @@ export function DataTablePagination({
             className="size-7"
             disabled={page >= pageCount}
             onClick={() => onPageChange(page + 1)}
-            aria-label="Next page"
           >
             <ChevronRight />
           </Button>
@@ -91,7 +82,6 @@ export function DataTablePagination({
             className="size-7"
             disabled={page >= pageCount}
             onClick={() => onPageChange(pageCount)}
-            aria-label="Last page"
           >
             <ChevronsRight />
           </Button>

@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Schemas } from "@/lib/api";
 import { targetScopeLabel } from "@/lib/targeting";
 import { cn, formatInterval } from "@/lib/utils";
@@ -49,14 +49,12 @@ export function TargetSummary({ scope, platform }: { scope?: LabelScope; platfor
 export function IntervalIndicator({ interval }: { interval?: number | null }) {
   if (interval) return <span>Every {formatInterval(interval)}</span>;
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="text-muted-foreground">Off</span>
-        </TooltipTrigger>
-        <TooltipContent>Assign an interval to collect report data on a schedule.</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="text-muted-foreground">Off</span>
+      </TooltipTrigger>
+      <TooltipContent>Assign an interval to collect report data on a schedule.</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -91,12 +89,7 @@ export function ShowQueryButton({ sql }: { sql: string }) {
           <DialogTitle>Query</DialogTitle>
           <DialogDescription>SQL used by this item.</DialogDescription>
         </DialogHeader>
-        <SQLEditor
-          value={sql}
-          onChange={() => null}
-          readOnly
-          className="max-h-[60vh] overflow-auto"
-        />
+        <SQLEditor value={sql} onChange={() => null} readOnly className="max-h-[60vh] overflow-auto" />
       </DialogContent>
     </Dialog>
   );

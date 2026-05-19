@@ -184,7 +184,7 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
   if (certificates.length === 0) return null;
 
   return (
-    <Card size="sm">
+    <Card className="gap-4 py-4">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle>Certificates</CardTitle>
         <span className="text-muted-foreground text-xs tabular-nums">

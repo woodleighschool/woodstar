@@ -5,9 +5,10 @@ import { cn } from "@/lib/utils";
 interface MarkdownProps {
   children: string;
   className?: string;
+  components?: Components;
 }
 
-const components: Components = {
+const defaultComponents: Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
   a: ({ children, href }) => (
     <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
@@ -28,10 +29,10 @@ const components: Components = {
   h3: ({ children }) => <h4 className="mt-2 mb-1 text-sm font-semibold">{children}</h4>,
 };
 
-export function Markdown({ children, className }: MarkdownProps) {
+export function Markdown({ children, className, components }: MarkdownProps) {
   return (
     <div className={cn("text-sm leading-relaxed break-words", className)}>
-      <ReactMarkdown components={components}>{children}</ReactMarkdown>
+      <ReactMarkdown components={{ ...defaultComponents, ...components }}>{children}</ReactMarkdown>
     </div>
   );
 }

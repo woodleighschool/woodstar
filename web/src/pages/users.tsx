@@ -146,7 +146,7 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${row.email}`}>
+                      <Button type="button" size="icon" variant="ghost">
                         <MoreHorizontal />
                       </Button>
                     </DropdownMenuTrigger>

@@ -90,7 +90,6 @@ export function SecretTable({ data, isLoading, error, onRetry, emptyTitle, empty
                         [row.id]: !shown,
                       }))
                     }
-                    aria-label={shown ? "Hide secret" : "Show secret"}
                   >
                     {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </Button>

@@ -12,7 +12,7 @@ import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels, type Label } from "@/hooks/use-labels";
 import {
@@ -360,20 +360,20 @@ function ReportRunResults({ rows, running }: { rows: LiveQueryRow[]; running: bo
   const resultRows = reportResultRows(rows);
   const errorRows = liveErrorRows(rows);
   return (
-    <PageTabs defaultValue="results">
-      <PageTabsList>
-        <PageTabsTrigger value="results">Results</PageTabsTrigger>
-        <PageTabsTrigger value="errors" disabled={errorRows.length === 0}>
+    <Tabs defaultValue="results">
+      <TabsList>
+        <TabsTrigger value="results">Results</TabsTrigger>
+        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
           Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </PageTabsTrigger>
-      </PageTabsList>
-      <PageTabsContent value="results">
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="results">
         <ReportRowsTable rows={resultRows} running={running} />
-      </PageTabsContent>
-      <PageTabsContent value="errors">
+      </TabsContent>
+      <TabsContent value="errors">
         <ErrorRowsTable rows={errorRows} />
-      </PageTabsContent>
-    </PageTabs>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -383,14 +383,14 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
   const passing = hostRows.filter((row) => row.response === "pass").length;
   const failing = hostRows.filter((row) => row.response === "fail").length;
   return (
-    <PageTabs defaultValue="results">
-      <PageTabsList>
-        <PageTabsTrigger value="results">Results</PageTabsTrigger>
-        <PageTabsTrigger value="errors" disabled={errorRows.length === 0}>
+    <Tabs defaultValue="results">
+      <TabsList>
+        <TabsTrigger value="results">Results</TabsTrigger>
+        <TabsTrigger value="errors" disabled={errorRows.length === 0}>
           Errors{errorRows.length ? ` ${errorRows.length}` : ""}
-        </PageTabsTrigger>
-      </PageTabsList>
-      <PageTabsContent value="results">
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="results">
         <div className="grid gap-3">
           {hostRows.length ? (
             <p className="text-muted-foreground text-sm">
@@ -399,11 +399,11 @@ function CheckRunResults({ rows, running }: { rows: LiveQueryRow[]; running: boo
           ) : null}
           <CheckRowsTable rows={hostRows} running={running} />
         </div>
-      </PageTabsContent>
-      <PageTabsContent value="errors">
+      </TabsContent>
+      <TabsContent value="errors">
         <ErrorRowsTable rows={errorRows} />
-      </PageTabsContent>
-    </PageTabs>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -659,7 +659,9 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
         <RunEmptyState
           title={running ? "Waiting for hosts" : "No host results"}
           description={
-            running ? "Check results will appear as online hosts respond." : "No hosts returned a check result for this run."
+            running
+              ? "Check results will appear as online hosts respond."
+              : "No hosts returned a check result for this run."
           }
         />
       }
@@ -723,8 +725,7 @@ function displayLabel(label: Label) {
 
 function isPrimaryPlatformLabel(label: Label) {
   return (
-    label.label_type === "builtin" &&
-    (label.name === "macOS" || label.name === "Windows" || label.name === "Linux")
+    label.label_type === "builtin" && (label.name === "macOS" || label.name === "Windows" || label.name === "Linux")
   );
 }
 

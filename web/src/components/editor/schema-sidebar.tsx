@@ -1,22 +1,25 @@
-import { Check, ChevronsUpDown, ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { isValidElement, useMemo, useState } from "react";
 
+import { PlatformIcon } from "@/components/platform/platform-icons";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOsquerySchema, type OsqueryColumn, type OsqueryTable } from "@/hooks/use-osquery-schema";
+import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
+import { SQLEditor } from "./sql-editor";
 
-const PLATFORM_ORDER = ["darwin", "windows", "linux"];
-const PLATFORM_LABELS: Record<string, string> = {
-  darwin: "macOS",
-  windows: "Windows",
-  linux: "Linux",
-};
+const PLATFORM_ORDER = QUERYABLE_PLATFORMS;
 
 interface SchemaSidebarProps {
   open: boolean;
@@ -30,7 +33,6 @@ export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSide
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        aria-label={open ? "Hide osquery schema" : "Show osquery schema"}
         aria-expanded={open}
         className={cn(
           "bg-card hover:border-primary hover:text-primary fixed top-20 z-40",
@@ -66,7 +68,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
         open ? "translate-x-0" : "translate-x-full",
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b p-4">
+      <div className="flex items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Tables</h2>
           <Badge variant="secondary" className="rounded-full px-2 text-[11px] font-normal">
@@ -75,7 +77,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
         </div>
       </div>
 
-      <div className="border-b p-4">
+      <div className="p-4">
         <TableSelector tables={tables} value={selected?.name ?? null} onChange={setSelectedName} />
       </div>
 
@@ -101,56 +103,50 @@ function TableSelector({
   value: string | null;
   onChange: (name: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const tableNames = useMemo(() => tables.map((table) => table.name), [tables]);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between font-mono text-sm"
-        >
-          <span className="truncate">{value ?? "Select a table"}</span>
-          <ChevronsUpDown data-icon="inline-end" className="text-muted-foreground shrink-0 opacity-70" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search tables…" />
-          <CommandList>
-            <CommandEmpty>No tables found.</CommandEmpty>
-            <CommandGroup>
-              {tables.map((table) => (
-                <CommandItem
-                  key={table.name}
-                  value={table.name}
-                  onSelect={() => {
-                    onChange(table.name);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn(value === table.name ? "opacity-100" : "opacity-0")} />
-                  <span className="font-mono text-sm">{table.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <Combobox
+      items={tableNames}
+      value={value ?? null}
+      onValueChange={(next) => {
+        if (next) onChange(next);
+      }}
+      onInputValueChange={(next) => {
+        if (tableNames.includes(next)) onChange(next);
+      }}
+    >
+      <ComboboxInput placeholder="Select a table" className="w-full text-sm" />
+      <ComboboxContent>
+        <ComboboxEmpty>No tables found.</ComboboxEmpty>
+        <ComboboxList>
+          {(item: string) => (
+            <ComboboxItem key={item} value={item} className="text-sm">
+              {item}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }
 
 function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertColumn?: (name: string) => void }) {
-  const exampleMarkdown = typeof table.examples === "string" ? table.examples : null;
+  const badges = [
+    table.evented ? (
+      <Badge key="evented" variant="outline">
+        evented
+      </Badge>
+    ) : null,
+    table.cacheable ? (
+      <Badge key="cacheable" variant="outline">
+        cacheable
+      </Badge>
+    ) : null,
+  ].filter(Boolean);
   return (
     <div className="space-y-5 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-mono text-base font-semibold">{table.name}</h3>
-        {table.evented ? <Badge variant="outline">evented</Badge> : null}
-        {table.cacheable ? <Badge variant="outline">cacheable</Badge> : null}
-      </div>
+      {badges.length ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
 
       {table.description ? (
         <section>
@@ -162,10 +158,12 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
 
       <ColumnList columns={table.columns} onInsertColumn={onInsertColumn} />
 
-      {exampleMarkdown ? (
+      {table.examples ? (
         <section>
           <SectionHeading>Example</SectionHeading>
-          <Markdown className="text-muted-foreground">{exampleMarkdown}</Markdown>
+          <Markdown className="text-muted-foreground text-sm" components={exampleComponents}>
+            {exampleMarkdown(table.examples)}
+          </Markdown>
         </section>
       ) : null}
 
@@ -194,20 +192,42 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h4 className="mb-2 text-xs font-semibold tracking-wide uppercase">{children}</h4>;
 }
 
+const exampleComponents = {
+  pre: ({ children }: { children?: React.ReactNode }) => (
+    <div className="text-foreground mb-2 last:mb-0">
+      <SQLEditor value={codeText(children)} onChange={() => null} readOnly />
+    </div>
+  ),
+};
+
+function codeText(children: React.ReactNode) {
+  if (!isValidElement<{ children?: React.ReactNode }>(children)) return "";
+  const code = children.props.children;
+  return typeof code === "string" ? code.trim() : "";
+}
+
+function exampleMarkdown(examples: NonNullable<OsqueryTable["examples"]>) {
+  if (typeof examples === "string") return examples;
+  return examples
+    .map((example) => [example.description, "```sql", example.query, "```"].filter(Boolean).join("\n\n"))
+    .join("\n\n");
+}
+
 function PlatformList({ platforms }: { platforms: string[] }) {
-  const sorted = [...platforms]
-    .filter((p) => PLATFORM_LABELS[p])
-    .sort((a, b) => PLATFORM_ORDER.indexOf(a) - PLATFORM_ORDER.indexOf(b));
+  const sorted = Array.from(new Set(platforms.filter(isQueryablePlatform))).sort(
+    (a, b) => PLATFORM_ORDER.indexOf(a) - PLATFORM_ORDER.indexOf(b),
+  );
   if (!sorted.length) return null;
   return (
     <section>
       <SectionHeading>Compatible with</SectionHeading>
-      <ul className="flex flex-wrap gap-1.5">
+      <ul className="grid gap-1.5">
         {sorted.map((p) => (
           <li key={p}>
-            <Badge variant="secondary" className="font-normal">
-              {PLATFORM_LABELS[p]}
-            </Badge>
+            <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
+              <PlatformIcon platform={p} className="size-4" />
+              <span>{PLATFORM_LABELS[p]}</span>
+            </span>
           </li>
         ))}
       </ul>
@@ -245,12 +265,10 @@ function ColumnRow({ column, onInsert }: { column: OsqueryColumn; onInsert?: (na
   const row = (
     <div className="flex items-baseline justify-between gap-2 py-1.5">
       <span className="flex min-w-0 items-baseline gap-1">
-        <span className="truncate font-mono text-sm">{column.name}</span>
+        <span className="truncate text-sm">{column.name}</span>
         {column.required ? <span className="text-destructive text-xs">*</span> : null}
       </span>
-      <span className="text-muted-foreground shrink-0 font-mono text-[10px] tracking-wide uppercase">
-        {column.type}
-      </span>
+      <span className="text-muted-foreground shrink-0 text-[10px] tracking-wide uppercase">{column.type}</span>
     </div>
   );
 
@@ -261,7 +279,6 @@ function ColumnRow({ column, onInsert }: { column: OsqueryColumn; onInsert?: (na
       type="button"
       onClick={() => onInsert(column.name)}
       className="hover:bg-muted/60 -mx-2 block w-[calc(100%+1rem)] rounded px-2 text-left"
-      aria-label={`Insert column ${column.name}`}
     >
       {row}
     </button>

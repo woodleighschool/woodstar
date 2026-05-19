@@ -4,12 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import {
-  EditButton,
-  ExportButton,
-  LiveRunButton,
-  ShowQueryButton,
-} from "@/components/queries/query-ui";
+import { EditButton, ExportButton, LiveRunButton, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useQueryDetail, useQueryResults } from "@/hooks/use-queries";

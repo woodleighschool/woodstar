@@ -20,8 +20,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { PageTabs, PageTabsContent, PageTabsList, PageTabsTrigger } from "@/components/ui/page-tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useHost,
   useHostChecks,
@@ -72,15 +72,15 @@ export function HostDetailPage() {
     <div className="flex flex-col gap-6 p-6">
       <HostHeader host={host} />
 
-      <PageTabs defaultValue="details">
-        <PageTabsList>
-          <PageTabsTrigger value="details">Details</PageTabsTrigger>
-          <PageTabsTrigger value="software">Software</PageTabsTrigger>
-          <PageTabsTrigger value="reports">Reports</PageTabsTrigger>
-          <PageTabsTrigger value="checks">Checks</PageTabsTrigger>
-        </PageTabsList>
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="software">Software</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="checks">Checks</TabsTrigger>
+        </TabsList>
 
-        <PageTabsContent value="details">
+        <TabsContent value="details">
           <div className="flex flex-col gap-4">
             <HostInfoCard host={host} />
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
@@ -89,20 +89,20 @@ export function HostDetailPage() {
             </div>
             <HostCertificatesCard host={host} />
           </div>
-        </PageTabsContent>
+        </TabsContent>
 
-        <PageTabsContent value="software">
+        <TabsContent value="software">
           <SoftwareTab hostId={hostId} />
-        </PageTabsContent>
+        </TabsContent>
 
-        <PageTabsContent value="reports">
+        <TabsContent value="reports">
           <HostReportsTab hostId={hostId} />
-        </PageTabsContent>
+        </TabsContent>
 
-        <PageTabsContent value="checks">
+        <TabsContent value="checks">
           <HostChecksTab hostId={hostId} />
-        </PageTabsContent>
-      </PageTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

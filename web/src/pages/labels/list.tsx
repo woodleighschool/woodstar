@@ -206,7 +206,7 @@ function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" size="icon" variant="ghost" aria-label={`Actions for ${label.name}`}>
+        <Button type="button" size="icon" variant="ghost">
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
