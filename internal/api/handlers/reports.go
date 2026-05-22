@@ -13,6 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -23,27 +24,27 @@ const (
 )
 
 type reportMutationBody struct {
-	Name              string           `json:"name"`
-	Description       string           `json:"description,omitempty"`
-	Query             string           `json:"query"`
-	Platform          *string          `json:"platform,omitempty"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
-	LabelScope        scope.LabelScope `json:"label_scope"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description,omitempty"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int                  `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope     `json:"label_scope"`
 }
 
 type reportBody struct {
-	ID                int64            `json:"id"`
-	Name              string           `json:"name"`
-	Description       string           `json:"description"`
-	Query             string           `json:"query"`
-	Platform          *string          `json:"platform,omitempty"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval"`
-	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID                int64                `json:"id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int                  `json:"schedule_interval"`
+	LabelScope        scope.LabelScope     `json:"label_scope,omitzero"`
+	CreatedByUserID   *int64               `json:"created_by_user_id,omitempty"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
 }
 
 type reportResultBody struct {
@@ -380,7 +381,7 @@ func (body reportMutationBody) createParams(userID *int64) (reports.ReportCreate
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
-		Platform:          body.Platform,
+		Platforms:         body.Platforms,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
 		LabelScope:        s,
@@ -397,7 +398,7 @@ func (body reportMutationBody) updateParams() (reports.ReportUpdate, error) {
 		Name:              body.Name,
 		Description:       body.Description,
 		Query:             body.Query,
-		Platform:          body.Platform,
+		Platforms:         body.Platforms,
 		MinOsqueryVersion: body.MinOsqueryVersion,
 		ScheduleInterval:  body.ScheduleInterval,
 		LabelScope:        s,
@@ -418,7 +419,7 @@ func reportBodyFromReport(report reports.Report) reportBody {
 		Name:              report.Name,
 		Description:       report.Description,
 		Query:             report.Query,
-		Platform:          report.Platform,
+		Platforms:         report.Platforms,
 		MinOsqueryVersion: report.MinOsqueryVersion,
 		ScheduleInterval:  report.ScheduleInterval,
 		LabelScope:        report.LabelScope,

@@ -4,7 +4,7 @@ SELECT
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -17,14 +17,14 @@ INSERT INTO checks (
     name,
     description,
     query,
-    platform,
+    platforms,
     created_by_user_id
 )
 VALUES (
     @name,
     @description,
     @query,
-    sqlc.narg(platform),
+    @platforms,
     sqlc.narg(created_by_user_id)
 )
 RETURNING
@@ -32,7 +32,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -44,7 +44,7 @@ SET
     name = @name,
     description = @description,
     query = @query,
-    platform = sqlc.narg(platform),
+    platforms = @platforms,
     updated_at = now()
 WHERE id = @id
 RETURNING
@@ -52,7 +52,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -81,7 +81,7 @@ SELECT
     c.name,
     c.description,
     c.query,
-    c.platform,
+    c.platforms,
     c.label_scope_mode,
     c.created_by_user_id,
     c.created_at,
@@ -89,10 +89,9 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -172,10 +171,9 @@ FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -240,10 +238,9 @@ FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'

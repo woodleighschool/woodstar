@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const (
@@ -59,20 +60,20 @@ type labelDeleteInput struct {
 }
 
 type labelCreateBody struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description,omitempty"`
-	Query          *string `json:"query,omitempty"`
-	LabelType      string  `json:"label_type,omitempty"`
-	MembershipType string  `json:"label_membership_type,omitempty"`
-	Platform       *string `json:"platform,omitempty"`
+	Name           string               `json:"name"`
+	Description    string               `json:"description,omitempty"`
+	Query          *string              `json:"query,omitempty"`
+	LabelType      string               `json:"label_type,omitempty"`
+	MembershipType string               `json:"label_membership_type,omitempty"`
+	Platforms      []platforms.Platform `json:"platforms"                       minItems:"1" nullable:"false"`
 }
 
 type labelMutationBody struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description,omitempty"`
-	Query          *string `json:"query,omitempty"`
-	MembershipType string  `json:"label_membership_type,omitempty"`
-	Platform       *string `json:"platform,omitempty"`
+	Name           string               `json:"name"`
+	Description    string               `json:"description,omitempty"`
+	Query          *string              `json:"query,omitempty"`
+	MembershipType string               `json:"label_membership_type,omitempty"`
+	Platforms      []platforms.Platform `json:"platforms"                       minItems:"1" nullable:"false"`
 }
 
 func (i labelListInput) params() labels.LabelListParams {
@@ -132,7 +133,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Query:               input.Body.Query,
 			LabelType:           input.Body.LabelType,
 			LabelMembershipType: input.Body.MembershipType,
-			Platform:            input.Body.Platform,
+			Platforms:           input.Body.Platforms,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
@@ -180,7 +181,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
 			LabelMembershipType: input.Body.MembershipType,
-			Platform:            input.Body.Platform,
+			Platforms:           input.Body.Platforms,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)

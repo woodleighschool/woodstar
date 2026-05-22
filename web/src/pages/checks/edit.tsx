@@ -15,12 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const emptyCheck: CheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
+  platforms: [...DEFAULT_TARGET_PLATFORMS],
   label_scope: {},
 };
 
@@ -55,7 +57,7 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          platform: detail.data.platform,
+          platforms: detail.data.platforms,
           label_scope: detail.data.label_scope ?? {},
         }
       : emptyCheck;
@@ -141,7 +143,7 @@ function CheckEditForm({
 
       <div className="grid gap-4">
         <div className="grid max-w-3xl gap-4">
-          <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
+          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
         </div>
         <LabelScopeSelector
           entity="check"

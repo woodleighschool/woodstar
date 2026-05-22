@@ -1,8 +1,12 @@
 package labels
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 func TestCleanLabelCreate(t *testing.T) {
@@ -19,14 +23,16 @@ func TestCleanLabelCreate(t *testing.T) {
 		{
 			name: "dynamic label with query is valid",
 			in: LabelCreate{
-				Name:  " Macs ",
-				Query: &query,
+				Name:      " Macs ",
+				Query:     &query,
+				Platforms: []platforms.Platform{" darwin ", "DARWIN"},
 			},
 			want: LabelCreate{
 				Name:                "Macs",
 				Query:               new("select 1;"),
 				LabelType:           LabelTypeRegular,
 				LabelMembershipType: LabelMembershipTypeDynamic,
+				Platforms:           []platforms.Platform{platforms.PlatformDarwin},
 			},
 		},
 		{
@@ -34,6 +40,7 @@ func TestCleanLabelCreate(t *testing.T) {
 			in: LabelCreate{
 				Name:                "No query",
 				LabelMembershipType: LabelMembershipTypeDynamic,
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "query is required for dynamic labels",
 		},
@@ -43,6 +50,7 @@ func TestCleanLabelCreate(t *testing.T) {
 				Name:                "Manual",
 				Query:               &staticQuery,
 				LabelMembershipType: LabelMembershipTypeManual,
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "query is only allowed for dynamic labels",
 		},
@@ -52,13 +60,15 @@ func TestCleanLabelCreate(t *testing.T) {
 				Name:                "Department",
 				Query:               &staticQuery,
 				LabelMembershipType: LabelMembershipTypeDerived,
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "query is only allowed for dynamic labels",
 		},
 		{
 			name: "missing name is invalid",
 			in: LabelCreate{
-				Query: &query,
+				Query:     &query,
+				Platforms: allPlatforms(),
 			},
 			wantErr: "name is required",
 		},
@@ -69,6 +79,7 @@ func TestCleanLabelCreate(t *testing.T) {
 				Query:               &query,
 				LabelType:           "magic",
 				LabelMembershipType: LabelMembershipTypeDynamic,
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "unknown label type",
 		},
@@ -79,6 +90,7 @@ func TestCleanLabelCreate(t *testing.T) {
 				Query:               &query,
 				LabelType:           LabelTypeBuiltin,
 				LabelMembershipType: LabelMembershipTypeDynamic,
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "builtin labels cannot be created",
 		},
@@ -88,6 +100,7 @@ func TestCleanLabelCreate(t *testing.T) {
 				Name:                "Bad membership",
 				Query:               &query,
 				LabelMembershipType: "maybe",
+				Platforms:           allPlatforms(),
 			},
 			wantErr: "unknown label membership type",
 		},
@@ -96,14 +109,22 @@ func TestCleanLabelCreate(t *testing.T) {
 			in: LabelCreate{
 				Name:                "Pinned",
 				LabelMembershipType: LabelMembershipTypeManual,
-				Platform:            new(" darwin "),
+				Platforms:           []platforms.Platform{" darwin "},
 			},
 			want: LabelCreate{
 				Name:                "Pinned",
 				LabelType:           LabelTypeRegular,
 				LabelMembershipType: LabelMembershipTypeManual,
-				Platform:            new("darwin"),
+				Platforms:           []platforms.Platform{platforms.PlatformDarwin},
 			},
+		},
+		{
+			name: "empty platforms are invalid",
+			in: LabelCreate{
+				Name:  "No targets",
+				Query: &query,
+			},
+			wantErr: "platforms are required",
 		},
 	}
 
@@ -131,7 +152,7 @@ func TestCleanLabelUpdate(t *testing.T) {
 		Name:                " Macs ",
 		Query:               &query,
 		LabelMembershipType: LabelMembershipTypeDynamic,
-		Platform:            new(" darwin "),
+		Platforms:           []platforms.Platform{" darwin "},
 	})
 	if err != nil {
 		t.Fatalf("cleanLabelUpdate returned error: %v", err)
@@ -143,7 +164,36 @@ func TestCleanLabelUpdate(t *testing.T) {
 		t.Fatalf("LabelMembershipType = %q, want %q", got.LabelMembershipType, LabelMembershipTypeDynamic)
 	}
 	assertStringPtr(t, "Query", got.Query, new("select 1;"))
-	assertStringPtr(t, "Platform", got.Platform, new("darwin"))
+	assertPlatforms(t, "Platforms", got.Platforms, []platforms.Platform{platforms.PlatformDarwin})
+}
+
+func TestLabelListFiltersByPlatformTargetSet(t *testing.T) {
+	store, ctx := newIntegrationLabelStore(t)
+	query := "select 1;"
+	if _, err := store.Create(ctx, LabelCreate{
+		Name:                "All targets label",
+		Query:               &query,
+		LabelMembershipType: LabelMembershipTypeDynamic,
+		Platforms:           allPlatforms(),
+	}); err != nil {
+		t.Fatalf("create all-target label: %v", err)
+	}
+	if _, err := store.Create(ctx, LabelCreate{
+		Name:                "Windows only label",
+		Query:               &query,
+		LabelMembershipType: LabelMembershipTypeDynamic,
+		Platforms:           []platforms.Platform{platforms.PlatformWindows},
+	}); err != nil {
+		t.Fatalf("create windows label: %v", err)
+	}
+
+	got, count, err := store.List(ctx, LabelListParams{LabelType: LabelTypeRegular, Platform: "darwin"})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
+	}
+	if count != 1 || len(got) != 1 || got[0].Name != "All targets label" {
+		t.Fatalf("List(platform=darwin) returned count=%d rows=%+v, want only all-target label", count, got)
+	}
 }
 
 func assertLabelCreate(t *testing.T, got LabelCreate, want LabelCreate) {
@@ -161,7 +211,7 @@ func assertLabelCreate(t *testing.T, got LabelCreate, want LabelCreate) {
 		t.Fatalf("LabelMembershipType = %q, want %q", got.LabelMembershipType, want.LabelMembershipType)
 	}
 	assertStringPtr(t, "Query", got.Query, want.Query)
-	assertStringPtr(t, "Platform", got.Platform, want.Platform)
+	assertPlatforms(t, "Platforms", got.Platforms, want.Platforms)
 }
 
 func assertStringPtr(t *testing.T, name string, got *string, want *string) {
@@ -174,4 +224,26 @@ func assertStringPtr(t *testing.T, name string, got *string, want *string) {
 	case *got != *want:
 		t.Fatalf("%s = %q, want %q", name, *got, *want)
 	}
+}
+
+func assertPlatforms(t *testing.T, name string, got []platforms.Platform, want []platforms.Platform) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s = %#v, want %#v", name, got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("%s = %#v, want %#v", name, got, want)
+		}
+	}
+}
+
+func allPlatforms() []platforms.Platform {
+	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
+}
+
+func newIntegrationLabelStore(t *testing.T) (*Store, context.Context) {
+	t.Helper()
+	database, ctx := dbtest.Open(t)
+	return NewStore(database), ctx
 }

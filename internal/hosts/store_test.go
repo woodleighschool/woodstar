@@ -8,6 +8,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 func TestDisplayNamePriority(t *testing.T) {
@@ -133,6 +134,7 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 		Name:                "Live Target Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -191,6 +193,7 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 		Name:                "Live Count Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -235,6 +238,7 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 		Name:                "Live Online Target Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -291,6 +295,10 @@ func newIntegrationHostStore(t *testing.T) (*Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
 	return NewStore(database), ctx
+}
+
+func allPlatforms() []platforms.Platform {
+	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
 }
 
 func TestCleanHostListParams(t *testing.T) {

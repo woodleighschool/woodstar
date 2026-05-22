@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -109,7 +109,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			Name:              params.Name,
 			Description:       params.Description,
 			Query:             params.Query,
-			Platform:          platformSQLCParam(params.Platform),
+			Platforms:         toSQLCPlatforms(params.Platforms),
 			MinOsqueryVersion: params.MinOsqueryVersion,
 			ScheduleInterval:  int32(params.ScheduleInterval),
 			CreatedByUserID:   params.CreatedByUserID,
@@ -144,7 +144,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			Name:              cleaned.Name,
 			Description:       cleaned.Description,
 			Query:             cleaned.Query,
-			Platform:          platformSQLCParam(cleaned.Platform),
+			Platforms:         toSQLCPlatforms(cleaned.Platforms),
 			MinOsqueryVersion: cleaned.MinOsqueryVersion,
 			ScheduleInterval:  int32(cleaned.ScheduleInterval),
 			ID:                id,
@@ -210,7 +210,11 @@ func cleanReportCreate(params ReportCreate) (ReportCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = platform.CleanPtr(params.Platform)
+	targets, err := platforms.CleanTargets(params.Platforms)
+	if err != nil {
+		return ReportCreate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	params.Platforms = targets
 	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
@@ -230,7 +234,7 @@ func cleanReportUpdate(params ReportUpdate) (ReportUpdate, error) {
 		Name:              params.Name,
 		Description:       params.Description,
 		Query:             params.Query,
-		Platform:          params.Platform,
+		Platforms:         params.Platforms,
 		MinOsqueryVersion: params.MinOsqueryVersion,
 		ScheduleInterval:  params.ScheduleInterval,
 		LabelScope:        params.LabelScope,
@@ -242,7 +246,7 @@ func cleanReportUpdate(params ReportUpdate) (ReportUpdate, error) {
 		Name:              cleaned.Name,
 		Description:       cleaned.Description,
 		Query:             cleaned.Query,
-		Platform:          cleaned.Platform,
+		Platforms:         cleaned.Platforms,
 		MinOsqueryVersion: cleaned.MinOsqueryVersion,
 		ScheduleInterval:  cleaned.ScheduleInterval,
 		LabelScope:        cleaned.LabelScope,
@@ -251,24 +255,26 @@ func cleanReportUpdate(params ReportUpdate) (ReportUpdate, error) {
 
 func cleanReportListParams(params ReportListParams) ReportListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.Platform = platform.CleanPlatform(params.Platform)
+	params.Platform = platforms.CleanPlatform(params.Platform)
 	return params
 }
 
 func scanReport(row pgx.Row) (*Report, error) {
 	var report Report
+	var sqlcPlatforms []sqlc.Platform
 	err := row.Scan(
 		&report.ID,
 		&report.Name,
 		&report.Description,
 		&report.Query,
-		&report.Platform,
+		&sqlcPlatforms,
 		&report.MinOsqueryVersion,
 		&report.ScheduleInterval,
 		&report.CreatedByUserID,
 		&report.CreatedAt,
 		&report.UpdatedAt,
 	)
+	report.Platforms = platformsFromSQLC(sqlcPlatforms)
 	return &report, err
 }
 
@@ -278,7 +284,7 @@ func reportFromSQLC(row sqlc.Report) *Report {
 		Name:              row.Name,
 		Description:       row.Description,
 		Query:             row.Query,
-		Platform:          stringPtrFromPlatform(row.Platform),
+		Platforms:         platformsFromSQLC(row.Platforms),
 		MinOsqueryVersion: row.MinOsqueryVersion,
 		ScheduleInterval:  int(row.ScheduleInterval),
 		CreatedByUserID:   row.CreatedByUserID,
@@ -287,24 +293,38 @@ func reportFromSQLC(row sqlc.Report) *Report {
 	}
 }
 
-func platformSQLCParam(value *string) *sqlc.Platform {
-	if value == nil {
-		return nil
+func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
+	out := make([]sqlc.Platform, len(values))
+	for i, value := range values {
+		out[i] = sqlc.Platform(value)
 	}
-	platform := sqlc.Platform(*value)
-	return &platform
+	return out
 }
 
-func stringPtrFromPlatform(value *sqlc.Platform) *string {
-	if value == nil {
-		return nil
+func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
+	out := make([]platforms.Platform, len(values))
+	for i, value := range values {
+		out[i] = platforms.Platform(value)
 	}
-	platform := string(*value)
-	return &platform
+	return out
 }
 
 func reportListWhere(params ReportListParams) (string, []any) {
-	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
+	clauses := make([]string, 0, 2)
+	args := make([]any, 0, 2)
+	if params.Q != "" {
+		args = append(args, "%"+strings.ToLower(params.Q)+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, "(lower(name) LIKE "+placeholder+" OR lower(description) LIKE "+placeholder+")")
+	}
+	if params.Platform != "" {
+		args = append(args, params.Platform)
+		clauses = append(clauses, fmt.Sprintf("$%d = ANY(platforms::text[])", len(args)))
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func reportListSQL(where string, args []any, params ReportListParams) (string, []any, error) {
@@ -324,6 +344,6 @@ func reportListSQL(where string, args []any, params ReportListParams) (string, [
 }
 
 const reportSelectSQL = `
-SELECT id, name, description, query, platform, min_osquery_version, schedule_interval,
+SELECT id, name, description, query, platforms, min_osquery_version, schedule_interval,
        created_by_user_id, created_at, updated_at
 FROM reports`

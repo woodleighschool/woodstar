@@ -4,20 +4,21 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Check is a query-backed pass/fail policy.
 type Check struct {
-	ID              int64            `json:"id"`
-	Name            string           `json:"name"`
-	Description     string           `json:"description"`
-	Query           string           `json:"query"`
-	Platform        *string          `json:"platform,omitempty"`
-	LabelScope      scope.LabelScope `json:"label_scope,omitzero"`
-	CreatedByUserID *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
+	ID              int64                `json:"id"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description"`
+	Query           string               `json:"query"`
+	Platforms       []platforms.Platform `json:"platforms"                    minItems:"1" nullable:"false"`
+	LabelScope      scope.LabelScope     `json:"label_scope,omitzero"`
+	CreatedByUserID *int64               `json:"created_by_user_id,omitempty"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
 // CheckCreate contains editable check fields.
@@ -25,7 +26,7 @@ type CheckCreate struct {
 	Name            string
 	Description     string
 	Query           string
-	Platform        *string
+	Platforms       []platforms.Platform
 	LabelScope      scope.LabelScope
 	CreatedByUserID *int64
 }
@@ -35,7 +36,7 @@ type CheckUpdate struct {
 	Name        string
 	Description string
 	Query       string
-	Platform    *string
+	Platforms   []platforms.Platform
 	LabelScope  scope.LabelScope
 }
 

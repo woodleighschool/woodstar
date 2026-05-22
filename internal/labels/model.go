@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 // Label types. LabelType separates system-seeded labels from admin-created ones.
@@ -25,16 +25,16 @@ const (
 
 // Label is a host grouping and targeting primitive.
 type Label struct {
-	ID                  int64              `json:"id"`
-	Name                string             `json:"name"`
-	Description         string             `json:"description"`
-	Query               *string            `json:"query,omitempty"`
-	LabelType           string             `json:"label_type"`
-	LabelMembershipType string             `json:"label_membership_type"`
-	Platform            *platform.Platform `json:"platform,omitempty"`
-	HostsCount          int                `json:"hosts_count"`
-	CreatedAt           time.Time          `json:"created_at,omitzero"`
-	UpdatedAt           time.Time          `json:"updated_at,omitzero"`
+	ID                  int64                `json:"id"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Query               *string              `json:"query,omitempty"`
+	LabelType           string               `json:"label_type"`
+	LabelMembershipType string               `json:"label_membership_type"`
+	Platforms           []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
+	HostsCount          int                  `json:"hosts_count"`
+	CreatedAt           time.Time            `json:"created_at,omitzero"`
+	UpdatedAt           time.Time            `json:"updated_at,omitzero"`
 }
 
 // LabelListParams filters the admin label list.
@@ -53,7 +53,7 @@ type LabelCreate struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platform            *string
+	Platforms           []platforms.Platform
 }
 
 // LabelUpdate contains the full editable label state.
@@ -62,5 +62,5 @@ type LabelUpdate struct {
 	Description         string
 	Query               *string
 	LabelMembershipType string
-	Platform            *string
+	Platforms           []platforms.Platform
 }

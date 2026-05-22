@@ -32,12 +32,8 @@ func Open(ctx context.Context, databaseURL string) (*DB, error) {
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 30 * time.Minute
 
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	pool, err := openPool(ctx, cfg)
 	if err != nil {
-		return nil, err
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
 		return nil, err
 	}
 
@@ -47,7 +43,13 @@ func Open(ctx context.Context, databaseURL string) (*DB, error) {
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	return db, nil
+	pool.Close()
+	cfg.AfterConnect = registerConnTypes
+	pool, err = openPool(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &DB{pool: pool}, nil
 }
 
 // Close releases database connections.
@@ -85,4 +87,27 @@ func (db *DB) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+func openPool(ctx context.Context, cfg *pgxpool.Config) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return pool, nil
+}
+
+func registerConnTypes(ctx context.Context, conn *pgx.Conn) error {
+	for _, name := range []string{"platform", "_platform"} {
+		dataType, err := conn.LoadType(ctx, name)
+		if err != nil {
+			return fmt.Errorf("load %s type: %w", name, err)
+		}
+		conn.TypeMap().RegisterType(dataType)
+	}
+	return nil
 }

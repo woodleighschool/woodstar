@@ -11,7 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 // Store persists labels and host memberships.
@@ -54,7 +54,7 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 			&label.Query,
 			&label.LabelType,
 			&label.LabelMembershipType,
-			&label.Platform,
+			&label.Platforms,
 			&label.CreatedAt,
 			&label.UpdatedAt,
 			&label.HostsCount,
@@ -110,7 +110,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		Query:               params.Query,
 		LabelType:           params.LabelType,
 		LabelMembershipType: params.LabelMembershipType,
-		Platform:            platformParam(params.Platform),
+		Platforms:           toSQLCPlatforms(params.Platforms),
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -132,7 +132,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		Description:         params.Description,
 		Query:               params.Query,
 		LabelMembershipType: params.LabelMembershipType,
-		Platform:            platformParam(params.Platform),
+		Platforms:           toSQLCPlatforms(params.Platforms),
 		ID:                  id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -171,7 +171,7 @@ func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]L
 	return labels, nil
 }
 
-// ApplicableDynamicIDs returns the subset of ids that are current dynamic labels for platform.
+// ApplicableDynamicIDs returns the subset of ids that are current dynamic labels for a host platform.
 func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
@@ -222,7 +222,7 @@ func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
 		Query:               params.Query,
 		LabelType:           LabelTypeRegular,
 		LabelMembershipType: params.LabelMembershipType,
-		Platform:            params.Platform,
+		Platforms:           params.Platforms,
 	})
 	if err != nil {
 		return LabelUpdate{}, err
@@ -232,7 +232,7 @@ func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
 		Description:         fields.Description,
 		Query:               fields.Query,
 		LabelMembershipType: fields.LabelMembershipType,
-		Platform:            fields.Platform,
+		Platforms:           fields.Platforms,
 	}, nil
 }
 
@@ -242,14 +242,18 @@ type labelFields struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platform            *string
+	Platforms           []platforms.Platform
 }
 
 func cleanLabelFields(params labelFields) (labelFields, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = dbutil.CleanStringPtr(params.Query)
-	params.Platform = platform.CleanPtr(params.Platform)
+	targets, err := platforms.CleanTargets(params.Platforms)
+	if err != nil {
+		return labelFields{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	params.Platforms = targets
 	if params.LabelType == "" {
 		params.LabelType = LabelTypeRegular
 	}
@@ -266,7 +270,7 @@ func cleanLabelListParams(params LabelListParams) LabelListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.LabelType = strings.TrimSpace(params.LabelType)
 	params.LabelMembershipType = strings.TrimSpace(params.LabelMembershipType)
-	params.Platform = platform.CleanPlatform(params.Platform)
+	params.Platform = platforms.CleanPlatform(params.Platform)
 	return params
 }
 
@@ -279,7 +283,7 @@ func labelListSQLWithWhere(params LabelListParams, where string, args []any) (st
 	l.query,
 	l.label_type,
 	l.label_membership_type,
-	l.platform,
+	l.platforms,
 	l.created_at,
 	l.updated_at,
 	count(lm.host_id)::integer AS hosts_count
@@ -292,7 +296,7 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 			"name":                  {SQL: "lower(l.name)"},
 			"label_type":            {SQL: "l.label_type"},
 			"label_membership_type": {SQL: "l.label_membership_type"},
-			"platform":              {SQL: "l.platform", NullsLast: true},
+			"platform":              {SQL: "l.platforms::text"},
 			"hosts_count":           {SQL: "hosts_count"},
 			"updated_at":            {SQL: "l.updated_at"},
 		},
@@ -319,7 +323,7 @@ func labelListWhere(params LabelListParams) (string, []any) {
 	}
 	if params.Platform != "" {
 		args = append(args, params.Platform)
-		clauses = append(clauses, fmt.Sprintf("l.platform = $%d", len(args)))
+		clauses = append(clauses, fmt.Sprintf("$%d = ANY(l.platforms::text[])", len(args)))
 	}
 	if len(clauses) == 0 {
 		return "", args
@@ -351,14 +355,6 @@ func validateLabelFields(name string, query *string, labelType, labelMembershipT
 	return nil
 }
 
-func platformParam(value *string) *sqlc.Platform {
-	if value == nil {
-		return nil
-	}
-	platform := sqlc.Platform(*value)
-	return &platform
-}
-
 func labelFromSQLC(s sqlc.Label) Label {
 	return Label{
 		ID:                  s.ID,
@@ -367,16 +363,24 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Query:               s.Query,
 		LabelType:           s.LabelType,
 		LabelMembershipType: s.LabelMembershipType,
-		Platform:            platformFromSQLC(s.Platform),
+		Platforms:           platformsFromSQLC(s.Platforms),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
 }
 
-func platformFromSQLC(value *sqlc.Platform) *platform.Platform {
-	if value == nil {
-		return nil
+func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
+	out := make([]sqlc.Platform, len(values))
+	for i, value := range values {
+		out[i] = sqlc.Platform(value)
 	}
-	platform := platform.Platform(*value)
-	return &platform
+	return out
+}
+
+func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
+	out := make([]platforms.Platform, len(values))
+	for i, value := range values {
+		out[i] = platforms.Platform(value)
+	}
+	return out
 }

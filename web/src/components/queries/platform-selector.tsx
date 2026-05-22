@@ -1,36 +1,29 @@
 import { PlatformIcon } from "@/components/platform/platform-icons";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  PLATFORM_LABELS,
-  QUERYABLE_PLATFORMS,
-  platformsFromValue,
-  platformsToValue,
-  type QueryablePlatform,
-} from "@/lib/targeting";
+import { cleanQueryablePlatforms, PLATFORM_LABELS, QUERYABLE_PLATFORMS, type QueryablePlatform } from "@/lib/targeting";
 
 export function PlatformSelector({
   value,
   onChange,
   disabled = false,
 }: {
-  value?: string | null;
-  onChange: (next: string | undefined) => void;
+  value: readonly string[];
+  onChange: (next: QueryablePlatform[]) => void;
   disabled?: boolean;
 }) {
-  const selected = platformsFromValue(value);
+  const selected = cleanQueryablePlatforms(value);
 
   function handleChange(next: string[]) {
-    onChange(platformsToValue(next as QueryablePlatform[]));
+    if (next.length === 0) return;
+    onChange(cleanQueryablePlatforms(next));
   }
 
   return (
     <div className="grid gap-2">
       <Label>Targeted platforms</Label>
       <PlatformToggleGroup selected={selected} onChange={handleChange} disabled={disabled} />
-      <p className="text-muted-foreground text-xs">
-        {selected.length === 0 ? "Targeting all platforms." : "Toggle to limit which platforms run this."}
-      </p>
+      <p className="text-muted-foreground text-xs">Toggle to choose exactly which platforms run this.</p>
     </div>
   );
 }
@@ -54,7 +47,12 @@ export function PlatformToggleGroup({
       className="flex-wrap justify-start"
     >
       {QUERYABLE_PLATFORMS.map((platform) => (
-        <ToggleGroupItem key={platform} value={platform} className="gap-2">
+        <ToggleGroupItem
+          key={platform}
+          value={platform}
+          className="gap-2"
+          disabled={disabled || (selected.length === 1 && selected[0] === platform)}
+        >
           <PlatformIcon platform={platform} className="size-4" />
           {PLATFORM_LABELS[platform]}
         </ToggleGroupItem>

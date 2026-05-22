@@ -33,15 +33,15 @@ export function PageLead({ title, description, actions }: { title: string; descr
   );
 }
 
-export function PlatformBadge({ platform }: { platform?: string | null }) {
-  return <PlatformIconList platforms={selectedPlatformIconTargets(platform)} iconClassName="size-4" />;
+export function PlatformBadge({ platforms }: { platforms?: readonly string[] | null }) {
+  return <PlatformIconList platforms={selectedPlatformIconTargets(platforms)} iconClassName="size-4" />;
 }
 
-export function TargetSummary({ scope, platform }: { scope?: LabelScope; platform?: string | null }) {
+export function TargetSummary({ scope, platforms }: { scope?: LabelScope; platforms?: readonly string[] | null }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <span>{targetScopeLabel(scope)}</span>
-      <PlatformIconList platforms={selectedPlatformIconTargets(platform)} iconClassName="size-3.5" />
+      <PlatformIconList platforms={selectedPlatformIconTargets(platforms)} iconClassName="size-3.5" />
     </span>
   );
 }

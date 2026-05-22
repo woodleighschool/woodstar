@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateReport, useReport, useUpdateReport, type ReportMutation } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -35,6 +36,7 @@ const emptyReport: ReportMutation = {
   name: "",
   description: "",
   query: "select * from os_version;",
+  platforms: [...DEFAULT_TARGET_PLATFORMS],
   schedule_interval: 0,
   label_scope: {},
 };
@@ -70,7 +72,7 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          platform: detail.data.platform,
+          platforms: detail.data.platforms,
           min_osquery_version: detail.data.min_osquery_version,
           schedule_interval: detail.data.schedule_interval,
           label_scope: detail.data.label_scope ?? {},
@@ -179,7 +181,7 @@ function ReportEditForm({
             </Select>
             <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
           </div>
-          <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
+          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
         </div>
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
       </div>

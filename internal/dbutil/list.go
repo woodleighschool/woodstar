@@ -1,9 +1,6 @@
 package dbutil
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 const (
 	defaultPerPage = 50
@@ -42,32 +39,6 @@ func CleanListParams(params ListParams) ListParams {
 		params.OrderDirection = orderAsc
 	}
 	return params
-}
-
-func NameSearchAndPlatformWhere(q string, platform string) (string, []any) {
-	where := make([]string, 0)
-	args := make([]any, 0)
-	if q != "" {
-		args = append(args, "%"+strings.ToLower(q)+"%")
-		where = append(
-			where,
-			fmt.Sprintf("(lower(name) LIKE $%d OR lower(description) LIKE $%d)", len(args), len(args)),
-		)
-	}
-	if platform != "" {
-		args = append(args, platform)
-		where = append(
-			where,
-			fmt.Sprintf(
-				"(platform IS NULL OR $%d = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')))",
-				len(args),
-			),
-		)
-	}
-	if len(where) == 0 {
-		return "", args
-	}
-	return "WHERE " + strings.Join(where, " AND "), args
 }
 
 func SplitListValues(values []string) []string {

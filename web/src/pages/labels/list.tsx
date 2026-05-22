@@ -84,9 +84,9 @@ export function LabelsPage() {
     },
     {
       id: "platform",
-      accessorKey: "platform",
+      accessorKey: "platforms",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{platformLabel(row.original.platform)}</span>,
+      cell: ({ row }) => <span className="text-muted-foreground">{platformLabel(row.original.platforms)}</span>,
     },
     {
       id: "hosts_count",

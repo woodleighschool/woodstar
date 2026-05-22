@@ -337,7 +337,9 @@ CREATE TABLE labels (
     criteria JSONB,
     label_type TEXT NOT NULL CHECK (label_type IN ('builtin', 'regular')),
     label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'derived')),
-    platform platform,
+    platforms platform[] NOT NULL
+        DEFAULT ARRAY['darwin','windows','linux']::platform[]
+        CHECK (cardinality(platforms) > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
@@ -349,7 +351,7 @@ CREATE TABLE labels (
 
 CREATE INDEX labels_label_type_idx ON labels (label_type);
 CREATE INDEX labels_label_membership_type_idx ON labels (label_membership_type);
-CREATE INDEX labels_platform_idx ON labels (platform);
+CREATE INDEX labels_platforms_idx ON labels USING GIN (platforms);
 
 CREATE TABLE label_membership (
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
@@ -361,12 +363,12 @@ CREATE TABLE label_membership (
 
 CREATE INDEX label_membership_host_idx ON label_membership (host_id);
 
-INSERT INTO labels (name, description, query, label_type, label_membership_type, platform)
+INSERT INTO labels (name, description, query, label_type, label_membership_type, platforms)
 VALUES
-    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', NULL),
-    ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', 'darwin'),
-    ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', 'windows'),
-    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'');', 'builtin', 'dynamic', 'linux');
+    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', ARRAY['darwin','windows','linux']::platform[]),
+    ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', ARRAY['darwin']::platform[]),
+    ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', ARRAY['windows']::platform[]),
+    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'');', 'builtin', 'dynamic', ARRAY['linux']::platform[]);
 
 -- Reports / Checks -----------------------------------------------------------
 
@@ -375,7 +377,9 @@ CREATE TABLE reports (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platform platform,
+    platforms platform[] NOT NULL
+        DEFAULT ARRAY['darwin','windows','linux']::platform[]
+        CHECK (cardinality(platforms) > 0),
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
@@ -388,6 +392,7 @@ CREATE TABLE reports (
 CREATE INDEX reports_schedule_idx
     ON reports (schedule_interval)
     WHERE schedule_interval > 0;
+CREATE INDEX reports_platforms_idx ON reports USING GIN (platforms);
 
 CREATE TABLE report_results (
     id BIGSERIAL PRIMARY KEY,
@@ -408,7 +413,9 @@ CREATE TABLE checks (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platform platform,
+    platforms platform[] NOT NULL
+        DEFAULT ARRAY['darwin','windows','linux']::platform[]
+        CHECK (cardinality(platforms) > 0),
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -426,6 +433,7 @@ CREATE TABLE check_membership (
 
 CREATE INDEX check_membership_passes_idx
     ON check_membership (check_id, passes);
+CREATE INDEX checks_platforms_idx ON checks USING GIN (platforms);
 
 CREATE TABLE report_labels (
     report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,

@@ -22,6 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/secrets"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -83,12 +84,11 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create enroll secret: %v", err)
 	}
-	platform := "darwin"
 	minVersion := "6.0.0"
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:              "Versioned report " + suffix,
 		Query:             "select 42;",
-		Platform:          &platform,
+		Platforms:         allPlatforms(),
 		MinOsqueryVersion: &minVersion,
 		ScheduleInterval:  60,
 	})
@@ -110,7 +110,7 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	for _, entry := range body.Schedule {
 		if entry.Query == "select 42;" {
-			if entry.Version != "6.0.0" || entry.Platform != "darwin" {
+			if entry.Version != "6.0.0" || entry.Platform != "darwin,windows,linux" {
 				t.Fatalf("schedule entry = %+v, want version and platform carried through", entry)
 			}
 			return
@@ -133,6 +133,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
+		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 	})
 	if err != nil {
@@ -513,4 +514,8 @@ func doOsqueryJSON(
 			t.Fatalf("decode %s %s response: %v; body: %s", method, path, err, rec.Body.String())
 		}
 	}
+}
+
+func allPlatforms() []platforms.Platform {
+	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
 }

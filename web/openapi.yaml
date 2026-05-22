@@ -99,8 +99,11 @@ components:
           $ref: "#/components/schemas/LabelScope"
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
         updated_at:
@@ -111,6 +114,7 @@ components:
         - name
         - description
         - query
+        - platforms
         - created_at
         - updated_at
       type: object
@@ -202,13 +206,17 @@ components:
           $ref: "#/components/schemas/LabelScope"
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
       required:
         - name
         - query
+        - platforms
         - label_scope
       type: object
     ErrorDetail:
@@ -897,8 +905,11 @@ components:
           type: string
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
         updated_at:
@@ -910,6 +921,7 @@ components:
         - description
         - label_type
         - label_membership_type
+        - platforms
         - hosts_count
       type: object
     LabelCreateBody:
@@ -930,12 +942,16 @@ components:
           type: string
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
       required:
         - name
+        - platforms
       type: object
     LabelListBody:
       additionalProperties: false
@@ -976,12 +992,16 @@ components:
           type: string
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
       required:
         - name
+        - platforms
       type: object
     LabelScope:
       additionalProperties: false
@@ -1204,8 +1224,11 @@ components:
           type: string
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
         schedule_interval:
@@ -1219,6 +1242,7 @@ components:
         - name
         - description
         - query
+        - platforms
         - schedule_interval
         - created_at
         - updated_at
@@ -1264,8 +1288,11 @@ components:
           type: string
         name:
           type: string
-        platform:
-          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
         query:
           type: string
         schedule_interval:
@@ -1274,6 +1301,7 @@ components:
       required:
         - name
         - query
+        - platforms
         - label_scope
       type: object
     ReportResultBody:
@@ -1592,7 +1620,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: def032d-dirty
+  version: b7b9f0a-dirty
 openapi: 3.1.0
 paths:
   /api/account:

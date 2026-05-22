@@ -638,7 +638,7 @@ export interface components {
             id: number;
             label_scope?: components["schemas"]["LabelScope"];
             name: string;
-            platform?: string;
+            platforms: string[];
             query: string;
             /** Format: date-time */
             updated_at: string;
@@ -685,7 +685,7 @@ export interface components {
             description?: string;
             label_scope: components["schemas"]["LabelScope"];
             name: string;
-            platform?: string;
+            platforms: string[];
             query: string;
         };
         ErrorDetail: {
@@ -1010,7 +1010,7 @@ export interface components {
             label_membership_type: string;
             label_type: string;
             name: string;
-            platform?: string;
+            platforms: string[];
             query?: string;
             /** Format: date-time */
             updated_at?: string;
@@ -1026,7 +1026,7 @@ export interface components {
             label_membership_type?: string;
             label_type?: string;
             name: string;
-            platform?: string;
+            platforms: string[];
             query?: string;
         };
         LabelListBody: {
@@ -1050,7 +1050,7 @@ export interface components {
             description?: string;
             label_membership_type?: string;
             name: string;
-            platform?: string;
+            platforms: string[];
             query?: string;
         };
         LabelScope: {
@@ -1163,7 +1163,7 @@ export interface components {
             label_scope?: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
-            platform?: string;
+            platforms: string[];
             query: string;
             /** Format: int64 */
             schedule_interval: number;
@@ -1192,7 +1192,7 @@ export interface components {
             label_scope: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
-            platform?: string;
+            platforms: string[];
             query: string;
             /** Format: int64 */
             schedule_interval?: number;

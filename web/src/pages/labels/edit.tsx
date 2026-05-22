@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 type MembershipType = "dynamic" | "manual" | "derived";
@@ -42,7 +43,7 @@ interface FormState {
   description: string;
   query: string;
   label_membership_type: MembershipType;
-  platform?: string;
+  platforms: string[];
 }
 
 const empty: FormState = {
@@ -50,7 +51,7 @@ const empty: FormState = {
   description: "",
   query: "select 1 from os_version where major >= 13;",
   label_membership_type: "dynamic",
-  platform: undefined,
+  platforms: [...DEFAULT_TARGET_PLATFORMS],
 };
 
 export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
@@ -95,7 +96,7 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
           description: detail.data.description,
           query: detail.data.query ?? empty.query,
           label_membership_type: membershipFromString(detail.data.label_membership_type),
-          platform: detail.data.platform ?? undefined,
+          platforms: detail.data.platforms,
         }
       : empty;
 
@@ -116,13 +117,12 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
   const memberOption = MEMBERSHIP_OPTIONS.find((o) => o.value === form.label_membership_type);
 
   async function submit() {
-    const platform = form.platform?.trim() === "" ? undefined : form.platform?.trim();
     if (mode === "create") {
       const body: LabelCreate = {
         name: form.name,
         description: form.description,
         label_membership_type: form.label_membership_type,
-        platform: isDynamic ? platform : undefined,
+        platforms: form.platforms,
         query: isDynamic ? form.query : undefined,
       };
       await createLabel.mutateAsync(body);
@@ -131,7 +131,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
         name: form.name,
         description: form.description,
         label_membership_type: form.label_membership_type,
-        platform: isDynamic ? platform : undefined,
+        platforms: form.platforms,
         query: isDynamic ? form.query : undefined,
       };
       await updateLabel.mutateAsync(body);
@@ -222,9 +222,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
           {memberOption ? <p className="text-muted-foreground text-xs">{memberOption.helpText}</p> : null}
         </div>
 
-        {isDynamic ? (
-          <PlatformSelector value={form.platform} onChange={(platform) => setForm({ ...form, platform })} />
-        ) : null}
+        <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
       </div>
 
       {isDynamic ? (

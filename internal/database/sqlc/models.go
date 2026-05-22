@@ -186,7 +186,7 @@ type Check struct {
 	Name            string         `json:"name"`
 	Description     string         `json:"description"`
 	Query           string         `json:"query"`
-	Platform        *Platform      `json:"platform"`
+	Platforms       []Platform     `json:"platforms"`
 	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 	CreatedAt       time.Time      `json:"created_at"`
@@ -378,16 +378,16 @@ type HostUser struct {
 }
 
 type Label struct {
-	ID                  int64     `json:"id"`
-	Name                string    `json:"name"`
-	Description         string    `json:"description"`
-	Query               *string   `json:"query"`
-	Criteria            []byte    `json:"criteria"`
-	LabelType           string    `json:"label_type"`
-	LabelMembershipType string    `json:"label_membership_type"`
-	Platform            *Platform `json:"platform"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                  int64      `json:"id"`
+	Name                string     `json:"name"`
+	Description         string     `json:"description"`
+	Query               *string    `json:"query"`
+	Criteria            []byte     `json:"criteria"`
+	LabelType           string     `json:"label_type"`
+	LabelMembershipType string     `json:"label_membership_type"`
+	Platforms           []Platform `json:"platforms"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type LabelMembership struct {
@@ -402,7 +402,7 @@ type Report struct {
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
 	Query             string         `json:"query"`
-	Platform          *Platform      `json:"platform"`
+	Platforms         []Platform     `json:"platforms"`
 	MinOsqueryVersion *string        `json:"min_osquery_version"`
 	ScheduleInterval  int32          `json:"schedule_interval"`
 	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`

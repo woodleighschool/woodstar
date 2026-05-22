@@ -15,7 +15,7 @@ INSERT INTO checks (
     name,
     description,
     query,
-    platform,
+    platforms,
     created_by_user_id
 )
 VALUES (
@@ -30,7 +30,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -38,11 +38,11 @@ RETURNING
 `
 
 type CreateCheckParams struct {
-	Name            string    `json:"name"`
-	Description     string    `json:"description"`
-	Query           string    `json:"query"`
-	Platform        *Platform `json:"platform"`
-	CreatedByUserID *int64    `json:"created_by_user_id"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description"`
+	Query           string     `json:"query"`
+	Platforms       []Platform `json:"platforms"`
+	CreatedByUserID *int64     `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check, error) {
@@ -50,7 +50,7 @@ func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Platform,
+		arg.Platforms,
 		arg.CreatedByUserID,
 	)
 	var i Check
@@ -59,7 +59,7 @@ func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -121,7 +121,7 @@ SELECT
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -142,7 +142,7 @@ func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Che
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
@@ -164,7 +164,7 @@ SELECT
     c.name,
     c.description,
     c.query,
-    c.platform,
+    c.platforms,
     c.label_scope_mode,
     c.created_by_user_id,
     c.created_at,
@@ -172,10 +172,9 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -232,7 +231,7 @@ func (q *Queries) ListApplicableChecksForHost(ctx context.Context, arg ListAppli
 			&i.Name,
 			&i.Description,
 			&i.Query,
-			&i.Platform,
+			&i.Platforms,
 			&i.LabelScopeMode,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
@@ -250,7 +249,7 @@ func (q *Queries) ListApplicableChecksForHost(ctx context.Context, arg ListAppli
 
 const listCheckHostStatuses = `-- name: ListCheckHostStatuses :many
 WITH check_row AS (
-    SELECT id, name, description, query, platform, label_scope_mode, created_by_user_id, created_at, updated_at
+    SELECT id, name, description, query, platforms, label_scope_mode, created_by_user_id, created_at, updated_at
     FROM checks c
     WHERE c.id = $1
 ),
@@ -273,10 +272,9 @@ FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -382,10 +380,9 @@ FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE (
-      c.platform IS NULL
-      OR c.platform::text = h.platform
-      OR (c.platform = 'darwin' AND h.platform = 'macos')
-      OR (c.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(c.platforms::text[])
+      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       c.label_scope_mode = 'none'
@@ -477,7 +474,7 @@ SET
     name = $1,
     description = $2,
     query = $3,
-    platform = $4,
+    platforms = $4,
     updated_at = now()
 WHERE id = $5
 RETURNING
@@ -485,7 +482,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -493,11 +490,11 @@ RETURNING
 `
 
 type UpdateCheckParams struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Query       string    `json:"query"`
-	Platform    *Platform `json:"platform"`
-	ID          int64     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Query       string     `json:"query"`
+	Platforms   []Platform `json:"platforms"`
+	ID          int64      `json:"id"`
 }
 
 func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check, error) {
@@ -505,7 +502,7 @@ func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Platform,
+		arg.Platforms,
 		arg.ID,
 	)
 	var i Check
@@ -514,7 +511,7 @@ func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,

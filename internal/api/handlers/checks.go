@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -22,11 +23,11 @@ const (
 )
 
 type checkMutationBody struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Query       string           `json:"query"`
-	Platform    *string          `json:"platform,omitempty"`
-	LabelScope  scope.LabelScope `json:"label_scope"`
+	Name        string               `json:"name"`
+	Description string               `json:"description,omitempty"`
+	Query       string               `json:"query"`
+	Platforms   []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
+	LabelScope  scope.LabelScope     `json:"label_scope"`
 }
 
 type checkListInput struct {
@@ -294,7 +295,7 @@ func (body checkMutationBody) createParams(userID *int64) (checks.CheckCreate, e
 		Name:            body.Name,
 		Description:     body.Description,
 		Query:           body.Query,
-		Platform:        body.Platform,
+		Platforms:       body.Platforms,
 		LabelScope:      s,
 		CreatedByUserID: userID,
 	}, nil
@@ -309,7 +310,7 @@ func (body checkMutationBody) updateParams() (checks.CheckUpdate, error) {
 		Name:        body.Name,
 		Description: body.Description,
 		Query:       body.Query,
-		Platform:    body.Platform,
+		Platforms:   body.Platforms,
 		LabelScope:  s,
 	}, nil
 }

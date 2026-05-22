@@ -11,7 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 // Store persists Orbit-managed Macs.
@@ -373,7 +373,7 @@ func (s *Store) MarkDetailFresh(ctx context.Context, hostID int64, detailQueryHa
 func cleanHostListParams(params HostListParams) HostListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Status = strings.TrimSpace(params.Status)
-	params.Platform = platform.CleanPlatform(params.Platform)
+	params.Platform = platforms.CleanPlatform(params.Platform)
 	return params
 }
 

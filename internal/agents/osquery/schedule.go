@@ -2,9 +2,11 @@ package osquery
 
 import (
 	"context"
+	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.
@@ -36,9 +38,7 @@ func buildScheduleForHost(
 			Query:    item.Query,
 			Interval: item.ScheduleInterval,
 			Snapshot: true,
-		}
-		if item.Platform != nil {
-			entry.Platform = *item.Platform
+			Platform: strings.Join(platformsToStrings(item.Platforms), ","),
 		}
 		if item.MinOsqueryVersion != nil {
 			entry.Version = *item.MinOsqueryVersion
@@ -46,4 +46,12 @@ func buildScheduleForHost(
 		schedule[queryNameID(kindReport, item.ID)] = entry
 	}
 	return schedule, nil
+}
+
+func platformsToStrings(targets []platforms.Platform) []string {
+	out := make([]string, len(targets))
+	for i, platform := range targets {
+		out[i] = string(platform)
+	}
+	return out
 }

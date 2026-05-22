@@ -65,10 +65,10 @@ export function CheckDetailPage() {
         <SettingItem label="Hosts failing">{failing}</SettingItem>
         <SettingItem label="Hosts passing">{passing}</SettingItem>
         <SettingItem label="Targeted platforms">
-          <PlatformBadge platform={check.data.platform} />
+          <PlatformBadge platforms={check.data.platforms} />
         </SettingItem>
         <SettingItem label="Targets">
-          <TargetSummary scope={check.data.label_scope} platform={check.data.platform} />
+          <TargetSummary scope={check.data.label_scope} platforms={check.data.platforms} />
         </SettingItem>
       </DetailSettings>
 

@@ -1,7 +1,7 @@
 import type { SimpleIcon } from "simple-icons";
 import { siAndroid, siApple, siGooglechrome, siLinux } from "simple-icons";
 
-import { PLATFORM_LABELS, QUERYABLE_PLATFORMS, platformsFromValue, type QueryablePlatform } from "@/lib/targeting";
+import { cleanQueryablePlatforms, PLATFORM_LABELS, QUERYABLE_PLATFORMS, type QueryablePlatform } from "@/lib/targeting";
 
 export type IconPath = Pick<SimpleIcon, "path" | "title">;
 
@@ -26,8 +26,8 @@ export const SOFTWARE_BRAND_ICONS = {
   windows: windowsIcon,
 } as const;
 
-export function selectedPlatformIconTargets(value?: string | null) {
-  const selected = platformsFromValue(value);
+export function selectedPlatformIconTargets(value?: readonly string[] | null) {
+  const selected = cleanQueryablePlatforms(value);
   return selected.length ? selected : PLATFORM_ICON_TARGETS;
 }
 

@@ -14,7 +14,7 @@ INSERT INTO reports (
     name,
     description,
     query,
-    platform,
+    platforms,
     min_osquery_version,
     schedule_interval,
     created_by_user_id
@@ -33,7 +33,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -43,13 +43,13 @@ RETURNING
 `
 
 type CreateReportParams struct {
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	Query             string    `json:"query"`
-	Platform          *Platform `json:"platform"`
-	MinOsqueryVersion *string   `json:"min_osquery_version"`
-	ScheduleInterval  int32     `json:"schedule_interval"`
-	CreatedByUserID   *int64    `json:"created_by_user_id"`
+	Name              string     `json:"name"`
+	Description       string     `json:"description"`
+	Query             string     `json:"query"`
+	Platforms         []Platform `json:"platforms"`
+	MinOsqueryVersion *string    `json:"min_osquery_version"`
+	ScheduleInterval  int32      `json:"schedule_interval"`
+	CreatedByUserID   *int64     `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Report, error) {
@@ -57,7 +57,7 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Platform,
+		arg.Platforms,
 		arg.MinOsqueryVersion,
 		arg.ScheduleInterval,
 		arg.CreatedByUserID,
@@ -68,7 +68,7 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
 		&i.LabelScopeMode,
@@ -132,7 +132,7 @@ SELECT
     name,
     description,
     query,
-    platform,
+    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -155,7 +155,7 @@ func (q *Queries) GetReportByID(ctx context.Context, arg GetReportByIDParams) (R
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
 		&i.LabelScopeMode,
@@ -179,7 +179,7 @@ SELECT
     r.name,
     r.description,
     r.query,
-    r.platform,
+    r.platforms,
     r.min_osquery_version,
     r.schedule_interval,
     r.label_scope_mode,
@@ -190,10 +190,9 @@ FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
   AND (
-      r.platform IS NULL
-      OR r.platform::text = h.platform
-      OR (r.platform = 'darwin' AND h.platform = 'macos')
-      OR (r.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      h.platform = ANY(r.platforms::text[])
+      OR ('darwin' = ANY(r.platforms::text[]) AND h.platform = 'macos')
+      OR ('linux' = ANY(r.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
       r.label_scope_mode = 'none'
@@ -250,7 +249,7 @@ func (q *Queries) ListScheduledReportsForHost(ctx context.Context, arg ListSched
 			&i.Name,
 			&i.Description,
 			&i.Query,
-			&i.Platform,
+			&i.Platforms,
 			&i.MinOsqueryVersion,
 			&i.ScheduleInterval,
 			&i.LabelScopeMode,
@@ -274,7 +273,7 @@ SET
     name = $1,
     description = $2,
     query = $3,
-    platform = $4,
+    platforms = $4,
     min_osquery_version = $5,
     schedule_interval = $6,
     updated_at = now()
@@ -284,7 +283,7 @@ RETURNING
     name,
     description,
     query,
-    platform,
+    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -294,13 +293,13 @@ RETURNING
 `
 
 type UpdateReportParams struct {
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	Query             string    `json:"query"`
-	Platform          *Platform `json:"platform"`
-	MinOsqueryVersion *string   `json:"min_osquery_version"`
-	ScheduleInterval  int32     `json:"schedule_interval"`
-	ID                int64     `json:"id"`
+	Name              string     `json:"name"`
+	Description       string     `json:"description"`
+	Query             string     `json:"query"`
+	Platforms         []Platform `json:"platforms"`
+	MinOsqueryVersion *string    `json:"min_osquery_version"`
+	ScheduleInterval  int32      `json:"schedule_interval"`
+	ID                int64      `json:"id"`
 }
 
 func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Report, error) {
@@ -308,7 +307,7 @@ func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Rep
 		arg.Name,
 		arg.Description,
 		arg.Query,
-		arg.Platform,
+		arg.Platforms,
 		arg.MinOsqueryVersion,
 		arg.ScheduleInterval,
 		arg.ID,
@@ -319,7 +318,7 @@ func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Rep
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.Platform,
+		&i.Platforms,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
 		&i.LabelScopeMode,

@@ -20,6 +20,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -264,6 +265,7 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 		Name:                "API Target Count Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -473,4 +475,8 @@ func testDependencies(cfg config.Config) Dependencies {
 		UserService:    userService,
 		SessionManager: sessionManager,
 	}
+}
+
+func allPlatforms() []platforms.Platform {
+	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
 }

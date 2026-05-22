@@ -68,7 +68,7 @@ export function ReportsPage() {
       id: "platform",
       header: "Targeted platforms",
       enableSorting: false,
-      cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+      cell: ({ row }) => <PlatformBadge platforms={row.original.platforms} />,
     },
     {
       id: "schedule_interval",

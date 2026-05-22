@@ -4,23 +4,24 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Report is an admin-authored, scheduled osquery snapshot query whose results
 // are persisted per host.
 type Report struct {
-	ID                int64            `json:"id"`
-	Name              string           `json:"name"`
-	Description       string           `json:"description"`
-	Query             string           `json:"query"`
-	Platform          *string          `json:"platform,omitempty"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval"`
-	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID                int64                `json:"id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int                  `json:"schedule_interval"`
+	LabelScope        scope.LabelScope     `json:"label_scope,omitzero"`
+	CreatedByUserID   *int64               `json:"created_by_user_id,omitempty"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
 }
 
 // ReportCreate contains editable report fields.
@@ -28,7 +29,7 @@ type ReportCreate struct {
 	Name              string
 	Description       string
 	Query             string
-	Platform          *string
+	Platforms         []platforms.Platform
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LabelScope        scope.LabelScope
@@ -40,7 +41,7 @@ type ReportUpdate struct {
 	Name              string
 	Description       string
 	Query             string
-	Platform          *string
+	Platforms         []platforms.Platform
 	MinOsqueryVersion *string
 	ScheduleInterval  int
 	LabelScope        scope.LabelScope

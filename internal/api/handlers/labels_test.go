@@ -33,7 +33,7 @@ func TestLabelListInputParams(t *testing.T) {
 		t.Fatalf("LabelMembershipType = %q, want dynamic", got.LabelMembershipType)
 	}
 	if got.Platform != "darwin" {
-		t.Fatalf("platform.Platform = %q, want darwin", got.Platform)
+		t.Fatalf("Platform = %q, want darwin", got.Platform)
 	}
 }
 

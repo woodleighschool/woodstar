@@ -68,7 +68,7 @@ export function ChecksPage() {
       id: "platform",
       header: "Platforms",
       enableSorting: false,
-      cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+      cell: ({ row }) => <PlatformBadge platforms={row.original.platforms} />,
     },
   ];
 

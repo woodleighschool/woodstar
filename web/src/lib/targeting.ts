@@ -2,8 +2,8 @@ import type { Schemas } from "@/lib/api";
 
 type LabelScope = Schemas["LabelScope"];
 
-export function targetSummary(scope: LabelScope | undefined, platform?: string | null) {
-  const platformText = platform ? platformLabel(platform) : "all platforms";
+export function targetSummary(scope: LabelScope | undefined, platforms?: readonly string[] | null) {
+  const platformText = platformLabel(platforms);
   return `${targetScopeLabel(scope)}, ${platformText}`;
 }
 
@@ -23,10 +23,8 @@ export function targetScopeLabel(scope: LabelScope | undefined) {
   }
 }
 
-export function platformLabel(platform?: string | null) {
-  if (!platform) return "all platforms";
-  const labels = platform
-    .split(",")
+export function platformLabel(platforms?: readonly string[] | null) {
+  const labels = (platforms ?? [])
     .map((item) => item.trim())
     .filter(Boolean)
     .map(platformDisplayLabel);
@@ -37,6 +35,8 @@ export function platformLabel(platform?: string | null) {
 export const QUERYABLE_PLATFORMS = ["darwin", "windows", "linux"] as const;
 
 export type QueryablePlatform = (typeof QUERYABLE_PLATFORMS)[number];
+
+export const DEFAULT_TARGET_PLATFORMS = QUERYABLE_PLATFORMS;
 
 export const PLATFORM_LABELS: Record<QueryablePlatform, string> = {
   darwin: "macOS",
@@ -52,16 +52,10 @@ const PLATFORM_DISPLAY_LABELS: Partial<Record<string, string>> = {
   ubuntu: "Linux",
 };
 
-export function platformsFromValue(value?: string | null): QueryablePlatform[] {
-  if (!value) return [];
-  return value
-    .split(",")
+export function cleanQueryablePlatforms(value?: readonly string[] | null): QueryablePlatform[] {
+  return (value ?? [])
     .map((item) => item.trim())
     .filter((item): item is QueryablePlatform => isQueryablePlatform(item));
-}
-
-export function platformsToValue(platforms: QueryablePlatform[]) {
-  return platforms.length ? platforms.join(",") : undefined;
 }
 
 export function isQueryablePlatform(platform: string): platform is QueryablePlatform {

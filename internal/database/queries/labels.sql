@@ -14,7 +14,7 @@ INSERT INTO labels (
     query,
     label_type,
     label_membership_type,
-    platform
+    platforms
 )
 VALUES (
     @name,
@@ -22,7 +22,7 @@ VALUES (
     sqlc.narg(query),
     @label_type,
     @label_membership_type,
-    sqlc.narg(platform)
+    @platforms
 )
 RETURNING *;
 
@@ -33,7 +33,7 @@ SET
     description = @description,
     query = sqlc.narg(query),
     label_membership_type = @label_membership_type,
-    platform = sqlc.narg(platform),
+    platforms = @platforms,
     updated_at = now()
 WHERE id = @id AND label_type = 'regular'
 RETURNING *;
@@ -49,12 +49,10 @@ FROM labels
 WHERE
     label_membership_type = 'dynamic'
     AND (
-        label_type = 'builtin'
-        OR platform IS NULL
-        OR @platform::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        @platform::text = ANY(platforms::text[])
+        OR ('darwin' = ANY(platforms::text[]) AND @platform::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+            'linux' = ANY(platforms::text[])
             AND @platform::text <> ''
             AND @platform::text NOT IN ('darwin', 'macos', 'windows')
         )
@@ -68,12 +66,10 @@ WHERE
     id = ANY(@ids::bigint[])
     AND label_membership_type = 'dynamic'
     AND (
-        label_type = 'builtin'
-        OR platform IS NULL
-        OR @platform::text = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
-        OR ('darwin' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ',')) AND @platform::text IN ('darwin', 'macos'))
+        @platform::text = ANY(platforms::text[])
+        OR ('darwin' = ANY(platforms::text[]) AND @platform::text IN ('darwin', 'macos'))
         OR (
-            'linux' = ANY(regexp_split_to_array(replace(platform::text, ' ', ''), ','))
+            'linux' = ANY(platforms::text[])
             AND @platform::text <> ''
             AND @platform::text NOT IN ('darwin', 'macos', 'windows')
         )

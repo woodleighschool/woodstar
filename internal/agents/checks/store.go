@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/platform"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -103,7 +103,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			Name:            params.Name,
 			Description:     params.Description,
 			Query:           params.Query,
-			Platform:        platformSQLCParam(params.Platform),
+			Platforms:       toSQLCPlatforms(params.Platforms),
 			CreatedByUserID: params.CreatedByUserID,
 		})
 		if err != nil {
@@ -136,7 +136,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			Name:        cleaned.Name,
 			Description: cleaned.Description,
 			Query:       cleaned.Query,
-			Platform:    platformSQLCParam(cleaned.Platform),
+			Platforms:   toSQLCPlatforms(cleaned.Platforms),
 			ID:          id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -227,7 +227,11 @@ func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
-	params.Platform = platform.CleanPtr(params.Platform)
+	targets, err := platforms.CleanTargets(params.Platforms)
+	if err != nil {
+		return CheckCreate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	params.Platforms = targets
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
 		return CheckCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
@@ -243,7 +247,7 @@ func cleanCheckUpdate(params CheckUpdate) (CheckUpdate, error) {
 		Name:        params.Name,
 		Description: params.Description,
 		Query:       params.Query,
-		Platform:    params.Platform,
+		Platforms:   params.Platforms,
 		LabelScope:  params.LabelScope,
 	})
 	if err != nil {
@@ -253,29 +257,31 @@ func cleanCheckUpdate(params CheckUpdate) (CheckUpdate, error) {
 		Name:        cleaned.Name,
 		Description: cleaned.Description,
 		Query:       cleaned.Query,
-		Platform:    cleaned.Platform,
+		Platforms:   cleaned.Platforms,
 		LabelScope:  cleaned.LabelScope,
 	}, nil
 }
 
 func cleanCheckListParams(params CheckListParams) CheckListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.Platform = platform.CleanPlatform(params.Platform)
+	params.Platform = platforms.CleanPlatform(params.Platform)
 	return params
 }
 
 func scanCheck(row pgx.Row) (*Check, error) {
 	var check Check
+	var sqlcPlatforms []sqlc.Platform
 	err := row.Scan(
 		&check.ID,
 		&check.Name,
 		&check.Description,
 		&check.Query,
-		&check.Platform,
+		&sqlcPlatforms,
 		&check.CreatedByUserID,
 		&check.CreatedAt,
 		&check.UpdatedAt,
 	)
+	check.Platforms = platformsFromSQLC(sqlcPlatforms)
 	return &check, err
 }
 
@@ -285,7 +291,7 @@ func checkFromSQLC(row sqlc.Check) *Check {
 		Name:            row.Name,
 		Description:     row.Description,
 		Query:           row.Query,
-		Platform:        stringPtrFromPlatform(row.Platform),
+		Platforms:       platformsFromSQLC(row.Platforms),
 		CreatedByUserID: row.CreatedByUserID,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
@@ -333,24 +339,38 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 	return &status
 }
 
-func platformSQLCParam(value *string) *sqlc.Platform {
-	if value == nil {
-		return nil
+func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
+	out := make([]sqlc.Platform, len(values))
+	for i, value := range values {
+		out[i] = sqlc.Platform(value)
 	}
-	platform := sqlc.Platform(*value)
-	return &platform
+	return out
 }
 
-func stringPtrFromPlatform(value *sqlc.Platform) *string {
-	if value == nil {
-		return nil
+func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
+	out := make([]platforms.Platform, len(values))
+	for i, value := range values {
+		out[i] = platforms.Platform(value)
 	}
-	platform := string(*value)
-	return &platform
+	return out
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {
-	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
+	clauses := make([]string, 0, 2)
+	args := make([]any, 0, 2)
+	if params.Q != "" {
+		args = append(args, "%"+strings.ToLower(params.Q)+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		clauses = append(clauses, "(lower(name) LIKE "+placeholder+" OR lower(description) LIKE "+placeholder+")")
+	}
+	if params.Platform != "" {
+		args = append(args, params.Platform)
+		clauses = append(clauses, fmt.Sprintf("$%d = ANY(platforms::text[])", len(args)))
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
 }
 
 func checkListSQL(where string, args []any, params CheckListParams) (string, []any, error) {
@@ -369,6 +389,6 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 }
 
 const checkSelectSQL = `
-SELECT id, name, description, query, platform,
+SELECT id, name, description, query, platforms,
        created_by_user_id, created_at, updated_at
 FROM checks`
