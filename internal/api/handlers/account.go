@@ -27,12 +27,22 @@ type accountOutput struct {
 	Body accountBody
 }
 
+type accountPutBody struct {
+	Name     string  `json:"name"`
+	Password *string `json:"password,omitempty"`
+}
+
+type accountPutInput struct {
+	Body accountPutBody
+}
+
 // RegisterAccount registers self-service endpoints scoped to the signed-in
 // user. The API key is intended for non-browser callers (CLI, autopkg
 // processor, future woodstarctl); the SPA continues to authenticate via
 // the scs session cookie.
-func RegisterAccount(api huma.API, authService *auth.Service) {
+func RegisterAccount(api huma.API, authService *auth.Service, userService *users.Service) {
 	registerGetAccount(api, authService)
+	registerPutAccount(api, userService)
 	registerRotateAPIKey(api, authService)
 	registerRevokeAPIKey(api, authService)
 }
@@ -53,6 +63,34 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 		account, err := authService.Account(ctx, user.ID)
 		if err != nil {
 			return nil, err
+		}
+		return &accountOutput{Body: accountBodyFor(*account)}, nil
+	})
+}
+
+func registerPutAccount(api huma.API, userService *users.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "put-account",
+		Method:      http.MethodPut,
+		Path:        "/api/account",
+		Tags:        []string{accountTag},
+		Summary:     "Update the signed-in user's account",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *accountPutInput) (*accountOutput, error) {
+		user, err := requireUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		account, err := userService.UpdateAccount(ctx, user.ID, users.AccountUpdateParams{
+			Name:     input.Body.Name,
+			Password: input.Body.Password,
+		})
+		if err != nil {
+			return nil, userMutationError(err)
 		}
 		return &accountOutput{Body: accountBodyFor(*account)}, nil
 	})

@@ -15,6 +15,19 @@ export function useUsers() {
   });
 }
 
+export function useUser(id: string) {
+  return useQuery<User, ApiError>({
+    queryKey: queryKeys.user(id),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/users/{id}", {
+          params: { path: { id } },
+          signal,
+        }),
+      ),
+  });
+}
+
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation<User, ApiError, UserCreateBody>({
@@ -35,7 +48,8 @@ export function useUpdateUser() {
           body,
         }),
       ),
-    onSuccess: async () => {
+    onSuccess: async (user, variables) => {
+      queryClient.setQueryData(queryKeys.user(String(variables.id)), user);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.users }),
         queryClient.invalidateQueries({ queryKey: queryKeys.session }),

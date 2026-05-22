@@ -15,15 +15,17 @@ export interface UserDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: User | null;
+  onDeleted?: () => void;
 }
 
-export function UserDeleteDialog({ open, onOpenChange, user }: UserDeleteDialogProps) {
+export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDeleteDialogProps) {
   const remove = useDeleteUser();
 
   async function handleConfirm() {
     if (!user) return;
     await remove.mutateAsync(user.id);
     onOpenChange(false);
+    onDeleted?.();
   }
 
   return (

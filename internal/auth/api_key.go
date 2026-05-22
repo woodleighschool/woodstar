@@ -16,15 +16,6 @@ import (
 // generated key. 24 bytes encode to 32 url-safe base64 characters.
 const apiKeyByteLen = 24
 
-// Account returns the signed-in user's self-view, including their retrievable API key.
-func (s *Service) Account(ctx context.Context, userID int64) (*users.Account, error) {
-	account, err := s.users.GetAccount(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("get account: %w", err)
-	}
-	return account, nil
-}
-
 // RotateAPIKey generates a fresh API key for userID, persists it, and returns
 // the updated account self-view with the retrievable plaintext key.
 func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Account, error) {

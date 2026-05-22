@@ -15,6 +15,7 @@ import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
 import { useReport } from "@/hooks/use-reports";
 import { useSoftwareTitle } from "@/hooks/use-software";
+import { useUser } from "@/hooks/use-users";
 
 interface Crumb {
   key: string;
@@ -164,8 +165,15 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // System
+    case "/_authenticated/account":
+      return [{ key: "account", label: "Account" }];
     case "/_authenticated/users":
       return [{ key: "users", label: "Users" }];
+    case "/_authenticated/users/$userId/edit":
+      return [
+        { key: "users", label: "Users", to: "/users" },
+        { key: `user-${params.userId}`, label: <UserCrumb id={params.userId} /> },
+      ];
     case "/_authenticated/settings":
       return [{ key: "settings", label: "Settings" }];
 
@@ -202,6 +210,12 @@ function LabelCrumb({ id }: { id: string }) {
   const { data, isLoading } = useLabel(id);
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
+}
+
+function UserCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useUser(id);
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{data.name || data.email || id}</span>;
 }
 
 function CrumbSkeleton() {

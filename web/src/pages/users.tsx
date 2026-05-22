@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
@@ -27,7 +28,6 @@ export function UsersPage() {
   const { user: currentUser } = useAuth();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<User | null>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
 
   return (
@@ -39,23 +39,10 @@ export function UsersPage() {
       </PageActions>
 
       <div className="p-6">
-        <UsersTable query={query} currentUserId={currentUser?.id ?? null} onEdit={setEditing} onDelete={setDeleting} />
+        <UsersTable query={query} currentUserId={currentUser?.id ?? null} onDelete={setDeleting} />
       </div>
 
       <UserFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
-
-      {editing ? (
-        <UserFormDialog
-          mode="edit"
-          open
-          onOpenChange={(open) => {
-            if (!open) setEditing(null);
-          }}
-          user={editing}
-          isInitialUser={editing.id === INITIAL_USER_ID}
-          canChangeRole={editing.id !== currentUser?.id && editing.id !== INITIAL_USER_ID}
-        />
-      ) : null}
 
       <UserDeleteDialog
         open={deleting !== null}
@@ -71,11 +58,10 @@ export function UsersPage() {
 interface UsersTableProps {
   query: ReturnType<typeof useUsers>;
   currentUserId: number | null;
-  onEdit: (user: User) => void;
   onDelete: (user: User) => void;
 }
 
-function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps) {
+function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
   if (query.error) {
     return (
       <Alert variant="destructive">
@@ -152,7 +138,17 @@ function UsersTable({ query, currentUserId, onEdit, onDelete }: UsersTableProps)
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuGroup>
-                        <DropdownMenuItem onSelect={() => onEdit(row)}>Edit</DropdownMenuItem>
+                        {isSelf ? (
+                          <DropdownMenuItem asChild>
+                            <Link to="/account">Edit</Link>
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem asChild>
+                            <Link to="/users/$userId/edit" params={{ userId: String(row.id) }}>
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
+                        )}
                         {!isSelf && !isInitial ? (
                           <DropdownMenuItem variant="destructive" onSelect={() => onDelete(row)}>
                             Delete

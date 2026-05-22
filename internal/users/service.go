@@ -60,11 +60,6 @@ func (s *Service) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetByID(ctx, id)
 }
 
-// GetAccount returns the signed-in user's self-view, including API key fields.
-func (s *Service) GetAccount(ctx context.Context, id int64) (*Account, error) {
-	return s.store.GetAccountByID(ctx, id)
-}
-
 // List returns every active user.
 func (s *Service) List(ctx context.Context) ([]User, error) {
 	return s.store.List(ctx)

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LogOut, Star } from "lucide-react";
+import { LogOut, Star, User as UserIcon } from "lucide-react";
 
 import { navSections } from "@/components/layout/nav-config";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,9 +49,7 @@ export function AppSidebar() {
           </div>
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-semibold tracking-tight">Woodstar</span>
-            <span className="text-muted-foreground truncate text-[11px]">
-              {runtime.version ? `v${runtime.version}` : "self-hosted"}
-            </span>
+            <span className="text-muted-foreground truncate text-[11px]">{`v${runtime.version}`}</span>
           </div>
         </div>
       </SidebarHeader>
@@ -118,6 +116,12 @@ function UserMenu() {
         <DropdownMenuLabel className="truncate">{user?.email ?? "Not signed in"}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link to="/account">
+              <UserIcon />
+              Account
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
             <LogOut />
             Sign out
