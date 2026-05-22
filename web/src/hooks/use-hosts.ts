@@ -10,9 +10,9 @@ export type HostDetail = Schemas["HostDetail"];
 export type HostSoftware = Schemas["HostSoftwareRow"];
 export type HostListResult = Schemas["HostListBody"];
 export type HostSoftwareListResult = Schemas["HostSoftwareListBody"];
-export type HostQueriesResult = Schemas["HostReportsOutputBody"];
+export type HostReportsResult = Schemas["HostReportsOutputBody"];
 export type HostReport = Schemas["HostReport"];
-export type HostQueryResultsResult = Schemas["HostQueryResultsOutputBody"];
+export type HostReportResultsResult = Schemas["HostReportResultsOutputBody"];
 export type HostChecksResult = Schemas["CheckHostsOutputBody"];
 
 export interface ListParams {
@@ -120,25 +120,25 @@ export function useHostSoftware(id: string, params: HostSoftwareListParams = {})
   });
 }
 
-export function useHostQueries(id: string) {
-  return useQuery<HostQueriesResult, ApiError>({
-    queryKey: queryKeys.hostQueries(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/queries", { params: { path: { id } }, signal })),
+export function useHostReports(id: string) {
+  return useQuery<HostReportsResult, ApiError>({
+    queryKey: queryKeys.hostReports(id),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/reports", { params: { path: { id } }, signal })),
     enabled: id !== "",
   });
 }
 
-export function useHostQueryResults(hostId: string, queryId: string) {
-  return useQuery<HostQueryResultsResult, ApiError>({
-    queryKey: queryKeys.hostQueryResults(hostId, queryId),
+export function useHostReportResults(hostId: string, reportId: string) {
+  return useQuery<HostReportResultsResult, ApiError>({
+    queryKey: queryKeys.hostReportResults(hostId, reportId),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/queries/{query_id}", {
-          params: { path: { id: hostId, query_id: queryId } },
+        apiClient.GET("/api/hosts/{id}/reports/{report_id}", {
+          params: { path: { id: hostId, report_id: reportId } },
           signal,
         }),
       ),
-    enabled: hostId !== "" && queryId !== "",
+    enabled: hostId !== "" && reportId !== "",
   });
 }
 

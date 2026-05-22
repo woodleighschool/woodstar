@@ -3,7 +3,7 @@ package osquery
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -20,7 +20,7 @@ type ScheduleEntry struct {
 // buildScheduleForHost returns the per-host osquery schedule map for reports.
 func buildScheduleForHost(
 	ctx context.Context,
-	store *queries.Store,
+	store *reports.Store,
 	host *hosts.Host,
 ) (map[string]ScheduleEntry, error) {
 	if store == nil {

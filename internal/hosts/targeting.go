@@ -11,10 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-const (
-	hostOnlineWindow          = 5 * time.Minute
-	hostMissingInActionWindow = 30 * 24 * time.Hour
-)
+const hostOnlineWindow = 5 * time.Minute
 
 // TargetSelection is the live targeting shape.
 type TargetSelection struct {
@@ -24,10 +21,9 @@ type TargetSelection struct {
 
 // TargetMetrics counts the current status split for a resolved target set.
 type TargetMetrics struct {
-	Total           int
-	Online          int
-	Offline         int
-	MissingInAction int
+	Total   int
+	Online  int
+	Offline int
 }
 
 // ResolveSelectedTargets returns active host ids for a live target selection.
@@ -79,7 +75,7 @@ func (s *Store) ResolveOnlineSelectedTargets(
 	return scanHostIDs(rows)
 }
 
-// CountSelectedTargets returns Fleet-style target status totals for a selection.
+// CountSelectedTargets returns online/offline target status totals for a selection.
 func (s *Store) CountSelectedTargets(
 	ctx context.Context,
 	selection TargetSelection,
@@ -98,14 +94,12 @@ func (s *Store) CountSelectedTargets(
 		`SELECT
 		     count(*)::integer AS total,
 		     count(*) FILTER (WHERE last_seen_at >= $2)::integer AS online,
-		     count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $2)::integer AS offline,
-		     count(*) FILTER (WHERE COALESCE(last_seen_at, created_at) <= $3)::integer AS missing_in_action
+		     count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $2)::integer AS offline
 		 FROM hosts
 		 WHERE deleted_at IS NULL AND id = ANY($1::bigint[])`,
 		hostIDs,
 		now.Add(-hostOnlineWindow),
-		now.Add(-hostMissingInActionWindow),
-	).Scan(&metrics.Total, &metrics.Online, &metrics.Offline, &metrics.MissingInAction)
+	).Scan(&metrics.Total, &metrics.Online, &metrics.Offline)
 	if err != nil {
 		return TargetMetrics{}, err
 	}

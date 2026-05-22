@@ -19,7 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
@@ -92,7 +92,7 @@ func serve(parent context.Context, cfg config.Config) error {
 
 	sessionManager, sessionStore := newSessionManager(db, cfg)
 	// StopCleanup must be deferred after db.Close so it runs first (LIFO); the
-	// cleanup goroutine queries the pool, which must still be open when it stops.
+	// cleanup goroutine talks to the pool, which must still be open when it stops.
 	defer sessionStore.StopCleanup()
 
 	return runServer(ctx, newServer(ctx, cfg, db, sessionManager, logger))
@@ -131,7 +131,7 @@ func newServer(
 	secretStore := secrets.NewStore(db)
 	softwareStore := software.NewStore(db)
 	labelStore := labels.NewStore(db)
-	queryStore := queries.NewStore(db)
+	reportStore := reports.NewStore(db)
 	checkStore := checks.NewStore(db)
 
 	authService := auth.NewService(userService, sessionManager)
@@ -164,15 +164,15 @@ func newServer(
 		hostStore,
 		inventoryProjector,
 		labelEvaluator,
-		queryStore,
+		reportStore,
 		checkStore,
 		liveQueries,
 		secretStore,
 		logger.With("component", "osquery"),
 	)
-	queries.StartCleanup(ctx, queryStore, queries.CleanupOptions{
+	reports.StartCleanup(ctx, reportStore, reports.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
-	}, logger.With("component", "queries"))
+	}, logger.With("component", "reports"))
 
 	if cfg.EntraEnabled() {
 		directoryStore := directory.NewStore(db)
@@ -199,7 +199,7 @@ func newServer(
 		SecretStore:      secretStore,
 		SoftwareStore:    softwareStore,
 		LabelStore:       labelStore,
-		QueryStore:       queryStore,
+		ReportStore:      reportStore,
 		CheckStore:       checkStore,
 		LiveQueryManager: liveQueries,
 		OrbitService:     orbitService,

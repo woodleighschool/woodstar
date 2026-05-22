@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/secrets"
@@ -23,7 +23,7 @@ type Service struct {
 	hostStore          *hosts.Store
 	inventoryProjector *ingest.Projector
 	labelEvaluator     *ingest.LabelEvaluator
-	queryStore         *queries.Store
+	reportStore        *reports.Store
 	checkStore         *checks.Store
 	liveQueries        *livequery.Manager
 	secretStore        *secrets.Store
@@ -35,7 +35,7 @@ func NewService(
 	hostStore *hosts.Store,
 	inventoryProjector *ingest.Projector,
 	labelEvaluator *ingest.LabelEvaluator,
-	queryStore *queries.Store,
+	reportStore *reports.Store,
 	checkStore *checks.Store,
 	liveQueries *livequery.Manager,
 	secrets *secrets.Store,
@@ -45,7 +45,7 @@ func NewService(
 		hostStore:          hostStore,
 		inventoryProjector: inventoryProjector,
 		labelEvaluator:     labelEvaluator,
-		queryStore:         queryStore,
+		reportStore:        reportStore,
 		checkStore:         checkStore,
 		liveQueries:        liveQueries,
 		secretStore:        secrets,
@@ -103,7 +103,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	if err := s.recordHostPublicIP(ctx, host, publicIP); err != nil {
 		return ConfigResponse{}, err
 	}
-	schedule, err := buildScheduleForHost(ctx, s.queryStore, host)
+	schedule, err := buildScheduleForHost(ctx, s.reportStore, host)
 	if err != nil {
 		return ConfigResponse{}, err
 	}
@@ -117,7 +117,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 	}, nil
 }
 
-// DistributedRead returns due detail, label, check, and campaign queries for a host.
+// DistributedRead returns due detail, label, check, and live queries for a host.
 func (s *Service) DistributedRead(
 	ctx context.Context,
 	nodeKey string,

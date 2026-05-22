@@ -14,10 +14,10 @@ import (
 
 const liveQueriesTag = "Live Queries"
 
-// liveQueryCreateBody mirrors the campaign body but is one-shot — no DB row,
-// no detail page, no list page. Result events stream and disappear.
+// liveQueryCreateBody is one-shot: no DB row, no detail page, no list page.
+// Result events stream and disappear.
 type liveQueryCreateBody struct {
-	QueryID  *int64                `json:"query_id,omitempty"`
+	ReportID *int64                `json:"report_id,omitempty"`
 	SQL      string                `json:"sql"`
 	Selected liveQuerySelectedBody `json:"selected,omitzero"`
 }
@@ -28,15 +28,14 @@ type liveQuerySelectedBody struct {
 }
 
 type liveQueryTargetCountBody struct {
-	QueryID  *int64                `json:"query_id,omitempty"`
+	ReportID *int64                `json:"report_id,omitempty"`
 	Selected liveQuerySelectedBody `json:"selected,omitzero"`
 }
 
 type liveQueryTargetCountOutputBody struct {
-	TargetsCount           int `json:"targets_count"`
-	TargetsOnline          int `json:"targets_online"`
-	TargetsOffline         int `json:"targets_offline"`
-	TargetsMissingInAction int `json:"targets_missing_in_action"`
+	TargetsCount   int `json:"targets_count"`
+	TargetsOnline  int `json:"targets_online"`
+	TargetsOffline int `json:"targets_offline"`
 }
 
 type liveQueryHandleBody struct {
@@ -167,10 +166,9 @@ func liveQueryHandleResponse(h livequery.Handle) liveQueryHandleBody {
 
 func liveQueryTargetCountResponse(metrics hosts.TargetMetrics) liveQueryTargetCountOutputBody {
 	return liveQueryTargetCountOutputBody{
-		TargetsCount:           metrics.Total,
-		TargetsOnline:          metrics.Online,
-		TargetsOffline:         metrics.Offline,
-		TargetsMissingInAction: metrics.MissingInAction,
+		TargetsCount:   metrics.Total,
+		TargetsOnline:  metrics.Online,
+		TargetsOffline: metrics.Offline,
 	}
 }
 

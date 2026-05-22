@@ -5,21 +5,21 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import type { Schemas } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
-export type QueryResultRow = Schemas["QueryResult"];
+export type ReportResultRow = Schemas["ReportResultBody"];
 
 export type ReportTableRow = {
   id: string;
-  queryId: number;
+  reportId: number;
   hostId: number;
   hostName: string;
   lastFetched?: string;
   columns: Record<string, string>;
 };
 
-export function reportRows(rows: QueryResultRow[] | null | undefined): ReportTableRow[] {
+export function reportRows(rows: ReportResultRow[] | null | undefined): ReportTableRow[] {
   return (rows ?? []).map((row, index) => ({
-    id: `${row.query_id}-${row.host_id}-${index}`,
-    queryId: row.query_id,
+    id: `${row.report_id}-${row.host_id}-${index}`,
+    reportId: row.report_id,
     hostId: row.host_id,
     hostName: row.host_name || String(row.host_id),
     lastFetched: row.last_fetched,

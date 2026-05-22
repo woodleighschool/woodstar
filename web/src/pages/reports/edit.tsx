@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateQuery, useQueryDetail, useUpdateQuery, type QueryMutation } from "@/hooks/use-queries";
+import { useCreateReport, useReport, useUpdateReport, type ReportMutation } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 604800, label: "Every week" },
 ];
 
-const emptyQuery: QueryMutation = {
+const emptyReport: ReportMutation = {
   name: "",
   description: "",
   query: "select * from os_version;",
@@ -42,7 +42,7 @@ const emptyQuery: QueryMutation = {
 export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const reportId = params.reportId ?? "";
-  const detail = useQueryDetail(reportId);
+  const detail = useReport(reportId);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -64,7 +64,7 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
     }
   }
 
-  const initial: QueryMutation =
+  const initial: ReportMutation =
     mode === "edit" && detail.data
       ? {
           name: detail.data.name,
@@ -75,7 +75,7 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
           schedule_interval: detail.data.schedule_interval,
           label_scope: detail.data.label_scope ?? {},
         }
-      : emptyQuery;
+      : emptyReport;
 
   return <ReportEditForm key={reportId || "new"} mode={mode} reportId={reportId} initial={initial} />;
 }
@@ -87,21 +87,21 @@ function ReportEditForm({
 }: {
   mode: "create" | "edit";
   reportId: string;
-  initial: QueryMutation;
+  initial: ReportMutation;
 }) {
   const navigate = useNavigate();
-  const createQuery = useCreateQuery();
-  const updateQuery = useUpdateQuery(reportId);
-  const [form, setForm] = useState<QueryMutation>(initial);
+  const createReport = useCreateReport();
+  const updateReport = useUpdateReport(reportId);
+  const [form, setForm] = useState<ReportMutation>(initial);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
-  const error = createQuery.error ?? updateQuery.error;
-  const pending = createQuery.isPending || updateQuery.isPending;
+  const error = createReport.error ?? updateReport.error;
+  const pending = createReport.isPending || updateReport.isPending;
 
   async function submit() {
-    const saved = mode === "create" ? await createQuery.mutateAsync(form) : await updateQuery.mutateAsync(form);
+    const saved = mode === "create" ? await createReport.mutateAsync(form) : await updateReport.mutateAsync(form);
     void navigate({ to: "/reports/$reportId", params: { reportId: String(saved.id) } });
   }
 

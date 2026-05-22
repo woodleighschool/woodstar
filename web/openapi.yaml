@@ -673,39 +673,6 @@ components:
         - items
         - count
       type: object
-    HostQueryResultsOutputBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostQueryResultsOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        host_id:
-          format: int64
-          type: integer
-        host_name:
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/QueryResult"
-          type:
-            - array
-            - "null"
-        last_fetched:
-          format: date-time
-          type: string
-        query_id:
-          format: int64
-          type: integer
-      required:
-        - query_id
-        - host_id
-        - host_name
-        - items
-      type: object
     HostReport:
       additionalProperties: false
       properties:
@@ -731,6 +698,39 @@ components:
         - name
         - description
         - n_host_results
+      type: object
+    HostReportResultsOutputBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/HostReportResultsOutputBody.json
+          format: uri
+          readOnly: true
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/ReportResultBody"
+          type:
+            - array
+            - "null"
+        last_fetched:
+          format: date-time
+          type: string
+        report_id:
+          format: int64
+          type: integer
+      required:
+        - report_id
+        - host_id
+        - host_name
+        - items
       type: object
     HostReportsOutputBody:
       additionalProperties: false
@@ -1001,7 +1001,7 @@ components:
           format: uri
           readOnly: true
           type: string
-        query_id:
+        report_id:
           format: int64
           type: integer
         selected:
@@ -1090,7 +1090,7 @@ components:
           format: uri
           readOnly: true
           type: string
-        query_id:
+        report_id:
           format: int64
           type: integer
         selected:
@@ -1109,9 +1109,6 @@ components:
         targets_count:
           format: int64
           type: integer
-        targets_missing_in_action:
-          format: int64
-          type: integer
         targets_offline:
           format: int64
           type: integer
@@ -1122,7 +1119,6 @@ components:
         - targets_count
         - targets_online
         - targets_offline
-        - targets_missing_in_action
       type: object
     LoginInputBody:
       additionalProperties: false
@@ -1164,13 +1160,13 @@ components:
         - executable_sha256
         - executable_path
       type: object
-    Query:
+    ReportBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/Query.json
+            - https://example.com/api/schemas/ReportBody.json
           format: uri
           readOnly: true
           type: string
@@ -1210,13 +1206,13 @@ components:
         - created_at
         - updated_at
       type: object
-    QueryListOutputBody:
+    ReportListOutputBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/QueryListOutputBody.json
+            - https://example.com/api/schemas/ReportListOutputBody.json
           format: uri
           readOnly: true
           type: string
@@ -1225,7 +1221,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Query"
+            $ref: "#/components/schemas/ReportBody"
           type:
             - array
             - "null"
@@ -1233,13 +1229,13 @@ components:
         - items
         - count
       type: object
-    QueryMutationBody:
+    ReportMutationBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/QueryMutationBody.json
+            - https://example.com/api/schemas/ReportMutationBody.json
           format: uri
           readOnly: true
           type: string
@@ -1263,7 +1259,7 @@ components:
         - query
         - label_scope
       type: object
-    QueryResult:
+    ReportResultBody:
       additionalProperties: false
       properties:
         columns:
@@ -1278,31 +1274,31 @@ components:
         last_fetched:
           format: date-time
           type: string
-        query_id:
+        report_id:
           format: int64
           type: integer
-        query_name:
+        report_name:
           type: string
       required:
-        - query_id
-        - query_name
+        - report_id
+        - report_name
         - host_id
         - host_name
         - columns
       type: object
-    QueryResultsOutputBody:
+    ReportResultsOutputBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/QueryResultsOutputBody.json
+            - https://example.com/api/schemas/ReportResultsOutputBody.json
           format: uri
           readOnly: true
           type: string
         items:
           items:
-            $ref: "#/components/schemas/QueryResult"
+            $ref: "#/components/schemas/ReportResultBody"
           type:
             - array
             - "null"
@@ -1579,7 +1575,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 3876bbe-dirty
+  version: 91ae702-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2340,9 +2336,9 @@ paths:
       tags:
         - Checks
         - Hosts
-  /api/hosts/{id}/queries:
+  /api/hosts/{id}/reports:
     get:
-      operationId: list-host-queries
+      operationId: list-host-reports
       parameters:
         - in: path
           name: id
@@ -2382,11 +2378,11 @@ paths:
           description: Internal Server Error
       summary: List reports for a host
       tags:
-        - Queries
+        - Reports
         - Hosts
-  /api/hosts/{id}/queries/{query_id}:
+  /api/hosts/{id}/reports/{report_id}:
     get:
-      operationId: list-host-query-results
+      operationId: list-host-report-results
       parameters:
         - in: path
           name: id
@@ -2394,7 +2390,7 @@ paths:
           schema:
             type: string
         - in: path
-          name: query_id
+          name: report_id
           required: true
           schema:
             type: string
@@ -2403,7 +2399,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostQueryResultsOutputBody"
+                $ref: "#/components/schemas/HostReportResultsOutputBody"
           description: OK
         "401":
           content:
@@ -2431,7 +2427,7 @@ paths:
           description: Internal Server Error
       summary: List report rows for one host
       tags:
-        - Queries
+        - Reports
         - Hosts
   /api/hosts/{id}/software:
     get:
@@ -3115,9 +3111,9 @@ paths:
       summary: Delete Orbit enroll secret
       tags:
         - Orbit
-  /api/queries:
+  /api/reports:
     get:
-      operationId: list-queries
+      operationId: list-reports
       parameters:
         - explode: false
           in: query
@@ -3156,7 +3152,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueryListOutputBody"
+                $ref: "#/components/schemas/ReportListOutputBody"
           description: OK
         "401":
           content:
@@ -3176,23 +3172,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List saved queries
+      summary: List reports
       tags:
-        - Queries
+        - Reports
     post:
-      operationId: create-query
+      operationId: create-report
       requestBody:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/QueryMutationBody"
+              $ref: "#/components/schemas/ReportMutationBody"
         required: true
       responses:
         "201":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Query"
+                $ref: "#/components/schemas/ReportBody"
           description: Created
         "400":
           content:
@@ -3224,12 +3220,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Create a saved query
+      summary: Create a report
       tags:
-        - Queries
-  /api/queries/bulk-delete:
+        - Reports
+  /api/reports/bulk-delete:
     post:
-      operationId: bulk-delete-queries
+      operationId: bulk-delete-reports
       requestBody:
         content:
           application/json:
@@ -3269,12 +3265,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Delete saved queries
+      summary: Delete reports
       tags:
-        - Queries
-  /api/queries/{id}:
+        - Reports
+  /api/reports/{id}:
     delete:
-      operationId: delete-query
+      operationId: delete-report
       parameters:
         - in: path
           name: id
@@ -3308,11 +3304,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Delete a saved query
+      summary: Delete a report
       tags:
-        - Queries
+        - Reports
     get:
-      operationId: get-query
+      operationId: get-report
       parameters:
         - in: path
           name: id
@@ -3324,7 +3320,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Query"
+                $ref: "#/components/schemas/ReportBody"
           description: OK
         "401":
           content:
@@ -3350,11 +3346,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Get a saved query
+      summary: Get a report
       tags:
-        - Queries
+        - Reports
     put:
-      operationId: put-query
+      operationId: put-report
       parameters:
         - in: path
           name: id
@@ -3365,14 +3361,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/QueryMutationBody"
+              $ref: "#/components/schemas/ReportMutationBody"
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Query"
+                $ref: "#/components/schemas/ReportBody"
           description: OK
         "400":
           content:
@@ -3410,12 +3406,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Replace a saved query
+      summary: Replace a report
       tags:
-        - Queries
-  /api/queries/{id}/results:
+        - Reports
+  /api/reports/{id}/results:
     get:
-      operationId: list-query-results
+      operationId: list-report-results
       parameters:
         - in: path
           name: id
@@ -3427,7 +3423,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueryResultsOutputBody"
+                $ref: "#/components/schemas/ReportResultsOutputBody"
           description: OK
         "401":
           content:
@@ -3453,9 +3449,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List latest report snapshots for a query
+      summary: List latest snapshots for a report
       tags:
-        - Queries
+        - Reports
   /api/setup:
     post:
       operationId: complete-setup

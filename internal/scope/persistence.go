@@ -29,12 +29,12 @@ type owner struct {
 }
 
 var (
-	queryOwner = owner{
-		table:           "queries",
+	reportOwner = owner{
+		table:           "reports",
 		idColumn:        "id",
 		modeColumn:      "label_scope_mode",
-		joinTable:       "query_labels",
-		joinOwnerColumn: "query_id",
+		joinTable:       "report_labels",
+		joinOwnerColumn: "report_id",
 	}
 	checkOwner = owner{
 		table:           "checks",
@@ -45,14 +45,14 @@ var (
 	}
 )
 
-// LoadQuery reads the label scope for a saved query.
-func (s *Store) LoadQuery(ctx context.Context, queryID int64) (LabelScope, error) {
-	return s.load(ctx, queryOwner, queryID)
+// LoadReport reads the label scope for a saved report.
+func (s *Store) LoadReport(ctx context.Context, reportID int64) (LabelScope, error) {
+	return s.load(ctx, reportOwner, reportID)
 }
 
-// LoadQueries reads label scopes for saved queries keyed by query ID.
-func (s *Store) LoadQueries(ctx context.Context, queryIDs []int64) (map[int64]LabelScope, error) {
-	return s.loadMany(ctx, queryOwner, queryIDs)
+// LoadReports reads label scopes for saved reports keyed by report ID.
+func (s *Store) LoadReports(ctx context.Context, reportIDs []int64) (map[int64]LabelScope, error) {
+	return s.loadMany(ctx, reportOwner, reportIDs)
 }
 
 // LoadCheck reads the label scope for a check.
@@ -65,9 +65,9 @@ func (s *Store) LoadChecks(ctx context.Context, checkIDs []int64) (map[int64]Lab
 	return s.loadMany(ctx, checkOwner, checkIDs)
 }
 
-// ReplaceQuery replaces the label scope for a saved query inside tx.
-func (s *Store) ReplaceQuery(ctx context.Context, tx pgx.Tx, queryID int64, lscope LabelScope) error {
-	return replace(ctx, tx, queryOwner, queryID, lscope)
+// ReplaceReport replaces the label scope for a saved report inside tx.
+func (s *Store) ReplaceReport(ctx context.Context, tx pgx.Tx, reportID int64, lscope LabelScope) error {
+	return replace(ctx, tx, reportOwner, reportID, lscope)
 }
 
 // ReplaceCheck replaces the label scope for a check inside tx.

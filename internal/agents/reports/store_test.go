@@ -1,4 +1,4 @@
-package queries
+package reports
 
 import (
 	"context"
@@ -12,22 +12,22 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-func TestCleanQueryCreate(t *testing.T) {
+func TestCleanReportCreate(t *testing.T) {
 	tests := []struct {
 		name    string
-		in      QueryCreate
-		want    QueryCreate
+		in      ReportCreate
+		want    ReportCreate
 		wantErr string
 	}{
 		{
-			name: "saved query trims fields",
-			in: QueryCreate{
+			name: "saved report trims fields",
+			in: ReportCreate{
 				Name:        " Local admins ",
 				Description: " Users with admin rights ",
 				Query:       " select * from users; ",
 				Platform:    new(" darwin "),
 			},
-			want: QueryCreate{
+			want: ReportCreate{
 				Name:        "Local admins",
 				Description: "Users with admin rights",
 				Query:       "select * from users;",
@@ -36,12 +36,12 @@ func TestCleanQueryCreate(t *testing.T) {
 		},
 		{
 			name: "scheduled report keeps interval",
-			in: QueryCreate{
+			in: ReportCreate{
 				Name:             "Battery health",
 				Query:            "select * from battery;",
 				ScheduleInterval: 3600,
 			},
-			want: QueryCreate{
+			want: ReportCreate{
 				Name:             "Battery health",
 				Query:            "select * from battery;",
 				ScheduleInterval: 3600,
@@ -49,17 +49,17 @@ func TestCleanQueryCreate(t *testing.T) {
 		},
 		{
 			name:    "missing name is invalid",
-			in:      QueryCreate{Query: "select 1;"},
+			in:      ReportCreate{Query: "select 1;"},
 			wantErr: "name is required",
 		},
 		{
 			name:    "missing sql is invalid",
-			in:      QueryCreate{Name: "No SQL"},
+			in:      ReportCreate{Name: "No SQL"},
 			wantErr: "query is required",
 		},
 		{
 			name: "negative schedule is invalid",
-			in: QueryCreate{
+			in: ReportCreate{
 				Name:             "Bad schedule",
 				Query:            "select 1;",
 				ScheduleInterval: -1,
@@ -71,28 +71,28 @@ func TestCleanQueryCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := cleanQueryCreate(tt.in)
+			got, err := cleanReportCreate(tt.in)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("cleanQueryCreate error = %v, want containing %q", err, tt.wantErr)
+					t.Fatalf("cleanReportCreate error = %v, want containing %q", err, tt.wantErr)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("cleanQueryCreate returned error: %v", err)
+				t.Fatalf("cleanReportCreate returned error: %v", err)
 			}
-			assertQueryCreate(t, got, tt.want)
+			assertReportCreate(t, got, tt.want)
 		})
 	}
 }
 
 func TestListIncludesLabelScope(t *testing.T) {
-	store, labelStore, _, ctx := newIntegrationQueryStore(t)
-	labelA := createManualLabel(t, ctx, labelStore, "Query A")
-	labelB := createManualLabel(t, ctx, labelStore, "Query B")
+	store, labelStore, _, ctx := newIntegrationReportStore(t)
+	labelA := createManualLabel(t, ctx, labelStore, "Report A")
+	labelB := createManualLabel(t, ctx, labelStore, "Report B")
 
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:             "Scoped query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:             "Scoped report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		LabelScope: scope.LabelScope{
@@ -100,15 +100,15 @@ func TestListIncludesLabelScope(t *testing.T) {
 			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
 		},
 	}); err != nil {
-		t.Fatalf("create query: %v", err)
+		t.Fatalf("create report: %v", err)
 	}
 
-	got, count, err := store.List(ctx, QueryListParams{})
+	got, count, err := store.List(ctx, ReportListParams{})
 	if err != nil {
-		t.Fatalf("list queries: %v", err)
+		t.Fatalf("list reports: %v", err)
 	}
 	if count != 1 || len(got) != 1 {
-		t.Fatalf("List returned count=%d len=%d, want one query", count, len(got))
+		t.Fatalf("List returned count=%d len=%d, want one report", count, len(got))
 	}
 	if got[0].LabelScope.Mode != scope.ScopeIncludeAll {
 		t.Fatalf("LabelScope.Mode = %q, want %q", got[0].LabelScope.Mode, scope.ScopeIncludeAll)
@@ -117,84 +117,84 @@ func TestListIncludesLabelScope(t *testing.T) {
 }
 
 func TestScheduledForHostUsesLabelScope(t *testing.T) {
-	store, labelStore, hostStore, ctx := newIntegrationQueryStore(t)
-	host := enrollTestHost(t, ctx, hostStore, "query-scope-host")
-	matching := createManualLabel(t, ctx, labelStore, "Query match")
-	other := createManualLabel(t, ctx, labelStore, "Query other")
+	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-scope-host")
+	matching := createManualLabel(t, ctx, labelStore, "Report match")
+	other := createManualLabel(t, ctx, labelStore, "Report other")
 	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
 		t.Fatalf("set matching label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:             "Matching scheduled query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
 	}); err != nil {
-		t.Fatalf("create matching query: %v", err)
+		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:             "Nonmatching scheduled query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
 		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
 	}); err != nil {
-		t.Fatalf("create nonmatching query: %v", err)
+		t.Fatalf("create nonmatching report: %v", err)
 	}
 
 	got, err := store.ScheduledForHost(ctx, host)
 	if err != nil {
 		t.Fatalf("scheduled for host: %v", err)
 	}
-	if len(got) != 1 || got[0].Name != "Matching scheduled query" {
-		t.Fatalf("ScheduledForHost returned %+v, want only matching query", got)
+	if len(got) != 1 || got[0].Name != "Matching scheduled report" {
+		t.Fatalf("ScheduledForHost returned %+v, want only matching report", got)
 	}
 }
 
 func TestScheduledForHostUsesHostApplicability(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationQueryStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "query-applicable-host", "darwin", "5.22.1")
+	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "darwin", "5.22.1")
 
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:              "Matching scheduled query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:              "Matching scheduled report",
 		Query:             "select 1;",
 		Platform:          new("darwin"),
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
 	}); err != nil {
-		t.Fatalf("create matching query: %v", err)
+		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:             "Unscheduled query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		Platform:         new("darwin"),
 		ScheduleInterval: 0,
 	}); err != nil {
-		t.Fatalf("create unscheduled query: %v", err)
+		t.Fatalf("create unscheduled report: %v", err)
 	}
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:             "Wrong platform query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:             "Wrong platform report",
 		Query:            "select 3;",
 		Platform:         new("windows"),
 		ScheduleInterval: 60,
 	}); err != nil {
-		t.Fatalf("create wrong platform query: %v", err)
+		t.Fatalf("create wrong platform report: %v", err)
 	}
-	if _, err := store.Create(ctx, QueryCreate{
-		Name:              "Version-gated scheduled query",
+	if _, err := store.Create(ctx, ReportCreate{
+		Name:              "Version-gated scheduled report",
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
 	}); err != nil {
-		t.Fatalf("create version-gated query: %v", err)
+		t.Fatalf("create version-gated report: %v", err)
 	}
 
 	got, err := store.ScheduledForHost(ctx, host)
 	if err != nil {
 		t.Fatalf("scheduled for host: %v", err)
 	}
-	if len(got) != 2 || got[0].Name != "Matching scheduled query" || got[1].Name != "Version-gated scheduled query" {
-		t.Fatalf("ScheduledForHost returned %+v, want matching platform/schedule queries", got)
+	if len(got) != 2 || got[0].Name != "Matching scheduled report" || got[1].Name != "Version-gated scheduled report" {
+		t.Fatalf("ScheduledForHost returned %+v, want matching platform/schedule reports", got)
 	}
 	if got[1].MinOsqueryVersion == nil || *got[1].MinOsqueryVersion != "6.0.0" {
 		t.Fatalf("ScheduledForHost min version = %v, want preserved schedule metadata", got[1].MinOsqueryVersion)
@@ -202,11 +202,11 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 }
 
 func TestHostReportsIncludeLatestHostState(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationQueryStore(t)
-	host := enrollTestHost(t, ctx, hostStore, "query-report-host")
+	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-host")
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
-	reportWithRows, err := store.Create(ctx, QueryCreate{
+	reportWithRows, err := store.Create(ctx, ReportCreate{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
@@ -214,7 +214,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
 	}
-	reportEmpty, err := store.Create(ctx, QueryCreate{
+	reportEmpty, err := store.Create(ctx, ReportCreate{
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
@@ -269,9 +269,9 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 }
 
 func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationQueryStore(t)
-	host := enrollTestHost(t, ctx, hostStore, "query-overwrite-host")
-	query, err := store.Create(ctx, QueryCreate{
+	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	host := enrollTestHost(t, ctx, hostStore, "report-overwrite-host")
+	report, err := store.Create(ctx, ReportCreate{
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
@@ -281,40 +281,40 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	}
 
 	firstFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
-	if err := store.OverwriteResults(ctx, query.ID, host.ID, []map[string]string{
+	if err := store.OverwriteResults(ctx, report.ID, host.ID, []map[string]string{
 		{"name": "Alpha"},
 		{"name": "Bravo"},
 	}, firstFetchedAt); err != nil {
 		t.Fatalf("overwrite first snapshot: %v", err)
 	}
 	secondFetchedAt := firstFetchedAt.Add(time.Hour)
-	if err := store.OverwriteResults(ctx, query.ID, host.ID, []map[string]string{
+	if err := store.OverwriteResults(ctx, report.ID, host.ID, []map[string]string{
 		{"name": "Charlie"},
 	}, secondFetchedAt); err != nil {
 		t.Fatalf("overwrite second snapshot: %v", err)
 	}
 
-	got, lastFetched, err := store.HostQueryResults(ctx, host.ID, query.ID)
+	got, lastFetched, err := store.HostResults(ctx, host.ID, report.ID)
 	if err != nil {
-		t.Fatalf("host query results: %v", err)
+		t.Fatalf("host results: %v", err)
 	}
 	if len(got) != 1 || got[0].Columns["name"] != "Charlie" {
-		t.Fatalf("HostQueryResults = %+v, want only replacement row", got)
+		t.Fatalf("HostResults = %+v, want only replacement row", got)
 	}
 	if lastFetched == nil || !lastFetched.Equal(secondFetchedAt) {
 		t.Fatalf("last fetched = %v, want %s", lastFetched, secondFetchedAt)
 	}
 
 	emptyFetchedAt := secondFetchedAt.Add(time.Hour)
-	if err := store.OverwriteResults(ctx, query.ID, host.ID, nil, emptyFetchedAt); err != nil {
+	if err := store.OverwriteResults(ctx, report.ID, host.ID, nil, emptyFetchedAt); err != nil {
 		t.Fatalf("overwrite empty snapshot: %v", err)
 	}
-	got, lastFetched, err = store.HostQueryResults(ctx, host.ID, query.ID)
+	got, lastFetched, err = store.HostResults(ctx, host.ID, report.ID)
 	if err != nil {
-		t.Fatalf("host query results after empty snapshot: %v", err)
+		t.Fatalf("host results after empty snapshot: %v", err)
 	}
 	if len(got) != 0 {
-		t.Fatalf("HostQueryResults after empty snapshot = %+v, want no data rows", got)
+		t.Fatalf("HostResults after empty snapshot = %+v, want no data rows", got)
 	}
 	if lastFetched == nil || !lastFetched.Equal(emptyFetchedAt) {
 		t.Fatalf("empty last fetched = %v, want %s", lastFetched, emptyFetchedAt)
@@ -322,8 +322,8 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 }
 
 func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationQueryStore(t)
-	query, err := store.Create(ctx, QueryCreate{
+	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	report, err := store.Create(ctx, ReportCreate{
 		Name:             "Trimmed report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
@@ -333,10 +333,10 @@ func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
 	}
 	baseFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
 	for i, name := range []string{"oldest", "middle", "newest"} {
-		host := enrollTestHost(t, ctx, hostStore, "query-trim-host-"+name)
+		host := enrollTestHost(t, ctx, hostStore, "report-trim-host-"+name)
 		if err := store.OverwriteResults(
 			ctx,
-			query.ID,
+			report.ID,
 			host.ID,
 			[]map[string]string{{"name": name}},
 			baseFetchedAt.Add(time.Duration(i)*time.Minute),
@@ -349,9 +349,9 @@ func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
 		t.Fatalf("trim results: %v", err)
 	}
 
-	got, err := store.Results(ctx, query.ID)
+	got, err := store.Results(ctx, report.ID)
 	if err != nil {
-		t.Fatalf("query results: %v", err)
+		t.Fatalf("report results: %v", err)
 	}
 	if len(got) != 2 {
 		t.Fatalf("Results returned %d rows, want 2: %+v", len(got), got)
@@ -361,7 +361,7 @@ func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
 	}
 }
 
-func assertQueryCreate(t *testing.T, got QueryCreate, want QueryCreate) {
+func assertReportCreate(t *testing.T, got ReportCreate, want ReportCreate) {
 	t.Helper()
 	if got.Name != want.Name {
 		t.Fatalf("Name = %q, want %q", got.Name, want.Name)
@@ -390,7 +390,7 @@ func assertStringPtr(t *testing.T, name string, got *string, want *string) {
 	}
 }
 
-func newIntegrationQueryStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
+func newIntegrationReportStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
 	return NewStore(database), labels.NewStore(database), hosts.NewStore(database), ctx

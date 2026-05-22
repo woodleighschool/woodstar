@@ -60,7 +60,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 - `agents/ingest` writes observed `hosts` / `software` / `labels` membership.
 - `labels` must not import `agents`, `santa`, or `munki`.
 - `santa` and `munki` may import `hosts`, `labels`, `scope`, `software`. Never the reverse.
-- `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `agents/queries`, `agents/checks`, `agents/livequery`, etc.). Domain packages never import `handlers`.
+- `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `agents/reports`, `agents/checks`, `agents/livequery`, etc.). Domain packages never import `handlers`.
 - `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `agents/protocol` may import `agents/orbit`, `agents/osquery`, `agents/livequery`, but does not import `handlers` and does not import other capabilities).
 - Route-shape rule for new endpoints: session-authed REST/JSON → `internal/api/handlers/`; agent-authed protocol (Orbit/osquery TLS plugin/etc.) → `internal/{capability}/protocol/`. Do not split admin handlers by domain ownership.
 - `dbutil`, `database`, `config`, `buildinfo`, `logging`, `platform` are leaves: stdlib + third-party only.
@@ -265,7 +265,7 @@ internal/
     orbit/               Orbit service (config + enrollment business logic)
     osquery/             osquery service (config + enrollment + dispatch)
     catalog/             osquery query catalog
-    queries/             saved queries + query reports (domain + store)
+    reports/             saved scheduled reports + per-host result snapshots
     checks/              boolean query-backed checks (domain + store)
     livequery/           live-query hub + manager
     ingest/              inventory projection + label-membership evaluation
@@ -289,7 +289,7 @@ internal/
   api/
     handlers/            Huma route registration per resource
                          (hosts, labels, users, software, secrets,
-                          queries, checks, live_queries, auth, …)
+                          reports, checks, live_queries, auth, …)
     middleware/
     routes.go            wires handlers onto the chi router
     server.go            *http.Server lifecycle

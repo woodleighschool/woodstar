@@ -230,7 +230,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hosts/{id}/queries": {
+    "/api/hosts/{id}/reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -238,7 +238,7 @@ export interface paths {
             cookie?: never;
         };
         /** List reports for a host */
-        get: operations["list-host-queries"];
+        get: operations["list-host-reports"];
         put?: never;
         post?: never;
         delete?: never;
@@ -247,7 +247,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hosts/{id}/queries/{query_id}": {
+    "/api/hosts/{id}/reports/{report_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -255,7 +255,7 @@ export interface paths {
             cookie?: never;
         };
         /** List report rows for one host */
-        get: operations["list-host-query-results"];
+        get: operations["list-host-report-results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -421,25 +421,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/queries": {
+    "/api/reports": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List saved queries */
-        get: operations["list-queries"];
+        /** List reports */
+        get: operations["list-reports"];
         put?: never;
-        /** Create a saved query */
-        post: operations["create-query"];
+        /** Create a report */
+        post: operations["create-report"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/queries/bulk-delete": {
+    "/api/reports/bulk-delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -448,42 +448,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Delete saved queries */
-        post: operations["bulk-delete-queries"];
+        /** Delete reports */
+        post: operations["bulk-delete-reports"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/queries/{id}": {
+    "/api/reports/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get a saved query */
-        get: operations["get-query"];
-        /** Replace a saved query */
-        put: operations["put-query"];
+        /** Get a report */
+        get: operations["get-report"];
+        /** Replace a report */
+        put: operations["put-report"];
         post?: never;
-        /** Delete a saved query */
-        delete: operations["delete-query"];
+        /** Delete a report */
+        delete: operations["delete-report"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/queries/{id}/results": {
+    "/api/reports/{id}/results": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List latest report snapshots for a query */
-        get: operations["list-query-results"];
+        /** List latest snapshots for a report */
+        get: operations["list-report-results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -908,22 +908,6 @@ export interface components {
             count: number;
             items: components["schemas"]["Host"][] | null;
         };
-        HostQueryResultsOutputBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostQueryResultsOutputBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            host_id: number;
-            host_name: string;
-            items: components["schemas"]["QueryResult"][] | null;
-            /** Format: date-time */
-            last_fetched?: string;
-            /** Format: int64 */
-            query_id: number;
-        };
         HostReport: {
             description: string;
             first_result?: {
@@ -934,6 +918,22 @@ export interface components {
             /** Format: int64 */
             n_host_results: number;
             name: string;
+            /** Format: int64 */
+            report_id: number;
+        };
+        HostReportResultsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/HostReportResultsOutputBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            host_id: number;
+            host_name: string;
+            items: components["schemas"]["ReportResultBody"][] | null;
+            /** Format: date-time */
+            last_fetched?: string;
             /** Format: int64 */
             report_id: number;
         };
@@ -1058,7 +1058,7 @@ export interface components {
              */
             readonly $schema?: string;
             /** Format: int64 */
-            query_id?: number;
+            report_id?: number;
             selected?: components["schemas"]["LiveQuerySelectedBody"];
             sql: string;
         };
@@ -1100,7 +1100,7 @@ export interface components {
              */
             readonly $schema?: string;
             /** Format: int64 */
-            query_id?: number;
+            report_id?: number;
             selected?: components["schemas"]["LiveQuerySelectedBody"];
         };
         LiveQueryTargetCountOutputBody: {
@@ -1112,8 +1112,6 @@ export interface components {
             readonly $schema?: string;
             /** Format: int64 */
             targets_count: number;
-            /** Format: int64 */
-            targets_missing_in_action: number;
             /** Format: int64 */
             targets_offline: number;
             /** Format: int64 */
@@ -1137,11 +1135,11 @@ export interface components {
             installed_path: string;
             team_identifier: string;
         };
-        Query: {
+        ReportBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Query.json
+             * @example https://example.com/api/schemas/ReportBody.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -1161,22 +1159,22 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        QueryListOutputBody: {
+        ReportListOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/QueryListOutputBody.json
+             * @example https://example.com/api/schemas/ReportListOutputBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["Query"][] | null;
+            items: components["schemas"]["ReportBody"][] | null;
         };
-        QueryMutationBody: {
+        ReportMutationBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/QueryMutationBody.json
+             * @example https://example.com/api/schemas/ReportMutationBody.json
              */
             readonly $schema?: string;
             description?: string;
@@ -1188,7 +1186,7 @@ export interface components {
             /** Format: int64 */
             schedule_interval?: number;
         };
-        QueryResult: {
+        ReportResultBody: {
             columns: {
                 [key: string]: string;
             };
@@ -1198,17 +1196,17 @@ export interface components {
             /** Format: date-time */
             last_fetched?: string;
             /** Format: int64 */
-            query_id: number;
-            query_name: string;
+            report_id: number;
+            report_name: string;
         };
-        QueryResultsOutputBody: {
+        ReportResultsOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/QueryResultsOutputBody.json
+             * @example https://example.com/api/schemas/ReportResultsOutputBody.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["QueryResult"][] | null;
+            items: components["schemas"]["ReportResultBody"][] | null;
         };
         Secret: {
             /**
@@ -2332,7 +2330,7 @@ export interface operations {
             };
         };
     };
-    "list-host-queries": {
+    "list-host-reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -2390,13 +2388,13 @@ export interface operations {
             };
         };
     };
-    "list-host-query-results": {
+    "list-host-report-results": {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 id: string;
-                query_id: string;
+                report_id: string;
             };
             cookie?: never;
         };
@@ -2408,7 +2406,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostQueryResultsOutputBody"];
+                    "application/json": components["schemas"]["HostReportResultsOutputBody"];
                 };
             };
             /** @description Unauthorized */
@@ -3259,7 +3257,7 @@ export interface operations {
             };
         };
     };
-    "list-queries": {
+    "list-reports": {
         parameters: {
             query?: {
                 q?: string;
@@ -3281,7 +3279,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryListOutputBody"];
+                    "application/json": components["schemas"]["ReportListOutputBody"];
                 };
             };
             /** @description Unauthorized */
@@ -3313,7 +3311,7 @@ export interface operations {
             };
         };
     };
-    "create-query": {
+    "create-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3322,7 +3320,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["QueryMutationBody"];
+                "application/json": components["schemas"]["ReportMutationBody"];
             };
         };
         responses: {
@@ -3332,7 +3330,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Query"];
+                    "application/json": components["schemas"]["ReportBody"];
                 };
             };
             /** @description Bad Request */
@@ -3382,7 +3380,7 @@ export interface operations {
             };
         };
     };
-    "bulk-delete-queries": {
+    "bulk-delete-reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -3449,7 +3447,7 @@ export interface operations {
             };
         };
     };
-    "get-query": {
+    "get-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3466,7 +3464,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Query"];
+                    "application/json": components["schemas"]["ReportBody"];
                 };
             };
             /** @description Unauthorized */
@@ -3507,7 +3505,7 @@ export interface operations {
             };
         };
     };
-    "put-query": {
+    "put-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3518,7 +3516,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["QueryMutationBody"];
+                "application/json": components["schemas"]["ReportMutationBody"];
             };
         };
         responses: {
@@ -3528,7 +3526,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Query"];
+                    "application/json": components["schemas"]["ReportBody"];
                 };
             };
             /** @description Bad Request */
@@ -3587,7 +3585,7 @@ export interface operations {
             };
         };
     };
-    "delete-query": {
+    "delete-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3643,7 +3641,7 @@ export interface operations {
             };
         };
     };
-    "list-query-results": {
+    "list-report-results": {
         parameters: {
             query?: never;
             header?: never;
@@ -3660,7 +3658,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QueryResultsOutputBody"];
+                    "application/json": components["schemas"]["ReportResultsOutputBody"];
                 };
             };
             /** @description Unauthorized */

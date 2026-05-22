@@ -1,4 +1,4 @@
--- name: GetSavedQueryByID :one
+-- name: GetReportByID :one
 SELECT
     id,
     name,
@@ -11,11 +11,11 @@ SELECT
     created_by_user_id,
     created_at,
     updated_at
-FROM queries
+FROM reports
 WHERE id = @id;
 
--- name: CreateSavedQuery :one
-INSERT INTO queries (
+-- name: CreateReport :one
+INSERT INTO reports (
     name,
     description,
     query,
@@ -46,8 +46,8 @@ RETURNING
     created_at,
     updated_at;
 
--- name: UpdateSavedQuery :one
-UPDATE queries
+-- name: UpdateReport :one
+UPDATE reports
 SET
     name = @name,
     description = @description,
@@ -70,17 +70,17 @@ RETURNING
     created_at,
     updated_at;
 
--- name: DeleteSavedQuery :one
-DELETE FROM queries
+-- name: DeleteReport :one
+DELETE FROM reports
 WHERE id = @id
 RETURNING id;
 
--- name: DeleteSavedQueries :many
-DELETE FROM queries
+-- name: DeleteReports :many
+DELETE FROM reports
 WHERE id = ANY(@ids::bigint[])
 RETURNING id;
 
--- name: ListScheduledQueriesForHost :many
+-- name: ListScheduledReportsForHost :many
 WITH host_row AS (
     SELECT
         id,
@@ -89,58 +89,58 @@ WITH host_row AS (
     WHERE h.id = @host_id AND h.deleted_at IS NULL
 )
 SELECT
-    q.id,
-    q.name,
-    q.description,
-    q.query,
-    q.platform,
-    q.min_osquery_version,
-    q.schedule_interval,
-    q.label_scope_mode,
-    q.created_by_user_id,
-    q.created_at,
-    q.updated_at
-FROM queries q
+    r.id,
+    r.name,
+    r.description,
+    r.query,
+    r.platform,
+    r.min_osquery_version,
+    r.schedule_interval,
+    r.label_scope_mode,
+    r.created_by_user_id,
+    r.created_at,
+    r.updated_at
+FROM reports r
 JOIN host_row h ON true
-WHERE q.schedule_interval > 0
+WHERE r.schedule_interval > 0
   AND (
-      q.platform IS NULL
-      OR q.platform::text = h.platform
-      OR (q.platform = 'darwin' AND h.platform = 'macos')
-      OR (q.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
+      r.platform IS NULL
+      OR r.platform::text = h.platform
+      OR (r.platform = 'darwin' AND h.platform = 'macos')
+      OR (r.platform = 'linux' AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
   )
   AND (
-      q.label_scope_mode = 'none'
+      r.label_scope_mode = 'none'
       OR (
-          q.label_scope_mode = 'include_any'
+          r.label_scope_mode = 'include_any'
           AND EXISTS (
               SELECT 1
-              FROM query_labels ql
-              JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = h.id
-              WHERE ql.query_id = q.id
+              FROM report_labels rl
+              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
+              WHERE rl.report_id = r.id
           )
       )
       OR (
-          q.label_scope_mode = 'include_all'
+          r.label_scope_mode = 'include_all'
           AND NOT EXISTS (
               SELECT 1
-              FROM query_labels ql
-              WHERE ql.query_id = q.id
+              FROM report_labels rl
+              WHERE rl.report_id = r.id
                 AND NOT EXISTS (
                     SELECT 1
                     FROM label_membership lm
-                    WHERE lm.label_id = ql.label_id AND lm.host_id = h.id
+                    WHERE lm.label_id = rl.label_id AND lm.host_id = h.id
                 )
           )
       )
       OR (
-          q.label_scope_mode = 'exclude_any'
+          r.label_scope_mode = 'exclude_any'
           AND NOT EXISTS (
               SELECT 1
-              FROM query_labels ql
-              JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = h.id
-              WHERE ql.query_id = q.id
+              FROM report_labels rl
+              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
+              WHERE rl.report_id = r.id
           )
       )
   )
-ORDER BY q.id;
+ORDER BY r.id;

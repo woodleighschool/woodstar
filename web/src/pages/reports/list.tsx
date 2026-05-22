@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useBulkDeleteQueries, useQueries, type SavedQuery } from "@/hooks/use-queries";
+import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 
@@ -23,9 +23,9 @@ export function ReportsPage() {
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
-  const bulkDelete = useBulkDeleteQueries();
+  const bulkDelete = useBulkDeleteReports();
 
-  const query = useQueries({
+  const reports = useReports({
     q: search.q,
     platform: search.platform,
     page: state.page,
@@ -34,8 +34,8 @@ export function ReportsPage() {
     order_direction: state.orderDirection,
   });
 
-  const data = query.data?.items ?? [];
-  const totalCount = query.data?.count ?? 0;
+  const data = reports.data?.items ?? [];
+  const totalCount = reports.data?.count ?? 0;
   const hasFilters = !!search.q || !!search.platform;
   const selectedIDs = selectedReportIds.map(Number);
 
@@ -48,7 +48,7 @@ export function ReportsPage() {
     });
   };
 
-  const columns: ColumnDef<SavedQuery>[] = [
+  const columns: ColumnDef<Report>[] = [
     {
       id: "name",
       accessorKey: "name",
@@ -90,10 +90,10 @@ export function ReportsPage() {
           </Button>
         }
       />
-      {query.error ? (
+      {reports.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load reports</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
+          <AlertDescription>{reports.error.message}</AlertDescription>
         </Alert>
       ) : (
         <DataTable
@@ -106,7 +106,7 @@ export function ReportsPage() {
           onPageChange={setters.setPage}
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
-          isLoading={query.isLoading}
+          isLoading={reports.isLoading}
           enableRowSelection
           selectedRowIds={selectedReportIds}
           onSelectedRowIdsChange={setSelectedReportIds}
@@ -128,7 +128,7 @@ export function ReportsPage() {
                 singleSelect
               />
               <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-                {query.isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "report" : "reports"}`}
+                {reports.isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "report" : "reports"}`}
               </div>
             </div>
           }

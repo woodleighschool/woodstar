@@ -368,9 +368,9 @@ VALUES
     ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', 'windows'),
     ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'');', 'builtin', 'dynamic', 'linux');
 
--- Queries / Checks -----------------------------------------------------------
+-- Reports / Checks -----------------------------------------------------------
 
-CREATE TABLE queries (
+CREATE TABLE reports (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
@@ -385,23 +385,23 @@ CREATE TABLE queries (
     CHECK (schedule_interval >= 0)
 );
 
-CREATE INDEX queries_schedule_idx
-    ON queries (schedule_interval)
+CREATE INDEX reports_schedule_idx
+    ON reports (schedule_interval)
     WHERE schedule_interval > 0;
 
-CREATE TABLE query_results (
+CREATE TABLE report_results (
     id BIGSERIAL PRIMARY KEY,
-    query_id BIGINT NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
+    report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
     data JSONB,
     last_fetched TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX query_results_query_last_fetched_idx
-    ON query_results (query_id, last_fetched);
+CREATE INDEX report_results_report_last_fetched_idx
+    ON report_results (report_id, last_fetched);
 
-CREATE INDEX query_results_query_host_last_fetched_idx
-    ON query_results (query_id, host_id, last_fetched);
+CREATE INDEX report_results_report_host_last_fetched_idx
+    ON report_results (report_id, host_id, last_fetched);
 
 CREATE TABLE checks (
     id BIGSERIAL PRIMARY KEY,
@@ -427,13 +427,13 @@ CREATE TABLE check_membership (
 CREATE INDEX check_membership_passes_idx
     ON check_membership (check_id, passes);
 
-CREATE TABLE query_labels (
-    query_id BIGINT NOT NULL REFERENCES queries (id) ON DELETE CASCADE,
+CREATE TABLE report_labels (
+    report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (query_id, label_id)
+    PRIMARY KEY (report_id, label_id)
 );
 
-CREATE INDEX query_labels_label_idx ON query_labels (label_id);
+CREATE INDEX report_labels_label_idx ON report_labels (label_id);
 
 CREATE TABLE check_labels (
     check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
@@ -446,11 +446,11 @@ CREATE INDEX check_labels_label_idx ON check_labels (label_id);
 -- +goose Down
 
 DROP TABLE check_labels;
-DROP TABLE query_labels;
+DROP TABLE report_labels;
 DROP TABLE check_membership;
 DROP TABLE checks;
-DROP TABLE query_results;
-DROP TABLE queries;
+DROP TABLE report_results;
+DROP TABLE reports;
 DROP TABLE label_membership;
 DROP TABLE labels;
 DROP TABLE host_software_installed_paths;

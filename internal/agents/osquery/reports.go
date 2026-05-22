@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 )
 
 type resultLogRow struct {
@@ -19,7 +19,7 @@ type resultLogRow struct {
 }
 
 // ingestReportLogs writes per-host snapshot results emitted by osquery's
-// scheduled query log to query_results, replacing the previous snapshot.
+// scheduled query log to report_results, replacing the previous snapshot.
 func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.RawMessage) error {
 	var logs []resultLogRow
 	if err := json.Unmarshal(data, &logs); err != nil {
@@ -31,14 +31,14 @@ func (s *Service) ingestReportLogs(ctx context.Context, hostID int64, data json.
 	}
 
 	for _, item := range logs {
-		queryID, ok := parseReportQueryName(item.Name)
+		reportID, ok := parseReportQueryName(item.Name)
 		if !ok {
 			continue
 		}
 		fetchedAt := parseCalendarTime(item.CalendarTime)
-		if err := s.queryStore.OverwriteResults(ctx, queryID, hostID, item.Snapshot, fetchedAt); err != nil {
-			if errors.Is(err, queries.ErrSnapshotTooLarge) {
-				s.logger.WarnContext(ctx, "snapshot dropped", "query_id", queryID, "host_id", hostID, "error", err)
+		if err := s.reportStore.OverwriteResults(ctx, reportID, hostID, item.Snapshot, fetchedAt); err != nil {
+			if errors.Is(err, reports.ErrSnapshotTooLarge) {
+				s.logger.WarnContext(ctx, "snapshot dropped", "report_id", reportID, "host_id", hostID, "error", err)
 				continue
 			}
 			return err

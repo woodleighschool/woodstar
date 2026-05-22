@@ -76,13 +76,13 @@ export function LiveRunner({
   const hasTargets = targetCount > 0;
   const targetSelection = useMemo<LiveQueryTargetCountBody>(
     () => ({
-      query_id: Number(itemId),
+      report_id: kind === "report" ? Number(itemId) : undefined,
       selected: {
         hosts: selectedHostIDs,
         labels: selectedLabelIDs,
       },
     }),
-    [itemId, selectedHostIDs, selectedLabelIDs],
+    [itemId, kind, selectedHostIDs, selectedLabelIDs],
   );
   const targetMetrics = useLiveQueryTargetCount(targetSelection, hasTargets);
   const isRunning = stream.status === "running";
@@ -103,7 +103,7 @@ export function LiveRunner({
     setStopRequested(false);
     const body: LiveQueryCreate = {
       sql,
-      query_id: targetSelection.query_id,
+      report_id: targetSelection.report_id,
       selected: targetSelection.selected,
     };
     const handle = await create.mutateAsync(body);
@@ -265,12 +265,10 @@ function TargetSummary({
     return <p className="text-muted-foreground text-sm">Counting {selectedCount} selected target groups...</p>;
   }
   if (metrics) {
-    const missing =
-      metrics.targets_missing_in_action > 0 ? `, ${metrics.targets_missing_in_action} missing in action` : "";
     return (
       <p className="text-muted-foreground text-sm">
         {metrics.targets_count} target host{metrics.targets_count === 1 ? "" : "s"}: {metrics.targets_online} online,{" "}
-        {metrics.targets_offline} offline{missing}.
+        {metrics.targets_offline} offline.
       </p>
     );
   }

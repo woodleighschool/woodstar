@@ -1,4 +1,4 @@
-package queries
+package reports
 
 import (
 	"context"
@@ -8,33 +8,31 @@ import (
 
 const defaultMaxReportRows = 1000
 
-// CleanupOptions controls periodic query-execution maintenance.
+// CleanupOptions controls periodic report-result maintenance.
 type CleanupOptions struct {
 	MaxReportRows int
 }
 
 // StartCleanup starts the periodic report-row trimmer. The goroutine exits
-// when ctx is cancelled. Live queries are not persisted, so no separate
-// campaign cleanup loop is needed here; the livequery manager owns ephemeral
-// browser-run cleanup in-process.
+// when ctx is cancelled.
 func StartCleanup(
 	ctx context.Context,
-	queries *Store,
+	store *Store,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {
-	if queries == nil {
+	if store == nil {
 		return
 	}
 	if options.MaxReportRows <= 0 {
 		options.MaxReportRows = defaultMaxReportRows
 	}
-	go reportTrimLoop(ctx, queries, options, logger)
+	go reportTrimLoop(ctx, store, options, logger)
 }
 
 func reportTrimLoop(
 	ctx context.Context,
-	queries *Store,
+	store *Store,
 	options CleanupOptions,
 	logger *slog.Logger,
 ) {
@@ -46,7 +44,7 @@ func reportTrimLoop(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := queries.TrimResults(ctx, options.MaxReportRows); err != nil && logger != nil {
+			if err := store.TrimResults(ctx, options.MaxReportRows); err != nil && logger != nil {
 				logger.WarnContext(ctx, "report row cleanup failed", "err", err)
 			}
 		}

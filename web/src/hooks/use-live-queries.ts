@@ -66,7 +66,7 @@ export function useLiveQueryTargetCount(body: LiveQueryTargetCountBody, enabled:
   const hosts = body.selected?.hosts ?? [];
   const labels = body.selected?.labels ?? [];
   return useQuery<LiveQueryTargetCount, ApiError>({
-    queryKey: ["live-query-target-count", body.query_id ?? null, hosts, labels],
+    queryKey: ["live-query-target-count", body.report_id ?? null, hosts, labels],
     queryFn: () => unwrap(apiClient.POST("/api/live-queries/targets/count", { body })),
     enabled,
   });

@@ -1,4 +1,4 @@
-package queries
+package reports
 
 import (
 	"context"
@@ -16,29 +16,29 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// Store persists saved queries and scheduled report results.
+// Store persists saved reports and their per-host result snapshots.
 type Store struct {
 	db     *database.DB
 	q      *sqlc.Queries
 	scopes *scope.Store
 }
 
-// NewStore returns a query store backed by db.
+// NewStore returns a report store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: sqlc.New(db.Pool()), scopes: scope.NewStore(db)}
 }
 
-// List returns saved queries matching params.
-func (s *Store) List(ctx context.Context, params QueryListParams) ([]Query, int, error) {
-	params = cleanQueryListParams(params)
-	where, args := queryListWhere(params)
+// List returns saved reports matching params.
+func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
+	params = cleanReportListParams(params)
+	where, args := reportListWhere(params)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM queries "+where, args...).Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM reports "+where, args...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := queryListSQL(where, args, params)
+	query, args, err := reportListSQL(where, args, params)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -48,64 +48,64 @@ func (s *Store) List(ctx context.Context, params QueryListParams) ([]Query, int,
 	}
 	defer rows.Close()
 
-	queries := make([]Query, 0)
-	queryIDs := make([]int64, 0)
+	reports := make([]Report, 0)
+	reportIDs := make([]int64, 0)
 	for rows.Next() {
-		query, err := scanQuery(rows)
+		report, err := scanReport(rows)
 		if err != nil {
 			return nil, 0, err
 		}
-		queries = append(queries, *query)
-		queryIDs = append(queryIDs, query.ID)
+		reports = append(reports, *report)
+		reportIDs = append(reportIDs, report.ID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	scopes, err := s.scopes.LoadQueries(ctx, queryIDs)
+	scopes, err := s.scopes.LoadReports(ctx, reportIDs)
 	if err != nil {
 		return nil, 0, err
 	}
-	for i := range queries {
-		queries[i].LabelScope = scopes[queries[i].ID]
+	for i := range reports {
+		reports[i].LabelScope = scopes[reports[i].ID]
 	}
-	return queries, count, nil
+	return reports, count, nil
 }
 
-// GetByID returns a saved query by database ID.
-func (s *Store) GetByID(ctx context.Context, id int64) (*Query, error) {
-	query, err := s.getByID(ctx, id)
+// GetByID returns a saved report by database ID.
+func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
+	report, err := s.getByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := s.scopes.LoadQuery(ctx, query.ID)
+	labelScope, err := s.scopes.LoadReport(ctx, report.ID)
 	if err != nil {
 		return nil, err
 	}
-	query.LabelScope = labelScope
-	return query, nil
+	report.LabelScope = labelScope
+	return report, nil
 }
 
-func (s *Store) getByID(ctx context.Context, id int64) (*Query, error) {
-	row, err := s.q.GetSavedQueryByID(ctx, sqlc.GetSavedQueryByIDParams{ID: id})
+func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
+	row, err := s.q.GetReportByID(ctx, sqlc.GetReportByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	return queryFromSQLC(row), nil
+	return reportFromSQLC(row), nil
 }
 
-// Create inserts a saved query.
-func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) {
-	params, err := cleanQueryCreate(params)
+// Create inserts a saved report.
+func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error) {
+	params, err := cleanReportCreate(params)
 	if err != nil {
 		return nil, err
 	}
 
-	var created *Query
+	var created *Report
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).CreateSavedQuery(ctx, sqlc.CreateSavedQueryParams{
+		row, err := s.q.WithTx(tx).CreateReport(ctx, sqlc.CreateReportParams{
 			Name:              params.Name,
 			Description:       params.Description,
 			Query:             params.Query,
@@ -120,27 +120,27 @@ func (s *Store) Create(ctx context.Context, params QueryCreate) (*Query, error) 
 			}
 			return err
 		}
-		query := queryFromSQLC(row)
-		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, params.LabelScope); err != nil {
+		report := reportFromSQLC(row)
+		if err := s.scopes.ReplaceReport(ctx, tx, report.ID, params.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
-		created = query
+		report.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
+		created = report
 		return nil
 	})
 	return created, err
 }
 
-// Update replaces a saved query.
-func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Query, error) {
-	cleaned, err := cleanQueryUpdate(params)
+// Update replaces a saved report.
+func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Report, error) {
+	cleaned, err := cleanReportUpdate(params)
 	if err != nil {
 		return nil, err
 	}
 
-	var updated *Query
+	var updated *Report
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		row, err := s.q.WithTx(tx).UpdateSavedQuery(ctx, sqlc.UpdateSavedQueryParams{
+		row, err := s.q.WithTx(tx).UpdateReport(ctx, sqlc.UpdateReportParams{
 			Name:              cleaned.Name,
 			Description:       cleaned.Description,
 			Query:             cleaned.Query,
@@ -158,20 +158,20 @@ func (s *Store) Update(ctx context.Context, id int64, params QueryUpdate) (*Quer
 			}
 			return err
 		}
-		query := queryFromSQLC(row)
-		if err := s.scopes.ReplaceQuery(ctx, tx, query.ID, cleaned.LabelScope); err != nil {
+		report := reportFromSQLC(row)
+		if err := s.scopes.ReplaceReport(ctx, tx, report.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
-		query.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
-		updated = query
+		report.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
+		updated = report
 		return nil
 	})
 	return updated, err
 }
 
-// Delete removes a saved query.
+// Delete removes a saved report.
 func (s *Store) Delete(ctx context.Context, id int64) error {
-	_, err := s.q.DeleteSavedQuery(ctx, sqlc.DeleteSavedQueryParams{ID: id})
+	_, err := s.q.DeleteReport(ctx, sqlc.DeleteReportParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
@@ -181,32 +181,32 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// DeleteMany removes multiple saved queries. Missing IDs are ignored for bulk idempotency.
+// DeleteMany removes multiple saved reports. Missing IDs are ignored for bulk idempotency.
 func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	deletedIDs, err := s.q.DeleteSavedQueries(ctx, sqlc.DeleteSavedQueriesParams{Ids: ids})
+	deletedIDs, err := s.q.DeleteReports(ctx, sqlc.DeleteReportsParams{Ids: ids})
 	if err != nil {
 		return 0, err
 	}
 	return len(deletedIDs), nil
 }
 
-// ScheduledForHost returns scheduled report queries applicable to host.
-func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Query, error) {
-	rows, err := s.q.ListScheduledQueriesForHost(ctx, sqlc.ListScheduledQueriesForHostParams{HostID: host.ID})
+// ScheduledForHost returns scheduled reports applicable to host.
+func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Report, error) {
+	rows, err := s.q.ListScheduledReportsForHost(ctx, sqlc.ListScheduledReportsForHostParams{HostID: host.ID})
 	if err != nil {
 		return nil, err
 	}
-	queries := make([]Query, 0, len(rows))
+	reports := make([]Report, 0, len(rows))
 	for _, row := range rows {
-		queries = append(queries, *queryFromSQLC(row))
+		reports = append(reports, *reportFromSQLC(row))
 	}
-	return queries, nil
+	return reports, nil
 }
 
-func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
+func cleanReportCreate(params ReportCreate) (ReportCreate, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = strings.TrimSpace(params.Query)
@@ -214,19 +214,19 @@ func cleanQueryCreate(params QueryCreate) (QueryCreate, error) {
 	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
 	params.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
 	if params.Name == "" {
-		return QueryCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+		return ReportCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	if params.Query == "" {
-		return QueryCreate{}, fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+		return ReportCreate{}, fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
 	}
 	if params.ScheduleInterval < 0 {
-		return QueryCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", dbutil.ErrInvalidInput)
+		return ReportCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", dbutil.ErrInvalidInput)
 	}
 	return params, nil
 }
 
-func cleanQueryUpdate(params QueryUpdate) (QueryUpdate, error) {
-	cleaned, err := cleanQueryCreate(QueryCreate{
+func cleanReportUpdate(params ReportUpdate) (ReportUpdate, error) {
+	cleaned, err := cleanReportCreate(ReportCreate{
 		Name:              params.Name,
 		Description:       params.Description,
 		Query:             params.Query,
@@ -236,9 +236,9 @@ func cleanQueryUpdate(params QueryUpdate) (QueryUpdate, error) {
 		LabelScope:        params.LabelScope,
 	})
 	if err != nil {
-		return QueryUpdate{}, err
+		return ReportUpdate{}, err
 	}
-	return QueryUpdate{
+	return ReportUpdate{
 		Name:              cleaned.Name,
 		Description:       cleaned.Description,
 		Query:             cleaned.Query,
@@ -249,31 +249,31 @@ func cleanQueryUpdate(params QueryUpdate) (QueryUpdate, error) {
 	}, nil
 }
 
-func cleanQueryListParams(params QueryListParams) QueryListParams {
+func cleanReportListParams(params ReportListParams) ReportListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.Platform = platform.CleanPlatform(params.Platform)
 	return params
 }
 
-func scanQuery(row pgx.Row) (*Query, error) {
-	var query Query
+func scanReport(row pgx.Row) (*Report, error) {
+	var report Report
 	err := row.Scan(
-		&query.ID,
-		&query.Name,
-		&query.Description,
-		&query.Query,
-		&query.Platform,
-		&query.MinOsqueryVersion,
-		&query.ScheduleInterval,
-		&query.CreatedByUserID,
-		&query.CreatedAt,
-		&query.UpdatedAt,
+		&report.ID,
+		&report.Name,
+		&report.Description,
+		&report.Query,
+		&report.Platform,
+		&report.MinOsqueryVersion,
+		&report.ScheduleInterval,
+		&report.CreatedByUserID,
+		&report.CreatedAt,
+		&report.UpdatedAt,
 	)
-	return &query, err
+	return &report, err
 }
 
-func queryFromSQLC(row sqlc.Query) *Query {
-	return &Query{
+func reportFromSQLC(row sqlc.Report) *Report {
+	return &Report{
 		ID:                row.ID,
 		Name:              row.Name,
 		Description:       row.Description,
@@ -303,13 +303,13 @@ func stringPtrFromPlatform(value *sqlc.Platform) *string {
 	return &platform
 }
 
-func queryListWhere(params QueryListParams) (string, []any) {
+func reportListWhere(params ReportListParams) (string, []any) {
 	return dbutil.NameSearchAndPlatformWhere(params.Q, params.Platform)
 }
 
-func queryListSQL(where string, args []any, params QueryListParams) (string, []any, error) {
+func reportListSQL(where string, args []any, params ReportListParams) (string, []any, error) {
 	return dbutil.ListQuery{
-		SelectSQL: querySelectSQL,
+		SelectSQL: reportSelectSQL,
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
@@ -323,7 +323,7 @@ func queryListSQL(where string, args []any, params QueryListParams) (string, []a
 	}.Build()
 }
 
-const querySelectSQL = `
+const reportSelectSQL = `
 SELECT id, name, description, query, platform, min_osquery_version, schedule_interval,
        created_by_user_id, created_at, updated_at
-FROM queries`
+FROM reports`

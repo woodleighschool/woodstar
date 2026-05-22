@@ -183,7 +183,7 @@ export function LabelsPage() {
                 <EmptyDescription>
                   {hasFilters
                     ? "No labels matched the current filters."
-                    : "Add a label to target hosts in queries, reports, and checks."}
+                    : "Add a label to target hosts in reports and checks."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>

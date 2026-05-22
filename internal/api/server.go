@@ -18,7 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/orbit"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
 	"github.com/woodleighschool/woodstar/internal/agents/protocol"
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -46,7 +46,7 @@ type Dependencies struct {
 	SecretStore      *secrets.Store
 	SoftwareStore    *software.Store
 	LabelStore       *labels.Store
-	QueryStore       *queries.Store
+	ReportStore      *reports.Store
 	CheckStore       *checks.Store
 	LiveQueryManager *livequery.Manager
 	OrbitService     *orbit.Service

@@ -7,15 +7,15 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { useHostQueryResults } from "@/hooks/use-hosts";
-import { useQueryDetail } from "@/hooks/use-queries";
+import { useHostReportResults } from "@/hooks/use-hosts";
+import { useReport } from "@/hooks/use-reports";
 import { reportRows, resultColumnNames, resultValue, type ReportTableRow } from "@/lib/query-results";
 import { formatRelative } from "@/lib/utils";
 
 export function HostReportResultsPage() {
   const { hostId, reportId } = useParams({ from: "/_authenticated/hosts/$hostId/reports/$reportId" });
-  const report = useQueryDetail(reportId);
-  const results = useHostQueryResults(hostId, reportId);
+  const report = useReport(reportId);
+  const results = useHostReportResults(hostId, reportId);
 
   if (report.error || results.error) {
     return (

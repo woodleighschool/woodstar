@@ -22,7 +22,7 @@ func Mount(r chi.Router, deps Dependencies) huma.API {
 	handlers.RegisterHosts(protected, deps.HostStore, deps.DeviceMappings, deps.SoftwareStore, deps.LabelStore)
 	handlers.RegisterSoftware(protected, deps.SoftwareStore)
 	handlers.RegisterLabels(protected, deps.LabelStore)
-	handlers.RegisterQueries(protected, deps.QueryStore, deps.HostStore)
+	handlers.RegisterReports(protected, deps.ReportStore, deps.HostStore)
 	handlers.RegisterChecks(protected, deps.CheckStore, deps.HostStore)
 	handlers.RegisterLiveQueries(protected, deps.LiveQueryManager, deps.HostStore)
 	handlers.RegisterSecrets(protected, deps.SecretStore)

@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
-import { useQueryDetail } from "@/hooks/use-queries";
+import { useReport } from "@/hooks/use-reports";
 import { useSoftwareTitle } from "@/hooks/use-software";
 
 interface Crumb {
@@ -193,7 +193,7 @@ function CheckCrumb({ id }: { id: string }) {
 }
 
 function ReportCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useQueryDetail(id);
+  const { data, isLoading } = useReport(id);
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }

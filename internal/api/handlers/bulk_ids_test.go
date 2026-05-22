@@ -11,7 +11,7 @@ func TestResourceBulkDeleteInputIDs(t *testing.T) {
 		t.Fatalf("check ids = %#v, want [8 9]", checks)
 	}
 
-	reports, err := (bulkIDsBody{IDs: []int64{4, 2, 4}}).ids("query IDs")
+	reports, err := (bulkIDsBody{IDs: []int64{4, 2, 4}}).ids("report IDs")
 	if err != nil {
 		t.Fatalf("report ids returned error: %v", err)
 	}

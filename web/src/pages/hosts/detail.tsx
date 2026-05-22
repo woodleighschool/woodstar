@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useHost,
   useHostChecks,
-  useHostQueries,
+  useHostReports,
   useHostSoftware,
   type HostReport,
   type HostSoftware,
@@ -108,9 +108,9 @@ export function HostDetailPage() {
 }
 
 function HostReportsTab({ hostId }: { hostId: string }) {
-  const query = useHostQueries(hostId);
-  const queryItems = query.data?.items;
-  const rows = useMemo(() => queryItems ?? [], [queryItems]);
+  const reports = useHostReports(hostId);
+  const reportItems = reports.data?.items;
+  const rows = useMemo(() => reportItems ?? [], [reportItems]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(HOST_REPORTS_PAGE_SIZE);
   const [sort, setSort] = useState<DataTableSort>({ orderKey: "name", orderDirection: "asc" });
@@ -176,11 +176,11 @@ function HostReportsTab({ hostId }: { hostId: string }) {
     [hostId],
   );
 
-  if (query.error) {
+  if (reports.error) {
     return (
       <Alert variant="destructive">
         <AlertTitle>Failed to load reports</AlertTitle>
-        <AlertDescription>{query.error.message}</AlertDescription>
+        <AlertDescription>{reports.error.message}</AlertDescription>
       </Alert>
     );
   }
@@ -202,7 +202,7 @@ function HostReportsTab({ hostId }: { hostId: string }) {
         setPage(1);
       }}
       perPageOptions={HOST_REPORTS_PER_PAGE_OPTIONS}
-      isLoading={query.isLoading}
+      isLoading={reports.isLoading}
       getRowId={(row) => String(row.report_id)}
       rowHref={(row) => ({
         to: "/hosts/$hostId/reports/$reportId",

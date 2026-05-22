@@ -1,4 +1,4 @@
-package queries
+package reports
 
 import (
 	"time"
@@ -7,8 +7,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// Query is admin-authored osquery SQL. Scheduled snapshot queries are reports.
-type Query struct {
+// Report is an admin-authored, scheduled osquery snapshot query whose results
+// are persisted per host.
+type Report struct {
 	ID                int64            `json:"id"`
 	Name              string           `json:"name"`
 	Description       string           `json:"description"`
@@ -22,8 +23,8 @@ type Query struct {
 	UpdatedAt         time.Time        `json:"updated_at"`
 }
 
-// QueryCreate contains editable query fields.
-type QueryCreate struct {
+// ReportCreate contains editable report fields.
+type ReportCreate struct {
 	Name              string
 	Description       string
 	Query             string
@@ -34,8 +35,8 @@ type QueryCreate struct {
 	CreatedByUserID   *int64
 }
 
-// QueryUpdate replaces editable query fields.
-type QueryUpdate struct {
+// ReportUpdate replaces editable report fields.
+type ReportUpdate struct {
 	Name              string
 	Description       string
 	Query             string
@@ -45,17 +46,17 @@ type QueryUpdate struct {
 	LabelScope        scope.LabelScope
 }
 
-// QueryListParams filters saved query lists.
-type QueryListParams struct {
+// ReportListParams filters saved report lists.
+type ReportListParams struct {
 	dbutil.ListParams
 
 	Platform string
 }
 
-// QueryResult is one stored report row from one host.
-type QueryResult struct {
-	QueryID     int64             `json:"query_id"`
-	QueryName   string            `json:"query_name"`
+// ReportResult is one stored snapshot row from one host.
+type ReportResult struct {
+	ReportID    int64             `json:"report_id"`
+	ReportName  string            `json:"report_name"`
 	HostID      int64             `json:"host_id"`
 	HostName    string            `json:"host_name"`
 	Columns     map[string]string `json:"columns"`

@@ -1,4 +1,4 @@
-// Package scope encodes label-based targeting shared by queries, checks, and campaigns.
+// Package scope encodes label-based targeting shared by reports and checks.
 package scope
 
 import "slices"

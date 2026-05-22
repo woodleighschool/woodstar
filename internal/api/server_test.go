@@ -312,16 +312,15 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
 	var got struct {
-		TargetsCount           int `json:"targets_count"`
-		TargetsOnline          int `json:"targets_online"`
-		TargetsOffline         int `json:"targets_offline"`
-		TargetsMissingInAction int `json:"targets_missing_in_action"`
+		TargetsCount   int `json:"targets_count"`
+		TargetsOnline  int `json:"targets_online"`
+		TargetsOffline int `json:"targets_offline"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode body %q: %v", rec.Body.String(), err)
 	}
-	if got.TargetsCount != 2 || got.TargetsOnline != 1 || got.TargetsOffline != 1 || got.TargetsMissingInAction != 0 {
-		t.Fatalf("target counts = %+v, want 2 total, 1 online, 1 offline, 0 missing", got)
+	if got.TargetsCount != 2 || got.TargetsOnline != 1 || got.TargetsOffline != 1 {
+		t.Fatalf("target counts = %+v, want 2 total, 1 online, 1 offline", got)
 	}
 }
 

@@ -15,7 +15,7 @@ const (
 	ScopeExcludeAny LabelScopeMode = "exclude_any"
 )
 
-// LabelScope is the shared label targeting shape for queries, checks, and campaigns.
+// LabelScope is the shared label targeting shape for reports and checks.
 type LabelScope struct {
 	Mode     LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
 	LabelIDs []int64        `json:"label_ids,omitempty"`

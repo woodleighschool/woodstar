@@ -17,7 +17,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agents/ingest"
 	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/agents/osquery"
-	"github.com/woodleighschool/woodstar/internal/agents/queries"
+	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -85,19 +85,19 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	}
 	platform := "darwin"
 	minVersion := "6.0.0"
-	query, err := stores.queries.Create(ctx, queries.QueryCreate{
-		Name:              "Versioned query " + suffix,
+	report, err := stores.reports.Create(ctx, reports.ReportCreate{
+		Name:              "Versioned report " + suffix,
 		Query:             "select 42;",
 		Platform:          &platform,
 		MinOsqueryVersion: &minVersion,
 		ScheduleInterval:  60,
 	})
 	if err != nil {
-		t.Fatalf("create scheduled query: %v", err)
+		t.Fatalf("create scheduled report: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := stores.queries.Delete(context.Background(), query.ID); err != nil {
-			t.Fatalf("cleanup scheduled query: %v", err)
+		if err := stores.reports.Delete(context.Background(), report.ID); err != nil {
+			t.Fatalf("cleanup scheduled report: %v", err)
 		}
 		cleanupOsqueryContractRows(context.Background(), t, database, hardwareUUID, secret.Value, "unused-"+suffix)
 	})
@@ -130,7 +130,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create enroll secret: %v", err)
 	}
-	report, err := stores.queries.Create(ctx, queries.QueryCreate{
+	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
 		ScheduleInterval: 60,
@@ -139,7 +139,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		t.Fatalf("create scheduled report: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := stores.queries.Delete(context.Background(), report.ID); err != nil {
+		if err := stores.reports.Delete(context.Background(), report.ID); err != nil {
 			t.Fatalf("cleanup scheduled report: %v", err)
 		}
 		cleanupOsqueryContractRows(context.Background(), t, database, hardwareUUID, secret.Value, "unused-"+suffix)
@@ -167,9 +167,9 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		]`),
 	}, http.StatusOK, nil)
 
-	results, lastFetched, err := stores.queries.HostQueryResults(ctx, host.ID, report.ID)
+	results, lastFetched, err := stores.reports.HostResults(ctx, host.ID, report.ID)
 	if err != nil {
-		t.Fatalf("host query results: %v", err)
+		t.Fatalf("host report results: %v", err)
 	}
 	if len(results) != 2 {
 		t.Fatalf("stored result count = %d, want 2: %+v", len(results), results)
@@ -186,7 +186,7 @@ type osqueryContractStores struct {
 	hosts    *hosts.Store
 	labels   *labels.Store
 	secrets  *secrets.Store
-	queries  *queries.Store
+	reports  *reports.Store
 	checks   *checks.Store
 	live     *livequery.Manager
 	software *software.Store
@@ -197,7 +197,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		hosts:    hosts.NewStore(database),
 		labels:   labels.NewStore(database),
 		secrets:  secrets.NewStore(database),
-		queries:  queries.NewStore(database),
+		reports:  reports.NewStore(database),
 		checks:   checks.NewStore(database),
 		live:     livequery.NewManager(),
 		software: software.NewStore(database),
@@ -215,7 +215,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 			stores.hosts,
 			projector,
 			labelEvaluator,
-			stores.queries,
+			stores.reports,
 			stores.checks,
 			stores.live,
 			stores.secrets,

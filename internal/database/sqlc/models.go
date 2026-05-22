@@ -397,7 +397,7 @@ type LabelMembership struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type Query struct {
+type Report struct {
 	ID                int64          `json:"id"`
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
@@ -411,14 +411,14 @@ type Query struct {
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
-type QueryLabel struct {
-	QueryID int64 `json:"query_id"`
-	LabelID int64 `json:"label_id"`
+type ReportLabel struct {
+	ReportID int64 `json:"report_id"`
+	LabelID  int64 `json:"label_id"`
 }
 
-type QueryResult struct {
+type ReportResult struct {
 	ID          int64     `json:"id"`
-	QueryID     int64     `json:"query_id"`
+	ReportID    int64     `json:"report_id"`
 	HostID      int64     `json:"host_id"`
 	Data        []byte    `json:"data"`
 	LastFetched time.Time `json:"last_fetched"`

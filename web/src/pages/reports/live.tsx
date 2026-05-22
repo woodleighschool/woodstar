@@ -3,12 +3,12 @@ import { Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useQueryDetail } from "@/hooks/use-queries";
+import { useReport } from "@/hooks/use-reports";
 import { LiveRunner } from "@/pages/live-runner";
 
 export function ReportLivePage() {
   const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
-  const report = useQueryDetail(reportId);
+  const report = useReport(reportId);
 
   if (report.error) {
     return (
