@@ -14,7 +14,7 @@ export function PlatformIcon({
 
 export function SimpleIconGlyph({ icon, className, ...props }: { icon: IconPath } & SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-4", className)} aria-hidden {...props}>
+    <svg viewBox="0 0 24 24" fill="currentColor" className={cn("size-4", className)} {...props}>
       <path d={icon.path} />
     </svg>
   );

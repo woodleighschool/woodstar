@@ -24,6 +24,7 @@ vite.config.js
 !web/dist/
 web/dist/*
 !web/dist/.gitkeep
+.vite/
 
 # Vite / tooling outputs
 vite.config.d.ts

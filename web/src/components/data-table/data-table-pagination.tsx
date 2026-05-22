@@ -37,7 +37,7 @@ export function DataTablePagination({
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Rows per page</span>
           <Select value={String(perPage)} onValueChange={(v) => onPerPageChange(Number(v))}>
-            <SelectTrigger size="sm" className="h-7 w-[64px]">
+            <SelectTrigger size="sm" className="w-[76px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

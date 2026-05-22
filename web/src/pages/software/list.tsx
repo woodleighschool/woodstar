@@ -110,8 +110,6 @@ export function SoftwarePage() {
               onDraftChange={setDraft}
               sources={sources}
               onSourcesChange={(next) => setters.setFilter("source", next.length > 0 ? next.join(",") : undefined)}
-              isFetching={query.isFetching}
-              totalCount={totalCount}
             />
           }
           empty={
@@ -140,18 +138,9 @@ interface SoftwareToolbarProps {
   onDraftChange: (next: string) => void;
   sources: string[];
   onSourcesChange: (next: string[]) => void;
-  isFetching: boolean;
-  totalCount: number;
 }
 
-function SoftwareToolbar({
-  draft,
-  onDraftChange,
-  sources,
-  onSourcesChange,
-  isFetching,
-  totalCount,
-}: SoftwareToolbarProps) {
+function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange }: SoftwareToolbarProps) {
   return (
     <div className="flex items-center gap-2">
       <DataTableSearch
@@ -166,9 +155,6 @@ function SoftwareToolbar({
         selected={sources}
         onChange={onSourcesChange}
       />
-      <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-        {isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "title" : "titles"}`}
-      </div>
     </div>
   );
 }

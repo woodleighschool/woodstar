@@ -1,12 +1,12 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { KeyRound, ServerCog, Trash2 } from "lucide-react";
+import { Check, KeyRound, ListFilter, ServerCog, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { defaultHiddenIds } from "@/components/data-table/data-table-visibility";
 import { PageActions } from "@/components/layout/page-actions";
@@ -14,26 +14,33 @@ import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secr
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useHiddenColumns } from "@/hooks/use-hidden-columns";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
-import { formatBytes, formatRelative } from "@/lib/utils";
+import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
-const STATUS_OPTIONS = [
-  { value: "online", label: "Online" },
-  { value: "offline", label: "Offline" },
-];
 
 export function HostsListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const labelsQuery = useLabels({
     per_page: 200,
     order_key: "name",
@@ -207,14 +214,11 @@ export function HostsListPage() {
   const selectedIDs = selectedHostIds.map(Number);
 
   const deleteSelectedHosts = () => {
-    const count = selectedIDs.length;
-    if (count === 0) return;
-    const confirmed = window.confirm(
-      `Delete ${count} selected ${count === 1 ? "host" : "hosts"}? Deleted hosts will re-enroll if their agent can still use a valid enroll secret.`,
-    );
-    if (!confirmed) return;
     bulkDelete.mutate(selectedIDs, {
-      onSuccess: () => setSelectedHostIds([]),
+      onSuccess: () => {
+        setSelectedHostIds([]);
+        setDeleteOpen(false);
+      },
     });
   };
 
@@ -260,7 +264,12 @@ export function HostsListPage() {
             selectedRowIds={selectedHostIds}
             onSelectedRowIdsChange={setSelectedHostIds}
             bulkActions={
-              <Button variant="destructive" size="sm" onClick={deleteSelectedHosts} disabled={bulkDelete.isPending}>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteOpen(true)}
+                disabled={bulkDelete.isPending}
+              >
                 <Trash2 data-icon="inline-start" />
                 Delete
               </Button>
@@ -270,8 +279,6 @@ export function HostsListPage() {
               <HostsToolbar
                 draft={draft}
                 onDraftChange={setDraft}
-                status={search.status}
-                onStatusChange={(v) => setters.setFilter("status", v)}
                 platform={search.platform}
                 onPlatformChange={(v) => setters.setFilter("platform", v)}
                 labelId={search.label_id}
@@ -280,8 +287,6 @@ export function HostsListPage() {
                 allColumns={allColumns}
                 hiddenColumns={hidden}
                 onToggleColumn={toggle}
-                isFetching={query.isFetching}
-                totalCount={totalCount}
               />
             }
             empty={
@@ -302,6 +307,19 @@ export function HostsListPage() {
           />
         )}
       </div>
+      <BulkDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
+        }}
+        count={selectedIDs.length}
+        noun="host"
+        description="Deleted hosts will re-enroll if their agent can still use a valid enroll secret."
+        error={bulkDelete.error?.message}
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedHosts}
+      />
     </>
   );
 }
@@ -309,8 +327,6 @@ export function HostsListPage() {
 interface HostsToolbarProps {
   draft: string;
   onDraftChange: (next: string) => void;
-  status: string | undefined;
-  onStatusChange: (next: string | undefined) => void;
   platform: string | undefined;
   onPlatformChange: (next: string | undefined) => void;
   labelId: string | undefined;
@@ -319,15 +335,11 @@ interface HostsToolbarProps {
   allColumns: ColumnDef<Host>[];
   hiddenColumns: string[];
   onToggleColumn: (id: string) => void;
-  isFetching: boolean;
-  totalCount: number;
 }
 
 function HostsToolbar({
   draft,
   onDraftChange,
-  status,
-  onStatusChange,
   platform,
   onPlatformChange,
   labelId,
@@ -336,37 +348,113 @@ function HostsToolbar({
   allColumns,
   hiddenColumns,
   onToggleColumn,
-  isFetching,
-  totalCount,
 }: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search hosts" label="Search hosts" />
-      <DataTableFacetedFilter
-        title="Status"
-        options={STATUS_OPTIONS}
-        selected={status ? [status] : []}
-        onChange={(next) => onStatusChange(next[0])}
-        singleSelect
+      <DataTableSearch
+        value={draft}
+        onChange={onDraftChange}
+        placeholder="Search hosts"
+        label="Search hosts"
+        className="basis-full sm:basis-64"
       />
-      <DataTableFacetedFilter
-        title="Platform"
-        options={PLATFORM_OPTIONS}
-        selected={platform ? [platform] : []}
-        onChange={(next) => onPlatformChange(next[0])}
-        singleSelect
+      <DataTableColumnToggle columns={allColumns} hidden={hiddenColumns} onToggle={onToggleColumn} variant="ghost" />
+      <HostFilterDropdown
+        platform={platform}
+        onPlatformChange={onPlatformChange}
+        labelId={labelId}
+        onLabelChange={onLabelChange}
+        labelOptions={labelOptions}
       />
-      <DataTableFacetedFilter
-        title="Label"
-        options={labelOptions}
-        selected={labelId ? [labelId] : []}
-        onChange={(next) => onLabelChange(next[0])}
-        singleSelect
-      />
-      <DataTableColumnToggle columns={allColumns} hidden={hiddenColumns} onToggle={onToggleColumn} />
-      <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-        {isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "host" : "hosts"}`}
-      </div>
+    </div>
+  );
+}
+
+interface HostFilterDropdownProps {
+  platform: string | undefined;
+  onPlatformChange: (next: string | undefined) => void;
+  labelId: string | undefined;
+  onLabelChange: (next: string | undefined) => void;
+  labelOptions: { value: string; label: string }[];
+}
+
+function HostFilterDropdown({
+  platform,
+  onPlatformChange,
+  labelId,
+  onLabelChange,
+  labelOptions,
+}: HostFilterDropdownProps) {
+  const hasFilters = !!platform || !!labelId;
+
+  const clearFilters = () => {
+    onPlatformChange(undefined);
+    onLabelChange(undefined);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 border-dashed">
+          <ListFilter data-icon="inline-start" />
+          Filter by platform or label
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search labels" />
+          <CommandList>
+            <CommandEmpty>No labels found.</CommandEmpty>
+            <CommandGroup heading="Platforms">
+              {PLATFORM_OPTIONS.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`platform ${option.label}`}
+                  onSelect={() => onPlatformChange(platform === option.value ? undefined : option.value)}
+                >
+                  <SelectionCheck selected={platform === option.value} />
+                  <span>{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Labels">
+              {labelOptions.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`label ${option.label}`}
+                  onSelect={() => onLabelChange(labelId === option.value ? undefined : option.value)}
+                >
+                  <SelectionCheck selected={labelId === option.value} />
+                  <span>{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {hasFilters ? (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem onSelect={clearFilters} className="justify-center text-center">
+                    Clear filters
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            ) : null}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SelectionCheck({ selected }: { selected: boolean }) {
+  return (
+    <div
+      className={cn(
+        "border-primary flex size-4 items-center justify-center rounded-sm border",
+        selected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible",
+      )}
+    >
+      <Check />
     </div>
   );
 }

@@ -25,7 +25,7 @@ export function HostImage({
       {url ? (
         <img src={url} alt="" loading="lazy" className="size-full object-contain p-1" />
       ) : (
-        <Laptop className="text-muted-foreground size-8" aria-hidden />
+        <Laptop className="text-muted-foreground size-8" />
       )}
     </div>
   );

@@ -141,10 +141,8 @@ export function DataTable<TData, TValue>({
   });
 
   const showSkeleton = isLoading && data.length === 0;
-  const skeletonRowIds = useMemo(
-    () => Array.from({ length: skeletonRows }, (_, row) => `skeleton-row-${row}`),
-    [skeletonRows],
-  );
+  const showEmpty = !showSkeleton && data.length === 0;
+  const skeletonRowIds = Array.from({ length: skeletonRows }, (_, row) => `skeleton-row-${row}`);
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -169,64 +167,59 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {showSkeleton ? (
-              skeletonRowIds.map((rowId) => (
-                <TableRow key={rowId}>
-                  {table.getAllLeafColumns().map((col) => (
-                    <TableCell key={col.id}>
-                      <Skeleton className="h-4 w-3/4" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={tableColumns.length} className="p-0">
-                  <div className="flex justify-center px-4 py-12">{empty}</div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => {
-                const linkProps = rowHref?.(row.original);
-                const hasRowAction = linkProps !== undefined || onRowClick !== undefined;
-                const cells = row.getVisibleCells();
-                const firstDataIndex = enableRowSelection ? 1 : 0;
-                return (
-                  <TableRow
-                    key={row.id}
-                    className={cn(hasRowAction && "cursor-pointer")}
-                    onClick={
-                      hasRowAction
-                        ? (e) => {
-                            const target = e.target as HTMLElement;
-                            if (target.closest(INTERACTIVE_SELECTOR)) return;
-                            if (window.getSelection()?.toString()) return;
-                            if (linkProps !== undefined) {
-                              void navigate({ to: linkProps.to, params: linkProps.params });
-                            } else {
-                              onRowClick?.(row.original);
-                            }
-                          }
-                        : undefined
-                    }
-                  >
-                    {cells.map((cell, i) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(
-                          cell.column.columnDef.meta?.cellClassName,
-                          i === firstDataIndex && linkProps && "font-medium",
-                        )}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {showSkeleton
+              ? skeletonRowIds.map((rowId) => (
+                  <TableRow key={rowId}>
+                    {table.getAllLeafColumns().map((col) => (
+                      <TableCell key={col.id}>
+                        <Skeleton className="h-4 w-3/4" />
                       </TableCell>
                     ))}
                   </TableRow>
-                );
-              })
-            )}
+                ))
+              : showEmpty
+                ? null
+                : table.getRowModel().rows.map((row) => {
+                    const linkProps = rowHref?.(row.original);
+                    const hasRowAction = linkProps !== undefined || onRowClick !== undefined;
+                    const cells = row.getVisibleCells();
+                    const firstDataIndex = enableRowSelection ? 1 : 0;
+                    return (
+                      <TableRow
+                        key={row.id}
+                        className={cn(hasRowAction && "cursor-pointer")}
+                        onClick={
+                          hasRowAction
+                            ? (e) => {
+                                const target = e.target as HTMLElement;
+                                if (target.closest(INTERACTIVE_SELECTOR)) return;
+                                if (window.getSelection()?.toString()) return;
+                                if (linkProps !== undefined) {
+                                  void navigate({ to: linkProps.to, params: linkProps.params });
+                                } else {
+                                  onRowClick?.(row.original);
+                                }
+                              }
+                            : undefined
+                        }
+                      >
+                        {cells.map((cell, i) => (
+                          <TableCell
+                            key={cell.id}
+                            className={cn(
+                              cell.column.columnDef.meta?.cellClassName,
+                              i === firstDataIndex && linkProps && "font-medium",
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })}
           </TableBody>
         </Table>
+        {showEmpty ? <div className="flex min-h-72 justify-center px-4 py-12">{empty}</div> : null}
       </div>
       {clientSort ? null : (
         <DataTablePagination

@@ -14,10 +14,11 @@ export function AppLayout() {
         <AppSidebar />
         <SidebarInset>
           <AppTopbar />
-          <main className="flex-1 overflow-y-auto">
+          <main className="min-w-0 flex-1 overflow-y-auto">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={location.pathname}
+                className="min-w-0"
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}

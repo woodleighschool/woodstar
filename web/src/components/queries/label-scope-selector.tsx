@@ -113,7 +113,7 @@ export function LabelScopeSelector({
                     )}
                     onClick={() => toggleLabel(label.id)}
                   >
-                    <Checkbox checked={checked} tabIndex={-1} aria-hidden />
+                    <Checkbox checked={checked} tabIndex={-1} />
                     <span className="min-w-0 flex-1 truncate">{label.name}</span>
                     {checked ? <Check className="text-primary size-4" /> : null}
                   </button>

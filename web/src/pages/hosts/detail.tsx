@@ -462,9 +462,6 @@ function SoftwareTab({ hostId }: { hostId: string }) {
               setPage(1);
             }}
           />
-          <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-            {query.isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "app" : "apps"}`}
-          </div>
         </div>
       }
       empty={

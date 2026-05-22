@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Columns3 } from "lucide-react";
+import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,13 +17,19 @@ interface DataTableColumnToggleProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   hidden: string[];
   onToggle: (id: string) => void;
+  variant?: ComponentProps<typeof Button>["variant"];
 }
 
 /**
  * Renders a "Columns" dropdown driven by the same ColumnDef array the table uses.
  * Columns marked `meta.alwaysVisible` are skipped; everything else becomes a checkbox.
  */
-export function DataTableColumnToggle<TData>({ columns, hidden, onToggle }: DataTableColumnToggleProps<TData>) {
+export function DataTableColumnToggle<TData>({
+  columns,
+  hidden,
+  onToggle,
+  variant = "outline",
+}: DataTableColumnToggleProps<TData>) {
   const hiddenSet = new Set(hidden);
   const items = columns
     .filter((c) => !!c.id && !c.meta?.alwaysVisible)
@@ -34,7 +41,7 @@ export function DataTableColumnToggle<TData>({ columns, hidden, onToggle }: Data
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5">
+        <Button variant={variant} size="sm" className="h-8 gap-1.5">
           <Columns3 data-icon="inline-start" />
           Columns
         </Button>

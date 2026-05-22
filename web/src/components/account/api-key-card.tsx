@@ -82,13 +82,13 @@ export function APIKeyCard() {
         ) : apiKey ? (
           <>
             <InputGroup>
-              <InputGroupInput value={apiKey} readOnly className="font-mono text-xs" aria-label="API key" />
+              <InputGroupInput value={apiKey} readOnly className="font-mono text-xs" />
               <InputGroupAddon align="inline-end">
                 <TooltipProvider>
                   <div className="flex items-center gap-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton size="icon-xs" aria-label="Copy API key" onClick={() => void handleCopy()}>
+                        <InputGroupButton size="icon-xs" onClick={() => void handleCopy()}>
                           <Copy />
                         </InputGroupButton>
                       </TooltipTrigger>
@@ -96,12 +96,7 @@ export function APIKeyCard() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton
-                          size="icon-xs"
-                          aria-label="Rotate API key"
-                          disabled={pending}
-                          onClick={() => setConfirmRotate(true)}
-                        >
+                        <InputGroupButton size="icon-xs" disabled={pending} onClick={() => setConfirmRotate(true)}>
                           <RefreshCw />
                         </InputGroupButton>
                       </TooltipTrigger>
@@ -109,12 +104,7 @@ export function APIKeyCard() {
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <InputGroupButton
-                          size="icon-xs"
-                          aria-label="Revoke API key"
-                          disabled={pending}
-                          onClick={() => setConfirmRevoke(true)}
-                        >
+                        <InputGroupButton size="icon-xs" disabled={pending} onClick={() => setConfirmRevoke(true)}>
                           <Trash2 />
                         </InputGroupButton>
                       </TooltipTrigger>

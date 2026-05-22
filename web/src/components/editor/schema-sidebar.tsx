@@ -1,5 +1,5 @@
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { isValidElement, useMemo, useState } from "react";
+import { isValidElement, useState } from "react";
 
 import { PlatformIcon } from "@/components/platform/platform-icons";
 import { Badge } from "@/components/ui/badge";
@@ -28,19 +28,23 @@ interface SchemaSidebarProps {
 }
 
 export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSidebarProps) {
+  const Icon = open ? PanelRightClose : PanelRightOpen;
+
   return (
     <TooltipProvider delayDuration={150}>
       <button
         type="button"
-        onClick={() => onOpenChange(!open)}
+        aria-label={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         aria-expanded={open}
+        title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
+        onClick={() => onOpenChange(!open)}
         className={cn(
-          "bg-card hover:border-primary hover:text-primary fixed top-20 z-40",
-          "flex h-12 w-7 items-center justify-center rounded-l-md border border-r-0 shadow-sm transition-[right] duration-200 ease-out",
+          "bg-card fixed top-20 z-40 rounded-l-md border border-r-0 p-2 shadow-sm",
+          "transition-[right,color,border-color] duration-200 ease-out hover:bg-accent hover:text-accent-foreground",
           open ? "right-80" : "right-0",
         )}
       >
-        {open ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+        <Icon className="size-4" />
       </button>
       <SchemaPanel open={open} onInsertColumn={onInsertColumn} />
     </TooltipProvider>
@@ -49,19 +53,15 @@ export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSide
 
 function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?: (columnName: string) => void }) {
   const schema = useOsquerySchema();
-  const tables = useMemo(() => schema.data ?? [], [schema.data]);
+  const tables = schema.data ?? [];
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
-  const selected = useMemo(() => {
-    if (!tables.length) return null;
-    const byName = new Map(tables.map((t) => [t.name, t]));
-    if (selectedName && byName.has(selectedName)) return byName.get(selectedName) ?? null;
-    return byName.get("users") ?? tables[0];
-  }, [tables, selectedName]);
+  const selected = selectedName ? tables.find((candidate) => candidate.name === selectedName) : undefined;
+  const table =
+    tables.length > 0 ? (selected ?? tables.find((candidate) => candidate.name === "users") ?? tables[0]) : null;
 
   return (
     <aside
-      aria-hidden={!open}
       className={cn(
         "bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg",
         "transition-transform duration-200 ease-out",
@@ -78,7 +78,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
       </div>
 
       <div className="p-4">
-        <TableSelector tables={tables} value={selected?.name ?? null} onChange={setSelectedName} />
+        <TableSelector tables={tables} value={table?.name ?? null} onChange={setSelectedName} />
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -86,8 +86,8 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
           <div className="text-muted-foreground p-4 text-sm">Loading schema…</div>
         ) : schema.error ? (
           <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
-        ) : selected ? (
-          <TableDetail table={selected} onInsertColumn={onInsertColumn} />
+        ) : table ? (
+          <TableDetail table={table} onInsertColumn={onInsertColumn} />
         ) : null}
       </div>
     </aside>
@@ -103,7 +103,7 @@ function TableSelector({
   value: string | null;
   onChange: (name: string) => void;
 }) {
-  const tableNames = useMemo(() => tables.map((table) => table.name), [tables]);
+  const tableNames = tables.map((table) => table.name);
 
   return (
     <Combobox
@@ -242,11 +242,7 @@ function ColumnList({
   columns: OsqueryColumn[];
   onInsertColumn?: (name: string) => void;
 }) {
-  const ordered = useMemo(() => {
-    const required = columns.filter((c) => c.required).sort((a, b) => a.name.localeCompare(b.name));
-    const rest = columns.filter((c) => !c.required).sort((a, b) => a.name.localeCompare(b.name));
-    return [...required, ...rest];
-  }, [columns]);
+  const ordered = [...columns].sort((a, b) => Number(b.required) - Number(a.required) || a.name.localeCompare(b.name));
 
   return (
     <section>

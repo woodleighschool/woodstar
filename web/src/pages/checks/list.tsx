@@ -3,6 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
@@ -23,6 +24,7 @@ export function ChecksPage() {
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteChecks();
 
   const query = useChecks({
@@ -40,11 +42,11 @@ export function ChecksPage() {
   const selectedIDs = selectedCheckIds.map(Number);
 
   const deleteSelectedChecks = () => {
-    const count = selectedIDs.length;
-    if (count === 0) return;
-    if (!window.confirm(`Delete ${count} selected ${count === 1 ? "check" : "checks"}?`)) return;
     bulkDelete.mutate(selectedIDs, {
-      onSuccess: () => setSelectedCheckIds([]),
+      onSuccess: () => {
+        setSelectedCheckIds([]);
+        setDeleteOpen(false);
+      },
     });
   };
 
@@ -105,7 +107,7 @@ export function ChecksPage() {
           selectedRowIds={selectedCheckIds}
           onSelectedRowIdsChange={setSelectedCheckIds}
           bulkActions={
-            <Button variant="destructive" size="sm" onClick={deleteSelectedChecks} disabled={bulkDelete.isPending}>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
               <Trash2 data-icon="inline-start" />
               Delete
             </Button>
@@ -121,9 +123,6 @@ export function ChecksPage() {
                 onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />
-              <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-                {query.isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "check" : "checks"}`}
-              </div>
             </div>
           }
           empty={
@@ -143,6 +142,18 @@ export function ChecksPage() {
           }
         />
       )}
+      <BulkDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
+        }}
+        count={selectedIDs.length}
+        noun="check"
+        error={bulkDelete.error?.message}
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedChecks}
+      />
     </div>
   );
 }

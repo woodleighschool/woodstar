@@ -1,43 +1,111 @@
 import { Package, Puzzle } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { SOFTWARE_BRAND_ICONS } from "@/components/platform/platform-icon-data";
 import { PlatformIcon, SimpleIconGlyph } from "@/components/platform/platform-icons";
 import { cn } from "@/lib/utils";
 
-type IconRenderer = (className: string) => ReactNode;
+type SourceIconKind = "android" | "apple" | "chrome" | "package" | "puzzle" | "windows";
 
-const simpleBrandIcon =
-  (icon: (typeof SOFTWARE_BRAND_ICONS)[keyof typeof SOFTWARE_BRAND_ICONS]): IconRenderer =>
-  (className) => <SimpleIconGlyph icon={icon} className={className} />;
+interface SourceDefinition {
+  icon: SourceIconKind;
+  tint?: string;
+}
 
-const lucideIcon =
-  (Icon: typeof Package): IconRenderer =>
-  (className) => <Icon className={className} aria-hidden />;
+interface SourceStyle {
+  box?: CSSProperties;
+  iconClassName: string;
+}
 
-const ICON_BY_SOURCE: Record<string, IconRenderer> = {
-  apps: simpleBrandIcon(SOFTWARE_BRAND_ICONS.apple),
-  ios_apps: simpleBrandIcon(SOFTWARE_BRAND_ICONS.apple),
-  ipados_apps: simpleBrandIcon(SOFTWARE_BRAND_ICONS.apple),
-  programs: (className) => <PlatformIcon platform="windows" className={className} />,
-  android_apps: simpleBrandIcon(SOFTWARE_BRAND_ICONS.android),
-  homebrew_packages: lucideIcon(Package),
-  npm_packages: lucideIcon(Package),
-  python_packages: lucideIcon(Package),
-  go_binaries: lucideIcon(Package),
-  pkg_packages: lucideIcon(Package),
-  deb_packages: lucideIcon(Package),
-  rpm_packages: lucideIcon(Package),
-  chocolatey_packages: lucideIcon(Package),
-  apt_sources: lucideIcon(Package),
-  yum_sources: lucideIcon(Package),
-  chrome_extensions: simpleBrandIcon(SOFTWARE_BRAND_ICONS.chrome),
-  firefox_addons: lucideIcon(Puzzle),
-  safari_extensions: simpleBrandIcon(SOFTWARE_BRAND_ICONS.apple),
-  ie_extensions: (className) => <PlatformIcon platform="windows" className={className} />,
-  vscode_extensions: lucideIcon(Puzzle),
-  jetbrains_plugins: lucideIcon(Puzzle),
-  atom_packages: lucideIcon(Puzzle),
+const SOURCE_DEFINITIONS: Record<string, SourceDefinition> = {
+  apps: {
+    icon: "apple",
+  },
+  ios_apps: {
+    icon: "apple",
+  },
+  ipados_apps: {
+    icon: "apple",
+  },
+  programs: {
+    icon: "windows",
+    tint: "#60a5fa",
+  },
+  android_apps: {
+    icon: "android",
+    tint: "#22c55e",
+  },
+  homebrew_packages: {
+    icon: "package",
+    tint: "#d97706",
+  },
+  npm_packages: {
+    icon: "package",
+    tint: "#ef4444",
+  },
+  python_packages: {
+    icon: "package",
+    tint: "#3b82f6",
+  },
+  go_binaries: {
+    icon: "package",
+    tint: "#06b6d4",
+  },
+  pkg_packages: {
+    icon: "package",
+    tint: "#94a3b8",
+  },
+  deb_packages: {
+    icon: "package",
+    tint: "#e11d48",
+  },
+  rpm_packages: {
+    icon: "package",
+    tint: "#f97316",
+  },
+  chocolatey_packages: {
+    icon: "package",
+    tint: "#2563eb",
+  },
+  apt_sources: {
+    icon: "package",
+    tint: "#eab308",
+  },
+  yum_sources: {
+    icon: "package",
+    tint: "#6366f1",
+  },
+  chrome_extensions: {
+    icon: "chrome",
+    tint: "#4285f4",
+  },
+  firefox_addons: {
+    icon: "puzzle",
+    tint: "#f59e0b",
+  },
+  safari_extensions: {
+    icon: "apple",
+  },
+  ie_extensions: {
+    icon: "windows",
+    tint: "#38bdf8",
+  },
+  vscode_extensions: {
+    icon: "puzzle",
+    tint: "#0ea5e9",
+  },
+  jetbrains_plugins: {
+    icon: "puzzle",
+    tint: "#d946ef",
+  },
+  atom_packages: {
+    icon: "puzzle",
+    tint: "#78716c",
+  },
+};
+
+const DEFAULT_SOURCE: SourceDefinition = {
+  icon: "package",
 };
 
 const SIZE_CLASS = {
@@ -55,11 +123,61 @@ interface SoftwareIconProps {
 }
 
 export function SoftwareIcon({ source = "", size = "sm", className }: SoftwareIconProps) {
-  const icon = ICON_BY_SOURCE[source] ?? lucideIcon(Package);
+  const definition = SOURCE_DEFINITIONS[source] ?? DEFAULT_SOURCE;
   const sizes = SIZE_CLASS[size];
+  const style = sourceStyle(definition.tint);
+
   return (
-    <span className={cn("bg-muted/40 inline-flex shrink-0 items-center justify-center border", sizes.box, className)}>
-      {icon(cn("text-muted-foreground", sizes.icon))}
+    <span
+      className={cn("bg-muted/40 inline-flex shrink-0 items-center justify-center border", sizes.box, className)}
+      style={style.box}
+    >
+      {renderSourceIcon(definition.icon, cn(style.iconClassName, sizes.icon))}
     </span>
   );
+}
+
+function renderSourceIcon(kind: SourceIconKind, className: string) {
+  switch (kind) {
+    case "android":
+    case "apple":
+    case "chrome":
+      return <SimpleIconGlyph icon={SOFTWARE_BRAND_ICONS[kind]} className={className} />;
+    case "package":
+      return <Package className={className} />;
+    case "puzzle":
+      return <Puzzle className={className} />;
+    case "windows":
+      return <PlatformIcon platform="windows" className={className} />;
+  }
+}
+
+function sourceStyle(color?: string): SourceStyle {
+  if (!color) {
+    return { iconClassName: "text-muted-foreground" };
+  }
+
+  return {
+    box: {
+      color,
+      backgroundColor: withAlpha(color, 0.14),
+      borderColor: withAlpha(color, 0.34),
+    },
+    iconClassName: "",
+  };
+}
+
+function withAlpha(color: string, alpha: number) {
+  const hex = color.replace("#", "");
+  const value = Number.parseInt(hex, 16);
+
+  if (hex.length !== 6 || Number.isNaN(value)) {
+    return color;
+  }
+
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }

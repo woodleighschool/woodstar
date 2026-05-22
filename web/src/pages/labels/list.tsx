@@ -168,9 +168,6 @@ export function LabelsPage() {
                 onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />
-              <div className="text-muted-foreground ml-auto text-xs tabular-nums">
-                {query.isFetching ? "Loading..." : `${totalCount} ${totalCount === 1 ? "label" : "labels"}`}
-              </div>
             </div>
           }
           empty={
