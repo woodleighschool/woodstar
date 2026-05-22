@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformToggleGroup } from "@/components/queries/platform-selector";
-import { PageLead, ShowQueryButton } from "@/components/queries/query-ui";
+import { ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -134,8 +135,8 @@ export function LiveRunner({
   const title = step === "targets" ? `Run ${name}` : `${name} live run`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-5 p-6">
-      <PageLead
+    <PageShell>
+      <PageHeader
         title={title}
         description={
           step === "targets"
@@ -196,7 +197,7 @@ export function LiveRunner({
           onChangeTargets={backToTargets}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

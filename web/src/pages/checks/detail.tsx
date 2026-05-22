@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import {
   DetailSettings,
   EditButton,
@@ -23,19 +24,19 @@ export function CheckDetailPage() {
 
   if (check.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load check</AlertTitle>
           <AlertDescription>{check.error.message}</AlertDescription>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
   if (!check.data) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
         <Loader2 className="size-4 animate-spin" /> Loading check...
-      </div>
+      </PageShell>
     );
   }
 
@@ -44,22 +45,20 @@ export function CheckDetailPage() {
   const passing = hostRows.filter((row) => row.response === "pass").length;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{check.data.name}</h1>
-          {check.data.description ? (
-            <p className="text-muted-foreground mt-1 max-w-3xl text-sm">{check.data.description}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ShowQueryButton sql={check.data.query} />
-          <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} />
-          <EditButton to="/checks/$checkId/edit" params={{ checkId }}>
-            Edit check
-          </EditButton>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={check.data.name}
+        description={check.data.description}
+        actions={
+          <>
+            <ShowQueryButton sql={check.data.query} />
+            <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} />
+            <EditButton to="/checks/$checkId/edit" params={{ checkId }}>
+              Edit check
+            </EditButton>
+          </>
+        }
+      />
 
       <DetailSettings>
         <SettingItem label="Hosts failing">{failing}</SettingItem>
@@ -118,6 +117,6 @@ export function CheckDetailPage() {
           </Table>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

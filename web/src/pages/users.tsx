@@ -3,6 +3,7 @@ import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
+import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,9 +39,9 @@ export function UsersPage() {
         </Button>
       </PageActions>
 
-      <div className="p-6">
+      <PageShell>
         <UsersTable query={query} currentUserId={currentUser?.id ?? null} onDelete={setDeleting} />
-      </div>
+      </PageShell>
 
       <UserFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
 

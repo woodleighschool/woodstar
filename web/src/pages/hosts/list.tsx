@@ -10,6 +10,7 @@ import { DataTableColumnToggle } from "@/components/data-table/data-table-column
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { defaultHiddenIds } from "@/components/data-table/data-table-visibility";
 import { PageActions } from "@/components/layout/page-actions";
+import { PageShell } from "@/components/layout/page-layout";
 import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -239,7 +240,7 @@ export function HostsListPage() {
         />
       </PageActions>
 
-      <div className="p-6">
+      <PageShell>
         {query.error ? (
           <Alert variant="destructive">
             <AlertTitle>Failed to load hosts</AlertTitle>
@@ -306,7 +307,7 @@ export function HostsListPage() {
             }
           />
         )}
-      </div>
+      </PageShell>
       <BulkDeleteDialog
         open={deleteOpen}
         onOpenChange={(open) => {

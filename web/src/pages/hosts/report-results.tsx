@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -19,20 +20,20 @@ export function HostReportResultsPage() {
 
   if (report.error || results.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load report results</AlertTitle>
           <AlertDescription>{report.error?.message ?? results.error?.message}</AlertDescription>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   if (!report.data || results.isLoading) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
         <Loader2 className="size-4 animate-spin" /> Loading report results...
-      </div>
+      </PageShell>
     );
   }
 
@@ -59,21 +60,23 @@ export function HostReportResultsPage() {
         ];
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{report.data.name}</h1>
-          <p className="text-muted-foreground text-sm">
+    <PageShell>
+      <PageHeader
+        title={report.data.name}
+        description={
+          <>
             {results.data?.host_name ?? "Host"}
             {results.data?.last_fetched ? ` · last fetched ${formatRelative(results.data.last_fetched)}` : ""}
-          </p>
-        </div>
-        <Button asChild size="sm" variant="outline">
-          <Link to="/reports/$reportId" params={{ reportId }}>
-            View all hosts
-          </Link>
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button asChild size="sm" variant="outline">
+            <Link to="/reports/$reportId" params={{ reportId }}>
+              View all hosts
+            </Link>
+          </Button>
+        }
+      />
 
       <DataTable
         columns={columns}
@@ -99,6 +102,6 @@ export function HostReportResultsPage() {
           </Empty>
         }
       />
-    </div>
+    </PageShell>
   );
 }

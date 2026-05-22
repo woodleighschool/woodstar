@@ -3,6 +3,7 @@ import { Loader2, Package } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageActions } from "@/components/layout/page-actions";
+import { PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ export function SoftwareTitleDetailPage() {
 
   if (query.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load software title</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
@@ -29,20 +30,20 @@ export function SoftwareTitleDetailPage() {
             Retry
           </Button>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   if (query.isLoading || !title) {
     if (query.isLoading) {
       return (
-        <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+        <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" /> Loading...
-        </div>
+        </PageShell>
       );
     }
     return (
-      <div className="p-6">
+      <PageShell>
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -52,12 +53,12 @@ export function SoftwareTitleDetailPage() {
             <EmptyDescription>This title is no longer available.</EmptyDescription>
           </EmptyHeader>
         </Empty>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageShell className="gap-6">
       <PageActions>
         <Button asChild variant="outline" size="sm">
           <Link to="/hosts" search={{ software_title_id: title.id.toString() }}>
@@ -69,7 +70,7 @@ export function SoftwareTitleDetailPage() {
       <SoftwareHeader title={title} />
       <SoftwareInfoCard title={title} />
       <SoftwareVersionsCard title={title} />
-    </div>
+    </PageShell>
   );
 }
 

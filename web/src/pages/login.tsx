@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearch } from "@tanstack/react-router";
-import { Star } from "lucide-react";
 import { useState } from "react";
 
+import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -39,12 +39,10 @@ export function LoginPage() {
   });
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-muted/40 px-4 py-10">
-      <Card className="w-full max-w-md">
-        <CardHeader className="items-center text-center">
-          <div className="rounded-full bg-primary/10 p-2 text-primary">
-            <Star className="size-5" />
-          </div>
+    <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
+      <Card className="w-full max-w-md overflow-hidden">
+        <CardHeader className="items-center justify-items-center text-center">
+          <WoodstarMark size="md" />
           <CardTitle>Sign in to Woodstar</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

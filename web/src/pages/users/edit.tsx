@@ -3,6 +3,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export function UserEditPage() {
 
   if (user.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load user</AlertTitle>
           <AlertDescription>{user.error.message}</AlertDescription>
@@ -35,16 +36,16 @@ export function UserEditPage() {
             Retry
           </Button>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   if (!user.data) {
     return (
-      <div className="flex max-w-3xl flex-col gap-4 p-6">
+      <PageShell className="max-w-3xl gap-4">
         <Skeleton className="h-36" />
         <Skeleton className="h-28" />
-      </div>
+      </PageShell>
     );
   }
 
@@ -84,7 +85,7 @@ function UserEditForm({ user }: { user: User }) {
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4 p-6">
+    <PageShell className="max-w-3xl gap-4">
       <Card>
         <CardHeader>
           <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
@@ -180,6 +181,6 @@ function UserEditForm({ user }: { user: User }) {
         user={canDelete ? user : null}
         onDeleted={() => void navigate({ to: "/users" })}
       />
-    </div>
+    </PageShell>
   );
 }

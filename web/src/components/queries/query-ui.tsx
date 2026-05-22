@@ -21,18 +21,6 @@ import { cn, formatInterval } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
 
-export function PageLead({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">{description}</p>
-      </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-    </div>
-  );
-}
-
 export function PlatformBadge({ platforms }: { platforms?: readonly string[] | null }) {
   return <PlatformIconList platforms={selectedPlatformIconTargets(platforms)} iconClassName="size-4" />;
 }

@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { PageShell } from "@/components/layout/page-layout";
 import { runtime } from "@/lib/runtime";
 
 function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
@@ -17,7 +18,7 @@ function DefinitionList({ rows }: { rows: Array<[string, React.ReactNode]> }) {
 
 export function SettingsPage() {
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageShell className="gap-6">
       <DefinitionList
         rows={[
           ["Version", runtime.version || "unknown"],
@@ -25,6 +26,6 @@ export function SettingsPage() {
           ["Frontend mode", import.meta.env.MODE],
         ]}
       />
-    </div>
+    </PageShell>
   );
 }

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { APIKeyCard } from "@/components/account/api-key-card";
+import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ export function AccountPage() {
 
   if (account.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load account</AlertTitle>
           <AlertDescription>{account.error.message}</AlertDescription>
@@ -28,24 +29,24 @@ export function AccountPage() {
             Retry
           </Button>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   if (!account.data) {
     return (
-      <div className="flex max-w-3xl flex-col gap-4 p-6">
+      <PageShell className="max-w-3xl gap-4">
         <Skeleton className="h-32" />
         <Skeleton className="h-28" />
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4 p-6">
+    <PageShell className="max-w-3xl gap-4">
       <AccountProfileCard key={account.data.user.updated_at} account={account.data} />
       <APIKeyCard />
-    </div>
+    </PageShell>
   );
 }
 

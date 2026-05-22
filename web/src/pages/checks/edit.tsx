@@ -5,9 +5,10 @@ import { useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { LiveRunButton, PageLead } from "@/components/queries/query-ui";
+import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,19 +35,19 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
   if (mode === "edit") {
     if (detail.error) {
       return (
-        <div className="p-6">
+        <PageShell>
           <Alert variant="destructive">
             <AlertTitle>Failed to load check</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
-        </div>
+        </PageShell>
       );
     }
     if (!detail.data) {
       return (
-        <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+        <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" /> Loading check...
-        </div>
+        </PageShell>
       );
     }
   }
@@ -57,7 +58,7 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          platforms: detail.data.platforms,
+          platforms: [...detail.data.platforms],
           label_scope: detail.data.label_scope ?? {},
         }
       : emptyCheck;
@@ -99,75 +100,73 @@ function CheckEditForm({
   }
 
   return (
-    <form
-      className={cn(
-        "flex h-full flex-col gap-5 p-6 transition-[padding] duration-200 ease-out",
-        schemaOpen && "pr-[21rem]",
-      )}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
-      <PageLead
-        title={mode === "create" ? "New check" : "Edit check"}
-        description="Checks pass when their SQL returns rows and fail when it returns none."
-      />
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Unable to save check</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="grid max-w-3xl gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="check-name">Name</Label>
-          <Input
-            id="check-name"
-            required
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="check-description">Description</Label>
-          <Textarea
-            id="check-description"
-            rows={3}
-            placeholder="How does this check's failure put the organization at risk?"
-            value={form.description ?? ""}
-            onChange={(event) => setForm({ ...form, description: event.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4">
+    <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <PageHeader
+          title={mode === "create" ? "New check" : "Edit check"}
+          description="Checks pass when their SQL returns rows and fail when it returns none."
+        />
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Unable to save check</AlertTitle>
+            <AlertDescription>{error.message}</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="grid max-w-3xl gap-4">
-          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+          <div className="grid gap-2">
+            <Label htmlFor="check-name">Name</Label>
+            <Input
+              id="check-name"
+              required
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="check-description">Description</Label>
+            <Textarea
+              id="check-description"
+              rows={3}
+              placeholder="How does this check's failure put the organization at risk?"
+              value={form.description ?? ""}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+            />
+          </div>
         </div>
-        <LabelScopeSelector
-          entity="check"
-          value={form.label_scope}
-          onChange={(label_scope) => setForm({ ...form, label_scope })}
-        />
-      </div>
 
-      <div className="grid max-w-5xl gap-2">
-        <Label>Query</Label>
-        <SQLEditor
-          ref={editorRef}
-          value={form.query}
-          onChange={(query) => setForm({ ...form, query })}
-          placeholder="SELECT ..."
-        />
-      </div>
-      <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
-        <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Saving..." : "Save"}
-        </Button>
-        {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} /> : null}
-      </div>
-      <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
-    </form>
+        <div className="grid gap-4">
+          <div className="grid max-w-3xl gap-4">
+            <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+          </div>
+          <LabelScopeSelector
+            entity="check"
+            value={form.label_scope}
+            onChange={(label_scope) => setForm({ ...form, label_scope })}
+          />
+        </div>
+
+        <div className="grid max-w-5xl gap-2">
+          <Label>Query</Label>
+          <SQLEditor
+            ref={editorRef}
+            value={form.query}
+            onChange={(query) => setForm({ ...form, query })}
+            placeholder="SELECT ..."
+          />
+        </div>
+        <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Saving..." : "Save"}
+          </Button>
+          {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} /> : null}
+        </div>
+        <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+      </form>
+    </PageShell>
   );
 }

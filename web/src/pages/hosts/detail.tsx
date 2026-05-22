@@ -15,6 +15,7 @@ import {
   HostUsersCard,
 } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
+import { PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function HostDetailPage() {
 
   if (query.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load host</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
@@ -56,20 +57,20 @@ export function HostDetailPage() {
             Retry
           </Button>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
 
   if (query.isLoading || !host) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
         <Loader2 className="size-4 animate-spin" /> Loading...
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <PageShell className="gap-6">
       <HostHeader host={host} />
 
       <Tabs defaultValue="details">
@@ -103,7 +104,7 @@ export function HostDetailPage() {
           <HostChecksTab hostId={hostId} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }
 

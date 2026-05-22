@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronRight, LogOut, Star, User as UserIcon } from "lucide-react";
+import { ChevronRight, LogOut, User as UserIcon } from "lucide-react";
 
+import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { navSections, type NavItem } from "@/components/layout/nav-config";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -48,9 +49,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-sidebar-border border-b">
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Star className="size-4" />
-          </div>
+          <WoodstarMark />
           <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-semibold tracking-tight">Woodstar</span>
             <span className="text-muted-foreground truncate text-[11px]">{`v${runtime.version}`}</span>
@@ -66,12 +65,33 @@ export function AppSidebar() {
                 const Icon = section.icon;
                 const active = section.items.some((item) => isActivePath(location.pathname, item));
 
+                if (section.collapsible === false) {
+                  return section.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={item.label}
+                          isActive={isActivePath(location.pathname, item)}
+                        >
+                          <Link to={item.to}>
+                            <ItemIcon />
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  });
+                }
+
                 if (section.items.length === 0) {
                   return (
                     <SidebarMenuItem key={section.label}>
                       <SidebarMenuButton disabled tooltip={section.label}>
                         <Icon />
                         <span>{section.label}</span>
+                        <ChevronRight className="ml-auto opacity-60" />
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

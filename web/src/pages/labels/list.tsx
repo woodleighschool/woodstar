@@ -7,7 +7,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PageLead } from "@/components/queries/query-ui";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,8 +117,8 @@ export function LabelsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <PageLead
+    <PageShell>
+      <PageHeader
         title="Labels"
         description="Group hosts for filtering, reports, checks, and future Santa/Munki targeting."
         actions={
@@ -195,7 +195,7 @@ export function LabelsPage() {
           if (!open) setDeleting(null);
         }}
       />
-    </div>
+    </PageShell>
   );
 }
 

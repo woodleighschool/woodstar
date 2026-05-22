@@ -8,7 +8,8 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PageLead, PlatformBadge } from "@/components/queries/query-ui";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { PlatformBadge } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -73,8 +74,8 @@ export function ChecksPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <PageLead
+    <PageShell>
+      <PageHeader
         title="Checks"
         description="Detect device health issues and track which hosts need attention."
         actions={
@@ -154,6 +155,6 @@ export function ChecksPage() {
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedChecks}
       />
-    </div>
+    </PageShell>
   );
 }

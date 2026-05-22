@@ -5,8 +5,8 @@ import { useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformSelector } from "@/components/queries/platform-selector";
-import { PageLead } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,29 +62,29 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
   if (mode === "edit") {
     if (detail.error) {
       return (
-        <div className="p-6">
+        <PageShell>
           <Alert variant="destructive">
             <AlertTitle>Failed to load label</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
-        </div>
+        </PageShell>
       );
     }
     if (!detail.data) {
       return (
-        <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+        <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" /> Loading label...
-        </div>
+        </PageShell>
       );
     }
     if (detail.data.label_type === "builtin") {
       return (
-        <div className="p-6">
+        <PageShell>
           <Alert>
             <AlertTitle>Built-in label</AlertTitle>
             <AlertDescription>Built-in labels are managed by Woodstar and cannot be edited.</AlertDescription>
           </Alert>
-        </div>
+        </PageShell>
       );
     }
   }
@@ -96,7 +96,7 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
           description: detail.data.description,
           query: detail.data.query ?? empty.query,
           label_membership_type: membershipFromString(detail.data.label_membership_type),
-          platforms: detail.data.platforms,
+          platforms: [...detail.data.platforms],
         }
       : empty;
 
@@ -149,98 +149,99 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
   }
 
   return (
-    <form
-      className={cn(
-        "flex h-full flex-col gap-5 p-6 transition-[padding] duration-200 ease-out",
-        isDynamic && schemaOpen && "pr-[21rem]",
-      )}
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
+    <PageShell
+      asChild
+      className={cn("h-full transition-[padding] duration-200 ease-out", isDynamic && schemaOpen && "pr-[21rem]")}
     >
-      <PageLead
-        title={mode === "create" ? "New label" : "Edit label"}
-        description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
-        actions={
-          <>
-            {mode === "edit" ? (
-              <Button asChild type="button" variant="outline" size="sm">
-                <Link to="/labels">Cancel</Link>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <PageHeader
+          title={mode === "create" ? "New label" : "Edit label"}
+          description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
+          actions={
+            <>
+              {mode === "edit" ? (
+                <Button asChild type="button" variant="outline" size="sm">
+                  <Link to="/labels">Cancel</Link>
+                </Button>
+              ) : null}
+              <Button type="submit" size="sm" disabled={pending}>
+                {pending ? "Saving..." : mode === "create" ? "Save label" : "Save"}
               </Button>
-            ) : null}
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? "Saving..." : mode === "create" ? "Save label" : "Save"}
-            </Button>
-          </>
-        }
-      />
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Unable to save label</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      ) : null}
+            </>
+          }
+        />
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Unable to save label</AlertTitle>
+            <AlertDescription>{error.message}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      <div className="grid max-w-3xl gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="label-name">Name</Label>
-          <Input
-            id="label-name"
-            required
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-          />
+        <div className="grid max-w-3xl gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="label-name">Name</Label>
+            <Input
+              id="label-name"
+              required
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="label-description">Description</Label>
+            <Textarea
+              id="label-description"
+              rows={3}
+              placeholder="Optional. Tell admins why this label exists."
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Type</Label>
+            <RadioGroup
+              value={form.label_membership_type}
+              onValueChange={(value) => setForm({ ...form, label_membership_type: value as MembershipType })}
+              className="gap-2"
+            >
+              {MEMBERSHIP_OPTIONS.map((option) => (
+                <div key={option.value} className="flex items-center gap-2">
+                  <RadioGroupItem id={`membership-${option.value}`} value={option.value} />
+                  <Label htmlFor={`membership-${option.value}`} className="font-normal">
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+            {memberOption ? <p className="text-muted-foreground text-xs">{memberOption.helpText}</p> : null}
+          </div>
+
+          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="label-description">Description</Label>
-          <Textarea
-            id="label-description"
-            rows={3}
-            placeholder="Optional. Tell admins why this label exists."
-            value={form.description}
-            onChange={(event) => setForm({ ...form, description: event.target.value })}
-          />
-        </div>
 
-        <div className="grid gap-2">
-          <Label>Type</Label>
-          <RadioGroup
-            value={form.label_membership_type}
-            onValueChange={(value) => setForm({ ...form, label_membership_type: value as MembershipType })}
-            className="gap-2"
-          >
-            {MEMBERSHIP_OPTIONS.map((option) => (
-              <div key={option.value} className="flex items-center gap-2">
-                <RadioGroupItem id={`membership-${option.value}`} value={option.value} />
-                <Label htmlFor={`membership-${option.value}`} className="font-normal">
-                  {option.label}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          {memberOption ? <p className="text-muted-foreground text-xs">{memberOption.helpText}</p> : null}
-        </div>
+        {isDynamic ? (
+          <div className="flex flex-1">
+            <SQLEditor
+              ref={editorRef}
+              value={form.query}
+              onChange={(query) => setForm({ ...form, query })}
+              placeholder="SELECT ..."
+              className="flex-1"
+            />
+          </div>
+        ) : null}
 
-        <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
-      </div>
-
-      {isDynamic ? (
-        <div className="flex flex-1">
-          <SQLEditor
-            ref={editorRef}
-            value={form.query}
-            onChange={(query) => setForm({ ...form, query })}
-            placeholder="SELECT ..."
-            className="flex-1"
-          />
-        </div>
-      ) : null}
-
-      {isDynamic ? (
-        <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
-      ) : null}
-    </form>
+        {isDynamic ? (
+          <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+        ) : null}
+      </form>
+    </PageShell>
   );
 }
 

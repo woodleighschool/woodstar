@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditButton, ExportButton, LiveRunButton, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -23,19 +24,19 @@ export function ReportDetailPage() {
 
   if (report.error) {
     return (
-      <div className="p-6">
+      <PageShell>
         <Alert variant="destructive">
           <AlertTitle>Failed to load report</AlertTitle>
           <AlertDescription>{report.error.message}</AlertDescription>
         </Alert>
-      </div>
+      </PageShell>
     );
   }
   if (report.isLoading || !report.data) {
     return (
-      <div className="text-muted-foreground flex items-center gap-2 p-6 text-sm">
+      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
         <Loader2 className="size-4 animate-spin" /> Loading...
-      </div>
+      </PageShell>
     );
   }
 
@@ -54,22 +55,20 @@ export function ReportDetailPage() {
   const hasResults = rows.length > 0;
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{report.data.name}</h1>
-          {report.data.description ? (
-            <p className="text-muted-foreground mt-1 max-w-3xl text-sm">{report.data.description}</p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ShowQueryButton sql={report.data.query} />
-          <LiveRunButton to="/reports/$reportId/live" params={{ reportId }} />
-          <EditButton to="/reports/$reportId/edit" params={{ reportId }}>
-            Edit report
-          </EditButton>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title={report.data.name}
+        description={report.data.description}
+        actions={
+          <>
+            <ShowQueryButton sql={report.data.query} />
+            <LiveRunButton to="/reports/$reportId/live" params={{ reportId }} />
+            <EditButton to="/reports/$reportId/edit" params={{ reportId }}>
+              Edit report
+            </EditButton>
+          </>
+        }
+      />
 
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -103,7 +102,7 @@ export function ReportDetailPage() {
           }
         />
       </div>
-    </div>
+    </PageShell>
   );
 }
 

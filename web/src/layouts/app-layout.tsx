@@ -12,7 +12,7 @@ export function AppLayout() {
     <PageActionsProvider>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-w-0 w-auto">
           <AppTopbar />
           <main className="min-w-0 flex-1 overflow-y-auto">
             <AnimatePresence mode="wait" initial={false}>

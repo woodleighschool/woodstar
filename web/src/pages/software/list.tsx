@@ -6,6 +6,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -82,7 +83,7 @@ export function SoftwarePage() {
   ];
 
   return (
-    <div className="p-6">
+    <PageShell>
       {query.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load software</AlertTitle>
@@ -129,7 +130,7 @@ export function SoftwarePage() {
           }
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
