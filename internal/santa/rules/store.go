@@ -72,7 +72,7 @@ type RuleListParams struct {
 }
 
 type RuleCreate struct {
-	RuleType        RuleType           `json:"rule_type"`
+	RuleType        RuleType           `json:"rule_type"         enum:"binary,certificate,teamid,signingid,cdhash"`
 	Identifier      string             `json:"identifier"`
 	Name            string             `json:"name,omitempty"`
 	CustomMessage   string             `json:"custom_message,omitempty"`
@@ -90,14 +90,14 @@ type RuleUpdate struct {
 }
 
 type RuleIncludeWrite struct {
-	Policy        Policy  `json:"policy"`
+	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
 	CELExpression string  `json:"cel_expression,omitempty"`
 	LabelIDs      []int64 `json:"label_ids"`
 }
 
 type Rule struct {
 	ID              int64         `json:"id"`
-	RuleType        RuleType      `json:"rule_type"`
+	RuleType        RuleType      `json:"rule_type"         enum:"binary,certificate,teamid,signingid,cdhash"`
 	Identifier      string        `json:"identifier"`
 	Name            string        `json:"name"`
 	CustomMessage   string        `json:"custom_message"`
@@ -111,16 +111,16 @@ type Rule struct {
 type RuleInclude struct {
 	ID            int64   `json:"id"`
 	Position      int     `json:"position"`
-	Policy        Policy  `json:"policy"`
+	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
 	CELExpression string  `json:"cel_expression,omitempty"`
 	LabelIDs      []int64 `json:"label_ids"`
 }
 
 type EffectiveRule struct {
 	RuleID           int64    `json:"rule_id"`
-	RuleType         RuleType `json:"rule_type"`
+	RuleType         RuleType `json:"rule_type"          enum:"binary,certificate,teamid,signingid,cdhash"`
 	Identifier       string   `json:"identifier"`
-	Policy           Policy   `json:"policy"`
+	Policy           Policy   `json:"policy"             enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
 	CELExpression    string   `json:"cel_expression,omitempty"`
 	CustomMessage    string   `json:"custom_message,omitempty"`
 	CustomURL        string   `json:"custom_url,omitempty"`

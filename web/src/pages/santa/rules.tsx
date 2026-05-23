@@ -1,7 +1,6 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
@@ -24,7 +23,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,14 +31,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
   useCreateSantaRule,
   useDeleteSantaRule,
+  useSantaRule,
   useSantaRules,
   useUpdateSantaRule,
   type SantaRule,
@@ -55,18 +54,27 @@ const RULE_TYPES = [
   { value: "teamid", label: "Team ID" },
   { value: "signingid", label: "Signing ID" },
   { value: "cdhash", label: "CDHash" },
+] as const satisfies readonly { value: SantaRuleMutation["rule_type"]; label: string }[];
+
+const POLICIES = [
+  { value: "allowlist", label: "Allowlist" },
+  { value: "allowlist_compiler", label: "Compiler allowlist" },
+  { value: "blocklist", label: "Blocklist" },
+  { value: "silent_blocklist", label: "Silent blocklist" },
+  { value: "cel", label: "CEL" },
 ] as const;
 
-const POLICIES = ["allowlist", "allowlist_compiler", "blocklist", "silent_blocklist", "cel"] as const;
+type RuleType = (typeof RULE_TYPES)[number]["value"];
+type RulePolicy = (typeof POLICIES)[number]["value"];
 
 interface RuleIncludeForm extends SortableItem {
-  policy: string;
+  policy: RulePolicy;
   cel_expression: string;
   label_ids: number[];
 }
 
 interface RuleFormState {
-  rule_type: string;
+  rule_type: RuleType;
   identifier: string;
   name: string;
   custom_message: string;
@@ -100,10 +108,7 @@ export function SantaRulesPage() {
     order_key: state.orderKey,
     order_direction: state.orderDirection,
   });
-  const create = useCreateSantaRule();
-  const update = useUpdateSantaRule();
   const remove = useDeleteSantaRule();
-  const [editing, setEditing] = useState<SantaRule | "new" | null>(null);
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const rows = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
@@ -125,15 +130,17 @@ export function SantaRulesPage() {
       id: "rule_type",
       accessorKey: "rule_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
-      cell: ({ row }) => <Badge variant="secondary">{row.original.rule_type}</Badge>,
+      cell: ({ row }) => <Badge variant="secondary">{ruleTypeLabel(row.original.rule_type)}</Badge>,
     },
     {
       id: "includes",
-      header: "Includes",
+      header: "Targets",
       enableSorting: false,
       cell: ({ row }) =>
         row.original.includes?.length ? (
-          <span className="text-muted-foreground text-sm tabular-nums">{row.original.includes.length}</span>
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {row.original.includes.length} include{row.original.includes.length === 1 ? "" : "s"}
+          </span>
         ) : (
           <Badge variant="outline">inactive</Badge>
         ),
@@ -143,11 +150,7 @@ export function SantaRulesPage() {
       header: () => null,
       enableSorting: false,
       cell: ({ row }) => (
-        <RuleRowActions
-          pending={remove.isPending}
-          onEdit={() => setEditing(row.original)}
-          onDelete={() => setDeleting(row.original)}
-        />
+        <RuleRowActions rule={row.original} pending={remove.isPending} onDelete={() => setDeleting(row.original)} />
       ),
       meta: { headClassName: "w-12" },
     },
@@ -159,9 +162,11 @@ export function SantaRulesPage() {
         title="Santa rules"
         description="Manage execution rules and ordered include targets."
         actions={
-          <Button size="sm" onClick={() => setEditing("new")}>
-            <Plus data-icon="inline-start" />
-            Add rule
+          <Button asChild size="sm">
+            <Link to="/santa/rules/new">
+              <Plus data-icon="inline-start" />
+              Add rule
+            </Link>
           </Button>
         }
       />
@@ -183,7 +188,7 @@ export function SantaRulesPage() {
           onPerPageChange={setters.setPerPage}
           onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
           isLoading={query.isLoading}
-          onRowClick={setEditing}
+          rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
               <DataTableSearch value={draft} onChange={setDraft} placeholder="Search rules" label="Search rules" />
@@ -223,25 +228,6 @@ export function SantaRulesPage() {
         />
       )}
 
-      <RuleDialog
-        key={editing === "new" ? "new" : (editing?.id ?? "closed")}
-        open={editing !== null}
-        rule={editing === "new" ? null : editing}
-        pending={create.isPending || update.isPending}
-        error={create.error?.message ?? update.error?.message}
-        onOpenChange={(open) => {
-          if (!open) {
-            create.reset();
-            update.reset();
-            setEditing(null);
-          }
-        }}
-        onSubmit={async (body) => {
-          if (editing === "new") await create.mutateAsync(body as SantaRuleMutation);
-          else if (editing) await update.mutateAsync({ id: editing.id, body });
-          setEditing(null);
-        }}
-      />
       <RuleDeleteDialog
         rule={deleting}
         open={deleting !== null}
@@ -263,7 +249,7 @@ export function SantaRulesPage() {
   );
 }
 
-function RuleRowActions({ pending, onEdit, onDelete }: { pending: boolean; onEdit: () => void; onDelete: () => void }) {
+function RuleRowActions({ rule, pending, onDelete }: { rule: SantaRule; pending: boolean; onDelete: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -273,7 +259,11 @@ function RuleRowActions({ pending, onEdit, onDelete }: { pending: boolean; onEdi
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to="/santa/rules/$ruleId/edit" params={{ ruleId: String(rule.id) }}>
+              Edit
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={onDelete}>
             Delete
           </DropdownMenuItem>
@@ -331,25 +321,49 @@ function RuleDeleteDialog({
   );
 }
 
-function RuleDialog({
-  open,
-  rule,
-  pending,
-  error,
-  onOpenChange,
-  onSubmit,
-}: {
-  open: boolean;
-  rule: SantaRule | null;
-  pending: boolean;
-  error?: string;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (body: SantaRuleMutation | SantaRuleUpdate) => Promise<void>;
-}) {
-  const [form, setForm] = useState(() => formFromRule(rule));
+export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
+  const params = useParams({ strict: false });
+  const ruleId = params.ruleId ?? "";
+  const detail = useSantaRule(ruleId);
+
+  if (mode === "edit") {
+    if (detail.error) {
+      return (
+        <PageShell>
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load rule</AlertTitle>
+            <AlertDescription>{detail.error.message}</AlertDescription>
+          </Alert>
+        </PageShell>
+      );
+    }
+    if (!detail.data) {
+      return (
+        <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
+          <Loader2 className="animate-spin" /> Loading rule...
+        </PageShell>
+      );
+    }
+  }
+
+  const initial = mode === "edit" && detail.data ? formFromRule(detail.data) : emptyRuleForm;
+
+  return <RuleForm key={ruleId || "new"} mode={mode} ruleId={ruleId} initial={initial} />;
+}
+
+function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: string; initial: RuleFormState }) {
+  const navigate = useNavigate();
+  const create = useCreateSantaRule();
+  const update = useUpdateSantaRule();
+  const [form, setForm] = useState<RuleFormState>(initial);
+  const pending = create.isPending || update.isPending;
+  const error = create.error ?? update.error;
+  const isEditing = mode === "edit";
 
   async function submit() {
-    await onSubmit(rule ? ruleUpdateBody(form) : ruleCreateBody(form));
+    if (mode === "create") await create.mutateAsync(ruleCreateBody(form));
+    else await update.mutateAsync({ id: Number(ruleId), body: ruleUpdateBody(form) });
+    void navigate({ to: "/santa/rules" });
   }
 
   function updateInclude(id: number, next: Partial<RuleIncludeForm>) {
@@ -360,122 +374,171 @@ function RuleDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{rule ? "Edit Santa rule" : "New Santa rule"}</DialogTitle>
-        </DialogHeader>
+    <PageShell asChild>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <PageHeader
+          title={mode === "create" ? "New Santa rule" : "Edit Santa rule"}
+          description="Define the Santa rule identity, policy targets, and user-facing block text."
+          actions={
+            <>
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link to="/santa/rules">Cancel</Link>
+              </Button>
+              <Button type="submit" size="sm" disabled={pending || !canSaveRule(form)}>
+                {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                Save
+              </Button>
+            </>
+          }
+        />
+
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Unable to save rule</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{error.message}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Rule type">
-            <Select
-              value={form.rule_type}
-              disabled={rule !== null}
-              onValueChange={(rule_type) => setForm({ ...form, rule_type })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RULE_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Identifier">
-            <Input
-              disabled={rule !== null}
-              value={form.identifier}
-              onChange={(event) => setForm({ ...form, identifier: event.target.value })}
-            />
-          </Field>
-          <Field label="Name">
-            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-          </Field>
-          <Field label="Custom URL">
-            <Input value={form.custom_url} onChange={(event) => setForm({ ...form, custom_url: event.target.value })} />
-          </Field>
-          <div className="grid gap-2 md:col-span-2">
-            <Label>Custom message</Label>
-            <Textarea
-              rows={3}
-              value={form.custom_message}
-              onChange={(event) => setForm({ ...form, custom_message: event.target.value })}
-            />
-          </div>
-          <div className="grid gap-2 md:col-span-2">
-            <Label>Exclude labels</Label>
-            <LabelPicker
-              value={form.exclude_label_ids}
-              onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
-            />
-          </div>
-          <div className="grid gap-2 md:col-span-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>Include targets</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    includes: [
-                      ...form.includes,
-                      { id: Date.now(), policy: "allowlist", cel_expression: "", label_ids: [] },
-                    ],
-                  })
-                }
-              >
-                <Plus data-icon="inline-start" />
-                Add include
-              </Button>
+
+        <FieldGroup className="max-w-5xl">
+          <FieldSet>
+            <FieldLegend>Identity</FieldLegend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field data-disabled={isEditing}>
+                <FieldLabel htmlFor="santa-rule-type">Rule type</FieldLabel>
+                <Select
+                  value={form.rule_type}
+                  disabled={isEditing}
+                  onValueChange={(rule_type) => setForm({ ...form, rule_type: rule_type as RuleType })}
+                >
+                  <SelectTrigger id="santa-rule-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {RULE_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>Rule type cannot change after creation.</FieldDescription>
+              </Field>
+              <Field data-disabled={isEditing}>
+                <FieldLabel htmlFor="santa-rule-identifier">Identifier</FieldLabel>
+                <Input
+                  id="santa-rule-identifier"
+                  required
+                  disabled={isEditing}
+                  value={form.identifier}
+                  onChange={(event) => setForm({ ...form, identifier: event.target.value })}
+                />
+                <FieldDescription>Hash, Team ID, Signing ID, or certificate fingerprint.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
+                <Input
+                  id="santa-rule-name"
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-rule-custom-url">Custom URL</FieldLabel>
+                <Input
+                  id="santa-rule-custom-url"
+                  value={form.custom_url}
+                  onChange={(event) => setForm({ ...form, custom_url: event.target.value })}
+                />
+              </Field>
+              <Field className="md:col-span-2">
+                <FieldLabel htmlFor="santa-rule-custom-message">Custom message</FieldLabel>
+                <Textarea
+                  id="santa-rule-custom-message"
+                  rows={3}
+                  value={form.custom_message}
+                  onChange={(event) => setForm({ ...form, custom_message: event.target.value })}
+                />
+              </Field>
             </div>
-            {form.includes.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Rules without include targets are saved but not effective.
-              </p>
-            ) : (
-              <SortableList
-                items={form.includes}
-                onChange={(includes) => setForm({ ...form, includes })}
-                renderItem={(include) => (
-                  <IncludeEditor
-                    include={include}
-                    onChange={(next) => updateInclude(include.id, next)}
-                    onDelete={() =>
-                      setForm({ ...form, includes: form.includes.filter((item) => item.id !== include.id) })
-                    }
-                  />
-                )}
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Targeting</FieldLegend>
+            <Field>
+              <FieldLabel>Exclude labels</FieldLabel>
+              <LabelPicker
+                value={form.exclude_label_ids}
+                onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
               />
-            )}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending || form.rule_type.trim() === "" || form.identifier.trim() === ""}
-            onClick={() => void submit()}
-          >
+              <FieldDescription>
+                Excluded labels suppress this rule even when an include target matches.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <FieldLabel>Include targets</FieldLabel>
+                  <FieldDescription>Rules without include targets are saved but not effective.</FieldDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      includes: [
+                        ...form.includes,
+                        { id: Date.now(), policy: "allowlist", cel_expression: "", label_ids: [] },
+                      ],
+                    })
+                  }
+                >
+                  <Plus data-icon="inline-start" />
+                  Add include
+                </Button>
+              </div>
+              {form.includes.length === 0 ? (
+                <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
+                  No include targets.
+                </div>
+              ) : (
+                <SortableList
+                  items={form.includes}
+                  onChange={(includes) => setForm({ ...form, includes })}
+                  renderItem={(include) => (
+                    <IncludeEditor
+                      include={include}
+                      onChange={(next) => updateInclude(include.id, next)}
+                      onDelete={() =>
+                        setForm({ ...form, includes: form.includes.filter((item) => item.id !== include.id) })
+                      }
+                    />
+                  )}
+                />
+              )}
+            </Field>
+          </FieldSet>
+        </FieldGroup>
+
+        <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
+          <Button type="submit" size="sm" disabled={pending || !canSaveRule(form)}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <Button asChild type="button" variant="ghost" size="sm">
+            <Link to="/santa/rules">Cancel</Link>
+          </Button>
+        </div>
+      </form>
+    </PageShell>
   );
 }
 
@@ -489,48 +552,49 @@ function IncludeEditor({
   onDelete: () => void;
 }) {
   return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={include.policy} onValueChange={(policy) => onChange({ policy })}>
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {POLICIES.map((policy) => (
-              <SelectItem key={policy} value={policy}>
-                {policy}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="grid gap-4 rounded-md border p-4">
+      <div className="flex flex-wrap items-start gap-3">
+        <Field className="min-w-56 flex-1">
+          <FieldLabel htmlFor={`include-policy-${include.id}`}>Policy</FieldLabel>
+          <Select value={include.policy} onValueChange={(policy) => onChange({ policy: policy as RulePolicy })}>
+            <SelectTrigger id={`include-policy-${include.id}`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {POLICIES.map((policy) => (
+                  <SelectItem key={policy.value} value={policy.value}>
+                    {policy.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <Button type="button" variant="ghost" size="icon" onClick={onDelete}>
           <Trash2 />
         </Button>
       </div>
       {include.policy === "cel" ? (
-        <Textarea
-          rows={3}
-          placeholder="CEL expression"
-          value={include.cel_expression}
-          onChange={(event) => onChange({ cel_expression: event.target.value })}
-        />
+        <Field>
+          <FieldLabel htmlFor={`include-cel-${include.id}`}>CEL expression</FieldLabel>
+          <Textarea
+            id={`include-cel-${include.id}`}
+            rows={3}
+            value={include.cel_expression}
+            onChange={(event) => onChange({ cel_expression: event.target.value })}
+          />
+        </Field>
       ) : null}
-      <LabelPicker value={include.label_ids} onChange={(label_ids) => onChange({ label_ids })} />
+      <Field>
+        <FieldLabel>Labels</FieldLabel>
+        <LabelPicker value={include.label_ids} onChange={(label_ids) => onChange({ label_ids })} />
+      </Field>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function formFromRule(rule: SantaRule | null): RuleFormState {
-  if (!rule) return { ...emptyRuleForm, includes: [] };
+function formFromRule(rule: SantaRule): RuleFormState {
   return {
     rule_type: rule.rule_type,
     identifier: rule.identifier,
@@ -580,4 +644,12 @@ function includeBody(include: RuleIncludeForm) {
 function optionalText(value: string) {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
+}
+
+function canSaveRule(form: RuleFormState) {
+  return form.rule_type.trim() !== "" && form.identifier.trim() !== "";
+}
+
+function ruleTypeLabel(ruleType: string) {
+  return RULE_TYPES.find((type) => type.value === ruleType)?.label ?? ruleType;
 }

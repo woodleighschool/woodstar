@@ -38,6 +38,15 @@ export function useSantaConfigurations(params: SantaListParams = {}) {
   });
 }
 
+export function useSantaConfiguration(id: string) {
+  return useQuery<SantaConfiguration, ApiError>({
+    queryKey: queryKeys.santaConfiguration(id),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/configurations/{id}", { params: { path: { id } }, signal })),
+    enabled: id !== "",
+  });
+}
+
 export function useSantaRules(params: SantaRuleListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
@@ -52,6 +61,14 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
     queryKey: queryKeys.santaRules(queryParams),
     queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/rules", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useSantaRule(id: string) {
+  return useQuery<SantaRule, ApiError>({
+    queryKey: queryKeys.santaRule(id),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/rules/{id}", { params: { path: { id } }, signal })),
+    enabled: id !== "",
   });
 }
 

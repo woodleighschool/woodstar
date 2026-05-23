@@ -214,6 +214,10 @@ components:
         blocked_path_regex:
           type: string
         client_mode:
+          enum:
+            - monitor
+            - lockdown
+            - standalone
           type: string
         created_at:
           format: date-time
@@ -280,6 +284,10 @@ components:
         blocked_path_regex:
           type: string
         client_mode:
+          enum:
+            - monitor
+            - lockdown
+            - standalone
           type: string
         enable_all_event_upload:
           type: boolean
@@ -329,11 +337,23 @@ components:
         payload_hash:
           type: string
         policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - cel
           type: string
         rule_id:
           format: int64
           type: integer
         rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
           type: string
       required:
         - applied
@@ -1060,6 +1080,11 @@ components:
       additionalProperties: false
       properties:
         client_mode_reported:
+          enum:
+            - unknown
+            - monitor
+            - lockdown
+            - standalone
           type: string
         effective_configuration:
           $ref: "#/components/schemas/ResolvedConfiguration"
@@ -1640,6 +1665,10 @@ components:
       additionalProperties: false
       properties:
         action:
+          enum:
+            - allow
+            - block
+            - remount
           type: string
         remount_flags:
           description: Mount flags required when action is remount.
@@ -1792,6 +1821,10 @@ components:
         blocked_path_regex:
           type: string
         client_mode:
+          enum:
+            - monitor
+            - lockdown
+            - standalone
           type: string
         created_at:
           format: date-time
@@ -1880,6 +1913,12 @@ components:
         name:
           type: string
         rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
           type: string
         updated_at:
           format: date-time
@@ -1928,6 +1967,12 @@ components:
         name:
           type: string
         rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
           type: string
       required:
         - rule_type
@@ -1949,6 +1994,12 @@ components:
             - array
             - "null"
         policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - cel
           type: string
         position:
           format: int64
@@ -1972,6 +2023,12 @@ components:
             - array
             - "null"
         policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - cel
           type: string
       required:
         - policy
@@ -2302,7 +2359,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: cffbae5-dirty
+  version: 0883020-dirty
 openapi: 3.1.0
 paths:
   /api/account:

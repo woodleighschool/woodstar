@@ -17,8 +17,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-const INTERACTIVE_SELECTOR =
-  "a, button, input, label, select, textarea, [role=checkbox], [role=menuitem], [role=button], [role=dialog]";
+const INTERACTIVE_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "label",
+  "select",
+  "textarea",
+  "[role=checkbox]",
+  "[role=menu]",
+  "[role=menuitem]",
+  "[role=button]",
+  "[role=dialog]",
+  "[data-slot=dropdown-menu-content]",
+].join(", ");
 
 export interface DataTableSort {
   orderKey?: string;

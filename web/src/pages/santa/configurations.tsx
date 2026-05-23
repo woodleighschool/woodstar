@@ -1,7 +1,6 @@
-import { useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, FileSliders, Loader2, MoreHorizontal, Plus } from "lucide-react";
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,7 +22,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,14 +30,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
   useCreateSantaConfiguration,
   useDeleteSantaConfiguration,
   useReorderSantaConfigurations,
+  useSantaConfiguration,
   useSantaConfigurations,
   useUpdateSantaConfiguration,
   type SantaConfiguration,
@@ -49,10 +48,11 @@ import type { ApiError } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
 type BoolChoice = "omit" | "true" | "false";
+type MediaActionChoice = "omit" | "allow" | "block" | "remount";
 
 interface ConfigurationFormState {
   name: string;
-  client_mode: string;
+  client_mode: SantaConfigurationMutation["client_mode"];
   label_ids: number[];
   enable_bundles: BoolChoice;
   enable_transitive_rules: BoolChoice;
@@ -61,13 +61,32 @@ interface ConfigurationFormState {
   batch_size: string;
   allowed_path_regex: string;
   blocked_path_regex: string;
-  removable_media_action: string;
+  removable_media_action: MediaActionChoice;
   removable_media_remount_flags: string;
-  encrypted_removable_media_action: string;
+  encrypted_removable_media_action: MediaActionChoice;
   encrypted_removable_media_remount_flags: string;
   event_detail_url: string;
   event_detail_text: string;
 }
+
+const CLIENT_MODE_OPTIONS: { value: NonNullable<SantaConfigurationMutation["client_mode"]>; label: string }[] = [
+  { value: "monitor", label: "Monitor" },
+  { value: "lockdown", label: "Lockdown" },
+  { value: "standalone", label: "Standalone" },
+];
+
+const BOOL_OPTIONS: { value: BoolChoice; label: string; description: string }[] = [
+  { value: "omit", label: "Use default", description: "Do not override Santa's default behavior." },
+  { value: "true", label: "Enabled", description: "Send an explicit enabled value to clients." },
+  { value: "false", label: "Disabled", description: "Send an explicit disabled value to clients." },
+];
+
+const MEDIA_ACTION_OPTIONS: { value: MediaActionChoice; label: string }[] = [
+  { value: "omit", label: "No policy" },
+  { value: "allow", label: "Allow" },
+  { value: "block", label: "Block" },
+  { value: "remount", label: "Remount" },
+];
 
 const emptyConfigurationForm: ConfigurationFormState = {
   name: "",
@@ -92,11 +111,8 @@ export function SantaConfigurationsPage() {
   const search = useSearch({ strict: false });
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const query = useSantaConfigurations({ q: typeof search.q === "string" ? search.q : undefined, per_page: 500 });
-  const create = useCreateSantaConfiguration();
-  const update = useUpdateSantaConfiguration();
   const remove = useDeleteSantaConfiguration();
   const reorder = useReorderSantaConfigurations();
-  const [editing, setEditing] = useState<SantaConfiguration | "new" | null>(null);
   const [deleting, setDeleting] = useState<SantaConfiguration | null>(null);
   const orderedRows = useMemo(
     () => [...(query.data?.items ?? [])].sort((a, b) => a.position - b.position),
@@ -136,16 +152,18 @@ export function SantaConfigurationsPage() {
       cell: ({ row }) => (
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{row.original.name}</span>
-          <Badge variant="secondary">{row.original.client_mode}</Badge>
+          <Badge variant="secondary">{clientModeLabel(row.original.client_mode)}</Badge>
         </div>
       ),
     },
     {
       id: "labels",
-      header: "Labels",
+      header: "Targets",
       enableSorting: false,
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm tabular-nums">{row.original.label_ids?.length ?? 0}</span>
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {row.original.label_ids?.length ?? 0} label{row.original.label_ids?.length === 1 ? "" : "s"}
+        </span>
       ),
     },
     {
@@ -166,10 +184,10 @@ export function SantaConfigurationsPage() {
         const index = orderedRows.findIndex((configuration) => configuration.id === row.original.id);
         return (
           <ConfigurationRowActions
+            configuration={row.original}
             pending={reorder.isPending || remove.isPending}
             canMoveUp={index > 0}
             canMoveDown={index >= 0 && index < orderedRows.length - 1}
-            onEdit={() => setEditing(row.original)}
             onMoveUp={() => moveConfiguration(row.original, "up")}
             onMoveDown={() => moveConfiguration(row.original, "down")}
             onDelete={() => setDeleting(row.original)}
@@ -186,9 +204,11 @@ export function SantaConfigurationsPage() {
         title="Santa configurations"
         description="Resolve host settings top-down by label membership."
         actions={
-          <Button size="sm" onClick={() => setEditing("new")}>
-            <Plus data-icon="inline-start" />
-            Add configuration
+          <Button asChild size="sm">
+            <Link to="/santa/configurations/new">
+              <Plus data-icon="inline-start" />
+              Add configuration
+            </Link>
           </Button>
         }
       />
@@ -211,7 +231,10 @@ export function SantaConfigurationsPage() {
           onSortChange={() => undefined}
           isLoading={query.isLoading}
           clientSort
-          onRowClick={setEditing}
+          rowHref={(row) => ({
+            to: "/santa/configurations/$configurationId/edit",
+            params: { configurationId: String(row.id) },
+          })}
           toolbar={
             <div className="flex items-center gap-2">
               <DataTableSearch
@@ -240,25 +263,6 @@ export function SantaConfigurationsPage() {
         />
       )}
 
-      <ConfigurationDialog
-        key={editing === "new" ? "new" : (editing?.id ?? "closed")}
-        open={editing !== null}
-        configuration={editing === "new" ? null : editing}
-        pending={create.isPending || update.isPending}
-        error={configurationError(create.error ?? update.error)}
-        onOpenChange={(open) => {
-          if (!open) {
-            create.reset();
-            update.reset();
-            setEditing(null);
-          }
-        }}
-        onSubmit={async (body) => {
-          if (editing === "new") await create.mutateAsync(body);
-          else if (editing) await update.mutateAsync({ id: editing.id, body });
-          setEditing(null);
-        }}
-      />
       <ConfigurationDeleteDialog
         configuration={deleting}
         open={deleting !== null}
@@ -281,18 +285,18 @@ export function SantaConfigurationsPage() {
 }
 
 function ConfigurationRowActions({
+  configuration,
   pending,
   canMoveUp,
   canMoveDown,
-  onEdit,
   onMoveUp,
   onMoveDown,
   onDelete,
 }: {
+  configuration: SantaConfiguration;
   pending: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
-  onEdit: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDelete: () => void;
@@ -306,7 +310,14 @@ function ConfigurationRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link
+              to="/santa/configurations/$configurationId/edit"
+              params={{ configurationId: String(configuration.id) }}
+            >
+              Edit
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem disabled={!canMoveUp || pending} onSelect={onMoveUp}>
             <ArrowUp />
             Move up
@@ -372,217 +383,353 @@ function ConfigurationDeleteDialog({
   );
 }
 
-function ConfigurationDialog({
-  open,
-  configuration,
-  pending,
-  error,
-  onOpenChange,
-  onSubmit,
+export function SantaConfigurationEditPage({ mode }: { mode: "create" | "edit" }) {
+  const params = useParams({ strict: false });
+  const configurationId = params.configurationId ?? "";
+  const detail = useSantaConfiguration(configurationId);
+
+  if (mode === "edit") {
+    if (detail.error) {
+      return (
+        <PageShell>
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load configuration</AlertTitle>
+            <AlertDescription>{detail.error.message}</AlertDescription>
+          </Alert>
+        </PageShell>
+      );
+    }
+    if (!detail.data) {
+      return (
+        <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
+          <Loader2 className="animate-spin" /> Loading configuration...
+        </PageShell>
+      );
+    }
+  }
+
+  const initial = mode === "edit" && detail.data ? formFromConfiguration(detail.data) : emptyConfigurationForm;
+
+  return (
+    <ConfigurationForm key={configurationId || "new"} mode={mode} configurationId={configurationId} initial={initial} />
+  );
+}
+
+function ConfigurationForm({
+  mode,
+  configurationId,
+  initial,
 }: {
-  open: boolean;
-  configuration: SantaConfiguration | null;
-  pending: boolean;
-  error?: string;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (body: SantaConfigurationMutation) => Promise<void>;
+  mode: "create" | "edit";
+  configurationId: string;
+  initial: ConfigurationFormState;
 }) {
-  const [form, setForm] = useState(() => formFromConfiguration(configuration));
+  const navigate = useNavigate();
+  const create = useCreateSantaConfiguration();
+  const update = useUpdateSantaConfiguration();
+  const [form, setForm] = useState<ConfigurationFormState>(initial);
+  const error = configurationError(create.error ?? update.error);
+  const pending = create.isPending || update.isPending;
 
   async function submit() {
-    await onSubmit(configurationBody(form));
+    const body = configurationBody(form);
+    if (mode === "create") await create.mutateAsync(body);
+    else await update.mutateAsync({ id: Number(configurationId), body });
+    void navigate({ to: "/santa/configurations" });
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{configuration ? "Edit Santa configuration" : "New Santa configuration"}</DialogTitle>
-        </DialogHeader>
+    <PageShell asChild>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <PageHeader
+          title={mode === "create" ? "New Santa configuration" : "Edit Santa configuration"}
+          description="Set Santa client behavior and assign the configuration to labels."
+          actions={
+            <>
+              <Button asChild type="button" variant="outline" size="sm">
+                <Link to="/santa/configurations">Cancel</Link>
+              </Button>
+              <Button type="submit" size="sm" disabled={pending || form.name.trim() === ""}>
+                {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                Save
+              </Button>
+            </>
+          }
+        />
+
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Unable to save configuration</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Name">
-            <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-          </Field>
-          <Field label="Client mode">
-            <Select value={form.client_mode} onValueChange={(client_mode) => setForm({ ...form, client_mode })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monitor">monitor</SelectItem>
-                <SelectItem value="lockdown">lockdown</SelectItem>
-                <SelectItem value="standalone">standalone</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <BoolField
-            label="Enable bundles"
-            value={form.enable_bundles}
-            onChange={(enable_bundles) => setForm({ ...form, enable_bundles })}
-          />
-          <BoolField
-            label="Enable transitive rules"
-            value={form.enable_transitive_rules}
-            onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
-          />
-          <BoolField
-            label="Upload all events"
-            value={form.enable_all_event_upload}
-            onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
-          />
-          <Field label="Full sync interval seconds">
-            <Input
-              type="number"
-              min={60}
-              value={form.full_sync_interval_seconds}
-              onChange={(event) => setForm({ ...form, full_sync_interval_seconds: event.target.value })}
-            />
-          </Field>
-          <Field label="Batch size">
-            <Input
-              type="number"
-              min={1}
-              value={form.batch_size}
-              onChange={(event) => setForm({ ...form, batch_size: event.target.value })}
-            />
-          </Field>
-          <Field label="Allowed path regex">
-            <Input
-              value={form.allowed_path_regex}
-              onChange={(event) => setForm({ ...form, allowed_path_regex: event.target.value })}
-            />
-          </Field>
-          <Field label="Blocked path regex">
-            <Input
-              value={form.blocked_path_regex}
-              onChange={(event) => setForm({ ...form, blocked_path_regex: event.target.value })}
-            />
-          </Field>
-          <ActionField
-            label="Removable media"
-            action={form.removable_media_action}
-            flags={form.removable_media_remount_flags}
-            onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
-            onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
-          />
-          <ActionField
-            label="Encrypted removable media"
-            action={form.encrypted_removable_media_action}
-            flags={form.encrypted_removable_media_remount_flags}
-            onActionChange={(encrypted_removable_media_action) =>
-              setForm({ ...form, encrypted_removable_media_action })
-            }
-            onFlagsChange={(encrypted_removable_media_remount_flags) =>
-              setForm({ ...form, encrypted_removable_media_remount_flags })
-            }
-          />
-          <Field label="Event detail URL">
-            <Input
-              value={form.event_detail_url}
-              onChange={(event) => setForm({ ...form, event_detail_url: event.target.value })}
-            />
-          </Field>
-          <Field label="Event detail text">
-            <Input
-              value={form.event_detail_text}
-              onChange={(event) => setForm({ ...form, event_detail_text: event.target.value })}
-            />
-          </Field>
-          <div className="grid gap-2 md:col-span-2">
-            <Label>Target labels</Label>
-            <LabelPicker value={form.label_ids} onChange={(label_ids) => setForm({ ...form, label_ids })} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" size="sm" disabled={pending || form.name.trim() === ""} onClick={() => void submit()}>
+
+        <FieldGroup className="max-w-4xl">
+          <FieldSet>
+            <FieldLegend>Basics</FieldLegend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="santa-configuration-name">Name</FieldLabel>
+                <Input
+                  id="santa-configuration-name"
+                  required
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-client-mode">Client mode</FieldLabel>
+                <Select
+                  value={form.client_mode}
+                  onValueChange={(client_mode) =>
+                    setForm({
+                      ...form,
+                      client_mode: client_mode as SantaConfigurationMutation["client_mode"],
+                    })
+                  }
+                >
+                  <SelectTrigger id="santa-client-mode" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {CLIENT_MODE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>Monitor observes; lockdown enforces Santa rules.</FieldDescription>
+              </Field>
+            </div>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Sync</FieldLegend>
+            <div className="grid gap-4 md:grid-cols-3">
+              <BoolField
+                id="santa-enable-bundles"
+                label="Bundles"
+                value={form.enable_bundles}
+                onChange={(enable_bundles) => setForm({ ...form, enable_bundles })}
+              />
+              <BoolField
+                id="santa-enable-transitive-rules"
+                label="Transitive rules"
+                value={form.enable_transitive_rules}
+                onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
+              />
+              <BoolField
+                id="santa-upload-all-events"
+                label="Upload all events"
+                value={form.enable_all_event_upload}
+                onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
+              />
+              <Field>
+                <FieldLabel htmlFor="santa-full-sync-interval">Full sync interval</FieldLabel>
+                <Input
+                  id="santa-full-sync-interval"
+                  type="number"
+                  min={60}
+                  inputMode="numeric"
+                  value={form.full_sync_interval_seconds}
+                  onChange={(event) => setForm({ ...form, full_sync_interval_seconds: event.target.value })}
+                />
+                <FieldDescription>Seconds between clean syncs.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-batch-size">Batch size</FieldLabel>
+                <Input
+                  id="santa-batch-size"
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={form.batch_size}
+                  onChange={(event) => setForm({ ...form, batch_size: event.target.value })}
+                />
+                <FieldDescription>Maximum rule rows per download page.</FieldDescription>
+              </Field>
+            </div>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Execution</FieldLegend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="santa-allowed-path-regex">Allowed path regex</FieldLabel>
+                <Input
+                  id="santa-allowed-path-regex"
+                  value={form.allowed_path_regex}
+                  onChange={(event) => setForm({ ...form, allowed_path_regex: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-blocked-path-regex">Blocked path regex</FieldLabel>
+                <Input
+                  id="santa-blocked-path-regex"
+                  value={form.blocked_path_regex}
+                  onChange={(event) => setForm({ ...form, blocked_path_regex: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-event-detail-url">Event detail URL</FieldLabel>
+                <Input
+                  id="santa-event-detail-url"
+                  value={form.event_detail_url}
+                  onChange={(event) => setForm({ ...form, event_detail_url: event.target.value })}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="santa-event-detail-text">Event detail text</FieldLabel>
+                <Input
+                  id="santa-event-detail-text"
+                  value={form.event_detail_text}
+                  onChange={(event) => setForm({ ...form, event_detail_text: event.target.value })}
+                />
+              </Field>
+            </div>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Removable Media</FieldLegend>
+            <div className="grid gap-4 md:grid-cols-2">
+              <MediaActionField
+                id="santa-removable-media"
+                label="Removable media"
+                action={form.removable_media_action}
+                flags={form.removable_media_remount_flags}
+                onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
+                onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
+              />
+              <MediaActionField
+                id="santa-encrypted-removable-media"
+                label="Encrypted removable media"
+                action={form.encrypted_removable_media_action}
+                flags={form.encrypted_removable_media_remount_flags}
+                onActionChange={(encrypted_removable_media_action) =>
+                  setForm({ ...form, encrypted_removable_media_action })
+                }
+                onFlagsChange={(encrypted_removable_media_remount_flags) =>
+                  setForm({ ...form, encrypted_removable_media_remount_flags })
+                }
+              />
+            </div>
+          </FieldSet>
+
+          <FieldSet>
+            <FieldLegend>Targets</FieldLegend>
+            <Field>
+              <FieldLabel>Labels</FieldLabel>
+              <LabelPicker value={form.label_ids} onChange={(label_ids) => setForm({ ...form, label_ids })} />
+              <FieldDescription>
+                Configurations are evaluated in list order; each label can belong to one configuration.
+              </FieldDescription>
+            </Field>
+          </FieldSet>
+        </FieldGroup>
+
+        <div className="flex max-w-4xl items-center gap-2 border-t pt-4">
+          <Button type="submit" size="sm" disabled={pending || form.name.trim() === ""}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      {children}
-    </div>
+          <Button asChild type="button" variant="ghost" size="sm">
+            <Link to="/santa/configurations">Cancel</Link>
+          </Button>
+        </div>
+      </form>
+    </PageShell>
   );
 }
 
 function BoolField({
+  id,
   label,
   value,
   onChange,
 }: {
+  id: string;
   label: string;
   value: BoolChoice;
   onChange: (value: BoolChoice) => void;
 }) {
+  const option = BOOL_OPTIONS.find((item) => item.value === value);
   return (
-    <Field label={label}>
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Select value={value} onValueChange={(next) => onChange(next as BoolChoice)}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger id={id} className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="omit">omit</SelectItem>
-          <SelectItem value="true">true</SelectItem>
-          <SelectItem value="false">false</SelectItem>
+          <SelectGroup>
+            {BOOL_OPTIONS.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
+      {option ? <FieldDescription>{option.description}</FieldDescription> : null}
     </Field>
   );
 }
 
-function ActionField({
+function MediaActionField({
+  id,
   label,
   action,
   flags,
   onActionChange,
   onFlagsChange,
 }: {
+  id: string;
   label: string;
-  action: string;
+  action: MediaActionChoice;
   flags: string;
-  onActionChange: (value: string) => void;
+  onActionChange: (value: MediaActionChoice) => void;
   onFlagsChange: (value: string) => void;
 }) {
   return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
+    <Field>
+      <FieldLabel htmlFor={`${id}-action`}>{label}</FieldLabel>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Select value={action} onValueChange={onActionChange}>
-          <SelectTrigger className="w-full">
+        <Select value={action} onValueChange={(value) => onActionChange(value as MediaActionChoice)}>
+          <SelectTrigger id={`${id}-action`} className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="omit">omit</SelectItem>
-            <SelectItem value="allow">allow</SelectItem>
-            <SelectItem value="block">block</SelectItem>
-            <SelectItem value="remount">remount</SelectItem>
+            <SelectGroup>
+              {MEDIA_ACTION_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
-        <Input placeholder="remount flags" value={flags} onChange={(event) => onFlagsChange(event.target.value)} />
+        <Input
+          id={`${id}-flags`}
+          placeholder="remount flags"
+          disabled={action !== "remount"}
+          value={flags}
+          onChange={(event) => onFlagsChange(event.target.value)}
+        />
       </div>
-    </div>
+      <FieldDescription>Remount requires one or more mount flags.</FieldDescription>
+    </Field>
   );
 }
 
-function formFromConfiguration(configuration: SantaConfiguration | null): ConfigurationFormState {
-  if (!configuration) return { ...emptyConfigurationForm };
+function formFromConfiguration(configuration: SantaConfiguration): ConfigurationFormState {
   return {
     name: configuration.name,
     client_mode: configuration.client_mode,
@@ -627,10 +774,9 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
   };
 }
 
-function removableMediaPolicyBody(action: string, flags: string) {
-  const cleanedAction = optionalText(action);
-  if (!cleanedAction || cleanedAction === "omit") return undefined;
-  return { action: cleanedAction, remount_flags: splitWords(flags) };
+function removableMediaPolicyBody(action: MediaActionChoice, flags: string) {
+  if (action === "omit") return undefined;
+  return { action, remount_flags: splitWords(flags) };
 }
 
 function boolChoice(value: boolean | undefined): BoolChoice {
@@ -669,4 +815,8 @@ function configurationError(error: ApiError | null) {
     if (body.configuration_name) return `Label already belongs to ${body.configuration_name}.`;
   }
   return error.message;
+}
+
+function clientModeLabel(mode: SantaConfiguration["client_mode"]) {
+  return CLIENT_MODE_OPTIONS.find((option) => option.value === mode)?.label ?? mode;
 }

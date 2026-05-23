@@ -1,9 +1,26 @@
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
 
 export function LabelPicker({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
-  const labels = useLabels({ per_page: 500, order_key: "name", order_direction: "asc" });
+  const labels = useLabels({
+    per_page: 500,
+    order_key: "name",
+    order_direction: "asc",
+    label_type: "regular",
+    platform: "darwin",
+  });
   const rows = labels.data?.items ?? [];
+  const selected = rows.filter((label) => value.includes(label.id));
 
   if (labels.isLoading) {
     return <p className="text-muted-foreground text-sm">Loading labels...</p>;
@@ -11,47 +28,34 @@ export function LabelPicker({ value, onChange }: { value: number[]; onChange: (v
   if (labels.error) {
     return <p className="text-destructive text-sm">{labels.error.message}</p>;
   }
-  if (rows.length === 0) {
-    return <p className="text-muted-foreground text-sm">No labels available.</p>;
-  }
 
   return (
-    <div className="grid max-h-48 gap-2 overflow-auto rounded-md border p-2">
-      {rows.map((label) => (
-        <LabelChoice
-          key={label.id}
-          label={label}
-          selected={value.includes(label.id)}
-          onChange={onChange}
-          value={value}
-        />
-      ))}
-    </div>
-  );
-}
-
-function LabelChoice({
-  label,
-  selected,
-  onChange,
-  value,
-}: {
-  label: WoodstarLabel;
-  selected: boolean;
-  value: number[];
-  onChange: (value: number[]) => void;
-}) {
-  return (
-    <label className="hover:bg-muted/60 flex items-center gap-2 rounded-sm px-2 py-1 text-sm">
-      <Checkbox
-        checked={selected}
-        onCheckedChange={(checked) => {
-          if (checked) onChange([...value, label.id]);
-          else onChange(value.filter((id) => id !== label.id));
-        }}
-      />
-      <span className="truncate">{label.name}</span>
-      <span className="text-muted-foreground ml-auto tabular-nums">{label.hosts_count}</span>
-    </label>
+    <Combobox
+      items={rows}
+      multiple
+      value={selected}
+      itemToStringValue={(label) => label.name}
+      onValueChange={(next) => onChange(next.map((label) => label.id))}
+    >
+      <ComboboxChips>
+        <ComboboxValue>
+          {selected.map((label) => (
+            <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
+          ))}
+        </ComboboxValue>
+        <ComboboxChipsInput placeholder={rows.length === 0 ? "No macOS labels available" : "Add label"} />
+      </ComboboxChips>
+      <ComboboxContent>
+        <ComboboxEmpty>{rows.length === 0 ? "No macOS labels available." : "No labels found."}</ComboboxEmpty>
+        <ComboboxList>
+          {(label: WoodstarLabel) => (
+            <ComboboxItem key={label.id} value={label}>
+              <span className="min-w-0 flex-1 truncate">{label.name}</span>
+              <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
   );
 }

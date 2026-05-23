@@ -39,15 +39,21 @@ import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
 import { Route as AuthenticatedChecksNewRouteImport } from './routes/_authenticated/checks.new'
 import { Route as AuthenticatedChecksCheckIdRouteImport } from './routes/_authenticated/checks.$checkId'
+import { Route as AuthenticatedSantaRulesIndexRouteImport } from './routes/_authenticated/santa.rules.index'
+import { Route as AuthenticatedSantaConfigurationsIndexRouteImport } from './routes/_authenticated/santa.configurations.index'
 import { Route as AuthenticatedReportsReportIdIndexRouteImport } from './routes/_authenticated/reports.$reportId.index'
 import { Route as AuthenticatedChecksCheckIdIndexRouteImport } from './routes/_authenticated/checks.$checkId.index'
 import { Route as AuthenticatedUsersUserIdEditRouteImport } from './routes/_authenticated/users.$userId.edit'
 import { Route as AuthenticatedSoftwareTitlesSoftwareIdRouteImport } from './routes/_authenticated/software.titles.$softwareId'
+import { Route as AuthenticatedSantaRulesNewRouteImport } from './routes/_authenticated/santa.rules.new'
+import { Route as AuthenticatedSantaConfigurationsNewRouteImport } from './routes/_authenticated/santa.configurations.new'
 import { Route as AuthenticatedReportsReportIdLiveRouteImport } from './routes/_authenticated/reports.$reportId.live'
 import { Route as AuthenticatedReportsReportIdEditRouteImport } from './routes/_authenticated/reports.$reportId.edit'
 import { Route as AuthenticatedLabelsLabelIdEditRouteImport } from './routes/_authenticated/labels.$labelId.edit'
 import { Route as AuthenticatedChecksCheckIdLiveRouteImport } from './routes/_authenticated/checks.$checkId.live'
 import { Route as AuthenticatedChecksCheckIdEditRouteImport } from './routes/_authenticated/checks.$checkId.edit'
+import { Route as AuthenticatedSantaRulesRuleIdEditRouteImport } from './routes/_authenticated/santa.rules.$ruleId.edit'
+import { Route as AuthenticatedSantaConfigurationsConfigurationIdEditRouteImport } from './routes/_authenticated/santa.configurations.$configurationId.edit'
 import { Route as AuthenticatedHostsHostIdReportsReportIdRouteImport } from './routes/_authenticated/hosts.$hostId.reports.$reportId'
 
 const SetupRoute = SetupRouteImport.update({
@@ -209,6 +215,18 @@ const AuthenticatedChecksCheckIdRoute =
     path: '/$checkId',
     getParentRoute: () => AuthenticatedChecksRoute,
   } as any)
+const AuthenticatedSantaRulesIndexRoute =
+  AuthenticatedSantaRulesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSantaRulesRoute,
+  } as any)
+const AuthenticatedSantaConfigurationsIndexRoute =
+  AuthenticatedSantaConfigurationsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSantaConfigurationsRoute,
+  } as any)
 const AuthenticatedReportsReportIdIndexRoute =
   AuthenticatedReportsReportIdIndexRouteImport.update({
     id: '/',
@@ -232,6 +250,18 @@ const AuthenticatedSoftwareTitlesSoftwareIdRoute =
     id: '/titles/$softwareId',
     path: '/titles/$softwareId',
     getParentRoute: () => AuthenticatedSoftwareRoute,
+  } as any)
+const AuthenticatedSantaRulesNewRoute =
+  AuthenticatedSantaRulesNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedSantaRulesRoute,
+  } as any)
+const AuthenticatedSantaConfigurationsNewRoute =
+  AuthenticatedSantaConfigurationsNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AuthenticatedSantaConfigurationsRoute,
   } as any)
 const AuthenticatedReportsReportIdLiveRoute =
   AuthenticatedReportsReportIdLiveRouteImport.update({
@@ -263,6 +293,18 @@ const AuthenticatedChecksCheckIdEditRoute =
     path: '/edit',
     getParentRoute: () => AuthenticatedChecksCheckIdRoute,
   } as any)
+const AuthenticatedSantaRulesRuleIdEditRoute =
+  AuthenticatedSantaRulesRuleIdEditRouteImport.update({
+    id: '/$ruleId/edit',
+    path: '/$ruleId/edit',
+    getParentRoute: () => AuthenticatedSantaRulesRoute,
+  } as any)
+const AuthenticatedSantaConfigurationsConfigurationIdEditRoute =
+  AuthenticatedSantaConfigurationsConfigurationIdEditRouteImport.update({
+    id: '/$configurationId/edit',
+    path: '/$configurationId/edit',
+    getParentRoute: () => AuthenticatedSantaConfigurationsRoute,
+  } as any)
 const AuthenticatedHostsHostIdReportsReportIdRoute =
   AuthenticatedHostsHostIdReportsReportIdRouteImport.update({
     id: '/reports/$reportId',
@@ -289,9 +331,9 @@ export interface FileRoutesByFullPath {
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
   '/reports/new': typeof AuthenticatedReportsNewRoute
-  '/santa/configurations': typeof AuthenticatedSantaConfigurationsRoute
+  '/santa/configurations': typeof AuthenticatedSantaConfigurationsRouteWithChildren
   '/santa/events': typeof AuthenticatedSantaEventsRoute
-  '/santa/rules': typeof AuthenticatedSantaRulesRoute
+  '/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/checks/': typeof AuthenticatedChecksIndexRoute
   '/hosts/': typeof AuthenticatedHostsIndexRoute
@@ -305,11 +347,17 @@ export interface FileRoutesByFullPath {
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
+  '/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
+  '/santa/rules/new': typeof AuthenticatedSantaRulesNewRoute
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/users/$userId/edit': typeof AuthenticatedUsersUserIdEditRoute
   '/checks/$checkId/': typeof AuthenticatedChecksCheckIdIndexRoute
   '/reports/$reportId/': typeof AuthenticatedReportsReportIdIndexRoute
+  '/santa/configurations/': typeof AuthenticatedSantaConfigurationsIndexRoute
+  '/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
   '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
+  '/santa/configurations/$configurationId/edit': typeof AuthenticatedSantaConfigurationsConfigurationIdEditRoute
+  '/santa/rules/$ruleId/edit': typeof AuthenticatedSantaRulesRuleIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -321,9 +369,7 @@ export interface FileRoutesByTo {
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/new': typeof AuthenticatedReportsNewRoute
-  '/santa/configurations': typeof AuthenticatedSantaConfigurationsRoute
   '/santa/events': typeof AuthenticatedSantaEventsRoute
-  '/santa/rules': typeof AuthenticatedSantaRulesRoute
   '/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/checks': typeof AuthenticatedChecksIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
@@ -337,11 +383,17 @@ export interface FileRoutesByTo {
   '/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
+  '/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
+  '/santa/rules/new': typeof AuthenticatedSantaRulesNewRoute
   '/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/users/$userId/edit': typeof AuthenticatedUsersUserIdEditRoute
   '/checks/$checkId': typeof AuthenticatedChecksCheckIdIndexRoute
   '/reports/$reportId': typeof AuthenticatedReportsReportIdIndexRoute
+  '/santa/configurations': typeof AuthenticatedSantaConfigurationsIndexRoute
+  '/santa/rules': typeof AuthenticatedSantaRulesIndexRoute
   '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
+  '/santa/configurations/$configurationId/edit': typeof AuthenticatedSantaConfigurationsConfigurationIdEditRoute
+  '/santa/rules/$ruleId/edit': typeof AuthenticatedSantaRulesRuleIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -364,9 +416,9 @@ export interface FileRoutesById {
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
   '/_authenticated/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
   '/_authenticated/reports/new': typeof AuthenticatedReportsNewRoute
-  '/_authenticated/santa/configurations': typeof AuthenticatedSantaConfigurationsRoute
+  '/_authenticated/santa/configurations': typeof AuthenticatedSantaConfigurationsRouteWithChildren
   '/_authenticated/santa/events': typeof AuthenticatedSantaEventsRoute
-  '/_authenticated/santa/rules': typeof AuthenticatedSantaRulesRoute
+  '/_authenticated/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/_authenticated/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/_authenticated/checks/': typeof AuthenticatedChecksIndexRoute
   '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
@@ -380,11 +432,17 @@ export interface FileRoutesById {
   '/_authenticated/labels/$labelId/edit': typeof AuthenticatedLabelsLabelIdEditRoute
   '/_authenticated/reports/$reportId/edit': typeof AuthenticatedReportsReportIdEditRoute
   '/_authenticated/reports/$reportId/live': typeof AuthenticatedReportsReportIdLiveRoute
+  '/_authenticated/santa/configurations/new': typeof AuthenticatedSantaConfigurationsNewRoute
+  '/_authenticated/santa/rules/new': typeof AuthenticatedSantaRulesNewRoute
   '/_authenticated/software/titles/$softwareId': typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
   '/_authenticated/users/$userId/edit': typeof AuthenticatedUsersUserIdEditRoute
   '/_authenticated/checks/$checkId/': typeof AuthenticatedChecksCheckIdIndexRoute
   '/_authenticated/reports/$reportId/': typeof AuthenticatedReportsReportIdIndexRoute
+  '/_authenticated/santa/configurations/': typeof AuthenticatedSantaConfigurationsIndexRoute
+  '/_authenticated/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
   '/_authenticated/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
+  '/_authenticated/santa/configurations/$configurationId/edit': typeof AuthenticatedSantaConfigurationsConfigurationIdEditRoute
+  '/_authenticated/santa/rules/$ruleId/edit': typeof AuthenticatedSantaRulesRuleIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -423,11 +481,17 @@ export interface FileRouteTypes {
     | '/labels/$labelId/edit'
     | '/reports/$reportId/edit'
     | '/reports/$reportId/live'
+    | '/santa/configurations/new'
+    | '/santa/rules/new'
     | '/software/titles/$softwareId'
     | '/users/$userId/edit'
     | '/checks/$checkId/'
     | '/reports/$reportId/'
+    | '/santa/configurations/'
+    | '/santa/rules/'
     | '/hosts/$hostId/reports/$reportId'
+    | '/santa/configurations/$configurationId/edit'
+    | '/santa/rules/$ruleId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -439,9 +503,7 @@ export interface FileRouteTypes {
     | '/hosts/$hostId'
     | '/labels/new'
     | '/reports/new'
-    | '/santa/configurations'
     | '/santa/events'
-    | '/santa/rules'
     | '/santa/sync-tokens'
     | '/checks'
     | '/hosts'
@@ -455,11 +517,17 @@ export interface FileRouteTypes {
     | '/labels/$labelId/edit'
     | '/reports/$reportId/edit'
     | '/reports/$reportId/live'
+    | '/santa/configurations/new'
+    | '/santa/rules/new'
     | '/software/titles/$softwareId'
     | '/users/$userId/edit'
     | '/checks/$checkId'
     | '/reports/$reportId'
+    | '/santa/configurations'
+    | '/santa/rules'
     | '/hosts/$hostId/reports/$reportId'
+    | '/santa/configurations/$configurationId/edit'
+    | '/santa/rules/$ruleId/edit'
   id:
     | '__root__'
     | '/'
@@ -497,11 +565,17 @@ export interface FileRouteTypes {
     | '/_authenticated/labels/$labelId/edit'
     | '/_authenticated/reports/$reportId/edit'
     | '/_authenticated/reports/$reportId/live'
+    | '/_authenticated/santa/configurations/new'
+    | '/_authenticated/santa/rules/new'
     | '/_authenticated/software/titles/$softwareId'
     | '/_authenticated/users/$userId/edit'
     | '/_authenticated/checks/$checkId/'
     | '/_authenticated/reports/$reportId/'
+    | '/_authenticated/santa/configurations/'
+    | '/_authenticated/santa/rules/'
     | '/_authenticated/hosts/$hostId/reports/$reportId'
+    | '/_authenticated/santa/configurations/$configurationId/edit'
+    | '/_authenticated/santa/rules/$ruleId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -723,6 +797,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChecksCheckIdRouteImport
       parentRoute: typeof AuthenticatedChecksRoute
     }
+    '/_authenticated/santa/rules/': {
+      id: '/_authenticated/santa/rules/'
+      path: '/'
+      fullPath: '/santa/rules/'
+      preLoaderRoute: typeof AuthenticatedSantaRulesIndexRouteImport
+      parentRoute: typeof AuthenticatedSantaRulesRoute
+    }
+    '/_authenticated/santa/configurations/': {
+      id: '/_authenticated/santa/configurations/'
+      path: '/'
+      fullPath: '/santa/configurations/'
+      preLoaderRoute: typeof AuthenticatedSantaConfigurationsIndexRouteImport
+      parentRoute: typeof AuthenticatedSantaConfigurationsRoute
+    }
     '/_authenticated/reports/$reportId/': {
       id: '/_authenticated/reports/$reportId/'
       path: '/'
@@ -750,6 +838,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/software/titles/$softwareId'
       preLoaderRoute: typeof AuthenticatedSoftwareTitlesSoftwareIdRouteImport
       parentRoute: typeof AuthenticatedSoftwareRoute
+    }
+    '/_authenticated/santa/rules/new': {
+      id: '/_authenticated/santa/rules/new'
+      path: '/new'
+      fullPath: '/santa/rules/new'
+      preLoaderRoute: typeof AuthenticatedSantaRulesNewRouteImport
+      parentRoute: typeof AuthenticatedSantaRulesRoute
+    }
+    '/_authenticated/santa/configurations/new': {
+      id: '/_authenticated/santa/configurations/new'
+      path: '/new'
+      fullPath: '/santa/configurations/new'
+      preLoaderRoute: typeof AuthenticatedSantaConfigurationsNewRouteImport
+      parentRoute: typeof AuthenticatedSantaConfigurationsRoute
     }
     '/_authenticated/reports/$reportId/live': {
       id: '/_authenticated/reports/$reportId/live'
@@ -785,6 +887,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/checks/$checkId/edit'
       preLoaderRoute: typeof AuthenticatedChecksCheckIdEditRouteImport
       parentRoute: typeof AuthenticatedChecksCheckIdRoute
+    }
+    '/_authenticated/santa/rules/$ruleId/edit': {
+      id: '/_authenticated/santa/rules/$ruleId/edit'
+      path: '/$ruleId/edit'
+      fullPath: '/santa/rules/$ruleId/edit'
+      preLoaderRoute: typeof AuthenticatedSantaRulesRuleIdEditRouteImport
+      parentRoute: typeof AuthenticatedSantaRulesRoute
+    }
+    '/_authenticated/santa/configurations/$configurationId/edit': {
+      id: '/_authenticated/santa/configurations/$configurationId/edit'
+      path: '/$configurationId/edit'
+      fullPath: '/santa/configurations/$configurationId/edit'
+      preLoaderRoute: typeof AuthenticatedSantaConfigurationsConfigurationIdEditRouteImport
+      parentRoute: typeof AuthenticatedSantaConfigurationsRoute
     }
     '/_authenticated/hosts/$hostId/reports/$reportId': {
       id: '/_authenticated/hosts/$hostId/reports/$reportId'
@@ -909,18 +1025,59 @@ const AuthenticatedReportsRouteChildren: AuthenticatedReportsRouteChildren = {
 const AuthenticatedReportsRouteWithChildren =
   AuthenticatedReportsRoute._addFileChildren(AuthenticatedReportsRouteChildren)
 
+interface AuthenticatedSantaConfigurationsRouteChildren {
+  AuthenticatedSantaConfigurationsNewRoute: typeof AuthenticatedSantaConfigurationsNewRoute
+  AuthenticatedSantaConfigurationsIndexRoute: typeof AuthenticatedSantaConfigurationsIndexRoute
+  AuthenticatedSantaConfigurationsConfigurationIdEditRoute: typeof AuthenticatedSantaConfigurationsConfigurationIdEditRoute
+}
+
+const AuthenticatedSantaConfigurationsRouteChildren: AuthenticatedSantaConfigurationsRouteChildren =
+  {
+    AuthenticatedSantaConfigurationsNewRoute:
+      AuthenticatedSantaConfigurationsNewRoute,
+    AuthenticatedSantaConfigurationsIndexRoute:
+      AuthenticatedSantaConfigurationsIndexRoute,
+    AuthenticatedSantaConfigurationsConfigurationIdEditRoute:
+      AuthenticatedSantaConfigurationsConfigurationIdEditRoute,
+  }
+
+const AuthenticatedSantaConfigurationsRouteWithChildren =
+  AuthenticatedSantaConfigurationsRoute._addFileChildren(
+    AuthenticatedSantaConfigurationsRouteChildren,
+  )
+
+interface AuthenticatedSantaRulesRouteChildren {
+  AuthenticatedSantaRulesNewRoute: typeof AuthenticatedSantaRulesNewRoute
+  AuthenticatedSantaRulesIndexRoute: typeof AuthenticatedSantaRulesIndexRoute
+  AuthenticatedSantaRulesRuleIdEditRoute: typeof AuthenticatedSantaRulesRuleIdEditRoute
+}
+
+const AuthenticatedSantaRulesRouteChildren: AuthenticatedSantaRulesRouteChildren =
+  {
+    AuthenticatedSantaRulesNewRoute: AuthenticatedSantaRulesNewRoute,
+    AuthenticatedSantaRulesIndexRoute: AuthenticatedSantaRulesIndexRoute,
+    AuthenticatedSantaRulesRuleIdEditRoute:
+      AuthenticatedSantaRulesRuleIdEditRoute,
+  }
+
+const AuthenticatedSantaRulesRouteWithChildren =
+  AuthenticatedSantaRulesRoute._addFileChildren(
+    AuthenticatedSantaRulesRouteChildren,
+  )
+
 interface AuthenticatedSantaRouteChildren {
-  AuthenticatedSantaConfigurationsRoute: typeof AuthenticatedSantaConfigurationsRoute
+  AuthenticatedSantaConfigurationsRoute: typeof AuthenticatedSantaConfigurationsRouteWithChildren
   AuthenticatedSantaEventsRoute: typeof AuthenticatedSantaEventsRoute
-  AuthenticatedSantaRulesRoute: typeof AuthenticatedSantaRulesRoute
+  AuthenticatedSantaRulesRoute: typeof AuthenticatedSantaRulesRouteWithChildren
   AuthenticatedSantaSyncTokensRoute: typeof AuthenticatedSantaSyncTokensRoute
   AuthenticatedSantaIndexRoute: typeof AuthenticatedSantaIndexRoute
 }
 
 const AuthenticatedSantaRouteChildren: AuthenticatedSantaRouteChildren = {
-  AuthenticatedSantaConfigurationsRoute: AuthenticatedSantaConfigurationsRoute,
+  AuthenticatedSantaConfigurationsRoute:
+    AuthenticatedSantaConfigurationsRouteWithChildren,
   AuthenticatedSantaEventsRoute: AuthenticatedSantaEventsRoute,
-  AuthenticatedSantaRulesRoute: AuthenticatedSantaRulesRoute,
+  AuthenticatedSantaRulesRoute: AuthenticatedSantaRulesRouteWithChildren,
   AuthenticatedSantaSyncTokensRoute: AuthenticatedSantaSyncTokensRoute,
   AuthenticatedSantaIndexRoute: AuthenticatedSantaIndexRoute,
 }

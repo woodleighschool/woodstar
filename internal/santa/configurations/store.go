@@ -61,7 +61,7 @@ type ConfigurationListParams struct {
 }
 
 type RemovableMediaPolicy struct {
-	Action       RemovableMediaAction `json:"action"`
+	Action       RemovableMediaAction `json:"action"                enum:"allow,block,remount"`
 	RemountFlags []string             `json:"remount_flags,omitempty" doc:"Mount flags required when action is remount."`
 }
 
@@ -69,7 +69,7 @@ type RemovableMediaPolicy struct {
 // Optional nil fields clear that setting; updates replace the full editable shape rather than patching individual fields.
 type ConfigurationMutation struct {
 	Name                          string                `json:"name"`
-	ClientMode                    ClientMode            `json:"client_mode,omitempty"`
+	ClientMode                    ClientMode            `json:"client_mode,omitempty"                      enum:"monitor,lockdown,standalone"`
 	EnableBundles                 *bool                 `json:"enable_bundles,omitempty"`
 	EnableTransitiveRules         *bool                 `json:"enable_transitive_rules,omitempty"`
 	EnableAllEventUpload          *bool                 `json:"enable_all_event_upload,omitempty"`
@@ -88,7 +88,7 @@ type Configuration struct {
 	ID                            int64                 `json:"id"`
 	Name                          string                `json:"name"`
 	Position                      int                   `json:"position"`
-	ClientMode                    ClientMode            `json:"client_mode"`
+	ClientMode                    ClientMode            `json:"client_mode"                                  enum:"monitor,lockdown,standalone"`
 	EnableBundles                 *bool                 `json:"enable_bundles,omitempty"`
 	EnableTransitiveRules         *bool                 `json:"enable_transitive_rules,omitempty"`
 	EnableAllEventUpload          *bool                 `json:"enable_all_event_upload,omitempty"`

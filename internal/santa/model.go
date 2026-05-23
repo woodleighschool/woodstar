@@ -24,7 +24,7 @@ type HostObservation struct {
 // HostState is the Santa sub-object attached to host detail responses.
 type HostState struct {
 	Version                string                                `json:"version"`
-	ClientModeReported     configurations.ClientMode             `json:"client_mode_reported"`
+	ClientModeReported     configurations.ClientMode             `json:"client_mode_reported" enum:"unknown,monitor,lockdown,standalone"`
 	LastSyncAt             *time.Time                            `json:"last_sync_at,omitempty"`
 	EffectiveConfiguration *configurations.ResolvedConfiguration `json:"effective_configuration,omitempty"`
 	RuleSync               RuleSyncSummary                       `json:"rule_sync"`

@@ -865,7 +865,8 @@ export interface components {
             /** Format: int64 */
             batch_size?: number;
             blocked_path_regex?: string;
-            client_mode: string;
+            /** @enum {string} */
+            client_mode: "monitor" | "lockdown" | "standalone";
             /** Format: date-time */
             created_at: string;
             enable_all_event_upload?: boolean;
@@ -897,7 +898,8 @@ export interface components {
             /** Format: int64 */
             batch_size?: number;
             blocked_path_regex?: string;
-            client_mode?: string;
+            /** @enum {string} */
+            client_mode?: "monitor" | "lockdown" | "standalone";
             enable_all_event_upload?: boolean;
             enable_bundles?: boolean;
             enable_transitive_rules?: boolean;
@@ -919,10 +921,12 @@ export interface components {
             /** Format: int64 */
             matched_include_id: number;
             payload_hash: string;
-            policy: string;
+            /** @enum {string} */
+            policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
             /** Format: int64 */
             rule_id: number;
-            rule_type: string;
+            /** @enum {string} */
+            rule_type: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
         };
         EnrollSecret: {
             /**
@@ -1251,7 +1255,8 @@ export interface components {
             source: string;
         };
         HostState: {
-            client_mode_reported: string;
+            /** @enum {string} */
+            client_mode_reported: "unknown" | "monitor" | "lockdown" | "standalone";
             effective_configuration?: components["schemas"]["ResolvedConfiguration"];
             /** Format: date-time */
             last_sync_at?: string;
@@ -1524,7 +1529,8 @@ export interface components {
             team_identifier: string;
         };
         RemovableMediaPolicy: {
-            action: string;
+            /** @enum {string} */
+            action: "allow" | "block" | "remount";
             /** @description Mount flags required when action is remount. */
             remount_flags?: string[] | null;
         };
@@ -1595,7 +1601,8 @@ export interface components {
             /** Format: int64 */
             batch_size?: number;
             blocked_path_regex?: string;
-            client_mode: string;
+            /** @enum {string} */
+            client_mode: "monitor" | "lockdown" | "standalone";
             /** Format: date-time */
             created_at: string;
             enable_all_event_upload?: boolean;
@@ -1634,7 +1641,8 @@ export interface components {
             identifier: string;
             includes: components["schemas"]["RuleInclude"][] | null;
             name: string;
-            rule_type: string;
+            /** @enum {string} */
+            rule_type: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
             /** Format: date-time */
             updated_at: string;
         };
@@ -1651,21 +1659,24 @@ export interface components {
             identifier: string;
             includes?: components["schemas"]["RuleIncludeWrite"][] | null;
             name?: string;
-            rule_type: string;
+            /** @enum {string} */
+            rule_type: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
         };
         RuleInclude: {
             cel_expression?: string;
             /** Format: int64 */
             id: number;
             label_ids: number[] | null;
-            policy: string;
+            /** @enum {string} */
+            policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
             /** Format: int64 */
             position: number;
         };
         RuleIncludeWrite: {
             cel_expression?: string;
             label_ids: number[] | null;
-            policy: string;
+            /** @enum {string} */
+            policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
         };
         RuleSyncSummary: {
             /** Format: int64 */
