@@ -547,6 +547,23 @@ export interface paths {
         patch: operations["update-santa-configuration"];
         trace?: never;
     };
+    "/api/santa/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Santa execution events */
+        get: operations["list-santa-events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/santa/rules": {
         parameters: {
             query?: never;
@@ -987,6 +1004,43 @@ export interface components {
              * @example https://example.com/errors/example
              */
             type: string;
+        };
+        EventPage: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/EventPage.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ExecutionEvent"][] | null;
+            next_cursor?: string;
+        };
+        Executable: {
+            cdhash: string;
+            file_bundle_id: string;
+            file_bundle_path: string;
+            file_name: string;
+            /** Format: int64 */
+            id: number;
+            sha256: string;
+            signing_id: string;
+            team_id: string;
+        };
+        ExecutionEvent: {
+            current_sessions: string[] | null;
+            decision: string;
+            executable: components["schemas"]["Executable"];
+            executing_user: string;
+            file_path: string;
+            /** Format: int64 */
+            host_id: number;
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            ingested_at: string;
+            logged_in_users: string[] | null;
+            /** Format: date-time */
+            occurred_at?: string;
         };
         Host: {
             computer_name: string;
@@ -4576,6 +4630,77 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-santa-events": {
+        parameters: {
+            query?: {
+                host_id?: string;
+                decision?: string;
+                since?: string;
+                limit?: number;
+                after?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPage"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

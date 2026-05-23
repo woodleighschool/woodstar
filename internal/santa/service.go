@@ -68,10 +68,17 @@ func (s *Service) HandlePreflight(
 }
 
 func (s *Service) HandleEventUpload(
-	context.Context,
-	string,
-	*syncv1.EventUploadRequest,
+	ctx context.Context,
+	machineID string,
+	req *syncv1.EventUploadRequest,
 ) (*syncv1.EventUploadResponse, error) {
+	hostID, err := s.store.hostIDByMachineID(ctx, machineID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.store.IngestExecutionEvents(ctx, hostID, req.GetEvents()); err != nil {
+		return nil, err
+	}
 	return &syncv1.EventUploadResponse{}, nil
 }
 

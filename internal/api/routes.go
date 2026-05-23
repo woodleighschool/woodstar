@@ -37,4 +37,5 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterSantaSyncTokens(protected, deps.Santa.Store)
 	handlers.RegisterSantaConfigurations(protected, deps.Santa.Store)
 	handlers.RegisterSantaRules(protected, deps.Santa.Store)
+	handlers.RegisterSantaEvents(protected, deps.Santa.Store)
 }
