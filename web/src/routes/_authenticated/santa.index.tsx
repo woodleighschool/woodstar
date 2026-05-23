@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/only-throw-error -- tanstack/react-router uses thrown redirect() as control-flow */
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/santa/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/santa/configurations" });
-  },
+  component: () => <Navigate to="/santa/configurations" replace />,
 });

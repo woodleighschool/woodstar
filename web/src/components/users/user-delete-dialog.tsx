@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useDeleteUser, type User } from "@/hooks/use-users";
 import { nonEmpty } from "@/lib/utils";
 
@@ -29,20 +29,20 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
   }
 
   return (
-    <Dialog
+    <AlertDialog
       open={open}
       onOpenChange={(next) => {
         if (!next) remove.reset();
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Delete user</DialogTitle>
-          <DialogDescription>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete user</AlertDialogTitle>
+          <AlertDialogDescription>
             This permanently deletes the user. Their next request will sign them out automatically.
-          </DialogDescription>
-        </DialogHeader>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
         <p className="text-sm">
           Delete <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
@@ -51,23 +51,23 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
 
         {remove.error ? <p className="text-sm text-destructive">{remove.error.message}</p> : null}
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={remove.isPending}>
-              Cancel
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
             size="sm"
             disabled={remove.isPending}
-            onClick={() => void handleConfirm()}
+            onClick={(event) => {
+              event.preventDefault();
+              void handleConfirm();
+            }}
           >
             Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

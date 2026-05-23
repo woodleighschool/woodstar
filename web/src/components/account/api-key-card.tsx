@@ -3,17 +3,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAccount, useRevokeAPIKey, useRotateAPIKey } from "@/hooks/use-account";
@@ -123,49 +124,54 @@ export function APIKeyCard() {
         ) : null}
       </CardContent>
 
-      <Dialog open={confirmRotate} onOpenChange={setConfirmRotate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Rotate API key?</DialogTitle>
-            <DialogDescription>The current key stops working immediately.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost" size="sm" disabled={rotate.isPending}>
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button type="button" size="sm" disabled={rotate.isPending} onClick={() => void handleRotate()}>
+      <AlertDialog open={confirmRotate} onOpenChange={setConfirmRotate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rotate API key?</AlertDialogTitle>
+            <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" size="sm" disabled={rotate.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              size="sm"
+              disabled={rotate.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleRotate();
+              }}
+            >
               Rotate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      <Dialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Revoke API key?</DialogTitle>
-            <DialogDescription>The current key stops working immediately.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost" size="sm" disabled={revoke.isPending}>
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              type="button"
+      <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API key?</AlertDialogTitle>
+            <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" size="sm" disabled={revoke.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
               variant="destructive"
               size="sm"
               disabled={revoke.isPending}
-              onClick={() => void handleRevoke()}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleRevoke();
+              }}
             >
               Revoke
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

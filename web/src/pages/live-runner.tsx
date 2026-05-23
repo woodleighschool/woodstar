@@ -11,6 +11,16 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformToggleGroup } from "@/components/queries/platform-selector";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -192,7 +202,7 @@ export function LiveRunner({
           isStopping={isStopping}
           targetCount={runTargetCount}
           respondedCount={respondedCount}
-          onStop={() => void stopRun()}
+          onStop={stopRun}
           onRunAgain={() => void run()}
           onChangeTargets={backToTargets}
         />
@@ -302,12 +312,19 @@ function RunResults({
   isStopping: boolean;
   targetCount: number;
   respondedCount: number;
-  onStop: () => void;
+  onStop: () => Promise<void>;
   onRunAgain: () => void;
   onChangeTargets: () => void;
 }) {
   const isRunning = status === "running";
   const finished = status === "completed";
+  const [stopOpen, setStopOpen] = useState(false);
+
+  async function confirmStop() {
+    await onStop();
+    setStopOpen(false);
+  }
+
   return (
     <div className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
@@ -319,7 +336,7 @@ function RunResults({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isRunning || isStopping ? (
-            <Button size="sm" variant="destructive" onClick={onStop} disabled={isStopping}>
+            <Button size="sm" variant="destructive" onClick={() => setStopOpen(true)} disabled={isStopping}>
               {isStopping ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
@@ -339,6 +356,32 @@ function RunResults({
           </Button>
         </div>
       </div>
+      <AlertDialog open={stopOpen} onOpenChange={setStopOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop live run?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hosts that have not responded yet will be marked stopped for this live run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="ghost" size="sm" disabled={isStopping}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              size="sm"
+              disabled={isStopping}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmStop();
+              }}
+            >
+              Stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {kind === "report" ? (
         <ReportRunResults rows={rows} running={isRunning} />
       ) : (

@@ -12,6 +12,16 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
 import { SortableList, type SortableItem } from "@/components/santa/sortable-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -94,6 +104,7 @@ export function SantaRulesPage() {
   const update = useUpdateSantaRule();
   const remove = useDeleteSantaRule();
   const [editing, setEditing] = useState<SantaRule | "new" | null>(null);
+  const [deleting, setDeleting] = useState<SantaRule | null>(null);
   const rows = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!ruleType;
@@ -135,7 +146,7 @@ export function SantaRulesPage() {
         <RuleRowActions
           pending={remove.isPending}
           onEdit={() => setEditing(row.original)}
-          onDelete={() => remove.mutate(row.original.id)}
+          onDelete={() => setDeleting(row.original)}
         />
       ),
       meta: { headClassName: "w-12" },
@@ -231,19 +242,28 @@ export function SantaRulesPage() {
           setEditing(null);
         }}
       />
+      <RuleDeleteDialog
+        rule={deleting}
+        open={deleting !== null}
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onOpenChange={(open) => {
+          if (!open) {
+            remove.reset();
+            setDeleting(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          setDeleting(null);
+        }}
+      />
     </PageShell>
   );
 }
 
-function RuleRowActions({
-  pending,
-  onEdit,
-  onDelete,
-}: {
-  pending: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
+function RuleRowActions({ pending, onEdit, onDelete }: { pending: boolean; onEdit: () => void; onDelete: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -260,6 +280,54 @@ function RuleRowActions({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function RuleDeleteDialog({
+  rule,
+  open,
+  pending,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  rule: SantaRule | null;
+  open: boolean;
+  pending: boolean;
+  error?: string;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Santa rule?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {rule
+              ? `${rule.name || rule.identifier} will be removed from Santa rule sync.`
+              : "This rule will be removed from Santa rule sync."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            disabled={pending}
+            onClick={(event) => {
+              event.preventDefault();
+              void onConfirm();
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

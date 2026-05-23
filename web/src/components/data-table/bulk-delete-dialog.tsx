@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export interface BulkDeleteDialogProps {
   open: boolean;
@@ -33,28 +33,34 @@ export function BulkDeleteDialog({
   const label = count === 1 ? noun : `${noun}s`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
             Delete {count} selected {label}?
-          </DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
+          </AlertDialogTitle>
+          {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
+        </AlertDialogHeader>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={pending}>
-              Cancel
-            </Button>
-          </DialogClose>
-          <Button type="button" variant="destructive" size="sm" disabled={pending || count === 0} onClick={onConfirm}>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            disabled={pending || count === 0}
+            onClick={(event) => {
+              event.preventDefault();
+              onConfirm();
+            }}
+          >
             Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

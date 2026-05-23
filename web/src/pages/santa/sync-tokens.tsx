@@ -7,6 +7,16 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -24,6 +34,7 @@ export function SantaSyncTokensPage() {
   const create = useCreateSantaSyncToken();
   const remove = useDeleteSantaSyncToken();
   const [created, setCreated] = useState<SantaSyncToken | null>(null);
+  const [deleting, setDeleting] = useState<SantaSyncToken | null>(null);
 
   async function createToken() {
     const token = await create.mutateAsync();
@@ -54,7 +65,7 @@ export function SantaSyncTokensPage() {
         </Alert>
       ) : null}
 
-      <SyncTokenTable query={query} deletingID={remove.variables ?? null} onDelete={(id) => remove.mutate(id)} />
+      <SyncTokenTable query={query} deletingID={remove.variables ?? null} onDelete={setDeleting} />
 
       <Dialog open={created !== null} onOpenChange={(open) => !open && setCreated(null)}>
         <DialogContent className="sm:max-w-2xl">
@@ -83,6 +94,24 @@ export function SantaSyncTokensPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SyncTokenDeleteDialog
+        token={deleting}
+        open={deleting !== null}
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onOpenChange={(open) => {
+          if (!open) {
+            remove.reset();
+            setDeleting(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          setDeleting(null);
+        }}
+      />
     </PageShell>
   );
 }
@@ -94,7 +123,7 @@ function SyncTokenTable({
 }: {
   query: ReturnType<typeof useSantaSyncTokens>;
   deletingID: number | null;
-  onDelete: (id: number) => void;
+  onDelete: (token: SantaSyncToken) => void;
 }) {
   if (query.error) {
     return (
@@ -136,7 +165,7 @@ function SyncTokenTable({
           size="icon"
           variant="ghost"
           disabled={deletingID === row.original.id}
-          onClick={() => onDelete(row.original.id)}
+          onClick={() => onDelete(row.original)}
         >
           {deletingID === row.original.id ? <Loader2 className="animate-spin" /> : <Trash2 />}
         </Button>
@@ -170,5 +199,53 @@ function SyncTokenTable({
         </Empty>
       }
     />
+  );
+}
+
+function SyncTokenDeleteDialog({
+  token,
+  open,
+  pending,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  token: SantaSyncToken | null;
+  open: boolean;
+  pending: boolean;
+  error?: string;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Santa sync token?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {token
+              ? `Token created ${formatRelative(token.created_at)} will stop authenticating Santa clients.`
+              : "This token will stop authenticating Santa clients."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            disabled={pending}
+            onClick={(event) => {
+              event.preventDefault();
+              void onConfirm();
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

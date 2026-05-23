@@ -11,6 +11,16 @@ import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -87,6 +97,7 @@ export function SantaConfigurationsPage() {
   const remove = useDeleteSantaConfiguration();
   const reorder = useReorderSantaConfigurations();
   const [editing, setEditing] = useState<SantaConfiguration | "new" | null>(null);
+  const [deleting, setDeleting] = useState<SantaConfiguration | null>(null);
   const orderedRows = useMemo(
     () => [...(query.data?.items ?? [])].sort((a, b) => a.position - b.position),
     [query.data?.items],
@@ -161,7 +172,7 @@ export function SantaConfigurationsPage() {
             onEdit={() => setEditing(row.original)}
             onMoveUp={() => moveConfiguration(row.original, "up")}
             onMoveDown={() => moveConfiguration(row.original, "down")}
-            onDelete={() => remove.mutate(row.original.id)}
+            onDelete={() => setDeleting(row.original)}
           />
         );
       },
@@ -248,6 +259,23 @@ export function SantaConfigurationsPage() {
           setEditing(null);
         }}
       />
+      <ConfigurationDeleteDialog
+        configuration={deleting}
+        open={deleting !== null}
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onOpenChange={(open) => {
+          if (!open) {
+            remove.reset();
+            setDeleting(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          setDeleting(null);
+        }}
+      />
     </PageShell>
   );
 }
@@ -293,6 +321,54 @@ function ConfigurationRowActions({
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ConfigurationDeleteDialog({
+  configuration,
+  open,
+  pending,
+  error,
+  onOpenChange,
+  onConfirm,
+}: {
+  configuration: SantaConfiguration | null;
+  open: boolean;
+  pending: boolean;
+  error?: string;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Santa configuration?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {configuration
+              ? `${configuration.name} will stop applying to matching hosts.`
+              : "This Santa configuration will stop applying to matching hosts."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            size="sm"
+            disabled={pending}
+            onClick={(event) => {
+              event.preventDefault();
+              void onConfirm();
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

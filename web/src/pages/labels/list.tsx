@@ -9,16 +9,17 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -241,32 +242,32 @@ function LabelDeleteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Delete label</DialogTitle>
-          <DialogDescription>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete label</AlertDialogTitle>
+          <AlertDialogDescription>
             {label ? `${label.name} will be removed from hosts and filters.` : "This label will be removed."}
-          </DialogDescription>
-        </DialogHeader>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         {remove.error ? <p className="text-destructive text-sm">{remove.error.message}</p> : null}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="ghost" size="sm" disabled={remove.isPending}>
-              Cancel
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
             size="sm"
             disabled={remove.isPending}
-            onClick={() => void handleDelete()}
+            onClick={(event) => {
+              event.preventDefault();
+              void handleDelete();
+            }}
           >
             Delete label
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
