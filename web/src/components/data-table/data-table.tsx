@@ -10,7 +10,9 @@ import {
   type PaginationState,
   type RowSelectionState,
   type SortingState,
+  type Table as TanStackTable,
   type Updater,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -57,7 +59,7 @@ interface DataTableProps<TData, TValue> {
   /** Stable row id; defaults to (row as { id: string }).id. */
   getRowId?: (row: TData) => string;
   /** Slot above the table (toolbar with search + filters). */
-  toolbar?: ReactNode;
+  toolbar?: ReactNode | ((table: TanStackTable<TData>) => ReactNode);
   /** Rendered when totalCount === 0. */
   empty: ReactNode;
   /** Skeleton row count during initial load. */
@@ -98,6 +100,7 @@ export function DataTable<TData, TValue>({
   const navigate = useNavigate();
   const [localPagination, setLocalPagination] = useState<PaginationState>(pagination);
   const [localSorting, setLocalSorting] = useState<SortingState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const paginationState = clientSort ? localPagination : pagination;
   const sortingState = clientSort ? localSorting : sorting;
@@ -134,9 +137,10 @@ export function DataTable<TData, TValue>({
     manualSorting: !clientSort,
     enableRowSelection,
     rowCount: totalCount,
-    state: { pagination: paginationState, sorting: sortingState, rowSelection },
+    state: { pagination: paginationState, sorting: sortingState, columnVisibility, rowSelection },
     onPaginationChange: clientSort ? setLocalPagination : onPaginationChange,
     onSortingChange: clientSort ? handleSortingChange : onSortingChange,
+    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: handleRowSelectionChange,
     getRowId: getRowId ?? DEFAULT_GET_ROW_ID,
   });
@@ -147,7 +151,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {toolbar}
+      {typeof toolbar === "function" ? toolbar(table) : toolbar}
       {enableRowSelection && selectedRowIds.length > 0 ? (
         <div className="bg-muted/50 flex min-h-10 items-center justify-between rounded-md border px-3 py-2">
           <div className="text-muted-foreground text-sm tabular-nums">{selectedRowIds.length} selected</div>
@@ -171,7 +175,7 @@ export function DataTable<TData, TValue>({
             {showSkeleton
               ? skeletonRowIds.map((rowId) => (
                   <TableRow key={rowId}>
-                    {table.getAllLeafColumns().map((col) => (
+                    {table.getVisibleLeafColumns().map((col) => (
                       <TableCell key={col.id}>
                         <Skeleton className="h-4 w-3/4" />
                       </TableCell>

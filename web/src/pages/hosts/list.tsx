@@ -1,5 +1,5 @@
 import { Link, useSearch } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
 import { Check, KeyRound, ListFilter, ServerCog, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -8,7 +8,6 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { defaultHiddenIds } from "@/components/data-table/data-table-visibility";
 import { PageActions } from "@/components/layout/page-actions";
 import { PageShell } from "@/components/layout/page-layout";
 import { EnrollSecretsDialog } from "@/components/secrets/enroll-secrets-dialog";
@@ -27,7 +26,6 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useHiddenColumns } from "@/hooks/use-hidden-columns";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -74,7 +72,8 @@ export function HostsListPage() {
       accessorFn: (row) => row.display_name || row.hardware_uuid,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
-      meta: { label: "Host", alwaysVisible: true },
+      enableHiding: false,
+      meta: { label: "Host" },
     },
     {
       id: "status",
@@ -150,21 +149,21 @@ export function HostsListPage() {
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono text-xs">{row.original.hardware_uuid || "-"}</span>
       ),
-      meta: { label: "UUID", defaultHidden: true },
+      meta: { label: "UUID" },
     },
     {
       id: "primary_ip",
       accessorKey: "primary_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Private IP" />,
       cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.primary_ip ?? "-"}</span>,
-      meta: { label: "Private IP", defaultHidden: true },
+      meta: { label: "Private IP" },
     },
     {
       id: "public_ip",
       accessorKey: "public_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Public IP" />,
       cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.public_ip ?? "-"}</span>,
-      meta: { label: "Public IP", defaultHidden: true },
+      meta: { label: "Public IP" },
     },
     {
       id: "physical_memory",
@@ -175,14 +174,14 @@ export function HostsListPage() {
           {row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"}
         </span>
       ),
-      meta: { label: "Memory", defaultHidden: true },
+      meta: { label: "Memory" },
     },
     {
       id: "osquery_version",
       accessorKey: "osquery_version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="osquery" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.osquery_version || "-"}</span>,
-      meta: { label: "osquery version", defaultHidden: true },
+      meta: { label: "osquery version" },
     },
     {
       id: "last_restarted_at",
@@ -196,16 +195,9 @@ export function HostsListPage() {
           {row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"}
         </span>
       ),
-      meta: { label: "Last restarted", defaultHidden: true },
+      meta: { label: "Last restarted" },
     },
   ];
-
-  const { hidden, toggle } = useHiddenColumns("hosts:hidden_columns", defaultHiddenIds(allColumns));
-  const hiddenSet = new Set(hidden);
-  const visibleColumns = allColumns.filter((c) => {
-    if (c.meta?.alwaysVisible) return true;
-    return !hiddenSet.has(c.id ?? "");
-  });
 
   const labelOptions = (labelsQuery.data?.items ?? []).map((l) => ({ value: String(l.id), label: l.name }));
   const selectedIDs = selectedHostIds.map(Number);
@@ -247,7 +239,7 @@ export function HostsListPage() {
           </Alert>
         ) : (
           <DataTable
-            columns={visibleColumns}
+            columns={allColumns}
             data={data}
             totalCount={totalCount}
             pagination={state.pagination}
@@ -270,7 +262,7 @@ export function HostsListPage() {
               </Button>
             }
             rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
-            toolbar={
+            toolbar={(table) => (
               <HostsToolbar
                 draft={draft}
                 onDraftChange={setDraft}
@@ -279,11 +271,9 @@ export function HostsListPage() {
                 labelId={search.label_id}
                 onLabelChange={(v) => setters.setFilter("label_id", v)}
                 labelOptions={labelOptions}
-                allColumns={allColumns}
-                hiddenColumns={hidden}
-                onToggleColumn={toggle}
+                table={table}
               />
-            }
+            )}
             empty={
               <Empty>
                 <EmptyHeader>
@@ -327,9 +317,7 @@ interface HostsToolbarProps {
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
-  allColumns: ColumnDef<Host>[];
-  hiddenColumns: string[];
-  onToggleColumn: (id: string) => void;
+  table: TanStackTable<Host>;
 }
 
 function HostsToolbar({
@@ -340,9 +328,7 @@ function HostsToolbar({
   labelId,
   onLabelChange,
   labelOptions,
-  allColumns,
-  hiddenColumns,
-  onToggleColumn,
+  table,
 }: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -353,7 +339,7 @@ function HostsToolbar({
         label="Search hosts"
         className="basis-full sm:basis-64"
       />
-      <DataTableColumnToggle columns={allColumns} hidden={hiddenColumns} onToggle={onToggleColumn} variant="ghost" />
+      <DataTableColumnToggle table={table} variant="ghost" />
       <HostFilterDropdown
         platform={platform}
         onPlatformChange={onPlatformChange}

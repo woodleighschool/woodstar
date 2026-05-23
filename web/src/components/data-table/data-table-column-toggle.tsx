@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type { Table } from "@tanstack/react-table";
 import { Columns3 } from "lucide-react";
 import type { ComponentProps } from "react";
 
@@ -14,30 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface DataTableColumnToggleProps<TData> {
-  columns: ColumnDef<TData, unknown>[];
-  hidden: string[];
-  onToggle: (id: string) => void;
+  table: Table<TData>;
   variant?: ComponentProps<typeof Button>["variant"];
 }
 
-/**
- * Renders a "Columns" dropdown driven by the same ColumnDef array the table uses.
- * Columns marked `meta.alwaysVisible` are skipped; everything else becomes a checkbox.
- */
-export function DataTableColumnToggle<TData>({
-  columns,
-  hidden,
-  onToggle,
-  variant = "outline",
-}: DataTableColumnToggleProps<TData>) {
-  const hiddenSet = new Set(hidden);
-  const items = columns
-    .filter((c) => !!c.id && !c.meta?.alwaysVisible)
-    .map((c) => ({
-      id: c.id as string,
-      label: c.meta?.label ?? (c.id as string),
-    }));
-
+export function DataTableColumnToggle<TData>({ table, variant = "outline" }: DataTableColumnToggleProps<TData>) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -50,16 +31,19 @@ export function DataTableColumnToggle<TData>({
         <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {items.map((item) => (
-            <DropdownMenuCheckboxItem
-              key={item.id}
-              checked={!hiddenSet.has(item.id)}
-              onCheckedChange={() => onToggle(item.id)}
-              onSelect={(e) => e.preventDefault()}
-            >
-              {item.label}
-            </DropdownMenuCheckboxItem>
-          ))}
+          {table
+            .getAllColumns()
+            .filter((column) => column.getCanHide())
+            .map((column) => (
+              <DropdownMenuCheckboxItem
+                key={column.id}
+                checked={column.getIsVisible()}
+                onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {column.columnDef.meta?.label ?? column.id}
+              </DropdownMenuCheckboxItem>
+            ))}
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -6,7 +6,5 @@ declare module "@tanstack/react-table" {
     headClassName?: string;
     cellClassName?: string;
     label?: string;
-    alwaysVisible?: boolean;
-    defaultHidden?: boolean;
   }
 }
