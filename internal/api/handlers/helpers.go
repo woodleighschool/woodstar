@@ -122,8 +122,8 @@ type paginatedBody[T any] struct {
 type ListQueryInput struct {
 	Q         string `query:"q,omitempty"`
 	PageIndex int    `query:"page_index,omitempty" minimum:"0"`
-	PageSize  int    `query:"page_size,omitempty"  minimum:"1" maximum:"200"`
-	Sort      string `query:"sort,omitempty"                                 example:"name.asc"`
+	PageSize  int    `query:"page_size,omitempty"  minimum:"1" maximum:"1000"`
+	Sort      string `query:"sort,omitempty"                                  example:"name.asc"`
 }
 
 func (input ListQueryInput) params() dbutil.ListParams {

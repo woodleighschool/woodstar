@@ -45,6 +45,7 @@ import {
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
 import type { ApiError } from "@/lib/api";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
 type BoolChoice = "omit" | "true" | "false";
@@ -110,7 +111,10 @@ const emptyConfigurationForm: ConfigurationFormState = {
 export function SantaConfigurationsPage() {
   const search = useSearch({ strict: false });
   const [draft, setDraft] = useDebouncedSearchParam("q");
-  const query = useSantaConfigurations({ q: typeof search.q === "string" ? search.q : undefined, page_size: 500 });
+  const query = useSantaConfigurations({
+    q: typeof search.q === "string" ? search.q : undefined,
+    page_size: MAX_PAGE_SIZE,
+  });
   const remove = useDeleteSantaConfiguration();
   const reorder = useReorderSantaConfigurations();
   const [deleting, setDeleting] = useState<SantaConfiguration | null>(null);

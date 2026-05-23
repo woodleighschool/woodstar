@@ -3,8 +3,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
+import { PAGE_SIZE_OPTIONS } from "@/lib/pagination";
 
 interface DataTablePaginationProps<TData> {
   table: TanStackTable<TData>;

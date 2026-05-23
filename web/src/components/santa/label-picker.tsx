@@ -10,10 +10,11 @@ import {
   ComboboxValue,
 } from "@/components/ui/combobox";
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 export function LabelPicker({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
   const labels = useLabels({
-    page_size: 500,
+    page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
     label_type: "regular",
     platform: "darwin",

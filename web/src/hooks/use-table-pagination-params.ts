@@ -2,9 +2,9 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 
-const DEFAULT_PAGE_INDEX = 0;
-const DEFAULT_PAGE_SIZE = 50;
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 
+const DEFAULT_PAGE_INDEX = 0;
 export interface TableSearchParams {
   q?: string;
   page_index?: number;

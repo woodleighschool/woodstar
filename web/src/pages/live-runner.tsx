@@ -37,6 +37,7 @@ import {
   type LiveQueryTargetCount,
   type LiveQueryTargetCountBody,
 } from "@/hooks/use-live-queries";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import type { QueryablePlatform } from "@/lib/targeting";
 
 type LiveRunKind = "report" | "check";
@@ -449,7 +450,7 @@ function TargetPicker({
   onLabelsChange: (labels: Label[]) => void;
   onHostsChange: (hosts: Host[]) => void;
 }) {
-  const labels = useLabels({ page_size: 500, sort: "name.asc" });
+  const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const [hostSearch, setHostSearch] = useState("");
   const hosts = useHosts({ q: hostSearch, page_size: 8, sort: "display_name.asc" });
   const grouped = useMemo(() => groupLabels(labels.data?.items ?? []), [labels.data?.items]);

@@ -29,6 +29,7 @@ import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function HostsListPage() {
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const labelsQuery = useLabels({
-    page_size: 200,
+    page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
     label_type: "regular",
   });

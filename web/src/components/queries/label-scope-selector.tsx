@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLabels } from "@/hooks/use-labels";
 import type { Schemas } from "@/lib/api";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
@@ -25,7 +26,7 @@ export function LabelScopeSelector({
   onChange: (next: LabelScope) => void;
   entity?: "report" | "check";
 }) {
-  const labels = useLabels({ page_size: 500, sort: "name.asc", label_type: "regular" });
+  const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc", label_type: "regular" });
   const selectedTarget = value?.mode ? "Custom" : "All hosts";
   const selectedMode = value?.mode ?? includeAny;
   const selected = new Set(value?.label_ids ?? []);

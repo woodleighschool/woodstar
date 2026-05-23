@@ -2359,7 +2359,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: a85dfc3-dirty
+  version: 34d6938-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2698,7 +2698,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -3056,7 +3056,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -3132,7 +3132,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -3206,7 +3206,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -3699,7 +3699,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -4040,7 +4040,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -4381,7 +4381,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -4776,7 +4776,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
@@ -5275,7 +5275,7 @@ paths:
           name: page_size
           schema:
             format: int64
-            maximum: 200
+            maximum: 1000
             minimum: 1
             type: integer
         - explode: false
