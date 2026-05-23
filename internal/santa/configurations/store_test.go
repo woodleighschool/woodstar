@@ -1,4 +1,4 @@
-package santa_test
+package configurations_test
 
 import (
 	"errors"
@@ -10,16 +10,16 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platforms"
-	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
 func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := santa.NewStore(db)
+	store := configurations.NewStore(db)
 	firstLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration First")
 	secondLabelID := createSantaConfigurationLabel(t, db, "Santa Configuration Second")
 
-	_, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	_, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:                    "short sync",
 		FullSyncIntervalSeconds: new(59),
 	})
@@ -27,10 +27,11 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("short full sync error = %v, want ErrInvalidInput", err)
 	}
 
-	remount := santa.RemovableMediaActionRemount
-	_, err = store.CreateConfiguration(ctx, santa.ConfigurationCreate{
-		Name:                 "remount without flags",
-		RemovableMediaAction: &remount,
+	_, err = store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
+		Name: "remount without flags",
+		RemovableMediaPolicy: &configurations.RemovableMediaPolicy{
+			Action: configurations.RemovableMediaActionRemount,
+		},
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("remount without flags error = %v, want ErrInvalidInput", err)
@@ -38,36 +39,40 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 
 	enableBundles := true
 	fullSyncInterval := 120
-	config, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	config, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:                    " Baseline ",
-		ClientMode:              santa.ClientModeLockdown,
+		ClientMode:              configurations.ClientModeLockdown,
 		EnableBundles:           &enableBundles,
 		FullSyncIntervalSeconds: &fullSyncInterval,
-		RemovableMediaAction:    &remount,
-		RemovableMediaRemountFlags: []string{
-			" rw ",
-			"nosuid",
+		RemovableMediaPolicy: &configurations.RemovableMediaPolicy{
+			Action: configurations.RemovableMediaActionRemount,
+			RemountFlags: []string{
+				" rw ",
+				"nosuid",
+			},
 		},
 		LabelIDs: []int64{firstLabelID},
 	})
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
-	if config.Name != "Baseline" || config.Position != 0 || config.ClientMode != santa.ClientModeLockdown {
+	if config.Name != "Baseline" || config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
 		t.Fatalf("configuration was not cleaned: %+v", config)
 	}
-	if config.EnableBundles == nil || !*config.EnableBundles || len(config.RemovableMediaRemountFlags) != 2 {
+	if config.EnableBundles == nil || !*config.EnableBundles ||
+		config.RemovableMediaPolicy == nil ||
+		len(config.RemovableMediaPolicy.RemountFlags) != 2 {
 		t.Fatalf("settings were not preserved: %+v", config)
 	}
 	if len(config.LabelIDs) != 1 || config.LabelIDs[0] != firstLabelID {
 		t.Fatalf("label IDs = %v, want [%d]", config.LabelIDs, firstLabelID)
 	}
 
-	_, err = store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	_, err = store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:     "Conflicting",
 		LabelIDs: []int64{firstLabelID},
 	})
-	var conflict *santa.ConfigurationLabelConflictError
+	var conflict *configurations.ConfigurationLabelConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("label conflict error = %v, want ConfigurationLabelConflictError", err)
 	}
@@ -76,17 +81,17 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("conflict = %+v, want existing configuration details", conflict)
 	}
 
-	updated, err := store.UpdateConfiguration(ctx, config.ID, santa.ConfigurationUpdate{
+	updated, err := store.UpdateConfiguration(ctx, config.ID, configurations.ConfigurationMutation{
 		Name:     " Updated ",
 		LabelIDs: []int64{secondLabelID},
 	})
 	if err != nil {
 		t.Fatalf("update configuration: %v", err)
 	}
-	if updated.Name != "Updated" || updated.ClientMode != santa.ClientModeMonitor {
+	if updated.Name != "Updated" || updated.ClientMode != configurations.ClientModeMonitor {
 		t.Fatalf("updated configuration = %+v", updated)
 	}
-	if updated.EnableBundles != nil || len(updated.RemovableMediaRemountFlags) != 0 {
+	if updated.EnableBundles != nil || updated.RemovableMediaPolicy != nil {
 		t.Fatalf("update did not replace settings: %+v", updated)
 	}
 	if len(updated.LabelIDs) != 1 || updated.LabelIDs[0] != secondLabelID {
@@ -98,7 +103,7 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
-	store := santa.NewStore(db)
+	store := configurations.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID: "santa-configuration-resolver-host",
@@ -116,14 +121,14 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 		t.Fatalf("set second label membership: %v", err)
 	}
 
-	first, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	first, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:     "First",
 		LabelIDs: []int64{firstLabelID},
 	})
 	if err != nil {
 		t.Fatalf("create first configuration: %v", err)
 	}
-	second, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	second, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:     "Second",
 		LabelIDs: []int64{secondLabelID},
 	})

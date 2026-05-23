@@ -1,6 +1,9 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Activity, Loader2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Activity } from "lucide-react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSantaEvents, type SantaEvent } from "@/hooks/use-santa";
 import { formatRelative } from "@/lib/utils";
@@ -32,14 +34,71 @@ export function SantaEventsPage() {
   const decision =
     typeof looseSearch.decision === "string" && looseSearch.decision !== "" ? looseSearch.decision : "all";
   const after = typeof looseSearch.after === "string" ? looseSearch.after : undefined;
+  const parsedHostID = Number(hostID);
   const query = useSantaEvents({
-    host_id: hostID,
+    host_id: hostID.trim() !== "" && Number.isFinite(parsedHostID) && parsedHostID > 0 ? parsedHostID : undefined,
     decision: decision === "all" ? undefined : decision,
     limit: 50,
     after,
   });
   const rows = query.data?.items ?? [];
   const nextCursor = query.data?.next_cursor;
+  const hasFilters = !!hostID || decision !== "all";
+
+  const columns: ColumnDef<SantaEvent>[] = [
+    {
+      id: "executable",
+      header: "Executable",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="grid gap-1">
+          <span className="font-medium">{row.original.executable.file_name || row.original.executable.sha256}</span>
+          <span className="text-muted-foreground max-w-[34rem] truncate text-xs">
+            {row.original.file_path || row.original.executable.sha256}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "decision",
+      accessorKey: "decision",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Decision" />,
+      cell: ({ row }) => <DecisionBadge decision={row.original.decision} />,
+    },
+    {
+      id: "host_id",
+      accessorKey: "host_id",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
+      cell: ({ row }) => (
+        <Link
+          to="/hosts/$hostId"
+          params={{ hostId: String(row.original.host_id) }}
+          className="font-medium hover:underline"
+        >
+          {row.original.host_id}
+        </Link>
+      ),
+    },
+    {
+      id: "executing_user",
+      accessorKey: "executing_user",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.executing_user || "-"}</span>,
+    },
+    {
+      id: "occurred_at",
+      accessorFn: (row) => row.occurred_at ?? row.ingested_at,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="When" />,
+      cell: ({ row }) => {
+        const timestamp = row.original.occurred_at ?? row.original.ingested_at;
+        return (
+          <span className="text-muted-foreground" title={new Date(timestamp).toLocaleString()}>
+            {formatRelative(timestamp)}
+          </span>
+        );
+      },
+    },
+  ];
 
   function setDecision(next: string) {
     void navigate({
@@ -63,32 +122,60 @@ export function SantaEventsPage() {
     <PageShell>
       <PageHeader title="Santa events" description="Recent execution events uploaded by Santa clients." />
 
-      <div className="flex flex-wrap items-end gap-2">
-        <DataTableSearch value={hostID} onChange={setHostID} placeholder="Host ID" label="Filter by host ID" />
-        <div className="grid gap-1">
-          <Label className="text-muted-foreground text-xs">Decision</Label>
-          <Select value={decision} onValueChange={setDecision}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DECISION_FILTERS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {query.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load Santa events</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <SantaEventTable rows={rows} loading={query.isLoading} />
+        <DataTable
+          columns={columns}
+          data={rows}
+          totalCount={rows.length}
+          page={1}
+          perPage={rows.length || 50}
+          sort={{}}
+          onPageChange={() => undefined}
+          onPerPageChange={() => undefined}
+          onSortChange={() => undefined}
+          isLoading={query.isLoading}
+          clientSort
+          toolbar={
+            <div className="flex flex-wrap items-end gap-2">
+              <DataTableSearch value={hostID} onChange={setHostID} placeholder="Host ID" label="Filter by host ID" />
+              <div className="grid gap-1">
+                <Label className="text-muted-foreground text-xs">Decision</Label>
+                <Select value={decision} onValueChange={setDecision}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DECISION_FILTERS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          }
+          empty={
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Activity />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matches" : "No events yet"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "No Santa execution events matched these filters."
+                    : "Santa execution events will appear here after clients upload them."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
+        />
       )}
 
       <div className="flex items-center gap-2">
@@ -104,79 +191,6 @@ export function SantaEventsPage() {
         ) : null}
       </div>
     </PageShell>
-  );
-}
-
-function SantaEventTable({ rows, loading }: { rows: SantaEvent[]; loading: boolean }) {
-  if (loading && rows.length === 0) {
-    return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </div>
-    );
-  }
-
-  if (rows.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Activity />
-          </EmptyMedia>
-          <EmptyTitle>No events</EmptyTitle>
-          <EmptyDescription>No Santa execution events matched these filters.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Executable</TableHead>
-            <TableHead>Decision</TableHead>
-            <TableHead>Host</TableHead>
-            <TableHead>User</TableHead>
-            <TableHead>When</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((event) => (
-            <TableRow key={event.id}>
-              <TableCell className="min-w-[18rem]">
-                <div className="grid gap-1">
-                  <span className="font-medium">{event.executable.file_name || event.executable.sha256}</span>
-                  <span className="text-muted-foreground max-w-[34rem] truncate text-xs">
-                    {event.file_path || event.executable.sha256}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <DecisionBadge decision={event.decision} />
-              </TableCell>
-              <TableCell>
-                <Link
-                  to="/hosts/$hostId"
-                  params={{ hostId: String(event.host_id) }}
-                  className="font-medium hover:underline"
-                >
-                  {event.host_id}
-                </Link>
-              </TableCell>
-              <TableCell className="text-muted-foreground">{event.executing_user || "-"}</TableCell>
-              <TableCell
-                className="text-muted-foreground"
-                title={new Date(event.occurred_at ?? event.ingested_at).toLocaleString()}
-              >
-                {formatRelative(event.occurred_at ?? event.ingested_at)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
   );
 }
 

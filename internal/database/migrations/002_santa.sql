@@ -47,10 +47,6 @@ CREATE INDEX santa_hosts_serial_number_idx ON santa_hosts (serial_number);
 CREATE TABLE santa_sync_state (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     client_rules_hash TEXT NOT NULL DEFAULT '',
-    desired_targets JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(desired_targets) = 'array'),
-    applied_targets JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(applied_targets) = 'array'),
-    pending_payload JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(pending_payload) = 'array'),
-    pending_payload_rule_count BIGINT NOT NULL DEFAULT 0 CHECK (pending_payload_rule_count >= 0),
     pending_full_sync BOOLEAN NOT NULL DEFAULT FALSE,
     pending_preflight_at TIMESTAMPTZ,
     last_rule_sync_attempt_at TIMESTAMPTZ,
@@ -58,6 +54,29 @@ CREATE TABLE santa_sync_state (
     last_clean_sync_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TYPE santa_sync_target_phase AS ENUM ('desired', 'pending', 'applied');
+
+CREATE TABLE santa_sync_targets (
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    phase santa_sync_target_phase NOT NULL,
+    position INT NOT NULL CHECK (position >= 0),
+    rule_type santa_rule_type NOT NULL,
+    identifier TEXT NOT NULL,
+    policy santa_policy NOT NULL,
+    cel_expression TEXT NOT NULL DEFAULT '',
+    custom_message TEXT NOT NULL DEFAULT '',
+    custom_url TEXT NOT NULL DEFAULT '',
+    payload_hash TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (host_id, phase, position),
+    UNIQUE (host_id, phase, payload_hash),
+    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL),
+    CHECK (NULLIF(btrim(payload_hash), '') IS NOT NULL)
+);
+
+CREATE INDEX santa_sync_targets_host_phase_idx
+    ON santa_sync_targets (host_id, phase);
 
 -- Santa configurations -------------------------------------------------------
 
@@ -159,7 +178,7 @@ CREATE TABLE santa_executables (
     signing_id TEXT NOT NULL DEFAULT '',
     team_id TEXT NOT NULL DEFAULT '',
     cdhash TEXT NOT NULL DEFAULT '',
-    entitlements JSONB NOT NULL DEFAULT '{}'::JSONB CHECK (jsonb_typeof(entitlements) = 'object'),
+    entitlements JSONB CHECK (entitlements IS NULL OR jsonb_typeof(entitlements) = 'object'),
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (NULLIF(btrim(sha256), '') IS NOT NULL)
@@ -204,10 +223,9 @@ CREATE INDEX santa_execution_events_decision_ingested_idx
 
 CREATE TABLE santa_sync_tokens (
     id BIGSERIAL PRIMARY KEY,
-    value_hash TEXT NOT NULL UNIQUE,
+    value TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_used_at TIMESTAMPTZ,
-    CHECK (NULLIF(btrim(value_hash), '') IS NOT NULL)
+    CHECK (NULLIF(btrim(value), '') IS NOT NULL)
 );
 
 -- +goose Down
@@ -223,9 +241,11 @@ DROP TABLE santa_rule_includes;
 DROP TABLE santa_rules;
 DROP TABLE santa_configuration_labels;
 DROP TABLE santa_configurations;
+DROP TABLE santa_sync_targets;
 DROP TABLE santa_sync_state;
 DROP TABLE santa_hosts;
 
+DROP TYPE santa_sync_target_phase;
 DROP TYPE santa_execution_decision;
 DROP TYPE santa_policy;
 DROP TYPE santa_rule_type;

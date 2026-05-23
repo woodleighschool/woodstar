@@ -1,19 +1,21 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   useCreateSantaSyncToken,
   useDeleteSantaSyncToken,
   useSantaSyncTokens,
-  type CreatedSantaSyncToken,
+  type SantaSyncToken,
 } from "@/hooks/use-santa";
 import { formatRelative } from "@/lib/utils";
 
@@ -21,7 +23,7 @@ export function SantaSyncTokensPage() {
   const query = useSantaSyncTokens();
   const create = useCreateSantaSyncToken();
   const remove = useDeleteSantaSyncToken();
-  const [created, setCreated] = useState<CreatedSantaSyncToken | null>(null);
+  const [created, setCreated] = useState<SantaSyncToken | null>(null);
 
   async function createToken() {
     const token = await create.mutateAsync();
@@ -32,7 +34,7 @@ export function SantaSyncTokensPage() {
     <PageShell>
       <PageHeader
         title="Santa sync tokens"
-        description="Bearer tokens used by Santa clients during sync. Plaintext is only shown when a token is created."
+        description="Bearer tokens used by Santa clients during sync."
         actions={
           <Button size="sm" disabled={create.isPending} onClick={() => void createToken()}>
             {create.isPending ? (
@@ -61,7 +63,6 @@ export function SantaSyncTokensPage() {
           </DialogHeader>
           <div className="grid gap-3">
             <Input readOnly value={created?.value ?? ""} className="font-mono" />
-            <p className="text-muted-foreground text-sm">Store this token now. Woodstar will not show it again.</p>
           </div>
           <DialogFooter>
             <Button
@@ -107,68 +108,67 @@ function SyncTokenTable({
     );
   }
 
-  if (query.isLoading) {
-    return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </div>
-    );
-  }
-
   const rows = query.data ?? [];
-  if (rows.length === 0) {
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <KeyRound />
-          </EmptyMedia>
-          <EmptyTitle>No sync tokens</EmptyTitle>
-          <EmptyDescription>Create a token before enrolling Santa clients.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
+  const columns: ColumnDef<SantaSyncToken>[] = [
+    {
+      id: "value",
+      accessorKey: "value",
+      header: "Token",
+      cell: ({ row }) => <span className="block max-w-[28rem] truncate font-mono text-xs">{row.original.value}</span>,
+    },
+    {
+      id: "created_at",
+      accessorKey: "created_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" title={new Date(row.original.created_at).toLocaleString()}>
+          {formatRelative(row.original.created_at)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          disabled={deletingID === row.original.id}
+          onClick={() => onDelete(row.original.id)}
+        >
+          {deletingID === row.original.id ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        </Button>
+      ),
+      meta: { headClassName: "w-12" },
+    },
+  ];
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Hash</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Last used</TableHead>
-            <TableHead className="w-12" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="max-w-[24rem] truncate font-mono text-xs">{row.value_hash}</TableCell>
-              <TableCell className="text-muted-foreground" title={new Date(row.created_at).toLocaleString()}>
-                {formatRelative(row.created_at)}
-              </TableCell>
-              <TableCell
-                className="text-muted-foreground"
-                title={row.last_used_at ? new Date(row.last_used_at).toLocaleString() : undefined}
-              >
-                {formatRelative(row.last_used_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  disabled={deletingID === row.id}
-                  onClick={() => onDelete(row.id)}
-                >
-                  {deletingID === row.id ? <Loader2 className="animate-spin" /> : <Trash2 />}
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      totalCount={rows.length}
+      page={1}
+      perPage={rows.length || 50}
+      sort={{}}
+      onPageChange={() => undefined}
+      onPerPageChange={() => undefined}
+      onSortChange={() => undefined}
+      isLoading={query.isLoading}
+      clientSort
+      empty={
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <KeyRound />
+            </EmptyMedia>
+            <EmptyTitle>No sync tokens</EmptyTitle>
+            <EmptyDescription>Create a token before enrolling Santa clients.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      }
+    />
   );
 }

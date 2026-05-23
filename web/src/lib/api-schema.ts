@@ -871,8 +871,7 @@ export interface components {
             enable_all_event_upload?: boolean;
             enable_bundles?: boolean;
             enable_transitive_rules?: boolean;
-            encrypted_removable_media_action?: string;
-            encrypted_removable_media_remount_flags?: string[] | null;
+            encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             event_detail_text?: string;
             event_detail_url?: string;
             /** Format: int64 */
@@ -883,16 +882,15 @@ export interface components {
             name: string;
             /** Format: int64 */
             position: number;
-            removable_media_action?: string;
-            removable_media_remount_flags?: string[] | null;
+            removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             /** Format: date-time */
             updated_at: string;
         };
-        ConfigurationCreate: {
+        ConfigurationMutation: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ConfigurationCreate.json
+             * @example https://example.com/api/schemas/ConfigurationMutation.json
              */
             readonly $schema?: string;
             allowed_path_regex?: string;
@@ -903,64 +901,14 @@ export interface components {
             enable_all_event_upload?: boolean;
             enable_bundles?: boolean;
             enable_transitive_rules?: boolean;
-            encrypted_removable_media_action?: string;
-            encrypted_removable_media_remount_flags?: string[] | null;
+            encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             event_detail_text?: string;
             event_detail_url?: string;
             /** Format: int64 */
             full_sync_interval_seconds?: number;
             label_ids?: number[] | null;
             name: string;
-            removable_media_action?: string;
-            removable_media_remount_flags?: string[] | null;
-        };
-        ConfigurationUpdate: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ConfigurationUpdate.json
-             */
-            readonly $schema?: string;
-            allowed_path_regex?: string;
-            /** Format: int64 */
-            batch_size?: number;
-            blocked_path_regex?: string;
-            client_mode?: string;
-            enable_all_event_upload?: boolean;
-            enable_bundles?: boolean;
-            enable_transitive_rules?: boolean;
-            encrypted_removable_media_action?: string;
-            encrypted_removable_media_remount_flags?: string[] | null;
-            event_detail_text?: string;
-            event_detail_url?: string;
-            /** Format: int64 */
-            full_sync_interval_seconds?: number;
-            label_ids?: number[] | null;
-            name: string;
-            removable_media_action?: string;
-            removable_media_remount_flags?: string[] | null;
-        };
-        CreatedSyncToken: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CreatedSyncToken.json
-             */
-            readonly $schema?: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: int64 */
-            id: number;
-            /** Format: date-time */
-            last_used_at?: string;
-            value: string;
-            value_hash: string;
-        };
-        EffectiveConfiguration: {
-            /** Format: int64 */
-            id: number;
-            matched_via_label?: components["schemas"]["MatchedLabel"];
-            name: string;
+            removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
         };
         EffectiveRuleStatus: {
             applied: boolean;
@@ -971,7 +919,6 @@ export interface components {
             /** Format: int64 */
             matched_include_id: number;
             payload_hash: string;
-            pending: boolean;
             policy: string;
             /** Format: int64 */
             rule_id: number;
@@ -1305,8 +1252,7 @@ export interface components {
         };
         HostState: {
             client_mode_reported: string;
-            effective_configuration?: components["schemas"]["EffectiveConfiguration"];
-            enrolled: boolean;
+            effective_configuration?: components["schemas"]["ResolvedConfiguration"];
             /** Format: date-time */
             last_sync_at?: string;
             rule_sync: components["schemas"]["RuleSyncSummary"];
@@ -1355,6 +1301,11 @@ export interface components {
             name: string;
             platforms: string[];
             query?: string;
+        };
+        LabelMatch: {
+            /** Format: int64 */
+            id: number;
+            name: string;
         };
         LabelMutationBody: {
             /**
@@ -1454,11 +1405,6 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
-        };
-        MatchedLabel: {
-            /** Format: int64 */
-            id: number;
-            name: string;
         };
         PaginatedBodyCheck: {
             /**
@@ -1577,6 +1523,11 @@ export interface components {
             installed_path: string;
             team_identifier: string;
         };
+        RemovableMediaPolicy: {
+            action: string;
+            /** @description Mount flags required when action is remount. */
+            remount_flags?: string[] | null;
+        };
         ReportBody: {
             /**
              * Format: uri
@@ -1638,6 +1589,33 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["ReportResultBody"][] | null;
+        };
+        ResolvedConfiguration: {
+            allowed_path_regex?: string;
+            /** Format: int64 */
+            batch_size?: number;
+            blocked_path_regex?: string;
+            client_mode: string;
+            /** Format: date-time */
+            created_at: string;
+            enable_all_event_upload?: boolean;
+            enable_bundles?: boolean;
+            enable_transitive_rules?: boolean;
+            encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
+            event_detail_text?: string;
+            event_detail_url?: string;
+            /** Format: int64 */
+            full_sync_interval_seconds?: number;
+            /** Format: int64 */
+            id: number;
+            label_ids: number[] | null;
+            matched_via_label?: components["schemas"]["LabelMatch"];
+            name: string;
+            /** Format: int64 */
+            position: number;
+            removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
+            /** Format: date-time */
+            updated_at: string;
         };
         Rule: {
             /**
@@ -1785,13 +1763,17 @@ export interface components {
             version: string;
         };
         SyncToken: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/SyncToken.json
+             */
+            readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: int64 */
             id: number;
-            /** Format: date-time */
-            last_used_at?: string;
-            value_hash: string;
+            value: string;
         };
         User: {
             /**
@@ -4415,7 +4397,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfigurationCreate"];
+                "application/json": components["schemas"]["ConfigurationMutation"];
             };
         };
         responses: {
@@ -4694,7 +4676,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfigurationUpdate"];
+                "application/json": components["schemas"]["ConfigurationMutation"];
             };
         };
         responses: {
@@ -4775,7 +4757,7 @@ export interface operations {
     "list-santa-events": {
         parameters: {
             query?: {
-                host_id?: string;
+                host_id?: number;
                 decision?: string;
                 since?: string;
                 limit?: number;
@@ -5354,7 +5336,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatedSyncToken"];
+                    "application/json": components["schemas"]["SyncToken"];
                 };
             };
             /** @description Unauthorized */

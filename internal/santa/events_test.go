@@ -2,21 +2,31 @@ package santa_test
 
 import (
 	"slices"
+	"sync"
 	"testing"
 	"time"
-
-	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
 
 func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
-	service := santa.NewService(store)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewService(santa.ServiceDependencies{
+		Store:          store,
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		SyncStore:      santasync.NewStore(db),
+	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   "santa-events-host",
@@ -28,58 +38,56 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	}
 
 	occurredAt := time.Date(2026, 5, 23, 12, 30, 0, 0, time.UTC)
-	_, err = service.HandleEventUpload(ctx, "santa-events-host", &syncv1.EventUploadRequest{
-		MachineId: "santa-events-host",
-		Events: []*syncv1.Event{
+	_, err = service.EventUpload(ctx, "santa-events-host", santasync.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{
 			{
-				FileSha256:      "sha256-a",
-				FilePath:        "/Applications/Example.app/Contents/MacOS/Example",
-				FileName:        "Example",
-				ExecutingUser:   "alice",
-				ExecutionTime:   float64(occurredAt.Unix()),
-				LoggedInUsers:   []string{" bob ", "alice", "bob", ""},
-				CurrentSessions: []string{"console", "ssh", "console"},
-				Decision:        syncv1.Decision_BLOCK_BINARY,
-				FileBundleId:    "com.example.old",
-				FileBundlePath:  "/Applications/Example.app",
-				SigningId:       "TEAMID:com.example.old",
-				TeamId:          "TEAMID",
-				Cdhash:          "old-cdhash",
-				SigningChain:    santaTestSigningChain(),
+				FileSHA256:           "sha256-a",
+				FilePath:             "/Applications/Example.app/Contents/MacOS/Example",
+				FileName:             "Example",
+				ExecutingUser:        "alice",
+				ExecutionTimeSeconds: float64(occurredAt.Unix()),
+				LoggedInUsers:        []string{" bob ", "alice", "bob", ""},
+				CurrentSessions:      []string{"console", "ssh", "console"},
+				Decision:             santaevents.ExecutionDecisionBlockBinary,
+				BundleID:             "com.example.old",
+				BundlePath:           "/Applications/Example.app",
+				SigningID:            "TEAMID:com.example.old",
+				TeamID:               "TEAMID",
+				CDHash:               "old-cdhash",
+				SigningChain:         santaTestSigningChain(),
 			},
 			{
-				FileSha256:     "sha256-a",
-				FilePath:       "/Applications/Example.app/Contents/MacOS/Example",
-				FileName:       "Example Renamed",
-				ExecutingUser:  "bob",
-				Decision:       syncv1.Decision_ALLOW_BINARY,
-				FileBundleId:   "com.example.new",
-				FileBundlePath: "/Applications/Example.app",
-				SigningId:      "TEAMID:com.example.new",
-				TeamId:         "TEAMID",
-				Cdhash:         "new-cdhash",
+				FileSHA256:    "sha256-a",
+				FilePath:      "/Applications/Example.app/Contents/MacOS/Example",
+				FileName:      "Example Renamed",
+				ExecutingUser: "bob",
+				Decision:      santaevents.ExecutionDecisionAllowBinary,
+				BundleID:      "com.example.new",
+				BundlePath:    "/Applications/Example.app",
+				SigningID:     "TEAMID:com.example.new",
+				TeamID:        "TEAMID",
+				CDHash:        "new-cdhash",
 			},
 		},
-		FileAccessEvents: []*syncv1.FileAccessEvent{{Target: "/Users/alice/Documents/private.txt"}},
 	})
 	if err != nil {
 		t.Fatalf("event upload: %v", err)
 	}
 
-	page, err := store.ListEvents(ctx, santa.EventListParams{HostID: host.ID, Limit: 10})
+	page, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
 	if len(page.Items) != 2 {
 		t.Fatalf("events = %+v, want two execution events", page.Items)
 	}
-	allowEvent := santa.ExecutionEvent{}
-	blockEvent := santa.ExecutionEvent{}
+	allowEvent := santaevents.ExecutionEvent{}
+	blockEvent := santaevents.ExecutionEvent{}
 	for _, event := range page.Items {
-		if event.Decision == santa.ExecutionDecisionAllowBinary {
+		if event.Decision == santaevents.ExecutionDecisionAllowBinary {
 			allowEvent = event
 		}
-		if event.Decision == santa.ExecutionDecisionBlockBinary {
+		if event.Decision == santaevents.ExecutionDecisionBlockBinary {
 			blockEvent = event
 		}
 	}
@@ -127,7 +135,14 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
-	service := santa.NewService(store)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewService(santa.ServiceDependencies{
+		Store:          store,
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		SyncStore:      santasync.NewStore(db),
+	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID: "santa-event-list-host",
@@ -137,18 +152,17 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 	base := time.Date(2026, 5, 23, 13, 0, 0, 0, time.UTC)
-	for i, decision := range []syncv1.Decision{
-		syncv1.Decision_BLOCK_BINARY,
-		syncv1.Decision_ALLOW_BINARY,
-		syncv1.Decision_BLOCK_CERTIFICATE,
+	for i, decision := range []santaevents.ExecutionDecision{
+		santaevents.ExecutionDecisionBlockBinary,
+		santaevents.ExecutionDecisionAllowBinary,
+		santaevents.ExecutionDecisionBlockCertificate,
 	} {
-		_, err := service.HandleEventUpload(ctx, "santa-event-list-host", &syncv1.EventUploadRequest{
-			MachineId: "santa-event-list-host",
-			Events: []*syncv1.Event{{
-				FileSha256:    string(rune('a' + i)),
-				FileName:      string(rune('A' + i)),
-				ExecutionTime: float64(base.Add(time.Duration(i) * time.Minute).Unix()),
-				Decision:      decision,
+		_, err := service.EventUpload(ctx, "santa-event-list-host", santasync.EventUploadRequest{
+			Events: []santaevents.ExecutionEventInput{{
+				FileSHA256:           string(rune('a' + i)),
+				FileName:             string(rune('A' + i)),
+				ExecutionTimeSeconds: float64(base.Add(time.Duration(i) * time.Minute).Unix()),
+				Decision:             decision,
 			}},
 		})
 		if err != nil {
@@ -156,27 +170,27 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		}
 	}
 
-	firstPage, err := store.ListEvents(ctx, santa.EventListParams{HostID: host.ID, Limit: 2})
+	firstPage, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 2})
 	if err != nil {
 		t.Fatalf("list first page: %v", err)
 	}
 	if len(firstPage.Items) != 2 || firstPage.NextCursor == "" {
 		t.Fatalf("first page = %+v, want two items and cursor", firstPage)
 	}
-	secondPage, err := store.ListEvents(
+	secondPage, err := eventStore.ListEvents(
 		ctx,
-		santa.EventListParams{HostID: host.ID, Limit: 2, After: firstPage.NextCursor},
+		santaevents.EventListParams{HostID: host.ID, Limit: 2, After: firstPage.NextCursor},
 	)
 	if err != nil {
 		t.Fatalf("list second page: %v", err)
 	}
-	if len(secondPage.Items) != 1 || secondPage.Items[0].Decision != santa.ExecutionDecisionBlockBinary {
+	if len(secondPage.Items) != 1 || secondPage.Items[0].Decision != santaevents.ExecutionDecisionBlockBinary {
 		t.Fatalf("second page = %+v, want oldest blocked binary event", secondPage.Items)
 	}
 
-	blocked, err := store.ListEvents(
+	blocked, err := eventStore.ListEvents(
 		ctx,
-		santa.EventListParams{HostID: host.ID, Decision: santa.EventDecisionClassBlocked, Limit: 10},
+		santaevents.EventListParams{HostID: host.ID, Decision: santaevents.DecisionFilterBlocked, Limit: 10},
 	)
 	if err != nil {
 		t.Fatalf("list blocked events: %v", err)
@@ -185,25 +199,87 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		t.Fatalf("blocked events = %+v, want two", blocked.Items)
 	}
 
-	deleted, err := store.SweepEventsBefore(ctx, base.Add(90*time.Second))
+	deleted, err := eventStore.SweepEventsBefore(ctx, base.Add(90*time.Second))
 	if err != nil {
 		t.Fatalf("sweep events: %v", err)
 	}
 	if deleted != 2 {
 		t.Fatalf("deleted events = %d, want 2", deleted)
 	}
-	remaining, err := store.ListEvents(ctx, santa.EventListParams{HostID: host.ID, Limit: 10})
+	remaining, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
 	if err != nil {
 		t.Fatalf("list remaining events: %v", err)
 	}
-	if len(remaining.Items) != 1 || remaining.Items[0].Decision != santa.ExecutionDecisionBlockCertificate {
+	if len(remaining.Items) != 1 || remaining.Items[0].Decision != santaevents.ExecutionDecisionBlockCertificate {
 		t.Fatalf("remaining events = %+v, want newest event", remaining.Items)
 	}
 }
 
-func santaTestSigningChain() []*syncv1.Certificate {
-	return []*syncv1.Certificate{
-		{Sha256: "leaf-sha", Cn: "Leaf", Org: "Example", Ou: "Engineering", ValidFrom: 1, ValidUntil: 2},
-		{Sha256: "root-sha", Cn: "Root", Org: "Example", Ou: "Security", ValidFrom: 3, ValidUntil: 4},
+func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewService(santa.ServiceDependencies{
+		Store:          santa.NewStore(db),
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		SyncStore:      santasync.NewStore(db),
+	})
+
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "santa-concurrent-chain-host",
+		OrbitNodeKey: "santa-concurrent-chain-orbit",
+	}); err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, sha := range []string{"concurrent-a", "concurrent-b"} {
+		wg.Add(1)
+		go func(sha string) {
+			defer wg.Done()
+			_, err := service.EventUpload(ctx, "santa-concurrent-chain-host", santasync.EventUploadRequest{
+				Events: []santaevents.ExecutionEventInput{{
+					FileSHA256:   sha,
+					FileName:     sha,
+					Decision:     santaevents.ExecutionDecisionAllowBinary,
+					SigningChain: santaTestSigningChain(),
+				}},
+			})
+			errs <- err
+		}(sha)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("event upload: %v", err)
+		}
+	}
+
+	var chainCount int
+	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).Scan(&chainCount); err != nil {
+		t.Fatalf("count signing chains: %v", err)
+	}
+	if chainCount != 1 {
+		t.Fatalf("signing chain count = %d, want 1", chainCount)
+	}
+	var linkCount int
+	if err := db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
+		Scan(&linkCount); err != nil {
+		t.Fatalf("count signing chain links: %v", err)
+	}
+	if linkCount != 2 {
+		t.Fatalf("signing chain link count = %d, want 2", linkCount)
+	}
+}
+
+func santaTestSigningChain() []santaevents.CertificateInput {
+	return []santaevents.CertificateInput{
+		{SHA256: "leaf-sha", CommonName: "Leaf", Org: "Example", OU: "Engineering", ValidFrom: 1, ValidUntil: 2},
+		{SHA256: "root-sha", CommonName: "Root", Org: "Example", OU: "Security", ValidFrom: 3, ValidUntil: 4},
 	}
 }

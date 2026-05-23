@@ -1,13 +1,15 @@
 import { useSearch } from "@tanstack/react-router";
-import { FileSliders, Loader2, MoreHorizontal, Plus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, FileSliders, Loader2, MoreHorizontal, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
-import { SortableList } from "@/components/santa/sortable-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +91,7 @@ export function SantaConfigurationsPage() {
     () => [...(query.data?.items ?? [])].sort((a, b) => a.position - b.position),
     [query.data?.items],
   );
+  const hasFilters = !!search.q;
 
   function saveOrder(next: SantaConfiguration[]) {
     reorder.mutate(
@@ -96,6 +99,75 @@ export function SantaConfigurationsPage() {
       { onSuccess: () => toast.success("Configuration order saved") },
     );
   }
+
+  function moveConfiguration(configuration: SantaConfiguration, direction: "up" | "down") {
+    const index = orderedRows.findIndex((row) => row.id === configuration.id);
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedRows.length) return;
+
+    const next = [...orderedRows];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    saveOrder(next);
+  }
+
+  const columns: ColumnDef<SantaConfiguration>[] = [
+    {
+      id: "position",
+      accessorKey: "position",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.position}</span>,
+      meta: { headClassName: "w-24" },
+    },
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{row.original.name}</span>
+          <Badge variant="secondary">{row.original.client_mode}</Badge>
+        </div>
+      ),
+    },
+    {
+      id: "labels",
+      header: "Labels",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-sm tabular-nums">{row.original.label_ids?.length ?? 0}</span>
+      ),
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground" title={new Date(row.original.updated_at).toLocaleString()}>
+          {formatRelative(row.original.updated_at)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const index = orderedRows.findIndex((configuration) => configuration.id === row.original.id);
+        return (
+          <ConfigurationRowActions
+            pending={reorder.isPending || remove.isPending}
+            canMoveUp={index > 0}
+            canMoveDown={index >= 0 && index < orderedRows.length - 1}
+            onEdit={() => setEditing(row.original)}
+            onMoveUp={() => moveConfiguration(row.original, "up")}
+            onMoveDown={() => moveConfiguration(row.original, "down")}
+            onDelete={() => remove.mutate(row.original.id)}
+          />
+        );
+      },
+      meta: { headClassName: "w-12" },
+    },
+  ];
 
   return (
     <PageShell>
@@ -110,44 +182,50 @@ export function SantaConfigurationsPage() {
         }
       />
 
-      <DataTableSearch
-        value={draft}
-        onChange={setDraft}
-        placeholder="Search configurations"
-        label="Search configurations"
-      />
-
       {query.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load configurations</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
-      ) : query.isLoading ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading...
-        </div>
-      ) : orderedRows.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileSliders />
-            </EmptyMedia>
-            <EmptyTitle>No configurations</EmptyTitle>
-            <EmptyDescription>Add a Santa configuration to start sending client settings.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
       ) : (
-        <SortableList
-          items={orderedRows}
-          onChange={saveOrder}
-          renderItem={(row) => (
-            <ConfigurationRow
-              configuration={row}
-              pending={reorder.isPending || remove.isPending}
-              onEdit={() => setEditing(row)}
-              onDelete={() => remove.mutate(row.id)}
-            />
-          )}
+        <DataTable
+          columns={columns}
+          data={orderedRows}
+          totalCount={orderedRows.length}
+          page={1}
+          perPage={orderedRows.length || 50}
+          sort={{}}
+          onPageChange={() => undefined}
+          onPerPageChange={() => undefined}
+          onSortChange={() => undefined}
+          isLoading={query.isLoading}
+          clientSort
+          onRowClick={setEditing}
+          toolbar={
+            <div className="flex items-center gap-2">
+              <DataTableSearch
+                value={draft}
+                onChange={setDraft}
+                placeholder="Search configurations"
+                label="Search configurations"
+              />
+            </div>
+          }
+          empty={
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileSliders />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matches" : "No configurations yet"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "No Santa configurations matched the current filters."
+                    : "Add a Santa configuration to start sending client settings."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
         />
       )}
 
@@ -174,47 +252,47 @@ export function SantaConfigurationsPage() {
   );
 }
 
-function ConfigurationRow({
-  configuration,
+function ConfigurationRowActions({
   pending,
+  canMoveUp,
+  canMoveDown,
   onEdit,
+  onMoveUp,
+  onMoveDown,
   onDelete,
 }: {
-  configuration: SantaConfiguration;
   pending: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="grid min-w-0 gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{configuration.name}</span>
-          <Badge variant="secondary">{configuration.client_mode}</Badge>
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {configuration.label_ids?.length ?? 0} labels
-          </span>
-        </div>
-        <div className="text-muted-foreground text-xs" title={new Date(configuration.updated_at).toLocaleString()}>
-          Updated {formatRelative(configuration.updated_at)}
-        </div>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" disabled={pending}>
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" disabled={pending}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+          <DropdownMenuItem disabled={!canMoveUp || pending} onSelect={onMoveUp}>
+            <ArrowUp />
+            Move up
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!canMoveDown || pending} onSelect={onMoveDown}>
+            <ArrowDown />
+            Move down
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -440,10 +518,12 @@ function formFromConfiguration(configuration: SantaConfiguration | null): Config
     batch_size: configuration.batch_size?.toString() ?? "",
     allowed_path_regex: configuration.allowed_path_regex ?? "",
     blocked_path_regex: configuration.blocked_path_regex ?? "",
-    removable_media_action: configuration.removable_media_action ?? "omit",
-    removable_media_remount_flags: (configuration.removable_media_remount_flags ?? []).join(" "),
-    encrypted_removable_media_action: configuration.encrypted_removable_media_action ?? "omit",
-    encrypted_removable_media_remount_flags: (configuration.encrypted_removable_media_remount_flags ?? []).join(" "),
+    removable_media_action: configuration.removable_media_policy?.action ?? "omit",
+    removable_media_remount_flags: (configuration.removable_media_policy?.remount_flags ?? []).join(" "),
+    encrypted_removable_media_action: configuration.encrypted_removable_media_policy?.action ?? "omit",
+    encrypted_removable_media_remount_flags: (configuration.encrypted_removable_media_policy?.remount_flags ?? []).join(
+      " ",
+    ),
     event_detail_url: configuration.event_detail_url ?? "",
     event_detail_text: configuration.event_detail_text ?? "",
   };
@@ -461,17 +541,20 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     batch_size: optionalNumber(form.batch_size),
     allowed_path_regex: optionalText(form.allowed_path_regex),
     blocked_path_regex: optionalText(form.blocked_path_regex),
-    removable_media_action:
-      optionalText(form.removable_media_action) === "omit" ? undefined : form.removable_media_action,
-    removable_media_remount_flags: splitWords(form.removable_media_remount_flags),
-    encrypted_removable_media_action:
-      optionalText(form.encrypted_removable_media_action) === "omit"
-        ? undefined
-        : form.encrypted_removable_media_action,
-    encrypted_removable_media_remount_flags: splitWords(form.encrypted_removable_media_remount_flags),
+    removable_media_policy: removableMediaPolicyBody(form.removable_media_action, form.removable_media_remount_flags),
+    encrypted_removable_media_policy: removableMediaPolicyBody(
+      form.encrypted_removable_media_action,
+      form.encrypted_removable_media_remount_flags,
+    ),
     event_detail_url: optionalText(form.event_detail_url),
     event_detail_text: optionalText(form.event_detail_text),
   };
+}
+
+function removableMediaPolicyBody(action: string, flags: string) {
+  const cleanedAction = optionalText(action);
+  if (!cleanedAction || cleanedAction === "omit") return undefined;
+  return { action: cleanedAction, remount_flags: splitWords(flags) };
 }
 
 function boolChoice(value: boolean | undefined): BoolChoice {

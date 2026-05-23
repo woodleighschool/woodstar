@@ -1,29 +1,10 @@
 package santa
 
-import "time"
+import (
+	"time"
 
-type ClientMode string
-
-const (
-	ClientModeUnknown    ClientMode = "unknown"
-	ClientModeMonitor    ClientMode = "monitor"
-	ClientModeLockdown   ClientMode = "lockdown"
-	ClientModeStandalone ClientMode = "standalone"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
-
-// SyncToken is a Santa sync bearer token metadata record.
-type SyncToken struct {
-	ID         int64      `json:"id"`
-	ValueHash  string     `json:"value_hash"`
-	CreatedAt  time.Time  `json:"created_at"`
-	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
-}
-
-// CreatedSyncToken includes the one-time plaintext token value.
-type CreatedSyncToken struct {
-	SyncToken
-	Value string `json:"value"`
-}
 
 // HostObservation is Santa-reported state for an existing Woodstar host.
 type HostObservation struct {
@@ -31,7 +12,7 @@ type HostObservation struct {
 	MachineID          string
 	SerialNumber       string
 	Version            string
-	ClientModeReported ClientMode
+	ClientModeReported configurations.ClientMode
 	PrimaryUser        string
 	PrimaryUserGroups  []string
 	SIPStatus          *int16
@@ -42,23 +23,11 @@ type HostObservation struct {
 
 // HostState is the Santa sub-object attached to host detail responses.
 type HostState struct {
-	Enrolled               bool                    `json:"enrolled"`
-	Version                string                  `json:"version"`
-	ClientModeReported     ClientMode              `json:"client_mode_reported"`
-	LastSyncAt             *time.Time              `json:"last_sync_at,omitempty"`
-	EffectiveConfiguration *EffectiveConfiguration `json:"effective_configuration,omitempty"`
-	RuleSync               RuleSyncSummary         `json:"rule_sync"`
-}
-
-type EffectiveConfiguration struct {
-	ID              int64         `json:"id"`
-	Name            string        `json:"name"`
-	MatchedViaLabel *MatchedLabel `json:"matched_via_label,omitempty"`
-}
-
-type MatchedLabel struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	Version                string                                `json:"version"`
+	ClientModeReported     configurations.ClientMode             `json:"client_mode_reported"`
+	LastSyncAt             *time.Time                            `json:"last_sync_at,omitempty"`
+	EffectiveConfiguration *configurations.ResolvedConfiguration `json:"effective_configuration,omitempty"`
+	RuleSync               RuleSyncSummary                       `json:"rule_sync"`
 }
 
 type RuleSyncSummary struct {

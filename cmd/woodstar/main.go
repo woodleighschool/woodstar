@@ -33,6 +33,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -128,12 +132,12 @@ func newServer(
 	stores := newStores(db)
 	userService := users.NewService(stores.users)
 	authService := newAuthService(ctx, cfg, userService, sessionManager, logger)
-	orbitRuntime := newOrbitRuntime(ctx, cfg, stores, logger)
-	santaCleanup := santa.StartEventCleanup(ctx, stores.santa, santa.EventCleanupOptions{
-		RetentionDays: cfg.SantaEventRetentionDays,
-		SweepInterval: cfg.SantaEventSweepInterval,
-	}, logger.With("component", "santa"))
-	stopBackground := append([]func(){orbitRuntime.stop, santaCleanup.Stop}, startIntegrations(ctx, cfg, db, logger)...)
+
+	orbitDeps := newOrbit(stores)
+	osqueryDeps, stopOsquery := newOsquery(ctx, cfg, stores, logger)
+	santaDeps, stopSanta := newSanta(ctx, cfg, stores, logger)
+
+	stopBackground := append([]func(){stopOsquery, stopSanta}, startIntegrations(ctx, cfg, db, logger)...)
 
 	server := api.NewServer(api.Dependencies{
 		Runtime: api.RuntimeDependencies{
@@ -152,23 +156,13 @@ func newServer(
 			AuthService: authService,
 			UserService: userService,
 		},
-		Inventory: api.InventoryDependencies{
-			HostStore:     stores.hosts,
-			SecretStore:   stores.secrets,
-			SoftwareStore: stores.software,
-			LabelStore:    stores.labels,
-			ReportStore:   stores.reports,
-			CheckStore:    stores.checks,
-		},
-		Orbit: api.OrbitDependencies{
-			LiveQueryManager: orbitRuntime.liveQueries,
-			Service:          orbitRuntime.orbit,
-			OsqueryService:   orbitRuntime.osquery,
-		},
-		Santa: api.SantaDependencies{
-			Store:   stores.santa,
-			Service: santa.NewService(stores.santa),
-		},
+		Hosts:      api.HostsDependencies{Store: stores.hosts},
+		Software:   api.SoftwareDependencies{Store: stores.software},
+		Labels:     api.LabelsDependencies{Store: stores.labels},
+		Enrollment: api.EnrollmentDependencies{SecretStore: stores.secrets},
+		Orbit:      orbitDeps,
+		Osquery:    osqueryDeps,
+		Santa:      santaDeps,
 	})
 	return server, func() {
 		for _, v := range slices.Backward(stopBackground) {
@@ -178,28 +172,36 @@ func newServer(
 }
 
 type appStores struct {
-	users          *users.Store
-	hosts          *hosts.Store
-	deviceMappings *hosts.DeviceMappingStore
-	secrets        *enrollment.Store
-	software       *software.Store
-	labels         *labels.Store
-	reports        *reports.Store
-	checks         *checks.Store
-	santa          *santa.Store
+	users               *users.Store
+	hosts               *hosts.Store
+	deviceMappings      *hosts.DeviceMappingStore
+	secrets             *enrollment.Store
+	software            *software.Store
+	labels              *labels.Store
+	reports             *reports.Store
+	checks              *checks.Store
+	santa               *santa.Store
+	santaConfigurations *configurations.Store
+	santaEvents         *events.Store
+	santaRules          *rules.Store
+	santaSync           *santasync.Store
 }
 
 func newStores(db *database.DB) appStores {
 	return appStores{
-		users:          users.NewStore(db),
-		hosts:          hosts.NewStore(db),
-		deviceMappings: hosts.NewDeviceMappingStore(db),
-		secrets:        enrollment.NewStore(db),
-		software:       software.NewStore(db),
-		labels:         labels.NewStore(db),
-		reports:        reports.NewStore(db),
-		checks:         checks.NewStore(db),
-		santa:          santa.NewStore(db),
+		users:               users.NewStore(db),
+		hosts:               hosts.NewStore(db),
+		deviceMappings:      hosts.NewDeviceMappingStore(db),
+		secrets:             enrollment.NewStore(db),
+		software:            software.NewStore(db),
+		labels:              labels.NewStore(db),
+		reports:             reports.NewStore(db),
+		checks:              checks.NewStore(db),
+		santa:               santa.NewStore(db),
+		santaConfigurations: configurations.NewStore(db),
+		santaEvents:         events.NewStore(db),
+		santaRules:          rules.NewStore(db),
+		santaSync:           santasync.NewStore(db),
 	}
 }
 
@@ -232,19 +234,23 @@ func newAuthService(
 	return authService
 }
 
-type orbitRuntime struct {
-	orbit       *orbit.Service
-	osquery     *osquery.Service
-	liveQueries *livequery.Manager
-	stop        func()
+// newOrbit builds the Orbit capability's runtime dependencies. Orbit has no
+// background lifecycle of its own, so there's no stop func.
+func newOrbit(stores appStores) api.OrbitDependencies {
+	return api.OrbitDependencies{
+		Service: orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings),
+	}
 }
 
-func newOrbitRuntime(
+// newOsquery builds the osquery capability's runtime dependencies and starts
+// its background loops. Reports cleanup is owned here because it operates on
+// osquery-collected report results.
+func newOsquery(
 	ctx context.Context,
 	cfg config.Config,
 	stores appStores,
 	logger *slog.Logger,
-) orbitRuntime {
+) (api.OsqueryDependencies, func()) {
 	liveQueries := livequery.NewManager()
 	inventoryProjector := ingest.NewProjector(
 		stores.hosts,
@@ -265,12 +271,41 @@ func newOrbitRuntime(
 	reportCleanup := reports.StartCleanup(ctx, stores.reports, reports.CleanupOptions{
 		MaxReportRows: cfg.MaxReportRows,
 	}, logger.With("component", "reports"))
-	return orbitRuntime{
-		orbit:       orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings),
-		osquery:     osqueryService,
-		liveQueries: liveQueries,
-		stop:        reportCleanup.Stop,
-	}
+	return api.OsqueryDependencies{
+		Service:     osqueryService,
+		LiveQueries: liveQueries,
+		Reports:     stores.reports,
+		Checks:      stores.checks,
+	}, reportCleanup.Stop
+}
+
+// newSanta builds the Santa capability's runtime dependencies and starts its
+// background loops. Event retention cleanup is owned here.
+func newSanta(
+	ctx context.Context,
+	cfg config.Config,
+	stores appStores,
+	logger *slog.Logger,
+) (api.SantaDependencies, func()) {
+	santaService := santa.NewService(santa.ServiceDependencies{
+		Store:          stores.santa,
+		Configurations: stores.santaConfigurations,
+		Events:         stores.santaEvents,
+		Rules:          stores.santaRules,
+		SyncStore:      stores.santaSync,
+	})
+	eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
+		RetentionDays: cfg.SantaEventRetentionDays,
+		SweepInterval: cfg.SantaEventSweepInterval,
+	}, logger.With("component", "santa"))
+	return api.SantaDependencies{
+		Service:        santaService,
+		Store:          stores.santa,
+		Configurations: stores.santaConfigurations,
+		Rules:          stores.santaRules,
+		Events:         stores.santaEvents,
+		Sync:           stores.santaSync,
+	}, eventCleanup.Stop
 }
 
 func startIntegrations(ctx context.Context, cfg config.Config, db *database.DB, logger *slog.Logger) []func() {

@@ -28,19 +28,30 @@ import (
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
-// Dependencies contains runtime dependencies for [Server].
+// Dependencies is the per-capability set of stores and services the HTTP
+// server needs. Each field maps one-to-one with an ownership package under
+// internal/, so adding a capability means adding one block, not editing a
+// shared umbrella.
 type Dependencies struct {
-	Runtime   RuntimeDependencies
-	Auth      AuthDependencies
-	Inventory InventoryDependencies
-	Orbit     OrbitDependencies
-	Santa     SantaDependencies
+	Runtime    RuntimeDependencies
+	Auth       AuthDependencies
+	Hosts      HostsDependencies
+	Software   SoftwareDependencies
+	Labels     LabelsDependencies
+	Enrollment EnrollmentDependencies
+	Orbit      OrbitDependencies
+	Osquery    OsqueryDependencies
+	Santa      SantaDependencies
 }
 
 type RuntimeDependencies struct {
@@ -57,24 +68,40 @@ type AuthDependencies struct {
 	UserService *users.Service
 }
 
-type InventoryDependencies struct {
-	HostStore     *hosts.Store
-	SecretStore   *enrollment.Store
-	SoftwareStore *software.Store
-	LabelStore    *labels.Store
-	ReportStore   *reports.Store
-	CheckStore    *checks.Store
+type HostsDependencies struct {
+	Store *hosts.Store
+}
+
+type SoftwareDependencies struct {
+	Store *software.Store
+}
+
+type LabelsDependencies struct {
+	Store *labels.Store
+}
+
+type EnrollmentDependencies struct {
+	SecretStore *enrollment.Store
 }
 
 type OrbitDependencies struct {
-	LiveQueryManager *livequery.Manager
-	Service          *orbit.Service
-	OsqueryService   *osquery.Service
+	Service *orbit.Service
+}
+
+type OsqueryDependencies struct {
+	Service     *osquery.Service
+	LiveQueries *livequery.Manager
+	Reports     *reports.Store
+	Checks      *checks.Store
 }
 
 type SantaDependencies struct {
-	Store   *santa.Store
-	Service *santa.Service
+	Service        *santa.Service
+	Store          *santa.Store
+	Configurations *configurations.Store
+	Rules          *santarules.Store
+	Events         *santaevents.Store
+	Sync           *santasync.Store
 }
 
 // Server owns the HTTP listener and router.
@@ -143,7 +170,7 @@ func routes(deps Dependencies) http.Handler {
 	})
 
 	r.Group(func(r chi.Router) {
-		orbitRoutes(r, deps)
+		protocolRoutes(r, deps)
 	})
 	r.Group(func(r chi.Router) {
 		browserRoutes(r, deps)
@@ -152,22 +179,24 @@ func routes(deps Dependencies) http.Handler {
 	return r
 }
 
-func orbitRoutes(r chi.Router, deps Dependencies) {
+// protocolRoutes mounts every agent-facing protocol endpoint. These are not
+// admin API routes; they speak the wire protocol that each agent client
+// hardcodes (orbit uses /api/fleet/orbit, osquery uses /api/v1/osquery and
+// /api/osquery, Santa uses /santa/sync).
+func protocolRoutes(r chi.Router, deps Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Runtime.Logger))
 	orbitprotocol.RegisterOrbitRoutes(r, deps.Orbit.Service, deps.Runtime.Logger.With("component", "orbit"))
 	osqueryprotocol.RegisterOsqueryRoutes(
 		r,
-		deps.Orbit.OsqueryService,
+		deps.Osquery.Service,
 		deps.Runtime.Logger.With("component", "osquery"),
 	)
-	if deps.Santa.Store != nil && deps.Santa.Service != nil {
-		santaprotocol.RegisterSantaRoutes(
-			r,
-			deps.Santa.Store,
-			deps.Santa.Service,
-			deps.Runtime.Logger.With("component", "santa"),
-		)
-	}
+	santaprotocol.RegisterSantaRoutes(
+		r,
+		deps.Santa.Sync,
+		deps.Santa.Service,
+		deps.Runtime.Logger.With("component", "santa"),
+	)
 }
 
 func browserRoutes(r chi.Router, deps Dependencies) {

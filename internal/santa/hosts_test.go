@@ -7,6 +7,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
 func TestHostObservationUpsertAndDetail(t *testing.T) {
@@ -36,7 +37,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 		MachineID:          "machine-uuid",
 		SerialNumber:       "C02SANTA",
 		Version:            "2026.1",
-		ClientModeReported: santa.ClientModeMonitor,
+		ClientModeReported: configurations.ClientModeMonitor,
 		PrimaryUser:        "alice",
 		PrimaryUserGroups:  []string{"staff", "admin"},
 		SIPStatus:          &sipStatus,
@@ -54,13 +55,10 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 	if detail == nil {
 		t.Fatal("santa detail is nil")
 	}
-	if !detail.Enrolled {
-		t.Fatal("santa detail is not marked enrolled")
-	}
 	if detail.Version != "2026.1" {
 		t.Fatalf("version = %q, want 2026.1", detail.Version)
 	}
-	if detail.ClientModeReported != santa.ClientModeMonitor {
+	if detail.ClientModeReported != configurations.ClientModeMonitor {
 		t.Fatalf("client mode = %q, want monitor", detail.ClientModeReported)
 	}
 	if detail.LastSyncAt == nil || !detail.LastSyncAt.Equal(seenAt) {

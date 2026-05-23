@@ -196,8 +196,8 @@ function HostSantaTab({ hostId, host }: { hostId: string; host: NonNullable<Retu
                     </TableCell>
                     <TableCell>{rule.policy}</TableCell>
                     <TableCell>
-                      <Badge variant={rule.pending ? "secondary" : "outline"}>
-                        {rule.pending ? "pending" : rule.applied ? "applied" : "unknown"}
+                      <Badge variant={!rule.applied ? "secondary" : "outline"}>
+                        {!rule.applied ? "pending" : "applied"}
                       </Badge>
                     </TableCell>
                   </TableRow>

@@ -3,12 +3,16 @@ package santa_test
 import (
 	"testing"
 
-	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
-
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
@@ -16,7 +20,15 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
 	store := santa.NewStore(db)
-	service := santa.NewService(store)
+	ruleStore := santarules.NewStore(db)
+	configurationStore := configurations.NewStore(db)
+	service := santa.NewService(santa.ServiceDependencies{
+		Store:          store,
+		Configurations: configurationStore,
+		Events:         santaevents.NewStore(db),
+		Rules:          ruleStore,
+		SyncStore:      santasync.NewStore(db),
+	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   "santa-sync-host",
@@ -32,72 +44,68 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}
 	enableBundles := true
 	fullSyncInterval := 120
-	if _, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
+	if _, err := configurationStore.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:                    "Sync Config",
-		ClientMode:              santa.ClientModeLockdown,
+		ClientMode:              configurations.ClientModeLockdown,
 		EnableBundles:           &enableBundles,
 		FullSyncIntervalSeconds: &fullSyncInterval,
 		LabelIDs:                []int64{labelID},
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
-	if _, err := store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:      santa.RuleTypeBinary,
+	if _, err := ruleStore.CreateRule(ctx, santarules.RuleCreate{
+		RuleType:      santarules.RuleTypeBinary,
 		Identifier:    "binary-sha",
 		CustomMessage: "Blocked",
-		Includes: []santa.RuleIncludeWrite{{
-			Policy:   santa.PolicyBlocklist,
+		Includes: []santarules.RuleIncludeWrite{{
+			Policy:   santarules.PolicyBlocklist,
 			LabelIDs: []int64{labelID},
 		}},
 	}); err != nil {
 		t.Fatalf("create rule: %v", err)
 	}
 
-	preflight, err := service.HandlePreflight(ctx, "santa-sync-host", &syncv1.PreflightRequest{
-		MachineId:        "santa-sync-host",
+	preflight, err := service.Preflight(ctx, "santa-sync-host", santasync.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
-		SantaVersion:     "2026.2",
-		ClientMode:       syncv1.ClientMode_MONITOR,
+		Version:          "2026.2",
+		ClientMode:       configurations.ClientModeMonitor,
 		RequestCleanSync: true,
 		RulesHash:        "opaque-client-hash",
 	})
 	if err != nil {
 		t.Fatalf("preflight: %v", err)
 	}
-	if preflight.GetSyncType() != syncv1.SyncType_CLEAN {
-		t.Fatalf("sync type = %v, want CLEAN", preflight.GetSyncType())
+	if preflight.SyncType != santasync.SyncTypeClean {
+		t.Fatalf("sync type = %v, want clean", preflight.SyncType)
 	}
-	if preflight.GetClientMode() != syncv1.ClientMode_LOCKDOWN {
-		t.Fatalf("client mode = %v, want LOCKDOWN", preflight.GetClientMode())
+	if preflight.Configuration == nil || preflight.Configuration.ClientMode != configurations.ClientModeLockdown {
+		t.Fatalf("configuration = %+v, want lockdown", preflight.Configuration)
 	}
-	if preflight.EnableBundles == nil || !preflight.GetEnableBundles() {
-		t.Fatalf("enable bundles = %v, want true", preflight.EnableBundles)
+	if preflight.Configuration.EnableBundles == nil || !*preflight.Configuration.EnableBundles {
+		t.Fatalf("enable bundles = %v, want true", preflight.Configuration.EnableBundles)
 	}
-	if preflight.GetFullSyncIntervalSeconds() != 120 {
-		t.Fatalf("full sync interval = %d, want 120", preflight.GetFullSyncIntervalSeconds())
+	if preflight.Configuration.FullSyncIntervalSeconds == nil ||
+		*preflight.Configuration.FullSyncIntervalSeconds != 120 {
+		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
 
-	download, err := service.HandleRuleDownload(ctx, "santa-sync-host", &syncv1.RuleDownloadRequest{
-		MachineId: "santa-sync-host",
-	})
+	download, err := service.RuleDownload(ctx, "santa-sync-host", santasync.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("rule download: %v", err)
 	}
 	if len(download.Rules) != 1 {
 		t.Fatalf("downloaded rules = %+v, want one", download.Rules)
 	}
-	if download.Rules[0].GetIdentifier() != "binary-sha" ||
-		download.Rules[0].GetPolicy() != syncv1.Policy_BLOCKLIST ||
-		download.Rules[0].GetRuleType() != syncv1.RuleType_BINARY ||
-		download.Rules[0].GetCustomMsg() != "Blocked" {
+	if download.Rules[0].Identifier != "binary-sha" ||
+		download.Rules[0].Policy != string(santarules.PolicyBlocklist) ||
+		download.Rules[0].RuleType != string(santarules.RuleTypeBinary) ||
+		download.Rules[0].CustomMessage != "Blocked" {
 		t.Fatalf("downloaded rule = %+v", download.Rules[0])
 	}
 
-	if _, err := service.HandlePostflight(ctx, "santa-sync-host", &syncv1.PostflightRequest{
-		MachineId:      "santa-sync-host",
+	if _, err := service.Postflight(ctx, "santa-sync-host", santasync.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,
-		SyncType:       syncv1.SyncType_CLEAN,
 		RulesHash:      "new-client-hash",
 	}); err != nil {
 		t.Fatalf("postflight: %v", err)
@@ -113,4 +121,23 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if state.RuleSync.LastCleanSyncAt == nil {
 		t.Fatalf("last clean sync was not recorded")
 	}
+}
+
+func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) int64 {
+	t.Helper()
+
+	label, err := labels.NewStore(db).Create(t.Context(), labels.LabelCreate{
+		Name:                name,
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms: []platforms.Platform{
+			platforms.PlatformDarwin,
+			platforms.PlatformWindows,
+			platforms.PlatformLinux,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create label %q: %v", name, err)
+	}
+	return label.ID
 }

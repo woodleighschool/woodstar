@@ -1,17 +1,33 @@
-package santa
+package rules
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	santaids "github.com/woodleighschool/woodstar/internal/santa/ids"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
+
+// Store persists Santa rule definitions and resolves effective rule state.
+type Store struct {
+	db *database.DB
+	q  *sqlc.Queries
+}
+
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
+}
 
 type RuleType string
 
@@ -32,6 +48,22 @@ const (
 	PolicySilentBlocklist   Policy = "silent_blocklist"
 	PolicyCEL               Policy = "cel"
 )
+
+var validRuleTypes = map[RuleType]struct{}{
+	RuleTypeBinary:      {},
+	RuleTypeCertificate: {},
+	RuleTypeTeamID:      {},
+	RuleTypeSigningID:   {},
+	RuleTypeCDHash:      {},
+}
+
+var validPolicies = map[Policy]struct{}{
+	PolicyAllowlist:         {},
+	PolicyAllowlistCompiler: {},
+	PolicyBlocklist:         {},
+	PolicySilentBlocklist:   {},
+	PolicyCEL:               {},
+}
 
 type RuleListParams struct {
 	dbutil.ListParams
@@ -98,7 +130,6 @@ type EffectiveRule struct {
 type EffectiveRuleStatus struct {
 	EffectiveRule
 	Applied     bool   `json:"applied"`
-	Pending     bool   `json:"pending"`
 	PayloadHash string `json:"payload_hash"`
 }
 
@@ -108,7 +139,7 @@ type EffectiveRuleListParams struct {
 
 func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.RuleType = cleanRuleType(params.RuleType)
+	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
 	where, args, err := ruleListWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -160,23 +191,14 @@ func (s *Store) GetRuleByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
-	var rule Rule
-	err := s.db.Pool().QueryRow(ctx, ruleSelectSQL+" WHERE id = $1", id).Scan(
-		&rule.ID,
-		&rule.RuleType,
-		&rule.Identifier,
-		&rule.Name,
-		&rule.CustomMessage,
-		&rule.CustomURL,
-		&rule.CreatedAt,
-		&rule.UpdatedAt,
-	)
+	row, err := s.q.GetSantaRuleByID(ctx, sqlc.GetSantaRuleByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
+	rule := ruleFromSQLC(row)
 	return &rule, nil
 }
 
@@ -188,17 +210,20 @@ func (s *Store) CreateRule(ctx context.Context, params RuleCreate) (*Rule, error
 
 	var ruleID int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `
-			INSERT INTO santa_rules (rule_type, identifier, name, custom_message, custom_url)
-			VALUES ($1, $2, $3, $4, $5)
-			RETURNING id
-		`, cleaned.RuleType, cleaned.Identifier, cleaned.Name, cleaned.CustomMessage, cleaned.CustomURL).Scan(&ruleID)
+		row, err := s.q.WithTx(tx).CreateSantaRule(ctx, sqlc.CreateSantaRuleParams{
+			RuleType:      sqlc.SantaRuleType(cleaned.RuleType),
+			Identifier:    cleaned.Identifier,
+			Name:          cleaned.Name,
+			CustomMessage: cleaned.CustomMessage,
+			CustomURL:     cleaned.CustomURL,
+		})
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
 				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
+		ruleID = row.ID
 		return replaceRuleChildren(ctx, tx, ruleID, cleaned.Includes, cleaned.ExcludeLabelIDs)
 	})
 	if err != nil {
@@ -214,20 +239,19 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleUpdate) (*R
 	}
 
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var ruleID int64
-		err := tx.QueryRow(ctx, `
-			UPDATE santa_rules
-			SET name = $1, custom_message = $2, custom_url = $3, updated_at = now()
-			WHERE id = $4
-			RETURNING id
-		`, cleaned.Name, cleaned.CustomMessage, cleaned.CustomURL, id).Scan(&ruleID)
+		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
+			Name:          cleaned.Name,
+			CustomMessage: cleaned.CustomMessage,
+			CustomURL:     cleaned.CustomURL,
+			ID:            id,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		}
 		if err != nil {
 			return err
 		}
-		return replaceRuleChildren(ctx, tx, ruleID, cleaned.Includes, cleaned.ExcludeLabelIDs)
+		return replaceRuleChildren(ctx, tx, row.ID, cleaned.Includes, cleaned.ExcludeLabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -236,12 +260,7 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleUpdate) (*R
 }
 
 func (s *Store) DeleteRule(ctx context.Context, id int64) error {
-	var deletedID int64
-	err := s.db.Pool().QueryRow(ctx, `
-		DELETE FROM santa_rules
-		WHERE id = $1
-		RETURNING id
-	`, id).Scan(&deletedID)
+	_, err := s.q.DeleteSantaRule(ctx, sqlc.DeleteSantaRuleParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
@@ -252,7 +271,7 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 	if ruleID <= 0 {
 		return dbutil.ErrNotFound
 	}
-	ids, err := parsePositiveIDs(orderedIncludeIDs, "ordered_include_ids")
+	ids, err := santaids.ParsePositive(orderedIncludeIDs, "ordered_include_ids")
 	if err != nil {
 		return err
 	}
@@ -285,64 +304,35 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 		if err != nil {
 			return err
 		}
-		if !sameIDSet(ids, currentIDs) {
+		if !santaids.SameSet(ids, currentIDs) {
 			return fmt.Errorf("%w: ordered_include_ids must exactly match existing include IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
-			UPDATE santa_rule_includes
-			SET position = position + 100000
-			WHERE rule_id = $1
-		`, ruleID); err != nil {
+			UPDATE santa_rule_includes i
+			SET position = -ordered.position
+			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
+			WHERE i.id = ordered.id AND i.rule_id = $2
+		`, ids, ruleID); err != nil {
 			return err
 		}
-		for position, id := range ids {
-			if _, err := tx.Exec(ctx, `
-				UPDATE santa_rule_includes
-				SET position = $1
-				WHERE id = $2 AND rule_id = $3
-			`, position, id, ruleID); err != nil {
-				return err
-			}
-		}
-		return nil
+		_, err = tx.Exec(ctx, `
+			UPDATE santa_rule_includes
+			SET position = -position - 1
+			WHERE rule_id = $1
+		`, ruleID)
+		return err
 	})
 }
 
 func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]EffectiveRule, error) {
-	hostLabels, err := s.hostLabelSet(ctx, hostID)
+	rows, err := s.db.Pool().Query(ctx, effectiveRulesForHostSQL+`
+		ORDER BY rule_type_sort, identifier, rule_id
+	`, hostID)
 	if err != nil {
 		return nil, err
 	}
-	rules, _, err := s.ListRules(ctx, RuleListParams{
-		ListParams: dbutil.ListParams{PerPage: 10000},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	effective := []EffectiveRule{}
-	for _, rule := range rules {
-		if hasAnyLabel(hostLabels, rule.ExcludeLabelIDs) {
-			continue
-		}
-		for _, include := range rule.Includes {
-			if !hasAnyLabel(hostLabels, include.LabelIDs) {
-				continue
-			}
-			effective = append(effective, EffectiveRule{
-				RuleID:           rule.ID,
-				RuleType:         rule.RuleType,
-				Identifier:       rule.Identifier,
-				Policy:           include.Policy,
-				CELExpression:    include.CELExpression,
-				CustomMessage:    rule.CustomMessage,
-				CustomURL:        rule.CustomURL,
-				MatchedIncludeID: include.ID,
-			})
-			break
-		}
-	}
-	return effective, nil
+	defer rows.Close()
+	return pgx.CollectRows(rows, scanEffectiveRule)
 }
 
 func (s *Store) ListEffectiveRulesForHost(
@@ -355,80 +345,67 @@ func (s *Store) ListEffectiveRulesForHost(
 		params.PerPage = 100
 	}
 
-	rules, err := s.ResolveRulesForHost(ctx, hostID)
+	var count int
+	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM ("+effectiveRulesForHostSQL+") effective_rules", hostID).
+		Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	offset := (params.Page - 1) * params.PerPage
+	rows, err := s.db.Pool().Query(ctx, effectiveRulesForHostSQL+`
+		ORDER BY rule_type_sort, identifier, rule_id
+		LIMIT $2 OFFSET $3
+	`, hostID, params.PerPage, offset)
 	if err != nil {
 		return nil, 0, err
 	}
-	targets := syncTargetsFromRules(rules)
+	defer rows.Close()
+	rules, err := pgx.CollectRows(rows, scanEffectiveRule)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	targets := SyncTargetsFromRules(rules)
 	applied, err := s.appliedSyncTargetSet(ctx, hostID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	rows := make([]EffectiveRuleStatus, 0, len(rules))
+	statuses := make([]EffectiveRuleStatus, 0, len(rules))
 	for i, rule := range rules {
 		target := targets[i]
-		fingerprint := syncTargetFingerprint{
-			RuleType:    target.RuleType,
-			Identifier:  target.Identifier,
-			PayloadHash: target.PayloadHash,
-		}
-		appliedRule := applied[fingerprint.key()]
-		rows = append(rows, EffectiveRuleStatus{
+		appliedRule := applied[syncTargetKey(target)]
+		statuses = append(statuses, EffectiveRuleStatus{
 			EffectiveRule: rule,
 			Applied:       appliedRule,
-			Pending:       !appliedRule,
 			PayloadHash:   target.PayloadHash,
 		})
 	}
 
-	count := len(rows)
-	start := (params.Page - 1) * params.PerPage
-	if start >= count {
-		return []EffectiveRuleStatus{}, count, nil
-	}
-	end := min(start+params.PerPage, count)
-	return rows[start:end], count, nil
+	return statuses, count, nil
 }
 
 func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[string]bool, error) {
-	var appliedPayload []byte
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT COALESCE(applied_targets, '[]'::jsonb)
-		FROM santa_sync_state
-		WHERE host_id = $1
-	`, hostID).Scan(&appliedPayload)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return map[string]bool{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	applied, err := decodeSyncTargets(appliedPayload)
-	if err != nil {
-		return nil, err
-	}
-	return syncTargetSet(applied), nil
-}
-
-func (s *Store) hostLabelSet(ctx context.Context, hostID int64) (map[int64]bool, error) {
 	rows, err := s.db.Pool().Query(ctx, `
-		SELECT label_id
-		FROM label_membership
-		WHERE host_id = $1
+		SELECT
+			rule_type::text,
+			identifier,
+			policy::text,
+			cel_expression,
+			custom_message,
+			custom_url,
+			payload_hash
+		FROM santa_sync_targets
+		WHERE host_id = $1 AND phase = 'applied'
 	`, hostID)
 	if err != nil {
 		return nil, err
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	defer rows.Close()
+	applied, err := pgx.CollectRows(rows, scanSyncTarget)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[int64]bool, len(ids))
-	for _, id := range ids {
-		out[id] = true
-	}
-	return out, nil
+	return santasync.TargetSet(applied), nil
 }
 
 func replaceRuleChildren(
@@ -444,35 +421,70 @@ func replaceRuleChildren(
 	if _, err := tx.Exec(ctx, `DELETE FROM santa_rule_includes WHERE rule_id = $1`, ruleID); err != nil {
 		return err
 	}
-	for position, include := range includes {
-		var includeID int64
-		celExpression := dbutil.CleanStringPtr(&include.CELExpression)
-		err := tx.QueryRow(ctx, `
+	includeIDs := []int64{}
+	if len(includes) > 0 {
+		policies := make([]string, len(includes))
+		celExpressions := make([]string, len(includes))
+		for i, include := range includes {
+			policies[i] = string(include.Policy)
+			celExpressions[i] = include.CELExpression
+		}
+		rows, err := tx.Query(ctx, `
+			WITH input AS (
+				SELECT
+					policy,
+					cel_expression,
+					position
+				FROM unnest($2::text[], $3::text[]) WITH ORDINALITY AS input(
+					policy,
+					cel_expression,
+					position
+				)
+			)
 			INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression)
-			VALUES ($1, $2, $3, $4)
+			SELECT
+				$1,
+				position - 1,
+				policy::santa_policy,
+				NULLIF(cel_expression, '')
+			FROM input
+			ORDER BY position
 			RETURNING id
-		`, ruleID, position, include.Policy, celExpression).Scan(&includeID)
+		`, ruleID, policies, celExpressions)
 		if err != nil {
 			return err
 		}
-		for _, labelID := range include.LabelIDs {
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO santa_rule_include_labels (include_id, label_id)
-				VALUES ($1, $2)
-			`, includeID, labelID); err != nil {
-				return err
-			}
-		}
-	}
-	for _, labelID := range excludeLabelIDs {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_rule_exclude_labels (rule_id, label_id)
-			VALUES ($1, $2)
-		`, ruleID, labelID); err != nil {
+		includeIDs, err = pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+	includeLabelIncludeIDs := []int64{}
+	includeLabelLabelIDs := []int64{}
+	for position, include := range includes {
+		for _, labelID := range include.LabelIDs {
+			includeLabelIncludeIDs = append(includeLabelIncludeIDs, includeIDs[position])
+			includeLabelLabelIDs = append(includeLabelLabelIDs, labelID)
+		}
+	}
+	if len(includeLabelIncludeIDs) > 0 {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO santa_rule_include_labels (include_id, label_id)
+			SELECT include_id, label_id
+			FROM unnest($1::bigint[], $2::bigint[]) AS input(include_id, label_id)
+		`, includeLabelIncludeIDs, includeLabelLabelIDs); err != nil {
+			return err
+		}
+	}
+	if len(excludeLabelIDs) == 0 {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO santa_rule_exclude_labels (rule_id, label_id)
+		SELECT $1, label_id
+		FROM unnest($2::bigint[]) AS label_id
+	`, ruleID, excludeLabelIDs)
+	return err
 }
 
 func (s *Store) attachRuleChildren(ctx context.Context, rules []Rule, ruleIDs []int64) error {
@@ -570,7 +582,7 @@ func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map
 }
 
 func cleanRuleCreate(params RuleCreate) (RuleCreate, error) {
-	params.RuleType = cleanRuleType(params.RuleType)
+	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
 	params.Identifier = strings.TrimSpace(params.Identifier)
 	params.Name = strings.TrimSpace(params.Name)
 	params.CustomMessage = strings.TrimSpace(params.CustomMessage)
@@ -585,7 +597,7 @@ func cleanRuleCreate(params RuleCreate) (RuleCreate, error) {
 	if err != nil {
 		return RuleCreate{}, err
 	}
-	excludeLabelIDs, err := cleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
+	excludeLabelIDs, err := santaids.CleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
 	if err != nil {
 		return RuleCreate{}, err
 	}
@@ -602,7 +614,7 @@ func cleanRuleUpdate(params RuleUpdate) (RuleUpdate, error) {
 	if err != nil {
 		return RuleUpdate{}, err
 	}
-	excludeLabelIDs, err := cleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
+	excludeLabelIDs, err := santaids.CleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
 	if err != nil {
 		return RuleUpdate{}, err
 	}
@@ -614,7 +626,7 @@ func cleanRuleUpdate(params RuleUpdate) (RuleUpdate, error) {
 func cleanRuleIncludes(includes []RuleIncludeWrite) ([]RuleIncludeWrite, error) {
 	cleaned := make([]RuleIncludeWrite, 0, len(includes))
 	for _, include := range includes {
-		include.Policy = cleanPolicy(include.Policy)
+		include.Policy = Policy(strings.TrimSpace(string(include.Policy)))
 		include.CELExpression = strings.TrimSpace(include.CELExpression)
 		if !validPolicy(include.Policy) {
 			return nil, fmt.Errorf("%w: unknown policy", dbutil.ErrInvalidInput)
@@ -625,7 +637,7 @@ func cleanRuleIncludes(includes []RuleIncludeWrite) ([]RuleIncludeWrite, error) 
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
 			return nil, fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
 		}
-		labelIDs, err := cleanLabelIDs(include.LabelIDs, "label_ids")
+		labelIDs, err := santaids.CleanLabelIDs(include.LabelIDs, "label_ids")
 		if err != nil {
 			return nil, err
 		}
@@ -638,61 +650,14 @@ func cleanRuleIncludes(includes []RuleIncludeWrite) ([]RuleIncludeWrite, error) 
 	return cleaned, nil
 }
 
-func cleanLabelIDs(ids []int64, name string) ([]int64, error) {
-	ids, err := parsePositiveIDs(ids, name)
-	if err != nil {
-		return nil, err
-	}
-	slices.Sort(ids)
-	return slices.Compact(ids), nil
-}
-
-func parsePositiveIDs(ids []int64, name string) ([]int64, error) {
-	out := make([]int64, len(ids))
-	for i, id := range ids {
-		if id <= 0 {
-			return nil, fmt.Errorf("%w: %s includes a non-positive ID", dbutil.ErrInvalidInput, name)
-		}
-		out[i] = id
-	}
-	return out, nil
-}
-
-func sameIDSet(a []int64, b []int64) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	a = slices.Clone(a)
-	b = slices.Clone(b)
-	slices.Sort(a)
-	slices.Sort(b)
-	return slices.Equal(a, b)
-}
-
-func cleanRuleType(ruleType RuleType) RuleType {
-	return RuleType(strings.TrimSpace(string(ruleType)))
-}
-
-func cleanPolicy(policy Policy) Policy {
-	return Policy(strings.TrimSpace(string(policy)))
-}
-
 func validRuleType(ruleType RuleType) bool {
-	switch ruleType {
-	case RuleTypeBinary, RuleTypeCertificate, RuleTypeTeamID, RuleTypeSigningID, RuleTypeCDHash:
-		return true
-	default:
-		return false
-	}
+	_, ok := validRuleTypes[ruleType]
+	return ok
 }
 
 func validPolicy(policy Policy) bool {
-	switch policy {
-	case PolicyAllowlist, PolicyAllowlistCompiler, PolicyBlocklist, PolicySilentBlocklist, PolicyCEL:
-		return true
-	default:
-		return false
-	}
+	_, ok := validPolicies[policy]
+	return ok
 }
 
 func ruleListWhere(params RuleListParams) (string, []any, error) {
@@ -746,14 +711,100 @@ func scanRule(row pgx.Row) (Rule, error) {
 	return rule, err
 }
 
-func hasAnyLabel(hostLabels map[int64]bool, labelIDs []int64) bool {
-	for _, labelID := range labelIDs {
-		if hostLabels[labelID] {
-			return true
-		}
+func ruleFromSQLC(row sqlc.SantaRule) Rule {
+	return Rule{
+		ID:            row.ID,
+		RuleType:      RuleType(row.RuleType),
+		Identifier:    row.Identifier,
+		Name:          row.Name,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		CreatedAt:     row.CreatedAt,
+		UpdatedAt:     row.UpdatedAt,
 	}
-	return false
 }
+
+func scanEffectiveRule(row pgx.CollectableRow) (EffectiveRule, error) {
+	var rule EffectiveRule
+	var ignoredSort int
+	err := row.Scan(
+		&rule.RuleID,
+		&rule.RuleType,
+		&rule.Identifier,
+		&rule.Policy,
+		&rule.CELExpression,
+		&rule.CustomMessage,
+		&rule.CustomURL,
+		&rule.MatchedIncludeID,
+		&ignoredSort,
+	)
+	return rule, err
+}
+
+// SyncTargetsFromRules returns Santa sync payload targets for effective rules.
+func SyncTargetsFromRules(rules []EffectiveRule) []santasync.Target {
+	targets := make([]santasync.Target, 0, len(rules))
+	for _, rule := range rules {
+		target := santasync.Target{
+			RuleType:      string(rule.RuleType),
+			Identifier:    rule.Identifier,
+			Policy:        string(rule.Policy),
+			CELExpression: rule.CELExpression,
+			CustomMessage: rule.CustomMessage,
+			CustomURL:     rule.CustomURL,
+		}
+		target.PayloadHash = syncTargetPayloadHash(target)
+		targets = append(targets, target)
+	}
+	return targets
+}
+
+func syncTargetPayloadHash(target santasync.Target) string {
+	var payload strings.Builder
+	payload.WriteString("v1")
+	writeHashField(&payload, target.RuleType)
+	writeHashField(&payload, target.Identifier)
+	writeHashField(&payload, target.Policy)
+	writeHashField(&payload, target.CELExpression)
+	writeHashField(&payload, target.CustomMessage)
+	writeHashField(&payload, target.CustomURL)
+	sum := sha256.Sum256([]byte(payload.String()))
+	return hex.EncodeToString(sum[:])
+}
+
+func writeHashField(payload *strings.Builder, value string) {
+	payload.WriteByte(0)
+	payload.WriteString(strconv.Itoa(len(value)))
+	payload.WriteByte(':')
+	payload.WriteString(value)
+}
+
+func syncTargetKey(target santasync.Target) string {
+	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
+}
+
+func scanSyncTarget(row pgx.CollectableRow) (santasync.Target, error) {
+	var target santasync.Target
+	err := row.Scan(
+		&target.RuleType,
+		&target.Identifier,
+		&target.Policy,
+		&target.CELExpression,
+		&target.CustomMessage,
+		&target.CustomURL,
+		&target.PayloadHash,
+	)
+	return target, err
+}
+
+const ruleTypeSortSQL = `CASE r.rule_type
+	WHEN 'cdhash' THEN 1
+	WHEN 'binary' THEN 2
+	WHEN 'signingid' THEN 3
+	WHEN 'certificate' THEN 4
+	WHEN 'teamid' THEN 5
+	ELSE 6
+END`
 
 const ruleSelectSQL = `
 SELECT
@@ -768,13 +819,52 @@ SELECT
 FROM (
 	SELECT
 		r.*,
-		CASE r.rule_type
-			WHEN 'cdhash' THEN 1
-			WHEN 'binary' THEN 2
-			WHEN 'signingid' THEN 3
-			WHEN 'certificate' THEN 4
-			WHEN 'teamid' THEN 5
-			ELSE 6
-		END AS rule_type_sort
+		` + ruleTypeSortSQL + ` AS rule_type_sort
 	FROM santa_rules r
 ) sorted_rules`
+
+const effectiveRulesForHostSQL = `
+WITH host_labels AS (
+	SELECT label_id
+	FROM label_membership
+	WHERE host_id = $1
+),
+matching_includes AS (
+	SELECT
+		r.id AS rule_id,
+		r.rule_type,
+		r.identifier,
+		i.policy,
+		COALESCE(i.cel_expression, '') AS cel_expression,
+		r.custom_message,
+		r.custom_url,
+		i.id AS matched_include_id,
+		` + ruleTypeSortSQL + ` AS rule_type_sort,
+		row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+	FROM santa_rules r
+	JOIN santa_rule_includes i ON i.rule_id = r.id
+	WHERE EXISTS (
+		SELECT 1
+		FROM santa_rule_include_labels il
+		JOIN host_labels hl ON hl.label_id = il.label_id
+		WHERE il.include_id = i.id
+	)
+	AND NOT EXISTS (
+		SELECT 1
+		FROM santa_rule_exclude_labels el
+		JOIN host_labels hl ON hl.label_id = el.label_id
+		WHERE el.rule_id = r.id
+	)
+)
+SELECT
+	rule_id,
+	rule_type::text,
+	identifier,
+	policy::text,
+	cel_expression,
+	custom_message,
+	custom_url,
+	matched_include_id,
+	rule_type_sort
+FROM matching_includes
+WHERE include_rank = 1`

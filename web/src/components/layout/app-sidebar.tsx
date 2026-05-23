@@ -48,7 +48,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-sidebar-border border-b">
-        <div className="flex items-center gap-2 px-2 py-1.5">
+        <div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <WoodstarMark />
           <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
             <span className="truncate text-sm font-semibold tracking-tight">Woodstar</span>

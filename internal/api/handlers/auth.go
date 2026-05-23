@@ -68,6 +68,22 @@ func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, fun
 	}
 }
 
+// RequireAdmin rejects authenticated users that are not administrators.
+func RequireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		if _, err := requireAdmin(ctx.Context()); err != nil {
+			var statusErr huma.StatusError
+			if errors.As(err, &statusErr) {
+				_ = huma.WriteErr(api, ctx, statusErr.GetStatus(), err.Error())
+				return
+			}
+			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "request failed")
+			return
+		}
+		next(ctx)
+	}
+}
+
 func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
 	registerSession(api, authService)

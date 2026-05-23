@@ -55,7 +55,6 @@ export const navSections: NavMenu[] = [
     icon: ShieldCheck,
     collapsible: true,
     items: [
-      { label: "Overview", to: "/santa", icon: ShieldCheck },
       { label: "Configurations", to: "/santa/configurations", icon: FileSliders },
       { label: "Rules", to: "/santa/rules", icon: ListChecks },
       { label: "Sync tokens", to: "/santa/sync-tokens", icon: KeyRound },

@@ -224,14 +224,8 @@ components:
           type: boolean
         enable_transitive_rules:
           type: boolean
-        encrypted_removable_media_action:
-          type: string
-        encrypted_removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
+        encrypted_removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
         event_detail_text:
           type: string
         event_detail_url:
@@ -254,14 +248,8 @@ components:
         position:
           format: int64
           type: integer
-        removable_media_action:
-          type: string
-        removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
+        removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
         updated_at:
           format: date-time
           type: string
@@ -274,13 +262,13 @@ components:
         - created_at
         - updated_at
       type: object
-    ConfigurationCreate:
+    ConfigurationMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ConfigurationCreate.json
+            - https://example.com/api/schemas/ConfigurationMutation.json
           format: uri
           readOnly: true
           type: string
@@ -299,14 +287,8 @@ components:
           type: boolean
         enable_transitive_rules:
           type: boolean
-        encrypted_removable_media_action:
-          type: string
-        encrypted_removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
+        encrypted_removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
         event_detail_text:
           type: string
         event_detail_url:
@@ -323,118 +305,9 @@ components:
             - "null"
         name:
           type: string
-        removable_media_action:
-          type: string
-        removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
+        removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
       required:
-        - name
-      type: object
-    ConfigurationUpdate:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ConfigurationUpdate.json
-          format: uri
-          readOnly: true
-          type: string
-        allowed_path_regex:
-          type: string
-        batch_size:
-          format: int64
-          type: integer
-        blocked_path_regex:
-          type: string
-        client_mode:
-          type: string
-        enable_all_event_upload:
-          type: boolean
-        enable_bundles:
-          type: boolean
-        enable_transitive_rules:
-          type: boolean
-        encrypted_removable_media_action:
-          type: string
-        encrypted_removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-        event_detail_text:
-          type: string
-        event_detail_url:
-          type: string
-        full_sync_interval_seconds:
-          format: int64
-          type: integer
-        label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-        name:
-          type: string
-        removable_media_action:
-          type: string
-        removable_media_remount_flags:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-      required:
-        - name
-      type: object
-    CreatedSyncToken:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/CreatedSyncToken.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        id:
-          format: int64
-          type: integer
-        last_used_at:
-          format: date-time
-          type: string
-        value:
-          type: string
-        value_hash:
-          type: string
-      required:
-        - value
-        - id
-        - value_hash
-        - created_at
-      type: object
-    EffectiveConfiguration:
-      additionalProperties: false
-      properties:
-        id:
-          format: int64
-          type: integer
-        matched_via_label:
-          $ref: "#/components/schemas/MatchedLabel"
-        name:
-          type: string
-      required:
-        - id
         - name
       type: object
     EffectiveRuleStatus:
@@ -455,8 +328,6 @@ components:
           type: integer
         payload_hash:
           type: string
-        pending:
-          type: boolean
         policy:
           type: string
         rule_id:
@@ -466,7 +337,6 @@ components:
           type: string
       required:
         - applied
-        - pending
         - payload_hash
         - rule_id
         - rule_type
@@ -1192,9 +1062,7 @@ components:
         client_mode_reported:
           type: string
         effective_configuration:
-          $ref: "#/components/schemas/EffectiveConfiguration"
-        enrolled:
-          type: boolean
+          $ref: "#/components/schemas/ResolvedConfiguration"
         last_sync_at:
           format: date-time
           type: string
@@ -1203,7 +1071,6 @@ components:
         version:
           type: string
       required:
-        - enrolled
         - version
         - client_mode_reported
         - rule_sync
@@ -1305,6 +1172,18 @@ components:
       required:
         - name
         - platforms
+      type: object
+    LabelMatch:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
       type: object
     LabelMutationBody:
       additionalProperties: false
@@ -1506,18 +1385,6 @@ components:
       required:
         - email
         - password
-      type: object
-    MatchedLabel:
-      additionalProperties: false
-      properties:
-        id:
-          format: int64
-          type: integer
-        name:
-          type: string
-      required:
-        - id
-        - name
       type: object
     PaginatedBodyCheck:
       additionalProperties: false
@@ -1769,6 +1636,21 @@ components:
         - executable_sha256
         - executable_path
       type: object
+    RemovableMediaPolicy:
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+        remount_flags:
+          description: Mount flags required when action is remount.
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - action
+      type: object
     ReportBody:
       additionalProperties: false
       properties:
@@ -1898,6 +1780,67 @@ components:
             - "null"
       required:
         - items
+      type: object
+    ResolvedConfiguration:
+      additionalProperties: false
+      properties:
+        allowed_path_regex:
+          type: string
+        batch_size:
+          format: int64
+          type: integer
+        blocked_path_regex:
+          type: string
+        client_mode:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        enable_all_event_upload:
+          type: boolean
+        enable_bundles:
+          type: boolean
+        enable_transitive_rules:
+          type: boolean
+        encrypted_removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        event_detail_text:
+          type: string
+        event_detail_url:
+          type: string
+        full_sync_interval_seconds:
+          format: int64
+          type: integer
+        id:
+          format: int64
+          type: integer
+        label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        matched_via_label:
+          $ref: "#/components/schemas/LabelMatch"
+        name:
+          type: string
+        position:
+          format: int64
+          type: integer
+        removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - position
+        - client_mode
+        - label_ids
+        - created_at
+        - updated_at
       type: object
     Rule:
       additionalProperties: false
@@ -2241,20 +2184,24 @@ components:
     SyncToken:
       additionalProperties: false
       properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/SyncToken.json
+          format: uri
+          readOnly: true
+          type: string
         created_at:
           format: date-time
           type: string
         id:
           format: int64
           type: integer
-        last_used_at:
-          format: date-time
-          type: string
-        value_hash:
+        value:
           type: string
       required:
         - id
-        - value_hash
+        - value
         - created_at
       type: object
     User:
@@ -2355,7 +2302,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: dfa78de-dirty
+  version: cffbae5-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -4422,7 +4369,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConfigurationCreate"
+              $ref: "#/components/schemas/ConfigurationMutation"
         required: true
       responses:
         "201":
@@ -4620,7 +4567,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConfigurationUpdate"
+              $ref: "#/components/schemas/ConfigurationMutation"
         required: true
       responses:
         "200":
@@ -4682,7 +4629,8 @@ paths:
           in: query
           name: host_id
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: decision
@@ -4692,6 +4640,7 @@ paths:
           in: query
           name: since
           schema:
+            format: date-time
             type: string
         - explode: false
           in: query
@@ -5132,7 +5081,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreatedSyncToken"
+                $ref: "#/components/schemas/SyncToken"
           description: Created
         "401":
           content:

@@ -17,6 +17,8 @@ func Mount(r chi.Router, deps Dependencies) {
 func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	protected := huma.NewGroup(humaAPI)
 	protected.UseMiddleware(handlers.RequireAuth(humaAPI, deps.Auth.AuthService))
+	santaAdmin := huma.NewGroup(protected)
+	santaAdmin.UseMiddleware(handlers.RequireAdmin(humaAPI))
 
 	handlers.RegisterPublicAuth(humaAPI, deps.Auth.AuthService)
 	handlers.RegisterSSO(r, deps.Auth.AuthService)
@@ -24,18 +26,19 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterUsers(protected, deps.Auth.UserService)
 	handlers.RegisterHosts(
 		protected,
-		deps.Inventory.HostStore,
-		deps.Inventory.SoftwareStore,
-		deps.Santa.Store,
+		deps.Hosts.Store,
+		deps.Software.Store,
+		handlers.SantaHostDetailEnricher(deps.Santa.Store),
 	)
-	handlers.RegisterSoftware(protected, deps.Inventory.SoftwareStore)
-	handlers.RegisterLabels(protected, deps.Inventory.LabelStore)
-	handlers.RegisterReports(protected, deps.Inventory.ReportStore, deps.Inventory.HostStore)
-	handlers.RegisterChecks(protected, deps.Inventory.CheckStore, deps.Inventory.HostStore)
-	handlers.RegisterLiveQueries(protected, deps.Orbit.LiveQueryManager, deps.Inventory.HostStore)
-	handlers.RegisterEnrollSecrets(protected, deps.Inventory.SecretStore)
-	handlers.RegisterSantaSyncTokens(protected, deps.Santa.Store)
-	handlers.RegisterSantaConfigurations(protected, deps.Santa.Store)
-	handlers.RegisterSantaRules(protected, deps.Santa.Store)
-	handlers.RegisterSantaEvents(protected, deps.Santa.Store)
+	handlers.RegisterSoftware(protected, deps.Software.Store)
+	handlers.RegisterLabels(protected, deps.Labels.Store)
+	handlers.RegisterEnrollSecrets(protected, deps.Enrollment.SecretStore)
+	handlers.RegisterReports(protected, deps.Osquery.Reports, deps.Hosts.Store)
+	handlers.RegisterChecks(protected, deps.Osquery.Checks, deps.Hosts.Store)
+	handlers.RegisterLiveQueries(protected, deps.Osquery.LiveQueries, deps.Hosts.Store)
+	handlers.RegisterSantaSyncTokens(santaAdmin, deps.Santa.Sync)
+	handlers.RegisterSantaConfigurations(santaAdmin, deps.Santa.Configurations)
+	handlers.RegisterSantaRules(santaAdmin, deps.Santa.Rules)
+	handlers.RegisterSantaEvents(santaAdmin, deps.Santa.Events)
+	handlers.RegisterHostSantaEffectiveRules(protected, deps.Hosts.Store, deps.Santa.Rules)
 }

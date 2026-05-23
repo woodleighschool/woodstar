@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { SantaOverviewPage } from "@/pages/santa/overview";
+/* eslint-disable @typescript-eslint/only-throw-error -- tanstack/react-router uses thrown redirect() as control-flow */
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/santa/")({
-  component: SantaOverviewPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/santa/configurations" });
+  },
 });

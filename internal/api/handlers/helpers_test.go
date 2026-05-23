@@ -7,17 +7,16 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/users"
 )
 
-func TestParseUserID(t *testing.T) {
+func TestParseResourceID(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
 		want    int64
 		wantErr bool
 	}{
-		{name: "positive", input: "42", want: 42},
+		{name: "positive", input: "12", want: 12},
 		{name: "zero rejected", input: "0", wantErr: true},
 		{name: "negative rejected", input: "-1", wantErr: true},
 		{name: "non-numeric rejected", input: "abc", wantErr: true},
@@ -27,7 +26,7 @@ func TestParseUserID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := parseUserID(tt.input)
+			got, err := parseResourceID(tt.input, "host")
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -44,7 +43,21 @@ func TestParseUserID(t *testing.T) {
 	}
 }
 
-func TestUserMutationErrorMapping(t *testing.T) {
+func TestBulkIDsBodyCleansInput(t *testing.T) {
+	got, err := (bulkIDsBody{IDs: []int64{3, 1, 3}}).ids("host IDs")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 || got[0] != 1 || got[1] != 3 {
+		t.Fatalf("ids = %#v, want sorted+deduplicated [1 3]", got)
+	}
+
+	if _, err := (bulkIDsBody{}).ids("host IDs"); err == nil {
+		t.Fatal("expected error for empty IDs, got nil")
+	}
+}
+
+func TestResourceMutationErrorMapping(t *testing.T) {
 	tests := []struct {
 		name       string
 		err        error
@@ -52,15 +65,13 @@ func TestUserMutationErrorMapping(t *testing.T) {
 	}{
 		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
 		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
-		{name: "weak password", err: users.ErrWeakPassword, wantStatus: 400},
-		{name: "initial user delete", err: users.ErrCannotDeleteInitialUser, wantStatus: 422},
-		{name: "initial user modify", err: users.ErrCannotModifyInitialUser, wantStatus: 422},
+		{name: "validation", err: dbutil.ErrInvalidInput, wantStatus: 400},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			mapped := userMutationError(tt.err)
+			mapped := resourceMutationError("resource", tt.err)
 			var status huma.StatusError
 			if !errors.As(mapped, &status) {
 				t.Fatalf("not a huma.StatusError: %v", mapped)

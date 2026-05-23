@@ -1,4 +1,4 @@
-package santa
+package events
 
 import (
 	"context"
@@ -8,19 +8,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/jackc/pgx/v5"
-	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
+// Store persists Santa execution events and executable metadata.
+type Store struct {
+	db *database.DB
+}
+
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db}
+}
+
 type ExecutionDecision string
+
+type DecisionFilter string
 
 const (
 	ExecutionDecisionUnknown          ExecutionDecision = "unknown"
@@ -40,13 +49,32 @@ const (
 	ExecutionDecisionBlockCDHash      ExecutionDecision = "block_cdhash"
 	ExecutionDecisionBundleBinary     ExecutionDecision = "bundle_binary"
 
-	EventDecisionClassAllowed ExecutionDecision = "allowed"
-	EventDecisionClassBlocked ExecutionDecision = "blocked"
+	DecisionFilterAllowed DecisionFilter = "allowed"
+	DecisionFilterBlocked DecisionFilter = "blocked"
 )
+
+var validExecutionDecisions = map[ExecutionDecision]struct{}{
+	ExecutionDecisionUnknown:          {},
+	ExecutionDecisionAllowUnknown:     {},
+	ExecutionDecisionAllowBinary:      {},
+	ExecutionDecisionAllowCertificate: {},
+	ExecutionDecisionAllowScope:       {},
+	ExecutionDecisionAllowTeamID:      {},
+	ExecutionDecisionAllowSigningID:   {},
+	ExecutionDecisionAllowCDHash:      {},
+	ExecutionDecisionBlockUnknown:     {},
+	ExecutionDecisionBlockBinary:      {},
+	ExecutionDecisionBlockCertificate: {},
+	ExecutionDecisionBlockScope:       {},
+	ExecutionDecisionBlockTeamID:      {},
+	ExecutionDecisionBlockSigningID:   {},
+	ExecutionDecisionBlockCDHash:      {},
+	ExecutionDecisionBundleBinary:     {},
+}
 
 type EventListParams struct {
 	HostID   int64
-	Decision ExecutionDecision
+	Decision DecisionFilter
 	Since    *time.Time
 	Limit    int
 	After    string
@@ -68,6 +96,33 @@ type ExecutionEvent struct {
 	Decision        ExecutionDecision `json:"decision"`
 	OccurredAt      *time.Time        `json:"occurred_at,omitempty"`
 	IngestedAt      time.Time         `json:"ingested_at"`
+}
+
+type ExecutionEventInput struct {
+	FileSHA256           string
+	FilePath             string
+	FileName             string
+	ExecutingUser        string
+	ExecutionTimeSeconds float64
+	LoggedInUsers        []string
+	CurrentSessions      []string
+	Decision             ExecutionDecision
+	BundleID             string
+	BundlePath           string
+	SigningID            string
+	TeamID               string
+	CDHash               string
+	Entitlements         []byte
+	SigningChain         []CertificateInput
+}
+
+type CertificateInput struct {
+	SHA256     string
+	CommonName string
+	Org        string
+	OU         string
+	ValidFrom  uint32
+	ValidUntil uint32
 }
 
 type Executable struct {
@@ -95,20 +150,17 @@ type eventCursor struct {
 	ID   int64     `json:"id"`
 }
 
-func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events []*syncv1.Event) error {
+func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events []ExecutionEventInput) error {
 	if len(events) == 0 {
 		return nil
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		for _, event := range events {
-			if event == nil {
-				continue
-			}
 			executableID, err := upsertExecutable(ctx, tx, event)
 			if err != nil {
 				return err
 			}
-			if err := upsertSigningChain(ctx, tx, executableID, event.GetSigningChain()); err != nil {
+			if err := upsertSigningChain(ctx, tx, executableID, event.SigningChain); err != nil {
 				return err
 			}
 			if err := insertExecutionEvent(ctx, tx, hostID, executableID, event); err != nil {
@@ -120,19 +172,18 @@ func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events 
 }
 
 func (s *Store) ListEvents(ctx context.Context, params EventListParams) (EventPage, error) {
-	params = cleanEventListParams(params)
+	params, err := cleanEventListParams(params)
+	if err != nil {
+		return EventPage{}, err
+	}
 	after, hasAfter, err := decodeEventCursor(params.After)
 	if err != nil {
 		return EventPage{}, err
 	}
-	where, args, err := eventListWhere(params, after, hasAfter)
+	query, args, err := eventListQuery(params, after, hasAfter)
 	if err != nil {
 		return EventPage{}, err
 	}
-	args = append(args, params.Limit+1)
-	query := eventListSelectSQL + "\n" + where + `
-ORDER BY COALESCE(ee.occurred_at, ee.ingested_at) DESC, ee.id DESC
-LIMIT $` + strconv.Itoa(len(args))
 
 	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
@@ -159,7 +210,11 @@ LIMIT $` + strconv.Itoa(len(args))
 		if last.OccurredAt != nil {
 			cursorTime = *last.OccurredAt
 		}
-		page.NextCursor = encodeEventCursor(eventCursor{Time: cursorTime, ID: last.ID})
+		cursor, err := encodeEventCursor(eventCursor{Time: cursorTime, ID: last.ID})
+		if err != nil {
+			return EventPage{}, err
+		}
+		page.NextCursor = cursor
 		page.Items = page.Items[:params.Limit]
 	}
 	return page, nil
@@ -173,8 +228,8 @@ func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, e
 	return int(tag.RowsAffected()), err
 }
 
-func upsertExecutable(ctx context.Context, tx pgx.Tx, event *syncv1.Event) (int64, error) {
-	sha := strings.TrimSpace(event.GetFileSha256())
+func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, error) {
+	sha := strings.TrimSpace(event.FileSHA256)
 	if sha == "" {
 		return 0, fmt.Errorf("%w: file_sha256 is required", dbutil.ErrInvalidInput)
 	}
@@ -207,18 +262,18 @@ func upsertExecutable(ctx context.Context, tx pgx.Tx, event *syncv1.Event) (int6
 			updated_at = now()
 		RETURNING id
 	`, sha,
-		strings.TrimSpace(event.GetFileName()),
-		strings.TrimSpace(event.GetFileBundleId()),
-		strings.TrimSpace(event.GetFileBundlePath()),
-		strings.TrimSpace(event.GetSigningId()),
-		strings.TrimSpace(event.GetTeamId()),
-		strings.TrimSpace(event.GetCdhash()),
+		strings.TrimSpace(event.FileName),
+		strings.TrimSpace(event.BundleID),
+		strings.TrimSpace(event.BundlePath),
+		strings.TrimSpace(event.SigningID),
+		strings.TrimSpace(event.TeamID),
+		strings.TrimSpace(event.CDHash),
 		entitlements,
 	).Scan(&id)
 	return id, err
 }
 
-func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chain []*syncv1.Certificate) error {
+func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chain []CertificateInput) error {
 	entries := signingChainEntries(chain)
 	if len(entries) == 0 {
 		return nil
@@ -245,7 +300,13 @@ func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chai
 	return err
 }
 
-func insertExecutionEvent(ctx context.Context, tx pgx.Tx, hostID int64, executableID int64, event *syncv1.Event) error {
+func insertExecutionEvent(
+	ctx context.Context,
+	tx pgx.Tx,
+	hostID int64,
+	executableID int64,
+	event ExecutionEventInput,
+) error {
 	_, err := tx.Exec(ctx, `
 		INSERT INTO santa_execution_events (
 			host_id,
@@ -260,12 +321,12 @@ func insertExecutionEvent(ctx context.Context, tx pgx.Tx, hostID int64, executab
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, hostID,
 		executableID,
-		strings.TrimSpace(event.GetFilePath()),
-		strings.TrimSpace(event.GetExecutingUser()),
-		cleanEventStringList(event.GetLoggedInUsers()),
-		cleanEventStringList(event.GetCurrentSessions()),
-		decisionFromProto(event.GetDecision()),
-		eventOccurredAt(event.GetExecutionTime()),
+		strings.TrimSpace(event.FilePath),
+		strings.TrimSpace(event.ExecutingUser),
+		cleanEventStringList(event.LoggedInUsers),
+		cleanEventStringList(event.CurrentSessions),
+		event.Decision,
+		eventOccurredAt(event.ExecutionTimeSeconds),
 	)
 	return err
 }
@@ -287,43 +348,46 @@ func cleanEventStringList(values []string) []string {
 	return cleaned
 }
 
-func entitlementJSON(event *syncv1.Event) ([]byte, error) {
-	entitlements := event.GetEntitlementInfo()
-	if entitlements == nil {
-		return []byte(`{}`), nil
+func entitlementJSON(event ExecutionEventInput) ([]byte, error) {
+	if len(event.Entitlements) == 0 {
+		return nil, nil
 	}
-	payload, err := protojson.Marshal(entitlements)
-	if err != nil {
-		return nil, err
-	}
-	return payload, nil
+	return event.Entitlements, nil
 }
 
-func signingChainEntries(chain []*syncv1.Certificate) []signingChainEntry {
+func signingChainEntries(chain []CertificateInput) []signingChainEntry {
 	entries := make([]signingChainEntry, 0, len(chain))
 	for _, cert := range chain {
-		if cert == nil || strings.TrimSpace(cert.GetSha256()) == "" {
+		if strings.TrimSpace(cert.SHA256) == "" {
 			continue
 		}
 		entries = append(entries, signingChainEntry{
-			SHA256:     strings.TrimSpace(cert.GetSha256()),
-			CommonName: strings.TrimSpace(cert.GetCn()),
-			Org:        strings.TrimSpace(cert.GetOrg()),
-			OU:         strings.TrimSpace(cert.GetOu()),
-			ValidFrom:  cert.GetValidFrom(),
-			ValidUntil: cert.GetValidUntil(),
+			SHA256:     strings.TrimSpace(cert.SHA256),
+			CommonName: strings.TrimSpace(cert.CommonName),
+			Org:        strings.TrimSpace(cert.Org),
+			OU:         strings.TrimSpace(cert.OU),
+			ValidFrom:  cert.ValidFrom,
+			ValidUntil: cert.ValidUntil,
 		})
 	}
 	return entries
 }
 
 func signingChainHash(entries []signingChainEntry) string {
-	parts := make([]string, 0, len(entries))
+	var payload strings.Builder
+	payload.WriteString("v1")
 	for _, entry := range entries {
-		parts = append(parts, entry.SHA256)
+		writeHashField(&payload, entry.SHA256)
 	}
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
+	sum := sha256.Sum256([]byte(payload.String()))
 	return hex.EncodeToString(sum[:])
+}
+
+func writeHashField(payload *strings.Builder, value string) {
+	payload.WriteByte(0)
+	payload.WriteString(strconv.Itoa(len(value)))
+	payload.WriteByte(':')
+	payload.WriteString(value)
 }
 
 func eventOccurredAt(seconds float64) *time.Time {
@@ -335,19 +399,19 @@ func eventOccurredAt(seconds float64) *time.Time {
 	return &t
 }
 
-func cleanEventListParams(params EventListParams) EventListParams {
+func cleanEventListParams(params EventListParams) (EventListParams, error) {
 	if params.Limit <= 0 {
 		params.Limit = 100
 	}
 	if params.Limit > 500 {
-		params.Limit = 500
+		return EventListParams{}, fmt.Errorf("%w: limit must be at most 500", dbutil.ErrInvalidInput)
 	}
-	params.Decision = ExecutionDecision(strings.TrimSpace(string(params.Decision)))
+	params.Decision = DecisionFilter(strings.TrimSpace(string(params.Decision)))
 	params.After = strings.TrimSpace(params.After)
-	return params
+	return params, nil
 }
 
-func eventListWhere(params EventListParams, after eventCursor, hasAfter bool) (string, []any, error) {
+func eventListQuery(params EventListParams, after eventCursor, hasAfter bool) (string, []any, error) {
 	var where dbutil.WhereBuilder
 	if params.HostID > 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
@@ -357,15 +421,16 @@ func eventListWhere(params EventListParams, after eventCursor, hasAfter bool) (s
 	}
 	switch params.Decision {
 	case "":
-	case EventDecisionClassAllowed:
+	case DecisionFilterAllowed:
 		where.Add("ee.decision::text LIKE 'allow_%'")
-	case EventDecisionClassBlocked:
+	case DecisionFilterBlocked:
 		where.Add("ee.decision::text LIKE 'block_%'")
 	default:
-		if !validExecutionDecision(params.Decision) {
+		decision := ExecutionDecision(params.Decision)
+		if !validExecutionDecision(decision) {
 			return "", nil, fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
 		}
-		where.Add("ee.decision = " + where.Arg(params.Decision))
+		where.Add("ee.decision = " + where.Arg(decision))
 	}
 	if hasAfter {
 		where.Add(
@@ -376,8 +441,12 @@ func eventListWhere(params EventListParams, after eventCursor, hasAfter bool) (s
 			) + ")",
 		)
 	}
-	sql, args := where.Build()
-	return sql, args, nil
+	limit := where.Arg(params.Limit + 1)
+	whereSQL, args := where.Build()
+	query := eventListSelectSQL + "\n" + whereSQL + `
+ORDER BY COALESCE(ee.occurred_at, ee.ingested_at) DESC, ee.id DESC
+LIMIT ` + limit
+	return query, args, nil
 }
 
 func scanExecutionEvent(row pgx.Row) (ExecutionEvent, error) {
@@ -404,9 +473,12 @@ func scanExecutionEvent(row pgx.Row) (ExecutionEvent, error) {
 	return event, err
 }
 
-func encodeEventCursor(cursor eventCursor) string {
-	payload, _ := json.Marshal(cursor)
-	return base64.RawURLEncoding.EncodeToString(payload)
+func encodeEventCursor(cursor eventCursor) (string, error) {
+	payload, err := json.Marshal(cursor)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
 }
 
 func decodeEventCursor(value string) (eventCursor, bool, error) {
@@ -428,61 +500,8 @@ func decodeEventCursor(value string) (eventCursor, bool, error) {
 }
 
 func validExecutionDecision(decision ExecutionDecision) bool {
-	return slices.Contains([]ExecutionDecision{
-		ExecutionDecisionUnknown,
-		ExecutionDecisionAllowUnknown,
-		ExecutionDecisionAllowBinary,
-		ExecutionDecisionAllowCertificate,
-		ExecutionDecisionAllowScope,
-		ExecutionDecisionAllowTeamID,
-		ExecutionDecisionAllowSigningID,
-		ExecutionDecisionAllowCDHash,
-		ExecutionDecisionBlockUnknown,
-		ExecutionDecisionBlockBinary,
-		ExecutionDecisionBlockCertificate,
-		ExecutionDecisionBlockScope,
-		ExecutionDecisionBlockTeamID,
-		ExecutionDecisionBlockSigningID,
-		ExecutionDecisionBlockCDHash,
-		ExecutionDecisionBundleBinary,
-	}, decision)
-}
-
-func decisionFromProto(decision syncv1.Decision) ExecutionDecision {
-	switch decision {
-	case syncv1.Decision_ALLOW_UNKNOWN:
-		return ExecutionDecisionAllowUnknown
-	case syncv1.Decision_ALLOW_BINARY:
-		return ExecutionDecisionAllowBinary
-	case syncv1.Decision_ALLOW_CERTIFICATE:
-		return ExecutionDecisionAllowCertificate
-	case syncv1.Decision_ALLOW_SCOPE:
-		return ExecutionDecisionAllowScope
-	case syncv1.Decision_ALLOW_TEAMID:
-		return ExecutionDecisionAllowTeamID
-	case syncv1.Decision_ALLOW_SIGNINGID:
-		return ExecutionDecisionAllowSigningID
-	case syncv1.Decision_ALLOW_CDHASH:
-		return ExecutionDecisionAllowCDHash
-	case syncv1.Decision_BLOCK_UNKNOWN:
-		return ExecutionDecisionBlockUnknown
-	case syncv1.Decision_BLOCK_BINARY:
-		return ExecutionDecisionBlockBinary
-	case syncv1.Decision_BLOCK_CERTIFICATE:
-		return ExecutionDecisionBlockCertificate
-	case syncv1.Decision_BLOCK_SCOPE:
-		return ExecutionDecisionBlockScope
-	case syncv1.Decision_BLOCK_TEAMID:
-		return ExecutionDecisionBlockTeamID
-	case syncv1.Decision_BLOCK_SIGNINGID:
-		return ExecutionDecisionBlockSigningID
-	case syncv1.Decision_BLOCK_CDHASH:
-		return ExecutionDecisionBlockCDHash
-	case syncv1.Decision_BUNDLE_BINARY:
-		return ExecutionDecisionBundleBinary
-	default:
-		return ExecutionDecisionUnknown
-	}
+	_, ok := validExecutionDecisions[decision]
+	return ok
 }
 
 const eventListSelectSQL = `

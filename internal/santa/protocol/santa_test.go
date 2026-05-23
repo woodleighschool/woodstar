@@ -13,6 +13,8 @@ import (
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/proto"
+
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
 
 func TestSantaSyncRoutesDecodeAndEncodeGzippedProtobuf(t *testing.T) {
@@ -25,28 +27,28 @@ func TestSantaSyncRoutesDecodeAndEncodeGzippedProtobuf(t *testing.T) {
 	}{
 		{
 			name:      "preflight",
-			path:      "/api/santa/sync/preflight/machine-1",
+			path:      "/santa/sync/preflight/machine-1",
 			request:   &syncv1.PreflightRequest{},
 			response:  &syncv1.PreflightResponse{},
 			wantStage: "preflight",
 		},
 		{
 			name:      "event upload",
-			path:      "/api/santa/sync/eventupload/machine-1",
+			path:      "/santa/sync/eventupload/machine-1",
 			request:   &syncv1.EventUploadRequest{},
 			response:  &syncv1.EventUploadResponse{},
 			wantStage: "eventupload",
 		},
 		{
 			name:      "rule download",
-			path:      "/api/santa/sync/ruledownload/machine-1",
+			path:      "/santa/sync/ruledownload/machine-1",
 			request:   &syncv1.RuleDownloadRequest{},
 			response:  &syncv1.RuleDownloadResponse{},
 			wantStage: "ruledownload",
 		},
 		{
 			name:      "postflight",
-			path:      "/api/santa/sync/postflight/machine-1",
+			path:      "/santa/sync/postflight/machine-1",
 			request:   &syncv1.PostflightRequest{},
 			response:  &syncv1.PostflightResponse{},
 			wantStage: "postflight",
@@ -88,7 +90,7 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		tokenVerifier   TokenVerifier
+		tokenVerifier   SyncTokenVerifier
 		body            []byte
 		contentType     string
 		contentEncoding string
@@ -162,7 +164,7 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			router := testRouter(tt.tokenVerifier, &recordingService{})
 			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, "/api/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
+			req := httptest.NewRequest(http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
 			}
@@ -185,7 +187,7 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 	}
 }
 
-func testRouter(verifier TokenVerifier, service Service) chi.Router {
+func testRouter(verifier SyncTokenVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
 	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
 	return r
@@ -248,7 +250,7 @@ type staticVerifier struct {
 	err error
 }
 
-func (v *staticVerifier) VerifyBearerToken(context.Context, string) (bool, error) {
+func (v *staticVerifier) VerifySyncToken(context.Context, string) (bool, error) {
 	return v.ok, v.err
 }
 
@@ -257,42 +259,42 @@ type recordingService struct {
 	machineID string
 }
 
-func (s *recordingService) HandlePreflight(
+func (s *recordingService) Preflight(
 	_ context.Context,
 	machineID string,
-	_ *syncv1.PreflightRequest,
-) (*syncv1.PreflightResponse, error) {
+	_ santasync.PreflightRequest,
+) (santasync.PreflightResponse, error) {
 	s.stage = "preflight"
 	s.machineID = machineID
-	return &syncv1.PreflightResponse{}, nil
+	return santasync.PreflightResponse{}, nil
 }
 
-func (s *recordingService) HandleEventUpload(
+func (s *recordingService) EventUpload(
 	_ context.Context,
 	machineID string,
-	_ *syncv1.EventUploadRequest,
-) (*syncv1.EventUploadResponse, error) {
+	_ santasync.EventUploadRequest,
+) (santasync.EventUploadResponse, error) {
 	s.stage = "eventupload"
 	s.machineID = machineID
-	return &syncv1.EventUploadResponse{}, nil
+	return santasync.EventUploadResponse{}, nil
 }
 
-func (s *recordingService) HandleRuleDownload(
+func (s *recordingService) RuleDownload(
 	_ context.Context,
 	machineID string,
-	_ *syncv1.RuleDownloadRequest,
-) (*syncv1.RuleDownloadResponse, error) {
+	_ santasync.RuleDownloadRequest,
+) (santasync.RuleDownloadResponse, error) {
 	s.stage = "ruledownload"
 	s.machineID = machineID
-	return &syncv1.RuleDownloadResponse{}, nil
+	return santasync.RuleDownloadResponse{}, nil
 }
 
-func (s *recordingService) HandlePostflight(
+func (s *recordingService) Postflight(
 	_ context.Context,
 	machineID string,
-	_ *syncv1.PostflightRequest,
-) (*syncv1.PostflightResponse, error) {
+	_ santasync.PostflightRequest,
+) (santasync.PostflightResponse, error) {
 	s.stage = "postflight"
 	s.machineID = machineID
-	return &syncv1.PostflightResponse{}, nil
+	return santasync.PostflightResponse{}, nil
 }

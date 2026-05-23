@@ -1,4 +1,4 @@
-package santa
+package configurations
 
 import (
 	"context"
@@ -11,7 +11,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/ids"
+)
+
+type Store struct {
+	db *database.DB
+	q  *sqlc.Queries
+}
+
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
+}
+
+type ClientMode string
+
+const (
+	ClientModeUnknown    ClientMode = "unknown"
+	ClientModeMonitor    ClientMode = "monitor"
+	ClientModeLockdown   ClientMode = "lockdown"
+	ClientModeStandalone ClientMode = "standalone"
 )
 
 type RemovableMediaAction string
@@ -22,61 +43,79 @@ const (
 	RemovableMediaActionRemount RemovableMediaAction = "remount"
 )
 
+var validClientModes = map[ClientMode]bool{
+	ClientModeUnknown:    false,
+	ClientModeMonitor:    true,
+	ClientModeLockdown:   true,
+	ClientModeStandalone: true,
+}
+
+var validRemovableMediaActions = map[RemovableMediaAction]struct{}{
+	RemovableMediaActionAllow:   {},
+	RemovableMediaActionBlock:   {},
+	RemovableMediaActionRemount: {},
+}
+
 type ConfigurationListParams struct {
 	dbutil.ListParams
 }
 
-type ConfigurationCreate struct {
-	Name                                string                `json:"name"`
-	ClientMode                          ClientMode            `json:"client_mode,omitempty"`
-	EnableBundles                       *bool                 `json:"enable_bundles,omitempty"`
-	EnableTransitiveRules               *bool                 `json:"enable_transitive_rules,omitempty"`
-	EnableAllEventUpload                *bool                 `json:"enable_all_event_upload,omitempty"`
-	FullSyncIntervalSeconds             *int                  `json:"full_sync_interval_seconds,omitempty"`
-	BatchSize                           *int                  `json:"batch_size,omitempty"`
-	AllowedPathRegex                    *string               `json:"allowed_path_regex,omitempty"`
-	BlockedPathRegex                    *string               `json:"blocked_path_regex,omitempty"`
-	RemovableMediaAction                *RemovableMediaAction `json:"removable_media_action,omitempty"`
-	RemovableMediaRemountFlags          []string              `json:"removable_media_remount_flags,omitempty"`
-	EncryptedRemovableMediaAction       *RemovableMediaAction `json:"encrypted_removable_media_action,omitempty"`
-	EncryptedRemovableMediaRemountFlags []string              `json:"encrypted_removable_media_remount_flags,omitempty"`
-	EventDetailURL                      *string               `json:"event_detail_url,omitempty"`
-	EventDetailText                     *string               `json:"event_detail_text,omitempty"`
-	LabelIDs                            []int64               `json:"label_ids,omitempty"`
+type RemovableMediaPolicy struct {
+	Action       RemovableMediaAction `json:"action"`
+	RemountFlags []string             `json:"remount_flags,omitempty" doc:"Mount flags required when action is remount."`
 }
 
-type ConfigurationUpdate ConfigurationCreate
+// ConfigurationMutation is the complete editable Santa configuration policy.
+// Optional nil fields clear that setting; updates replace the full editable shape rather than patching individual fields.
+type ConfigurationMutation struct {
+	Name                          string                `json:"name"`
+	ClientMode                    ClientMode            `json:"client_mode,omitempty"`
+	EnableBundles                 *bool                 `json:"enable_bundles,omitempty"`
+	EnableTransitiveRules         *bool                 `json:"enable_transitive_rules,omitempty"`
+	EnableAllEventUpload          *bool                 `json:"enable_all_event_upload,omitempty"`
+	FullSyncIntervalSeconds       *int                  `json:"full_sync_interval_seconds,omitempty"`
+	BatchSize                     *int                  `json:"batch_size,omitempty"`
+	AllowedPathRegex              *string               `json:"allowed_path_regex,omitempty"`
+	BlockedPathRegex              *string               `json:"blocked_path_regex,omitempty"`
+	RemovableMediaPolicy          *RemovableMediaPolicy `json:"removable_media_policy,omitempty"`
+	EncryptedRemovableMediaPolicy *RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitempty"`
+	EventDetailURL                *string               `json:"event_detail_url,omitempty"`
+	EventDetailText               *string               `json:"event_detail_text,omitempty"`
+	LabelIDs                      []int64               `json:"label_ids,omitempty"`
+}
 
 type Configuration struct {
-	ID                                  int64                 `json:"id"`
-	Name                                string                `json:"name"`
-	Position                            int                   `json:"position"`
-	ClientMode                          ClientMode            `json:"client_mode"`
-	EnableBundles                       *bool                 `json:"enable_bundles,omitempty"`
-	EnableTransitiveRules               *bool                 `json:"enable_transitive_rules,omitempty"`
-	EnableAllEventUpload                *bool                 `json:"enable_all_event_upload,omitempty"`
-	FullSyncIntervalSeconds             *int                  `json:"full_sync_interval_seconds,omitempty"`
-	BatchSize                           *int                  `json:"batch_size,omitempty"`
-	AllowedPathRegex                    *string               `json:"allowed_path_regex,omitempty"`
-	BlockedPathRegex                    *string               `json:"blocked_path_regex,omitempty"`
-	RemovableMediaAction                *RemovableMediaAction `json:"removable_media_action,omitempty"`
-	RemovableMediaRemountFlags          []string              `json:"removable_media_remount_flags,omitempty"`
-	EncryptedRemovableMediaAction       *RemovableMediaAction `json:"encrypted_removable_media_action,omitempty"`
-	EncryptedRemovableMediaRemountFlags []string              `json:"encrypted_removable_media_remount_flags,omitempty"`
-	EventDetailURL                      *string               `json:"event_detail_url,omitempty"`
-	EventDetailText                     *string               `json:"event_detail_text,omitempty"`
-	LabelIDs                            []int64               `json:"label_ids"`
-	CreatedAt                           time.Time             `json:"created_at"`
-	UpdatedAt                           time.Time             `json:"updated_at"`
+	ID                            int64                 `json:"id"`
+	Name                          string                `json:"name"`
+	Position                      int                   `json:"position"`
+	ClientMode                    ClientMode            `json:"client_mode"`
+	EnableBundles                 *bool                 `json:"enable_bundles,omitempty"`
+	EnableTransitiveRules         *bool                 `json:"enable_transitive_rules,omitempty"`
+	EnableAllEventUpload          *bool                 `json:"enable_all_event_upload,omitempty"`
+	FullSyncIntervalSeconds       *int                  `json:"full_sync_interval_seconds,omitempty"`
+	BatchSize                     *int                  `json:"batch_size,omitempty"`
+	AllowedPathRegex              *string               `json:"allowed_path_regex,omitempty"`
+	BlockedPathRegex              *string               `json:"blocked_path_regex,omitempty"`
+	RemovableMediaPolicy          *RemovableMediaPolicy `json:"removable_media_policy,omitempty"`
+	EncryptedRemovableMediaPolicy *RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitempty"`
+	EventDetailURL                *string               `json:"event_detail_url,omitempty"`
+	EventDetailText               *string               `json:"event_detail_text,omitempty"`
+	LabelIDs                      []int64               `json:"label_ids"`
+	CreatedAt                     time.Time             `json:"created_at"`
+	UpdatedAt                     time.Time             `json:"updated_at"`
 }
 
 type ResolvedConfiguration struct {
 	Configuration
-	MatchedViaLabel *MatchedLabel `json:"matched_via_label,omitempty"`
+	MatchedViaLabel *LabelMatch `json:"matched_via_label,omitempty"`
+}
+
+type LabelMatch struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 type ConfigurationLabelConflictError struct {
-	Code              string `json:"code"`
 	LabelID           int64  `json:"label_id"`
 	ConfigurationID   int64  `json:"configuration_id"`
 	ConfigurationName string `json:"configuration_name"`
@@ -141,18 +180,19 @@ func (s *Store) GetConfigurationByID(ctx context.Context, id int64) (*Configurat
 }
 
 func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configuration, error) {
-	configuration, err := scanConfigurationRow(s.db.Pool().QueryRow(ctx, configurationSelectSQL+" WHERE c.id = $1", id))
+	row, err := s.q.GetSantaConfigurationByID(ctx, sqlc.GetSantaConfigurationByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
+	configuration := configurationFromSQLC(row)
 	return configuration, nil
 }
 
-func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationCreate) (*Configuration, error) {
-	cleaned, err := cleanConfigurationCreate(params)
+func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
+	cleaned, err := cleanConfigurationMutation(params)
 	if err != nil {
 		return nil, err
 	}
@@ -163,38 +203,14 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationCre
 		if err != nil {
 			return err
 		}
-		err = tx.QueryRow(ctx, `
-			INSERT INTO santa_configurations (
-				name,
-				position,
-				client_mode,
-				enable_bundles,
-				enable_transitive_rules,
-				enable_all_event_upload,
-				full_sync_interval_seconds,
-				batch_size,
-				allowed_path_regex,
-				blocked_path_regex,
-				removable_media_action,
-				removable_media_remount_flags,
-				encrypted_removable_media_action,
-				encrypted_removable_media_remount_flags,
-				event_detail_url,
-				event_detail_text
-			)
-			VALUES (
-				$1,
-				(SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
-				$2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
-			)
-			RETURNING id
-		`, configurationInsertArgs(cleaned)...).Scan(&configurationID)
+		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(cleaned))
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
 				return dbutil.ErrAlreadyExists
 			}
 			return err
 		}
+		configurationID = row.ID
 		return replaceConfigurationLabels(ctx, tx, configurationID, cleaned.LabelIDs)
 	})
 	if err != nil {
@@ -206,9 +222,9 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationCre
 func (s *Store) UpdateConfiguration(
 	ctx context.Context,
 	id int64,
-	params ConfigurationUpdate,
+	params ConfigurationMutation,
 ) (*Configuration, error) {
-	cleaned, err := cleanConfigurationUpdate(params)
+	cleaned, err := cleanConfigurationMutation(params)
 	if err != nil {
 		return nil, err
 	}
@@ -218,30 +234,8 @@ func (s *Store) UpdateConfiguration(
 		if err != nil {
 			return err
 		}
-		row := tx.QueryRow(ctx, `
-			UPDATE santa_configurations
-			SET
-				name = $1,
-				client_mode = $2,
-				enable_bundles = $3,
-				enable_transitive_rules = $4,
-				enable_all_event_upload = $5,
-				full_sync_interval_seconds = $6,
-				batch_size = $7,
-				allowed_path_regex = $8,
-				blocked_path_regex = $9,
-				removable_media_action = $10,
-				removable_media_remount_flags = $11,
-				encrypted_removable_media_action = $12,
-				encrypted_removable_media_remount_flags = $13,
-				event_detail_url = $14,
-				event_detail_text = $15,
-				updated_at = now()
-			WHERE id = $16
-			RETURNING id
-		`, append(configurationInsertArgs(ConfigurationCreate(cleaned)), id)...)
-		var updatedID int64
-		if err := row.Scan(&updatedID); errors.Is(err, pgx.ErrNoRows) {
+		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, cleaned))
+		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		} else if err != nil {
 			if dbutil.IsUniqueViolation(err) {
@@ -249,7 +243,7 @@ func (s *Store) UpdateConfiguration(
 			}
 			return err
 		}
-		return replaceConfigurationLabels(ctx, tx, updatedID, cleaned.LabelIDs)
+		return replaceConfigurationLabels(ctx, tx, row.ID, cleaned.LabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -258,12 +252,7 @@ func (s *Store) UpdateConfiguration(
 }
 
 func (s *Store) DeleteConfiguration(ctx context.Context, id int64) error {
-	var deletedID int64
-	err := s.db.Pool().QueryRow(ctx, `
-		DELETE FROM santa_configurations
-		WHERE id = $1
-		RETURNING id
-	`, id).Scan(&deletedID)
+	_, err := s.q.DeleteSantaConfiguration(ctx, sqlc.DeleteSantaConfigurationParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
@@ -271,7 +260,7 @@ func (s *Store) DeleteConfiguration(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
-	ids, err := parsePositiveIDs(orderedIDs, "ordered_ids")
+	cleanedIDs, err := ids.ParsePositive(orderedIDs, "ordered_ids")
 	if err != nil {
 		return err
 	}
@@ -289,25 +278,22 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 		if err != nil {
 			return err
 		}
-		if !sameIDSet(ids, currentIDs) {
+		if !ids.SameSet(cleanedIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
-			UPDATE santa_configurations
-			SET position = position + 100000
-		`); err != nil {
+			UPDATE santa_configurations c
+			SET position = -ordered.position
+			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
+			WHERE c.id = ordered.id
+		`, cleanedIDs); err != nil {
 			return err
 		}
-		for position, id := range ids {
-			if _, err := tx.Exec(ctx, `
-				UPDATE santa_configurations
-				SET position = $1
-				WHERE id = $2
-			`, position, id); err != nil {
-				return err
-			}
-		}
-		return nil
+		_, err = tx.Exec(ctx, `
+			UPDATE santa_configurations
+			SET position = -position - 1
+		`)
+		return err
 	})
 }
 
@@ -336,15 +322,15 @@ func replaceConfigurationLabels(ctx context.Context, tx pgx.Tx, configurationID 
 	); err != nil {
 		return err
 	}
-	for _, labelID := range labelIDs {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_configuration_labels (label_id, configuration_id)
-			VALUES ($1, $2)
-		`, labelID, configurationID); err != nil {
-			return err
-		}
+	if len(labelIDs) == 0 {
+		return nil
 	}
-	return nil
+	_, err := tx.Exec(ctx, `
+		INSERT INTO santa_configuration_labels (label_id, configuration_id)
+		SELECT label_id, $1
+		FROM unnest($2::bigint[]) AS label_id
+	`, configurationID, labelIDs)
+	return err
 }
 
 func validateConfigurationLabelsAvailable(
@@ -360,7 +346,6 @@ func validateConfigurationLabelsAvailable(
 	var conflict ConfigurationLabelConflictError
 	err := tx.QueryRow(ctx, `
 		SELECT
-			'configuration_label_conflict',
 			cl.label_id,
 			c.id,
 			c.name
@@ -371,7 +356,6 @@ func validateConfigurationLabelsAvailable(
 		ORDER BY cl.label_id
 		LIMIT 1
 	`, labelIDs, configurationID).Scan(
-		&conflict.Code,
 		&conflict.LabelID,
 		&conflict.ConfigurationID,
 		&conflict.ConfigurationName,
@@ -422,80 +406,66 @@ func (s *Store) attachConfigurationLabels(
 	return rows.Err()
 }
 
-func cleanConfigurationCreate(params ConfigurationCreate) (ConfigurationCreate, error) {
+func cleanConfigurationMutation(params ConfigurationMutation) (ConfigurationMutation, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	if params.Name == "" {
-		return ConfigurationCreate{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+		return ConfigurationMutation{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	if params.ClientMode == "" {
 		params.ClientMode = ClientModeMonitor
 	}
 	if !validDesiredClientMode(params.ClientMode) {
-		return ConfigurationCreate{}, fmt.Errorf("%w: unknown client mode", dbutil.ErrInvalidInput)
+		return ConfigurationMutation{}, fmt.Errorf("%w: unknown client mode", dbutil.ErrInvalidInput)
 	}
 	params.AllowedPathRegex = dbutil.CleanStringPtr(params.AllowedPathRegex)
 	params.BlockedPathRegex = dbutil.CleanStringPtr(params.BlockedPathRegex)
 	params.EventDetailURL = dbutil.CleanStringPtr(params.EventDetailURL)
 	params.EventDetailText = dbutil.CleanStringPtr(params.EventDetailText)
 	if params.FullSyncIntervalSeconds != nil && *params.FullSyncIntervalSeconds < 60 {
-		return ConfigurationCreate{}, fmt.Errorf(
+		return ConfigurationMutation{}, fmt.Errorf(
 			"%w: full_sync_interval_seconds must be at least 60",
 			dbutil.ErrInvalidInput,
 		)
 	}
-	params.RemovableMediaAction = cleanRemovableMediaActionPtr(params.RemovableMediaAction)
-	params.EncryptedRemovableMediaAction = cleanRemovableMediaActionPtr(params.EncryptedRemovableMediaAction)
-	params.RemovableMediaRemountFlags = cleanStringList(params.RemovableMediaRemountFlags)
-	params.EncryptedRemovableMediaRemountFlags = cleanStringList(params.EncryptedRemovableMediaRemountFlags)
-	if err := validateRemountFlags(
-		params.RemovableMediaAction,
-		params.RemovableMediaRemountFlags,
-		"removable_media_remount_flags",
-	); err != nil {
-		return ConfigurationCreate{}, err
-	}
-	if err := validateRemountFlags(
-		params.EncryptedRemovableMediaAction,
-		params.EncryptedRemovableMediaRemountFlags,
-		"encrypted_removable_media_remount_flags",
-	); err != nil {
-		return ConfigurationCreate{}, err
-	}
-	labelIDs, err := cleanLabelIDs(params.LabelIDs, "label_ids")
+	policy, err := cleanRemovableMediaPolicy(params.RemovableMediaPolicy, "removable_media_policy")
 	if err != nil {
-		return ConfigurationCreate{}, err
+		return ConfigurationMutation{}, err
+	}
+	encryptedPolicy, err := cleanRemovableMediaPolicy(
+		params.EncryptedRemovableMediaPolicy,
+		"encrypted_removable_media_policy",
+	)
+	if err != nil {
+		return ConfigurationMutation{}, err
+	}
+	params.RemovableMediaPolicy = policy
+	params.EncryptedRemovableMediaPolicy = encryptedPolicy
+	labelIDs, err := ids.CleanLabelIDs(params.LabelIDs, "label_ids")
+	if err != nil {
+		return ConfigurationMutation{}, err
 	}
 	params.LabelIDs = labelIDs
 	return params, nil
 }
 
-func cleanConfigurationUpdate(params ConfigurationUpdate) (ConfigurationUpdate, error) {
-	cleaned, err := cleanConfigurationCreate(ConfigurationCreate(params))
-	return ConfigurationUpdate(cleaned), err
-}
-
-func cleanRemovableMediaActionPtr(value *RemovableMediaAction) *RemovableMediaAction {
-	if value == nil {
-		return nil
+func cleanRemovableMediaPolicy(policy *RemovableMediaPolicy, name string) (*RemovableMediaPolicy, error) {
+	if policy == nil {
+		return nil, nil //nolint:nilnil // omitted policy is represented by a nil policy and no error.
 	}
-	cleaned := RemovableMediaAction(strings.TrimSpace(string(*value)))
-	if cleaned == "" {
-		return nil
+	cleaned := RemovableMediaPolicy{
+		Action:       RemovableMediaAction(strings.TrimSpace(string(policy.Action))),
+		RemountFlags: cleanStringList(policy.RemountFlags),
 	}
-	return &cleaned
-}
-
-func validateRemountFlags(action *RemovableMediaAction, flags []string, name string) error {
-	if action == nil {
-		return nil
+	if cleaned.Action == "" {
+		return nil, nil //nolint:nilnil // an empty policy object clears the optional policy.
 	}
-	if !validRemovableMediaAction(*action) {
-		return fmt.Errorf("%w: unknown removable media action", dbutil.ErrInvalidInput)
+	if !validRemovableMediaAction(cleaned.Action) {
+		return nil, fmt.Errorf("%w: unknown %s action", dbutil.ErrInvalidInput, name)
 	}
-	if *action == RemovableMediaActionRemount && len(flags) == 0 {
-		return fmt.Errorf("%w: %s are required when action is remount", dbutil.ErrInvalidInput, name)
+	if cleaned.Action == RemovableMediaActionRemount && len(cleaned.RemountFlags) == 0 {
+		return nil, fmt.Errorf("%w: %s.remount_flags are required when action is remount", dbutil.ErrInvalidInput, name)
 	}
-	return nil
+	return &cleaned, nil
 }
 
 func cleanStringList(values []string) []string {
@@ -511,21 +481,12 @@ func cleanStringList(values []string) []string {
 }
 
 func validDesiredClientMode(clientMode ClientMode) bool {
-	switch clientMode {
-	case ClientModeMonitor, ClientModeLockdown, ClientModeStandalone:
-		return true
-	default:
-		return false
-	}
+	return validClientModes[clientMode]
 }
 
 func validRemovableMediaAction(action RemovableMediaAction) bool {
-	switch action {
-	case RemovableMediaActionAllow, RemovableMediaActionBlock, RemovableMediaActionRemount:
-		return true
-	default:
-		return false
-	}
+	_, ok := validRemovableMediaActions[action]
+	return ok
 }
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {
@@ -560,23 +521,116 @@ func configurationOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-func configurationInsertArgs(configuration ConfigurationCreate) []any {
-	return []any{
-		configuration.Name,
-		configuration.ClientMode,
-		configuration.EnableBundles,
-		configuration.EnableTransitiveRules,
-		configuration.EnableAllEventUpload,
-		configuration.FullSyncIntervalSeconds,
-		configuration.BatchSize,
-		configuration.AllowedPathRegex,
-		configuration.BlockedPathRegex,
-		configuration.RemovableMediaAction,
-		nilIfEmptyStrings(configuration.RemovableMediaRemountFlags),
-		configuration.EncryptedRemovableMediaAction,
-		nilIfEmptyStrings(configuration.EncryptedRemovableMediaRemountFlags),
-		configuration.EventDetailURL,
-		configuration.EventDetailText,
+func createConfigurationParams(configuration ConfigurationMutation) sqlc.CreateSantaConfigurationParams {
+	removableMediaAction, removableMediaFlags := removableMediaPolicySQLC(configuration.RemovableMediaPolicy)
+	encryptedRemovableMediaAction, encryptedRemovableMediaFlags := removableMediaPolicySQLC(
+		configuration.EncryptedRemovableMediaPolicy,
+	)
+	return sqlc.CreateSantaConfigurationParams{
+		Name:                                configuration.Name,
+		ClientMode:                          sqlc.SantaClientMode(configuration.ClientMode),
+		EnableBundles:                       configuration.EnableBundles,
+		EnableTransitiveRules:               configuration.EnableTransitiveRules,
+		EnableAllEventUpload:                configuration.EnableAllEventUpload,
+		FullSyncIntervalSeconds:             int32Ptr(configuration.FullSyncIntervalSeconds),
+		BatchSize:                           int32Ptr(configuration.BatchSize),
+		AllowedPathRegex:                    configuration.AllowedPathRegex,
+		BlockedPathRegex:                    configuration.BlockedPathRegex,
+		RemovableMediaAction:                removableMediaAction,
+		RemovableMediaRemountFlags:          removableMediaFlags,
+		EncryptedRemovableMediaAction:       encryptedRemovableMediaAction,
+		EncryptedRemovableMediaRemountFlags: encryptedRemovableMediaFlags,
+		EventDetailURL:                      configuration.EventDetailURL,
+		EventDetailText:                     configuration.EventDetailText,
+	}
+}
+
+func updateConfigurationParams(id int64, configuration ConfigurationMutation) sqlc.UpdateSantaConfigurationParams {
+	params := createConfigurationParams(configuration)
+	return sqlc.UpdateSantaConfigurationParams{
+		Name:                                params.Name,
+		ClientMode:                          params.ClientMode,
+		EnableBundles:                       params.EnableBundles,
+		EnableTransitiveRules:               params.EnableTransitiveRules,
+		EnableAllEventUpload:                params.EnableAllEventUpload,
+		FullSyncIntervalSeconds:             params.FullSyncIntervalSeconds,
+		BatchSize:                           params.BatchSize,
+		AllowedPathRegex:                    params.AllowedPathRegex,
+		BlockedPathRegex:                    params.BlockedPathRegex,
+		RemovableMediaAction:                params.RemovableMediaAction,
+		RemovableMediaRemountFlags:          params.RemovableMediaRemountFlags,
+		EncryptedRemovableMediaAction:       params.EncryptedRemovableMediaAction,
+		EncryptedRemovableMediaRemountFlags: params.EncryptedRemovableMediaRemountFlags,
+		EventDetailURL:                      params.EventDetailURL,
+		EventDetailText:                     params.EventDetailText,
+		ID:                                  id,
+	}
+}
+
+func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
+	return &Configuration{
+		ID:                      row.ID,
+		Name:                    row.Name,
+		Position:                int(row.Position),
+		ClientMode:              ClientMode(row.ClientMode),
+		EnableBundles:           row.EnableBundles,
+		EnableTransitiveRules:   row.EnableTransitiveRules,
+		EnableAllEventUpload:    row.EnableAllEventUpload,
+		FullSyncIntervalSeconds: intPtrFromSQLC(row.FullSyncIntervalSeconds),
+		BatchSize:               intPtrFromSQLC(row.BatchSize),
+		AllowedPathRegex:        row.AllowedPathRegex,
+		BlockedPathRegex:        row.BlockedPathRegex,
+		RemovableMediaPolicy: removableMediaPolicyFromSQLC(
+			row.RemovableMediaAction,
+			row.RemovableMediaRemountFlags,
+		),
+		EncryptedRemovableMediaPolicy: removableMediaPolicyFromSQLC(
+			row.EncryptedRemovableMediaAction,
+			row.EncryptedRemovableMediaRemountFlags,
+		),
+		EventDetailURL:  row.EventDetailURL,
+		EventDetailText: row.EventDetailText,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
+	}
+}
+
+func int32Ptr(value *int) *int32 {
+	if value == nil {
+		return nil
+	}
+	converted := int32(*value)
+	return &converted
+}
+
+func intPtrFromSQLC(value *int32) *int {
+	if value == nil {
+		return nil
+	}
+	converted := int(*value)
+	return &converted
+}
+
+func removableMediaPolicySQLC(
+	policy *RemovableMediaPolicy,
+) (*sqlc.SantaRemovableMediaAction, []string) {
+	if policy == nil {
+		return nil, nil
+	}
+	action := sqlc.SantaRemovableMediaAction(policy.Action)
+	return &action, nilIfEmptyStrings(policy.RemountFlags)
+}
+
+func removableMediaPolicyFromSQLC(
+	action *sqlc.SantaRemovableMediaAction,
+	flags []string,
+) *RemovableMediaPolicy {
+	if action == nil {
+		return nil
+	}
+	return &RemovableMediaPolicy{
+		Action:       RemovableMediaAction(*action),
+		RemountFlags: flags,
 	}
 }
 
@@ -599,7 +653,9 @@ func scanConfigurationRow(row pgx.Row) (*Configuration, error) {
 	var allowedPathRegex pgtype.Text
 	var blockedPathRegex pgtype.Text
 	var removableMediaAction pgtype.Text
+	var removableMediaRemountFlags []string
 	var encryptedRemovableMediaAction pgtype.Text
+	var encryptedRemovableMediaRemountFlags []string
 	var eventDetailURL pgtype.Text
 	var eventDetailText pgtype.Text
 
@@ -616,9 +672,9 @@ func scanConfigurationRow(row pgx.Row) (*Configuration, error) {
 		&allowedPathRegex,
 		&blockedPathRegex,
 		&removableMediaAction,
-		&configuration.RemovableMediaRemountFlags,
+		&removableMediaRemountFlags,
 		&encryptedRemovableMediaAction,
-		&configuration.EncryptedRemovableMediaRemountFlags,
+		&encryptedRemovableMediaRemountFlags,
 		&eventDetailURL,
 		&eventDetailText,
 		&configuration.CreatedAt,
@@ -638,7 +694,9 @@ func scanConfigurationRow(row pgx.Row) (*Configuration, error) {
 		allowedPathRegex,
 		blockedPathRegex,
 		removableMediaAction,
+		removableMediaRemountFlags,
 		encryptedRemovableMediaAction,
+		encryptedRemovableMediaRemountFlags,
 		eventDetailURL,
 		eventDetailText,
 	)
@@ -653,9 +711,9 @@ func scanResolvedConfigurationRow(row pgx.Row) (*ResolvedConfiguration, error) {
 	return &ResolvedConfiguration{Configuration: *configuration, MatchedViaLabel: label}, nil
 }
 
-func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *MatchedLabel, error) {
+func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *LabelMatch, error) {
 	var configuration Configuration
-	var label MatchedLabel
+	var label LabelMatch
 	var clientMode string
 	var fullSyncInterval pgtype.Int4
 	var batchSize pgtype.Int4
@@ -665,7 +723,9 @@ func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *MatchedLabe
 	var allowedPathRegex pgtype.Text
 	var blockedPathRegex pgtype.Text
 	var removableMediaAction pgtype.Text
+	var removableMediaRemountFlags []string
 	var encryptedRemovableMediaAction pgtype.Text
+	var encryptedRemovableMediaRemountFlags []string
 	var eventDetailURL pgtype.Text
 	var eventDetailText pgtype.Text
 
@@ -682,9 +742,9 @@ func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *MatchedLabe
 		&allowedPathRegex,
 		&blockedPathRegex,
 		&removableMediaAction,
-		&configuration.RemovableMediaRemountFlags,
+		&removableMediaRemountFlags,
 		&encryptedRemovableMediaAction,
-		&configuration.EncryptedRemovableMediaRemountFlags,
+		&encryptedRemovableMediaRemountFlags,
 		&eventDetailURL,
 		&eventDetailText,
 		&configuration.CreatedAt,
@@ -706,7 +766,9 @@ func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *MatchedLabe
 		allowedPathRegex,
 		blockedPathRegex,
 		removableMediaAction,
+		removableMediaRemountFlags,
 		encryptedRemovableMediaAction,
+		encryptedRemovableMediaRemountFlags,
 		eventDetailURL,
 		eventDetailText,
 	)
@@ -724,7 +786,9 @@ func hydrateConfiguration(
 	allowedPathRegex pgtype.Text,
 	blockedPathRegex pgtype.Text,
 	removableMediaAction pgtype.Text,
+	removableMediaRemountFlags []string,
 	encryptedRemovableMediaAction pgtype.Text,
+	encryptedRemovableMediaRemountFlags []string,
 	eventDetailURL pgtype.Text,
 	eventDetailText pgtype.Text,
 ) {
@@ -736,8 +800,14 @@ func hydrateConfiguration(
 	configuration.BatchSize = intPtrFromPG(batchSize)
 	configuration.AllowedPathRegex = stringPtrFromPG(allowedPathRegex)
 	configuration.BlockedPathRegex = stringPtrFromPG(blockedPathRegex)
-	configuration.RemovableMediaAction = removableMediaActionPtrFromPG(removableMediaAction)
-	configuration.EncryptedRemovableMediaAction = removableMediaActionPtrFromPG(encryptedRemovableMediaAction)
+	configuration.RemovableMediaPolicy = removableMediaPolicyFromPG(
+		removableMediaAction,
+		removableMediaRemountFlags,
+	)
+	configuration.EncryptedRemovableMediaPolicy = removableMediaPolicyFromPG(
+		encryptedRemovableMediaAction,
+		encryptedRemovableMediaRemountFlags,
+	)
 	configuration.EventDetailURL = stringPtrFromPG(eventDetailURL)
 	configuration.EventDetailText = stringPtrFromPG(eventDetailText)
 }
@@ -764,12 +834,14 @@ func stringPtrFromPG(value pgtype.Text) *string {
 	return &value.String
 }
 
-func removableMediaActionPtrFromPG(value pgtype.Text) *RemovableMediaAction {
+func removableMediaPolicyFromPG(value pgtype.Text, flags []string) *RemovableMediaPolicy {
 	if !value.Valid {
 		return nil
 	}
-	action := RemovableMediaAction(value.String)
-	return &action
+	return &RemovableMediaPolicy{
+		Action:       RemovableMediaAction(value.String),
+		RemountFlags: flags,
+	}
 }
 
 func nilIfEmptyStrings(values []string) []string {

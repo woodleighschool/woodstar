@@ -18,6 +18,13 @@ const (
 	hostResource = "host"
 )
 
+// hostDetailBody is the host detail response with capability-enriched fields.
+// Capability packages contribute their slice through registered enrichers.
+type hostDetailBody struct {
+	hosts.HostDetail
+	Santa *santa.HostState `json:"santa,omitempty"`
+}
+
 type hostListOutput struct {
 	Body paginatedBody[hosts.Host]
 }
@@ -26,17 +33,8 @@ type hostDetailOutput struct {
 	Body hostDetailBody
 }
 
-type hostDetailBody struct {
-	hosts.HostDetail
-	Santa *santa.HostState `json:"santa,omitempty"`
-}
-
 type hostSoftwareOutput struct {
 	Body paginatedBody[software.HostSoftwareRow]
-}
-
-type hostSantaEffectiveRulesOutput struct {
-	Body paginatedBody[santa.EffectiveRuleStatus]
 }
 
 type hostGetInput struct {
@@ -95,14 +93,6 @@ type hostSoftwareInput struct {
 	Source         []string `query:"source,omitempty"`
 }
 
-type hostSantaEffectiveRulesInput struct {
-	ID             string `path:"id"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
-}
-
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
 	id, err := parseResourceID(i.ID, hostResource)
 	if err != nil {
@@ -124,20 +114,22 @@ type hostBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
+// HostDetailEnricher attaches capability-specific data to a host detail response.
+type HostDetailEnricher = hosts.DetailEnricher[hostDetailBody]
+
 // RegisterHosts registers admin host inventory endpoints.
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
 	softwareStore *software.Store,
-	santaStore *santa.Store,
+	enrichers ...HostDetailEnricher,
 ) {
 	registerListHosts(api, hostStore)
-	registerGetHost(api, hostStore, santaStore)
+	registerGetHost(api, hostStore, enrichers)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
-	registerHostSantaEffectiveRules(api, hostStore, santaStore)
 }
 
 func registerListHosts(api huma.API, hostStore *hosts.Store) {
@@ -161,7 +153,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerGetHost(api huma.API, hostStore *hosts.Store, santaStore *santa.Store) {
+func registerGetHost(api huma.API, hostStore *hosts.Store, enrichers []HostDetailEnricher) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -186,12 +178,13 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, santaStore *santa.Sto
 			return nil, err
 		}
 		body := hostDetailBody{HostDetail: *detail}
-		if santaStore != nil {
-			santaDetail, err := santaStore.LoadHostState(ctx, id)
-			if err != nil {
+		for _, enricher := range enrichers {
+			if enricher == nil {
+				continue
+			}
+			if err := enricher.EnrichHostDetail(ctx, id, &body); err != nil {
 				return nil, err
 			}
-			body.Santa = santaDetail
 		}
 		return &hostDetailOutput{Body: body}, nil
 	})
@@ -266,43 +259,5 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 			return nil, resourceMutationError("software", err)
 		}
 		return &hostSoftwareOutput{Body: paginatedBody[software.HostSoftwareRow]{Items: rows, Count: count}}, nil
-	})
-}
-
-func registerHostSantaEffectiveRules(api huma.API, hostStore *hosts.Store, santaStore *santa.Store) {
-	huma.Register(api, huma.Operation{
-		OperationID: "list-host-santa-effective-rules",
-		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/santa/effective-rules",
-		Tags:        []string{hostsTag},
-		Summary:     "List effective Santa rules for a host",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostSantaEffectiveRulesInput) (*hostSantaEffectiveRulesOutput, error) {
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		if hostStore == nil || santaStore == nil {
-			return nil, huma.Error404NotFound("host not found")
-		}
-		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, err
-		}
-		rows, count, err := santaStore.ListEffectiveRulesForHost(ctx, id, santa.EffectiveRuleListParams{
-			ListParams: dbutil.ListParams{
-				Page:           input.Page,
-				PerPage:        input.PerPage,
-				OrderKey:       input.OrderKey,
-				OrderDirection: input.OrderDirection,
-			},
-		})
-		if err != nil {
-			return nil, resourceMutationError("Santa effective rule", err)
-		}
-		return &hostSantaEffectiveRulesOutput{
-			Body: paginatedBody[santa.EffectiveRuleStatus]{Items: rows, Count: count},
-		}, nil
 	})
 }

@@ -1,4 +1,4 @@
-package santa_test
+package rules_test
 
 import (
 	"errors"
@@ -10,35 +10,35 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platforms"
-	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
 func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := santa.NewStore(db)
+	store := rules.NewStore(db)
 	labelID := createSantaRuleLabel(t, db, "Santa Rule Validation")
 
 	invalidCases := []struct {
 		name   string
-		params santa.RuleCreate
+		params rules.RuleCreate
 	}{
-		{name: "missing type", params: santa.RuleCreate{Identifier: "abc123"}},
-		{name: "missing identifier", params: santa.RuleCreate{RuleType: santa.RuleTypeBinary}},
+		{name: "missing type", params: rules.RuleCreate{Identifier: "abc123"}},
+		{name: "missing identifier", params: rules.RuleCreate{RuleType: rules.RuleTypeBinary}},
 		{
 			name: "cel without expression",
-			params: santa.RuleCreate{
-				RuleType:   santa.RuleTypeBinary,
+			params: rules.RuleCreate{
+				RuleType:   rules.RuleTypeBinary,
 				Identifier: "abc123",
-				Includes:   []santa.RuleIncludeWrite{{Policy: santa.PolicyCEL, LabelIDs: []int64{labelID}}},
+				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyCEL, LabelIDs: []int64{labelID}}},
 			},
 		},
 		{
 			name: "non cel with expression",
-			params: santa.RuleCreate{
-				RuleType:   santa.RuleTypeBinary,
+			params: rules.RuleCreate{
+				RuleType:   rules.RuleTypeBinary,
 				Identifier: "abc123",
-				Includes: []santa.RuleIncludeWrite{{
-					Policy:        santa.PolicyAllowlist,
+				Includes: []rules.RuleIncludeWrite{{
+					Policy:        rules.PolicyAllowlist,
 					CELExpression: "target.path == '/Applications'",
 					LabelIDs:      []int64{labelID},
 				}},
@@ -46,10 +46,10 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		},
 		{
 			name: "include without labels",
-			params: santa.RuleCreate{
-				RuleType:   santa.RuleTypeBinary,
+			params: rules.RuleCreate{
+				RuleType:   rules.RuleTypeBinary,
 				Identifier: "abc123",
-				Includes:   []santa.RuleIncludeWrite{{Policy: santa.PolicyAllowlist}},
+				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist}},
 			},
 		},
 	}
@@ -62,14 +62,14 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		})
 	}
 
-	rule, err := store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:      santa.RuleTypeBinary,
+	rule, err := store.CreateRule(ctx, rules.RuleCreate{
+		RuleType:      rules.RuleTypeBinary,
 		Identifier:    " abc123 ",
 		Name:          " Example ",
 		CustomMessage: " Blocked ",
 		CustomURL:     " https://example.test ",
-		Includes: []santa.RuleIncludeWrite{{
-			Policy:   santa.PolicyAllowlist,
+		Includes: []rules.RuleIncludeWrite{{
+			Policy:   rules.PolicyAllowlist,
 			LabelIDs: []int64{labelID},
 		}},
 	})
@@ -80,12 +80,12 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		rule.CustomURL != "https://example.test" {
 		t.Fatalf("rule was not cleaned: %+v", rule)
 	}
-	if len(rule.Includes) != 1 || rule.Includes[0].Position != 0 || rule.Includes[0].Policy != santa.PolicyAllowlist {
+	if len(rule.Includes) != 1 || rule.Includes[0].Position != 0 || rule.Includes[0].Policy != rules.PolicyAllowlist {
 		t.Fatalf("includes = %+v, want one allowlist include at position 0", rule.Includes)
 	}
 
-	_, err = store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:   santa.RuleTypeBinary,
+	_, err = store.CreateRule(ctx, rules.RuleCreate{
+		RuleType:   rules.RuleTypeBinary,
 		Identifier: "abc123",
 	})
 	if !errors.Is(err, dbutil.ErrAlreadyExists) {
@@ -93,11 +93,11 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 
 	celExpression := "target.path.startsWith('/Applications')"
-	updated, err := store.UpdateRule(ctx, rule.ID, santa.RuleUpdate{
+	updated, err := store.UpdateRule(ctx, rule.ID, rules.RuleUpdate{
 		Name:          "Updated",
 		CustomMessage: "Updated message",
-		Includes: []santa.RuleIncludeWrite{{
-			Policy:        santa.PolicyCEL,
+		Includes: []rules.RuleIncludeWrite{{
+			Policy:        rules.PolicyCEL,
 			CELExpression: celExpression,
 			LabelIDs:      []int64{labelID},
 		}},
@@ -106,7 +106,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update rule: %v", err)
 	}
-	if updated.RuleType != santa.RuleTypeBinary || updated.Identifier != "abc123" {
+	if updated.RuleType != rules.RuleTypeBinary || updated.Identifier != "abc123" {
 		t.Fatalf("update changed immutable identity: %+v", updated)
 	}
 	if len(updated.Includes) != 1 || updated.Includes[0].CELExpression != celExpression {
@@ -121,7 +121,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
-	store := santa.NewStore(db)
+	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID: "santa-rule-resolver-host",
@@ -137,21 +137,21 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		t.Fatalf("set second label membership: %v", err)
 	}
 
-	effectiveRule, err := store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:   santa.RuleTypeBinary,
+	effectiveRule, err := store.CreateRule(ctx, rules.RuleCreate{
+		RuleType:   rules.RuleTypeBinary,
 		Identifier: "binary-sha",
-		Includes: []santa.RuleIncludeWrite{
-			{Policy: santa.PolicyBlocklist, LabelIDs: []int64{firstLabelID}},
-			{Policy: santa.PolicySilentBlocklist, LabelIDs: []int64{secondLabelID}},
+		Includes: []rules.RuleIncludeWrite{
+			{Policy: rules.PolicyBlocklist, LabelIDs: []int64{firstLabelID}},
+			{Policy: rules.PolicySilentBlocklist, LabelIDs: []int64{secondLabelID}},
 		},
 	})
 	if err != nil {
 		t.Fatalf("create effective rule: %v", err)
 	}
-	excludedRule, err := store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:        santa.RuleTypeTeamID,
+	excludedRule, err := store.CreateRule(ctx, rules.RuleCreate{
+		RuleType:        rules.RuleTypeTeamID,
 		Identifier:      "TEAMID",
-		Includes:        []santa.RuleIncludeWrite{{Policy: santa.PolicyAllowlist, LabelIDs: []int64{secondLabelID}}},
+		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelIDs: []int64{secondLabelID}}},
 		ExcludeLabelIDs: []int64{excludeLabelID},
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("effective rules = %+v, want exactly one", got)
 	}
-	if got[0].RuleID != effectiveRule.ID || got[0].Policy != santa.PolicySilentBlocklist {
+	if got[0].RuleID != effectiveRule.ID || got[0].Policy != rules.PolicySilentBlocklist {
 		t.Fatalf("effective rule = %+v, want second include to win", got[0])
 	}
 	if got[0].RuleID == excludedRule.ID {
@@ -178,16 +178,16 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 
 func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	store := santa.NewStore(db)
+	store := rules.NewStore(db)
 	firstLabelID := createSantaRuleLabel(t, db, "Santa Reorder First")
 	secondLabelID := createSantaRuleLabel(t, db, "Santa Reorder Second")
 
-	rule, err := store.CreateRule(ctx, santa.RuleCreate{
-		RuleType:   santa.RuleTypeCertificate,
+	rule, err := store.CreateRule(ctx, rules.RuleCreate{
+		RuleType:   rules.RuleTypeCertificate,
 		Identifier: "certificate-sha",
-		Includes: []santa.RuleIncludeWrite{
-			{Policy: santa.PolicyAllowlist, LabelIDs: []int64{firstLabelID}},
-			{Policy: santa.PolicyBlocklist, LabelIDs: []int64{secondLabelID}},
+		Includes: []rules.RuleIncludeWrite{
+			{Policy: rules.PolicyAllowlist, LabelIDs: []int64{firstLabelID}},
+			{Policy: rules.PolicyBlocklist, LabelIDs: []int64{secondLabelID}},
 		},
 	})
 	if err != nil {

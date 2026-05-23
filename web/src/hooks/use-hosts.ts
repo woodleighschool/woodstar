@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { paths } from "@/lib/api-schema";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -16,6 +17,9 @@ export type HostReportResultsResult = Schemas["HostReportResultsBody"];
 export type HostChecksResult = Schemas["CheckHostsOutputBody"];
 export type HostSantaEffectiveRulesResult = Schemas["PaginatedBodyEffectiveRuleStatus"];
 export type HostSantaEffectiveRule = Schemas["EffectiveRuleStatus"];
+export type HostSantaEffectiveRulesParams = NonNullable<
+  paths["/api/hosts/{id}/santa/effective-rules"]["get"]["parameters"]["query"]
+>;
 
 export interface ListParams {
   q?: string;
@@ -154,7 +158,7 @@ export function useHostChecks(id: string) {
   });
 }
 
-export function useHostSantaEffectiveRules(id: string, params: ListParams = {}) {
+export function useHostSantaEffectiveRules(id: string, params: HostSantaEffectiveRulesParams = {}) {
   const queryParams = {
     page: Math.max(1, params.page ?? 1),
     per_page: params.per_page ?? 100,

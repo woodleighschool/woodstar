@@ -2,8 +2,6 @@ package enrollment
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"strings"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/secret"
 )
 
 // Store persists enrollment credentials accepted by Orbit and osquery.
@@ -37,7 +36,7 @@ func (s *Store) List(ctx context.Context) ([]EnrollSecret, error) {
 }
 
 func (s *Store) Create(ctx context.Context) (EnrollSecret, error) {
-	value, err := randomSecret()
+	value, err := secret.Generate()
 	if err != nil {
 		return EnrollSecret{}, err
 	}
@@ -74,12 +73,4 @@ func enrollSecretFromRecord(row sqlc.EnrollSecret) EnrollSecret {
 		Value:     row.Value,
 		CreatedAt: row.CreatedAt,
 	}
-}
-
-func randomSecret() (string, error) {
-	var b [32]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b[:]), nil
 }

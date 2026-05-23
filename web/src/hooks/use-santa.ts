@@ -2,11 +2,12 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { paths } from "@/lib/api-schema";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type SantaConfiguration = Schemas["Configuration"];
-export type SantaConfigurationMutation = Schemas["ConfigurationCreate"];
+export type SantaConfigurationMutation = Schemas["ConfigurationMutation"];
 export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"];
 export type SantaEvent = Schemas["ExecutionEvent"];
 export type SantaEventPage = Schemas["EventPage"];
@@ -15,27 +16,10 @@ export type SantaRuleMutation = Schemas["RuleCreate"];
 export type SantaRuleUpdate = Schemas["RuleUpdate"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
 export type SantaSyncToken = Schemas["SyncToken"];
-export type CreatedSantaSyncToken = Schemas["CreatedSyncToken"];
 
-export interface SantaListParams {
-  q?: string;
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: string;
-}
-
-export interface SantaRuleListParams extends SantaListParams {
-  rule_type?: string;
-}
-
-export interface SantaEventListParams {
-  host_id?: string;
-  decision?: string;
-  since?: string;
-  limit?: number;
-  after?: string;
-}
+export type SantaListParams = NonNullable<paths["/api/santa/configurations"]["get"]["parameters"]["query"]>;
+export type SantaRuleListParams = NonNullable<paths["/api/santa/rules"]["get"]["parameters"]["query"]>;
+export type SantaEventListParams = NonNullable<paths["/api/santa/events"]["get"]["parameters"]["query"]>;
 
 export function useSantaConfigurations(params: SantaListParams = {}) {
   const queryParams = {
@@ -73,7 +57,7 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
 
 export function useSantaEvents(params: SantaEventListParams = {}) {
   const queryParams = {
-    host_id: nonEmpty(params.host_id),
+    host_id: params.host_id,
     decision: nonEmpty(params.decision),
     since: nonEmpty(params.since),
     limit: params.limit ?? 50,
@@ -185,7 +169,7 @@ export function useReorderSantaRuleIncludes(ruleID: number | null) {
 
 export function useCreateSantaSyncToken() {
   const queryClient = useQueryClient();
-  return useMutation<CreatedSantaSyncToken, ApiError>({
+  return useMutation<SantaSyncToken, ApiError>({
     mutationFn: () => unwrap(apiClient.POST("/api/santa/sync-tokens")),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaSyncTokens });

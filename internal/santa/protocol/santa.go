@@ -15,9 +15,13 @@ import (
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
 
 const (
@@ -32,60 +36,94 @@ var (
 	errRequestBodyTooBig = errors.New("santa sync request body too large")
 )
 
-// TokenVerifier verifies Santa bearer-token authorization headers.
-type TokenVerifier interface {
-	VerifyBearerToken(context.Context, string) (bool, error)
+// SyncTokenVerifier verifies Santa sync tokens parsed from bearer authorization.
+type SyncTokenVerifier interface {
+	VerifySyncToken(context.Context, string) (bool, error)
 }
 
-// Service handles decoded Santa sync requests.
-type Service interface {
-	HandlePreflight(context.Context, string, *syncv1.PreflightRequest) (*syncv1.PreflightResponse, error)
-	HandleEventUpload(context.Context, string, *syncv1.EventUploadRequest) (*syncv1.EventUploadResponse, error)
-	HandleRuleDownload(context.Context, string, *syncv1.RuleDownloadRequest) (*syncv1.RuleDownloadResponse, error)
-	HandlePostflight(context.Context, string, *syncv1.PostflightRequest) (*syncv1.PostflightResponse, error)
+// SyncService handles decoded Santa sync requests.
+type SyncService interface {
+	Preflight(context.Context, string, santasync.PreflightRequest) (santasync.PreflightResponse, error)
+	EventUpload(context.Context, string, santasync.EventUploadRequest) (santasync.EventUploadResponse, error)
+	RuleDownload(context.Context, string, santasync.RuleDownloadRequest) (santasync.RuleDownloadResponse, error)
+	Postflight(context.Context, string, santasync.PostflightRequest) (santasync.PostflightResponse, error)
 }
 
 type handler struct {
-	tokenVerifier TokenVerifier
-	service       Service
+	tokenVerifier SyncTokenVerifier
+	service       SyncService
 	logger        *slog.Logger
 }
 
 // RegisterSantaRoutes mounts Santa sync v1 endpoints on r.
-func RegisterSantaRoutes(r chi.Router, tokenVerifier TokenVerifier, service Service, logger *slog.Logger) {
+func RegisterSantaRoutes(r chi.Router, tokenVerifier SyncTokenVerifier, service SyncService, logger *slog.Logger) {
 	h := handler{
 		tokenVerifier: tokenVerifier,
 		service:       service,
 		logger:        logger,
 	}
-	r.Post("/api/santa/sync/preflight/{machine_id}", h.preflight)
-	r.Post("/api/santa/sync/eventupload/{machine_id}", h.eventUpload)
-	r.Post("/api/santa/sync/ruledownload/{machine_id}", h.ruleDownload)
-	r.Post("/api/santa/sync/postflight/{machine_id}", h.postflight)
+	r.Post("/santa/sync/preflight/{machine_id}", h.preflight)
+	r.Post("/santa/sync/eventupload/{machine_id}", h.eventUpload)
+	r.Post("/santa/sync/ruledownload/{machine_id}", h.ruleDownload)
+	r.Post("/santa/sync/postflight/{machine_id}", h.postflight)
 }
 
 func (h handler) preflight(w http.ResponseWriter, r *http.Request) {
-	handleSyncRequest(h, w, r, &syncv1.PreflightRequest{}, h.service.HandlePreflight)
+	handleSyncRequest(
+		h,
+		w,
+		r,
+		&syncv1.PreflightRequest{},
+		preflightRequestFromProto,
+		h.service.Preflight,
+		preflightResponseToProto,
+	)
 }
 
 func (h handler) eventUpload(w http.ResponseWriter, r *http.Request) {
-	handleSyncRequest(h, w, r, &syncv1.EventUploadRequest{}, h.service.HandleEventUpload)
+	handleSyncRequest(
+		h,
+		w,
+		r,
+		&syncv1.EventUploadRequest{},
+		eventUploadRequestFromProto,
+		h.service.EventUpload,
+		eventUploadResponseToProto,
+	)
 }
 
 func (h handler) ruleDownload(w http.ResponseWriter, r *http.Request) {
-	handleSyncRequest(h, w, r, &syncv1.RuleDownloadRequest{}, h.service.HandleRuleDownload)
+	handleSyncRequest(
+		h,
+		w,
+		r,
+		&syncv1.RuleDownloadRequest{},
+		ruleDownloadRequestFromProto,
+		h.service.RuleDownload,
+		ruleDownloadResponseToProto,
+	)
 }
 
 func (h handler) postflight(w http.ResponseWriter, r *http.Request) {
-	handleSyncRequest(h, w, r, &syncv1.PostflightRequest{}, h.service.HandlePostflight)
+	handleSyncRequest(
+		h,
+		w,
+		r,
+		&syncv1.PostflightRequest{},
+		postflightRequestFromProto,
+		h.service.Postflight,
+		postflightResponseToProto,
+	)
 }
 
-func handleSyncRequest[Req proto.Message, Resp proto.Message](
+func handleSyncRequest[ProtoReq proto.Message, DomainReq any, DomainResp any, ProtoResp proto.Message](
 	h handler,
 	w http.ResponseWriter,
 	r *http.Request,
-	req Req,
-	handle func(context.Context, string, Req) (Resp, error),
+	req ProtoReq,
+	fromProto func(ProtoReq) (DomainReq, error),
+	handle func(context.Context, string, DomainReq) (DomainResp, error),
+	toProto func(DomainResp) (ProtoResp, error),
 ) {
 	if err := h.authorize(r); err != nil {
 		h.writeError(w, r, err)
@@ -99,25 +137,153 @@ func handleSyncRequest[Req proto.Message, Resp proto.Message](
 		h.writeError(w, r, err)
 		return
 	}
-
-	resp, err := handle(r.Context(), chi.URLParam(r, "machine_id"), req)
+	domainReq, err := fromProto(req)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
-	if err := writeProtoResponse(w, resp); err != nil {
+
+	resp, err := handle(r.Context(), chi.URLParam(r, "machine_id"), domainReq)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	protoResp, err := toProto(resp)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	if err := writeProtoResponse(w, protoResp); err != nil {
 		h.log(r, http.StatusInternalServerError, err)
 		writeStatusOnly(w, http.StatusInternalServerError)
 	}
 }
 
+func preflightRequestFromProto(req *syncv1.PreflightRequest) (santasync.PreflightRequest, error) {
+	var sipStatus *int16
+	if req.GetSipStatus() != 0 {
+		value := int16(req.GetSipStatus())
+		sipStatus = &value
+	}
+	return santasync.PreflightRequest{
+		SerialNumber:      req.GetSerialNumber(),
+		Version:           req.GetSantaVersion(),
+		ClientMode:        clientModeFromProto(req.GetClientMode()),
+		RequestCleanSync:  req.GetRequestCleanSync(),
+		RulesHash:         req.GetRulesHash(),
+		PrimaryUser:       req.GetPrimaryUser(),
+		PrimaryUserGroups: req.GetPrimaryUserGroups(),
+		SIPStatus:         sipStatus,
+		OSBuild:           req.GetOsBuild(),
+		ModelIdentifier:   req.GetModelIdentifier(),
+	}, nil
+}
+
+func preflightResponseToProto(resp santasync.PreflightResponse) (*syncv1.PreflightResponse, error) {
+	syncType := protoSyncType(resp.SyncType)
+	out := &syncv1.PreflightResponse{SyncType: &syncType}
+	if resp.Configuration != nil {
+		applyConfigurationToPreflightResponse(out, resp.Configuration)
+	}
+	return out, nil
+}
+
+func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santasync.EventUploadRequest, error) {
+	events := make([]santaevents.ExecutionEventInput, 0, len(req.GetEvents()))
+	for _, event := range req.GetEvents() {
+		if event == nil {
+			continue
+		}
+		converted, err := executionEventFromProto(event)
+		if err != nil {
+			return santasync.EventUploadRequest{}, err
+		}
+		events = append(events, converted)
+	}
+	return santasync.EventUploadRequest{Events: events}, nil
+}
+
+func eventUploadResponseToProto(santasync.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
+	return &syncv1.EventUploadResponse{}, nil
+}
+
+func ruleDownloadRequestFromProto(*syncv1.RuleDownloadRequest) (santasync.RuleDownloadRequest, error) {
+	return santasync.RuleDownloadRequest{}, nil
+}
+
+func ruleDownloadResponseToProto(resp santasync.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
+	return &syncv1.RuleDownloadResponse{Rules: protoRulesFromSyncTargets(resp.Rules)}, nil
+}
+
+func postflightRequestFromProto(req *syncv1.PostflightRequest) (santasync.PostflightRequest, error) {
+	return santasync.PostflightRequest{
+		RulesHash:      req.GetRulesHash(),
+		RulesReceived:  int(req.GetRulesReceived()),
+		RulesProcessed: int(req.GetRulesProcessed()),
+	}, nil
+}
+
+func postflightResponseToProto(santasync.PostflightResponse) (*syncv1.PostflightResponse, error) {
+	return &syncv1.PostflightResponse{}, nil
+}
+
+func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInput, error) {
+	entitlements, err := entitlementJSON(event)
+	if err != nil {
+		return santaevents.ExecutionEventInput{}, err
+	}
+	return santaevents.ExecutionEventInput{
+		FileSHA256:           event.GetFileSha256(),
+		FilePath:             event.GetFilePath(),
+		FileName:             event.GetFileName(),
+		ExecutingUser:        event.GetExecutingUser(),
+		ExecutionTimeSeconds: event.GetExecutionTime(),
+		LoggedInUsers:        event.GetLoggedInUsers(),
+		CurrentSessions:      event.GetCurrentSessions(),
+		Decision:             decisionFromProto(event.GetDecision()),
+		BundleID:             event.GetFileBundleId(),
+		BundlePath:           event.GetFileBundlePath(),
+		SigningID:            event.GetSigningId(),
+		TeamID:               event.GetTeamId(),
+		CDHash:               event.GetCdhash(),
+		Entitlements:         entitlements,
+		SigningChain:         signingChainFromProto(event.GetSigningChain()),
+	}, nil
+}
+
+func entitlementJSON(event *syncv1.Event) ([]byte, error) {
+	entitlements := event.GetEntitlementInfo()
+	if entitlements == nil {
+		return nil, nil
+	}
+	return protojson.Marshal(entitlements)
+}
+
+func signingChainFromProto(chain []*syncv1.Certificate) []santaevents.CertificateInput {
+	out := make([]santaevents.CertificateInput, 0, len(chain))
+	for _, cert := range chain {
+		if cert == nil {
+			continue
+		}
+		out = append(out, santaevents.CertificateInput{
+			SHA256:     cert.GetSha256(),
+			CommonName: cert.GetCn(),
+			Org:        cert.GetOrg(),
+			OU:         cert.GetOu(),
+			ValidFrom:  cert.GetValidFrom(),
+			ValidUntil: cert.GetValidUntil(),
+		})
+	}
+	return out
+}
+
 func (h handler) authorize(r *http.Request) error {
-	authorization := r.Header.Get("Authorization")
-	if !validBearerHeader(authorization) {
+	token, ok := bearerToken(r.Header.Get("Authorization"))
+	if !ok {
 		return errUnauthorized
 	}
 
-	ok, err := h.tokenVerifier.VerifyBearerToken(r.Context(), authorization)
+	ok, err := h.tokenVerifier.VerifySyncToken(r.Context(), token)
 	if err != nil {
 		return err
 	}
@@ -127,10 +293,13 @@ func (h handler) authorize(r *http.Request) error {
 	return nil
 }
 
-func validBearerHeader(authorization string) bool {
+func bearerToken(authorization string) (string, bool) {
 	scheme, value, ok := strings.Cut(authorization, " ")
-	return ok && strings.EqualFold(scheme, "Bearer") && strings.TrimSpace(value) != "" &&
-		!strings.Contains(strings.TrimSpace(value), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	return value, value != "" && !strings.Contains(value, " ")
 }
 
 func validateTransportHeaders(r *http.Request) error {
@@ -194,6 +363,166 @@ func marshalCompressedProto(msg proto.Message) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, config *configurations.Configuration) {
+	resp.ClientMode = protoClientMode(config.ClientMode)
+	resp.EnableBundles = config.EnableBundles
+	resp.EnableTransitiveRules = config.EnableTransitiveRules
+	resp.EnableAllEventUpload = config.EnableAllEventUpload
+	if config.FullSyncIntervalSeconds != nil {
+		resp.FullSyncIntervalSeconds = uint32(*config.FullSyncIntervalSeconds)
+	}
+	if config.BatchSize != nil {
+		resp.BatchSize = uint32(*config.BatchSize)
+	}
+	resp.AllowedPathRegex = config.AllowedPathRegex
+	resp.BlockedPathRegex = config.BlockedPathRegex
+	resp.EventDetailUrl = config.EventDetailURL
+	resp.EventDetailText = config.EventDetailText
+	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(config.RemovableMediaPolicy)
+	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(config.EncryptedRemovableMediaPolicy)
+}
+
+func protoRemovableMediaPolicy(policy *configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
+	if policy == nil {
+		return nil
+	}
+	switch policy.Action {
+	case configurations.RemovableMediaActionAllow:
+		return &syncv1.RemovableMediaPolicy{Action: &syncv1.RemovableMediaPolicy_Allow{Allow: true}}
+	case configurations.RemovableMediaActionBlock:
+		return &syncv1.RemovableMediaPolicy{Action: &syncv1.RemovableMediaPolicy_Block{Block: true}}
+	case configurations.RemovableMediaActionRemount:
+		return &syncv1.RemovableMediaPolicy{
+			Action: &syncv1.RemovableMediaPolicy_Remount{
+				Remount: &syncv1.RemountPolicy{Flags: policy.RemountFlags},
+			},
+		}
+	default:
+		return nil
+	}
+}
+
+func clientModeFromProto(mode syncv1.ClientMode) configurations.ClientMode {
+	switch mode {
+	case syncv1.ClientMode_MONITOR:
+		return configurations.ClientModeMonitor
+	case syncv1.ClientMode_LOCKDOWN:
+		return configurations.ClientModeLockdown
+	case syncv1.ClientMode_STANDALONE:
+		return configurations.ClientModeStandalone
+	default:
+		return configurations.ClientModeUnknown
+	}
+}
+
+func protoClientMode(mode configurations.ClientMode) syncv1.ClientMode {
+	switch mode {
+	case configurations.ClientModeMonitor:
+		return syncv1.ClientMode_MONITOR
+	case configurations.ClientModeLockdown:
+		return syncv1.ClientMode_LOCKDOWN
+	case configurations.ClientModeStandalone:
+		return syncv1.ClientMode_STANDALONE
+	default:
+		return syncv1.ClientMode_UNKNOWN_CLIENT_MODE
+	}
+}
+
+func protoSyncType(syncType santasync.SyncType) syncv1.SyncType {
+	switch syncType {
+	case santasync.SyncTypeClean:
+		return syncv1.SyncType_CLEAN
+	default:
+		return syncv1.SyncType_NORMAL
+	}
+}
+
+func protoRulesFromSyncTargets(targets []santasync.Target) []*syncv1.Rule {
+	rules := make([]*syncv1.Rule, 0, len(targets))
+	for _, target := range targets {
+		rules = append(rules, &syncv1.Rule{
+			Identifier: target.Identifier,
+			RuleType:   protoRuleType(target.RuleType),
+			Policy:     protoPolicy(target.Policy),
+			CelExpr:    target.CELExpression,
+			CustomMsg:  target.CustomMessage,
+			CustomUrl:  target.CustomURL,
+		})
+	}
+	return rules
+}
+
+func protoRuleType(ruleType string) syncv1.RuleType {
+	switch santarules.RuleType(ruleType) {
+	case santarules.RuleTypeBinary:
+		return syncv1.RuleType_BINARY
+	case santarules.RuleTypeCertificate:
+		return syncv1.RuleType_CERTIFICATE
+	case santarules.RuleTypeTeamID:
+		return syncv1.RuleType_TEAMID
+	case santarules.RuleTypeSigningID:
+		return syncv1.RuleType_SIGNINGID
+	case santarules.RuleTypeCDHash:
+		return syncv1.RuleType_CDHASH
+	default:
+		return syncv1.RuleType_RULETYPE_UNKNOWN
+	}
+}
+
+func protoPolicy(policy string) syncv1.Policy {
+	switch santarules.Policy(policy) {
+	case santarules.PolicyAllowlist:
+		return syncv1.Policy_ALLOWLIST
+	case santarules.PolicyAllowlistCompiler:
+		return syncv1.Policy_ALLOWLIST_COMPILER
+	case santarules.PolicyBlocklist:
+		return syncv1.Policy_BLOCKLIST
+	case santarules.PolicySilentBlocklist:
+		return syncv1.Policy_SILENT_BLOCKLIST
+	case santarules.PolicyCEL:
+		return syncv1.Policy_CEL
+	default:
+		return syncv1.Policy_POLICY_UNKNOWN
+	}
+}
+
+func decisionFromProto(decision syncv1.Decision) santaevents.ExecutionDecision {
+	switch decision {
+	case syncv1.Decision_ALLOW_UNKNOWN:
+		return santaevents.ExecutionDecisionAllowUnknown
+	case syncv1.Decision_ALLOW_BINARY:
+		return santaevents.ExecutionDecisionAllowBinary
+	case syncv1.Decision_ALLOW_CERTIFICATE:
+		return santaevents.ExecutionDecisionAllowCertificate
+	case syncv1.Decision_ALLOW_SCOPE:
+		return santaevents.ExecutionDecisionAllowScope
+	case syncv1.Decision_ALLOW_TEAMID:
+		return santaevents.ExecutionDecisionAllowTeamID
+	case syncv1.Decision_ALLOW_SIGNINGID:
+		return santaevents.ExecutionDecisionAllowSigningID
+	case syncv1.Decision_ALLOW_CDHASH:
+		return santaevents.ExecutionDecisionAllowCDHash
+	case syncv1.Decision_BLOCK_UNKNOWN:
+		return santaevents.ExecutionDecisionBlockUnknown
+	case syncv1.Decision_BLOCK_BINARY:
+		return santaevents.ExecutionDecisionBlockBinary
+	case syncv1.Decision_BLOCK_CERTIFICATE:
+		return santaevents.ExecutionDecisionBlockCertificate
+	case syncv1.Decision_BLOCK_SCOPE:
+		return santaevents.ExecutionDecisionBlockScope
+	case syncv1.Decision_BLOCK_TEAMID:
+		return santaevents.ExecutionDecisionBlockTeamID
+	case syncv1.Decision_BLOCK_SIGNINGID:
+		return santaevents.ExecutionDecisionBlockSigningID
+	case syncv1.Decision_BLOCK_CDHASH:
+		return santaevents.ExecutionDecisionBlockCDHash
+	case syncv1.Decision_BUNDLE_BINARY:
+		return santaevents.ExecutionDecisionBundleBinary
+	default:
+		return santaevents.ExecutionDecisionUnknown
+	}
+}
+
 func (h handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	statusCode := statusCodeForError(err)
 	h.log(r, statusCode, err)
@@ -208,8 +537,6 @@ func statusCodeForError(err error) int {
 		return http.StatusUnsupportedMediaType
 	case errors.Is(err, errInvalidSyncBody), errors.Is(err, errRequestBodyTooBig):
 		return http.StatusBadRequest
-	case errors.Is(err, santa.ErrNotImplemented):
-		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError
 	}

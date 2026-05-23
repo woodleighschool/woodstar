@@ -98,6 +98,282 @@ func (ns NullPlatform) Value() (driver.Value, error) {
 	return string(ns.Platform), nil
 }
 
+type SantaClientMode string
+
+const (
+	SantaClientModeUnknown    SantaClientMode = "unknown"
+	SantaClientModeMonitor    SantaClientMode = "monitor"
+	SantaClientModeLockdown   SantaClientMode = "lockdown"
+	SantaClientModeStandalone SantaClientMode = "standalone"
+)
+
+func (e *SantaClientMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaClientMode(s)
+	case string:
+		*e = SantaClientMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaClientMode: %T", src)
+	}
+	return nil
+}
+
+type NullSantaClientMode struct {
+	SantaClientMode SantaClientMode `json:"santa_client_mode"`
+	Valid           bool            `json:"valid"` // Valid is true if SantaClientMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaClientMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaClientMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaClientMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaClientMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaClientMode), nil
+}
+
+type SantaExecutionDecision string
+
+const (
+	SantaExecutionDecisionUnknown          SantaExecutionDecision = "unknown"
+	SantaExecutionDecisionAllowUnknown     SantaExecutionDecision = "allow_unknown"
+	SantaExecutionDecisionAllowBinary      SantaExecutionDecision = "allow_binary"
+	SantaExecutionDecisionAllowCertificate SantaExecutionDecision = "allow_certificate"
+	SantaExecutionDecisionAllowScope       SantaExecutionDecision = "allow_scope"
+	SantaExecutionDecisionAllowTeamid      SantaExecutionDecision = "allow_teamid"
+	SantaExecutionDecisionAllowSigningid   SantaExecutionDecision = "allow_signingid"
+	SantaExecutionDecisionAllowCdhash      SantaExecutionDecision = "allow_cdhash"
+	SantaExecutionDecisionBlockUnknown     SantaExecutionDecision = "block_unknown"
+	SantaExecutionDecisionBlockBinary      SantaExecutionDecision = "block_binary"
+	SantaExecutionDecisionBlockCertificate SantaExecutionDecision = "block_certificate"
+	SantaExecutionDecisionBlockScope       SantaExecutionDecision = "block_scope"
+	SantaExecutionDecisionBlockTeamid      SantaExecutionDecision = "block_teamid"
+	SantaExecutionDecisionBlockSigningid   SantaExecutionDecision = "block_signingid"
+	SantaExecutionDecisionBlockCdhash      SantaExecutionDecision = "block_cdhash"
+	SantaExecutionDecisionBundleBinary     SantaExecutionDecision = "bundle_binary"
+)
+
+func (e *SantaExecutionDecision) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaExecutionDecision(s)
+	case string:
+		*e = SantaExecutionDecision(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaExecutionDecision: %T", src)
+	}
+	return nil
+}
+
+type NullSantaExecutionDecision struct {
+	SantaExecutionDecision SantaExecutionDecision `json:"santa_execution_decision"`
+	Valid                  bool                   `json:"valid"` // Valid is true if SantaExecutionDecision is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaExecutionDecision) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaExecutionDecision, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaExecutionDecision.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaExecutionDecision) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaExecutionDecision), nil
+}
+
+type SantaPolicy string
+
+const (
+	SantaPolicyAllowlist         SantaPolicy = "allowlist"
+	SantaPolicyAllowlistCompiler SantaPolicy = "allowlist_compiler"
+	SantaPolicyBlocklist         SantaPolicy = "blocklist"
+	SantaPolicySilentBlocklist   SantaPolicy = "silent_blocklist"
+	SantaPolicyCel               SantaPolicy = "cel"
+)
+
+func (e *SantaPolicy) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaPolicy(s)
+	case string:
+		*e = SantaPolicy(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaPolicy: %T", src)
+	}
+	return nil
+}
+
+type NullSantaPolicy struct {
+	SantaPolicy SantaPolicy `json:"santa_policy"`
+	Valid       bool        `json:"valid"` // Valid is true if SantaPolicy is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaPolicy) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaPolicy, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaPolicy.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaPolicy) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaPolicy), nil
+}
+
+type SantaRemovableMediaAction string
+
+const (
+	SantaRemovableMediaActionAllow   SantaRemovableMediaAction = "allow"
+	SantaRemovableMediaActionBlock   SantaRemovableMediaAction = "block"
+	SantaRemovableMediaActionRemount SantaRemovableMediaAction = "remount"
+)
+
+func (e *SantaRemovableMediaAction) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaRemovableMediaAction(s)
+	case string:
+		*e = SantaRemovableMediaAction(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaRemovableMediaAction: %T", src)
+	}
+	return nil
+}
+
+type NullSantaRemovableMediaAction struct {
+	SantaRemovableMediaAction SantaRemovableMediaAction `json:"santa_removable_media_action"`
+	Valid                     bool                      `json:"valid"` // Valid is true if SantaRemovableMediaAction is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaRemovableMediaAction) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaRemovableMediaAction, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaRemovableMediaAction.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaRemovableMediaAction) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaRemovableMediaAction), nil
+}
+
+type SantaRuleType string
+
+const (
+	SantaRuleTypeBinary      SantaRuleType = "binary"
+	SantaRuleTypeCertificate SantaRuleType = "certificate"
+	SantaRuleTypeTeamid      SantaRuleType = "teamid"
+	SantaRuleTypeSigningid   SantaRuleType = "signingid"
+	SantaRuleTypeCdhash      SantaRuleType = "cdhash"
+)
+
+func (e *SantaRuleType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaRuleType(s)
+	case string:
+		*e = SantaRuleType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaRuleType: %T", src)
+	}
+	return nil
+}
+
+type NullSantaRuleType struct {
+	SantaRuleType SantaRuleType `json:"santa_rule_type"`
+	Valid         bool          `json:"valid"` // Valid is true if SantaRuleType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaRuleType) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaRuleType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaRuleType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaRuleType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaRuleType), nil
+}
+
+type SantaSyncTargetPhase string
+
+const (
+	SantaSyncTargetPhaseDesired SantaSyncTargetPhase = "desired"
+	SantaSyncTargetPhasePending SantaSyncTargetPhase = "pending"
+	SantaSyncTargetPhaseApplied SantaSyncTargetPhase = "applied"
+)
+
+func (e *SantaSyncTargetPhase) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaSyncTargetPhase(s)
+	case string:
+		*e = SantaSyncTargetPhase(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaSyncTargetPhase: %T", src)
+	}
+	return nil
+}
+
+type NullSantaSyncTargetPhase struct {
+	SantaSyncTargetPhase SantaSyncTargetPhase `json:"santa_sync_target_phase"`
+	Valid                bool                 `json:"valid"` // Valid is true if SantaSyncTargetPhase is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaSyncTargetPhase) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaSyncTargetPhase, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaSyncTargetPhase.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaSyncTargetPhase) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaSyncTargetPhase), nil
+}
+
 type UserRole string
 
 const (
@@ -388,6 +664,148 @@ type ReportResult struct {
 	HostID      int64     `json:"host_id"`
 	Data        []byte    `json:"data"`
 	LastFetched time.Time `json:"last_fetched"`
+}
+
+type SantaConfiguration struct {
+	ID                                  int64                      `json:"id"`
+	Name                                string                     `json:"name"`
+	Position                            int32                      `json:"position"`
+	ClientMode                          SantaClientMode            `json:"client_mode"`
+	EnableBundles                       *bool                      `json:"enable_bundles"`
+	EnableTransitiveRules               *bool                      `json:"enable_transitive_rules"`
+	EnableAllEventUpload                *bool                      `json:"enable_all_event_upload"`
+	FullSyncIntervalSeconds             *int32                     `json:"full_sync_interval_seconds"`
+	BatchSize                           *int32                     `json:"batch_size"`
+	AllowedPathRegex                    *string                    `json:"allowed_path_regex"`
+	BlockedPathRegex                    *string                    `json:"blocked_path_regex"`
+	RemovableMediaAction                *SantaRemovableMediaAction `json:"removable_media_action"`
+	RemovableMediaRemountFlags          []string                   `json:"removable_media_remount_flags"`
+	EncryptedRemovableMediaAction       *SantaRemovableMediaAction `json:"encrypted_removable_media_action"`
+	EncryptedRemovableMediaRemountFlags []string                   `json:"encrypted_removable_media_remount_flags"`
+	EventDetailURL                      *string                    `json:"event_detail_url"`
+	EventDetailText                     *string                    `json:"event_detail_text"`
+	CreatedAt                           time.Time                  `json:"created_at"`
+	UpdatedAt                           time.Time                  `json:"updated_at"`
+}
+
+type SantaConfigurationLabel struct {
+	LabelID         int64 `json:"label_id"`
+	ConfigurationID int64 `json:"configuration_id"`
+}
+
+type SantaExecutable struct {
+	ID             int64     `json:"id"`
+	Sha256         string    `json:"sha256"`
+	FileName       string    `json:"file_name"`
+	FileBundleID   string    `json:"file_bundle_id"`
+	FileBundlePath string    `json:"file_bundle_path"`
+	SigningID      string    `json:"signing_id"`
+	TeamID         string    `json:"team_id"`
+	Cdhash         string    `json:"cdhash"`
+	Entitlements   []byte    `json:"entitlements"`
+	FirstSeenAt    time.Time `json:"first_seen_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type SantaExecutableSigningChain struct {
+	ExecutableID   int64 `json:"executable_id"`
+	SigningChainID int64 `json:"signing_chain_id"`
+}
+
+type SantaExecutionEvent struct {
+	ID              int64                  `json:"id"`
+	HostID          int64                  `json:"host_id"`
+	ExecutableID    int64                  `json:"executable_id"`
+	FilePath        string                 `json:"file_path"`
+	ExecutingUser   string                 `json:"executing_user"`
+	LoggedInUsers   []string               `json:"logged_in_users"`
+	CurrentSessions []string               `json:"current_sessions"`
+	Decision        SantaExecutionDecision `json:"decision"`
+	OccurredAt      *time.Time             `json:"occurred_at"`
+	IngestedAt      time.Time              `json:"ingested_at"`
+}
+
+type SantaHost struct {
+	HostID             int64           `json:"host_id"`
+	MachineID          string          `json:"machine_id"`
+	SerialNumber       string          `json:"serial_number"`
+	SantaVersion       string          `json:"santa_version"`
+	ClientModeReported SantaClientMode `json:"client_mode_reported"`
+	PrimaryUser        string          `json:"primary_user"`
+	PrimaryUserGroups  []string        `json:"primary_user_groups"`
+	SipStatus          *int16          `json:"sip_status"`
+	OSBuild            string          `json:"os_build"`
+	ModelIdentifier    string          `json:"model_identifier"`
+	LastSeenAt         *time.Time      `json:"last_seen_at"`
+	EnrolledAt         time.Time       `json:"enrolled_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
+}
+
+type SantaRule struct {
+	ID            int64         `json:"id"`
+	RuleType      SantaRuleType `json:"rule_type"`
+	Identifier    string        `json:"identifier"`
+	Name          string        `json:"name"`
+	CustomMessage string        `json:"custom_message"`
+	CustomURL     string        `json:"custom_url"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+}
+
+type SantaRuleExcludeLabel struct {
+	RuleID  int64 `json:"rule_id"`
+	LabelID int64 `json:"label_id"`
+}
+
+type SantaRuleInclude struct {
+	ID            int64       `json:"id"`
+	RuleID        int64       `json:"rule_id"`
+	Position      int32       `json:"position"`
+	Policy        SantaPolicy `json:"policy"`
+	CelExpression *string     `json:"cel_expression"`
+}
+
+type SantaRuleIncludeLabel struct {
+	IncludeID int64 `json:"include_id"`
+	LabelID   int64 `json:"label_id"`
+}
+
+type SantaSigningChain struct {
+	ID          int64     `json:"id"`
+	Sha256      string    `json:"sha256"`
+	Entries     []byte    `json:"entries"`
+	FirstSeenAt time.Time `json:"first_seen_at"`
+}
+
+type SantaSyncState struct {
+	HostID                int64      `json:"host_id"`
+	ClientRulesHash       string     `json:"client_rules_hash"`
+	PendingFullSync       bool       `json:"pending_full_sync"`
+	PendingPreflightAt    *time.Time `json:"pending_preflight_at"`
+	LastRuleSyncAttemptAt *time.Time `json:"last_rule_sync_attempt_at"`
+	LastRuleSyncSuccessAt *time.Time `json:"last_rule_sync_success_at"`
+	LastCleanSyncAt       *time.Time `json:"last_clean_sync_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+}
+
+type SantaSyncTarget struct {
+	HostID        int64                `json:"host_id"`
+	Phase         SantaSyncTargetPhase `json:"phase"`
+	Position      int32                `json:"position"`
+	RuleType      SantaRuleType        `json:"rule_type"`
+	Identifier    string               `json:"identifier"`
+	Policy        SantaPolicy          `json:"policy"`
+	CelExpression string               `json:"cel_expression"`
+	CustomMessage string               `json:"custom_message"`
+	CustomURL     string               `json:"custom_url"`
+	PayloadHash   string               `json:"payload_hash"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+}
+
+type SantaSyncToken struct {
+	ID        int64     `json:"id"`
+	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Session struct {

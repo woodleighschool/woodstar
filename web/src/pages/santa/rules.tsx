@@ -1,8 +1,11 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -34,6 +37,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleUpdate,
 } from "@/hooks/use-santa";
+import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
 const RULE_TYPES = [
   { value: "binary", label: "Binary" },
@@ -74,19 +78,69 @@ const emptyRuleForm: RuleFormState = {
 export function SantaRulesPage() {
   const search = useSearch({ strict: false });
   const navigate = useNavigate();
+  const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const looseSearch = search as Record<string, unknown>;
   const ruleType = typeof looseSearch.rule_type === "string" ? looseSearch.rule_type : undefined;
   const query = useSantaRules({
     q: typeof search.q === "string" ? search.q : undefined,
     rule_type: ruleType,
-    per_page: 500,
+    page: state.page,
+    per_page: state.perPage,
+    order_key: state.orderKey,
+    order_direction: state.orderDirection,
   });
   const create = useCreateSantaRule();
   const update = useUpdateSantaRule();
   const remove = useDeleteSantaRule();
   const [editing, setEditing] = useState<SantaRule | "new" | null>(null);
   const rows = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = !!search.q || !!ruleType;
+
+  const columns: ColumnDef<SantaRule>[] = [
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => (
+        <div className="grid gap-1">
+          <span className="font-medium">{row.original.name || row.original.identifier}</span>
+          <span className="text-muted-foreground truncate font-mono text-xs">{row.original.identifier}</span>
+        </div>
+      ),
+    },
+    {
+      id: "rule_type",
+      accessorKey: "rule_type",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
+      cell: ({ row }) => <Badge variant="secondary">{row.original.rule_type}</Badge>,
+    },
+    {
+      id: "includes",
+      header: "Includes",
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.includes?.length ? (
+          <span className="text-muted-foreground text-sm tabular-nums">{row.original.includes.length}</span>
+        ) : (
+          <Badge variant="outline">inactive</Badge>
+        ),
+    },
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <RuleRowActions
+          pending={remove.isPending}
+          onEdit={() => setEditing(row.original)}
+          onDelete={() => remove.mutate(row.original.id)}
+        />
+      ),
+      meta: { headClassName: "w-12" },
+    },
+  ];
 
   return (
     <PageShell>
@@ -101,55 +155,61 @@ export function SantaRulesPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <DataTableSearch value={draft} onChange={setDraft} placeholder="Search rules" label="Search rules" />
-        <DataTableFacetedFilter
-          title="Rule type"
-          selected={ruleType ? [ruleType] : []}
-          options={[...RULE_TYPES]}
-          singleSelect
-          onChange={(next) =>
-            void navigate({
-              search: ((prev: Record<string, unknown>) => ({ ...prev, rule_type: next[0], page: undefined })) as never,
-              replace: true,
-            })
-          }
-        />
-      </div>
-
       {query.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load rules</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
-      ) : query.isLoading ? (
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading...
-        </div>
-      ) : rows.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ListChecks />
-            </EmptyMedia>
-            <EmptyTitle>No rules</EmptyTitle>
-            <EmptyDescription>Add a Santa rule to make it effective for matching labels.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
       ) : (
-        <div className="rounded-md border">
-          <div className="divide-y">
-            {rows.map((rule) => (
-              <RuleRow
-                key={rule.id}
-                rule={rule}
-                pending={remove.isPending}
-                onEdit={() => setEditing(rule)}
-                onDelete={() => remove.mutate(rule.id)}
+        <DataTable
+          columns={columns}
+          data={rows}
+          totalCount={totalCount}
+          page={state.page}
+          perPage={state.perPage}
+          sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
+          onPageChange={setters.setPage}
+          onPerPageChange={setters.setPerPage}
+          onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+          isLoading={query.isLoading}
+          onRowClick={setEditing}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search rules" label="Search rules" />
+              <DataTableFacetedFilter
+                title="Rule type"
+                selected={ruleType ? [ruleType] : []}
+                options={[...RULE_TYPES]}
+                singleSelect
+                onChange={(next) =>
+                  void navigate({
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      rule_type: next[0],
+                      page: undefined,
+                    })) as never,
+                    replace: true,
+                  })
+                }
               />
-            ))}
-          </div>
-        </div>
+            </div>
+          }
+          empty={
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ListChecks />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matches" : "No rules yet"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "No Santa rules matched the current filters."
+                    : "Add a Santa rule to make it effective for matching labels."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
+        />
       )}
 
       <RuleDialog
@@ -175,47 +235,31 @@ export function SantaRulesPage() {
   );
 }
 
-function RuleRow({
-  rule,
+function RuleRowActions({
   pending,
   onEdit,
   onDelete,
 }: {
-  rule: SantaRule;
   pending: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="grid gap-3 p-3 md:grid-cols-[1fr_auto] md:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{rule.name || rule.identifier}</span>
-          <Badge variant="secondary">{rule.rule_type}</Badge>
-          {rule.includes?.length ? (
-            <span className="text-muted-foreground text-xs tabular-nums">{rule.includes.length} includes</span>
-          ) : (
-            <Badge variant="outline">inactive</Badge>
-          )}
-        </div>
-        <div className="text-muted-foreground truncate font-mono text-xs">{rule.identifier}</div>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="icon" disabled={pending}>
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" disabled={pending}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
