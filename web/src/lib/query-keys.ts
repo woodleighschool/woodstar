@@ -20,5 +20,5 @@ export const queryKeys = {
   checkHosts: (id: string) => ["checks", id, "hosts"] as const,
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: string) => ["software", id] as const,
-  enrollSecrets: ["orbit", "enroll-secrets"] as const,
+  enrollSecrets: ["enrollment", "enroll-secrets"] as const,
 };

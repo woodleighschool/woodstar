@@ -38,36 +38,6 @@ func TestParseResourceID(t *testing.T) {
 	}
 }
 
-func TestHostListInputParams(t *testing.T) {
-	input := hostListInput{
-		Q:               " laptop ",
-		Page:            2,
-		PerPage:         25,
-		OrderKey:        "display_name",
-		OrderDirection:  "desc",
-		Status:          " online ",
-		Platform:        " darwin ",
-		LabelID:         "7",
-		SoftwareTitleID: "12",
-		SoftwareID:      "40",
-	}
-
-	got, err := input.params()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got.Q != "laptop" || got.Page != 2 || got.PerPage != 25 {
-		t.Fatalf("list params = %#v", got.ListParams)
-	}
-	if got.OrderKey != "display_name" || got.OrderDirection != "desc" {
-		t.Fatalf("sort params = %#v", got.ListParams)
-	}
-	if got.Status != "online" || got.Platform != "darwin" || got.LabelID != 7 ||
-		got.SoftwareTitleID != 12 || got.SoftwareID != 40 {
-		t.Fatalf("params = %#v", got)
-	}
-}
-
 func TestHostListInputParamsRejectInvalidSoftwareFilter(t *testing.T) {
 	input := hostListInput{SoftwareTitleID: "nope"}
 
@@ -89,35 +59,5 @@ func TestHostBulkDeleteInputIDs(t *testing.T) {
 func TestHostBulkDeleteInputRejectsEmptyIDs(t *testing.T) {
 	if _, err := (bulkIDsBody{}).ids("host IDs"); err == nil {
 		t.Fatal("expected error, got nil")
-	}
-}
-
-func TestHostSoftwareInputParams(t *testing.T) {
-	input := hostSoftwareInput{
-		ID:             "9",
-		Q:              " 1Password ",
-		Page:           1,
-		PerPage:        100,
-		OrderKey:       "name",
-		OrderDirection: "asc",
-		Source:         []string{"apps,chrome_extensions", "apps"},
-	}
-
-	id, params, err := input.params()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if id != 9 {
-		t.Fatalf("id = %d, want 9", id)
-	}
-	if params.Q != "1Password" || params.Page != 1 || params.PerPage != 100 {
-		t.Fatalf("list params = %#v", params.ListParams)
-	}
-	if params.OrderKey != "name" || params.OrderDirection != "asc" {
-		t.Fatalf("sort params = %#v", params.ListParams)
-	}
-	if len(params.SoftwareSources) != 2 || params.SoftwareSources[0] != "apps" ||
-		params.SoftwareSources[1] != "chrome_extensions" {
-		t.Fatalf("sources = %#v", params.SoftwareSources)
 	}
 }

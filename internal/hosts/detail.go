@@ -1,108 +1,218 @@
 package hosts
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
+	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
-// ParseHostDetails converts osquery enroll details into inventory fields.
-func ParseHostDetails(details map[string]map[string]string) HostDetailUpdate {
-	var update HostDetailUpdate
-	if row := details["system_info"]; row != nil {
-		update.HardwareUUID = strings.TrimSpace(row["uuid"])
-		update.Hostname = strings.TrimSpace(row["hostname"])
-		update.ComputerName = strings.TrimSpace(row["computer_name"])
-		update.HardwareSerial = strings.TrimSpace(row["hardware_serial"])
-		update.HardwareModel = strings.TrimSpace(row["hardware_model"])
-		update.HardwareVersion = strings.TrimSpace(row["hardware_version"])
-		update.HardwareVendor = strings.TrimSpace(row["hardware_vendor"])
-		update.CPUType = strings.TrimSpace(row["cpu_type"])
-		update.CPUSubtype = strings.TrimSpace(row["cpu_subtype"])
-		update.CPUBrand = strings.TrimSpace(row["cpu_brand"])
-		update.CPULogicalCores = parseInt(row["cpu_logical_cores"])
-		update.CPUPhysicalCores = parseInt(row["cpu_physical_cores"])
-		update.PhysicalMemory = parseInt64(row["physical_memory"])
+func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error) {
+	batch := &pgx.Batch{}
+	batch.Queue(hostDetailLabelsSQL, host.ID)
+	batch.Queue(hostDetailUsersSQL, host.ID)
+	batch.Queue(hostDetailBatteriesSQL, host.ID)
+	batch.Queue(hostDetailCertificatesSQL, host.ID)
+	batch.Queue(hostDetailDeviceMappingsSQL, host.ID)
+
+	results := s.db.Pool().SendBatch(ctx, batch)
+	defer results.Close()
+
+	hostLabels, err := collectHostDetailLabels(results)
+	if err != nil {
+		return nil, err
 	}
-	if row := details["osquery_info"]; row != nil {
-		update.OsqueryVersion = strings.TrimSpace(row["version"])
+	hostUsers, err := collectHostDetailUsers(results)
+	if err != nil {
+		return nil, err
 	}
-	if row := details["orbit_info"]; row != nil {
-		update.OrbitVersion = strings.TrimSpace(row["version"])
+	batteries, err := collectHostDetailBatteries(results)
+	if err != nil {
+		return nil, err
 	}
-	if row := details["os_version"]; row != nil {
-		update.OSName = strings.TrimSpace(row["name"])
-		update.OSVersion = osVersion(row)
-		update.OSBuild = strings.TrimSpace(row["build"])
-		update.Platform = strings.TrimSpace(row["platform"])
-		update.PlatformLike = strings.TrimSpace(row["platform_like"])
+	certificates, err := collectHostDetailCertificates(results)
+	if err != nil {
+		return nil, err
 	}
-	if row := details["platform_info"]; row != nil {
-		update.KernelVersion = strings.TrimSpace(row["extra"])
+	mappings, err := collectHostDetailDeviceMappings(results)
+	if err != nil {
+		return nil, err
 	}
-	if row := details["uptime"]; row != nil {
-		update.UptimeSeconds = parsePositiveInt64Ptr(row["total_seconds"])
-	}
-	if row := details["root_disk"]; row != nil {
-		total := parseInt64(row["bytes_total"])
-		available := parseInt64(row["bytes_available"])
-		if total > 0 {
-			update.DiskSpaceTotalBytes = new(total)
-			if available >= 0 {
-				update.DiskSpaceAvailableBytes = new(available)
-			}
-		}
-	}
-	if row := details["primary_interface"]; row != nil {
-		update.PrimaryIP = strings.TrimSpace(row["primary_ip"])
-		update.PrimaryMAC = strings.TrimSpace(row["primary_mac"])
-	}
-	return update
+
+	detailHost := *host
+	detailHost.DeviceMappings = mappings
+	return &HostDetail{
+		Host:         detailHost,
+		Labels:       hostLabels,
+		Users:        hostUsers,
+		Batteries:    batteries,
+		Certificates: certificates,
+	}, nil
 }
 
-func osVersion(row map[string]string) string {
-	name := strings.TrimSpace(row["name"])
-	version := strings.TrimSpace(row["version"])
-	if version == "" {
-		version = dottedVersion(row)
+func collectHostDetailLabels(results pgx.BatchResults) ([]labels.Label, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, err
 	}
-	build := strings.TrimSpace(row["build"])
-	switch {
-	case name == "":
-		return version
-	case version == "":
-		return name
-	case build == "":
-		return name + " " + version
-	default:
-		return fmt.Sprintf("%s %s (build %s)", name, version, build)
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[hostDetailLabelRecord])
+	if err != nil {
+		return nil, err
+	}
+	out := make([]labels.Label, len(records))
+	for i, record := range records {
+		out[i] = labelFromHostDetailRecord(record)
+	}
+	return out, nil
+}
+
+func collectHostDetailUsers(results pgx.BatchResults) ([]HostUser, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.HostUser])
+	if err != nil {
+		return nil, err
+	}
+	out := make([]HostUser, len(records))
+	for i, record := range records {
+		out[i] = hostUserFromSQLC(record)
+	}
+	return out, nil
+}
+
+func collectHostDetailBatteries(results pgx.BatchResults) ([]HostBattery, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.HostBattery])
+	if err != nil {
+		return nil, err
+	}
+	out := make([]HostBattery, len(records))
+	for i, record := range records {
+		out[i] = hostBatteryFromSQLC(record)
+	}
+	return out, nil
+}
+
+func collectHostDetailCertificates(results pgx.BatchResults) ([]HostCertificate, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.HostCertificate])
+	if err != nil {
+		return nil, err
+	}
+	out := make([]HostCertificate, len(records))
+	for i, record := range records {
+		out[i] = hostCertificateFromSQLC(record)
+	}
+	return out, nil
+}
+
+func collectHostDetailDeviceMappings(results pgx.BatchResults) ([]HostDeviceMapping, error) {
+	rows, err := results.Query()
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.HostEmail])
+	if err != nil {
+		return nil, err
+	}
+	out := make([]HostDeviceMapping, len(records))
+	for i, record := range records {
+		out[i] = hostDeviceMappingFromSQLC(record)
+	}
+	return out, nil
+}
+
+type hostDetailLabelRecord struct {
+	ID                  int64
+	Name                string
+	Description         string
+	Query               *string
+	LabelType           string
+	LabelMembershipType string
+	Platforms           []sqlc.Platform
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	HostsCount          int32
+}
+
+func labelFromHostDetailRecord(row hostDetailLabelRecord) labels.Label {
+	return labels.Label{
+		ID:                  row.ID,
+		Name:                row.Name,
+		Description:         row.Description,
+		Query:               row.Query,
+		LabelType:           labels.LabelType(row.LabelType),
+		LabelMembershipType: row.LabelMembershipType,
+		Platforms:           hostDetailPlatformsFromSQLC(row.Platforms),
+		HostsCount:          int(row.HostsCount),
+		CreatedAt:           row.CreatedAt,
+		UpdatedAt:           row.UpdatedAt,
 	}
 }
 
-func dottedVersion(row map[string]string) string {
-	parts := make([]string, 0, 4)
-	for _, key := range []string{"major", "minor", "patch"} {
-		if value := strings.TrimSpace(row[key]); value != "" {
-			parts = append(parts, value)
-		}
+func hostDetailPlatformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
+	out := make([]platforms.Platform, len(values))
+	for i, value := range values {
+		out[i] = platforms.Platform(value)
 	}
-	return strings.Join(parts, ".")
+	return out
 }
 
-func parseInt(value string) int {
-	parsed, _ := strconv.Atoi(strings.TrimSpace(value))
-	return parsed
-}
+const hostDetailLabelsSQL = `
+SELECT
+	l.id,
+	l.name,
+	l.description,
+	l.query,
+	l.label_type,
+	l.label_membership_type,
+	l.platforms,
+	l.created_at,
+	l.updated_at,
+	count(lm_all.host_id)::integer AS hosts_count
+FROM labels l
+JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
+LEFT JOIN label_membership lm_all ON lm_all.label_id = l.id
+GROUP BY l.id
+ORDER BY lower(l.name), l.id`
 
-func parseInt64(value string) int64 {
-	parsed, _ := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
-	return parsed
-}
+const hostDetailUsersSQL = `
+SELECT id, host_id, uid, username, type, description, directory, shell, created_at, updated_at
+FROM host_users
+WHERE host_id = $1
+ORDER BY username, uid, id`
 
-func parsePositiveInt64Ptr(value string) *int64 {
-	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
-	if err != nil || parsed <= 0 {
-		return nil
-	}
-	return new(parsed)
-}
+const hostDetailBatteriesSQL = `
+SELECT id, host_id, serial_number, manufacturer, model, chemistry, cycle_count, health,
+       designed_capacity, max_capacity, current_capacity, percent_remaining, created_at, updated_at
+FROM host_batteries
+WHERE host_id = $1
+ORDER BY serial_number, id`
+
+const hostDetailCertificatesSQL = `
+SELECT id, host_id, sha1, common_name, subject_country, subject_organization,
+       subject_organizational_unit, subject_common_name, issuer_country, issuer_organization,
+       issuer_organizational_unit, issuer_common_name, key_algorithm, key_strength,
+       key_usage, signing_algorithm, not_valid_after, not_valid_before, serial,
+       certificate_authority, source, username, path, created_at, updated_at
+FROM host_certificates
+WHERE host_id = $1
+ORDER BY common_name, sha1, id`
+
+const hostDetailDeviceMappingsSQL = `
+SELECT id, host_id, email, source, created_at, updated_at
+FROM host_emails
+WHERE host_id = $1
+ORDER BY source`

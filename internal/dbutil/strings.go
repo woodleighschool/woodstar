@@ -6,7 +6,11 @@ func CleanStringPtr(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cleaned := strings.TrimSpace(*value)
+	return StringPtrOrNil(*value)
+}
+
+func StringPtrOrNil(value string) *string {
+	cleaned := strings.TrimSpace(value)
 	if cleaned == "" {
 		return nil
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -20,14 +21,12 @@ type Store struct {
 	q  *sqlc.Queries
 }
 
-// NewStore returns a label store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-// List returns labels and the total count matching params.
-func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int, error) {
-	params = cleanLabelListParams(params)
+func (s *Store) List(ctx context.Context, params ListParams) ([]Label, int, error) {
+	params = cleanListParams(params)
 	where, args := labelListWhere(params)
 	var count int
 	if err := s.db.Pool().
@@ -44,32 +43,17 @@ func (s *Store) List(ctx context.Context, params LabelListParams) ([]Label, int,
 		return nil, 0, err
 	}
 	defer rows.Close()
-	labels := make([]Label, 0)
-	for rows.Next() {
-		var label Label
-		if err := rows.Scan(
-			&label.ID,
-			&label.Name,
-			&label.Description,
-			&label.Query,
-			&label.LabelType,
-			&label.LabelMembershipType,
-			&label.Platforms,
-			&label.CreatedAt,
-			&label.UpdatedAt,
-			&label.HostsCount,
-		); err != nil {
-			return nil, 0, err
-		}
-		labels = append(labels, label)
-	}
-	if err := rows.Err(); err != nil {
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[labelListRecord])
+	if err != nil {
 		return nil, 0, err
+	}
+	labels := make([]Label, len(records))
+	for i, record := range records {
+		labels[i] = labelFromListRecord(record)
 	}
 	return labels, count, nil
 }
 
-// GetByID returns one label by database ID.
 func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	row, err := s.q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -83,7 +67,6 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	return label, nil
 }
 
-// ListForHost returns labels currently matching a host.
 func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) {
 	rows, err := s.q.ListLabelsForHost(ctx, sqlc.ListLabelsForHostParams{HostID: hostID})
 	if err != nil {
@@ -98,7 +81,6 @@ func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) 
 	return labels, nil
 }
 
-// Create inserts a regular label.
 func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) {
 	params, err := cleanLabelCreate(params)
 	if err != nil {
@@ -108,7 +90,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		Name:                params.Name,
 		Description:         params.Description,
 		Query:               params.Query,
-		LabelType:           params.LabelType,
+		LabelType:           string(params.LabelType),
 		LabelMembershipType: params.LabelMembershipType,
 		Platforms:           toSQLCPlatforms(params.Platforms),
 	})
@@ -121,7 +103,6 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 	return new(labelFromSQLC(row)), nil
 }
 
-// Update replaces editable label fields.
 func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
 	params, err := cleanLabelUpdate(params)
 	if err != nil {
@@ -147,7 +128,6 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 	return new(labelFromSQLC(row)), nil
 }
 
-// Delete removes a regular label.
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteRegularLabel(ctx, sqlc.DeleteRegularLabelParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -156,7 +136,6 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-// ListApplicableDynamic returns dynamic labels that should run for a host platform.
 func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]Label, error) {
 	rows, err := s.q.ListApplicableDynamicLabels(ctx, sqlc.ListApplicableDynamicLabelsParams{
 		Platform: strings.TrimSpace(platform),
@@ -171,7 +150,6 @@ func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]L
 	return labels, nil
 }
 
-// ApplicableDynamicIDs returns the subset of ids that are current dynamic labels for a host platform.
 func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
@@ -191,7 +169,6 @@ func (s *Store) ApplicableDynamicIDs(
 	return out, nil
 }
 
-// SetMembership records whether hostID currently matches labelID.
 func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, matched bool) error {
 	if matched {
 		return s.q.UpsertLabelMembership(ctx, sqlc.UpsertLabelMembershipParams{LabelID: labelID, HostID: hostID})
@@ -199,82 +176,71 @@ func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, 
 	return s.q.DeleteLabelMembership(ctx, sqlc.DeleteLabelMembershipParams{LabelID: labelID, HostID: hostID})
 }
 
-// MarkHostLabelsFresh records a successful label evaluation pass.
 func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
 }
 
 func cleanLabelCreate(params LabelCreate) (LabelCreate, error) {
-	fields, err := cleanLabelFields(labelFields(params))
-	if err != nil {
-		return LabelCreate{}, err
-	}
-	if fields.LabelType == LabelTypeBuiltin {
-		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
-	}
-	return LabelCreate(fields), nil
-}
-
-func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
-	fields, err := cleanLabelFields(labelFields{
-		Name:                params.Name,
-		Description:         params.Description,
-		Query:               params.Query,
-		LabelType:           LabelTypeRegular,
-		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           params.Platforms,
-	})
-	if err != nil {
-		return LabelUpdate{}, err
-	}
-	return LabelUpdate{
-		Name:                fields.Name,
-		Description:         fields.Description,
-		Query:               fields.Query,
-		LabelMembershipType: fields.LabelMembershipType,
-		Platforms:           fields.Platforms,
-	}, nil
-}
-
-type labelFields struct {
-	Name                string
-	Description         string
-	Query               *string
-	LabelType           string
-	LabelMembershipType string
-	Platforms           []platforms.Platform
-}
-
-func cleanLabelFields(params labelFields) (labelFields, error) {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Query = dbutil.CleanStringPtr(params.Query)
+	params.LabelType = cleanLabelType(params.LabelType)
+	params.LabelMembershipType = cleanMembershipType(params.LabelMembershipType)
 	targets, err := platforms.CleanTargets(params.Platforms)
 	if err != nil {
-		return labelFields{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+		return LabelCreate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	params.Platforms = targets
-	if params.LabelType == "" {
-		params.LabelType = LabelTypeRegular
-	}
-	if params.LabelMembershipType == "" {
-		params.LabelMembershipType = LabelMembershipTypeDynamic
+	if params.LabelType == LabelTypeBuiltin {
+		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
 	}
 	if err := validateLabelFields(params.Name, params.Query, params.LabelType, params.LabelMembershipType); err != nil {
-		return labelFields{}, err
+		return LabelCreate{}, err
 	}
 	return params, nil
 }
 
-func cleanLabelListParams(params LabelListParams) LabelListParams {
+func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
+	params.Name = strings.TrimSpace(params.Name)
+	params.Description = strings.TrimSpace(params.Description)
+	params.Query = dbutil.CleanStringPtr(params.Query)
+	params.LabelMembershipType = cleanMembershipType(params.LabelMembershipType)
+	targets, err := platforms.CleanTargets(params.Platforms)
+	if err != nil {
+		return LabelUpdate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	params.Platforms = targets
+	if err := validateLabelFields(params.Name, params.Query, LabelTypeRegular, params.LabelMembershipType); err != nil {
+		return LabelUpdate{}, err
+	}
+	return params, nil
+}
+
+func cleanLabelType(labelType LabelType) LabelType {
+	labelType = LabelType(strings.TrimSpace(string(labelType)))
+	if labelType == "" {
+		return LabelTypeRegular
+	}
+	return labelType
+}
+
+func cleanMembershipType(membershipType string) string {
+	membershipType = strings.TrimSpace(membershipType)
+	if membershipType == "" {
+		return LabelMembershipTypeDynamic
+	}
+	return membershipType
+}
+
+func cleanListParams(params ListParams) ListParams {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.LabelType = strings.TrimSpace(params.LabelType)
+	params.LabelType = LabelType(strings.TrimSpace(string(params.LabelType)))
 	params.LabelMembershipType = strings.TrimSpace(params.LabelMembershipType)
 	params.Platform = platforms.CleanPlatform(params.Platform)
 	return params
 }
 
-func labelListSQLWithWhere(params LabelListParams, where string, args []any) (string, []any, error) {
+func labelListSQLWithWhere(params ListParams, where string, args []any) (string, []any, error) {
 	return dbutil.ListQuery{
 		SelectSQL: `SELECT
 	l.id,
@@ -305,33 +271,38 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 	}.Build()
 }
 
-func labelListWhere(params LabelListParams) (string, []any) {
-	clauses := make([]string, 0, 4)
-	args := make([]any, 0)
+func labelListWhere(params ListParams) (string, []any) {
+	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		args = append(args, "%"+params.Q+"%")
-		placeholder := fmt.Sprintf("$%d", len(args))
-		clauses = append(clauses, "(l.name ILIKE "+placeholder+" OR l.description ILIKE "+placeholder+")")
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("(l.name ILIKE " + search + " OR l.description ILIKE " + search + ")")
 	}
 	if params.LabelType != "" {
-		args = append(args, params.LabelType)
-		clauses = append(clauses, fmt.Sprintf("l.label_type = $%d", len(args)))
+		where.Add("l.label_type = " + where.Arg(string(params.LabelType)))
 	}
 	if params.LabelMembershipType != "" {
-		args = append(args, params.LabelMembershipType)
-		clauses = append(clauses, fmt.Sprintf("l.label_membership_type = $%d", len(args)))
+		where.Add("l.label_membership_type = " + where.Arg(params.LabelMembershipType))
 	}
 	if params.Platform != "" {
-		args = append(args, params.Platform)
-		clauses = append(clauses, fmt.Sprintf("$%d = ANY(l.platforms::text[])", len(args)))
+		where.Add(where.Arg(params.Platform) + " = ANY(l.platforms::text[])")
 	}
-	if len(clauses) == 0 {
-		return "", args
-	}
-	return "WHERE " + strings.Join(clauses, " AND "), args
+	return where.Build()
 }
 
-func validateLabelFields(name string, query *string, labelType, labelMembershipType string) error {
+type labelListRecord struct {
+	ID                  int64
+	Name                string
+	Description         string
+	Query               *string
+	LabelType           string
+	LabelMembershipType string
+	Platforms           []sqlc.Platform
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	HostsCount          int32
+}
+
+func validateLabelFields(name string, query *string, labelType LabelType, labelMembershipType string) error {
 	if name == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
@@ -361,12 +332,28 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Name:                s.Name,
 		Description:         s.Description,
 		Query:               s.Query,
-		LabelType:           s.LabelType,
+		LabelType:           LabelType(s.LabelType),
 		LabelMembershipType: s.LabelMembershipType,
 		Platforms:           platformsFromSQLC(s.Platforms),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
+}
+
+func labelFromListRecord(s labelListRecord) Label {
+	label := labelFromSQLC(sqlc.Label{
+		ID:                  s.ID,
+		Name:                s.Name,
+		Description:         s.Description,
+		Query:               s.Query,
+		LabelType:           s.LabelType,
+		LabelMembershipType: s.LabelMembershipType,
+		Platforms:           s.Platforms,
+		CreatedAt:           s.CreatedAt,
+		UpdatedAt:           s.UpdatedAt,
+	})
+	label.HostsCount = int(s.HostsCount)
+	return label
 }
 
 func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {

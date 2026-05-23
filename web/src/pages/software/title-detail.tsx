@@ -18,7 +18,7 @@ import { formatRelative } from "@/lib/utils";
 export function SoftwareTitleDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
   const query = useSoftwareTitle(softwareId);
-  const title = query.data?.software_title;
+  const title = query.data;
 
   if (query.error) {
     return (

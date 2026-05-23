@@ -14,12 +14,12 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 
-	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -28,9 +28,9 @@ func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 	server := NewServer(testDependencies(testConfig()))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/orbit/enroll-secrets", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/enroll-secrets", nil)
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -43,7 +43,7 @@ func TestLiveQueryStreamRequiresSession(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/live-queries/1/stream", nil)
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -64,16 +64,16 @@ func TestLiveQueryStreamUsesBrowserSession(t *testing.T) {
 	}
 
 	deps := testDependencies(testConfig())
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.LiveQueryManager = livequery.NewManager()
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Orbit.LiveQueryManager = livequery.NewManager()
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/live-queries/1/stream", nil)
-	req.AddCookie(loginTestUser(t, deps.AuthService, deps.SessionManager))
+	req.AddCookie(loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager))
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
@@ -102,10 +102,10 @@ func TestLiveQueryStopUsesBrowserSession(t *testing.T) {
 	handle := manager.Start("select 1", []int64{4})
 
 	deps := testDependencies(testConfig())
-	deps.DB = database
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.LiveQueryManager = manager
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Orbit.LiveQueryManager = manager
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
@@ -116,9 +116,9 @@ func TestLiveQueryStopUsesBrowserSession(t *testing.T) {
 		nil,
 	)
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.AddCookie(loginTestUser(t, deps.AuthService, deps.SessionManager))
+	req.AddCookie(loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager))
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNoContent, rec.Body.String())
@@ -141,13 +141,13 @@ func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	}
 
 	deps := testDependencies(testConfig())
-	deps.DB = database
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.HostStore = hosts.NewStore(database)
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Inventory.HostStore = hosts.NewStore(database)
 	server := NewServer(deps)
 
-	sessionCookie := loginTestUser(t, deps.AuthService, deps.SessionManager)
+	sessionCookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
 	postRec := httptest.NewRecorder()
 	postReq := httptest.NewRequestWithContext(
@@ -160,7 +160,7 @@ func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	postReq.Header.Set("Origin", "http://evil.example")
 	postReq.AddCookie(sessionCookie)
 
-	server.routes().ServeHTTP(postRec, postReq)
+	server.httpServer.Handler.ServeHTTP(postRec, postReq)
 
 	if postRec.Code != http.StatusForbidden {
 		t.Fatalf(
@@ -186,7 +186,7 @@ func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	postReq.Header.Set("Sec-Fetch-Site", "same-origin")
 	postReq.AddCookie(sessionCookie)
 
-	server.routes().ServeHTTP(postRec, postReq)
+	server.httpServer.Handler.ServeHTTP(postRec, postReq)
 
 	if postRec.Code != http.StatusOK {
 		t.Fatalf(
@@ -208,7 +208,7 @@ func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	postReq.Header.Set("Origin", "http://localhost:8080")
 	postReq.AddCookie(sessionCookie)
 
-	server.routes().ServeHTTP(postRec, postReq)
+	server.httpServer.Handler.ServeHTTP(postRec, postReq)
 
 	if postRec.Code != http.StatusOK {
 		t.Fatalf("same-origin status = %d, want %d; body = %q", postRec.Code, http.StatusOK, postRec.Body.String())
@@ -234,14 +234,14 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 
 	hostStore := hosts.NewStore(database)
 	labelStore := labels.NewStore(database)
-	onlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+	onlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID: "test-api-target-count-online",
 		OrbitNodeKey: "orbit-key-api-target-count-online",
 	})
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
-	offlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+	offlineHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID: "test-api-target-count-offline",
 		OrbitNodeKey: "orbit-key-api-target-count-offline",
 	})
@@ -275,10 +275,10 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 	}
 
 	deps := testDependencies(testConfig())
-	deps.DB = database
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
-	deps.HostStore = hostStore
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Inventory.HostStore = hostStore
 	server := NewServer(deps)
 
 	body, err := json.Marshal(struct {
@@ -308,7 +308,7 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
@@ -326,13 +326,13 @@ func TestLiveQueryTargetCountReturnsStatusMetrics(t *testing.T) {
 	}
 }
 
-func TestAgentRoutesBypassBrowserAuth(t *testing.T) {
+func TestOrbitProtocolRoutesBypassBrowserAuth(t *testing.T) {
 	server := NewServer(testDependencies(testConfig()))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/osquery/carve/begin", nil)
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
@@ -357,16 +357,16 @@ func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 	}
 
 	deps := testDependencies(testConfig())
-	deps.DB = database
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/account/api-key", nil)
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
@@ -391,16 +391,16 @@ func TestAccountReadOwnsRetrievableAPIKey(t *testing.T) {
 	}
 
 	deps := testDependencies(testConfig())
-	deps.DB = database
-	deps.UserService = userService
-	deps.AuthService = auth.NewService(userService, deps.SessionManager)
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
 	server := NewServer(deps)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/account", nil)
-	req.AddCookie(loginTestUser(t, deps.AuthService, deps.SessionManager))
+	req.AddCookie(loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager))
 
-	server.routes().ServeHTTP(rec, req)
+	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
@@ -468,12 +468,16 @@ func testDependencies(cfg config.Config) Dependencies {
 	userService := users.NewService(&users.Store{})
 
 	return Dependencies{
-		Config:         cfg,
-		Version:        "test",
-		Logger:         slog.New(slog.DiscardHandler),
-		AuthService:    auth.NewService(userService, sessionManager),
-		UserService:    userService,
-		SessionManager: sessionManager,
+		Runtime: RuntimeDependencies{
+			Config:         cfg,
+			Version:        "test",
+			Logger:         slog.New(slog.DiscardHandler),
+			SessionManager: sessionManager,
+		},
+		Auth: AuthDependencies{
+			AuthService: auth.NewService(userService, sessionManager),
+			UserService: userService,
+		},
 	}
 }
 

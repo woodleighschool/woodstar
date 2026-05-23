@@ -13,19 +13,20 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/woodleighschool/woodstar/internal/agents/checks"
-	"github.com/woodleighschool/woodstar/internal/agents/livequery"
-	"github.com/woodleighschool/woodstar/internal/agents/orbit"
-	"github.com/woodleighschool/woodstar/internal/agents/osquery"
-	"github.com/woodleighschool/woodstar/internal/agents/protocol"
-	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/secrets"
+	"github.com/woodleighschool/woodstar/internal/orbit"
+	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
+	"github.com/woodleighschool/woodstar/internal/osquery"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -33,40 +34,59 @@ import (
 
 // Dependencies contains runtime dependencies for [Server].
 type Dependencies struct {
-	Config           config.Config
-	DB               *database.DB
-	Version          string
-	Logger           *slog.Logger
-	WebHandler       *web.Handler
-	AuthService      *auth.Service
-	UserService      *users.Service
-	SessionManager   *scs.SessionManager
-	HostStore        *hosts.Store
-	DeviceMappings   *hosts.DeviceMappingStore
-	SecretStore      *secrets.Store
-	SoftwareStore    *software.Store
-	LabelStore       *labels.Store
-	ReportStore      *reports.Store
-	CheckStore       *checks.Store
+	Runtime   RuntimeDependencies
+	Auth      AuthDependencies
+	Inventory InventoryDependencies
+	Orbit     OrbitDependencies
+}
+
+type RuntimeDependencies struct {
+	Config         config.Config
+	DB             *database.DB
+	Version        string
+	Logger         *slog.Logger
+	WebHandler     *web.Handler
+	SessionManager *scs.SessionManager
+}
+
+type AuthDependencies struct {
+	AuthService *auth.Service
+	UserService *users.Service
+}
+
+type InventoryDependencies struct {
+	HostStore     *hosts.Store
+	SecretStore   *enrollment.Store
+	SoftwareStore *software.Store
+	LabelStore    *labels.Store
+	ReportStore   *reports.Store
+	CheckStore    *checks.Store
+}
+
+type OrbitDependencies struct {
 	LiveQueryManager *livequery.Manager
-	OrbitService     *orbit.Service
+	Service          *orbit.Service
 	OsqueryService   *osquery.Service
 }
 
 // Server owns the HTTP listener and router.
 type Server struct {
 	httpServer *http.Server
-	deps       Dependencies
+	config     config.Config
+	logger     *slog.Logger
+	version    string
 }
 
 // NewServer returns an HTTP server.
 func NewServer(deps Dependencies) *Server {
-	installHumaErrorHandler(deps.Logger)
-
-	server := &Server{deps: deps}
+	server := &Server{
+		config:  deps.Runtime.Config,
+		logger:  deps.Runtime.Logger,
+		version: deps.Runtime.Version,
+	}
 	server.httpServer = &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", deps.Config.Host, deps.Config.Port),
-		Handler:           server.routes(),
+		Addr:              fmt.Sprintf("%s:%d", deps.Runtime.Config.Host, deps.Runtime.Config.Port),
+		Handler:           routes(deps),
 		ReadHeaderTimeout: 15 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		WriteTimeout:      120 * time.Second,
@@ -77,13 +97,13 @@ func NewServer(deps Dependencies) *Server {
 
 // ListenAndServe starts the HTTP listener and blocks until shutdown or failure.
 func (s *Server) ListenAndServe() error {
-	s.deps.Logger.Info(
+	s.logger.Info(
 		"starting woodstar",
 		"component", "server",
 		"operation", "start",
 		"addr", s.httpServer.Addr,
-		"public_url", s.deps.Config.PublicURL,
-		"version", s.deps.Version,
+		"public_url", s.config.PublicURL,
+		"version", s.version,
 	)
 	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -93,19 +113,13 @@ func (s *Server) ListenAndServe() error {
 
 // Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.deps.Logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
+	s.logger.InfoContext(ctx, "stopping woodstar", "component", "server", "operation", "shutdown")
 	return s.httpServer.Shutdown(ctx)
 }
 
-// Config returns the runtime configuration used by the server.
-func (s *Server) Config() config.Config {
-	return s.deps.Config
-}
-
-func (s *Server) routes() http.Handler {
-	deps := s.deps
+func routes(deps Dependencies) http.Handler {
 	r := chi.NewRouter()
-	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.ClientIPFromRemoteAddr)
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Timeout(120 * time.Second))
 
@@ -113,35 +127,41 @@ func (s *Server) routes() http.Handler {
 		_, _ = w.Write([]byte("alive\n"))
 	})
 	r.Get("/api/readyz", func(w http.ResponseWriter, req *http.Request) {
-		if err := deps.DB.Ping(req.Context()); err != nil {
+		if err := deps.Runtime.DB.Ping(req.Context()); err != nil {
 			http.Error(w, "not ready", http.StatusServiceUnavailable)
 			return
 		}
 		_, _ = w.Write([]byte("ready\n"))
 	})
 
-	r.Group(s.agentRoutes)
-	r.Group(s.browserRoutes)
+	r.Group(func(r chi.Router) {
+		orbitRoutes(r, deps)
+	})
+	r.Group(func(r chi.Router) {
+		browserRoutes(r, deps)
+	})
 
 	return r
 }
 
-func (s *Server) agentRoutes(r chi.Router) {
-	deps := s.deps
-	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
-	protocol.RegisterOrbitRoutes(r, deps.OrbitService, deps.Logger.With("component", "orbit"))
-	protocol.RegisterOsqueryRoutes(r, deps.OsqueryService, deps.Logger.With("component", "osquery"))
+func orbitRoutes(r chi.Router, deps Dependencies) {
+	r.Use(middleware.RequestLogger(deps.Runtime.Logger))
+	orbitprotocol.RegisterOrbitRoutes(r, deps.Orbit.Service, deps.Runtime.Logger.With("component", "orbit"))
+	osqueryprotocol.RegisterOsqueryRoutes(
+		r,
+		deps.Orbit.OsqueryService,
+		deps.Runtime.Logger.With("component", "osquery"),
+	)
 }
 
-func (s *Server) browserRoutes(r chi.Router) {
-	deps := s.deps
-	r.Use(middleware.RequestLogger(deps.Logger, slog.LevelDebug))
-	if deps.SessionManager != nil {
-		r.Use(deps.SessionManager.LoadAndSave)
+func browserRoutes(r chi.Router, deps Dependencies) {
+	r.Use(middleware.RequestLogger(deps.Runtime.Logger))
+	if deps.Runtime.SessionManager != nil {
+		r.Use(deps.Runtime.SessionManager.LoadAndSave)
 	}
 	r.Use(middleware.CrossOriginProtection())
 	Mount(r, deps)
-	if deps.WebHandler != nil {
-		deps.WebHandler.RegisterRoutes(r)
+	if deps.Runtime.WebHandler != nil {
+		deps.Runtime.WebHandler.RegisterRoutes(r)
 	}
 }

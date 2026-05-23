@@ -25,7 +25,7 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("apply directory snapshot: %v", err)
 	}
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.EnrollParams{
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   "fixture-uuid",
 		HardwareSerial: "fixture-serial",
 		Hostname:       "fixture",
@@ -42,8 +42,14 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("seed host_emails: %v", err)
 	}
 
-	if err := store.ReconcileLinks(ctx); err != nil {
-		t.Fatalf("reconcile links: %v", err)
+	if err := store.Apply(ctx, Snapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users: []SnapshotUser{
+			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Active: true},
+			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
+		},
+	}); err != nil {
+		t.Fatalf("apply directory snapshot after host email: %v", err)
 	}
 
 	linkedUserID, source := hostDirectoryLink(t, ctx, store, host.ID)
@@ -68,8 +74,14 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("manual override: %v", err)
 	}
 
-	if err := store.ReconcileLinks(ctx); err != nil {
-		t.Fatalf("reconcile after manual: %v", err)
+	if err := store.Apply(ctx, Snapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users: []SnapshotUser{
+			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Active: true},
+			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
+		},
+	}); err != nil {
+		t.Fatalf("apply directory snapshot after manual: %v", err)
 	}
 
 	linkedUserID, source = hostDirectoryLink(t, ctx, store, host.ID)

@@ -98,47 +98,6 @@ func (ns NullPlatform) Value() (driver.Value, error) {
 	return string(ns.Platform), nil
 }
 
-type SecretKind string
-
-const (
-	SecretKindOrbit SecretKind = "orbit"
-)
-
-func (e *SecretKind) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = SecretKind(s)
-	case string:
-		*e = SecretKind(s)
-	default:
-		return fmt.Errorf("unsupported scan type for SecretKind: %T", src)
-	}
-	return nil
-}
-
-type NullSecretKind struct {
-	SecretKind SecretKind `json:"secret_kind"`
-	Valid      bool       `json:"valid"` // Valid is true if SecretKind is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullSecretKind) Scan(value interface{}) error {
-	if value == nil {
-		ns.SecretKind, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.SecretKind.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullSecretKind) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.SecretKind), nil
-}
-
 type UserRole string
 
 const (
@@ -235,6 +194,13 @@ type DirectoryUser struct {
 type DirectoryUserGroup struct {
 	DirectoryUserID  int64 `json:"directory_user_id"`
 	DirectoryGroupID int64 `json:"directory_group_id"`
+}
+
+type EnrollSecret struct {
+	ID        int64      `json:"id"`
+	Value     string     `json:"value"`
+	CreatedAt time.Time  `json:"created_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
 }
 
 type Host struct {
@@ -422,14 +388,6 @@ type ReportResult struct {
 	HostID      int64     `json:"host_id"`
 	Data        []byte    `json:"data"`
 	LastFetched time.Time `json:"last_fetched"`
-}
-
-type Secret struct {
-	ID        int64      `json:"id"`
-	Kind      SecretKind `json:"kind"`
-	Value     string     `json:"value"`
-	CreatedAt time.Time  `json:"created_at"`
-	DeletedAt *time.Time `json:"deleted_at"`
 }
 
 type Session struct {

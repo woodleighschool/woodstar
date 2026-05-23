@@ -6,9 +6,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type SoftwareTitle = Schemas["SoftwareTitle"];
-export type SoftwareListResult = Schemas["SoftwareListBody"];
+export type SoftwareListResult = Schemas["PaginatedBodySoftwareTitle"];
 export type SoftwareVersion = Schemas["SoftwareVersion"];
-export type SoftwareTitleResult = Schemas["SoftwareGetBody"];
 
 export interface SoftwareListParams {
   q?: string;
@@ -43,7 +42,7 @@ export function useSoftware(params: SoftwareListParams = {}) {
 }
 
 export function useSoftwareTitle(id: string) {
-  return useQuery<SoftwareTitleResult, ApiError>({
+  return useQuery<SoftwareTitle, ApiError>({
     queryKey: queryKeys.softwareTitle(id),
     queryFn: ({ signal }) =>
       unwrap(

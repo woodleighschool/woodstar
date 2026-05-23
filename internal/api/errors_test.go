@@ -11,7 +11,7 @@ import (
 
 func TestHumaErrorLogsInternalErrors(t *testing.T) {
 	var logBuf strings.Builder
-	installHumaErrorHandler(slog.New(slog.NewTextHandler(&logBuf, nil)))
+	InstallHumaErrorHandler(slog.New(slog.NewTextHandler(&logBuf, nil)))
 
 	raw := errors.New("get session user: column \"api_key\" does not exist")
 	got := huma.NewErrorWithContext(nil, 500, "unexpected error", raw)
@@ -34,7 +34,7 @@ func TestHumaErrorLogsInternalErrors(t *testing.T) {
 
 func TestHumaErrorDoesNotLog4xx(t *testing.T) {
 	var logBuf strings.Builder
-	installHumaErrorHandler(slog.New(slog.NewTextHandler(&logBuf, nil)))
+	InstallHumaErrorHandler(slog.New(slog.NewTextHandler(&logBuf, nil)))
 
 	huma.NewErrorWithContext(nil, 400, "validation failed", errors.New("name is required"))
 

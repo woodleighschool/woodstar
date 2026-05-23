@@ -20,7 +20,7 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 		Args:      []any{"existing"},
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
-			"last_seen_at": {SQL: "last_seen_at", NullsLast: true},
+			"last_seen_at": {SQL: "last_seen_at", NullOrder: NullsLast},
 		},
 		DefaultOrder: []OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params,
@@ -52,5 +52,23 @@ func TestListQueryRejectsUnknownOrderKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown order key") {
 		t.Fatalf("err = %v, want unknown order key", err)
+	}
+}
+
+func TestWhereBuilderBuildsClausesWithStablePlaceholders(t *testing.T) {
+	var where WhereBuilder
+	search := where.Arg("%mac%")
+	where.Add("(display_name ILIKE " + search + " OR hardware_serial ILIKE " + search + ")")
+	platform := where.Arg("darwin")
+	where.Add("platform = " + platform)
+
+	query, args := where.Build()
+
+	wantQuery := "WHERE (display_name ILIKE $1 OR hardware_serial ILIKE $1) AND platform = $2"
+	if query != wantQuery {
+		t.Fatalf("query = %q, want %q", query, wantQuery)
+	}
+	if len(args) != 2 || args[0] != "%mac%" || args[1] != "darwin" {
+		t.Fatalf("args = %#v", args)
 	}
 }

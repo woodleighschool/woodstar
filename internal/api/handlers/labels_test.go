@@ -7,35 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
-
-func TestLabelListInputParams(t *testing.T) {
-	input := labelListInput{
-		Q:              " mac ",
-		Page:           2,
-		PerPage:        25,
-		OrderKey:       "name",
-		OrderDirection: "desc",
-		LabelType:      "regular",
-		MembershipType: "dynamic",
-		Platform:       " darwin ",
-	}
-
-	got := input.params()
-	if got.Q != "mac" || got.Page != 2 || got.PerPage != 25 {
-		t.Fatalf("list params = %#v", got.ListParams)
-	}
-	if got.LabelType != labels.LabelTypeRegular {
-		t.Fatalf("LabelType = %q, want regular", got.LabelType)
-	}
-	if got.LabelMembershipType != labels.LabelMembershipTypeDynamic {
-		t.Fatalf("LabelMembershipType = %q, want dynamic", got.LabelMembershipType)
-	}
-	if got.Platform != "darwin" {
-		t.Fatalf("Platform = %q, want darwin", got.Platform)
-	}
-}
 
 func TestResourceMutationErrorMapping(t *testing.T) {
 	tests := []struct {

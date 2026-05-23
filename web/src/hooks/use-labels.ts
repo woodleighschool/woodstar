@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type Label = Schemas["Label"];
-export type LabelListResult = Schemas["LabelListBody"];
+export type LabelListResult = Schemas["PaginatedBodyLabel"];
 export type LabelCreate = Schemas["LabelCreateBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];
 

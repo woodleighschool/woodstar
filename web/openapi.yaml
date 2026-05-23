@@ -167,29 +167,6 @@ components:
       required:
         - items
       type: object
-    CheckListOutputBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/CheckListOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/Check"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     CheckMutationBody:
       additionalProperties: false
       properties:
@@ -218,6 +195,29 @@ components:
         - query
         - platforms
         - label_scope
+      type: object
+    EnrollSecret:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/EnrollSecret.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        id:
+          format: int64
+          type: integer
+        value:
+          type: string
+      required:
+        - id
+        - value
+        - created_at
       type: object
     ErrorDetail:
       additionalProperties: false
@@ -675,29 +675,6 @@ components:
         - email
         - source
       type: object
-    HostListBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostListBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/Host"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     HostReport:
       additionalProperties: false
       properties:
@@ -724,13 +701,13 @@ components:
         - description
         - n_host_results
       type: object
-    HostReportResultsOutputBody:
+    HostReportResultsBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/HostReportResultsOutputBody.json
+            - https://example.com/api/schemas/HostReportResultsBody.json
           format: uri
           readOnly: true
           type: string
@@ -757,13 +734,13 @@ components:
         - host_name
         - items
       type: object
-    HostReportsOutputBody:
+    HostReportsBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/HostReportsOutputBody.json
+            - https://example.com/api/schemas/HostReportsBody.json
           format: uri
           readOnly: true
           type: string
@@ -803,29 +780,6 @@ components:
         - bundle_identifier
         - installed_paths
         - signature_information
-      type: object
-    HostSoftwareListBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostSoftwareListBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/HostSoftwareRow"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
       type: object
     HostSoftwareRow:
       additionalProperties: false
@@ -952,29 +906,6 @@ components:
       required:
         - name
         - platforms
-      type: object
-    LabelListBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/LabelListBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/Label"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
       type: object
     LabelMutationBody:
       additionalProperties: false
@@ -1177,6 +1108,167 @@ components:
         - email
         - password
       type: object
+    PaginatedBodyCheck:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyCheck.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/Check"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyHost:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyHost.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/Host"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyHostSoftwareRow:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyHostSoftwareRow.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/HostSoftwareRow"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyLabel:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyLabel.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/Label"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyReportBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyReportBody.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/ReportBody"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodySoftwareTitle:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodySoftwareTitle.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/SoftwareTitle"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyUser:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyUser.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/User"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     PathSignatureInformation:
       additionalProperties: false
       properties:
@@ -1247,29 +1339,6 @@ components:
         - created_at
         - updated_at
       type: object
-    ReportListOutputBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ReportListOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/ReportBody"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     ReportMutationBody:
       additionalProperties: false
       properties:
@@ -1331,13 +1400,13 @@ components:
         - host_name
         - columns
       type: object
-    ReportResultsOutputBody:
+    ReportResultsBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ReportResultsOutputBody.json
+            - https://example.com/api/schemas/ReportResultsBody.json
           format: uri
           readOnly: true
           type: string
@@ -1349,29 +1418,6 @@ components:
             - "null"
       required:
         - items
-      type: object
-    Secret:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Secret.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        id:
-          format: int64
-          type: integer
-        value:
-          type: string
-      required:
-        - id
-        - value
-        - created_at
       type: object
     SessionBody:
       additionalProperties: false
@@ -1415,47 +1461,16 @@ components:
         - email
         - password
       type: object
-    SoftwareGetBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SoftwareGetBody.json
-          format: uri
-          readOnly: true
-          type: string
-        software_title:
-          $ref: "#/components/schemas/SoftwareTitle"
-      required:
-        - software_title
-      type: object
-    SoftwareListBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/SoftwareListBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/SoftwareTitle"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     SoftwareTitle:
       additionalProperties: false
       properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/SoftwareTitle.json
+          format: uri
+          readOnly: true
+          type: string
         browser:
           type: string
         bundle_identifier:
@@ -1607,10 +1622,6 @@ components:
         - role
       type: object
   securitySchemes:
-    bearerAuth:
-      bearerFormat: API key
-      scheme: bearer
-      type: http
     cookieAuth:
       in: cookie
       name: woodstar_session
@@ -1620,7 +1631,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: b7b9f0a-dirty
+  version: 81a9ed2-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -1649,7 +1660,7 @@ paths:
       tags:
         - Account
     put:
-      operationId: put-account
+      operationId: update-account
       requestBody:
         content:
           application/json:
@@ -1747,7 +1758,7 @@ paths:
         - Account
   /api/auth/login:
     post:
-      operationId: login
+      operationId: create-session
       requestBody:
         content:
           application/json:
@@ -1796,7 +1807,7 @@ paths:
         - Auth
   /api/auth/logout:
     post:
-      operationId: logout
+      operationId: delete-session
       responses:
         "204":
           description: No Content
@@ -1828,136 +1839,20 @@ paths:
       summary: Get setup state and the current signed-in user, if any
       tags:
         - Auth
-  /api/checks:
+  /api/enroll-secrets:
     get:
-      operationId: list-checks
-      parameters:
-        - explode: false
-          in: query
-          name: q
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: platform
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: order_key
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
-          schema:
-            type: string
+      operationId: list-enroll-secrets
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CheckListOutputBody"
+                items:
+                  $ref: "#/components/schemas/EnrollSecret"
+                type:
+                  - array
+                  - "null"
           description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List checks
-      tags:
-        - Checks
-    post:
-      operationId: create-check
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CheckMutationBody"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Check"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Create a check
-      tags:
-        - Checks
-  /api/checks/bulk-delete:
-    post:
-      operationId: bulk-delete-checks
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BulkIDsBody"
-        required: true
-      responses:
-        "204":
-          description: No Content
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
         "401":
           content:
             application/problem+json:
@@ -1970,24 +1865,48 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Forbidden
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
         "500":
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Delete checks
+      summary: List enroll secrets
       tags:
-        - Checks
-  /api/checks/{id}:
+        - Enrollment
+    post:
+      operationId: create-enroll-secret
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrollSecret"
+          description: Created
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Create enroll secret
+      tags:
+        - Enrollment
+  /api/enroll-secrets/{id}:
     delete:
-      operationId: delete-check
+      operationId: delete-enroll-secret
       parameters:
         - in: path
           name: id
@@ -2003,6 +1922,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
         "404":
           content:
             application/problem+json:
@@ -2021,154 +1946,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Delete a check
+      summary: Delete enroll secret
       tags:
-        - Checks
-    get:
-      operationId: get-check
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Check"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Get a check
-      tags:
-        - Checks
-    put:
-      operationId: put-check
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CheckMutationBody"
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Check"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Replace a check
-      tags:
-        - Checks
-  /api/checks/{id}/hosts:
-    get:
-      operationId: list-check-hosts
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckHostsOutputBody"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List check host status
-      tags:
-        - Checks
+        - Enrollment
   /api/hosts:
     get:
       operationId: list-hosts
@@ -2230,7 +2010,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostListBody"
+                $ref: "#/components/schemas/PaginatedBodyHost"
           description: OK
         "401":
           content:
@@ -2385,9 +2165,9 @@ paths:
       summary: Get an enrolled host
       tags:
         - Hosts
-  /api/hosts/{id}/checks:
+  /api/hosts/{id}/osquery/checks:
     get:
-      operationId: list-host-checks
+      operationId: list-host-osquery-checks
       parameters:
         - in: path
           name: id
@@ -2429,9 +2209,9 @@ paths:
       tags:
         - Checks
         - Hosts
-  /api/hosts/{id}/reports:
+  /api/hosts/{id}/osquery/reports:
     get:
-      operationId: list-host-reports
+      operationId: list-host-osquery-reports
       parameters:
         - in: path
           name: id
@@ -2443,7 +2223,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostReportsOutputBody"
+                $ref: "#/components/schemas/HostReportsBody"
           description: OK
         "401":
           content:
@@ -2473,9 +2253,9 @@ paths:
       tags:
         - Reports
         - Hosts
-  /api/hosts/{id}/reports/{report_id}:
+  /api/hosts/{id}/osquery/reports/{report_id}:
     get:
-      operationId: list-host-report-results
+      operationId: list-host-osquery-report-results
       parameters:
         - in: path
           name: id
@@ -2492,7 +2272,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostReportResultsOutputBody"
+                $ref: "#/components/schemas/HostReportResultsBody"
           description: OK
         "401":
           content:
@@ -2572,7 +2352,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostSoftwareListBody"
+                $ref: "#/components/schemas/PaginatedBodyHostSoftwareRow"
           description: OK
         "401":
           content:
@@ -2652,7 +2432,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LabelListBody"
+                $ref: "#/components/schemas/PaginatedBodyLabel"
           description: OK
         "401":
           content:
@@ -2805,7 +2585,7 @@ paths:
       tags:
         - Labels
     put:
-      operationId: put-label
+      operationId: update-label
       parameters:
         - in: path
           name: id
@@ -3094,119 +2874,9 @@ paths:
       summary: Stream live query results
       tags:
         - Live Queries
-  /api/orbit/enroll-secrets:
+  /api/osquery/checks:
     get:
-      operationId: list-orbit-enroll-secrets
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/Secret"
-                type:
-                  - array
-                  - "null"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List Orbit enroll secrets
-      tags:
-        - Orbit
-    post:
-      operationId: create-orbit-enroll-secret
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Secret"
-          description: Created
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Create Orbit enroll secret
-      tags:
-        - Orbit
-  /api/orbit/enroll-secrets/{id}:
-    delete:
-      operationId: delete-orbit-enroll-secret
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: No Content
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Delete Orbit enroll secret
-      tags:
-        - Orbit
-  /api/reports:
-    get:
-      operationId: list-reports
+      operationId: list-osquery-checks
       parameters:
         - explode: false
           in: query
@@ -3245,7 +2915,348 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportListOutputBody"
+                $ref: "#/components/schemas/PaginatedBodyCheck"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List checks
+      tags:
+        - Checks
+    post:
+      operationId: create-osquery-check
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckMutationBody"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Check"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Create a check
+      tags:
+        - Checks
+  /api/osquery/checks/bulk-delete:
+    post:
+      operationId: bulk-delete-osquery-checks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkIDsBody"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Delete checks
+      tags:
+        - Checks
+  /api/osquery/checks/{id}:
+    delete:
+      operationId: delete-osquery-check
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Delete a check
+      tags:
+        - Checks
+    get:
+      operationId: get-osquery-check
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Check"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get a check
+      tags:
+        - Checks
+    put:
+      operationId: update-osquery-check
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckMutationBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Check"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Replace a check
+      tags:
+        - Checks
+  /api/osquery/checks/{id}/hosts:
+    get:
+      operationId: list-osquery-check-hosts
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckHostsOutputBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List check host status
+      tags:
+        - Checks
+  /api/osquery/reports:
+    get:
+      operationId: list-osquery-reports
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: platform
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: per_page
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: order_key
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: order_direction
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedBodyReportBody"
           description: OK
         "401":
           content:
@@ -3269,7 +3280,7 @@ paths:
       tags:
         - Reports
     post:
-      operationId: create-report
+      operationId: create-osquery-report
       requestBody:
         content:
           application/json:
@@ -3316,9 +3327,9 @@ paths:
       summary: Create a report
       tags:
         - Reports
-  /api/reports/bulk-delete:
+  /api/osquery/reports/bulk-delete:
     post:
-      operationId: bulk-delete-reports
+      operationId: bulk-delete-osquery-reports
       requestBody:
         content:
           application/json:
@@ -3361,9 +3372,9 @@ paths:
       summary: Delete reports
       tags:
         - Reports
-  /api/reports/{id}:
+  /api/osquery/reports/{id}:
     delete:
-      operationId: delete-report
+      operationId: delete-osquery-report
       parameters:
         - in: path
           name: id
@@ -3401,7 +3412,7 @@ paths:
       tags:
         - Reports
     get:
-      operationId: get-report
+      operationId: get-osquery-report
       parameters:
         - in: path
           name: id
@@ -3443,7 +3454,7 @@ paths:
       tags:
         - Reports
     put:
-      operationId: put-report
+      operationId: update-osquery-report
       parameters:
         - in: path
           name: id
@@ -3502,9 +3513,9 @@ paths:
       summary: Replace a report
       tags:
         - Reports
-  /api/reports/{id}/results:
+  /api/osquery/reports/{id}/results:
     get:
-      operationId: list-report-results
+      operationId: list-osquery-report-results
       parameters:
         - in: path
           name: id
@@ -3516,7 +3527,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportResultsOutputBody"
+                $ref: "#/components/schemas/ReportResultsBody"
           description: OK
         "401":
           content:
@@ -3633,7 +3644,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SoftwareListBody"
+                $ref: "#/components/schemas/PaginatedBodySoftwareTitle"
           description: OK
         "401":
           content:
@@ -3670,7 +3681,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SoftwareGetBody"
+                $ref: "#/components/schemas/SoftwareTitle"
           description: OK
         "401":
           content:
@@ -3707,11 +3718,7 @@ paths:
           content:
             application/json:
               schema:
-                items:
-                  $ref: "#/components/schemas/User"
-                type:
-                  - array
-                  - "null"
+                $ref: "#/components/schemas/PaginatedBodyUser"
           description: OK
         "401":
           content:
@@ -3888,7 +3895,7 @@ paths:
       tags:
         - Users
     put:
-      operationId: put-user
+      operationId: update-user
       parameters:
         - in: path
           name: id

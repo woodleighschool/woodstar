@@ -6,9 +6,9 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type Report = Schemas["ReportBody"];
-export type ReportListResult = Schemas["ReportListOutputBody"];
+export type ReportListResult = Schemas["PaginatedBodyReportBody"];
 export type ReportMutation = Schemas["ReportMutationBody"];
-export type ReportResults = Schemas["ReportResultsOutputBody"];
+export type ReportResults = Schemas["ReportResultsBody"];
 
 export interface ReportListParams {
   q?: string;
@@ -31,7 +31,7 @@ export function useReports(params: ReportListParams = {}) {
 
   return useQuery<ReportListResult, ApiError>({
     queryKey: queryKeys.reports(queryParams),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/reports", { params: { query: queryParams }, signal })),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/osquery/reports", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }
@@ -39,7 +39,7 @@ export function useReports(params: ReportListParams = {}) {
 export function useReport(id: string) {
   return useQuery<Report, ApiError>({
     queryKey: queryKeys.report(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/reports/{id}", { params: { path: { id } }, signal })),
+    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/osquery/reports/{id}", { params: { path: { id } }, signal })),
     enabled: id !== "",
   });
 }
@@ -47,7 +47,8 @@ export function useReport(id: string) {
 export function useReportResults(id: string) {
   return useQuery<ReportResults, ApiError>({
     queryKey: queryKeys.reportResults(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/reports/{id}/results", { params: { path: { id } }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/osquery/reports/{id}/results", { params: { path: { id } }, signal })),
     enabled: id !== "",
   });
 }
@@ -55,7 +56,7 @@ export function useReportResults(id: string) {
 export function useCreateReport() {
   const queryClient = useQueryClient();
   return useMutation<Report, ApiError, ReportMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/reports", { body })),
+    mutationFn: (body) => unwrap(apiClient.POST("/api/osquery/reports", { body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
@@ -65,7 +66,7 @@ export function useCreateReport() {
 export function useUpdateReport(id: string) {
   const queryClient = useQueryClient();
   return useMutation<Report, ApiError, ReportMutation>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/reports/{id}", { params: { path: { id } }, body })),
+    mutationFn: (body) => unwrap(apiClient.PUT("/api/osquery/reports/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reports() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.report(id) });
@@ -77,7 +78,7 @@ export function useUpdateReport(id: string) {
 export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/reports/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id: String(id) } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
@@ -87,7 +88,7 @@ export function useDeleteReport() {
 export function useBulkDeleteReports() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
-    mutationFn: (ids) => unwrap(apiClient.POST("/api/reports/bulk-delete", { body: { ids } })),
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/osquery/reports/bulk-delete", { body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },

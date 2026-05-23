@@ -5,13 +5,17 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 export type User = Schemas["User"];
+export type UserListResult = Schemas["PaginatedBodyUser"];
 export type UserCreateBody = Schemas["UserCreateInputBody"];
 export type UserUpdateBody = Schemas["UserPutBody"];
 
 export function useUsers() {
   return useQuery<User[], ApiError>({
     queryKey: queryKeys.users,
-    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/users", { signal }))) ?? [],
+    queryFn: async ({ signal }) => {
+      const result = await unwrap(apiClient.GET("/api/users", { signal }));
+      return result.items ?? [];
+    },
   });
 }
 

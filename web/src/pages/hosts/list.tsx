@@ -11,7 +11,7 @@ import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { defaultHiddenIds } from "@/components/data-table/data-table-visibility";
 import { PageActions } from "@/components/layout/page-actions";
 import { PageShell } from "@/components/layout/page-layout";
-import { OrbitEnrollSecretsDialog } from "@/components/secrets/orbit-enroll-secrets-dialog";
+import { EnrollSecretsDialog } from "@/components/secrets/enroll-secrets-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -231,7 +231,7 @@ export function HostsListPage() {
             <Link to="/hosts">Clear filter</Link>
           </Button>
         ) : null}
-        <OrbitEnrollSecretsDialog
+        <EnrollSecretsDialog
           trigger={
             <Button variant="outline" size="sm" className="gap-2">
               <KeyRound data-icon="inline-start" /> Manage enroll secrets
@@ -300,7 +300,7 @@ export function HostsListPage() {
                   <EmptyDescription>
                     {hasFilters
                       ? "No hosts matched the current filters."
-                      : "Create an enroll secret, then point an Orbit-managed Mac at this Woodstar deployment."}
+                      : "Create an enroll secret, then point a managed host at this Woodstar deployment."}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>

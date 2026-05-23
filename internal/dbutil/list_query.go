@@ -8,8 +8,16 @@ import (
 
 type OrderExpr struct {
 	SQL       string
-	NullsLast bool
+	NullOrder NullOrder
 }
+
+type NullOrder string
+
+const (
+	NullOrderDefault NullOrder = ""
+	NullsFirst       NullOrder = "NULLS FIRST"
+	NullsLast        NullOrder = "NULLS LAST"
+)
 
 type ListQuery struct {
 	SelectSQL    string
@@ -21,13 +29,38 @@ type ListQuery struct {
 	Params       ListParams
 }
 
+type WhereBuilder struct {
+	clauses []string
+	args    []any
+}
+
+func (b *WhereBuilder) Add(clause string) {
+	clause = strings.TrimSpace(clause)
+	if clause == "" {
+		return
+	}
+	b.clauses = append(b.clauses, clause)
+}
+
+func (b *WhereBuilder) Arg(arg any) string {
+	b.args = append(b.args, arg)
+	return fmt.Sprintf("$%d", len(b.args))
+}
+
+func (b WhereBuilder) Build() (string, []any) {
+	if len(b.clauses) == 0 {
+		return "", slices.Clone(b.args)
+	}
+	return "WHERE " + strings.Join(b.clauses, " AND "), slices.Clone(b.args)
+}
+
 func (q ListQuery) Build() (string, []any, error) {
 	params := CleanListParams(q.Params)
 	orderSQL, err := OrderBy(params, q.OrderKeys, q.DefaultOrder)
 	if err != nil {
 		return "", nil, err
 	}
-	args := append([]any{}, q.Args...)
+	args := slices.Clone(q.Args)
 	limitIndex := len(args) + 1
 	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
 
@@ -74,8 +107,8 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 			itemDirection = orderSQLAsc
 		}
 		part := expr.SQL + " " + itemDirection
-		if expr.NullsLast {
-			part += " NULLS LAST"
+		if expr.NullOrder != NullOrderDefault {
+			part += " " + string(expr.NullOrder)
 		}
 		parts = append(parts, part)
 	}

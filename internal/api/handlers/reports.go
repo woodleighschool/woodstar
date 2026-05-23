@@ -5,14 +5,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/agents/reports"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
@@ -20,7 +19,7 @@ import (
 const (
 	reportsTag     = "Reports"
 	reportResource = "report"
-	reportIDPath   = "/api/reports/{id}"
+	reportIDPath   = "/api/osquery/reports/{id}"
 )
 
 type reportMutationBody struct {
@@ -87,10 +86,7 @@ type reportBulkDeleteInput struct {
 }
 
 type reportListOutput struct {
-	Body struct {
-		Items []reportBody `json:"items"`
-		Count int          `json:"count"`
-	}
+	Body paginatedBody[reportBody]
 }
 
 type reportOutput struct {
@@ -98,25 +94,31 @@ type reportOutput struct {
 }
 
 type reportResultsOutput struct {
-	Body struct {
-		Items []reportResultBody `json:"items"`
-	}
+	Body reportResultsBody
 }
 
 type hostReportsOutput struct {
-	Body struct {
-		Items []reports.HostReport `json:"items"`
-	}
+	Body hostReportsBody
 }
 
 type hostReportResultsOutput struct {
-	Body struct {
-		ReportID    int64              `json:"report_id"`
-		HostID      int64              `json:"host_id"`
-		HostName    string             `json:"host_name"`
-		LastFetched *time.Time         `json:"last_fetched,omitempty"`
-		Items       []reportResultBody `json:"items"`
-	}
+	Body hostReportResultsBody
+}
+
+type reportResultsBody struct {
+	Items []reportResultBody `json:"items"`
+}
+
+type hostReportsBody struct {
+	Items []reports.HostReport `json:"items"`
+}
+
+type hostReportResultsBody struct {
+	ReportID    int64              `json:"report_id"`
+	HostID      int64              `json:"host_id"`
+	HostName    string             `json:"host_name"`
+	LastFetched *time.Time         `json:"last_fetched,omitempty"`
+	Items       []reportResultBody `json:"items"`
 }
 
 type hostReportResultsInput struct {
@@ -124,7 +126,6 @@ type hostReportResultsInput struct {
 	ReportID string `path:"report_id"`
 }
 
-// RegisterReports registers saved report endpoints.
 func RegisterReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
 	registerListReports(api, reportStore)
 	registerCreateReport(api, reportStore)
@@ -139,9 +140,9 @@ func RegisterReports(api huma.API, reportStore *reports.Store, hostStore *hosts.
 
 func registerListReports(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-reports",
+		OperationID: "list-osquery-reports",
 		Method:      http.MethodGet,
-		Path:        "/api/reports",
+		Path:        "/api/osquery/reports",
 		Tags:        []string{reportsTag},
 		Summary:     "List reports",
 		Errors:      []int{http.StatusUnauthorized},
@@ -150,18 +151,18 @@ func registerListReports(api huma.API, reportStore *reports.Store) {
 		if err != nil {
 			return nil, resourceMutationError(reportResource, err)
 		}
-		out := &reportListOutput{}
-		out.Body.Items = reportBodies(items)
-		out.Body.Count = count
-		return out, nil
+		return &reportListOutput{Body: paginatedBody[reportBody]{
+			Items: reportBodies(items),
+			Count: count,
+		}}, nil
 	})
 }
 
 func registerCreateReport(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "create-report",
+		OperationID:   "create-osquery-report",
 		Method:        http.MethodPost,
-		Path:          "/api/reports",
+		Path:          "/api/osquery/reports",
 		Tags:          []string{reportsTag},
 		Summary:       "Create a report",
 		DefaultStatus: http.StatusCreated,
@@ -181,7 +182,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 
 func registerGetReport(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "get-report",
+		OperationID: "get-osquery-report",
 		Method:      http.MethodGet,
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
@@ -202,7 +203,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store) {
 
 func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-report",
+		OperationID: "update-osquery-report",
 		Method:      http.MethodPut,
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
@@ -227,7 +228,7 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 
 func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-report",
+		OperationID: "delete-osquery-report",
 		Method:      http.MethodDelete,
 		Path:        reportIDPath,
 		Tags:        []string{reportsTag},
@@ -247,9 +248,9 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 
 func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-reports",
+		OperationID: "bulk-delete-osquery-reports",
 		Method:      http.MethodPost,
-		Path:        "/api/reports/bulk-delete",
+		Path:        "/api/osquery/reports/bulk-delete",
 		Tags:        []string{reportsTag},
 		Summary:     "Delete reports",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
@@ -270,9 +271,9 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
 
 func registerReportResults(api huma.API, reportStore *reports.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-report-results",
+		OperationID: "list-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/reports/{id}/results",
+		Path:        "/api/osquery/reports/{id}/results",
 		Tags:        []string{reportsTag},
 		Summary:     "List latest snapshots for a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -285,17 +286,15 @@ func registerReportResults(api huma.API, reportStore *reports.Store) {
 		if err != nil {
 			return nil, err
 		}
-		out := &reportResultsOutput{}
-		out.Body.Items = reportResultBodies(rows)
-		return out, nil
+		return &reportResultsOutput{Body: reportResultsBody{Items: reportResultBodies(rows)}}, nil
 	})
 }
 
 func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-host-reports",
+		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/reports",
+		Path:        "/api/hosts/{id}/osquery/reports",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -315,17 +314,15 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		if err != nil {
 			return nil, err
 		}
-		out := &hostReportsOutput{}
-		out.Body.Items = rows
-		return out, nil
+		return &hostReportsOutput{Body: hostReportsBody{Items: rows}}, nil
 	})
 }
 
 func registerHostReportResults(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-host-report-results",
+		OperationID: "list-host-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/reports/{report_id}",
+		Path:        "/api/hosts/{id}/osquery/reports/{report_id}",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List report rows for one host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -349,26 +346,26 @@ func registerHostReportResults(api huma.API, reportStore *reports.Store, hostSto
 		if err != nil {
 			return nil, err
 		}
-		out := &hostReportResultsOutput{}
-		out.Body.ReportID = reportID
-		out.Body.HostID = hostID
-		out.Body.HostName = host.DisplayName
-		out.Body.LastFetched = lastFetched
-		out.Body.Items = reportResultBodies(rows)
-		return out, nil
+		return &hostReportResultsOutput{Body: hostReportResultsBody{
+			ReportID:    reportID,
+			HostID:      hostID,
+			HostName:    host.DisplayName,
+			LastFetched: lastFetched,
+			Items:       reportResultBodies(rows),
+		}}, nil
 	})
 }
 
 func (input reportListInput) params() reports.ReportListParams {
 	return reports.ReportListParams{
-		ListParams: dbutil.CleanListParams(dbutil.ListParams{
+		ListParams: dbutil.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,
 			OrderKey:       input.OrderKey,
 			OrderDirection: input.OrderDirection,
-		}),
-		Platform: strings.TrimSpace(input.Platform),
+		},
+		Platform: input.Platform,
 	}
 }
 

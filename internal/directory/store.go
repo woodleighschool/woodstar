@@ -8,6 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // Store persists directory users and groups synced from an external IdP.
@@ -16,16 +17,16 @@ type Store struct {
 	q  *sqlc.Queries
 }
 
-// NewStore returns a directory store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
 // Apply reconciles the snapshot into the database within a single
 // transaction: every user and group present in the snapshot is upserted,
-// memberships are replaced per-user, and any rows whose external_id is no
-// longer in the snapshot are hard-deleted (cascading through memberships
-// and host_directory_user when that table exists).
+// memberships are replaced per-user, matching host links are refreshed, and
+// any rows whose external_id is no longer in the snapshot are hard-deleted
+// (cascading through memberships and host_directory_user when that table
+// exists).
 func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 	syncedAt := snapshot.GeneratedAt
 	if syncedAt.IsZero() {
@@ -40,7 +41,7 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			if _, err := q.UpsertDirectoryGroup(ctx, sqlc.UpsertDirectoryGroupParams{
 				ExternalID:   g.ExternalID,
 				DisplayName:  g.DisplayName,
-				MailNickname: nilIfEmpty(g.MailNickname),
+				MailNickname: dbutil.StringPtrOrNil(g.MailNickname),
 				LastSyncedAt: syncedAt,
 			}); err != nil {
 				return err
@@ -58,12 +59,12 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			row, err := q.UpsertDirectoryUser(ctx, sqlc.UpsertDirectoryUserParams{
 				ExternalID:        u.ExternalID,
 				UserPrincipalName: u.UserPrincipalName,
-				Mail:              nilIfEmpty(u.Mail),
-				MailNickname:      nilIfEmpty(u.MailNickname),
+				Mail:              dbutil.StringPtrOrNil(u.Mail),
+				MailNickname:      dbutil.StringPtrOrNil(u.MailNickname),
 				DisplayName:       u.DisplayName,
-				GivenName:         nilIfEmpty(u.GivenName),
-				FamilyName:        nilIfEmpty(u.FamilyName),
-				Department:        nilIfEmpty(u.Department),
+				GivenName:         dbutil.StringPtrOrNil(u.GivenName),
+				FamilyName:        dbutil.StringPtrOrNil(u.FamilyName),
+				Department:        dbutil.StringPtrOrNil(u.Department),
 				Active:            u.Active,
 				LastSyncedAt:      syncedAt,
 			})
@@ -83,13 +84,6 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 		}); err != nil {
 			return err
 		}
-		return nil
+		return reconcileLinks(ctx, q)
 	})
-}
-
-func nilIfEmpty(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
 }

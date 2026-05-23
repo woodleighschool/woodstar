@@ -187,7 +187,7 @@ func TestLabelListFiltersByPlatformTargetSet(t *testing.T) {
 		t.Fatalf("create windows label: %v", err)
 	}
 
-	got, count, err := store.List(ctx, LabelListParams{LabelType: LabelTypeRegular, Platform: "darwin"})
+	got, count, err := store.List(ctx, ListParams{LabelType: LabelTypeRegular, Platform: "darwin"})
 	if err != nil {
 		t.Fatalf("list labels: %v", err)
 	}

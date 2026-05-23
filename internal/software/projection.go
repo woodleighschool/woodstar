@@ -2,7 +2,6 @@ package software
 
 import (
 	"context"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -33,7 +32,6 @@ func resetHostSoftware(ctx context.Context, q *sqlc.Queries, hostID int64) error
 }
 
 func replaceHostSoftwareEntry(ctx context.Context, q *sqlc.Queries, hostID int64, entry HostSoftwareEntry) error {
-	entry = cleanHostSoftwareEntry(entry)
 	if entry.Name == "" || entry.Source == "" {
 		return nil
 	}
@@ -86,28 +84,37 @@ func softwareIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftwareEntry
 }
 
 func softwareTitleIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftwareEntry) (int64, error) {
-	displayName := entry.Name
-	if entry.BundleIdentifier != "" {
-		row, err := q.UpsertSoftwareTitleByBundle(ctx, sqlc.UpsertSoftwareTitleByBundleParams{
-			Name:             entry.Name,
-			DisplayName:      displayName,
-			Source:           entry.Source,
-			ExtensionFor:     entry.ExtensionFor,
-			BundleIdentifier: entry.BundleIdentifier,
-			Vendor:           entry.Vendor,
-		})
-		if err != nil {
-			return 0, err
-		}
-		return row.ID, nil
-	}
-	row, err := q.UpsertSoftwareTitleByName(ctx, sqlc.UpsertSoftwareTitleByNameParams{
+	params := softwareTitleParams{
 		Name:             entry.Name,
-		DisplayName:      displayName,
+		DisplayName:      entry.Name,
 		Source:           entry.Source,
 		ExtensionFor:     entry.ExtensionFor,
 		BundleIdentifier: entry.BundleIdentifier,
 		Vendor:           entry.Vendor,
+	}
+	if entry.BundleIdentifier != "" {
+		return upsertSoftwareTitleByBundle(ctx, q, params)
+	}
+	return upsertSoftwareTitleByName(ctx, q, params)
+}
+
+type softwareTitleParams struct {
+	Name             string
+	DisplayName      string
+	Source           string
+	ExtensionFor     string
+	BundleIdentifier string
+	Vendor           string
+}
+
+func upsertSoftwareTitleByBundle(ctx context.Context, q *sqlc.Queries, params softwareTitleParams) (int64, error) {
+	row, err := q.UpsertSoftwareTitleByBundle(ctx, sqlc.UpsertSoftwareTitleByBundleParams{
+		Name:             params.Name,
+		DisplayName:      params.DisplayName,
+		Source:           params.Source,
+		ExtensionFor:     params.ExtensionFor,
+		BundleIdentifier: params.BundleIdentifier,
+		Vendor:           params.Vendor,
 	})
 	if err != nil {
 		return 0, err
@@ -115,20 +122,17 @@ func softwareTitleIDFor(ctx context.Context, q *sqlc.Queries, entry HostSoftware
 	return row.ID, nil
 }
 
-func cleanHostSoftwareEntry(entry HostSoftwareEntry) HostSoftwareEntry {
-	entry.Name = strings.TrimSpace(entry.Name)
-	entry.Version = strings.TrimSpace(entry.Version)
-	entry.Source = strings.TrimSpace(entry.Source)
-	entry.BundleIdentifier = strings.TrimSpace(entry.BundleIdentifier)
-	entry.ExtensionID = strings.TrimSpace(entry.ExtensionID)
-	entry.ExtensionFor = strings.TrimSpace(entry.ExtensionFor)
-	entry.Vendor = strings.TrimSpace(entry.Vendor)
-	entry.Arch = strings.TrimSpace(entry.Arch)
-	entry.Release = strings.TrimSpace(entry.Release)
-	entry.InstalledPath = strings.TrimSpace(entry.InstalledPath)
-	entry.TeamIdentifier = strings.TrimSpace(entry.TeamIdentifier)
-	entry.CDHashSHA256 = strings.TrimSpace(entry.CDHashSHA256)
-	entry.ExecutableSHA256 = strings.TrimSpace(entry.ExecutableSHA256)
-	entry.ExecutablePath = strings.TrimSpace(entry.ExecutablePath)
-	return entry
+func upsertSoftwareTitleByName(ctx context.Context, q *sqlc.Queries, params softwareTitleParams) (int64, error) {
+	row, err := q.UpsertSoftwareTitleByName(ctx, sqlc.UpsertSoftwareTitleByNameParams{
+		Name:             params.Name,
+		DisplayName:      params.DisplayName,
+		Source:           params.Source,
+		ExtensionFor:     params.ExtensionFor,
+		BundleIdentifier: params.BundleIdentifier,
+		Vendor:           params.Vendor,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return row.ID, nil
 }

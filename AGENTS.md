@@ -28,10 +28,13 @@ For single-commit changes (bugfix, small feature) the usual "code compiles, touc
 - `internal/` holds product packages organised by capability.
 - `internal/database/` for DB connection, pool, migrations, sqlc gen, dbtest.
 - `internal/dbutil/` for pagination, sentinel errors, pgx helpers.
-- `internal/agents/` for the Orbit + osquery substrate (the canonical observation root).
+- `internal/httpjson/` for tiny JSON encode/decode helpers used by raw `net/http` protocol endpoints.
+- `internal/enrollment/` for the shared enroll-secret store and node-key generation used by Orbit and osquery enrollment.
+- `internal/orbit/` for Orbit enrollment, Orbit config, and Orbit-specific protocol endpoints.
+- `internal/osquery/` for osquery TLS-plugin enrollment, config, distributed query/log handling, catalog, checks, reports, live queries, and inventory projection. Orbit can provide extension tables that osquery queries use, but osquery remains the protocol/client boundary for those queries.
 - `internal/santa/` and `internal/munki/` for the optional native capabilities (subtrees materialise when that work begins).
 - `internal/api/` owns the **admin HTTP surface**: Huma route registration, handlers, middleware, server lifecycle. Every admin (session-authed, JSON, OpenAPI-documented) endpoint lives in `internal/api/handlers/`, regardless of which domain package owns the entity. Capability packages register handlers here; they do not host them.
-- `internal/{capability}/protocol/` owns **agent-facing HTTP endpoints** for that capability (chi-routed, node-key auth, protocol-shaped). Today: `internal/agents/protocol/` (Orbit + osquery). When Santa or Munki ship their own agent protocols, they get `internal/santa/protocol/` / `internal/munki/protocol/`.
+- `internal/{capability}/protocol/` owns **agent-facing HTTP endpoints** for that capability (chi-routed, node-key auth, protocol-shaped). Today: `internal/orbit/protocol/` registers Orbit endpoints and `internal/osquery/protocol/` registers osquery TLS-plugin endpoints. When Santa or Munki ship their own agent protocols, they get `internal/santa/protocol/` / `internal/munki/protocol/`.
 - `web/src/` for the React/Vite frontend; `web/public/` for static assets.
 - `docs/` for focused engineering notes (working notes, uncommitted).
 - `deploy/`, `charts/`, or root-level compose files for deployment artefacts.
@@ -42,7 +45,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 
 ## Ownership Rules
 
-1. **Orbit/osquery is the canonical observation root.** Only `internal/agents/` creates hosts. Santa and Munki ingest paths look up existing hosts and no-op when absent; they never insert into `hosts`.
+1. **Orbit and osquery are separate enrolling clients.** Both can create or refresh hosts through `hosts` using their own node-key columns and protocol contracts. Orbit can provide extension tables that osquery inventory queries use, but missing extension tables are still osquery query result statuses/messages, not a separate server-side runtime mode. Santa and Munki ingest paths look up existing hosts and no-op when absent; they never insert into `hosts`.
 
 2. **`internal/software/` is observed inventory.** Munki manifests are desired state and live in `internal/munki/`. osquery seeing Munki installs via `munki_installs` is still observation and writes to `software/`. No desired-state engine in `software/`.
 
@@ -50,21 +53,36 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 
 4. **`scope/` stays concrete.** Labels are the main targeting primitive. No generic targeting-expression engine. When Santa needs its own scoping shape it gets a parallel type next door, not a generalisation.
 
-5. **`secrets/` stays Orbit/osquery-only.** No pre-shaped `kind` discriminator for Santa/Munki. Santa sync tokens and Munki repo tokens have different protocol lifecycles and get their own packages when they ship.
+5. **`enrollment/` stays core enrollment-only.** The shared `EnrollSecret` is accepted by the current Orbit and osquery enrollment flows. Do not add a pre-shaped `kind` discriminator for Santa/Munki. Santa sync tokens and Munki repo tokens have different protocol lifecycles and get their own packages when they ship.
 
-6. **Domain types are real.** Each domain owns a `model.go` with an explicit struct; `store.go` maps `sqlc.X → X`. Do not embed `sqlc.X` in domain types.
+6. **Domain types are real.** Each domain owns a `model.go` with an explicit struct; `store.go` maps `sqlc.X → X`. Do not embed `sqlc.X` in domain types. Keep explicit mappers where they enforce domain/public DTO boundaries, hide internal columns, normalize enum/platform types, or join computed fields. Only introduce generated mapping when the source and destination are truly mechanical mirrors across enough call sites to justify owning the generator; do not use reflection/mapstructure-style runtime mappers.
+
+7. **Services are for orchestration, not symmetry.** Do not create a `Service` just because a domain has a store. Keep a service when it owns policy, password/secret handling, background lifecycle, protocol coordination, external API sync, or multi-store orchestration. Plain CRUD domains can expose stores directly to the admin handler layer.
 
 ## Package Dependency Direction
 
 - `auth` may depend on `users`. `users` must not depend on `auth`.
-- `agents/ingest` writes observed `hosts` / `software` / `labels` membership.
-- `labels` must not import `agents`, `santa`, or `munki`.
+- `osquery/ingest` writes observed `hosts` / `software` / `labels` membership.
+- `labels` must not import `orbit`, `osquery`, `santa`, or `munki`.
 - `santa` and `munki` may import `hosts`, `labels`, `scope`, `software`. Never the reverse.
-- `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `agents/reports`, `agents/checks`, `agents/livequery`, etc.). Domain packages never import `handlers`.
-- `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `agents/protocol` may import `agents/orbit`, `agents/osquery`, `agents/livequery`, but does not import `handlers` and does not import other capabilities).
+- `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `osquery/reports`, `osquery/checks`, `osquery/livequery`, etc.). Domain packages never import `handlers`.
+- `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `orbit/protocol` may import `orbit`; `osquery/protocol` may import `osquery`), plus leaf packages such as `enrollment`.
 - Route-shape rule for new endpoints: session-authed REST/JSON → `internal/api/handlers/`; agent-authed protocol (Orbit/osquery TLS plugin/etc.) → `internal/{capability}/protocol/`. Do not split admin handlers by domain ownership.
 - `dbutil`, `database`, `config`, `buildinfo`, `logging`, `platform` are leaves: stdlib + third-party only.
-- Cross-capability host enrichment: `hosts` defines an enricher interface; each capability registers an implementation at wiring time. `hosts` never imports `agents` / `santa` / `munki`.
+- Cross-capability host enrichment: `hosts` defines an enricher interface; each capability registers an implementation at wiring time. `hosts` never imports `orbit` / `osquery` / `santa` / `munki`.
+- Keep `dbutil` as the small shared database-helper leaf until a split removes real import pressure. It may own list/WHERE builders, sentinel persistence errors, and pgx/Postgres helpers, but it must not become a generic application `common` package.
+
+## Admin API Naming
+
+- Admin API paths live under `/api`.
+- Use lowercase resource nouns for path segments. Use kebab-case when a segment has multiple words (`/api/live-queries`, `/api/enroll-secrets`, `/api/account/api-key`).
+- Use plural collection nouns for ordinary collections (`/api/hosts`, `/api/users`, `/api/osquery/reports`). Singular singleton resources are acceptable when there is only one resource in the caller's context (`/api/account`, `/api/auth/session`).
+- osquery-owned admin resources live under `/api/osquery` (`/api/osquery/reports`, `/api/osquery/checks`) rather than at the API root.
+- Prefer state/resource paths over action paths. Keep action suffixes only for command-shaped operations that do not naturally address a separate resource (`/api/auth/login`, `/api/auth/logout`, `/api/setup`, `/api/live-queries/{id}/stop`).
+- Treat the admin API as the contract for Woodstar's own SPA and small trusted tooling, not as a future public SaaS API. Keep OpenAPI/type generation where it protects the SPA contract, but do not add public-API ceremony (extra tags, summaries, compatibility envelopes, broad security-scheme noise, or speculative error taxonomies) unless a real frontend, CLI, or protocol caller needs it.
+- Huma error `message` strings are part of the SPA contract today. Do not add a parallel `error_code` taxonomy speculatively; if a frontend flow needs programmatic branching, add the narrow structured field with that flow and update the generated client/types in the same slice.
+- Keep Huma route registration explicit per resource. Share boring mechanics such as paginated envelopes, bulk-ID parsing, list builders, and sentinel error mapping, but do not introduce a generic CRUD/router framework for handlers that need resource-specific request bodies, summaries, auth, or response mapping. `//nolint:dupl` on paired resources such as reports/checks is acceptable when the duplication preserves clear API contracts.
+- Huma route registration must stay side-effect-free: registering routes may capture services/stores but must not call them. `BuildSchemaAPI` reuses the admin route registration with empty dependencies for schema generation; if that ever becomes unsafe, split schema-only registration deliberately instead of adding runtime shims.
 
 ## Build, Test, And Development Commands
 
@@ -177,6 +195,8 @@ When adding Go tests that create files with `os.WriteFile`, use `0o600` or tight
 
 Frontend tests should be added when frontend test tooling exists and the behavior is worth protecting. Do not add a whole web test stack just for one trivial component unless asked.
 
+`internal/database/dbtest` is for store/database semantics that are worth protecting with a real Postgres schema. Do not add a dbtest harness just because a package has a store; prefer service/API coverage when that is the meaningful contract, and skip redundant store tests when they would only prove sqlc or a constructor works.
+
 ## Commit & Pull Request Guidelines
 
 Follow conventional commit style when making commits:
@@ -248,6 +268,7 @@ internal/
   config/  buildinfo/  logging/  platform/  web/
   database/            DB connection, pool, migrations, sqlc gen, dbtest
   dbutil/              pagination, sentinel errors, pgx helpers
+  httpjson/            JSON transport helpers for raw net/http endpoints
 
   # shared core
   auth/                sessions, login, OIDC, password verification
@@ -256,21 +277,23 @@ internal/
   software/            observed software inventory: titles, versions, paths
   labels/              label entity + store
   scope/               concrete scope joins (LabelScope today)
-  secrets/             Orbit/osquery enrollment secrets
+  enrollment/          core enroll secrets + node-key helpers
 
-  # canonical agent substrate (Orbit + osquery)
-  agents/
-    store.go             enroll-secret + node-key + agent-identity helpers
-    service.go           enrollment / config coordination shared by orbit + osquery
-    orbit/               Orbit service (config + enrollment business logic)
-    osquery/             osquery service (config + enrollment + dispatch)
+  orbit/
+    service.go           Orbit service (config + enrollment business logic)
+    protocol.go          Orbit wire DTOs
+    protocol/            Orbit agent-facing HTTP endpoints
+
+  osquery/
+    service.go           osquery service (config + enrollment + dispatch)
+    protocol.go          osquery wire DTOs
+    protocol/            osquery TLS-plugin endpoints
+    queries/             saved osquery SQL definition normalization
     catalog/             osquery query catalog
     reports/             saved scheduled reports + per-host result snapshots
     checks/              boolean query-backed checks (domain + store)
     livequery/           live-query hub + manager
     ingest/              inventory projection + label-membership evaluation
-    protocol/            agent-facing HTTP endpoints (chi, node-key auth):
-                         Orbit wrapper, osquery TLS plugin
 
   # future Santa capability (skeleton lands when Santa work begins)
   santa/
@@ -288,7 +311,7 @@ internal/
   # domain package owns the entity
   api/
     handlers/            Huma route registration per resource
-                         (hosts, labels, users, software, secrets,
+                         (hosts, labels, users, software, enroll_secrets,
                           reports, checks, live_queries, auth, …)
     middleware/
     routes.go            wires handlers onto the chi router

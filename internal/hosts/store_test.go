@@ -15,12 +15,12 @@ func TestDisplayNamePriority(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
-		in   EnrollParams
+		in   DetailUpdate
 		want string
 	}{
 		{
 			name: "computer name wins",
-			in: EnrollParams{
+			in: DetailUpdate{
 				ComputerName: "Example MacBook Pro",
 				Hostname:     "example-macbook-pro",
 				HardwareUUID: "uuid-1",
@@ -29,17 +29,17 @@ func TestDisplayNamePriority(t *testing.T) {
 		},
 		{
 			name: "hostname when no computer name",
-			in:   EnrollParams{Hostname: "example-macbook-pro", HardwareUUID: "uuid-1"},
+			in:   DetailUpdate{Hostname: "example-macbook-pro", HardwareUUID: "uuid-1"},
 			want: "example-macbook-pro",
 		},
 		{
 			name: "uuid when no friendly name",
-			in:   EnrollParams{HardwareUUID: "uuid-1"},
+			in:   DetailUpdate{HardwareUUID: "uuid-1"},
 			want: "uuid-1",
 		},
 		{
 			name: "whitespace-only fields fall through",
-			in:   EnrollParams{ComputerName: "  ", Hostname: " ", HardwareUUID: "uuid-2"},
+			in:   DetailUpdate{ComputerName: "  ", Hostname: " ", HardwareUUID: "uuid-2"},
 			want: "uuid-2",
 		},
 	}
@@ -57,7 +57,7 @@ func TestDisplayNamePriority(t *testing.T) {
 func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 
-	host, err := store.UpsertOnOsqueryEnroll(ctx, HostDetailUpdate{
+	host, err := store.UpsertOnOsqueryEnroll(ctx, DetailUpdate{
 		HardwareUUID:   "test-apply-detail-big-memory",
 		OsqueryNodeKey: "node-key",
 	})
@@ -66,7 +66,7 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 	}
 
 	const memoryBytes = int64(68719476736)
-	if err := store.ApplyDetail(ctx, host.ID, HostDetailUpdate{PhysicalMemory: memoryBytes}); err != nil {
+	if err := store.ApplyDetail(ctx, host.ID, DetailUpdate{PhysicalMemory: memoryBytes}); err != nil {
 		t.Fatalf("apply detail: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)
 
-	host, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	host, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-enroll-all-hosts",
 		OrbitNodeKey: "orbit-key",
 	})
@@ -116,14 +116,14 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)
 
-	directHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	directHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-target-direct",
 		OrbitNodeKey: "orbit-key-direct",
 	})
 	if err != nil {
 		t.Fatalf("enroll direct host: %v", err)
 	}
-	labelHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	labelHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-target-label",
 		OrbitNodeKey: "orbit-key-label",
 	})
@@ -160,14 +160,14 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	labelStore := labels.NewStore(store.db)
 	now := time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC)
 
-	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-count-online",
 		OrbitNodeKey: "orbit-key-count-online",
 	})
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
-	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-count-offline",
 		OrbitNodeKey: "orbit-key-count-offline",
 	})
@@ -220,14 +220,14 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	labelStore := labels.NewStore(store.db)
 	now := time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC)
 
-	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-online-target-online",
 		OrbitNodeKey: "orbit-key-live-online",
 	})
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
-	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, EnrollParams{
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
 		HardwareUUID: "test-live-online-target-offline",
 		OrbitNodeKey: "orbit-key-live-offline",
 	})
@@ -301,8 +301,8 @@ func allPlatforms() []platforms.Platform {
 	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
 }
 
-func TestCleanHostListParams(t *testing.T) {
-	params := cleanHostListParams(HostListParams{
+func TestCleanListParams(t *testing.T) {
+	params := cleanListParams(ListParams{
 		ListParams: dbutil.ListParams{
 			Q:              " mac ",
 			Page:           -1,

@@ -8,8 +8,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-// HostListParams filters host list results.
-type HostListParams struct {
+// ListParams filters host list results.
+type ListParams struct {
 	dbutil.ListParams
 
 	Status          string
@@ -19,21 +19,8 @@ type HostListParams struct {
 	SoftwareID      int64
 }
 
-// EnrollParams holds the fields supplied by an Orbit enrollment request.
-// Only HardwareUUID and OrbitNodeKey are required.
-type EnrollParams struct {
-	HardwareUUID   string
-	HardwareSerial string
-	Hostname       string
-	ComputerName   string
-	HardwareModel  string
-	Platform       string
-	PlatformLike   string
-	OrbitNodeKey   string
-}
-
-// HostDetailUpdate is inventory reported by osquery detail queries.
-type HostDetailUpdate struct {
+// DetailUpdate is inventory reported by osquery detail queries.
+type DetailUpdate struct {
 	HardwareUUID            string
 	Hostname                string
 	ComputerName            string
@@ -54,6 +41,7 @@ type HostDetailUpdate struct {
 	CPULogicalCores         int
 	CPUPhysicalCores        int
 	PhysicalMemory          int64
+	OrbitNodeKey            string
 	OsqueryVersion          string
 	OsqueryNodeKey          string
 	UptimeSeconds           *int64
@@ -189,10 +177,10 @@ type CertificateName struct {
 
 // HostDeviceMapping is a user/device association observed for a host.
 type HostDeviceMapping struct {
-	ID        int64     `json:"-"`
-	HostID    int64     `json:"-"`
-	Email     string    `json:"email"`
-	Source    string    `json:"source"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
+	ID        int64               `json:"-"`
+	HostID    int64               `json:"-"`
+	Email     string              `json:"email"`
+	Source    DeviceMappingSource `json:"source"`
+	CreatedAt time.Time           `json:"-"`
+	UpdatedAt time.Time           `json:"-"`
 }

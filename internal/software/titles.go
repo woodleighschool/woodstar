@@ -2,33 +2,30 @@ package software
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// ListTitles returns software titles and the total count matching params.
 func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
 	params = cleanSoftwareTitleListParams(params)
 	whereSQL, args := softwareTitleWhere(params)
 
-	countSQL := `SELECT count(*) FROM software_titles st` + whereSQL
+	countSQL := `SELECT count(*) FROM software_titles st`
+	if whereSQL != "" {
+		countSQL += "\n" + whereSQL
+	}
 	var total int
 	if err := s.db.Pool().QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	orderSQL, err := softwareTitleOrder(params.OrderKey, params.OrderDirection)
+	query, args, err := softwareTitleListQuery(params.ListParams, whereSQL, args)
 	if err != nil {
 		return nil, 0, err
 	}
-	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
-	rows, err := s.db.Pool().Query(ctx, softwareTitleListSQL(whereSQL, orderSQL, limitIndex), args...)
+	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -44,10 +41,16 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 	return titles, total, nil
 }
 
-// GetTitle returns one software title by ID.
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
-	rows, err := s.db.Pool().
-		Query(ctx, softwareTitleListSQL(" WHERE st.id = $1", "ORDER BY lower(st.name)", 2), id, int32(1), int32(0))
+	query, args, err := softwareTitleListQuery(
+		dbutil.ListParams{Page: 1, PerPage: 1},
+		"WHERE st.id = $1",
+		[]any{id},
+	)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,48 +76,45 @@ func cleanSoftwareTitleListParams(params SoftwareTitleListParams) SoftwareTitleL
 }
 
 func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
-	clauses := make([]string, 0, 2)
-	args := make([]any, 0)
+	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		args = append(args, "%"+params.Q+"%")
-		placeholder := fmt.Sprintf("$%d", len(args))
-		clauses = append(clauses, `(
-			st.name ILIKE `+placeholder+`
-			OR st.display_name ILIKE `+placeholder+`
-			OR st.bundle_identifier ILIKE `+placeholder+`
-			OR st.extension_for ILIKE `+placeholder+`
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(`(
+			st.name ILIKE ` + search + `
+			OR st.display_name ILIKE ` + search + `
+			OR st.bundle_identifier ILIKE ` + search + `
+			OR st.extension_for ILIKE ` + search + `
 			OR EXISTS (
 				SELECT 1 FROM software s
-				WHERE s.title_id = st.id AND s.version ILIKE `+placeholder+`
+				WHERE s.title_id = st.id AND s.version ILIKE ` + search + `
 			)
 		)`)
 	}
 	if len(params.SoftwareSources) > 0 {
-		args = append(args, params.SoftwareSources)
-		clauses = append(clauses, fmt.Sprintf("st.source = ANY($%d::text[])", len(args)))
+		where.Add("st.source = ANY(" + where.Arg(params.SoftwareSources) + "::text[])")
 	}
-	if len(clauses) == 0 {
-		return "", args
-	}
-	return " WHERE " + strings.Join(clauses, " AND "), args
+	return where.Build()
 }
 
-func softwareTitleOrder(orderKey string, direction string) (string, error) {
-	return dbutil.OrderBy(
-		dbutil.CleanListParams(dbutil.ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]dbutil.OrderExpr{
+func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []any) (string, []any, error) {
+	return dbutil.ListQuery{
+		SelectSQL:  softwareTitleSelectSQL,
+		WhereSQL:   whereSQL,
+		GroupBySQL: "GROUP BY st.id",
+		Args:       args,
+		OrderKeys: map[string]dbutil.OrderExpr{
 			"name":              {SQL: "lower(st.name)"},
 			"source":            {SQL: "lower(st.source)"},
 			"hosts_count":       {SQL: "hosts_count"},
 			"versions_count":    {SQL: "versions_count"},
-			"counts_updated_at": {SQL: "counts_updated_at", NullsLast: true},
+			"counts_updated_at": {SQL: "counts_updated_at", NullOrder: dbutil.NullsLast},
 		},
-		[]dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
-	)
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
+		Params:       params,
+	}.Build()
 }
 
-func softwareTitleListSQL(whereSQL string, orderSQL string, limitIndex int) string {
-	return `
+const softwareTitleSelectSQL = `
 SELECT
 	st.id,
 	st.name,
@@ -129,11 +129,7 @@ SELECT
 FROM software_titles st
 LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id
-` + whereSQL + `
-GROUP BY st.id
-` + orderSQL + `
-LIMIT $` + strconv.Itoa(limitIndex) + ` OFFSET $` + strconv.Itoa(limitIndex+1)
-}
+`
 
 func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 	titles := make([]SoftwareTitle, 0)
@@ -174,39 +170,50 @@ func browserFor(source, extensionFor string) string {
 }
 
 func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []SoftwareTitle) error {
+	if len(titles) == 0 {
+		return nil
+	}
+	titleIDs := make([]int64, len(titles))
+	titleIndex := make(map[int64]int, len(titles))
 	for i := range titles {
-		rows, err := s.db.Pool().Query(ctx, `
+		titleIDs[i] = titles[i].ID
+		titleIndex[titles[i].ID] = i
+	}
+
+	rows, err := s.db.Pool().Query(ctx, `
 SELECT
+	s.title_id,
 	s.id,
 	s.version,
 	s.bundle_identifier,
 	COUNT(DISTINCT hs.host_id)::integer AS hosts_count
 FROM software s
 LEFT JOIN host_software hs ON hs.software_id = s.id
-WHERE s.title_id = $1
+WHERE s.title_id = ANY($1::bigint[])
 GROUP BY s.id
-ORDER BY lower(s.version), s.id`, titles[i].ID)
-		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var version SoftwareVersion
-			if err := rows.Scan(
-				&version.ID,
-				&version.Version,
-				&version.BundleIdentifier,
-				&version.HostsCount,
-			); err != nil {
-				rows.Close()
-				return err
-			}
-			titles[i].Versions = append(titles[i].Versions, version)
-		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return err
-		}
-		rows.Close()
+ORDER BY array_position($1::bigint[], s.title_id), lower(s.version), s.id`, titleIDs)
+	if err != nil {
+		return err
 	}
-	return nil
+	defer rows.Close()
+
+	for rows.Next() {
+		var titleID int64
+		var version SoftwareVersion
+		if err := rows.Scan(
+			&titleID,
+			&version.ID,
+			&version.Version,
+			&version.BundleIdentifier,
+			&version.HostsCount,
+		); err != nil {
+			return err
+		}
+		i, ok := titleIndex[titleID]
+		if !ok {
+			continue
+		}
+		titles[i].Versions = append(titles[i].Versions, version)
+	}
+	return rows.Err()
 }

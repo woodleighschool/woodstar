@@ -8,11 +8,11 @@ import { nonEmpty } from "@/lib/utils";
 export type Host = Schemas["Host"];
 export type HostDetail = Schemas["HostDetail"];
 export type HostSoftware = Schemas["HostSoftwareRow"];
-export type HostListResult = Schemas["HostListBody"];
-export type HostSoftwareListResult = Schemas["HostSoftwareListBody"];
-export type HostReportsResult = Schemas["HostReportsOutputBody"];
+export type HostListResult = Schemas["PaginatedBodyHost"];
+export type HostSoftwareListResult = Schemas["PaginatedBodyHostSoftwareRow"];
+export type HostReportsResult = Schemas["HostReportsBody"];
 export type HostReport = Schemas["HostReport"];
-export type HostReportResultsResult = Schemas["HostReportResultsOutputBody"];
+export type HostReportResultsResult = Schemas["HostReportResultsBody"];
 export type HostChecksResult = Schemas["CheckHostsOutputBody"];
 
 export interface ListParams {
@@ -123,7 +123,8 @@ export function useHostSoftware(id: string, params: HostSoftwareListParams = {})
 export function useHostReports(id: string) {
   return useQuery<HostReportsResult, ApiError>({
     queryKey: queryKeys.hostReports(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/reports", { params: { path: { id } }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/hosts/{id}/osquery/reports", { params: { path: { id } }, signal })),
     enabled: id !== "",
   });
 }
@@ -133,7 +134,7 @@ export function useHostReportResults(hostId: string, reportId: string) {
     queryKey: queryKeys.hostReportResults(hostId, reportId),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/reports/{report_id}", {
+        apiClient.GET("/api/hosts/{id}/osquery/reports/{report_id}", {
           params: { path: { id: hostId, report_id: reportId } },
           signal,
         }),
@@ -145,7 +146,8 @@ export function useHostReportResults(hostId: string, reportId: string) {
 export function useHostChecks(id: string) {
   return useQuery<HostChecksResult, ApiError>({
     queryKey: queryKeys.hostChecks(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/hosts/{id}/checks", { params: { path: { id } }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/hosts/{id}/osquery/checks", { params: { path: { id } }, signal })),
     enabled: id !== "",
   });
 }

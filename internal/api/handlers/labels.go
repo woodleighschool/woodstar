@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -19,16 +18,11 @@ const (
 )
 
 type labelListOutput struct {
-	Body labelListBody
+	Body paginatedBody[labels.Label]
 }
 
 type labelOutput struct {
 	Body labels.Label
-}
-
-type labelListBody struct {
-	Items []labels.Label `json:"items"`
-	Count int            `json:"count"`
 }
 
 type labelListInput struct {
@@ -76,22 +70,21 @@ type labelMutationBody struct {
 	Platforms      []platforms.Platform `json:"platforms"                       minItems:"1" nullable:"false"`
 }
 
-func (i labelListInput) params() labels.LabelListParams {
-	return labels.LabelListParams{
-		ListParams: dbutil.CleanListParams(dbutil.ListParams{
+func (i labelListInput) params() labels.ListParams {
+	return labels.ListParams{
+		ListParams: dbutil.ListParams{
 			Q:              i.Q,
 			Page:           i.Page,
 			PerPage:        i.PerPage,
 			OrderKey:       i.OrderKey,
 			OrderDirection: i.OrderDirection,
-		}),
-		LabelType:           strings.TrimSpace(i.LabelType),
-		LabelMembershipType: strings.TrimSpace(i.MembershipType),
-		Platform:            strings.TrimSpace(i.Platform),
+		},
+		LabelType:           labels.LabelType(i.LabelType),
+		LabelMembershipType: i.MembershipType,
+		Platform:            i.Platform,
 	}
 }
 
-// RegisterLabels registers admin label endpoints.
 func RegisterLabels(api huma.API, labelStore *labels.Store) {
 	registerListLabels(api, labelStore)
 	registerCreateLabel(api, labelStore)
@@ -113,7 +106,7 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
-		return &labelListOutput{Body: labelListBody{Items: rows, Count: count}}, nil
+		return &labelListOutput{Body: paginatedBody[labels.Label]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -131,7 +124,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
-			LabelType:           input.Body.LabelType,
+			LabelType:           labels.LabelType(input.Body.LabelType),
 			LabelMembershipType: input.Body.MembershipType,
 			Platforms:           input.Body.Platforms,
 		})
@@ -165,7 +158,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 
 func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-label",
+		OperationID: "update-label",
 		Method:      http.MethodPut,
 		Path:        labelIDPath,
 		Tags:        []string{labelsTag},

@@ -11,7 +11,7 @@ import (
 )
 
 // RequestLogger returns a middleware that logs every HTTP request.
-func RequestLogger(logger *slog.Logger, accessLevel slog.Level) func(http.Handler) http.Handler {
+func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	logger = logger.With("component", "http")
 
 	return func(next http.Handler) http.Handler {
@@ -31,7 +31,7 @@ func RequestLogger(logger *slog.Logger, accessLevel slog.Level) func(http.Handle
 					)
 					http.Error(ww, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
-				logRequest(r.Context(), logger, r, ww, time.Since(started), accessLevel)
+				logRequest(r.Context(), logger, r, ww, time.Since(started))
 			}()
 
 			next.ServeHTTP(ww, r)
@@ -45,7 +45,6 @@ func logRequest(
 	r *http.Request,
 	ww chimiddleware.WrapResponseWriter,
 	elapsed time.Duration,
-	accessLevel slog.Level,
 ) {
 	status := ww.Status()
 	if status == 0 {
@@ -70,6 +69,6 @@ func logRequest(
 	case status >= 400:
 		logger.WarnContext(ctx, "request rejected", attrs...)
 	default:
-		logger.Log(ctx, accessLevel, "request completed", attrs...)
+		logger.DebugContext(ctx, "request completed", attrs...)
 	}
 }

@@ -23,16 +23,15 @@ type softwareListInput struct {
 }
 
 func (i softwareListInput) params() software.SoftwareTitleListParams {
-	listParams := dbutil.CleanListParams(dbutil.ListParams{
-		Q:              i.Q,
-		Page:           i.Page,
-		PerPage:        i.PerPage,
-		OrderKey:       i.OrderKey,
-		OrderDirection: i.OrderDirection,
-	})
 	return software.SoftwareTitleListParams{
-		ListParams:      listParams,
-		SoftwareSources: dbutil.SplitListValues(i.Source),
+		ListParams: dbutil.ListParams{
+			Q:              i.Q,
+			Page:           i.Page,
+			PerPage:        i.PerPage,
+			OrderKey:       i.OrderKey,
+			OrderDirection: i.OrderDirection,
+		},
+		SoftwareSources: i.Source,
 	}
 }
 
@@ -40,24 +39,14 @@ type softwareGetInput struct {
 	ID string `path:"id"`
 }
 
-type softwareListBody struct {
-	Items []software.SoftwareTitle `json:"items"`
-	Count int                      `json:"count"`
-}
-
 type softwareListOutput struct {
-	Body softwareListBody
-}
-
-type softwareGetBody struct {
-	SoftwareTitle software.SoftwareTitle `json:"software_title"`
+	Body paginatedBody[software.SoftwareTitle]
 }
 
 type softwareGetOutput struct {
-	Body softwareGetBody
+	Body software.SoftwareTitle
 }
 
-// RegisterSoftware registers admin software inventory endpoints.
 func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
@@ -71,7 +60,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: softwareListBody{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: paginatedBody[software.SoftwareTitle]{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -93,6 +82,6 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &softwareGetOutput{Body: softwareGetBody{SoftwareTitle: *title}}, nil
+		return &softwareGetOutput{Body: *title}, nil
 	})
 }

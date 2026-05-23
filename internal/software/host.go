@@ -3,8 +3,6 @@ package software
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,14 +10,13 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// ListForHost returns software installed on a host grouped by title.
 func (s *Store) ListForHost(
 	ctx context.Context,
 	hostID int64,
 	params HostSoftwareListParams,
 ) ([]HostSoftwareRow, int, error) {
 	params = cleanHostSoftwareListParams(params)
-	whereSQL, args := hostSoftwareWhere(params, []any{hostID})
+	whereSQL, args := hostSoftwareWhere(hostID, params)
 
 	countSQL := `
 SELECT count(DISTINCT st.id)
@@ -32,11 +29,7 @@ JOIN software_titles st ON st.id = s.title_id
 		return nil, 0, err
 	}
 
-	orderSQL, err := hostSoftwareOrder(params.OrderKey, params.OrderDirection)
-	if err != nil {
-		return nil, 0, err
-	}
-	titleIDs, err := s.hostSoftwareTitleIDs(ctx, whereSQL, orderSQL, args, params)
+	titleIDs, err := s.hostSoftwareTitleIDs(ctx, whereSQL, args, params)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -56,7 +49,7 @@ func (s *Store) hostSoftwareRows(
 	hostID int64,
 	titleIDs []int64,
 ) ([]HostSoftwareRow, error) {
-	rows, err := s.db.Pool().Query(ctx, hostSoftwareSQL, hostID, titleIDs)
+	rows, err := s.db.Pool().Query(ctx, hostSoftwareSQL(), hostID, titleIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -65,15 +58,13 @@ func (s *Store) hostSoftwareRows(
 }
 
 type hostSoftwareAccumulator struct {
-	byTitle      map[int64]*HostSoftwareRow
-	ordered      []int64
+	titles       orderedGroup[int64, HostSoftwareRow]
 	versionByKey map[string]int
 }
 
 func scanHostSoftwareRows(rows pgx.Rows) ([]HostSoftwareRow, error) {
 	acc := hostSoftwareAccumulator{
-		byTitle:      make(map[int64]*HostSoftwareRow),
-		ordered:      make([]int64, 0),
+		titles:       newOrderedGroup[int64, HostSoftwareRow](),
 		versionByKey: make(map[string]int),
 	}
 	for rows.Next() {
@@ -90,11 +81,7 @@ func scanHostSoftwareRows(rows pgx.Rows) ([]HostSoftwareRow, error) {
 }
 
 func (acc *hostSoftwareAccumulator) rows() []HostSoftwareRow {
-	software := make([]HostSoftwareRow, 0, len(acc.ordered))
-	for _, id := range acc.ordered {
-		software = append(software, *acc.byTitle[id])
-	}
-	return software
+	return acc.titles.values()
 }
 
 func (acc *hostSoftwareAccumulator) add(row hostSoftwareDBRow) {
@@ -115,20 +102,15 @@ func (acc *hostSoftwareAccumulator) add(row hostSoftwareDBRow) {
 }
 
 func (acc *hostSoftwareAccumulator) title(row hostSoftwareDBRow) *HostSoftwareRow {
-	title := acc.byTitle[row.TitleID]
-	if title != nil {
-		return title
-	}
-	title = &HostSoftwareRow{
-		ID:           row.TitleID,
-		Name:         row.TitleName,
-		DisplayName:  row.DisplayName,
-		Source:       row.Source,
-		ExtensionFor: row.ExtensionFor,
-	}
-	acc.byTitle[row.TitleID] = title
-	acc.ordered = append(acc.ordered, row.TitleID)
-	return title
+	return acc.titles.get(row.TitleID, func() HostSoftwareRow {
+		return HostSoftwareRow{
+			ID:           row.TitleID,
+			Name:         row.TitleName,
+			DisplayName:  row.DisplayName,
+			Source:       row.Source,
+			ExtensionFor: row.ExtensionFor,
+		}
+	})
 }
 
 func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hostSoftwareDBRow) int {
@@ -177,26 +159,31 @@ func cleanHostSoftwareListParams(params HostSoftwareListParams) HostSoftwareList
 func (s *Store) hostSoftwareTitleIDs(
 	ctx context.Context,
 	whereSQL string,
-	orderSQL string,
 	args []any,
 	params HostSoftwareListParams,
 ) ([]int64, error) {
-	limitIndex := len(args) + 1
-	queryArgs := append(append([]any{}, args...), int32(params.PerPage), int32((params.Page-1)*params.PerPage))
-	rows, err := s.db.Pool().Query(ctx, `
-SELECT
-	st.id,
-	MIN(lower(st.name)) AS order_name,
-	MIN(lower(s.version)) AS order_version,
-	MAX(hs.last_opened_at) AS order_last_opened_at,
-	MIN(lower(st.source)) AS order_source
+	query, queryArgs, err := dbutil.ListQuery{
+		SelectSQL: `
+SELECT st.id
 FROM host_software hs
 JOIN software s ON s.id = hs.software_id
-JOIN software_titles st ON st.id = s.title_id
-`+whereSQL+`
-GROUP BY st.id
-`+orderSQL+`
-LIMIT $`+strconv.Itoa(limitIndex)+` OFFSET $`+strconv.Itoa(limitIndex+1), queryArgs...)
+JOIN software_titles st ON st.id = s.title_id`,
+		WhereSQL:   whereSQL,
+		GroupBySQL: "GROUP BY st.id",
+		Args:       args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"name":           {SQL: "MIN(lower(st.name))"},
+			"version":        {SQL: "MIN(lower(s.version))"},
+			"source":         {SQL: "MIN(lower(st.source))"},
+			"last_opened_at": {SQL: "MAX(hs.last_opened_at)", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "MIN(lower(st.name))"}, {SQL: "st.id"}},
+		Params:       params.ListParams,
+	}.Build()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,11 +192,7 @@ LIMIT $`+strconv.Itoa(limitIndex)+` OFFSET $`+strconv.Itoa(limitIndex+1), queryA
 	ids := make([]int64, 0)
 	for rows.Next() {
 		var id int64
-		var orderName string
-		var orderVersion string
-		var orderLastOpenedAt *time.Time
-		var orderSource string
-		if err := rows.Scan(&id, &orderName, &orderVersion, &orderLastOpenedAt, &orderSource); err != nil {
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
 		ids = append(ids, id)
@@ -220,46 +203,32 @@ LIMIT $`+strconv.Itoa(limitIndex)+` OFFSET $`+strconv.Itoa(limitIndex+1), queryA
 	return ids, nil
 }
 
-func hostSoftwareWhere(params HostSoftwareListParams, args []any) (string, []any) {
-	clauses := []string{"hs.host_id = $1"}
+func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []any) {
+	var where dbutil.WhereBuilder
+	where.Add("hs.host_id = " + where.Arg(hostID))
 	if params.Q != "" {
-		args = append(args, "%"+params.Q+"%")
-		placeholder := fmt.Sprintf("$%d", len(args))
-		clauses = append(clauses, `(
-			st.name ILIKE `+placeholder+`
-			OR st.display_name ILIKE `+placeholder+`
-			OR st.source ILIKE `+placeholder+`
-			OR st.extension_for ILIKE `+placeholder+`
-			OR st.bundle_identifier ILIKE `+placeholder+`
-			OR s.version ILIKE `+placeholder+`
-			OR s.bundle_identifier ILIKE `+placeholder+`
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(`(
+			st.name ILIKE ` + search + `
+			OR st.display_name ILIKE ` + search + `
+			OR st.source ILIKE ` + search + `
+			OR st.extension_for ILIKE ` + search + `
+			OR st.bundle_identifier ILIKE ` + search + `
+			OR s.version ILIKE ` + search + `
+			OR s.bundle_identifier ILIKE ` + search + `
 			OR EXISTS (
 				SELECT 1
 				FROM host_software_installed_paths paths
 				WHERE paths.host_id = hs.host_id
 					AND paths.software_id = hs.software_id
-					AND paths.installed_path ILIKE `+placeholder+`
+					AND paths.installed_path ILIKE ` + search + `
 			)
 		)`)
 	}
 	if len(params.SoftwareSources) > 0 {
-		args = append(args, params.SoftwareSources)
-		clauses = append(clauses, fmt.Sprintf("st.source = ANY($%d::text[])", len(args)))
+		where.Add("st.source = ANY(" + where.Arg(params.SoftwareSources) + "::text[])")
 	}
-	return "WHERE " + strings.Join(clauses, " AND "), args
-}
-
-func hostSoftwareOrder(orderKey string, direction string) (string, error) {
-	return dbutil.OrderBy(
-		dbutil.CleanListParams(dbutil.ListParams{OrderKey: orderKey, OrderDirection: direction}),
-		map[string]dbutil.OrderExpr{
-			"name":           {SQL: "order_name"},
-			"version":        {SQL: "order_version"},
-			"source":         {SQL: "order_source"},
-			"last_opened_at": {SQL: "order_last_opened_at", NullsLast: true},
-		},
-		[]dbutil.OrderExpr{{SQL: "order_name"}, {SQL: "st.id"}},
-	)
+	return where.Build()
 }
 
 type hostSoftwareDBRow struct {
@@ -279,7 +248,8 @@ type hostSoftwareDBRow struct {
 	ExecutablePath   string
 }
 
-const hostSoftwareSQL = `
+func hostSoftwareSQL() string {
+	return `
 SELECT
 	st.id,
 	st.name,
@@ -303,3 +273,4 @@ LEFT JOIN host_software_installed_paths paths
 WHERE hs.host_id = $1
 	AND st.id = ANY($2::bigint[])
 ORDER BY array_position($2::bigint[], st.id), lower(s.version), paths.installed_path`
+}

@@ -15,7 +15,6 @@ type Store struct {
 	db *database.DB
 }
 
-// NewStore returns a label-scope store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
 }
@@ -88,7 +87,7 @@ func (s *Store) load(ctx context.Context, owner owner, ownerID int64) (LabelScop
 }
 
 func (s *Store) loadMany(ctx context.Context, owner owner, ownerIDs []int64) (map[int64]LabelScope, error) {
-	ownerIDs = cleanPositiveIDs(ownerIDs)
+	ownerIDs = dbutil.CleanPositiveIDs(ownerIDs)
 	scopes := make(map[int64]LabelScope, len(ownerIDs))
 	if len(ownerIDs) == 0 {
 		return scopes, nil

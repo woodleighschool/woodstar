@@ -1,11 +1,10 @@
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
-CREATE TYPE secret_kind AS ENUM ('orbit');
 CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
--- Users, sessions, secrets ---------------------------------------------------
+-- Users, sessions, Enrollment ------------------------------------------
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
@@ -32,16 +31,15 @@ CREATE TABLE sessions (
 
 CREATE INDEX sessions_expiry_idx ON sessions (expiry);
 
-CREATE TABLE secrets (
+CREATE TABLE enroll_secrets (
     id BIGSERIAL PRIMARY KEY,
-    kind secret_kind NOT NULL,
     value TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX secrets_kind_active_idx
-    ON secrets (kind, created_at DESC)
+CREATE INDEX enroll_secrets_active_idx
+    ON enroll_secrets (created_at DESC)
     WHERE deleted_at IS NULL;
 
 -- Directory (Entra-only MVP; table shape stays portable) ---------------------
@@ -473,10 +471,9 @@ DROP TABLE hosts;
 DROP TABLE directory_user_groups;
 DROP TABLE directory_groups;
 DROP TABLE directory_users;
-DROP TABLE secrets;
+DROP TABLE enroll_secrets;
 DROP TABLE sessions;
 DROP TABLE users;
-DROP TYPE secret_kind;
 DROP TYPE platform;
 DROP TYPE label_scope_mode;
 DROP TYPE user_role;

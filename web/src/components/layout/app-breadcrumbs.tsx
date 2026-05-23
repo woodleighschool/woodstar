@@ -191,7 +191,7 @@ function HostCrumb({ id }: { id: string }) {
 function SoftwareCrumb({ id }: { id: string }) {
   const { data, isLoading } = useSoftwareTitle(id);
   if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.software_title.display_name || data.software_title.name || id}</span>;
+  return <span>{data.display_name || data.name || id}</span>;
 }
 
 function CheckCrumb({ id }: { id: string }) {

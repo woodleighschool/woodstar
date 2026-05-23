@@ -25,8 +25,8 @@ func NewService(store *Store, fetcher Fetcher, logger *slog.Logger) *Service {
 	return &Service{store: store, fetcher: fetcher, logger: logger}
 }
 
-// Sync performs a single full reconciliation. Errors from either the
-// fetch or the apply phase abort the pass and are returned for logging.
+// Sync performs a single full reconciliation. Errors from either the fetch or
+// database reconciliation phase abort the pass and are returned for logging.
 func (s *Service) Sync(ctx context.Context) error {
 	if s.fetcher == nil {
 		return errors.New("directory: no fetcher configured")
@@ -39,13 +39,6 @@ func (s *Service) Sync(ctx context.Context) error {
 	if err := s.store.Apply(ctx, snapshot); err != nil {
 		return err
 	}
-	if err := s.store.ReconcileLinks(ctx); err != nil {
-		s.logger.WarnContext(ctx, "directory link reconcile failed",
-			"component", "directory",
-			"operation", "reconcile",
-			"err", err.Error(),
-		)
-	}
 	s.logger.InfoContext(ctx, "directory sync complete",
 		"component", "directory",
 		"operation", "sync",
@@ -56,12 +49,13 @@ func (s *Service) Sync(ctx context.Context) error {
 	return nil
 }
 
-// StartScheduler runs Sync once immediately, then again every interval
-// until ctx is cancelled. Errors are logged and do not stop the loop.
-func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) {
+// StartScheduler runs Sync once immediately, then again every interval. The
+// returned function stops the scheduler before the parent context is cancelled.
+func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) func() {
 	if interval <= 0 {
 		interval = time.Hour
 	}
+	ctx, stop := context.WithCancel(ctx)
 	go func() {
 		s.runOnce(ctx)
 		ticker := time.NewTicker(interval)
@@ -75,6 +69,7 @@ func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) {
 			}
 		}
 	}()
+	return stop
 }
 
 func (s *Service) runOnce(ctx context.Context) {
@@ -82,7 +77,7 @@ func (s *Service) runOnce(ctx context.Context) {
 		s.logger.ErrorContext(ctx, "directory sync failed",
 			"component", "directory",
 			"operation", "sync",
-			"err", err.Error(),
+			"err", err,
 		)
 	}
 }

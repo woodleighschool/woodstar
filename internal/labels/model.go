@@ -7,10 +7,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
-// Label types. LabelType separates system-seeded labels from admin-created ones.
+// LabelType separates system-seeded labels from admin-created ones.
+type LabelType string
+
 const (
-	LabelTypeBuiltin = "builtin"
-	LabelTypeRegular = "regular"
+	LabelTypeBuiltin LabelType = "builtin"
+	LabelTypeRegular LabelType = "regular"
 )
 
 // Label membership types. LabelMembershipType controls how membership rows are produced:
@@ -29,7 +31,7 @@ type Label struct {
 	Name                string               `json:"name"`
 	Description         string               `json:"description"`
 	Query               *string              `json:"query,omitempty"`
-	LabelType           string               `json:"label_type"`
+	LabelType           LabelType            `json:"label_type"`
 	LabelMembershipType string               `json:"label_membership_type"`
 	Platforms           []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
 	HostsCount          int                  `json:"hosts_count"`
@@ -37,11 +39,11 @@ type Label struct {
 	UpdatedAt           time.Time            `json:"updated_at,omitzero"`
 }
 
-// LabelListParams filters the admin label list.
-type LabelListParams struct {
+// ListParams filters the admin label list.
+type ListParams struct {
 	dbutil.ListParams
 
-	LabelType           string
+	LabelType           LabelType
 	LabelMembershipType string
 	Platform            string
 }
@@ -51,7 +53,7 @@ type LabelCreate struct {
 	Name                string
 	Description         string
 	Query               *string
-	LabelType           string
+	LabelType           LabelType
 	LabelMembershipType string
 	Platforms           []platforms.Platform
 }

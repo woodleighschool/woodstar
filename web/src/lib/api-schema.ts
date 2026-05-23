@@ -14,7 +14,7 @@ export interface paths {
         /** Get the signed-in user's account, including any API key */
         get: operations["get-account"];
         /** Update the signed-in user's account */
-        put: operations["put-account"];
+        put: operations["update-account"];
         post?: never;
         delete?: never;
         options?: never;
@@ -50,7 +50,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create a local admin session */
-        post: operations["login"];
+        post: operations["create-session"];
         delete?: never;
         options?: never;
         head?: never;
@@ -67,7 +67,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Revoke the current session */
-        post: operations["logout"];
+        post: operations["delete-session"];
         delete?: never;
         options?: never;
         head?: never;
@@ -91,25 +91,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/checks": {
+    "/api/enroll-secrets": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List checks */
-        get: operations["list-checks"];
+        /** List enroll secrets */
+        get: operations["list-enroll-secrets"];
         put?: never;
-        /** Create a check */
-        post: operations["create-check"];
+        /** Create enroll secret */
+        post: operations["create-enroll-secret"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/checks/bulk-delete": {
+    "/api/enroll-secrets/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -118,45 +118,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Delete checks */
-        post: operations["bulk-delete-checks"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/checks/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a check */
-        get: operations["get-check"];
-        /** Replace a check */
-        put: operations["put-check"];
         post?: never;
-        /** Delete a check */
-        delete: operations["delete-check"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/checks/{id}/hosts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List check host status */
-        get: operations["list-check-hosts"];
-        put?: never;
-        post?: never;
-        delete?: never;
+        /** Delete enroll secret */
+        delete: operations["delete-enroll-secret"];
         options?: never;
         head?: never;
         patch?: never;
@@ -214,7 +178,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hosts/{id}/checks": {
+    "/api/hosts/{id}/osquery/checks": {
         parameters: {
             query?: never;
             header?: never;
@@ -222,7 +186,7 @@ export interface paths {
             cookie?: never;
         };
         /** List checks for a host */
-        get: operations["list-host-checks"];
+        get: operations["list-host-osquery-checks"];
         put?: never;
         post?: never;
         delete?: never;
@@ -231,7 +195,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hosts/{id}/reports": {
+    "/api/hosts/{id}/osquery/reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -239,7 +203,7 @@ export interface paths {
             cookie?: never;
         };
         /** List reports for a host */
-        get: operations["list-host-reports"];
+        get: operations["list-host-osquery-reports"];
         put?: never;
         post?: never;
         delete?: never;
@@ -248,7 +212,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/hosts/{id}/reports/{report_id}": {
+    "/api/hosts/{id}/osquery/reports/{report_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -256,7 +220,7 @@ export interface paths {
             cookie?: never;
         };
         /** List report rows for one host */
-        get: operations["list-host-report-results"];
+        get: operations["list-host-osquery-report-results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -310,7 +274,7 @@ export interface paths {
         /** Get a label */
         get: operations["get-label"];
         /** Replace a label */
-        put: operations["put-label"];
+        put: operations["update-label"];
         post?: never;
         /** Delete a regular label */
         delete: operations["delete-label"];
@@ -387,25 +351,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/orbit/enroll-secrets": {
+    "/api/osquery/checks": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Orbit enroll secrets */
-        get: operations["list-orbit-enroll-secrets"];
+        /** List checks */
+        get: operations["list-osquery-checks"];
         put?: never;
-        /** Create Orbit enroll secret */
-        post: operations["create-orbit-enroll-secret"];
+        /** Create a check */
+        post: operations["create-osquery-check"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/orbit/enroll-secrets/{id}": {
+    "/api/osquery/checks/bulk-delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -414,15 +378,51 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        /** Delete Orbit enroll secret */
-        delete: operations["delete-orbit-enroll-secret"];
+        /** Delete checks */
+        post: operations["bulk-delete-osquery-checks"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/reports": {
+    "/api/osquery/checks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a check */
+        get: operations["get-osquery-check"];
+        /** Replace a check */
+        put: operations["update-osquery-check"];
+        post?: never;
+        /** Delete a check */
+        delete: operations["delete-osquery-check"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/osquery/checks/{id}/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List check host status */
+        get: operations["list-osquery-check-hosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/osquery/reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -430,17 +430,17 @@ export interface paths {
             cookie?: never;
         };
         /** List reports */
-        get: operations["list-reports"];
+        get: operations["list-osquery-reports"];
         put?: never;
         /** Create a report */
-        post: operations["create-report"];
+        post: operations["create-osquery-report"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/reports/bulk-delete": {
+    "/api/osquery/reports/bulk-delete": {
         parameters: {
             query?: never;
             header?: never;
@@ -450,14 +450,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Delete reports */
-        post: operations["bulk-delete-reports"];
+        post: operations["bulk-delete-osquery-reports"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/reports/{id}": {
+    "/api/osquery/reports/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -465,18 +465,18 @@ export interface paths {
             cookie?: never;
         };
         /** Get a report */
-        get: operations["get-report"];
+        get: operations["get-osquery-report"];
         /** Replace a report */
-        put: operations["put-report"];
+        put: operations["update-osquery-report"];
         post?: never;
         /** Delete a report */
-        delete: operations["delete-report"];
+        delete: operations["delete-osquery-report"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/reports/{id}/results": {
+    "/api/osquery/reports/{id}/results": {
         parameters: {
             query?: never;
             header?: never;
@@ -484,7 +484,7 @@ export interface paths {
             cookie?: never;
         };
         /** List latest snapshots for a report */
-        get: operations["list-report-results"];
+        get: operations["list-osquery-report-results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -572,7 +572,7 @@ export interface paths {
         /** Get a Woodstar user */
         get: operations["get-user"];
         /** Replace a Woodstar user */
-        put: operations["put-user"];
+        put: operations["update-user"];
         post?: never;
         /** Delete a Woodstar user */
         delete: operations["delete-user"];
@@ -664,17 +664,6 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["CheckHostStatus"][] | null;
         };
-        CheckListOutputBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CheckListOutputBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["Check"][] | null;
-        };
         CheckMutationBody: {
             /**
              * Format: uri
@@ -687,6 +676,19 @@ export interface components {
             name: string;
             platforms: string[];
             query: string;
+        };
+        EnrollSecret: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/EnrollSecret.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: int64 */
+            id: number;
+            value: string;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
@@ -908,17 +910,6 @@ export interface components {
             email: string;
             source: string;
         };
-        HostListBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostListBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["Host"][] | null;
-        };
         HostReport: {
             description: string;
             first_result?: {
@@ -932,11 +923,11 @@ export interface components {
             /** Format: int64 */
             report_id: number;
         };
-        HostReportResultsOutputBody: {
+        HostReportResultsBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostReportResultsOutputBody.json
+             * @example https://example.com/api/schemas/HostReportResultsBody.json
              */
             readonly $schema?: string;
             /** Format: int64 */
@@ -948,11 +939,11 @@ export interface components {
             /** Format: int64 */
             report_id: number;
         };
-        HostReportsOutputBody: {
+        HostReportsBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostReportsOutputBody.json
+             * @example https://example.com/api/schemas/HostReportsBody.json
              */
             readonly $schema?: string;
             items: components["schemas"]["HostReport"][] | null;
@@ -964,17 +955,6 @@ export interface components {
             last_opened_at?: string;
             signature_information: components["schemas"]["PathSignatureInformation"][] | null;
             version: string;
-        };
-        HostSoftwareListBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostSoftwareListBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["HostSoftwareRow"][] | null;
         };
         HostSoftwareRow: {
             display_name: string;
@@ -1028,17 +1008,6 @@ export interface components {
             name: string;
             platforms: string[];
             query?: string;
-        };
-        LabelListBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/LabelListBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["Label"][] | null;
         };
         LabelMutationBody: {
             /**
@@ -1139,6 +1108,83 @@ export interface components {
             email: string;
             password: string;
         };
+        PaginatedBodyCheck: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyCheck.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["Check"][] | null;
+        };
+        PaginatedBodyHost: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyHost.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["Host"][] | null;
+        };
+        PaginatedBodyHostSoftwareRow: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyHostSoftwareRow.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["HostSoftwareRow"][] | null;
+        };
+        PaginatedBodyLabel: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyLabel.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["Label"][] | null;
+        };
+        PaginatedBodyReportBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyReportBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["ReportBody"][] | null;
+        };
+        PaginatedBodySoftwareTitle: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodySoftwareTitle.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["SoftwareTitle"][] | null;
+        };
+        PaginatedBodyUser: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyUser.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["User"][] | null;
+        };
         PathSignatureInformation: {
             executable_path: string;
             executable_sha256: string;
@@ -1170,17 +1216,6 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        ReportListOutputBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ReportListOutputBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["ReportBody"][] | null;
-        };
         ReportMutationBody: {
             /**
              * Format: uri
@@ -1210,27 +1245,14 @@ export interface components {
             report_id: number;
             report_name: string;
         };
-        ReportResultsOutputBody: {
+        ReportResultsBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ReportResultsOutputBody.json
+             * @example https://example.com/api/schemas/ReportResultsBody.json
              */
             readonly $schema?: string;
             items: components["schemas"]["ReportResultBody"][] | null;
-        };
-        Secret: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Secret.json
-             */
-            readonly $schema?: string;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: int64 */
-            id: number;
-            value: string;
         };
         SessionBody: {
             /**
@@ -1255,27 +1277,13 @@ export interface components {
             name?: string;
             password: string;
         };
-        SoftwareGetBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/SoftwareGetBody.json
-             */
-            readonly $schema?: string;
-            software_title: components["schemas"]["SoftwareTitle"];
-        };
-        SoftwareListBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/SoftwareListBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            count: number;
-            items: components["schemas"]["SoftwareTitle"][] | null;
-        };
         SoftwareTitle: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/SoftwareTitle.json
+             */
+            readonly $schema?: string;
             browser: string;
             bundle_identifier?: string;
             /** Format: date-time */
@@ -1392,7 +1400,7 @@ export interface operations {
             };
         };
     };
-    "put-account": {
+    "update-account": {
         parameters: {
             query?: never;
             header?: never;
@@ -1537,7 +1545,7 @@ export interface operations {
             };
         };
     };
-    login: {
+    "create-session": {
         parameters: {
             query?: never;
             header?: never;
@@ -1606,7 +1614,7 @@ export interface operations {
             };
         };
     };
-    logout: {
+    "delete-session": {
         parameters: {
             query?: never;
             header?: never;
@@ -1662,16 +1670,9 @@ export interface operations {
             };
         };
     };
-    "list-checks": {
+    "list-enroll-secrets": {
         parameters: {
-            query?: {
-                q?: string;
-                platform?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -1684,134 +1685,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckListOutputBody"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "create-check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CheckMutationBody"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Check"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "bulk-delete-checks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkIDsBody"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
+                    "application/json": components["schemas"]["EnrollSecret"][] | null;
                 };
             };
             /** @description Unauthorized */
@@ -1832,15 +1706,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ErrorModel"];
                 };
             };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
             /** @description Internal Server Error */
             500: {
                 headers: {
@@ -1852,24 +1717,22 @@ export interface operations {
             };
         };
     };
-    "get-check": {
+    "create-enroll-secret": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Check"];
+                    "application/json": components["schemas"]["EnrollSecret"];
                 };
             };
             /** @description Unauthorized */
@@ -1881,17 +1744,8 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ErrorModel"];
                 };
             };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1910,87 +1764,7 @@ export interface operations {
             };
         };
     };
-    "put-check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CheckMutationBody"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Check"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "delete-check": {
+    "delete-enroll-secret": {
         parameters: {
             query?: never;
             header?: never;
@@ -2017,57 +1791,8 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ErrorModel"];
                 };
             };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "list-check-hosts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CheckHostsOutputBody"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2130,7 +1855,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostListBody"];
+                    "application/json": components["schemas"]["PaginatedBodyHost"];
                 };
             };
             /** @description Unauthorized */
@@ -2352,7 +2077,7 @@ export interface operations {
             };
         };
     };
-    "list-host-checks": {
+    "list-host-osquery-checks": {
         parameters: {
             query?: never;
             header?: never;
@@ -2410,7 +2135,7 @@ export interface operations {
             };
         };
     };
-    "list-host-reports": {
+    "list-host-osquery-reports": {
         parameters: {
             query?: never;
             header?: never;
@@ -2427,7 +2152,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostReportsOutputBody"];
+                    "application/json": components["schemas"]["HostReportsBody"];
                 };
             };
             /** @description Unauthorized */
@@ -2468,7 +2193,7 @@ export interface operations {
             };
         };
     };
-    "list-host-report-results": {
+    "list-host-osquery-report-results": {
         parameters: {
             query?: never;
             header?: never;
@@ -2486,7 +2211,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostReportResultsOutputBody"];
+                    "application/json": components["schemas"]["HostReportResultsBody"];
                 };
             };
             /** @description Unauthorized */
@@ -2551,7 +2276,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostSoftwareListBody"];
+                    "application/json": components["schemas"]["PaginatedBodyHostSoftwareRow"];
                 };
             };
             /** @description Unauthorized */
@@ -2616,7 +2341,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LabelListBody"];
+                    "application/json": components["schemas"]["PaginatedBodyLabel"];
                 };
             };
             /** @description Unauthorized */
@@ -2775,7 +2500,7 @@ export interface operations {
             };
         };
     };
-    "put-label": {
+    "update-label": {
         parameters: {
             query?: never;
             header?: never;
@@ -3178,166 +2903,7 @@ export interface operations {
             };
         };
     };
-    "list-orbit-enroll-secrets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Secret"][] | null;
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "create-orbit-enroll-secret": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Secret"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "delete-orbit-enroll-secret": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "list-reports": {
+    "list-osquery-checks": {
         parameters: {
             query?: {
                 q?: string;
@@ -3359,7 +2925,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportListOutputBody"];
+                    "application/json": components["schemas"]["PaginatedBodyCheck"];
                 };
             };
             /** @description Unauthorized */
@@ -3391,7 +2957,7 @@ export interface operations {
             };
         };
     };
-    "create-report": {
+    "create-osquery-check": {
         parameters: {
             query?: never;
             header?: never;
@@ -3400,7 +2966,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReportMutationBody"];
+                "application/json": components["schemas"]["CheckMutationBody"];
             };
         };
         responses: {
@@ -3410,7 +2976,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportBody"];
+                    "application/json": components["schemas"]["Check"];
                 };
             };
             /** @description Bad Request */
@@ -3460,7 +3026,7 @@ export interface operations {
             };
         };
     };
-    "bulk-delete-reports": {
+    "bulk-delete-osquery-checks": {
         parameters: {
             query?: never;
             header?: never;
@@ -3527,7 +3093,449 @@ export interface operations {
             };
         };
     };
-    "get-report": {
+    "get-osquery-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Check"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-osquery-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckMutationBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Check"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-osquery-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-osquery-check-hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckHostsOutputBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-osquery-reports": {
+        parameters: {
+            query?: {
+                q?: string;
+                platform?: string;
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedBodyReportBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-osquery-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportMutationBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "bulk-delete-osquery-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkIDsBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-osquery-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3585,7 +3593,7 @@ export interface operations {
             };
         };
     };
-    "put-report": {
+    "update-osquery-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3665,7 +3673,7 @@ export interface operations {
             };
         };
     };
-    "delete-report": {
+    "delete-osquery-report": {
         parameters: {
             query?: never;
             header?: never;
@@ -3721,7 +3729,7 @@ export interface operations {
             };
         };
     };
-    "list-report-results": {
+    "list-osquery-report-results": {
         parameters: {
             query?: never;
             header?: never;
@@ -3738,7 +3746,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportResultsOutputBody"];
+                    "application/json": components["schemas"]["ReportResultsBody"];
                 };
             };
             /** @description Unauthorized */
@@ -3861,7 +3869,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SoftwareListBody"];
+                    "application/json": components["schemas"]["PaginatedBodySoftwareTitle"];
                 };
             };
             /** @description Unauthorized */
@@ -3910,7 +3918,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SoftwareGetBody"];
+                    "application/json": components["schemas"]["SoftwareTitle"];
                 };
             };
             /** @description Unauthorized */
@@ -3966,7 +3974,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"][] | null;
+                    "application/json": components["schemas"]["PaginatedBodyUser"];
                 };
             };
             /** @description Unauthorized */
@@ -4143,7 +4151,7 @@ export interface operations {
             };
         };
     };
-    "put-user": {
+    "update-user": {
         parameters: {
             query?: never;
             header?: never;

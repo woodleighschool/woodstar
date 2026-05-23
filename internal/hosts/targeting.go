@@ -2,12 +2,12 @@ package hosts
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -28,8 +28,8 @@ type TargetMetrics struct {
 
 // ResolveSelectedTargets returns active host ids for a live target selection.
 func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSelection) ([]int64, error) {
-	hostIDs := cleanPositiveIDs(selection.HostIDs)
-	labelIDs := cleanPositiveIDs(selection.LabelIDs)
+	hostIDs := dbutil.CleanPositiveIDs(selection.HostIDs)
+	labelIDs := dbutil.CleanPositiveIDs(selection.LabelIDs)
 	directHostIDs, err := activeSelectedHostIDs(ctx, s.db, hostIDs)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSele
 	if err != nil {
 		return nil, err
 	}
-	return mergePositiveIDs(directHostIDs, matches), nil
+	return dbutil.MergePositiveIDs(directHostIDs, matches), nil
 }
 
 // ResolveOnlineSelectedTargets returns active selected host IDs that are online
@@ -142,7 +142,7 @@ func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs 
 	for rows.Next() {
 		var id int64
 		var name string
-		var labelType string
+		var labelType labels.LabelType
 		if err := rows.Scan(&id, &name, &labelType); err != nil {
 			return nil, err
 		}
@@ -235,47 +235,4 @@ func scanHostIDs(rows pgx.Rows) ([]int64, error) {
 		hostIDs = append(hostIDs, id)
 	}
 	return hostIDs, rows.Err()
-}
-
-func mergePositiveIDs(a, b []int64) []int64 {
-	seen := make(map[int64]struct{}, len(a)+len(b))
-	out := make([]int64, 0, len(a)+len(b))
-	for _, id := range a {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	for _, id := range b {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	return out
-}
-
-func cleanPositiveIDs(ids []int64) []int64 {
-	out := make([]int64, 0, len(ids))
-	seen := make(map[int64]struct{}, len(ids))
-	for _, id := range ids {
-		if id <= 0 {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	slices.Sort(out)
-	return out
 }

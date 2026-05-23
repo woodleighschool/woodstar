@@ -4,19 +4,19 @@ import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type Secret = Schemas["Secret"];
+export type EnrollSecret = Schemas["EnrollSecret"];
 
 export function useEnrollSecrets() {
-  return useQuery<Secret[], ApiError>({
+  return useQuery<EnrollSecret[], ApiError>({
     queryKey: queryKeys.enrollSecrets,
-    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/orbit/enroll-secrets", { signal }))) ?? [],
+    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/enroll-secrets", { signal }))) ?? [],
   });
 }
 
 export function useCreateEnrollSecret() {
   const queryClient = useQueryClient();
-  return useMutation<Secret, ApiError>({
-    mutationFn: () => unwrap(apiClient.POST("/api/orbit/enroll-secrets")),
+  return useMutation<EnrollSecret, ApiError>({
+    mutationFn: () => unwrap(apiClient.POST("/api/enroll-secrets")),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.enrollSecrets });
     },
@@ -28,7 +28,7 @@ export function useDeleteEnrollSecret() {
   return useMutation<void, ApiError, number>({
     mutationFn: async (id) => {
       await unwrap(
-        apiClient.DELETE("/api/orbit/enroll-secrets/{id}", {
+        apiClient.DELETE("/api/enroll-secrets/{id}", {
           params: { path: { id: String(id) } },
         }),
       );

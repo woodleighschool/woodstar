@@ -9,7 +9,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/adminctx"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
@@ -68,23 +67,56 @@ func cleanBulkIDs(values []int64, name string) ([]int64, error) {
 	return ids, nil
 }
 
+type sentinelHTTPError struct {
+	sentinel error
+	response func(error) error
+}
+
+func staticSentinelHTTPError(sentinel error, response error) sentinelHTTPError {
+	return sentinelHTTPError{
+		sentinel: sentinel,
+		response: func(error) error {
+			return response
+		},
+	}
+}
+
+func mapSentinelHTTPError(err error, mappings ...sentinelHTTPError) (bool, error) {
+	for _, mapping := range mappings {
+		if errors.Is(err, mapping.sentinel) {
+			return true, mapping.response(err)
+		}
+	}
+	return false, nil
+}
+
 // resourceMutationError translates store errors into resource-shaped HTTP errors.
 func resourceMutationError(resource string, err error) error {
-	switch {
-	case errors.Is(err, dbutil.ErrNotFound):
-		return huma.Error404NotFound(resource + " not found")
-	case errors.Is(err, dbutil.ErrAlreadyExists):
-		return huma.Error409Conflict(resource + " already exists")
-	case errors.Is(err, dbutil.ErrInvalidInput):
-		return huma.Error400BadRequest(strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "))
-	default:
-		return err
+	if ok, mapped := mapSentinelHTTPError(err,
+		staticSentinelHTTPError(dbutil.ErrNotFound, huma.Error404NotFound(resource+" not found")),
+		staticSentinelHTTPError(dbutil.ErrAlreadyExists, huma.Error409Conflict(resource+" already exists")),
+		sentinelHTTPError{
+			sentinel: dbutil.ErrInvalidInput,
+			response: func(err error) error {
+				return huma.Error400BadRequest(
+					strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "),
+				)
+			},
+		},
+	); ok {
+		return mapped
 	}
+	return err
 }
 
 // bulkIDsBody is the shared request body for bulk-delete operations.
 type bulkIDsBody struct {
 	IDs []int64 `json:"ids"`
+}
+
+type paginatedBody[T any] struct {
+	Items []T `json:"items"`
+	Count int `json:"count"`
 }
 
 func (body bulkIDsBody) ids(name string) ([]int64, error) {
@@ -102,7 +134,7 @@ func normalizeLabelScope(s scope.LabelScope) (scope.LabelScope, error) {
 
 // currentUserID returns the authenticated admin's user ID, or nil if anonymous.
 func currentUserID(ctx context.Context) *int64 {
-	user, ok := adminctx.UserFromContext(ctx)
+	user, ok := userFromContext(ctx)
 	if !ok {
 		return nil
 	}

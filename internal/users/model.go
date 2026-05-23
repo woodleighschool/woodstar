@@ -2,12 +2,16 @@ package users
 
 import (
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
 // Role controls application permissions.
-type Role = sqlc.UserRole
+type Role string
+
+// User roles are intentionally small.
+const (
+	RoleAdmin  Role = "admin"
+	RoleViewer Role = "viewer"
+)
 
 // User is a local Woodstar account.
 type User struct {

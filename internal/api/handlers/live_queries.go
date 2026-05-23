@@ -8,8 +8,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/sse"
 
-	"github.com/woodleighschool/woodstar/internal/agents/livequery"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
 const liveQueriesTag = "Live Queries"

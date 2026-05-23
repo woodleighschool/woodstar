@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -18,7 +17,7 @@ const (
 )
 
 type userListOutput struct {
-	Body []users.User
+	Body paginatedBody[users.User]
 }
 
 type userOutput struct {
@@ -53,7 +52,6 @@ type userDeleteInput struct {
 	ID string `path:"id"`
 }
 
-// RegisterUsers registers admin user management endpoints.
 func RegisterUsers(api huma.API, userService *users.Service) {
 	registerListUsers(api, userService)
 	registerCreateUser(api, userService)
@@ -78,7 +76,7 @@ func registerListUsers(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &userListOutput{Body: list}, nil
+		return &userListOutput{Body: paginatedBody[users.User]{Items: list, Count: len(list)}}, nil
 	})
 }
 
@@ -139,7 +137,7 @@ func registerGetUser(api huma.API, userService *users.Service) {
 
 func registerPutUser(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-user",
+		OperationID: "update-user",
 		Method:      http.MethodPut,
 		Path:        userIDPath,
 		Tags:        []string{usersTag},
@@ -203,18 +201,26 @@ func parseUserID(id string) (int64, error) {
 	return parseResourceID(id, userResource)
 }
 
-// userMutationError extends resourceMutationError with the initial-user
-// lockout and weak-password cases that don't apply to other resources.
+// userMutationError extends resourceMutationError with user-owned mutation
+// errors that don't apply to other resources.
 func userMutationError(err error) error {
-	switch {
-	case errors.Is(err, dbutil.ErrAlreadyExists):
-		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, users.ErrCannotDeleteInitialUser),
-		errors.Is(err, users.ErrCannotModifyInitialUser):
-		return huma.Error409Conflict(err.Error())
-	case errors.Is(err, users.ErrWeakPassword):
-		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
-	default:
-		return resourceMutationError(userResource, err)
+	if ok, mapped := mapSentinelHTTPError(err,
+		staticSentinelHTTPError(dbutil.ErrAlreadyExists, huma.Error409Conflict("email already in use")),
+		sentinelHTTPError{
+			sentinel: users.ErrCannotDeleteInitialUser,
+			response: func(err error) error {
+				return huma.Error422UnprocessableEntity(err.Error())
+			},
+		},
+		sentinelHTTPError{
+			sentinel: users.ErrCannotModifyInitialUser,
+			response: func(err error) error {
+				return huma.Error422UnprocessableEntity(err.Error())
+			},
+		},
+		staticSentinelHTTPError(users.ErrWeakPassword, huma.Error400BadRequest(users.ErrWeakPassword.Error())),
+	); ok {
+		return mapped
 	}
+	return resourceMutationError(userResource, err)
 }

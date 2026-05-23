@@ -5,13 +5,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/agents/checks"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
@@ -19,7 +18,7 @@ import (
 const (
 	checksTag     = "Checks"
 	checkResource = "check"
-	checkIDPath   = "/api/checks/{id}"
+	checkIDPath   = "/api/osquery/checks/{id}"
 )
 
 type checkMutationBody struct {
@@ -61,10 +60,7 @@ type checkBulkDeleteInput struct {
 }
 
 type checkListOutput struct {
-	Body struct {
-		Items []checks.Check `json:"items"`
-		Count int            `json:"count"`
-	}
+	Body paginatedBody[checks.Check]
 }
 
 type checkOutput struct {
@@ -77,7 +73,6 @@ type checkHostsOutput struct {
 	}
 }
 
-// RegisterChecks registers check endpoints.
 func RegisterChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
 	registerListChecks(api, checkStore)
 	registerCreateCheck(api, checkStore)
@@ -91,9 +86,9 @@ func RegisterChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Sto
 
 func registerListChecks(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-checks",
+		OperationID: "list-osquery-checks",
 		Method:      http.MethodGet,
-		Path:        "/api/checks",
+		Path:        "/api/osquery/checks",
 		Tags:        []string{checksTag},
 		Summary:     "List checks",
 		Errors:      []int{http.StatusUnauthorized},
@@ -102,18 +97,15 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
-		out := &checkListOutput{}
-		out.Body.Items = items
-		out.Body.Count = count
-		return out, nil
+		return &checkListOutput{Body: paginatedBody[checks.Check]{Items: items, Count: count}}, nil
 	})
 }
 
 func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "create-check",
+		OperationID:   "create-osquery-check",
 		Method:        http.MethodPost,
-		Path:          "/api/checks",
+		Path:          "/api/osquery/checks",
 		Tags:          []string{checksTag},
 		Summary:       "Create a check",
 		DefaultStatus: http.StatusCreated,
@@ -133,7 +125,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 
 func registerGetCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "get-check",
+		OperationID: "get-osquery-check",
 		Method:      http.MethodGet,
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
@@ -154,7 +146,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 
 func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-check",
+		OperationID: "update-osquery-check",
 		Method:      http.MethodPut,
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
@@ -179,7 +171,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 
 func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-check",
+		OperationID: "delete-osquery-check",
 		Method:      http.MethodDelete,
 		Path:        checkIDPath,
 		Tags:        []string{checksTag},
@@ -199,9 +191,9 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 
 func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "bulk-delete-checks",
+		OperationID: "bulk-delete-osquery-checks",
 		Method:      http.MethodPost,
-		Path:        "/api/checks/bulk-delete",
+		Path:        "/api/osquery/checks/bulk-delete",
 		Tags:        []string{checksTag},
 		Summary:     "Delete checks",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
@@ -222,9 +214,9 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 
 func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-check-hosts",
+		OperationID: "list-osquery-check-hosts",
 		Method:      http.MethodGet,
-		Path:        "/api/checks/{id}/hosts",
+		Path:        "/api/osquery/checks/{id}/hosts",
 		Tags:        []string{checksTag},
 		Summary:     "List check host status",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -245,9 +237,9 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 
 func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-host-checks",
+		OperationID: "list-host-osquery-checks",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/checks",
+		Path:        "/api/hosts/{id}/osquery/checks",
 		Tags:        []string{checksTag, hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -275,14 +267,14 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 
 func (input checkListInput) params() checks.CheckListParams {
 	return checks.CheckListParams{
-		ListParams: dbutil.CleanListParams(dbutil.ListParams{
+		ListParams: dbutil.ListParams{
 			Q:              input.Q,
 			Page:           input.Page,
 			PerPage:        input.PerPage,
 			OrderKey:       input.OrderKey,
 			OrderDirection: input.OrderDirection,
-		}),
-		Platform: strings.TrimSpace(input.Platform),
+		},
+		Platform: input.Platform,
 	}
 }
 

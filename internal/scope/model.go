@@ -3,6 +3,8 @@ package scope
 import (
 	"database/sql/driver"
 	"fmt"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // LabelScopeMode is the Postgres enum that selects how LabelIDs are interpreted.
@@ -25,6 +27,20 @@ type LabelScope struct {
 // it from wire output. ScopeNone is the canonical empty mode.
 func (s LabelScope) IsZero() bool {
 	return (s.Mode == "" || s.Mode == ScopeNone) && len(s.LabelIDs) == 0
+}
+
+// NormalizeLabelScope sorts label IDs, removes invalid duplicates, and collapses empty scopes.
+func NormalizeLabelScope(s LabelScope) LabelScope {
+	s.LabelIDs = dbutil.CleanPositiveIDs(s.LabelIDs)
+	switch s.Mode {
+	case ScopeNone, ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny:
+	default:
+		s.Mode = ScopeNone
+	}
+	if len(s.LabelIDs) == 0 {
+		s.Mode = ScopeNone
+	}
+	return s
 }
 
 func (m *LabelScopeMode) Scan(src any) error {

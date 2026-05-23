@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/adminctx"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -37,9 +36,8 @@ type accountPutInput struct {
 }
 
 // RegisterAccount registers self-service endpoints scoped to the signed-in
-// user. The API key is intended for non-browser callers (CLI, autopkg
-// processor, future woodstarctl); the SPA continues to authenticate via
-// the scs session cookie.
+// user. The API key is intended for non-browser callers; the SPA continues to
+// authenticate via the scs session cookie.
 func RegisterAccount(api huma.API, authService *auth.Service, userService *users.Service) {
 	registerGetAccount(api, authService)
 	registerPutAccount(api, userService)
@@ -70,7 +68,7 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 
 func registerPutAccount(api huma.API, userService *users.Service) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-account",
+		OperationID: "update-account",
 		Method:      http.MethodPut,
 		Path:        "/api/account",
 		Tags:        []string{accountTag},
@@ -144,7 +142,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 // it gates (rotating one's own key, viewing one's own account) are open to
 // every signed-in user.
 func requireUser(ctx context.Context) (*users.User, error) {
-	user, ok := adminctx.UserFromContext(ctx)
+	user, ok := userFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}

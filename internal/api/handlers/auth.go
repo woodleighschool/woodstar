@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/adminctx"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -41,12 +40,34 @@ type loginInput struct {
 	}
 }
 
+type contextKey int
+
+const userContextKey contextKey = 0
+
 const (
 	authTag  = "Auth"
 	setupTag = "Setup"
 )
 
-// RegisterPublicAuth registers setup and browser session endpoints.
+// RequireAuth attaches the signed-in user to protected admin Huma operations.
+// Accepts an "Authorization: Bearer <api-key>" header first and falls back to
+// the scs session cookie when no Bearer token is present.
+func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		user, err := authService.Authenticate(ctx.Context(), ctx.Header("Authorization"))
+		if err != nil {
+			if errors.Is(err, auth.ErrNotAuthenticated) {
+				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "not authenticated")
+				return
+			}
+			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "request failed")
+			return
+		}
+
+		next(huma.WithContext(ctx, withUser(ctx.Context(), user)))
+	}
+}
+
 func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
 	registerSession(api, authService)
@@ -108,7 +129,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 
 func registerLogin(api huma.API, authService *auth.Service) {
 	huma.Register(api, huma.Operation{
-		OperationID: "login",
+		OperationID: "create-session",
 		Method:      http.MethodPost,
 		Path:        "/api/auth/login",
 		Tags:        []string{authTag},
@@ -122,7 +143,7 @@ func registerLogin(api huma.API, authService *auth.Service) {
 		return &authUserOutput{Body: *user}, nil
 	})
 	huma.Register(api, huma.Operation{
-		OperationID: "logout",
+		OperationID: "delete-session",
 		Method:      http.MethodPost,
 		Path:        "/api/auth/logout",
 		Tags:        []string{authTag},
@@ -138,7 +159,7 @@ func registerLogin(api huma.API, authService *auth.Service) {
 // requireAdmin returns the authenticated admin user from ctx.
 // It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
 func requireAdmin(ctx context.Context) (*users.User, error) {
-	user, ok := adminctx.UserFromContext(ctx)
+	user, ok := userFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
@@ -148,19 +169,24 @@ func requireAdmin(ctx context.Context) (*users.User, error) {
 	return user, nil
 }
 
+func withUser(ctx context.Context, user *users.User) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
+}
+
+func userFromContext(ctx context.Context) (*users.User, bool) {
+	user, ok := ctx.Value(userContextKey).(*users.User)
+	return user, ok && user != nil
+}
+
 func authError(err error) error {
-	switch {
-	case errors.Is(err, auth.ErrInvalidCredentials):
-		return huma.Error401Unauthorized("invalid email or password")
-	case errors.Is(err, auth.ErrNotAuthenticated):
-		return huma.Error401Unauthorized("not authenticated")
-	case errors.Is(err, auth.ErrNotSetup):
-		return huma.Error409Conflict("setup required")
-	case errors.Is(err, auth.ErrAlreadySetup):
-		return huma.Error409Conflict("woodstar is already set up")
-	case errors.Is(err, users.ErrWeakPassword):
-		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
-	default:
-		return err
+	if ok, mapped := mapSentinelHTTPError(err,
+		staticSentinelHTTPError(auth.ErrInvalidCredentials, huma.Error401Unauthorized("invalid email or password")),
+		staticSentinelHTTPError(auth.ErrNotAuthenticated, huma.Error401Unauthorized("not authenticated")),
+		staticSentinelHTTPError(auth.ErrNotSetup, huma.Error409Conflict("setup required")),
+		staticSentinelHTTPError(auth.ErrAlreadySetup, huma.Error409Conflict("woodstar is already set up")),
+		staticSentinelHTTPError(users.ErrWeakPassword, huma.Error400BadRequest(users.ErrWeakPassword.Error())),
+	); ok {
+		return mapped
 	}
+	return err
 }

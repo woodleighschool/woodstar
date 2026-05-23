@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -16,11 +17,6 @@ func humaConfig(version string) huma.Config {
 
 	cfg.Components = &huma.Components{
 		SecuritySchemes: map[string]*huma.SecurityScheme{
-			"bearerAuth": {
-				Type:         "http",
-				Scheme:       "bearer",
-				BearerFormat: "API key",
-			},
 			"cookieAuth": {
 				Type: "apiKey",
 				In:   "cookie",
@@ -36,5 +32,7 @@ func humaConfig(version string) huma.Config {
 // Stores are nil; handlers are never invoked.
 func BuildSchemaAPI(version string) huma.API {
 	r := chi.NewRouter()
-	return Mount(r, Dependencies{Version: version})
+	humaAPI := humachi.New(r, humaConfig(version))
+	registerAdminRoutes(r, humaAPI, Dependencies{})
+	return humaAPI
 }

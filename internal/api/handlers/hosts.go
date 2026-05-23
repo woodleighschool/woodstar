@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
@@ -20,7 +18,7 @@ const (
 )
 
 type hostListOutput struct {
-	Body hostListBody
+	Body paginatedBody[hosts.Host]
 }
 
 type hostDetailOutput struct {
@@ -28,17 +26,7 @@ type hostDetailOutput struct {
 }
 
 type hostSoftwareOutput struct {
-	Body hostSoftwareListBody
-}
-
-type hostListBody struct {
-	Items []hosts.Host `json:"items"`
-	Count int          `json:"count"`
-}
-
-type hostSoftwareListBody struct {
-	Items []software.HostSoftwareRow `json:"items"`
-	Count int                        `json:"count"`
+	Body paginatedBody[software.HostSoftwareRow]
 }
 
 type hostGetInput struct {
@@ -58,30 +46,29 @@ type hostListInput struct {
 	SoftwareID      string `query:"software_id,omitempty"`
 }
 
-func (i hostListInput) params() (hosts.HostListParams, error) {
+func (i hostListInput) params() (hosts.ListParams, error) {
 	titleID, err := parseOptionalPositiveID(i.SoftwareTitleID, "software_title_id")
 	if err != nil {
-		return hosts.HostListParams{}, err
+		return hosts.ListParams{}, err
 	}
 	softwareID, err := parseOptionalPositiveID(i.SoftwareID, "software_id")
 	if err != nil {
-		return hosts.HostListParams{}, err
+		return hosts.ListParams{}, err
 	}
 	labelID, err := parseOptionalPositiveID(i.LabelID, "label_id")
 	if err != nil {
-		return hosts.HostListParams{}, err
+		return hosts.ListParams{}, err
 	}
-	listParams := dbutil.CleanListParams(dbutil.ListParams{
-		Q:              i.Q,
-		Page:           i.Page,
-		PerPage:        i.PerPage,
-		OrderKey:       i.OrderKey,
-		OrderDirection: i.OrderDirection,
-	})
-	return hosts.HostListParams{
-		ListParams:      listParams,
-		Status:          strings.TrimSpace(i.Status),
-		Platform:        strings.TrimSpace(i.Platform),
+	return hosts.ListParams{
+		ListParams: dbutil.ListParams{
+			Q:              i.Q,
+			Page:           i.Page,
+			PerPage:        i.PerPage,
+			OrderKey:       i.OrderKey,
+			OrderDirection: i.OrderDirection,
+		},
+		Status:          i.Status,
+		Platform:        i.Platform,
 		LabelID:         labelID,
 		SoftwareTitleID: titleID,
 		SoftwareID:      softwareID,
@@ -103,16 +90,15 @@ func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, err
 	if err != nil {
 		return 0, software.HostSoftwareListParams{}, err
 	}
-	listParams := dbutil.CleanListParams(dbutil.ListParams{
-		Q:              i.Q,
-		Page:           i.Page,
-		PerPage:        i.PerPage,
-		OrderKey:       i.OrderKey,
-		OrderDirection: i.OrderDirection,
-	})
 	return id, software.HostSoftwareListParams{
-		ListParams:      listParams,
-		SoftwareSources: dbutil.SplitListValues(i.Source),
+		ListParams: dbutil.ListParams{
+			Q:              i.Q,
+			Page:           i.Page,
+			PerPage:        i.PerPage,
+			OrderKey:       i.OrderKey,
+			OrderDirection: i.OrderDirection,
+		},
+		SoftwareSources: i.Source,
 	}, nil
 }
 
@@ -125,18 +111,16 @@ type hostBulkDeleteInput struct {
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
-	deviceMappings *hosts.DeviceMappingStore,
 	softwareStore *software.Store,
-	labelStore *labels.Store,
 ) {
-	registerListHosts(api, hostStore, deviceMappings)
-	registerGetHost(api, hostStore, deviceMappings, labelStore)
+	registerListHosts(api, hostStore)
+	registerGetHost(api, hostStore)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
 }
 
-func registerListHosts(api huma.API, hostStore *hosts.Store, deviceMappings *hosts.DeviceMappingStore) {
+func registerListHosts(api huma.API, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -153,38 +137,11 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, deviceMappings *hos
 		if err != nil {
 			return nil, resourceMutationError("host", err)
 		}
-		if err := attachDeviceMappings(ctx, deviceMappings, rows); err != nil {
-			return nil, err
-		}
-		return &hostListOutput{Body: hostListBody{Items: rows, Count: count}}, nil
+		return &hostListOutput{Body: paginatedBody[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
 
-// attachDeviceMappings fills DeviceMappings on each host via one bulk query.
-func attachDeviceMappings(ctx context.Context, store *hosts.DeviceMappingStore, rows []hosts.Host) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	ids := make([]int64, len(rows))
-	for i := range rows {
-		ids[i] = rows[i].ID
-	}
-	grouped, err := store.ListForHosts(ctx, ids)
-	if err != nil {
-		return err
-	}
-	for i := range rows {
-		rows[i].DeviceMappings = grouped[rows[i].ID]
-	}
-	return nil
-}
-
-func registerGetHost(
-	api huma.API,
-	hostStore *hosts.Store,
-	deviceMappings *hosts.DeviceMappingStore,
-	labelStore *labels.Store,
-) {
+func registerGetHost(api huma.API, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -204,7 +161,7 @@ func registerGetHost(
 		if err != nil {
 			return nil, err
 		}
-		detail, err := loadHostDetail(ctx, hostStore, labelStore, deviceMappings, host)
+		detail, err := hostStore.LoadDetail(ctx, host)
 		if err != nil {
 			return nil, err
 		}
@@ -258,43 +215,6 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func loadHostDetail(
-	ctx context.Context,
-	hostStore *hosts.Store,
-	labelStore *labels.Store,
-	deviceMappings *hosts.DeviceMappingStore,
-	host *hosts.Host,
-) (*hosts.HostDetail, error) {
-	hostLabels, err := labelStore.ListForHost(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	hostUsers, err := hostStore.ListUsers(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	batteries, err := hostStore.ListBatteries(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	certificates, err := hostStore.ListCertificates(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	mappings, err := deviceMappings.ListForHost(ctx, host.ID)
-	if err != nil {
-		return nil, err
-	}
-	host.DeviceMappings = mappings
-	return &hosts.HostDetail{
-		Host:         *host,
-		Labels:       hostLabels,
-		Users:        hostUsers,
-		Batteries:    batteries,
-		Certificates: certificates,
-	}, nil
-}
-
 func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *software.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
@@ -317,6 +237,6 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &hostSoftwareOutput{Body: hostSoftwareListBody{Items: rows, Count: count}}, nil
+		return &hostSoftwareOutput{Body: paginatedBody[software.HostSoftwareRow]{Items: rows, Count: count}}, nil
 	})
 }

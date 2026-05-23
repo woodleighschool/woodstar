@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/api/adminctx"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -21,7 +20,7 @@ func TestRequireAdmin(t *testing.T) {
 	}{
 		{
 			name: "admin in context",
-			ctx: adminctx.WithUser(
+			ctx: withUser(
 				context.Background(),
 				&users.User{ID: 1, Role: users.RoleAdmin},
 			),
@@ -30,7 +29,7 @@ func TestRequireAdmin(t *testing.T) {
 		},
 		{
 			name: "viewer is forbidden",
-			ctx: adminctx.WithUser(
+			ctx: withUser(
 				context.Background(),
 				&users.User{ID: 2, Role: users.RoleViewer},
 			),
@@ -113,8 +112,8 @@ func TestUserMutationErrorMapping(t *testing.T) {
 		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
 		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
 		{name: "weak password", err: users.ErrWeakPassword, wantStatus: 400},
-		{name: "initial user delete", err: users.ErrCannotDeleteInitialUser, wantStatus: 409},
-		{name: "initial user modify", err: users.ErrCannotModifyInitialUser, wantStatus: 409},
+		{name: "initial user delete", err: users.ErrCannotDeleteInitialUser, wantStatus: 422},
+		{name: "initial user modify", err: users.ErrCannotModifyInitialUser, wantStatus: 422},
 	}
 
 	for _, tt := range tests {

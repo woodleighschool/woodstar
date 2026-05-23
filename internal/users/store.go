@@ -12,49 +12,45 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// User roles are intentionally small.
-const (
-	RoleAdmin  = sqlc.UserRoleAdmin
-	RoleViewer = sqlc.UserRoleViewer
-)
-
 // Store persists local accounts.
 type Store struct {
 	q *sqlc.Queries
 }
 
-// CreateRecordParams contains fields needed to persist a local account.
-type CreateRecordParams struct {
-	Email        string
-	Name         string
-	PasswordHash string
-	Role         Role
+// CreateParams contains fields needed to create a user.
+type CreateParams struct {
+	Email    string
+	Name     string
+	Role     Role
+	Password string
 }
 
-// UpdateRecordParams replaces the writable fields of a user.
-type UpdateRecordParams struct {
-	Name         string
-	Role         Role
-	PasswordHash *string
+// UpdateParams replaces the writable fields of a user.
+type UpdateParams struct {
+	Name     string
+	Role     Role
+	Password *string
 }
 
-// NewStore returns a user store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{q: db.Queries()}
 }
 
-// Exists reports whether any active local user exists.
 func (s *Store) Exists(ctx context.Context) (bool, error) {
 	return s.q.UserExists(ctx)
 }
 
-// Create inserts a local user.
-func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, error) {
+func (s *Store) Create(ctx context.Context, params CreateParams) (*User, error) {
+	hash, err := HashPassword(params.Password)
+	if err != nil {
+		return nil, err
+	}
+
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:        normalizeEmail(params.Email),
 		Name:         strings.TrimSpace(params.Name),
-		PasswordHash: params.PasswordHash,
-		Role:         params.Role,
+		PasswordHash: hash,
+		Role:         sqlc.UserRole(params.Role),
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -65,7 +61,6 @@ func (s *Store) Create(ctx context.Context, params CreateRecordParams) (*User, e
 	return new(userFromSQLC(row)), nil
 }
 
-// GetByEmail returns an active user by email.
 func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: normalizeEmail(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -77,7 +72,6 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	return new(userFromSQLC(row)), nil
 }
 
-// GetByID returns an active user by database ID.
 func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -101,7 +95,6 @@ func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) 
 	return new(accountFromSQLC(row)), nil
 }
 
-// List returns active users ordered by creation time.
 func (s *Store) List(ctx context.Context) ([]User, error) {
 	rows, err := s.q.ListUsers(ctx)
 	if err != nil {
@@ -114,13 +107,20 @@ func (s *Store) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-// Update writes the writable fields of a user. Name and Role are required;
-// PasswordHash is optional and left untouched when nil.
-func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams) (*User, error) {
+func (s *Store) Update(ctx context.Context, id int64, params UpdateParams) (*User, error) {
+	var passwordHash *string
+	if params.Password != nil {
+		hash, err := HashPassword(*params.Password)
+		if err != nil {
+			return nil, err
+		}
+		passwordHash = &hash
+	}
+
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
 		Name:         strings.TrimSpace(params.Name),
-		Role:         params.Role,
-		PasswordHash: params.PasswordHash,
+		Role:         sqlc.UserRole(params.Role),
+		PasswordHash: passwordHash,
 		ID:           id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -135,7 +135,6 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateRecordParams)
 	return new(userFromSQLC(row)), nil
 }
 
-// Delete removes the user with id.
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -144,7 +143,6 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-// GetByAPIKey returns the user owning the given API key, or ErrNotFound.
 func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -172,7 +170,6 @@ func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*Account, 
 	return new(accountFromSQLC(row)), nil
 }
 
-// ClearAPIKey removes the API key for id.
 func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -194,7 +191,7 @@ func userFromSQLC(s sqlc.User) User {
 		Email:        s.Email,
 		Name:         s.Name,
 		PasswordHash: s.PasswordHash,
-		Role:         s.Role,
+		Role:         Role(s.Role),
 		CreatedAt:    s.CreatedAt,
 		UpdatedAt:    s.UpdatedAt,
 	}

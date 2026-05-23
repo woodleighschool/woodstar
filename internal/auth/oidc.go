@@ -100,10 +100,6 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	return s.oidc.oauth2.AuthCodeURL(state, oidc.Nonce(nonce)), nil
 }
 
-// CompleteSSO finishes the OIDC code exchange and starts a session for the
-// matched user. Rejects when state mismatches, the ID token is invalid, the
-// email claim is empty, the user does not exist locally, or the matched
-// user is the immutable initial account.
 func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.User, error) {
 	if s.oidc == nil {
 		return nil, ErrSSONotConfigured
@@ -147,7 +143,7 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.U
 	if err != nil {
 		return nil, fmt.Errorf("lookup sso user: %w", err)
 	}
-	if user.ID == users.InitialUserID {
+	if s.users.IsInitialUser(user) {
 		return nil, ErrSSOInitialUser
 	}
 

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -26,21 +25,20 @@ type HandlerOptions struct {
 
 // Handler serves the embedded frontend bundle and runtime config.
 type Handler struct {
-	fs      fs.FS
-	version string
-	assets  http.Handler
-	logger  *slog.Logger
+	assets   http.Handler
+	index    []byte
+	indexErr error
+	logger   *slog.Logger
 }
 
 // NewHandler returns an HTTP handler for the embedded web UI.
 func NewHandler(opts HandlerOptions) *Handler {
 	h := &Handler{
-		fs:      opts.FS,
-		version: opts.Version,
-		logger:  opts.Logger,
+		logger: opts.Logger,
 	}
 	if opts.FS != nil {
 		h.assets = http.FileServer(http.FS(opts.FS))
+		h.index, h.indexErr = renderIndex(opts.FS, opts.Version)
 	}
 	return h
 }
@@ -66,54 +64,50 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveIndex(w http.ResponseWriter, r *http.Request) {
-	if h.fs == nil {
+	if h.index == nil && h.indexErr == nil {
 		http.NotFound(w, r)
 		return
 	}
-
-	file, err := h.fs.Open("index.html")
-	if err != nil {
+	if h.indexErr != nil {
 		h.logger.ErrorContext(
 			r.Context(),
-			"embedded web index missing", "operation",
-			"serve_index",
-			"err",
-			err,
+			"embedded web index missing",
+			"operation", "serve_index",
+			"err", h.indexErr,
 		)
 		http.Error(w, "web bundle missing", http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		h.logger.ErrorContext(
-			r.Context(),
-			"embedded web index read failed", "operation",
-			"serve_index",
-			"err",
-			err,
-		)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	if _, err := w.Write(h.injectRuntime(r, content)); err != nil {
+	if _, err := w.Write(h.index); err != nil {
 		h.logger.DebugContext(r.Context(), "embedded web index write failed", "operation", "serve_index", "err", err)
 	}
 }
 
-func (h *Handler) injectRuntime(_ *http.Request, content []byte) []byte {
-	data, err := json.Marshal(runtimeConfig{
-		Version: h.version,
-	})
+func renderIndex(fsys fs.FS, version string) ([]byte, error) {
+	content, err := fs.ReadFile(fsys, "index.html")
 	if err != nil {
-		return content
+		return nil, err
 	}
 
-	scriptTag := fmt.Appendf(nil, `<script>window.__WOODSTAR__=%s;</script></head>`, data)
+	data, err := json.Marshal(runtimeConfig{
+		Version: version,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return bytes.Replace(content, []byte("</head>"), scriptTag, 1)
+	headClose := []byte("</head>")
+	index := bytes.LastIndex(content, headClose)
+	if index < 0 {
+		return content, nil
+	}
+
+	out := make([]byte, 0, len(content)+len(data)+len(`<script>window.__WOODSTAR__=;</script>`))
+	out = append(out, content[:index]...)
+	out = fmt.Appendf(out, `<script>window.__WOODSTAR__=%s;</script>`, data)
+	out = append(out, content[index:]...)
+	return out, nil
 }

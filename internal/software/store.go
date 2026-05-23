@@ -11,7 +11,6 @@ type Store struct {
 	q  *sqlc.Queries
 }
 
-// NewStore returns a software store backed by db.
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
