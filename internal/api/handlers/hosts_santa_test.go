@@ -18,6 +18,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -83,6 +85,29 @@ func TestHostDetailIncludesSantaObservation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert santa observation: %v", err)
 	}
+	label, err := labels.NewStore(db).Create(ctx, labels.LabelCreate{
+		Name:                "Host Detail Santa Configuration",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms: []platforms.Platform{
+			platforms.PlatformDarwin,
+			platforms.PlatformWindows,
+			platforms.PlatformLinux,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create configuration label: %v", err)
+	}
+	if err := labels.NewStore(db).SetMembership(ctx, label.ID, host.ID, true); err != nil {
+		t.Fatalf("set configuration label membership: %v", err)
+	}
+	configuration, err := santaStore.CreateConfiguration(ctx, santa.ConfigurationCreate{
+		Name:     "Host Detail Config",
+		LabelIDs: []int64{label.ID},
+	})
+	if err != nil {
+		t.Fatalf("create santa configuration: %v", err)
+	}
 
 	router, cookie := santaHostDetailRouter(t, db, hostStore, santaStore)
 	rec := httptest.NewRecorder()
@@ -100,9 +125,16 @@ func TestHostDetailIncludesSantaObservation(t *testing.T) {
 	}
 	var body struct {
 		Santa *struct {
-			Enrolled           bool   `json:"enrolled"`
-			Version            string `json:"version"`
-			ClientModeReported string `json:"client_mode_reported"`
+			Enrolled               bool   `json:"enrolled"`
+			Version                string `json:"version"`
+			ClientModeReported     string `json:"client_mode_reported"`
+			EffectiveConfiguration *struct {
+				ID              int64 `json:"id"`
+				MatchedViaLabel *struct {
+					ID   int64  `json:"id"`
+					Name string `json:"name"`
+				} `json:"matched_via_label"`
+			} `json:"effective_configuration"`
 		} `json:"santa"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -113,6 +145,14 @@ func TestHostDetailIncludesSantaObservation(t *testing.T) {
 	}
 	if !body.Santa.Enrolled || body.Santa.Version != "2026.2" || body.Santa.ClientModeReported != "lockdown" {
 		t.Fatalf("santa detail = %+v", body.Santa)
+	}
+	if body.Santa.EffectiveConfiguration == nil || body.Santa.EffectiveConfiguration.ID != configuration.ID {
+		t.Fatalf("effective configuration = %+v, want %d", body.Santa.EffectiveConfiguration, configuration.ID)
+	}
+	if body.Santa.EffectiveConfiguration.MatchedViaLabel == nil ||
+		body.Santa.EffectiveConfiguration.MatchedViaLabel.ID != label.ID ||
+		body.Santa.EffectiveConfiguration.MatchedViaLabel.Name != label.Name {
+		t.Fatalf("matched label = %+v, want %s", body.Santa.EffectiveConfiguration.MatchedViaLabel, label.Name)
 	}
 }
 

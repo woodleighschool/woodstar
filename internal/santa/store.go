@@ -120,6 +120,17 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	detail.Enrolled = true
 	detail.ClientModeReported = ClientMode(clientMode)
 	detail.RuleSync = ruleSync
+	effectiveConfiguration, err := s.ResolveConfigurationForHost(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	if effectiveConfiguration != nil {
+		detail.EffectiveConfiguration = &EffectiveConfiguration{
+			ID:              effectiveConfiguration.ID,
+			Name:            effectiveConfiguration.Name,
+			MatchedViaLabel: effectiveConfiguration.MatchedViaLabel,
+		}
+	}
 	return &detail, nil
 }
 
