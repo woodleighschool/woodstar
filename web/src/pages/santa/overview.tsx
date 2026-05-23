@@ -22,8 +22,13 @@ export function SantaOverviewPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Configurations" value={configurations.data?.count} icon={<FileSliders />} />
-        <MetricCard title="Rules" value={rules.data?.count} icon={<ListChecks />} />
+        <MetricCard
+          title="Configurations"
+          value={configurations.data?.count}
+          icon={<FileSliders />}
+          to="/santa/configurations"
+        />
+        <MetricCard title="Rules" value={rules.data?.count} icon={<ListChecks />} to="/santa/rules" />
         <MetricCard title="Sync tokens" value={tokens.data?.length} icon={<KeyRound />} to="/santa/sync-tokens" />
         <MetricCard title="Recent events" value={events.data?.items?.length} icon={<Activity />} to="/santa/events" />
       </div>
@@ -66,6 +71,8 @@ export function SantaOverviewPage() {
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             <SurfaceLink icon={<KeyRound />} label="Create or revoke Santa sync tokens" to="/santa/sync-tokens" />
+            <SurfaceLink icon={<FileSliders />} label="Order host configurations" to="/santa/configurations" />
+            <SurfaceLink icon={<ListChecks />} label="Manage execution rules" to="/santa/rules" />
             <SurfaceLink icon={<Activity />} label="Browse recent execution events" to="/santa/events" />
           </CardContent>
         </Card>

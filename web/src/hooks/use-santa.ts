@@ -6,10 +6,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type SantaConfiguration = Schemas["Configuration"];
+export type SantaConfigurationMutation = Schemas["ConfigurationCreate"];
 export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"];
 export type SantaEvent = Schemas["ExecutionEvent"];
 export type SantaEventPage = Schemas["EventPage"];
 export type SantaRule = Schemas["Rule"];
+export type SantaRuleMutation = Schemas["RuleCreate"];
+export type SantaRuleUpdate = Schemas["RuleUpdate"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
 export type SantaSyncToken = Schemas["SyncToken"];
 export type CreatedSantaSyncToken = Schemas["CreatedSyncToken"];
@@ -88,6 +91,95 @@ export function useSantaSyncTokens() {
   return useQuery<SantaSyncToken[], ApiError>({
     queryKey: queryKeys.santaSyncTokens,
     queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/santa/sync-tokens", { signal }))) ?? [],
+  });
+}
+
+export function useCreateSantaConfiguration() {
+  const queryClient = useQueryClient();
+  return useMutation<SantaConfiguration, ApiError, SantaConfigurationMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/santa/configurations", { body })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
+    },
+  });
+}
+
+export function useUpdateSantaConfiguration() {
+  const queryClient = useQueryClient();
+  return useMutation<SantaConfiguration, ApiError, { id: number; body: SantaConfigurationMutation }>({
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PATCH("/api/santa/configurations/{id}", { params: { path: { id: String(id) } }, body })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
+    },
+  });
+}
+
+export function useDeleteSantaConfiguration() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/santa/configurations/{id}", { params: { path: { id: String(id) } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
+    },
+  });
+}
+
+export function useReorderSantaConfigurations() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ordered_ids) => unwrap(apiClient.PUT("/api/santa/configurations/order", { body: { ordered_ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
+    },
+  });
+}
+
+export function useCreateSantaRule() {
+  const queryClient = useQueryClient();
+  return useMutation<SantaRule, ApiError, SantaRuleMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/santa/rules", { body })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
+    },
+  });
+}
+
+export function useUpdateSantaRule() {
+  const queryClient = useQueryClient();
+  return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleUpdate }>({
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PATCH("/api/santa/rules/{id}", { params: { path: { id: String(id) } }, body })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
+    },
+  });
+}
+
+export function useDeleteSantaRule() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id: String(id) } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
+    },
+  });
+}
+
+export function useReorderSantaRuleIncludes(ruleID: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ordered_include_ids) =>
+      unwrap(
+        apiClient.PUT("/api/santa/rules/{id}/includes/order", {
+          params: { path: { id: String(ruleID) } },
+          body: { ordered_include_ids },
+        }),
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
+    },
   });
 }
 

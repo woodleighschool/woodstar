@@ -2,7 +2,9 @@ import {
   ClipboardCheck,
   Database,
   FileBarChart2,
+  FileSliders,
   KeyRound,
+  ListChecks,
   Package,
   PackageSearch,
   ServerCog,
@@ -54,6 +56,8 @@ export const navSections: NavMenu[] = [
     collapsible: true,
     items: [
       { label: "Overview", to: "/santa", icon: ShieldCheck },
+      { label: "Configurations", to: "/santa/configurations", icon: FileSliders },
+      { label: "Rules", to: "/santa/rules", icon: ListChecks },
       { label: "Sync tokens", to: "/santa/sync-tokens", icon: KeyRound },
       { label: "Events", to: "/santa/events", icon: ClipboardCheck },
     ],
