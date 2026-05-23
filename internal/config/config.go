@@ -30,6 +30,9 @@ type Config struct {
 	MaxReportRows          int `env:"MAX_REPORT_ROWS"          envDefault:"1000"`
 	ShutdownTimeoutSeconds int `env:"SHUTDOWN_TIMEOUT_SECONDS" envDefault:"15"`
 
+	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90"`
+	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h"`
+
 	// OIDC is capability-gated: SSO endpoints only mount when IssuerURL,
 	// ClientID, and ClientSecret are all set.
 	OIDCIssuerURL    string   `env:"OIDC_ISSUER_URL"`

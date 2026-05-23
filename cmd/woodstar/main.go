@@ -129,7 +129,11 @@ func newServer(
 	userService := users.NewService(stores.users)
 	authService := newAuthService(ctx, cfg, userService, sessionManager, logger)
 	orbitRuntime := newOrbitRuntime(ctx, cfg, stores, logger)
-	stopBackground := append([]func(){orbitRuntime.stop}, startIntegrations(ctx, cfg, db, logger)...)
+	santaCleanup := santa.StartEventCleanup(ctx, stores.santa, santa.EventCleanupOptions{
+		RetentionDays: cfg.SantaEventRetentionDays,
+		SweepInterval: cfg.SantaEventSweepInterval,
+	}, logger.With("component", "santa"))
+	stopBackground := append([]func(){orbitRuntime.stop, santaCleanup.Stop}, startIntegrations(ctx, cfg, db, logger)...)
 
 	server := api.NewServer(api.Dependencies{
 		Runtime: api.RuntimeDependencies{
