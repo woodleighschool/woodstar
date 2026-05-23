@@ -46,7 +46,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleUpdate,
 } from "@/hooks/use-santa";
-import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
 const RULE_TYPES = [
   { value: "binary", label: "Binary" },
@@ -103,10 +103,7 @@ export function SantaRulesPage() {
   const query = useSantaRules({
     q: typeof search.q === "string" ? search.q : undefined,
     rule_type: ruleType,
-    page: state.page,
-    per_page: state.perPage,
-    order_key: state.orderKey,
-    order_direction: state.orderDirection,
+    ...tableQueryParams(state),
   });
   const remove = useDeleteSantaRule();
   const [deleting, setDeleting] = useState<SantaRule | null>(null);
@@ -181,12 +178,10 @@ export function SantaRulesPage() {
           columns={columns}
           data={rows}
           totalCount={totalCount}
-          page={state.page}
-          perPage={state.perPage}
-          sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
-          onPageChange={setters.setPage}
-          onPerPageChange={setters.setPerPage}
-          onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
           rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
           toolbar={
@@ -202,7 +197,7 @@ export function SantaRulesPage() {
                     search: ((prev: Record<string, unknown>) => ({
                       ...prev,
                       rule_type: next[0],
-                      page: undefined,
+                      page_index: undefined,
                     })) as never,
                     replace: true,
                   })

@@ -23,10 +23,9 @@ export type HostSantaEffectiveRulesParams = NonNullable<
 
 export interface ListParams {
   q?: string;
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: string;
+  page_index?: number;
+  page_size?: number;
+  sort?: string;
 }
 
 export interface HostListParams extends ListParams {
@@ -40,10 +39,9 @@ export interface HostListParams extends ListParams {
 export function useHosts(params: HostListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
     status: nonEmpty(params.status),
     platform: nonEmpty(params.platform),
     label_id: nonEmpty(params.label_id),
@@ -105,10 +103,9 @@ export interface HostSoftwareListParams extends ListParams {
 export function useHostSoftware(id: string, params: HostSoftwareListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
     source: params.source && params.source.length > 0 ? params.source : undefined,
   };
 
@@ -160,10 +157,9 @@ export function useHostChecks(id: string) {
 
 export function useHostSantaEffectiveRules(id: string, params: HostSantaEffectiveRulesParams = {}) {
   const queryParams = {
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 100,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 100,
+    sort: nonEmpty(params.sort),
   };
 
   return useQuery<HostSantaEffectiveRulesResult, ApiError>({

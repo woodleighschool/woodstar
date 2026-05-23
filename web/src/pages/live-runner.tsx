@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
-import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformToggleGroup } from "@/components/queries/platform-selector";
@@ -43,21 +43,9 @@ type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
 type ReportResultRow = Record<string, string>;
 
-const STATIC_TABLE_SORT: DataTableSort = {};
-const STATIC_TABLE_PAGE = 1;
 const STATIC_TABLE_PER_PAGE = 500;
-
-function ignoreTablePageChange(_page: number) {
-  return undefined;
-}
-
-function ignoreTablePerPageChange(_perPage: number) {
-  return undefined;
-}
-
-function ignoreTableSortChange(_next: DataTableSort) {
-  return undefined;
-}
+const STATIC_TABLE_PAGINATION = { pageIndex: 0, pageSize: STATIC_TABLE_PER_PAGE };
+const STATIC_TABLE_SORTING: SortingState = [];
 
 export function LiveRunner({
   kind,
@@ -461,9 +449,9 @@ function TargetPicker({
   onLabelsChange: (labels: Label[]) => void;
   onHostsChange: (hosts: Host[]) => void;
 }) {
-  const labels = useLabels({ per_page: 500, order_key: "name", order_direction: "asc" });
+  const labels = useLabels({ page_size: 500, sort: "name.asc" });
   const [hostSearch, setHostSearch] = useState("");
-  const hosts = useHosts({ q: hostSearch, per_page: 8, order_key: "display_name", order_direction: "asc" });
+  const hosts = useHosts({ q: hostSearch, page_size: 8, sort: "display_name.asc" });
   const grouped = useMemo(() => groupLabels(labels.data?.items ?? []), [labels.data?.items]);
   const hostRows = hosts.data?.items ?? [];
 
@@ -644,12 +632,10 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       columns={columns}
       data={rows}
       totalCount={rows.length}
-      page={STATIC_TABLE_PAGE}
-      perPage={STATIC_TABLE_PER_PAGE}
-      sort={STATIC_TABLE_SORT}
-      onPageChange={ignoreTablePageChange}
-      onPerPageChange={ignoreTablePerPageChange}
-      onSortChange={ignoreTableSortChange}
+      pagination={STATIC_TABLE_PAGINATION}
+      sorting={STATIC_TABLE_SORTING}
+      onPaginationChange={() => undefined}
+      onSortingChange={() => undefined}
       getRowId={(row) => `${row.host_id}-${JSON.stringify(row)}`}
       clientSort
       empty={
@@ -692,12 +678,10 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       columns={columns}
       data={rows}
       totalCount={rows.length}
-      page={STATIC_TABLE_PAGE}
-      perPage={STATIC_TABLE_PER_PAGE}
-      sort={STATIC_TABLE_SORT}
-      onPageChange={ignoreTablePageChange}
-      onPerPageChange={ignoreTablePerPageChange}
-      onSortChange={ignoreTableSortChange}
+      pagination={STATIC_TABLE_PAGINATION}
+      sorting={STATIC_TABLE_SORTING}
+      onPaginationChange={() => undefined}
+      onSortingChange={() => undefined}
       getRowId={(row) => String(row.host_id)}
       clientSort
       empty={
@@ -732,12 +716,10 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       columns={columns}
       data={rows}
       totalCount={rows.length}
-      page={STATIC_TABLE_PAGE}
-      perPage={STATIC_TABLE_PER_PAGE}
-      sort={STATIC_TABLE_SORT}
-      onPageChange={ignoreTablePageChange}
-      onPerPageChange={ignoreTablePerPageChange}
-      onSortChange={ignoreTableSortChange}
+      pagination={STATIC_TABLE_PAGINATION}
+      sorting={STATIC_TABLE_SORTING}
+      onPaginationChange={() => undefined}
+      onSortingChange={() => undefined}
       getRowId={(row) => String(row._seq)}
       clientSort
       empty={<RunEmptyState title="No errors" description="No host errors have been reported for this run." />}

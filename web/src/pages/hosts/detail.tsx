@@ -1,10 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { Loader2, Package, ShieldCheck } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
-import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
@@ -33,6 +33,7 @@ import {
   type HostReport,
   type HostSoftware,
 } from "@/hooks/use-hosts";
+import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import type { Schemas } from "@/lib/api";
 import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
@@ -224,14 +225,11 @@ function HostReportsTab({ hostId }: { hostId: string }) {
   const reports = useHostReports(hostId);
   const reportItems = reports.data?.items;
   const rows = useMemo(() => reportItems ?? [], [reportItems]);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(HOST_REPORTS_PAGE_SIZE);
-  const [sort, setSort] = useState<DataTableSort>({ orderKey: "name", orderDirection: "asc" });
-
-  const sortedRows = useMemo(() => sortHostReports(rows, sort), [rows, sort]);
-  const pageCount = Math.max(1, Math.ceil(sortedRows.length / perPage));
-  const currentPage = Math.min(page, pageCount);
-  const visibleRows = sortedRows.slice((currentPage - 1) * perPage, currentPage * perPage);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: HOST_REPORTS_PAGE_SIZE,
+  });
+  const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
 
   const columns = useMemo<ColumnDef<HostReport>[]>(
     () => [
@@ -300,20 +298,12 @@ function HostReportsTab({ hostId }: { hostId: string }) {
   return (
     <DataTable
       columns={columns}
-      data={visibleRows}
-      totalCount={sortedRows.length}
-      page={currentPage}
-      perPage={perPage}
-      sort={sort}
-      onPageChange={setPage}
-      onPerPageChange={(next) => {
-        setPerPage(next);
-        setPage(1);
-      }}
-      onSortChange={(next) => {
-        setSort(next);
-        setPage(1);
-      }}
+      data={rows}
+      totalCount={rows.length}
+      pagination={pagination}
+      sorting={sorting}
+      onPaginationChange={setPagination}
+      onSortingChange={setSorting}
       perPageOptions={HOST_REPORTS_PER_PAGE_OPTIONS}
       isLoading={reports.isLoading}
       getRowId={(row) => String(row.report_id)}
@@ -332,33 +322,6 @@ function HostReportsTab({ hostId }: { hostId: string }) {
       skeletonRows={HOST_REPORTS_PAGE_SIZE}
     />
   );
-}
-
-function sortHostReports(rows: HostReport[], sort: DataTableSort) {
-  const sorted = [...rows];
-  const orderKey = sort.orderKey ?? "name";
-  const multiplier = sort.orderDirection === "desc" ? -1 : 1;
-  sorted.sort((a, b) => compareHostReports(a, b, orderKey) * multiplier);
-  return sorted;
-}
-
-function compareHostReports(a: HostReport, b: HostReport, orderKey: string) {
-  switch (orderKey) {
-    case "last_fetched":
-      return compareOptionalTime(a.last_fetched, b.last_fetched);
-    case "n_host_results":
-      return a.n_host_results - b.n_host_results;
-    case "name":
-    default:
-      return a.name.localeCompare(b.name);
-  }
-}
-
-function compareOptionalTime(a: string | undefined, b: string | undefined) {
-  if (a === b) return 0;
-  if (a === undefined) return 1;
-  if (b === undefined) return -1;
-  return new Date(a).getTime() - new Date(b).getTime();
 }
 
 function HostChecksTab({ hostId }: { hostId: string }) {
@@ -404,15 +367,16 @@ function SoftwareTab({ hostId }: { hostId: string }) {
   const [draft, setDraft] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [sources, setSources] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(HOST_SOFTWARE_PAGE_SIZE);
-  const [orderKey, setOrderKey] = useState<string | undefined>(undefined);
-  const [orderDirection, setOrderDirection] = useState<"asc" | "desc" | undefined>(undefined);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: HOST_SOFTWARE_PAGE_SIZE,
+  });
+  const [sorting, setSorting] = useState<SortingState>([]);
   const debounceRef = useRef<number | null>(null);
 
   const setDraftDebounced = (next: string) => {
     setDraft(next);
-    setPage(1);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
     }
@@ -422,10 +386,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
   const query = useHostSoftware(hostId, {
     q: activeQuery,
     source: expandSoftwareSourceFilters(sources),
-    page,
-    per_page: perPage,
-    order_key: orderKey,
-    order_direction: orderDirection,
+    ...tableQueryParams({ pagination, sorting }),
   });
 
   const data = query.data?.items ?? [];
@@ -535,20 +496,14 @@ function SoftwareTab({ hostId }: { hostId: string }) {
       columns={columns}
       data={data}
       totalCount={totalCount}
-      page={page}
-      perPage={perPage}
-      sort={{ orderKey, orderDirection }}
+      pagination={pagination}
+      sorting={sorting}
+      onPaginationChange={setPagination}
+      onSortingChange={(updater) => {
+        setSorting(updater);
+        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+      }}
       rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
-      onPageChange={setPage}
-      onPerPageChange={(n) => {
-        setPerPage(n);
-        setPage(1);
-      }}
-      onSortChange={(s) => {
-        setOrderKey(s.orderKey);
-        setOrderDirection(s.orderDirection);
-        setPage(1);
-      }}
       isLoading={query.isLoading}
       toolbar={
         <div className="flex items-center gap-2">
@@ -558,7 +513,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
               if (next === "") {
                 setDraft("");
                 setActiveQuery("");
-                setPage(1);
+                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                 return;
               }
               setDraftDebounced(next);
@@ -572,7 +527,7 @@ function SoftwareTab({ hostId }: { hostId: string }) {
             selected={sources}
             onChange={(next) => {
               setSources(next);
-              setPage(1);
+              setPagination((prev) => ({ ...prev, pageIndex: 0 }));
             }}
           />
         </div>

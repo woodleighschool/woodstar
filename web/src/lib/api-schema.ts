@@ -2311,10 +2311,9 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 status?: string;
                 platform?: string;
                 label_id?: string;
@@ -2733,10 +2732,10 @@ export interface operations {
     "list-host-santa-effective-rules": {
         parameters: {
             query?: {
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
             };
             header?: never;
             path: {
@@ -2806,10 +2805,9 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 source?: string[] | null;
             };
             header?: never;
@@ -2871,10 +2869,9 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 label_type?: string;
                 label_membership_type?: string;
                 platform?: string;
@@ -3457,11 +3454,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 platform?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
             };
             header?: never;
             path?: never;
@@ -3899,11 +3895,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 platform?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
             };
             header?: never;
             path?: never;
@@ -4341,10 +4336,9 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
             };
             header?: never;
             path?: never;
@@ -4840,11 +4834,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 rule_type?: string;
-                page?: number;
-                per_page?: number;
-                order_key?: string;
-                order_direction?: string;
             };
             header?: never;
             path?: never;
@@ -5507,11 +5500,10 @@ export interface operations {
     "list-software": {
         parameters: {
             query?: {
-                page?: number;
-                per_page?: number;
                 q?: string;
-                order_key?: string;
-                order_direction?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
                 source?: string[] | null;
             };
             header?: never;

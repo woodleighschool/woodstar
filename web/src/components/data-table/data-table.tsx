@@ -2,9 +2,12 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type OnChangeFn,
+  type PaginationState,
   type RowSelectionState,
   type SortingState,
   type Updater,
@@ -32,23 +35,15 @@ const INTERACTIVE_SELECTOR = [
   "[data-slot=dropdown-menu-content]",
 ].join(", ");
 
-export interface DataTableSort {
-  orderKey?: string;
-  orderDirection?: "asc" | "desc";
-}
-
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   /** Total row count from the server (drives pagination). */
   totalCount: number;
-  page: number;
-  perPage: number;
-  sort: DataTableSort;
-
-  onPageChange: (page: number) => void;
-  onPerPageChange: (perPage: number) => void;
-  onSortChange: (next: DataTableSort) => void;
+  pagination: PaginationState;
+  sorting: SortingState;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  onSortingChange: OnChangeFn<SortingState>;
 
   isLoading?: boolean;
   enableRowSelection?: boolean;
@@ -71,7 +66,7 @@ interface DataTableProps<TData, TValue> {
   /**
    * Use TanStack's internal sorting instead of the server. Pass when the table
    * data is a fixed snapshot (e.g. query results) rather than a paginated list.
-   * sort/onSortChange/page/onPageChange become no-ops in this mode.
+   * pagination/onPaginationChange become local table details in this mode.
    */
   clientSort?: boolean;
 }
@@ -82,12 +77,10 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   totalCount,
-  page,
-  perPage,
-  sort,
-  onPageChange,
-  onPerPageChange,
-  onSortChange,
+  pagination,
+  sorting,
+  onPaginationChange,
+  onSortingChange,
   isLoading = false,
   enableRowSelection = false,
   selectedRowIds = [],
@@ -103,13 +96,11 @@ export function DataTable<TData, TValue>({
   clientSort = false,
 }: DataTableProps<TData, TValue>) {
   const navigate = useNavigate();
+  const [localPagination, setLocalPagination] = useState<PaginationState>(pagination);
   const [localSorting, setLocalSorting] = useState<SortingState>([]);
 
-  const sortingState: SortingState = clientSort
-    ? localSorting
-    : sort.orderKey
-      ? [{ id: sort.orderKey, desc: sort.orderDirection === "desc" }]
-      : [];
+  const paginationState = clientSort ? localPagination : pagination;
+  const sortingState = clientSort ? localSorting : sorting;
 
   const rowSelection: RowSelectionState = useMemo(
     () => Object.fromEntries(selectedRowIds.map((id) => [id, true])),
@@ -118,12 +109,7 @@ export function DataTable<TData, TValue>({
 
   const handleSortingChange = (updater: Updater<SortingState>) => {
     const next = typeof updater === "function" ? updater(sortingState) : updater;
-    if (clientSort) {
-      setLocalSorting(next);
-      return;
-    }
-    if (next.length === 0) onSortChange({ orderKey: undefined, orderDirection: undefined });
-    else onSortChange({ orderKey: next[0].id, orderDirection: next[0].desc ? "desc" : "asc" });
+    setLocalSorting(next);
   };
 
   const handleRowSelectionChange = (updater: Updater<RowSelectionState>) => {
@@ -142,12 +128,15 @@ export function DataTable<TData, TValue>({
     data,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: clientSort ? getPaginationRowModel() : undefined,
     getSortedRowModel: clientSort ? getSortedRowModel() : undefined,
     manualPagination: !clientSort,
     manualSorting: !clientSort,
     enableRowSelection,
-    state: { sorting: sortingState, rowSelection },
-    onSortingChange: handleSortingChange,
+    rowCount: totalCount,
+    state: { pagination: paginationState, sorting: sortingState, rowSelection },
+    onPaginationChange: clientSort ? setLocalPagination : onPaginationChange,
+    onSortingChange: clientSort ? handleSortingChange : onSortingChange,
     onRowSelectionChange: handleRowSelectionChange,
     getRowId: getRowId ?? DEFAULT_GET_ROW_ID,
   });
@@ -234,15 +223,7 @@ export function DataTable<TData, TValue>({
         {showEmpty ? <div className="flex min-h-72 justify-center px-4 py-12">{empty}</div> : null}
       </div>
       {clientSort ? null : (
-        <DataTablePagination
-          page={page}
-          perPage={perPage}
-          totalCount={totalCount}
-          visibleCount={data.length}
-          onPageChange={onPageChange}
-          onPerPageChange={onPerPageChange}
-          perPageOptions={perPageOptions}
-        />
+        <DataTablePagination table={table} totalCount={totalCount} perPageOptions={perPageOptions} />
       )}
     </div>
   );

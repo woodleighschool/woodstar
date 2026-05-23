@@ -30,7 +30,7 @@ import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useHiddenColumns } from "@/hooks/use-hidden-columns";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
-import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
@@ -43,9 +43,8 @@ export function HostsListPage() {
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const labelsQuery = useLabels({
-    per_page: 200,
-    order_key: "name",
-    order_direction: "asc",
+    page_size: 200,
+    sort: "name.asc",
     label_type: "regular",
   });
   const bulkDelete = useBulkDeleteHosts();
@@ -54,10 +53,7 @@ export function HostsListPage() {
 
   const query = useHosts({
     q: search.q,
-    page: state.page,
-    per_page: state.perPage,
-    order_key: state.orderKey,
-    order_direction: state.orderDirection,
+    ...tableQueryParams(state),
     status: search.status,
     platform: search.platform,
     label_id: search.label_id,
@@ -254,12 +250,10 @@ export function HostsListPage() {
             columns={visibleColumns}
             data={data}
             totalCount={totalCount}
-            page={state.page}
-            perPage={state.perPage}
-            sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
-            onPageChange={setters.setPage}
-            onPerPageChange={setters.setPerPage}
-            onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+            pagination={state.pagination}
+            sorting={state.sorting}
+            onPaginationChange={setters.setPagination}
+            onSortingChange={setters.setSorting}
             isLoading={query.isLoading}
             enableRowSelection
             selectedRowIds={selectedHostIds}

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 
-import { DataTable, type DataTableSort } from "@/components/data-table/data-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,18 +169,10 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
 }
 
 export function HostCertificatesCard({ host }: { host: HostDetail }) {
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(CERTIFICATES_PAGE_SIZE);
   const [selectedCertificate, setSelectedCertificate] = useState<HostCertificate | null>(null);
-  const [sort, setSort] = useState<DataTableSort>({
-    orderKey: "common_name",
-    orderDirection: "asc",
-  });
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: CERTIFICATES_PAGE_SIZE });
+  const [sorting, setSorting] = useState<SortingState>([{ id: "common_name", desc: false }]);
   const certificates = useMemo(() => host.certificates ?? [], [host.certificates]);
-  const sortedCertificates = useMemo(() => sortCertificates(certificates, sort), [certificates, sort]);
-  const pageCount = Math.max(1, Math.ceil(sortedCertificates.length / perPage));
-  const currentPage = Math.min(page, pageCount);
-  const visibleCertificates = sortedCertificates.slice((currentPage - 1) * perPage, currentPage * perPage);
   if (certificates.length === 0) return null;
 
   return (
@@ -194,20 +186,12 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
       <CardContent>
         <DataTable
           columns={certificateColumns}
-          data={visibleCertificates}
+          data={certificates}
           totalCount={certificates.length}
-          page={currentPage}
-          perPage={perPage}
-          sort={sort}
-          onPageChange={setPage}
-          onPerPageChange={(next) => {
-            setPerPage(next);
-            setPage(1);
-          }}
-          onSortChange={(next) => {
-            setSort(next);
-            setPage(1);
-          }}
+          pagination={pagination}
+          sorting={sorting}
+          onPaginationChange={setPagination}
+          onSortingChange={setSorting}
           onRowClick={setSelectedCertificate}
           getRowId={(certificate) => String(certificate.id)}
           empty={<span className="text-muted-foreground text-sm">No certificates</span>}
@@ -393,32 +377,6 @@ function certificateName(certificate: HostCertificate) {
     certificate.serial,
     `Certificate ${certificate.id}`,
   );
-}
-
-function sortCertificates(certificates: HostCertificate[], sort: DataTableSort) {
-  const direction = sort.orderDirection === "desc" ? -1 : 1;
-  const key = sort.orderKey ?? "common_name";
-  return [...certificates].sort((a, b) => {
-    const aValue = certificateSortValue(a, key);
-    const bValue = certificateSortValue(b, key);
-    return aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: "base" }) * direction;
-  });
-}
-
-function certificateSortValue(certificate: HostCertificate, key: string) {
-  switch (key) {
-    case "issuer":
-      return certificate.issuer.common_name;
-    case "source":
-      return certificateKeychain(certificate);
-    case "not_valid_before":
-      return certificate.not_valid_before ?? "";
-    case "not_valid_after":
-      return certificate.not_valid_after ?? "";
-    case "common_name":
-    default:
-      return certificateName(certificate);
-  }
 }
 
 function certificateNameRows(name: HostCertificate["subject"], commonNameFallback = ""): Array<[string, ReactNode]> {

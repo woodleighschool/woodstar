@@ -304,10 +304,10 @@ func allPlatforms() []platforms.Platform {
 func TestCleanListParams(t *testing.T) {
 	params := cleanListParams(ListParams{
 		ListParams: dbutil.ListParams{
-			Q:              " mac ",
-			Page:           -1,
-			PerPage:        1000,
-			OrderDirection: "DESC",
+			Q:         " mac ",
+			PageIndex: -1,
+			PageSize:  1000,
+			Sort:      " last_seen_at.desc ",
 		},
 		Status:   " online ",
 		Platform: " darwin ",
@@ -317,14 +317,14 @@ func TestCleanListParams(t *testing.T) {
 	if params.Q != "mac" {
 		t.Fatalf("Q = %q, want mac", params.Q)
 	}
-	if params.Page != 1 {
-		t.Fatalf("Page = %d, want 1", params.Page)
+	if params.PageIndex != 0 {
+		t.Fatalf("PageIndex = %d, want 0", params.PageIndex)
 	}
-	if params.PerPage != 200 {
-		t.Fatalf("PerPage = %d, want %d", params.PerPage, 200)
+	if params.PageSize != 200 {
+		t.Fatalf("PageSize = %d, want %d", params.PageSize, 200)
 	}
-	if params.OrderDirection != "desc" {
-		t.Fatalf("OrderDirection = %q, want desc", params.OrderDirection)
+	if params.Sort != "last_seen_at.desc" {
+		t.Fatalf("Sort = %q, want last_seen_at.desc", params.Sort)
 	}
 	if params.Status != "online" {
 		t.Fatalf("Status = %q, want online", params.Status)

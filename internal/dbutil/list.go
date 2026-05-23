@@ -3,41 +3,36 @@ package dbutil
 import "strings"
 
 const (
-	defaultPerPage = 50
-	maxPerPage     = 200
-	orderAsc       = "asc"
-	orderDesc      = "desc"
-	orderSQLAsc    = "ASC"
-	orderSQLDesc   = "DESC"
-	OrderUpdatedAt = "updated_at"
+	defaultPageSize = 50
+	maxPageSize     = 200
+	orderAsc        = "asc"
+	orderDesc       = "desc"
+	orderSQLAsc     = "ASC"
+	orderSQLDesc    = "DESC"
+	OrderUpdatedAt  = "updated_at"
 )
 
 // ListParams is the common query shape for paginated list endpoints.
-// Page is 1-indexed: page 1 returns the first PerPage rows.
+// PageIndex is 0-indexed to match TanStack Table pagination state.
 type ListParams struct {
-	Q              string
-	Page           int
-	PerPage        int
-	OrderKey       string
-	OrderDirection string
+	Q         string
+	PageIndex int
+	PageSize  int
+	Sort      string
 }
 
 func CleanListParams(params ListParams) ListParams {
-	if params.Page < 1 {
-		params.Page = 1
+	if params.PageIndex < 0 {
+		params.PageIndex = 0
 	}
-	if params.PerPage <= 0 {
-		params.PerPage = defaultPerPage
+	if params.PageSize <= 0 {
+		params.PageSize = defaultPageSize
 	}
-	if params.PerPage > maxPerPage {
-		params.PerPage = maxPerPage
+	if params.PageSize > maxPageSize {
+		params.PageSize = maxPageSize
 	}
 	params.Q = strings.TrimSpace(params.Q)
-	params.OrderKey = strings.TrimSpace(params.OrderKey)
-	params.OrderDirection = strings.ToLower(strings.TrimSpace(params.OrderDirection))
-	if params.OrderDirection != orderDesc {
-		params.OrderDirection = orderAsc
-	}
+	params.Sort = strings.TrimSpace(params.Sort)
 	return params
 }
 

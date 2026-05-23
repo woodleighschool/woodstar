@@ -51,11 +51,7 @@ func (e santaHostDetailEnricher) EnrichHostDetail(ctx context.Context, hostID in
 // Santa configurations.
 
 type santaConfigurationListInput struct {
-	Q              string `query:"q,omitempty"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ListQueryInput
 }
 
 type santaConfigurationGetInput struct {
@@ -107,13 +103,7 @@ func (e santaConfigurationConflictError) GetStatus() int {
 
 func (input santaConfigurationListInput) params() configurations.ConfigurationListParams {
 	return configurations.ConfigurationListParams{
-		ListParams: dbutil.ListParams{
-			Q:              input.Q,
-			Page:           input.Page,
-			PerPage:        input.PerPage,
-			OrderKey:       input.OrderKey,
-			OrderDirection: input.OrderDirection,
-		},
+		ListParams: input.ListQueryInput.params(),
 	}
 }
 
@@ -262,12 +252,8 @@ func santaConfigurationMutationError(err error) error {
 // Santa rules.
 
 type santaRuleListInput struct {
-	Q              string `query:"q,omitempty"`
-	RuleType       string `query:"rule_type,omitempty"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ListQueryInput
+	RuleType string `query:"rule_type,omitempty"`
 }
 
 type santaRuleGetInput struct {
@@ -306,14 +292,8 @@ type santaRuleOutput struct {
 
 func (input santaRuleListInput) params() santarules.RuleListParams {
 	return santarules.RuleListParams{
-		ListParams: dbutil.ListParams{
-			Q:              input.Q,
-			Page:           input.Page,
-			PerPage:        input.PerPage,
-			OrderKey:       input.OrderKey,
-			OrderDirection: input.OrderDirection,
-		},
-		RuleType: santarules.RuleType(input.RuleType),
+		ListParams: input.ListQueryInput.params(),
+		RuleType:   santarules.RuleType(input.RuleType),
 	}
 }
 
@@ -581,11 +561,8 @@ type hostSantaEffectiveRulesOutput struct {
 }
 
 type hostSantaEffectiveRulesInput struct {
-	ID             string `path:"id"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ID string `path:"id"`
+	ListQueryInput
 }
 
 // RegisterHostSantaEffectiveRules registers the Santa effective-rules host subresource.
@@ -611,12 +588,7 @@ func RegisterHostSantaEffectiveRules(api huma.API, hostStore *hosts.Store, santa
 			return nil, err
 		}
 		rows, count, err := santaRuleStore.ListEffectiveRulesForHost(ctx, id, santarules.EffectiveRuleListParams{
-			ListParams: dbutil.ListParams{
-				Page:           input.Page,
-				PerPage:        input.PerPage,
-				OrderKey:       input.OrderKey,
-				OrderDirection: input.OrderDirection,
-			},
+			ListParams: input.ListQueryInput.params(),
 		})
 		if err != nil {
 			return nil, resourceMutationError("Santa effective rule", err)

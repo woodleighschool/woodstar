@@ -61,8 +61,8 @@ type ConfigurationListParams struct {
 }
 
 type RemovableMediaPolicy struct {
-	Action       RemovableMediaAction `json:"action"                enum:"allow,block,remount"`
-	RemountFlags []string             `json:"remount_flags,omitempty" doc:"Mount flags required when action is remount."`
+	Action       RemovableMediaAction `json:"action"                  enum:"allow,block,remount"`
+	RemountFlags []string             `json:"remount_flags,omitempty"                            doc:"Mount flags required when action is remount."`
 }
 
 // ConfigurationMutation is the complete editable Santa configuration policy.
@@ -88,7 +88,7 @@ type Configuration struct {
 	ID                            int64                 `json:"id"`
 	Name                          string                `json:"name"`
 	Position                      int                   `json:"position"`
-	ClientMode                    ClientMode            `json:"client_mode"                                  enum:"monitor,lockdown,standalone"`
+	ClientMode                    ClientMode            `json:"client_mode"                                enum:"monitor,lockdown,standalone"`
 	EnableBundles                 *bool                 `json:"enable_bundles,omitempty"`
 	EnableTransitiveRules         *bool                 `json:"enable_transitive_rules,omitempty"`
 	EnableAllEventUpload          *bool                 `json:"enable_all_event_upload,omitempty"`

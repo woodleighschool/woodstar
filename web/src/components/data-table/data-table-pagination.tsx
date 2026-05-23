@@ -1,32 +1,27 @@
+import type { Table as TanStackTable } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const PER_PAGE_OPTIONS = [25, 50, 100, 200] as const;
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200] as const;
 
-interface DataTablePaginationProps {
-  page: number;
-  perPage: number;
+interface DataTablePaginationProps<TData> {
+  table: TanStackTable<TData>;
   totalCount: number;
-  visibleCount: number;
-  onPageChange: (page: number) => void;
-  onPerPageChange: (perPage: number) => void;
   perPageOptions?: readonly number[];
 }
 
-export function DataTablePagination({
-  page,
-  perPage,
+export function DataTablePagination<TData>({
+  table,
   totalCount,
-  visibleCount,
-  onPageChange,
-  onPerPageChange,
-  perPageOptions = PER_PAGE_OPTIONS,
-}: DataTablePaginationProps) {
-  const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
-  const fromIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
-  const toIndex = (page - 1) * perPage + visibleCount;
+  perPageOptions = PAGE_SIZE_OPTIONS,
+}: DataTablePaginationProps<TData>) {
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const pageCount = Math.max(1, table.getPageCount());
+  const visibleCount = table.getRowModel().rows.length;
+  const fromIndex = totalCount === 0 ? 0 : pageIndex * pageSize + 1;
+  const toIndex = pageIndex * pageSize + visibleCount;
 
   return (
     <div className="flex flex-col-reverse items-center justify-between gap-3 px-3 py-2 sm:flex-row">
@@ -36,7 +31,7 @@ export function DataTablePagination({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Rows per page</span>
-          <Select value={String(perPage)} onValueChange={(v) => onPerPageChange(Number(v))}>
+          <Select value={String(pageSize)} onValueChange={(value) => table.setPageSize(Number(value))}>
             <SelectTrigger size="sm" className="w-[76px]">
               <SelectValue />
             </SelectTrigger>
@@ -52,18 +47,24 @@ export function DataTablePagination({
           </Select>
         </div>
         <div className="text-muted-foreground text-xs tabular-nums">
-          Page {page} of {pageCount}
+          Page {pageIndex + 1} of {pageCount}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="size-7" disabled={page <= 1} onClick={() => onPageChange(1)}>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-7"
+            disabled={!table.getCanPreviousPage()}
+            onClick={() => table.firstPage()}
+          >
             <ChevronsLeft />
           </Button>
           <Button
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
+            disabled={!table.getCanPreviousPage()}
+            onClick={() => table.previousPage()}
           >
             <ChevronLeft />
           </Button>
@@ -71,8 +72,8 @@ export function DataTablePagination({
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={page >= pageCount}
-            onClick={() => onPageChange(page + 1)}
+            disabled={!table.getCanNextPage()}
+            onClick={() => table.nextPage()}
           >
             <ChevronRight />
           </Button>
@@ -80,8 +81,8 @@ export function DataTablePagination({
             variant="outline"
             size="icon"
             className="size-7"
-            disabled={page >= pageCount}
-            onClick={() => onPageChange(pageCount)}
+            disabled={!table.getCanNextPage()}
+            onClick={() => table.lastPage()}
           >
             <ChevronsRight />
           </Button>

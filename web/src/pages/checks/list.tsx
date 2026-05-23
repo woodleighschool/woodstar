@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
@@ -31,10 +31,7 @@ export function ChecksPage() {
   const query = useChecks({
     q: search.q,
     platform: search.platform,
-    page: state.page,
-    per_page: state.perPage,
-    order_key: state.orderKey,
-    order_direction: state.orderDirection,
+    ...tableQueryParams(state),
   });
 
   const data = query.data?.items ?? [];
@@ -97,12 +94,10 @@ export function ChecksPage() {
           columns={columns}
           data={data}
           totalCount={totalCount}
-          page={state.page}
-          perPage={state.perPage}
-          sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
-          onPageChange={setters.setPage}
-          onPerPageChange={setters.setPerPage}
-          onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
           enableRowSelection
           selectedRowIds={selectedCheckIds}

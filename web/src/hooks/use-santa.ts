@@ -24,10 +24,9 @@ export type SantaEventListParams = NonNullable<paths["/api/santa/events"]["get"]
 export function useSantaConfigurations(params: SantaListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SantaConfigurationListResult, ApiError>({
@@ -51,10 +50,9 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
     rule_type: nonEmpty(params.rule_type),
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SantaRuleListResult, ApiError>({

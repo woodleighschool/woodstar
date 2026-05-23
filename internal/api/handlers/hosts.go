@@ -42,11 +42,7 @@ type hostGetInput struct {
 }
 
 type hostListInput struct {
-	Q               string `query:"q,omitempty"`
-	Page            int    `query:"page,omitempty"`
-	PerPage         int    `query:"per_page,omitempty"`
-	OrderKey        string `query:"order_key,omitempty"`
-	OrderDirection  string `query:"order_direction,omitempty"`
+	ListQueryInput
 	Status          string `query:"status,omitempty"`
 	Platform        string `query:"platform,omitempty"`
 	LabelID         string `query:"label_id,omitempty"`
@@ -68,13 +64,7 @@ func (i hostListInput) params() (hosts.ListParams, error) {
 		return hosts.ListParams{}, err
 	}
 	return hosts.ListParams{
-		ListParams: dbutil.ListParams{
-			Q:              i.Q,
-			Page:           i.Page,
-			PerPage:        i.PerPage,
-			OrderKey:       i.OrderKey,
-			OrderDirection: i.OrderDirection,
-		},
+		ListParams:      i.ListQueryInput.params(),
 		Status:          i.Status,
 		Platform:        i.Platform,
 		LabelID:         labelID,
@@ -84,13 +74,9 @@ func (i hostListInput) params() (hosts.ListParams, error) {
 }
 
 type hostSoftwareInput struct {
-	ID             string   `path:"id"`
-	Q              string   `query:"q,omitempty"`
-	Page           int      `query:"page,omitempty"`
-	PerPage        int      `query:"per_page,omitempty"`
-	OrderKey       string   `query:"order_key,omitempty"`
-	OrderDirection string   `query:"order_direction,omitempty"`
-	Source         []string `query:"source,omitempty"`
+	ID string `path:"id"`
+	ListQueryInput
+	Source []string `query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
@@ -99,13 +85,7 @@ func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, err
 		return 0, software.HostSoftwareListParams{}, err
 	}
 	return id, software.HostSoftwareListParams{
-		ListParams: dbutil.ListParams{
-			Q:              i.Q,
-			Page:           i.Page,
-			PerPage:        i.PerPage,
-			OrderKey:       i.OrderKey,
-			OrderDirection: i.OrderDirection,
-		},
+		ListParams:      i.ListQueryInput.params(),
 		SoftwareSources: i.Source,
 	}, nil
 }

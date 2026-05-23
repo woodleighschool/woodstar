@@ -12,10 +12,9 @@ export type LabelMutation = Schemas["LabelMutationBody"];
 
 export interface LabelListParams {
   q?: string;
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: string;
+  page_index?: number;
+  page_size?: number;
+  sort?: string;
   label_type?: string;
   label_membership_type?: string;
   platform?: string;
@@ -24,10 +23,9 @@ export interface LabelListParams {
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
     label_type: nonEmpty(params.label_type),
     label_membership_type: nonEmpty(params.label_membership_type),
     platform: nonEmpty(params.platform),

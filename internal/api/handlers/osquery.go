@@ -67,12 +67,8 @@ type reportResultBody struct {
 }
 
 type reportListInput struct {
-	Q              string `query:"q,omitempty"`
-	Platform       string `query:"platform,omitempty"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ListQueryInput
+	Platform string `query:"platform,omitempty"`
 }
 
 type reportGetInput struct {
@@ -369,14 +365,8 @@ func registerHostReportResults(api huma.API, reportStore *reports.Store, hostSto
 
 func (input reportListInput) params() reports.ReportListParams {
 	return reports.ReportListParams{
-		ListParams: dbutil.ListParams{
-			Q:              input.Q,
-			Page:           input.Page,
-			PerPage:        input.PerPage,
-			OrderKey:       input.OrderKey,
-			OrderDirection: input.OrderDirection,
-		},
-		Platform: input.Platform,
+		ListParams: input.ListQueryInput.params(),
+		Platform:   input.Platform,
 	}
 }
 
@@ -463,12 +453,8 @@ type checkMutationBody struct {
 }
 
 type checkListInput struct {
-	Q              string `query:"q,omitempty"`
-	Platform       string `query:"platform,omitempty"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ListQueryInput
+	Platform string `query:"platform,omitempty"`
 }
 
 type checkGetInput struct {
@@ -700,14 +686,8 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 
 func (input checkListInput) params() checks.CheckListParams {
 	return checks.CheckListParams{
-		ListParams: dbutil.ListParams{
-			Q:              input.Q,
-			Page:           input.Page,
-			PerPage:        input.PerPage,
-			OrderKey:       input.OrderKey,
-			OrderDirection: input.OrderDirection,
-		},
-		Platform: input.Platform,
+		ListParams: input.ListQueryInput.params(),
+		Platform:   input.Platform,
 	}
 }
 

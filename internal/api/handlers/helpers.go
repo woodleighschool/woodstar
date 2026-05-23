@@ -119,6 +119,22 @@ type paginatedBody[T any] struct {
 	Count int `json:"count"`
 }
 
+type ListQueryInput struct {
+	Q         string `query:"q,omitempty"`
+	PageIndex int    `query:"page_index,omitempty" minimum:"0"`
+	PageSize  int    `query:"page_size,omitempty"  minimum:"1" maximum:"200"`
+	Sort      string `query:"sort,omitempty"                                 example:"name.asc"`
+}
+
+func (input ListQueryInput) params() dbutil.ListParams {
+	return dbutil.ListParams{
+		Q:         input.Q,
+		PageIndex: input.PageIndex,
+		PageSize:  input.PageSize,
+		Sort:      input.Sort,
+	}
+}
+
 func (body bulkIDsBody) ids(name string) ([]int64, error) {
 	return cleanBulkIDs(body.IDs, name)
 }

@@ -110,7 +110,7 @@ const emptyConfigurationForm: ConfigurationFormState = {
 export function SantaConfigurationsPage() {
   const search = useSearch({ strict: false });
   const [draft, setDraft] = useDebouncedSearchParam("q");
-  const query = useSantaConfigurations({ q: typeof search.q === "string" ? search.q : undefined, per_page: 500 });
+  const query = useSantaConfigurations({ q: typeof search.q === "string" ? search.q : undefined, page_size: 500 });
   const remove = useDeleteSantaConfiguration();
   const reorder = useReorderSantaConfigurations();
   const [deleting, setDeleting] = useState<SantaConfiguration | null>(null);
@@ -223,12 +223,10 @@ export function SantaConfigurationsPage() {
           columns={columns}
           data={orderedRows}
           totalCount={orderedRows.length}
-          page={1}
-          perPage={orderedRows.length || 50}
-          sort={{}}
-          onPageChange={() => undefined}
-          onPerPageChange={() => undefined}
-          onSortChange={() => undefined}
+          pagination={{ pageIndex: 0, pageSize: orderedRows.length || 50 }}
+          sorting={[]}
+          onPaginationChange={() => undefined}
+          onSortingChange={() => undefined}
           isLoading={query.isLoading}
           clientSort
           rowHref={(row) => ({

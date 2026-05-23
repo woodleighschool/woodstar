@@ -5,10 +5,9 @@ import { HostsListPage } from "@/pages/hosts/list";
 
 const searchSchema = z.object({
   q: z.string().optional(),
-  page: z.coerce.number().int().min(1).optional(),
-  per_page: z.coerce.number().int().min(10).max(200).optional(),
-  order_key: z.string().optional(),
-  order_direction: z.enum(["asc", "desc"]).optional(),
+  page_index: z.coerce.number().int().min(0).optional(),
+  page_size: z.coerce.number().int().min(10).max(200).optional(),
+  sort: z.string().optional(),
   status: z.string().optional(),
   platform: z.string().optional(),
   label_id: z.string().optional(),

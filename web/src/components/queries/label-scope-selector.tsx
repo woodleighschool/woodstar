@@ -25,7 +25,7 @@ export function LabelScopeSelector({
   onChange: (next: LabelScope) => void;
   entity?: "report" | "check";
 }) {
-  const labels = useLabels({ per_page: 500, order_key: "name", order_direction: "asc", label_type: "regular" });
+  const labels = useLabels({ page_size: 500, sort: "name.asc", label_type: "regular" });
   const selectedTarget = value?.mode ? "Custom" : "All hosts";
   const selectedMode = value?.mode ?? includeAny;
   const selected = new Set(value?.label_ids ?? []);

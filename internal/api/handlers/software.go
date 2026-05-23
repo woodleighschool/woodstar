@@ -14,23 +14,13 @@ import (
 const softwareTag = "Software"
 
 type softwareListInput struct {
-	Page           int      `query:"page,omitempty"`
-	PerPage        int      `query:"per_page,omitempty"`
-	Q              string   `query:"q,omitempty"`
-	OrderKey       string   `query:"order_key,omitempty"`
-	OrderDirection string   `query:"order_direction,omitempty"`
-	Source         []string `query:"source,omitempty"`
+	ListQueryInput
+	Source []string `query:"source,omitempty"`
 }
 
 func (i softwareListInput) params() software.SoftwareTitleListParams {
 	return software.SoftwareTitleListParams{
-		ListParams: dbutil.ListParams{
-			Q:              i.Q,
-			Page:           i.Page,
-			PerPage:        i.PerPage,
-			OrderKey:       i.OrderKey,
-			OrderDirection: i.OrderDirection,
-		},
+		ListParams:      i.ListQueryInput.params(),
 		SoftwareSources: i.Source,
 	}
 }

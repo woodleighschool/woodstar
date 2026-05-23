@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platforms"
 )
@@ -26,11 +25,7 @@ type labelOutput struct {
 }
 
 type labelListInput struct {
-	Q              string `query:"q,omitempty"`
-	Page           int    `query:"page,omitempty"`
-	PerPage        int    `query:"per_page,omitempty"`
-	OrderKey       string `query:"order_key,omitempty"`
-	OrderDirection string `query:"order_direction,omitempty"`
+	ListQueryInput
 	LabelType      string `query:"label_type,omitempty"`
 	MembershipType string `query:"label_membership_type,omitempty"`
 	Platform       string `query:"platform,omitempty"`
@@ -72,13 +67,7 @@ type labelMutationBody struct {
 
 func (i labelListInput) params() labels.ListParams {
 	return labels.ListParams{
-		ListParams: dbutil.ListParams{
-			Q:              i.Q,
-			Page:           i.Page,
-			PerPage:        i.PerPage,
-			OrderKey:       i.OrderKey,
-			OrderDirection: i.OrderDirection,
-		},
+		ListParams:          i.ListQueryInput.params(),
 		LabelType:           labels.LabelType(i.LabelType),
 		LabelMembershipType: i.MembershipType,
 		Platform:            i.Platform,

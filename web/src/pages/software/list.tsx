@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
-import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 
 export function SoftwarePage() {
@@ -26,10 +26,7 @@ export function SoftwarePage() {
   const query = useSoftware({
     q: search.q,
     source: expandSoftwareSourceFilters(sources),
-    page: state.page,
-    per_page: state.perPage,
-    order_key: state.orderKey,
-    order_direction: state.orderDirection,
+    ...tableQueryParams(state),
   });
 
   const data = query.data?.items ?? [];
@@ -97,12 +94,10 @@ export function SoftwarePage() {
           columns={columns}
           data={data}
           totalCount={totalCount}
-          page={state.page}
-          perPage={state.perPage}
-          sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
-          onPageChange={setters.setPage}
-          onPerPageChange={setters.setPerPage}
-          onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
           rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
           toolbar={

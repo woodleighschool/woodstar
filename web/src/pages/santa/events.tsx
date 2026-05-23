@@ -132,12 +132,10 @@ export function SantaEventsPage() {
           columns={columns}
           data={rows}
           totalCount={rows.length}
-          page={1}
-          perPage={rows.length || 50}
-          sort={{}}
-          onPageChange={() => undefined}
-          onPerPageChange={() => undefined}
-          onSortChange={() => undefined}
+          pagination={{ pageIndex: 0, pageSize: rows.length || 50 }}
+          sorting={[]}
+          onPaginationChange={() => undefined}
+          onSortingChange={() => undefined}
           isLoading={query.isLoading}
           clientSort
           toolbar={

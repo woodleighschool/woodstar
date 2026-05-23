@@ -2359,7 +2359,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 0883020-dirty
+  version: a85dfc3-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2688,25 +2688,25 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page
+          name: page_index
           schema:
             format: int64
+            minimum: 0
             type: integer
         - explode: false
           in: query
-          name: per_page
+          name: page_size
           schema:
             format: int64
+            maximum: 200
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: order_key
+          name: sort
           schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
-          schema:
+            examples:
+              - name.asc
             type: string
         - explode: false
           in: query
@@ -3041,25 +3041,30 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: order_key
+          name: q
           schema:
             type: string
         - explode: false
           in: query
-          name: order_direction
+          name: page_index
           schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
             type: string
       responses:
         "200":
@@ -3117,25 +3122,25 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page
+          name: page_index
           schema:
             format: int64
+            minimum: 0
             type: integer
         - explode: false
           in: query
-          name: per_page
+          name: page_size
           schema:
             format: int64
+            maximum: 200
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: order_key
+          name: sort
           schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
-          schema:
+            examples:
+              - name.asc
             type: string
         - explode: false
           in: query
@@ -3191,25 +3196,25 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page
+          name: page_index
           schema:
             format: int64
+            minimum: 0
             type: integer
         - explode: false
           in: query
-          name: per_page
+          name: page_size
           schema:
             format: int64
+            maximum: 200
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: order_key
+          name: sort
           schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
-          schema:
+            examples:
+              - name.asc
             type: string
         - explode: false
           in: query
@@ -3684,29 +3689,29 @@ paths:
             type: string
         - explode: false
           in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
           name: platform
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: order_key
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
           schema:
             type: string
       responses:
@@ -4025,29 +4030,29 @@ paths:
             type: string
         - explode: false
           in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
           name: platform
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: order_key
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
           schema:
             type: string
       responses:
@@ -4366,25 +4371,25 @@ paths:
             type: string
         - explode: false
           in: query
-          name: page
+          name: page_index
           schema:
             format: int64
+            minimum: 0
             type: integer
         - explode: false
           in: query
-          name: per_page
+          name: page_size
           schema:
             format: int64
+            maximum: 200
+            minimum: 1
             type: integer
         - explode: false
           in: query
-          name: order_key
+          name: sort
           schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
-          schema:
+            examples:
+              - name.asc
             type: string
       responses:
         "200":
@@ -4761,29 +4766,29 @@ paths:
             type: string
         - explode: false
           in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
           name: rule_type
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: order_key
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: order_direction
           schema:
             type: string
       responses:
@@ -5255,30 +5260,30 @@ paths:
       parameters:
         - explode: false
           in: query
-          name: page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: per_page
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
           name: q
           schema:
             type: string
         - explode: false
           in: query
-          name: order_key
+          name: page_index
           schema:
-            type: string
+            format: int64
+            minimum: 0
+            type: integer
         - explode: false
           in: query
-          name: order_direction
+          name: page_size
           schema:
+            format: int64
+            maximum: 200
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
             type: string
         - explode: false
           in: query

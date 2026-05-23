@@ -12,20 +12,18 @@ export type SoftwareVersion = Schemas["SoftwareVersion"];
 export interface SoftwareListParams {
   q?: string;
   source?: string[];
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: string;
+  page_index?: number;
+  page_size?: number;
+  sort?: string;
 }
 
 export function useSoftware(params: SoftwareListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
     source: params.source && params.source.length > 0 ? params.source : undefined,
-    page: Math.max(1, params.page ?? 1),
-    per_page: params.per_page ?? 50,
-    order_key: nonEmpty(params.order_key),
-    order_direction: nonEmpty(params.order_direction),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
   };
 
   return useQuery<SoftwareListResult, ApiError>({

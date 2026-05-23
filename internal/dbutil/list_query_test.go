@@ -8,10 +8,9 @@ import (
 
 func TestListQueryOrderByAllowlist(t *testing.T) {
 	params := CleanListParams(ListParams{
-		Page:           2,
-		PerPage:        25,
-		OrderKey:       "last_seen_at",
-		OrderDirection: "desc",
+		PageIndex: 1,
+		PageSize:  25,
+		Sort:      "last_seen_at.desc",
 	})
 
 	query, args, err := ListQuery{
@@ -39,19 +38,19 @@ func TestListQueryOrderByAllowlist(t *testing.T) {
 	}
 }
 
-func TestListQueryRejectsUnknownOrderKey(t *testing.T) {
+func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 	_, _, err := ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
 		OrderKeys: map[string]OrderExpr{
 			"display_name": {SQL: "lower(display_name)"},
 		},
-		Params: CleanListParams(ListParams{OrderKey: "orbit_node_key"}),
+		Params: CleanListParams(ListParams{Sort: "orbit_node_key"}),
 	}.Build()
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("err = %v, want ErrInvalidInput", err)
 	}
-	if !strings.Contains(err.Error(), "unknown order key") {
-		t.Fatalf("err = %v, want unknown order key", err)
+	if !strings.Contains(err.Error(), "unknown sort key") {
+		t.Fatalf("err = %v, want unknown sort key", err)
 	}
 }
 

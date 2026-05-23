@@ -62,7 +62,7 @@ func (q ListQuery) Build() (string, []any, error) {
 	}
 	args := slices.Clone(q.Args)
 	limitIndex := len(args) + 1
-	args = append(args, int32(params.PerPage), int32((params.Page-1)*params.PerPage))
+	args = append(args, int32(params.PageSize), int32(params.PageIndex*params.PageSize))
 
 	parts := []string{strings.TrimSpace(q.SelectSQL)}
 	if q.WhereSQL != "" {
@@ -80,10 +80,14 @@ func (q ListQuery) Build() (string, []any, error) {
 
 func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {
 	order := make([]OrderExpr, 0, 1+len(defaultOrder))
-	if params.OrderKey != "" {
-		expr, ok := orderKeys[params.OrderKey]
+	sortKey, sortDirection, err := parseSort(params.Sort)
+	if err != nil {
+		return "", err
+	}
+	if sortKey != "" {
+		expr, ok := orderKeys[sortKey]
 		if !ok {
-			return "", fmt.Errorf("%w: unknown order key %q", ErrInvalidInput, params.OrderKey)
+			return "", fmt.Errorf("%w: unknown sort key %q", ErrInvalidInput, sortKey)
 		}
 		order = append(order, expr)
 	}
@@ -97,7 +101,7 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 	}
 
 	direction := orderSQLAsc
-	if params.OrderDirection == orderDesc {
+	if sortDirection == orderDesc {
 		direction = orderSQLDesc
 	}
 	parts := make([]string, 0, len(order))
@@ -113,6 +117,26 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 		parts = append(parts, part)
 	}
 	return "ORDER BY " + strings.Join(parts, ", "), nil
+}
+
+func parseSort(sort string) (string, string, error) {
+	sort = strings.TrimSpace(sort)
+	if sort == "" {
+		return "", orderAsc, nil
+	}
+	key, direction, ok := strings.Cut(sort, ".")
+	key = strings.TrimSpace(key)
+	direction = strings.ToLower(strings.TrimSpace(direction))
+	if key == "" {
+		return "", "", fmt.Errorf("%w: sort key is required", ErrInvalidInput)
+	}
+	if !ok || direction == "" {
+		return key, orderAsc, nil
+	}
+	if direction != orderAsc && direction != orderDesc {
+		return "", "", fmt.Errorf("%w: sort direction must be asc or desc", ErrInvalidInput)
+	}
+	return key, direction, nil
 }
 
 func orderContains(order []OrderExpr, sql string) bool {

@@ -43,7 +43,7 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	query, args, err := softwareTitleListQuery(
-		dbutil.ListParams{Page: 1, PerPage: 1},
+		dbutil.ListParams{PageSize: 1},
 		"WHERE st.id = $1",
 		[]any{id},
 	)

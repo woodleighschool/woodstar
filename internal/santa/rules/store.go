@@ -72,7 +72,7 @@ type RuleListParams struct {
 }
 
 type RuleCreate struct {
-	RuleType        RuleType           `json:"rule_type"         enum:"binary,certificate,teamid,signingid,cdhash"`
+	RuleType        RuleType           `json:"rule_type"                   enum:"binary,certificate,teamid,signingid,cdhash"`
 	Identifier      string             `json:"identifier"`
 	Name            string             `json:"name,omitempty"`
 	CustomMessage   string             `json:"custom_message,omitempty"`
@@ -118,9 +118,9 @@ type RuleInclude struct {
 
 type EffectiveRule struct {
 	RuleID           int64    `json:"rule_id"`
-	RuleType         RuleType `json:"rule_type"          enum:"binary,certificate,teamid,signingid,cdhash"`
+	RuleType         RuleType `json:"rule_type"                enum:"binary,certificate,teamid,signingid,cdhash"`
 	Identifier       string   `json:"identifier"`
-	Policy           Policy   `json:"policy"             enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	Policy           Policy   `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
 	CELExpression    string   `json:"cel_expression,omitempty"`
 	CustomMessage    string   `json:"custom_message,omitempty"`
 	CustomURL        string   `json:"custom_url,omitempty"`
@@ -341,8 +341,8 @@ func (s *Store) ListEffectiveRulesForHost(
 	params EffectiveRuleListParams,
 ) ([]EffectiveRuleStatus, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	if params.PerPage <= 0 {
-		params.PerPage = 100
+	if params.PageSize <= 0 {
+		params.PageSize = 100
 	}
 
 	var count int
@@ -350,11 +350,11 @@ func (s *Store) ListEffectiveRulesForHost(
 		Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	offset := (params.Page - 1) * params.PerPage
+	offset := params.PageIndex * params.PageSize
 	rows, err := s.db.Pool().Query(ctx, effectiveRulesForHostSQL+`
 		ORDER BY rule_type_sort, identifier, rule_id
 		LIMIT $2 OFFSET $3
-	`, hostID, params.PerPage, offset)
+	`, hostID, params.PageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}

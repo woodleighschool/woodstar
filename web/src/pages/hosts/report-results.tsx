@@ -82,13 +82,11 @@ export function HostReportResultsPage() {
         columns={columns}
         data={rows}
         totalCount={rows.length}
-        page={1}
-        perPage={rows.length}
-        sort={{}}
+        pagination={{ pageIndex: 0, pageSize: rows.length || 50 }}
+        sorting={[]}
         clientSort
-        onPageChange={() => null}
-        onPerPageChange={() => null}
-        onSortChange={() => null}
+        onPaginationChange={() => null}
+        onSortingChange={() => null}
         empty={
           <Empty>
             <EmptyHeader>

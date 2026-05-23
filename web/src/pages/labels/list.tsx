@@ -30,7 +30,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
-import { useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { PLATFORM_LABELS, QUERYABLE_PLATFORMS, platformLabel } from "@/lib/targeting";
 import { formatRelative } from "@/lib/utils";
 
@@ -50,10 +50,7 @@ export function LabelsPage() {
 
   const query = useLabels({
     q: search.q,
-    page: state.page,
-    per_page: state.perPage,
-    order_key: state.orderKey,
-    order_direction: state.orderDirection,
+    ...tableQueryParams(state),
     label_type: "regular",
     label_membership_type: search.label_membership_type,
     platform: search.platform,
@@ -144,12 +141,10 @@ export function LabelsPage() {
           columns={columns}
           data={data}
           totalCount={totalCount}
-          page={state.page}
-          perPage={state.perPage}
-          sort={{ orderKey: state.orderKey, orderDirection: state.orderDirection }}
-          onPageChange={setters.setPage}
-          onPerPageChange={setters.setPerPage}
-          onSortChange={(s) => setters.setSort(s.orderKey, s.orderDirection)}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
           rowHref={(row) => ({ to: "/labels/$labelId/edit", params: { labelId: String(row.id) } })}
           toolbar={

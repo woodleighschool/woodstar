@@ -1,98 +1,93 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { useCallback, useMemo } from "react";
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_PER_PAGE = 50;
+const DEFAULT_PAGE_INDEX = 0;
+const DEFAULT_PAGE_SIZE = 50;
 
-export interface TablePaginationState {
-  page: number;
-  perPage: number;
-  orderKey?: string;
-  orderDirection?: "asc" | "desc";
-}
-
-export interface TablePaginationSetters {
-  setPage: (page: number) => void;
-  setPerPage: (perPage: number) => void;
-  setSort: (orderKey: string | undefined, orderDirection: "asc" | "desc" | undefined) => void;
-  setFilter: (key: string, value: string | undefined) => void;
-}
-
-interface PaginationSearch {
-  page?: number;
-  per_page?: number;
-  order_key?: string;
-  order_direction?: "asc" | "desc";
+export interface TableSearchParams {
+  q?: string;
+  page_index?: number;
+  page_size?: number;
+  sort?: string;
   [key: string]: unknown;
 }
 
-/**
- * Reads page / per_page / order_key / order_direction from the URL and
- * returns typed state + setters that write back. Page 1 and the default
- * per-page are omitted from the URL so query strings stay tidy.
- */
-export function useTablePaginationParams(defaults?: { perPage?: number }): {
-  state: TablePaginationState;
-  setters: TablePaginationSetters;
+export interface TableURLState {
+  pagination: PaginationState;
+  sorting: SortingState;
+}
+
+export interface TableURLSetters {
+  setPagination: OnChangeFn<PaginationState>;
+  setSorting: OnChangeFn<SortingState>;
+  setFilter: (key: string, value: string | undefined) => void;
+}
+
+export function tableQueryParams(state: TableURLState): Pick<TableSearchParams, "page_index" | "page_size" | "sort"> {
+  const sort = state.sorting.at(0);
+  return {
+    page_index: state.pagination.pageIndex,
+    page_size: state.pagination.pageSize,
+    sort: sort ? `${sort.id}.${sort.desc ? "desc" : "asc"}` : undefined,
+  };
+}
+
+export function useTablePaginationParams(defaults?: { pageSize?: number }): {
+  state: TableURLState;
+  setters: TableURLSetters;
 } {
   const search = useSearch({ strict: false });
   const navigate = useNavigate();
-  const defaultPerPage = defaults?.perPage ?? DEFAULT_PER_PAGE;
+  const defaultPageSize = defaults?.pageSize ?? DEFAULT_PAGE_SIZE;
 
-  const state: TablePaginationState = useMemo(
+  const state: TableURLState = useMemo(
     () => ({
-      page: search.page ?? DEFAULT_PAGE,
-      perPage: search.per_page ?? defaultPerPage,
-      orderKey: search.order_key,
-      orderDirection: search.order_direction,
+      pagination: {
+        pageIndex: typeof search.page_index === "number" ? search.page_index : DEFAULT_PAGE_INDEX,
+        pageSize: typeof search.page_size === "number" ? search.page_size : defaultPageSize,
+      },
+      sorting: parseSorting(search.sort),
     }),
-    [search.page, search.per_page, search.order_key, search.order_direction, defaultPerPage],
+    [defaultPageSize, search.page_index, search.page_size, search.sort],
   );
 
-  const setPage = useCallback(
-    (page: number) => {
+  const setPagination = useCallback<OnChangeFn<PaginationState>>(
+    (updater) => {
+      const next = typeof updater === "function" ? updater(state.pagination) : updater;
       void navigate({
-        search: ((prev: PaginationSearch) => ({ ...prev, page: page <= DEFAULT_PAGE ? undefined : page })) as never,
-        replace: true,
-      });
-    },
-    [navigate],
-  );
-
-  const setPerPage = useCallback(
-    (perPage: number) => {
-      void navigate({
-        search: ((prev: PaginationSearch) => ({
+        search: ((prev: TableSearchParams) => ({
           ...prev,
-          per_page: perPage === defaultPerPage ? undefined : perPage,
-          page: undefined,
+          page_index: next.pageIndex === DEFAULT_PAGE_INDEX ? undefined : next.pageIndex,
+          page_size: next.pageSize === defaultPageSize ? undefined : next.pageSize,
         })) as never,
         replace: true,
       });
     },
-    [navigate, defaultPerPage],
+    [defaultPageSize, navigate, state.pagination],
   );
 
-  const setSort = useCallback(
-    (orderKey: string | undefined, orderDirection: "asc" | "desc" | undefined) => {
+  const setSorting = useCallback<OnChangeFn<SortingState>>(
+    (updater) => {
+      const next = typeof updater === "function" ? updater(state.sorting) : updater;
+      const sort = next.at(0);
       void navigate({
-        search: ((prev: PaginationSearch) => ({
+        search: ((prev: TableSearchParams) => ({
           ...prev,
-          order_key: orderKey,
-          order_direction: orderDirection,
-          page: undefined,
+          sort: sort ? `${sort.id}.${sort.desc ? "desc" : "asc"}` : undefined,
+          page_index: undefined,
         })) as never,
         replace: true,
       });
     },
-    [navigate],
+    [navigate, state.sorting],
   );
 
   const setFilter = useCallback(
     (key: string, value: string | undefined) => {
       void navigate({
-        search: ((prev: PaginationSearch) => {
-          const next: PaginationSearch = { ...prev, page: undefined };
+        search: ((prev: TableSearchParams) => {
+          const next: TableSearchParams = { ...prev, page_index: undefined };
           if (value === undefined || value === "") delete next[key];
           else next[key] = value;
           return next;
@@ -103,5 +98,16 @@ export function useTablePaginationParams(defaults?: { perPage?: number }): {
     [navigate],
   );
 
-  return { state, setters: { setPage, setPerPage, setSort, setFilter } };
+  return { state, setters: { setPagination, setSorting, setFilter } };
+}
+
+function parseSorting(sort: unknown): SortingState {
+  if (typeof sort !== "string" || sort === "") {
+    return [];
+  }
+  const [id, direction] = sort.split(".");
+  if (!id) {
+    return [];
+  }
+  return [{ id, desc: direction === "desc" }];
 }

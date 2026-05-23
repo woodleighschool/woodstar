@@ -13,9 +13,8 @@ import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
 
 export function LabelPicker({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
   const labels = useLabels({
-    per_page: 500,
-    order_key: "name",
-    order_direction: "asc",
+    page_size: 500,
+    sort: "name.asc",
     label_type: "regular",
     platform: "darwin",
   });
