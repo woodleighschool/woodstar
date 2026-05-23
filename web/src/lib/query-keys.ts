@@ -21,4 +21,8 @@ export const queryKeys = {
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: string) => ["software", id] as const,
   enrollSecrets: ["enrollment", "enroll-secrets"] as const,
+  santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
+  santaEvents: (params?: unknown) => ["santa", "events", params ?? {}] as const,
+  santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
+  santaSyncTokens: ["santa", "sync-tokens"] as const,
 };

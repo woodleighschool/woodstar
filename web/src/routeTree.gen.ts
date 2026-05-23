@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSoftwareRouteImport } from './routes/_authenticated/software'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSantaRouteImport } from './routes/_authenticated/santa'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
 import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
@@ -23,10 +24,13 @@ import { Route as AuthenticatedChecksRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users.index'
 import { Route as AuthenticatedSoftwareIndexRouteImport } from './routes/_authenticated/software.index'
+import { Route as AuthenticatedSantaIndexRouteImport } from './routes/_authenticated/santa.index'
 import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports.index'
 import { Route as AuthenticatedLabelsIndexRouteImport } from './routes/_authenticated/labels.index'
 import { Route as AuthenticatedHostsIndexRouteImport } from './routes/_authenticated/hosts.index'
 import { Route as AuthenticatedChecksIndexRouteImport } from './routes/_authenticated/checks.index'
+import { Route as AuthenticatedSantaSyncTokensRouteImport } from './routes/_authenticated/santa.sync-tokens'
+import { Route as AuthenticatedSantaEventsRouteImport } from './routes/_authenticated/santa.events'
 import { Route as AuthenticatedReportsNewRouteImport } from './routes/_authenticated/reports.new'
 import { Route as AuthenticatedReportsReportIdRouteImport } from './routes/_authenticated/reports.$reportId'
 import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authenticated/labels.new'
@@ -78,6 +82,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSantaRoute = AuthenticatedSantaRouteImport.update({
+  id: '/santa',
+  path: '/santa',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -114,6 +123,11 @@ const AuthenticatedSoftwareIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedSoftwareRoute,
   } as any)
+const AuthenticatedSantaIndexRoute = AuthenticatedSantaIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedSantaRoute,
+} as any)
 const AuthenticatedReportsIndexRoute =
   AuthenticatedReportsIndexRouteImport.update({
     id: '/',
@@ -136,6 +150,18 @@ const AuthenticatedChecksIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedChecksRoute,
+  } as any)
+const AuthenticatedSantaSyncTokensRoute =
+  AuthenticatedSantaSyncTokensRouteImport.update({
+    id: '/sync-tokens',
+    path: '/sync-tokens',
+    getParentRoute: () => AuthenticatedSantaRoute,
+  } as any)
+const AuthenticatedSantaEventsRoute =
+  AuthenticatedSantaEventsRouteImport.update({
+    id: '/events',
+    path: '/events',
+    getParentRoute: () => AuthenticatedSantaRoute,
   } as any)
 const AuthenticatedReportsNewRoute = AuthenticatedReportsNewRouteImport.update({
   id: '/new',
@@ -240,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/reports': typeof AuthenticatedReportsRouteWithChildren
+  '/santa': typeof AuthenticatedSantaRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/users': typeof AuthenticatedUsersRouteWithChildren
@@ -249,10 +276,13 @@ export interface FileRoutesByFullPath {
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
   '/reports/new': typeof AuthenticatedReportsNewRoute
+  '/santa/events': typeof AuthenticatedSantaEventsRoute
+  '/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/checks/': typeof AuthenticatedChecksIndexRoute
   '/hosts/': typeof AuthenticatedHostsIndexRoute
   '/labels/': typeof AuthenticatedLabelsIndexRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
+  '/santa/': typeof AuthenticatedSantaIndexRoute
   '/software/': typeof AuthenticatedSoftwareIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
@@ -276,10 +306,13 @@ export interface FileRoutesByTo {
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/new': typeof AuthenticatedReportsNewRoute
+  '/santa/events': typeof AuthenticatedSantaEventsRoute
+  '/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/checks': typeof AuthenticatedChecksIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
   '/labels': typeof AuthenticatedLabelsIndexRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
+  '/santa': typeof AuthenticatedSantaIndexRoute
   '/software': typeof AuthenticatedSoftwareIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
@@ -304,6 +337,7 @@ export interface FileRoutesById {
   '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/_authenticated/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRouteWithChildren
+  '/_authenticated/santa': typeof AuthenticatedSantaRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/_authenticated/users': typeof AuthenticatedUsersRouteWithChildren
@@ -313,10 +347,13 @@ export interface FileRoutesById {
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
   '/_authenticated/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
   '/_authenticated/reports/new': typeof AuthenticatedReportsNewRoute
+  '/_authenticated/santa/events': typeof AuthenticatedSantaEventsRoute
+  '/_authenticated/santa/sync-tokens': typeof AuthenticatedSantaSyncTokensRoute
   '/_authenticated/checks/': typeof AuthenticatedChecksIndexRoute
   '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
   '/_authenticated/labels/': typeof AuthenticatedLabelsIndexRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
+  '/_authenticated/santa/': typeof AuthenticatedSantaIndexRoute
   '/_authenticated/software/': typeof AuthenticatedSoftwareIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/checks/$checkId/edit': typeof AuthenticatedChecksCheckIdEditRoute
@@ -341,6 +378,7 @@ export interface FileRouteTypes {
     | '/hosts'
     | '/labels'
     | '/reports'
+    | '/santa'
     | '/settings'
     | '/software'
     | '/users'
@@ -350,10 +388,13 @@ export interface FileRouteTypes {
     | '/labels/new'
     | '/reports/$reportId'
     | '/reports/new'
+    | '/santa/events'
+    | '/santa/sync-tokens'
     | '/checks/'
     | '/hosts/'
     | '/labels/'
     | '/reports/'
+    | '/santa/'
     | '/software/'
     | '/users/'
     | '/checks/$checkId/edit'
@@ -377,10 +418,13 @@ export interface FileRouteTypes {
     | '/hosts/$hostId'
     | '/labels/new'
     | '/reports/new'
+    | '/santa/events'
+    | '/santa/sync-tokens'
     | '/checks'
     | '/hosts'
     | '/labels'
     | '/reports'
+    | '/santa'
     | '/software'
     | '/users'
     | '/checks/$checkId/edit'
@@ -404,6 +448,7 @@ export interface FileRouteTypes {
     | '/_authenticated/hosts'
     | '/_authenticated/labels'
     | '/_authenticated/reports'
+    | '/_authenticated/santa'
     | '/_authenticated/settings'
     | '/_authenticated/software'
     | '/_authenticated/users'
@@ -413,10 +458,13 @@ export interface FileRouteTypes {
     | '/_authenticated/labels/new'
     | '/_authenticated/reports/$reportId'
     | '/_authenticated/reports/new'
+    | '/_authenticated/santa/events'
+    | '/_authenticated/santa/sync-tokens'
     | '/_authenticated/checks/'
     | '/_authenticated/hosts/'
     | '/_authenticated/labels/'
     | '/_authenticated/reports/'
+    | '/_authenticated/santa/'
     | '/_authenticated/software/'
     | '/_authenticated/users/'
     | '/_authenticated/checks/$checkId/edit'
@@ -489,6 +537,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/santa': {
+      id: '/_authenticated/santa'
+      path: '/santa'
+      fullPath: '/santa'
+      preLoaderRoute: typeof AuthenticatedSantaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -538,6 +593,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSoftwareIndexRouteImport
       parentRoute: typeof AuthenticatedSoftwareRoute
     }
+    '/_authenticated/santa/': {
+      id: '/_authenticated/santa/'
+      path: '/'
+      fullPath: '/santa/'
+      preLoaderRoute: typeof AuthenticatedSantaIndexRouteImport
+      parentRoute: typeof AuthenticatedSantaRoute
+    }
     '/_authenticated/reports/': {
       id: '/_authenticated/reports/'
       path: '/'
@@ -565,6 +627,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/checks/'
       preLoaderRoute: typeof AuthenticatedChecksIndexRouteImport
       parentRoute: typeof AuthenticatedChecksRoute
+    }
+    '/_authenticated/santa/sync-tokens': {
+      id: '/_authenticated/santa/sync-tokens'
+      path: '/sync-tokens'
+      fullPath: '/santa/sync-tokens'
+      preLoaderRoute: typeof AuthenticatedSantaSyncTokensRouteImport
+      parentRoute: typeof AuthenticatedSantaRoute
+    }
+    '/_authenticated/santa/events': {
+      id: '/_authenticated/santa/events'
+      path: '/events'
+      fullPath: '/santa/events'
+      preLoaderRoute: typeof AuthenticatedSantaEventsRouteImport
+      parentRoute: typeof AuthenticatedSantaRoute
     }
     '/_authenticated/reports/new': {
       id: '/_authenticated/reports/new'
@@ -794,6 +870,21 @@ const AuthenticatedReportsRouteChildren: AuthenticatedReportsRouteChildren = {
 const AuthenticatedReportsRouteWithChildren =
   AuthenticatedReportsRoute._addFileChildren(AuthenticatedReportsRouteChildren)
 
+interface AuthenticatedSantaRouteChildren {
+  AuthenticatedSantaEventsRoute: typeof AuthenticatedSantaEventsRoute
+  AuthenticatedSantaSyncTokensRoute: typeof AuthenticatedSantaSyncTokensRoute
+  AuthenticatedSantaIndexRoute: typeof AuthenticatedSantaIndexRoute
+}
+
+const AuthenticatedSantaRouteChildren: AuthenticatedSantaRouteChildren = {
+  AuthenticatedSantaEventsRoute: AuthenticatedSantaEventsRoute,
+  AuthenticatedSantaSyncTokensRoute: AuthenticatedSantaSyncTokensRoute,
+  AuthenticatedSantaIndexRoute: AuthenticatedSantaIndexRoute,
+}
+
+const AuthenticatedSantaRouteWithChildren =
+  AuthenticatedSantaRoute._addFileChildren(AuthenticatedSantaRouteChildren)
+
 interface AuthenticatedSoftwareRouteChildren {
   AuthenticatedSoftwareIndexRoute: typeof AuthenticatedSoftwareIndexRoute
   AuthenticatedSoftwareTitlesSoftwareIdRoute: typeof AuthenticatedSoftwareTitlesSoftwareIdRoute
@@ -829,6 +920,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
   AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRouteWithChildren
+  AuthenticatedSantaRoute: typeof AuthenticatedSantaRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSoftwareRoute: typeof AuthenticatedSoftwareRouteWithChildren
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRouteWithChildren
@@ -840,6 +932,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
   AuthenticatedLabelsRoute: AuthenticatedLabelsRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRouteWithChildren,
+  AuthenticatedSantaRoute: AuthenticatedSantaRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSoftwareRoute: AuthenticatedSoftwareRouteWithChildren,
   AuthenticatedUsersRoute: AuthenticatedUsersRouteWithChildren,
