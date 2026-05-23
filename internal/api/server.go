@@ -28,6 +28,7 @@ import (
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
+	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -72,7 +73,8 @@ type OrbitDependencies struct {
 }
 
 type SantaDependencies struct {
-	Store *santa.Store
+	Store   *santa.Store
+	Service *santa.Service
 }
 
 // Server owns the HTTP listener and router.
@@ -158,6 +160,14 @@ func orbitRoutes(r chi.Router, deps Dependencies) {
 		deps.Orbit.OsqueryService,
 		deps.Runtime.Logger.With("component", "osquery"),
 	)
+	if deps.Santa.Store != nil && deps.Santa.Service != nil {
+		santaprotocol.RegisterSantaRoutes(
+			r,
+			deps.Santa.Store,
+			deps.Santa.Service,
+			deps.Runtime.Logger.With("component", "santa"),
+		)
+	}
 }
 
 func browserRoutes(r chi.Router, deps Dependencies) {

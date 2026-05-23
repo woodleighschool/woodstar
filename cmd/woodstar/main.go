@@ -162,7 +162,8 @@ func newServer(
 			OsqueryService:   orbitRuntime.osquery,
 		},
 		Santa: api.SantaDependencies{
-			Store: stores.santa,
+			Store:   stores.santa,
+			Service: santa.NewService(stores.santa),
 		},
 	})
 	return server, func() {

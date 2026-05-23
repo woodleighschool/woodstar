@@ -5,6 +5,7 @@ go 1.26.0
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
+	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260406161402-f189dc325e5c.1
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0
@@ -18,6 +19,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -108,10 +110,9 @@ require (
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260120221211-b8f7ae30c516 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260523011958-0a33c5d7ca68 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
