@@ -1,6 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, ShieldCheck } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { CheckStatusBadge } from "@/components/checks/check-status-badge";
@@ -18,6 +18,7 @@ import { HostHeader } from "@/components/hosts/host-header";
 import { PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -27,6 +28,7 @@ import {
   useHost,
   useHostChecks,
   useHostReports,
+  useHostSantaEffectiveRules,
   useHostSoftware,
   type HostReport,
   type HostSoftware,
@@ -79,6 +81,7 @@ export function HostDetailPage() {
           <TabsTrigger value="software">Software</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="checks">Checks</TabsTrigger>
+          {host.santa ? <TabsTrigger value="santa">Santa</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="details">
@@ -103,8 +106,117 @@ export function HostDetailPage() {
         <TabsContent value="checks">
           <HostChecksTab hostId={hostId} />
         </TabsContent>
+
+        {host.santa ? (
+          <TabsContent value="santa">
+            <HostSantaTab hostId={hostId} host={host} />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </PageShell>
+  );
+}
+
+function HostSantaTab({ hostId, host }: { hostId: string; host: NonNullable<ReturnType<typeof useHost>["data"]> }) {
+  const rules = useHostSantaEffectiveRules(hostId);
+  const santa = host.santa;
+  if (!santa) return null;
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <SantaSummaryCard label="Version" value={santa.version || "-"} />
+        <SantaSummaryCard label="Reported mode" value={santa.client_mode_reported} />
+        <SantaSummaryCard label="Last sync" value={formatRelative(santa.last_sync_at)} />
+        <SantaSummaryCard label="Pending rules" value={String(santa.rule_sync.pending_count)} />
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableBody>
+            <TableRow>
+              <TableCell className="text-muted-foreground w-52">Effective configuration</TableCell>
+              <TableCell className="font-medium">{santa.effective_configuration?.name ?? "-"}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="text-muted-foreground">Matched label</TableCell>
+              <TableCell>{santa.effective_configuration?.matched_via_label?.name ?? "-"}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="text-muted-foreground">Rule sync</TableCell>
+              <TableCell>
+                <span className="tabular-nums">
+                  {santa.rule_sync.applied_count} applied / {santa.rule_sync.desired_count} desired
+                </span>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="grid gap-2">
+        <h2 className="text-lg font-semibold">Effective rules</h2>
+        {rules.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load effective rules</AlertTitle>
+            <AlertDescription>{rules.error.message}</AlertDescription>
+          </Alert>
+        ) : rules.isLoading ? (
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
+            <Loader2 className="size-4 animate-spin" /> Loading...
+          </div>
+        ) : (rules.data?.items ?? []).length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <ShieldCheck />
+              </EmptyMedia>
+              <EmptyTitle>No effective rules</EmptyTitle>
+              <EmptyDescription>No Santa rules match this host.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Policy</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(rules.data?.items ?? []).map((rule) => (
+                  <TableRow key={`${rule.rule_id}-${rule.matched_include_id}`}>
+                    <TableCell>
+                      <div className="grid gap-1">
+                        <span className="font-medium">{rule.identifier}</span>
+                        <span className="text-muted-foreground text-xs">{rule.rule_type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{rule.policy}</TableCell>
+                    <TableCell>
+                      <Badge variant={rule.pending ? "secondary" : "outline"}>
+                        {rule.pending ? "pending" : rule.applied ? "applied" : "unknown"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SantaSummaryCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="text-muted-foreground text-xs">{label}</div>
+      <div className="truncate text-sm font-medium">{value}</div>
+    </div>
   );
 }
 

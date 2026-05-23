@@ -229,6 +229,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hosts/{id}/santa/effective-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List effective Santa rules for a host */
+        get: operations["list-host-santa-effective-rules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hosts/{id}/software": {
         parameters: {
             query?: never;
@@ -945,6 +962,21 @@ export interface components {
             matched_via_label?: components["schemas"]["MatchedLabel"];
             name: string;
         };
+        EffectiveRuleStatus: {
+            applied: boolean;
+            cel_expression?: string;
+            custom_message?: string;
+            custom_url?: string;
+            identifier: string;
+            /** Format: int64 */
+            matched_include_id: number;
+            payload_hash: string;
+            pending: boolean;
+            policy: string;
+            /** Format: int64 */
+            rule_id: number;
+            rule_type: string;
+        };
         EnrollSecret: {
             /**
              * Format: uri
@@ -1449,6 +1481,17 @@ export interface components {
             /** Format: int64 */
             count: number;
             items: components["schemas"]["Configuration"][] | null;
+        };
+        PaginatedBodyEffectiveRuleStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyEffectiveRuleStatus.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["EffectiveRuleStatus"][] | null;
         };
         PaginatedBodyHost: {
             /**
@@ -2654,6 +2697,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HostReportResultsBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-host-santa-effective-rules": {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+                order_key?: string;
+                order_direction?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedBodyEffectiveRuleStatus"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
                 };
             };
             /** @description Unauthorized */

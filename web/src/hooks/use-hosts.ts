@@ -14,6 +14,8 @@ export type HostReportsResult = Schemas["HostReportsBody"];
 export type HostReport = Schemas["HostReport"];
 export type HostReportResultsResult = Schemas["HostReportResultsBody"];
 export type HostChecksResult = Schemas["CheckHostsOutputBody"];
+export type HostSantaEffectiveRulesResult = Schemas["PaginatedBodyEffectiveRuleStatus"];
+export type HostSantaEffectiveRule = Schemas["EffectiveRuleStatus"];
 
 export interface ListParams {
   q?: string;
@@ -149,5 +151,27 @@ export function useHostChecks(id: string) {
     queryFn: ({ signal }) =>
       unwrap(apiClient.GET("/api/hosts/{id}/osquery/checks", { params: { path: { id } }, signal })),
     enabled: id !== "",
+  });
+}
+
+export function useHostSantaEffectiveRules(id: string, params: ListParams = {}) {
+  const queryParams = {
+    page: Math.max(1, params.page ?? 1),
+    per_page: params.per_page ?? 100,
+    order_key: nonEmpty(params.order_key),
+    order_direction: nonEmpty(params.order_direction),
+  };
+
+  return useQuery<HostSantaEffectiveRulesResult, ApiError>({
+    queryKey: queryKeys.hostSantaEffectiveRules(id, queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/hosts/{id}/santa/effective-rules", {
+          params: { path: { id }, query: queryParams },
+          signal,
+        }),
+      ),
+    enabled: id !== "",
+    placeholderData: keepPreviousData,
   });
 }

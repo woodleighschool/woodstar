@@ -10,6 +10,8 @@ export const queryKeys = {
   hostReports: (id: string) => ["hosts", id, "reports"] as const,
   hostReportResults: (hostId: string, reportId: string) => ["hosts", hostId, "reports", reportId] as const,
   hostChecks: (id: string) => ["hosts", id, "checks"] as const,
+  hostSantaEffectiveRules: (id: string, params?: unknown) =>
+    ["hosts", id, "santa", "effective-rules", params ?? {}] as const,
   labels: (params?: unknown) => ["labels", params ?? {}] as const,
   label: (id: string) => ["labels", id] as const,
   reports: (params?: unknown) => ["reports", params ?? {}] as const,

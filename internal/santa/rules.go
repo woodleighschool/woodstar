@@ -95,6 +95,17 @@ type EffectiveRule struct {
 	MatchedIncludeID int64    `json:"matched_include_id"`
 }
 
+type EffectiveRuleStatus struct {
+	EffectiveRule
+	Applied     bool   `json:"applied"`
+	Pending     bool   `json:"pending"`
+	PayloadHash string `json:"payload_hash"`
+}
+
+type EffectiveRuleListParams struct {
+	dbutil.ListParams
+}
+
 func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	params.RuleType = cleanRuleType(params.RuleType)
@@ -332,6 +343,72 @@ func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]Effect
 		}
 	}
 	return effective, nil
+}
+
+func (s *Store) ListEffectiveRulesForHost(
+	ctx context.Context,
+	hostID int64,
+	params EffectiveRuleListParams,
+) ([]EffectiveRuleStatus, int, error) {
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
+	if params.PerPage <= 0 {
+		params.PerPage = 100
+	}
+
+	rules, err := s.ResolveRulesForHost(ctx, hostID)
+	if err != nil {
+		return nil, 0, err
+	}
+	targets := syncTargetsFromRules(rules)
+	applied, err := s.appliedSyncTargetSet(ctx, hostID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	rows := make([]EffectiveRuleStatus, 0, len(rules))
+	for i, rule := range rules {
+		target := targets[i]
+		fingerprint := syncTargetFingerprint{
+			RuleType:    target.RuleType,
+			Identifier:  target.Identifier,
+			PayloadHash: target.PayloadHash,
+		}
+		appliedRule := applied[fingerprint.key()]
+		rows = append(rows, EffectiveRuleStatus{
+			EffectiveRule: rule,
+			Applied:       appliedRule,
+			Pending:       !appliedRule,
+			PayloadHash:   target.PayloadHash,
+		})
+	}
+
+	count := len(rows)
+	start := (params.Page - 1) * params.PerPage
+	if start >= count {
+		return []EffectiveRuleStatus{}, count, nil
+	}
+	end := min(start+params.PerPage, count)
+	return rows[start:end], count, nil
+}
+
+func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[string]bool, error) {
+	var appliedPayload []byte
+	err := s.db.Pool().QueryRow(ctx, `
+		SELECT COALESCE(applied_targets, '[]'::jsonb)
+		FROM santa_sync_state
+		WHERE host_id = $1
+	`, hostID).Scan(&appliedPayload)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return map[string]bool{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	applied, err := decodeSyncTargets(appliedPayload)
+	if err != nil {
+		return nil, err
+	}
+	return syncTargetSet(applied), nil
 }
 
 func (s *Store) hostLabelSet(ctx context.Context, hostID int64) (map[int64]bool, error) {

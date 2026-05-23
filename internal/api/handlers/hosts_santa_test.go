@@ -156,6 +156,85 @@ func TestHostDetailIncludesSantaObservation(t *testing.T) {
 	}
 }
 
+func TestHostSantaEffectiveRulesAPI(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	santaStore := santa.NewStore(db)
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "host-effective-rules",
+		OrbitNodeKey: "host-effective-rules-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	label, err := labels.NewStore(db).Create(ctx, labels.LabelCreate{
+		Name:                "Effective Rules Label",
+		LabelType:           labels.LabelTypeRegular,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms: []platforms.Platform{
+			platforms.PlatformDarwin,
+			platforms.PlatformWindows,
+			platforms.PlatformLinux,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	if err := labels.NewStore(db).SetMembership(ctx, label.ID, host.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+	rule, err := santaStore.CreateRule(ctx, santa.RuleCreate{
+		RuleType:   santa.RuleTypeBinary,
+		Identifier: "sha256-effective",
+		Name:       "Effective Binary",
+		Includes: []santa.RuleIncludeWrite{{
+			Policy:   santa.PolicyBlocklist,
+			LabelIDs: []int64{label.ID},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create rule: %v", err)
+	}
+
+	router, cookie := santaHostDetailRouter(t, db, hostStore, santaStore)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		fmt.Sprintf("/api/hosts/%d/santa/effective-rules", host.ID),
+		nil,
+	)
+	req.AddCookie(cookie)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Count int `json:"count"`
+		Items []struct {
+			RuleID      int64  `json:"rule_id"`
+			Policy      string `json:"policy"`
+			Applied     bool   `json:"applied"`
+			Pending     bool   `json:"pending"`
+			PayloadHash string `json:"payload_hash"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode effective rules: %v", err)
+	}
+	if body.Count != 1 || len(body.Items) != 1 {
+		t.Fatalf("effective rules = %+v, want one", body)
+	}
+	if body.Items[0].RuleID != rule.ID ||
+		body.Items[0].Policy != string(santa.PolicyBlocklist) ||
+		body.Items[0].Applied ||
+		!body.Items[0].Pending ||
+		body.Items[0].PayloadHash == "" {
+		t.Fatalf("effective rule = %+v", body.Items[0])
+	}
+}
+
 func santaHostDetailRouter(
 	t *testing.T,
 	db *database.DB,

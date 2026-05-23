@@ -253,6 +253,10 @@ type syncTargetFingerprint struct {
 	PayloadHash string `json:"payload_hash"`
 }
 
+func (target syncTargetFingerprint) key() string {
+	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
+}
+
 func syncSummary(desiredPayload []byte, appliedPayload []byte) (RuleSyncSummary, error) {
 	desired, err := decodeSyncTargets(desiredPayload)
 	if err != nil {
@@ -301,7 +305,7 @@ func pendingSyncTargetCount(desired []syncTargetFingerprint, applied []syncTarge
 func syncTargetSet(targets []syncTargetFingerprint) map[string]bool {
 	out := make(map[string]bool, len(targets))
 	for _, target := range targets {
-		out[target.RuleType+"\x00"+target.Identifier+"\x00"+target.PayloadHash] = true
+		out[target.key()] = true
 	}
 	return out
 }
