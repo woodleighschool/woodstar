@@ -33,4 +33,5 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterChecks(protected, deps.Inventory.CheckStore, deps.Inventory.HostStore)
 	handlers.RegisterLiveQueries(protected, deps.Orbit.LiveQueryManager, deps.Inventory.HostStore)
 	handlers.RegisterEnrollSecrets(protected, deps.Inventory.SecretStore)
+	handlers.RegisterSantaSyncTokens(protected, deps.Santa.Store)
 }

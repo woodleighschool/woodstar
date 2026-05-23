@@ -27,6 +27,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -38,6 +39,7 @@ type Dependencies struct {
 	Auth      AuthDependencies
 	Inventory InventoryDependencies
 	Orbit     OrbitDependencies
+	Santa     SantaDependencies
 }
 
 type RuntimeDependencies struct {
@@ -67,6 +69,10 @@ type OrbitDependencies struct {
 	LiveQueryManager *livequery.Manager
 	Service          *orbit.Service
 	OsqueryService   *osquery.Service
+}
+
+type SantaDependencies struct {
+	Store *santa.Store
 }
 
 // Server owns the HTTP listener and router.

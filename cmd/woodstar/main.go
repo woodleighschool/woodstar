@@ -32,6 +32,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -160,6 +161,9 @@ func newServer(
 			Service:          orbitRuntime.orbit,
 			OsqueryService:   orbitRuntime.osquery,
 		},
+		Santa: api.SantaDependencies{
+			Store: stores.santa,
+		},
 	})
 	return server, func() {
 		for _, v := range slices.Backward(stopBackground) {
@@ -177,6 +181,7 @@ type appStores struct {
 	labels         *labels.Store
 	reports        *reports.Store
 	checks         *checks.Store
+	santa          *santa.Store
 }
 
 func newStores(db *database.DB) appStores {
@@ -189,6 +194,7 @@ func newStores(db *database.DB) appStores {
 		labels:         labels.NewStore(db),
 		reports:        reports.NewStore(db),
 		checks:         checks.NewStore(db),
+		santa:          santa.NewStore(db),
 	}
 }
 
