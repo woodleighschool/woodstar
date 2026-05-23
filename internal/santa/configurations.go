@@ -75,14 +75,14 @@ type ResolvedConfiguration struct {
 	MatchedViaLabel *MatchedLabel `json:"matched_via_label,omitempty"`
 }
 
-type ConfigurationLabelConflict struct {
+type ConfigurationLabelConflictError struct {
 	Code              string `json:"code"`
 	LabelID           int64  `json:"label_id"`
 	ConfigurationID   int64  `json:"configuration_id"`
 	ConfigurationName string `json:"configuration_name"`
 }
 
-func (e *ConfigurationLabelConflict) Error() string {
+func (e *ConfigurationLabelConflictError) Error() string {
 	return "configuration label already belongs to another configuration"
 }
 
@@ -94,7 +94,9 @@ func (s *Store) ListConfigurations(
 	where, args := configurationListWhere(params)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM santa_configurations c "+where, args...).Scan(&count); err != nil {
+	if err := s.db.Pool().
+		QueryRow(ctx, "SELECT count(*) FROM santa_configurations c "+where, args...).
+		Scan(&count); err != nil {
 		return nil, 0, err
 	}
 	query, args, err := configurationListSQL(params, where, args)
@@ -318,7 +320,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 		LIMIT 1
 	`, hostID))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
+		return nil, nil //nolint:nilnil // no matching configuration is represented by a nil result.
 	}
 	if err != nil {
 		return nil, err
@@ -327,7 +329,11 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 }
 
 func replaceConfigurationLabels(ctx context.Context, tx pgx.Tx, configurationID int64, labelIDs []int64) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM santa_configuration_labels WHERE configuration_id = $1`, configurationID); err != nil {
+	if _, err := tx.Exec(
+		ctx,
+		`DELETE FROM santa_configuration_labels WHERE configuration_id = $1`,
+		configurationID,
+	); err != nil {
 		return err
 	}
 	for _, labelID := range labelIDs {
@@ -351,7 +357,7 @@ func validateConfigurationLabelsAvailable(
 		return nil
 	}
 
-	var conflict ConfigurationLabelConflict
+	var conflict ConfigurationLabelConflictError
 	err := tx.QueryRow(ctx, `
 		SELECT
 			'configuration_label_conflict',
@@ -432,13 +438,20 @@ func cleanConfigurationCreate(params ConfigurationCreate) (ConfigurationCreate, 
 	params.EventDetailURL = dbutil.CleanStringPtr(params.EventDetailURL)
 	params.EventDetailText = dbutil.CleanStringPtr(params.EventDetailText)
 	if params.FullSyncIntervalSeconds != nil && *params.FullSyncIntervalSeconds < 60 {
-		return ConfigurationCreate{}, fmt.Errorf("%w: full_sync_interval_seconds must be at least 60", dbutil.ErrInvalidInput)
+		return ConfigurationCreate{}, fmt.Errorf(
+			"%w: full_sync_interval_seconds must be at least 60",
+			dbutil.ErrInvalidInput,
+		)
 	}
 	params.RemovableMediaAction = cleanRemovableMediaActionPtr(params.RemovableMediaAction)
 	params.EncryptedRemovableMediaAction = cleanRemovableMediaActionPtr(params.EncryptedRemovableMediaAction)
 	params.RemovableMediaRemountFlags = cleanStringList(params.RemovableMediaRemountFlags)
 	params.EncryptedRemovableMediaRemountFlags = cleanStringList(params.EncryptedRemovableMediaRemountFlags)
-	if err := validateRemountFlags(params.RemovableMediaAction, params.RemovableMediaRemountFlags, "removable_media_remount_flags"); err != nil {
+	if err := validateRemountFlags(
+		params.RemovableMediaAction,
+		params.RemovableMediaRemountFlags,
+		"removable_media_remount_flags",
+	); err != nil {
 		return ConfigurationCreate{}, err
 	}
 	if err := validateRemountFlags(
@@ -614,7 +627,21 @@ func scanConfigurationRow(row pgx.Row) (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
-	hydrateConfiguration(&configuration, clientMode, enableBundles, enableTransitiveRules, enableAllEventUpload, fullSyncInterval, batchSize, allowedPathRegex, blockedPathRegex, removableMediaAction, encryptedRemovableMediaAction, eventDetailURL, eventDetailText)
+	hydrateConfiguration(
+		&configuration,
+		clientMode,
+		enableBundles,
+		enableTransitiveRules,
+		enableAllEventUpload,
+		fullSyncInterval,
+		batchSize,
+		allowedPathRegex,
+		blockedPathRegex,
+		removableMediaAction,
+		encryptedRemovableMediaAction,
+		eventDetailURL,
+		eventDetailText,
+	)
 	return &configuration, nil
 }
 
@@ -668,7 +695,21 @@ func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *MatchedLabe
 	if err != nil {
 		return nil, nil, err
 	}
-	hydrateConfiguration(&configuration, clientMode, enableBundles, enableTransitiveRules, enableAllEventUpload, fullSyncInterval, batchSize, allowedPathRegex, blockedPathRegex, removableMediaAction, encryptedRemovableMediaAction, eventDetailURL, eventDetailText)
+	hydrateConfiguration(
+		&configuration,
+		clientMode,
+		enableBundles,
+		enableTransitiveRules,
+		enableAllEventUpload,
+		fullSyncInterval,
+		batchSize,
+		allowedPathRegex,
+		blockedPathRegex,
+		removableMediaAction,
+		encryptedRemovableMediaAction,
+		eventDetailURL,
+		eventDetailText,
+	)
 	return &configuration, &label, nil
 }
 

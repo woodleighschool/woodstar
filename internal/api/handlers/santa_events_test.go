@@ -90,7 +90,8 @@ func TestSantaEventsAdminAPIListsAndFiltersEvents(t *testing.T) {
 	if hostRec.Code != http.StatusOK {
 		t.Fatalf("host events status = %d, want %d; body = %q", hostRec.Code, http.StatusOK, hostRec.Body.String())
 	}
-	if !strings.Contains(hostRec.Body.String(), "Allowed App") || strings.Contains(hostRec.Body.String(), "Blocked App") {
+	if !strings.Contains(hostRec.Body.String(), "Allowed App") ||
+		strings.Contains(hostRec.Body.String(), "Blocked App") {
 		t.Fatalf("host events response = %q, want exact decision filter", hostRec.Body.String())
 	}
 }

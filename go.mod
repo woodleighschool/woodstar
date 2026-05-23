@@ -5,7 +5,7 @@ go 1.26.0
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 require (
-	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260406161402-f189dc325e5c.1
+	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260521232859-f93a767cda46.1
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
 	github.com/alexedwards/scs/v2 v2.9.0

@@ -105,7 +105,7 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 		&detail.RuleSync.LastCleanSyncAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
+		return nil, nil //nolint:nilnil // missing Santa observation is represented by a nil state.
 	}
 	if err != nil {
 		return nil, err

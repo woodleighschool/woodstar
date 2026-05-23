@@ -21,7 +21,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 
 	_, err := store.CreateConfiguration(ctx, santa.ConfigurationCreate{
 		Name:                    "short sync",
-		FullSyncIntervalSeconds: intPtr(59),
+		FullSyncIntervalSeconds: new(59),
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("short full sync error = %v, want ErrInvalidInput", err)
@@ -67,11 +67,12 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		Name:     "Conflicting",
 		LabelIDs: []int64{firstLabelID},
 	})
-	var conflict *santa.ConfigurationLabelConflict
+	var conflict *santa.ConfigurationLabelConflictError
 	if !errors.As(err, &conflict) {
-		t.Fatalf("label conflict error = %v, want ConfigurationLabelConflict", err)
+		t.Fatalf("label conflict error = %v, want ConfigurationLabelConflictError", err)
 	}
-	if conflict.LabelID != firstLabelID || conflict.ConfigurationID != config.ID || conflict.ConfigurationName != "Baseline" {
+	if conflict.LabelID != firstLabelID || conflict.ConfigurationID != config.ID ||
+		conflict.ConfigurationName != "Baseline" {
 		t.Fatalf("conflict = %+v, want existing configuration details", conflict)
 	}
 
@@ -134,7 +135,8 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve configuration: %v", err)
 	}
-	if resolved == nil || resolved.ID != first.ID || resolved.MatchedViaLabel == nil || resolved.MatchedViaLabel.ID != firstLabelID {
+	if resolved == nil || resolved.ID != first.ID || resolved.MatchedViaLabel == nil ||
+		resolved.MatchedViaLabel.ID != firstLabelID {
 		t.Fatalf("resolved configuration = %+v, want first configuration", resolved)
 	}
 
@@ -145,7 +147,8 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve configuration after reorder: %v", err)
 	}
-	if resolved == nil || resolved.ID != second.ID || resolved.MatchedViaLabel == nil || resolved.MatchedViaLabel.ID != secondLabelID {
+	if resolved == nil || resolved.ID != second.ID || resolved.MatchedViaLabel == nil ||
+		resolved.MatchedViaLabel.ID != secondLabelID {
 		t.Fatalf("resolved configuration after reorder = %+v, want second configuration", resolved)
 	}
 
@@ -180,8 +183,4 @@ func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) i
 		t.Fatalf("create label %q: %v", name, err)
 	}
 	return label.ID
-}
-
-func intPtr(value int) *int {
-	return &value
 }

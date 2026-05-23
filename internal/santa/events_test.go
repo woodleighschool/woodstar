@@ -76,10 +76,10 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	allowEvent := santa.ExecutionEvent{}
 	blockEvent := santa.ExecutionEvent{}
 	for _, event := range page.Items {
-		switch event.Decision {
-		case santa.ExecutionDecisionAllowBinary:
+		if event.Decision == santa.ExecutionDecisionAllowBinary {
 			allowEvent = event
-		case santa.ExecutionDecisionBlockBinary:
+		}
+		if event.Decision == santa.ExecutionDecisionBlockBinary {
 			blockEvent = event
 		}
 	}
@@ -113,7 +113,9 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 		t.Fatalf("signing chain count = %d, want 1", chainCount)
 	}
 	var linkCount int
-	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).Scan(&linkCount); err != nil {
+	if err := db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
+		Scan(&linkCount); err != nil {
 		t.Fatalf("count signing chain links: %v", err)
 	}
 	if linkCount != 1 {
@@ -161,7 +163,10 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	if len(firstPage.Items) != 2 || firstPage.NextCursor == "" {
 		t.Fatalf("first page = %+v, want two items and cursor", firstPage)
 	}
-	secondPage, err := store.ListEvents(ctx, santa.EventListParams{HostID: host.ID, Limit: 2, After: firstPage.NextCursor})
+	secondPage, err := store.ListEvents(
+		ctx,
+		santa.EventListParams{HostID: host.ID, Limit: 2, After: firstPage.NextCursor},
+	)
 	if err != nil {
 		t.Fatalf("list second page: %v", err)
 	}
@@ -169,7 +174,10 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		t.Fatalf("second page = %+v, want oldest blocked binary event", secondPage.Items)
 	}
 
-	blocked, err := store.ListEvents(ctx, santa.EventListParams{HostID: host.ID, Decision: santa.EventDecisionClassBlocked, Limit: 10})
+	blocked, err := store.ListEvents(
+		ctx,
+		santa.EventListParams{HostID: host.ID, Decision: santa.EventDecisionClassBlocked, Limit: 10},
+	)
 	if err != nil {
 		t.Fatalf("list blocked events: %v", err)
 	}

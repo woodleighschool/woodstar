@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -120,18 +121,18 @@ func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events 
 
 func (s *Store) ListEvents(ctx context.Context, params EventListParams) (EventPage, error) {
 	params = cleanEventListParams(params)
-	after, err := decodeEventCursor(params.After)
+	after, hasAfter, err := decodeEventCursor(params.After)
 	if err != nil {
 		return EventPage{}, err
 	}
-	where, args, err := eventListWhere(params, after)
+	where, args, err := eventListWhere(params, after, hasAfter)
 	if err != nil {
 		return EventPage{}, err
 	}
 	args = append(args, params.Limit+1)
 	query := eventListSelectSQL + "\n" + where + `
 ORDER BY COALESCE(ee.occurred_at, ee.ingested_at) DESC, ee.id DESC
-LIMIT $` + fmt.Sprint(len(args))
+LIMIT $` + strconv.Itoa(len(args))
 
 	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
@@ -346,7 +347,7 @@ func cleanEventListParams(params EventListParams) EventListParams {
 	return params
 }
 
-func eventListWhere(params EventListParams, after *eventCursor) (string, []any, error) {
+func eventListWhere(params EventListParams, after eventCursor, hasAfter bool) (string, []any, error) {
 	var where dbutil.WhereBuilder
 	if params.HostID > 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
@@ -366,8 +367,14 @@ func eventListWhere(params EventListParams, after *eventCursor) (string, []any, 
 		}
 		where.Add("ee.decision = " + where.Arg(params.Decision))
 	}
-	if after != nil {
-		where.Add("(COALESCE(ee.occurred_at, ee.ingested_at), ee.id) < (" + where.Arg(after.Time) + ", " + where.Arg(after.ID) + ")")
+	if hasAfter {
+		where.Add(
+			"(COALESCE(ee.occurred_at, ee.ingested_at), ee.id) < (" + where.Arg(
+				after.Time,
+			) + ", " + where.Arg(
+				after.ID,
+			) + ")",
+		)
 	}
 	sql, args := where.Build()
 	return sql, args, nil
@@ -402,22 +409,22 @@ func encodeEventCursor(cursor eventCursor) string {
 	return base64.RawURLEncoding.EncodeToString(payload)
 }
 
-func decodeEventCursor(value string) (*eventCursor, error) {
+func decodeEventCursor(value string) (eventCursor, bool, error) {
 	if value == "" {
-		return nil, nil
+		return eventCursor{}, false, nil
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
-		return nil, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
+		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
 	}
 	var cursor eventCursor
 	if err := json.Unmarshal(payload, &cursor); err != nil {
-		return nil, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
+		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
 	}
 	if cursor.ID <= 0 || cursor.Time.IsZero() {
-		return nil, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
+		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
 	}
-	return &cursor, nil
+	return cursor, true, nil
 }
 
 func validExecutionDecision(decision ExecutionDecision) bool {

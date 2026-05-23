@@ -88,9 +88,21 @@ func TestSantaRulesAdminAPIManagesFullEditableShape(t *testing.T) {
 		t.Fatalf("updated rule = %+v", updated)
 	}
 
-	deleteRec := authedJSONRequest(t, router, cookie, http.MethodDelete, fmt.Sprintf("/api/santa/rules/%d", created.ID), "")
+	deleteRec := authedJSONRequest(
+		t,
+		router,
+		cookie,
+		http.MethodDelete,
+		fmt.Sprintf("/api/santa/rules/%d", created.ID),
+		"",
+	)
 	if deleteRec.Code != http.StatusNoContent {
-		t.Fatalf("delete status = %d, want %d; body = %q", deleteRec.Code, http.StatusNoContent, deleteRec.Body.String())
+		t.Fatalf(
+			"delete status = %d, want %d; body = %q",
+			deleteRec.Code,
+			http.StatusNoContent,
+			deleteRec.Body.String(),
+		)
 	}
 }
 

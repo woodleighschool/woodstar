@@ -52,7 +52,14 @@ func (s *Service) HandlePreflight(
 		syncType = syncv1.SyncType_CLEAN
 		pendingFullSync = true
 	}
-	if err := s.store.replacePendingSync(ctx, hostID, req.GetRulesHash(), targets, pending, pendingFullSync); err != nil {
+	if err := s.store.replacePendingSync(
+		ctx,
+		hostID,
+		req.GetRulesHash(),
+		targets,
+		pending,
+		pendingFullSync,
+	); err != nil {
 		return nil, err
 	}
 
@@ -107,7 +114,13 @@ func (s *Service) HandlePostflight(
 	if err != nil {
 		return nil, err
 	}
-	if err := s.store.promotePendingSync(ctx, hostID, req.GetRulesHash(), int(req.GetRulesReceived()), int(req.GetRulesProcessed())); err != nil {
+	if err := s.store.promotePendingSync(
+		ctx,
+		hostID,
+		req.GetRulesHash(),
+		int(req.GetRulesReceived()),
+		int(req.GetRulesProcessed()),
+	); err != nil {
 		return nil, err
 	}
 	return &syncv1.PostflightResponse{}, nil
@@ -321,7 +334,10 @@ func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, confi
 	resp.BlockedPathRegex = config.BlockedPathRegex
 	resp.EventDetailUrl = config.EventDetailURL
 	resp.EventDetailText = config.EventDetailText
-	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(config.RemovableMediaAction, config.RemovableMediaRemountFlags)
+	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(
+		config.RemovableMediaAction,
+		config.RemovableMediaRemountFlags,
+	)
 	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(
 		config.EncryptedRemovableMediaAction,
 		config.EncryptedRemovableMediaRemountFlags,

@@ -51,7 +51,12 @@ func TestSantaConfigurationsAdminAPIManagesFullEditableShape(t *testing.T) {
 	conflictBody := fmt.Sprintf(`{"name": "Conflicting", "label_ids": [%d]}`, labelID)
 	conflictRec := authedJSONRequest(t, router, cookie, http.MethodPost, "/api/santa/configurations", conflictBody)
 	if conflictRec.Code != http.StatusConflict {
-		t.Fatalf("conflict status = %d, want %d; body = %q", conflictRec.Code, http.StatusConflict, conflictRec.Body.String())
+		t.Fatalf(
+			"conflict status = %d, want %d; body = %q",
+			conflictRec.Code,
+			http.StatusConflict,
+			conflictRec.Body.String(),
+		)
 	}
 	if !strings.Contains(conflictRec.Body.String(), `"code":"configuration_label_conflict"`) ||
 		!strings.Contains(conflictRec.Body.String(), `"configuration_name":"API Config"`) {
@@ -91,9 +96,21 @@ func TestSantaConfigurationsAdminAPIManagesFullEditableShape(t *testing.T) {
 		t.Fatalf("updated configuration = %+v", updated)
 	}
 
-	deleteRec := authedJSONRequest(t, router, cookie, http.MethodDelete, fmt.Sprintf("/api/santa/configurations/%d", created.ID), "")
+	deleteRec := authedJSONRequest(
+		t,
+		router,
+		cookie,
+		http.MethodDelete,
+		fmt.Sprintf("/api/santa/configurations/%d", created.ID),
+		"",
+	)
 	if deleteRec.Code != http.StatusNoContent {
-		t.Fatalf("delete status = %d, want %d; body = %q", deleteRec.Code, http.StatusNoContent, deleteRec.Body.String())
+		t.Fatalf(
+			"delete status = %d, want %d; body = %q",
+			deleteRec.Code,
+			http.StatusNoContent,
+			deleteRec.Body.String(),
+		)
 	}
 }
 
@@ -122,7 +139,11 @@ func santaConfigurationsRouter(t *testing.T, db *database.DB) (*chi.Mux, *http.C
 	return router, loginSantaConfigurationsUser(t, authService, sessionManager)
 }
 
-func loginSantaConfigurationsUser(t *testing.T, authService *auth.Service, sessionManager *scs.SessionManager) *http.Cookie {
+func loginSantaConfigurationsUser(
+	t *testing.T,
+	authService *auth.Service,
+	sessionManager *scs.SessionManager,
+) *http.Cookie {
 	t.Helper()
 
 	ctx, err := sessionManager.Load(context.Background(), "")

@@ -76,7 +76,8 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create rule: %v", err)
 	}
-	if rule.Identifier != "abc123" || rule.Name != "Example" || rule.CustomMessage != "Blocked" || rule.CustomURL != "https://example.test" {
+	if rule.Identifier != "abc123" || rule.Name != "Example" || rule.CustomMessage != "Blocked" ||
+		rule.CustomURL != "https://example.test" {
 		t.Fatalf("rule was not cleaned: %+v", rule)
 	}
 	if len(rule.Includes) != 1 || rule.Includes[0].Position != 0 || rule.Includes[0].Policy != santa.PolicyAllowlist {

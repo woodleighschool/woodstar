@@ -153,7 +153,13 @@ func registerPatchSantaRule(api huma.API, store *santa.Store) {
 		Path:        santaRuleIDPath,
 		Tags:        []string{santaRulesTag},
 		Summary:     "Update a Santa rule",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
 	}, func(ctx context.Context, input *santaRulePatchInput) (*santaRuleOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err

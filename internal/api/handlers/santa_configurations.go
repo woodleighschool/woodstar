@@ -58,18 +58,18 @@ type santaConfigurationOutput struct {
 	Body santa.Configuration
 }
 
-type santaConfigurationConflictResponse struct {
+type santaConfigurationConflictError struct {
 	Code              string `json:"code"`
 	LabelID           int64  `json:"label_id"`
 	ConfigurationID   int64  `json:"configuration_id"`
 	ConfigurationName string `json:"configuration_name"`
 }
 
-func (e santaConfigurationConflictResponse) Error() string {
+func (e santaConfigurationConflictError) Error() string {
 	return "configuration label already belongs to another configuration"
 }
 
-func (e santaConfigurationConflictResponse) GetStatus() int {
+func (e santaConfigurationConflictError) GetStatus() int {
 	return http.StatusConflict
 }
 
@@ -168,7 +168,13 @@ func registerPatchSantaConfiguration(api huma.API, store *santa.Store) {
 		Path:        santaConfigurationIDPath,
 		Tags:        []string{santaConfigurationsTag},
 		Summary:     "Update a Santa configuration",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
 	}, func(ctx context.Context, input *santaConfigurationPatchInput) (*santaConfigurationOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
@@ -228,9 +234,9 @@ func registerReorderSantaConfigurations(api huma.API, store *santa.Store) {
 }
 
 func santaConfigurationMutationError(err error) error {
-	var conflict *santa.ConfigurationLabelConflict
+	var conflict *santa.ConfigurationLabelConflictError
 	if errors.As(err, &conflict) {
-		return santaConfigurationConflictResponse{
+		return santaConfigurationConflictError{
 			Code:              conflict.Code,
 			LabelID:           conflict.LabelID,
 			ConfigurationID:   conflict.ConfigurationID,
