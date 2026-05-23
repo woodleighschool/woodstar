@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type Host = Schemas["Host"];
-export type HostDetail = Schemas["HostDetail"];
+export type HostDetail = Schemas["HostDetailBody"];
 export type HostSoftware = Schemas["HostSoftwareRow"];
 export type HostListResult = Schemas["PaginatedBodyHost"];
 export type HostSoftwareListResult = Schemas["PaginatedBodyHostSoftwareRow"];

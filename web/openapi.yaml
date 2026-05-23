@@ -225,6 +225,20 @@ components:
         - value_hash
         - created_at
       type: object
+    EffectiveConfiguration:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        matched_via_label:
+          $ref: "#/components/schemas/MatchedLabel"
+        name:
+          type: string
+      required:
+        - id
+        - name
+      type: object
     EnrollSecret:
       additionalProperties: false
       properties:
@@ -524,13 +538,13 @@ components:
         - source
         - username
       type: object
-    HostDetail:
+    HostDetailBody:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/HostDetail.json
+            - https://example.com/api/schemas/HostDetailBody.json
           format: uri
           readOnly: true
           type: string
@@ -646,6 +660,8 @@ components:
         public_ip:
           format: ip
           type: string
+        santa:
+          $ref: "#/components/schemas/HostState"
         software_updated_at:
           format: date-time
           type: string
@@ -837,6 +853,28 @@ components:
         - source
         - extension_for
         - installed_versions
+      type: object
+    HostState:
+      additionalProperties: false
+      properties:
+        client_mode_reported:
+          type: string
+        effective_configuration:
+          $ref: "#/components/schemas/EffectiveConfiguration"
+        enrolled:
+          type: boolean
+        last_sync_at:
+          format: date-time
+          type: string
+        rule_sync:
+          $ref: "#/components/schemas/RuleSyncSummary"
+        version:
+          type: string
+      required:
+        - enrolled
+        - version
+        - client_mode_reported
+        - rule_sync
       type: object
     HostUser:
       additionalProperties: false
@@ -1136,6 +1174,18 @@ components:
       required:
         - email
         - password
+      type: object
+    MatchedLabel:
+      additionalProperties: false
+      properties:
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
       type: object
     PaginatedBodyCheck:
       additionalProperties: false
@@ -1448,6 +1498,26 @@ components:
       required:
         - items
       type: object
+    RuleSyncSummary:
+      additionalProperties: false
+      properties:
+        applied_count:
+          format: int64
+          type: integer
+        desired_count:
+          format: int64
+          type: integer
+        last_clean_sync_at:
+          format: date-time
+          type: string
+        pending_count:
+          format: int64
+          type: integer
+      required:
+        - desired_count
+        - applied_count
+        - pending_count
+      type: object
     SessionBody:
       additionalProperties: false
       properties:
@@ -1679,7 +1749,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: d4339c1-dirty
+  version: 7aeb097-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2184,7 +2254,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostDetail"
+                $ref: "#/components/schemas/HostDetailBody"
           description: OK
         "401":
           content:

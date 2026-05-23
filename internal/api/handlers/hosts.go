@@ -9,6 +9,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
@@ -22,7 +23,12 @@ type hostListOutput struct {
 }
 
 type hostDetailOutput struct {
-	Body hosts.HostDetail
+	Body hostDetailBody
+}
+
+type hostDetailBody struct {
+	hosts.HostDetail
+	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
 type hostSoftwareOutput struct {
@@ -112,9 +118,10 @@ func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
 	softwareStore *software.Store,
+	santaStore *santa.Store,
 ) {
 	registerListHosts(api, hostStore)
-	registerGetHost(api, hostStore)
+	registerGetHost(api, hostStore, santaStore)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
@@ -141,7 +148,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerGetHost(api huma.API, hostStore *hosts.Store) {
+func registerGetHost(api huma.API, hostStore *hosts.Store, santaStore *santa.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -165,7 +172,15 @@ func registerGetHost(api huma.API, hostStore *hosts.Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &hostDetailOutput{Body: *detail}, nil
+		body := hostDetailBody{HostDetail: *detail}
+		if santaStore != nil {
+			santaDetail, err := santaStore.LoadHostState(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			body.Santa = santaDetail
+		}
+		return &hostDetailOutput{Body: body}, nil
 	})
 }
 

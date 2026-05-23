@@ -26,6 +26,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 		protected,
 		deps.Inventory.HostStore,
 		deps.Inventory.SoftwareStore,
+		deps.Santa.Store,
 	)
 	handlers.RegisterSoftware(protected, deps.Inventory.SoftwareStore)
 	handlers.RegisterLabels(protected, deps.Inventory.LabelStore)

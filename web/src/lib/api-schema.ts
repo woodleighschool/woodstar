@@ -728,6 +728,12 @@ export interface components {
             value: string;
             value_hash: string;
         };
+        EffectiveConfiguration: {
+            /** Format: int64 */
+            id: number;
+            matched_via_label?: components["schemas"]["MatchedLabel"];
+            name: string;
+        };
         EnrollSecret: {
             /**
              * Format: uri
@@ -886,11 +892,11 @@ export interface components {
             subject: components["schemas"]["CertificateName"];
             username: string;
         };
-        HostDetail: {
+        HostDetailBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostDetail.json
+             * @example https://example.com/api/schemas/HostDetailBody.json
              */
             readonly $schema?: string;
             batteries: components["schemas"]["HostBattery"][] | null;
@@ -949,6 +955,7 @@ export interface components {
             primary_mac: string;
             /** Format: ip */
             public_ip?: string;
+            santa?: components["schemas"]["HostState"];
             /** Format: date-time */
             software_updated_at?: string;
             /** Format: date-time */
@@ -1015,6 +1022,15 @@ export interface components {
             installed_versions: components["schemas"]["HostSoftwareInstalledVersion"][] | null;
             name: string;
             source: string;
+        };
+        HostState: {
+            client_mode_reported: string;
+            effective_configuration?: components["schemas"]["EffectiveConfiguration"];
+            enrolled: boolean;
+            /** Format: date-time */
+            last_sync_at?: string;
+            rule_sync: components["schemas"]["RuleSyncSummary"];
+            version: string;
         };
         HostUser: {
             description: string;
@@ -1158,6 +1174,11 @@ export interface components {
             /** Format: email */
             email: string;
             password: string;
+        };
+        MatchedLabel: {
+            /** Format: int64 */
+            id: number;
+            name: string;
         };
         PaginatedBodyCheck: {
             /**
@@ -1304,6 +1325,16 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["ReportResultBody"][] | null;
+        };
+        RuleSyncSummary: {
+            /** Format: int64 */
+            applied_count: number;
+            /** Format: int64 */
+            desired_count: number;
+            /** Format: date-time */
+            last_clean_sync_at?: string;
+            /** Format: int64 */
+            pending_count: number;
         };
         SessionBody: {
             /**
@@ -2031,7 +2062,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostDetail"];
+                    "application/json": components["schemas"]["HostDetailBody"];
                 };
             };
             /** @description Unauthorized */

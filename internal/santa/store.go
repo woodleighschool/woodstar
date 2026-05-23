@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -22,6 +23,104 @@ type Store struct {
 
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db}
+}
+
+func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
+	observation.MachineID = strings.TrimSpace(observation.MachineID)
+	observation.SerialNumber = strings.TrimSpace(observation.SerialNumber)
+	if observation.HostID <= 0 || observation.MachineID == "" || observation.SerialNumber == "" {
+		return dbutil.ErrInvalidInput
+	}
+	if observation.ClientModeReported == "" {
+		observation.ClientModeReported = ClientModeUnknown
+	}
+	if observation.PrimaryUserGroups == nil {
+		observation.PrimaryUserGroups = []string{}
+	}
+
+	_, err := s.db.Pool().Exec(ctx, `
+		INSERT INTO santa_hosts (
+			host_id,
+			machine_id,
+			serial_number,
+			santa_version,
+			client_mode_reported,
+			primary_user,
+			primary_user_groups,
+			sip_status,
+			os_build,
+			model_identifier,
+			last_seen_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, now()))
+		ON CONFLICT (host_id) DO UPDATE SET
+			machine_id = EXCLUDED.machine_id,
+			serial_number = EXCLUDED.serial_number,
+			santa_version = EXCLUDED.santa_version,
+			client_mode_reported = EXCLUDED.client_mode_reported,
+			primary_user = EXCLUDED.primary_user,
+			primary_user_groups = EXCLUDED.primary_user_groups,
+			sip_status = EXCLUDED.sip_status,
+			os_build = EXCLUDED.os_build,
+			model_identifier = EXCLUDED.model_identifier,
+			last_seen_at = EXCLUDED.last_seen_at,
+			updated_at = now()
+	`, observation.HostID,
+		observation.MachineID,
+		observation.SerialNumber,
+		observation.Version,
+		observation.ClientModeReported,
+		observation.PrimaryUser,
+		observation.PrimaryUserGroups,
+		observation.SIPStatus,
+		observation.OSBuild,
+		observation.ModelIdentifier,
+		observation.LastSeenAt,
+	)
+	return err
+}
+
+func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
+	var detail HostState
+	var clientMode string
+	var desiredPayload []byte
+	var appliedPayload []byte
+	err := s.db.Pool().QueryRow(ctx, `
+		SELECT
+			sh.santa_version,
+			sh.client_mode_reported::text,
+			sh.last_seen_at,
+			COALESCE(ss.desired_targets, '[]'::jsonb),
+			COALESCE(ss.applied_targets, '[]'::jsonb),
+			ss.last_clean_sync_at
+		FROM santa_hosts sh
+		LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
+		WHERE sh.host_id = $1
+	`, hostID).Scan(
+		&detail.Version,
+		&clientMode,
+		&detail.LastSyncAt,
+		&desiredPayload,
+		&appliedPayload,
+		&detail.RuleSync.LastCleanSyncAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	ruleSync, err := syncSummary(desiredPayload, appliedPayload)
+	if err != nil {
+		return nil, err
+	}
+	ruleSync.LastCleanSyncAt = detail.RuleSync.LastCleanSyncAt
+
+	detail.Enrolled = true
+	detail.ClientModeReported = ClientMode(clientMode)
+	detail.RuleSync = ruleSync
+	return &detail, nil
 }
 
 func (s *Store) ListSyncTokens(ctx context.Context) ([]SyncToken, error) {
@@ -135,4 +234,63 @@ func randomToken() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b[:]), nil
+}
+
+type syncTargetFingerprint struct {
+	RuleType    string `json:"rule_type"`
+	Identifier  string `json:"identifier"`
+	PayloadHash string `json:"payload_hash"`
+}
+
+func syncSummary(desiredPayload []byte, appliedPayload []byte) (RuleSyncSummary, error) {
+	desired, err := decodeSyncTargets(desiredPayload)
+	if err != nil {
+		return RuleSyncSummary{}, err
+	}
+	applied, err := decodeSyncTargets(appliedPayload)
+	if err != nil {
+		return RuleSyncSummary{}, err
+	}
+	return RuleSyncSummary{
+		DesiredCount: len(desired),
+		AppliedCount: len(applied),
+		PendingCount: pendingSyncTargetCount(desired, applied),
+	}, nil
+}
+
+func decodeSyncTargets(payload []byte) ([]syncTargetFingerprint, error) {
+	if len(payload) == 0 {
+		return nil, nil
+	}
+	var targets []syncTargetFingerprint
+	if err := json.Unmarshal(payload, &targets); err != nil {
+		return nil, err
+	}
+	return targets, nil
+}
+
+func pendingSyncTargetCount(desired []syncTargetFingerprint, applied []syncTargetFingerprint) int {
+	desiredSet := syncTargetSet(desired)
+	appliedSet := syncTargetSet(applied)
+
+	var pending int
+	for key := range desiredSet {
+		if !appliedSet[key] {
+			pending++
+		}
+	}
+	for key := range appliedSet {
+		if !desiredSet[key] {
+			pending++
+		}
+	}
+	return pending
+}
+
+func syncTargetSet(targets []syncTargetFingerprint) map[string]bool {
+	out := make(map[string]bool, len(targets))
+	for _, target := range targets {
+		out[target.RuleType+"\x00"+target.Identifier+"\x00"+target.PayloadHash] = true
+	}
+	return out
 }
