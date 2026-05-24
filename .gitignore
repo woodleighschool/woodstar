@@ -18,7 +18,6 @@ go.work.sum
 # Node / Frontend
 node_modules/
 dist/
-public/
 *.tsbuildinfo
 vite.config.js
 !web/dist/
