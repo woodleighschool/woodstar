@@ -15,9 +15,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
@@ -331,10 +332,14 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
           </Alert>
         ) : null}
 
-        <FieldGroup className="max-w-5xl">
-          <FieldSet>
-            <FieldLegend>Identity</FieldLegend>
-            <div className="grid gap-4 md:grid-cols-2">
+        <Tabs defaultValue="details" className="max-w-5xl">
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="targeting">Targeting</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details">
+            <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="santa-rule-type">Rule type</FieldLabel>
                 <Select
@@ -382,7 +387,7 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
                   onChange={(event) => setForm({ ...form, custom_url: event.target.value })}
                 />
               </Field>
-              <Field className="md:col-span-2">
+              <Field>
                 <FieldLabel htmlFor="santa-rule-custom-message">Custom message</FieldLabel>
                 <Textarea
                   id="santa-rule-custom-message"
@@ -391,67 +396,68 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
                   onChange={(event) => setForm({ ...form, custom_message: event.target.value })}
                 />
               </Field>
-            </div>
-          </FieldSet>
+            </FieldGroup>
+          </TabsContent>
 
-          <FieldSet>
-            <FieldLegend>Targeting</FieldLegend>
-            <Field>
-              <FieldLabel>Exclude labels</FieldLabel>
-              <LabelPicker
-                value={form.exclude_label_ids}
-                onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
-              />
-              <FieldDescription>
-                Excluded labels suppress this rule even when an include target matches.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <FieldLabel>Include targets</FieldLabel>
-                  <FieldDescription>Rules without include targets are saved but not effective.</FieldDescription>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      includes: [
-                        ...form.includes,
-                        { id: Date.now(), policy: "allowlist", cel_expression: "", label_ids: [] },
-                      ],
-                    })
-                  }
-                >
-                  <Plus data-icon="inline-start" />
-                  Add include
-                </Button>
-              </div>
-              {form.includes.length === 0 ? (
-                <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
-                  No include targets.
-                </div>
-              ) : (
-                <SortableList
-                  items={form.includes}
-                  onChange={(includes) => setForm({ ...form, includes })}
-                  renderItem={(include) => (
-                    <IncludeEditor
-                      include={include}
-                      onChange={(next) => updateInclude(include.id, next)}
-                      onDelete={() =>
-                        setForm({ ...form, includes: form.includes.filter((item) => item.id !== include.id) })
-                      }
-                    />
-                  )}
+          <TabsContent value="targeting">
+            <FieldGroup>
+              <Field>
+                <FieldLabel>Exclude labels</FieldLabel>
+                <LabelPicker
+                  value={form.exclude_label_ids}
+                  onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
                 />
-              )}
-            </Field>
-          </FieldSet>
-        </FieldGroup>
+                <FieldDescription>
+                  Excluded labels suppress this rule even when an include target matches.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <FieldLabel>Include targets</FieldLabel>
+                    <FieldDescription>Rules without include targets are saved but not effective.</FieldDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        includes: [
+                          ...form.includes,
+                          { id: Date.now(), policy: "allowlist", cel_expression: "", label_ids: [] },
+                        ],
+                      })
+                    }
+                  >
+                    <Plus data-icon="inline-start" />
+                    Add include
+                  </Button>
+                </div>
+                {form.includes.length === 0 ? (
+                  <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
+                    No include targets.
+                  </div>
+                ) : (
+                  <SortableList
+                    items={form.includes}
+                    onChange={(includes) => setForm({ ...form, includes })}
+                    renderItem={(include) => (
+                      <IncludeEditor
+                        include={include}
+                        onChange={(next) => updateInclude(include.id, next)}
+                        onDelete={() =>
+                          setForm({ ...form, includes: form.includes.filter((item) => item.id !== include.id) })
+                        }
+                      />
+                    )}
+                  />
+                )}
+              </Field>
+            </FieldGroup>
+          </TabsContent>
+        </Tabs>
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending || !canSaveRule(form)}>

@@ -855,6 +855,19 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        CheckCreate: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/CheckCreate.json
+             */
+            readonly $schema?: string;
+            description?: string;
+            label_scope: components["schemas"]["LabelScope"];
+            name: string;
+            platforms: string[];
+            query: string;
+        };
         CheckHostStatus: {
             /** Format: int64 */
             check_id: number;
@@ -867,20 +880,11 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
-        CheckHostsOutputBody: {
+        CheckUpdate: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CheckHostsOutputBody.json
-             */
-            readonly $schema?: string;
-            items: components["schemas"]["CheckHostStatus"][] | null;
-        };
-        CheckMutationBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CheckMutationBody.json
+             * @example https://example.com/api/schemas/CheckUpdate.json
              */
             readonly $schema?: string;
             description?: string;
@@ -898,20 +902,20 @@ export interface components {
             readonly $schema?: string;
             allowed_path_regex?: string;
             /** Format: int64 */
-            batch_size?: number;
+            batch_size: number;
             blocked_path_regex?: string;
             /** @enum {string} */
             client_mode: "monitor" | "lockdown" | "standalone";
             /** Format: date-time */
             created_at: string;
-            enable_all_event_upload?: boolean;
-            enable_bundles?: boolean;
-            enable_transitive_rules?: boolean;
+            enable_all_event_upload: boolean;
+            enable_bundles: boolean;
+            enable_transitive_rules: boolean;
             encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             event_detail_text?: string;
             event_detail_url?: string;
             /** Format: int64 */
-            full_sync_interval_seconds?: number;
+            full_sync_interval_seconds: number;
             /** Format: int64 */
             id: number;
             label_ids: number[] | null;
@@ -931,18 +935,18 @@ export interface components {
             readonly $schema?: string;
             allowed_path_regex?: string;
             /** Format: int64 */
-            batch_size?: number;
+            batch_size: number;
             blocked_path_regex?: string;
             /** @enum {string} */
-            client_mode?: "monitor" | "lockdown" | "standalone";
-            enable_all_event_upload?: boolean;
-            enable_bundles?: boolean;
-            enable_transitive_rules?: boolean;
+            client_mode: "monitor" | "lockdown" | "standalone";
+            enable_all_event_upload: boolean;
+            enable_bundles: boolean;
+            enable_transitive_rules: boolean;
             encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             event_detail_text?: string;
             event_detail_url?: string;
             /** Format: int64 */
-            full_sync_interval_seconds?: number;
+            full_sync_interval_seconds: number;
             label_ids?: number[] | null;
             name: string;
             removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
@@ -1010,6 +1014,14 @@ export interface components {
              */
             type: string;
         };
+        Event: {
+            data?: unknown;
+            error?: string;
+            /** Format: int64 */
+            host_id?: number;
+            host_name?: string;
+            status: string;
+        };
         EventPage: {
             /**
              * Format: uri
@@ -1046,6 +1058,21 @@ export interface components {
             logged_in_users: string[] | null;
             /** Format: date-time */
             occurred_at?: string;
+        };
+        Handle: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Handle.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            resolved_host_count: number;
+            sql: string;
+            /** Format: date-time */
+            started_at: string;
         };
         Host: {
             computer_name: string;
@@ -1244,20 +1271,11 @@ export interface components {
             /** Format: int64 */
             host_id: number;
             host_name: string;
-            items: components["schemas"]["ReportResultBody"][] | null;
+            items: components["schemas"]["ReportResult"][] | null;
             /** Format: date-time */
             last_fetched?: string;
             /** Format: int64 */
             report_id: number;
-        };
-        HostReportsBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/HostReportsBody.json
-             */
-            readonly $schema?: string;
-            items: components["schemas"]["HostReport"][] | null;
         };
         HostSoftwareInstalledVersion: {
             bundle_identifier: string;
@@ -1292,6 +1310,33 @@ export interface components {
             type: string;
             uid: string;
             username: string;
+        };
+        ItemsBodyCheckHostStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/ItemsBodyCheckHostStatus.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["CheckHostStatus"][] | null;
+        };
+        ItemsBodyHostReport: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/ItemsBodyHostReport.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["HostReport"][] | null;
+        };
+        ItemsBodyReportResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/ItemsBodyReportResult.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ReportResult"][] | null;
         };
         Label: {
             /**
@@ -1367,30 +1412,7 @@ export interface components {
             selected?: components["schemas"]["LiveQuerySelectedBody"];
             sql: string;
         };
-        LiveQueryHandleBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/LiveQueryHandleBody.json
-             */
-            readonly $schema?: string;
-            /** Format: int64 */
-            id: number;
-            /** Format: int64 */
-            resolved_host_count: number;
-            sql: string;
-            /** Format: date-time */
-            started_at: string;
-        };
         LiveQueryPingEvent: {
-            status: string;
-        };
-        LiveQueryResultEvent: {
-            data?: unknown;
-            error?: string;
-            /** Format: int64 */
-            host_id?: number;
-            host_name?: string;
             status: string;
         };
         LiveQuerySelectedBody: {
@@ -1499,16 +1521,16 @@ export interface components {
             count: number;
             items: components["schemas"]["Label"][] | null;
         };
-        PaginatedBodyReportBody: {
+        PaginatedBodyReport: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/PaginatedBodyReportBody.json
+             * @example https://example.com/api/schemas/PaginatedBodyReport.json
              */
             readonly $schema?: string;
             /** Format: int64 */
             count: number;
-            items: components["schemas"]["ReportBody"][] | null;
+            items: components["schemas"]["Report"][] | null;
         };
         PaginatedBodyRule: {
             /**
@@ -1552,15 +1574,15 @@ export interface components {
         };
         RemovableMediaPolicy: {
             /** @enum {string} */
-            action: "allow" | "block" | "remount";
+            action?: "allow" | "block" | "remount";
             /** @description Mount flags required when action is remount. */
             remount_flags?: string[] | null;
         };
-        ReportBody: {
+        Report: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ReportBody.json
+             * @example https://example.com/api/schemas/Report.json
              */
             readonly $schema?: string;
             /** Format: date-time */
@@ -1580,11 +1602,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        ReportMutationBody: {
+        ReportCreate: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ReportMutationBody.json
+             * @example https://example.com/api/schemas/ReportCreate.json
              */
             readonly $schema?: string;
             description?: string;
@@ -1596,7 +1618,7 @@ export interface components {
             /** Format: int64 */
             schedule_interval?: number;
         };
-        ReportResultBody: {
+        ReportResult: {
             columns: {
                 [key: string]: string;
             };
@@ -1609,32 +1631,39 @@ export interface components {
             report_id: number;
             report_name: string;
         };
-        ReportResultsBody: {
+        ReportUpdate: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ReportResultsBody.json
+             * @example https://example.com/api/schemas/ReportUpdate.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["ReportResultBody"][] | null;
+            description?: string;
+            label_scope: components["schemas"]["LabelScope"];
+            min_osquery_version?: string;
+            name: string;
+            platforms: string[];
+            query: string;
+            /** Format: int64 */
+            schedule_interval?: number;
         };
         ResolvedConfiguration: {
             allowed_path_regex?: string;
             /** Format: int64 */
-            batch_size?: number;
+            batch_size: number;
             blocked_path_regex?: string;
             /** @enum {string} */
             client_mode: "monitor" | "lockdown" | "standalone";
             /** Format: date-time */
             created_at: string;
-            enable_all_event_upload?: boolean;
-            enable_bundles?: boolean;
-            enable_transitive_rules?: boolean;
+            enable_all_event_upload: boolean;
+            enable_bundles: boolean;
+            enable_transitive_rules: boolean;
             encrypted_removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
             event_detail_text?: string;
             event_detail_url?: string;
             /** Format: int64 */
-            full_sync_interval_seconds?: number;
+            full_sync_interval_seconds: number;
             /** Format: int64 */
             id: number;
             label_ids: number[] | null;
@@ -2678,7 +2707,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckHostsOutputBody"];
+                    "application/json": components["schemas"]["ItemsBodyCheckHostStatus"];
                 };
             };
             /** @description Unauthorized */
@@ -2736,7 +2765,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HostReportsBody"];
+                    "application/json": components["schemas"]["ItemsBodyHostReport"];
                 };
             };
             /** @description Unauthorized */
@@ -3309,7 +3338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LiveQueryHandleBody"];
+                    "application/json": components["schemas"]["Handle"];
                 };
             };
             /** @description Bad Request */
@@ -3506,7 +3535,7 @@ export interface operations {
                         /** @description The retry time in milliseconds. */
                         retry?: number;
                     } | {
-                        data: components["schemas"]["LiveQueryResultEvent"];
+                        data: components["schemas"]["Event"];
                         /**
                          * @description The event name.
                          * @constant
@@ -3619,7 +3648,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CheckMutationBody"];
+                "application/json": components["schemas"]["CheckCreate"];
             };
         };
         responses: {
@@ -3815,7 +3844,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CheckMutationBody"];
+                "application/json": components["schemas"]["CheckUpdate"];
             };
         };
         responses: {
@@ -3957,7 +3986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckHostsOutputBody"];
+                    "application/json": components["schemas"]["ItemsBodyCheckHostStatus"];
                 };
             };
             /** @description Unauthorized */
@@ -4019,7 +4048,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedBodyReportBody"];
+                    "application/json": components["schemas"]["PaginatedBodyReport"];
                 };
             };
             /** @description Unauthorized */
@@ -4060,7 +4089,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReportMutationBody"];
+                "application/json": components["schemas"]["ReportCreate"];
             };
         };
         responses: {
@@ -4070,7 +4099,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportBody"];
+                    "application/json": components["schemas"]["Report"];
                 };
             };
             /** @description Bad Request */
@@ -4204,7 +4233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportBody"];
+                    "application/json": components["schemas"]["Report"];
                 };
             };
             /** @description Unauthorized */
@@ -4256,7 +4285,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReportMutationBody"];
+                "application/json": components["schemas"]["ReportUpdate"];
             };
         };
         responses: {
@@ -4266,7 +4295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportBody"];
+                    "application/json": components["schemas"]["Report"];
                 };
             };
             /** @description Bad Request */
@@ -4398,7 +4427,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReportResultsBody"];
+                    "application/json": components["schemas"]["ItemsBodyReportResult"];
                 };
             };
             /** @description Unauthorized */

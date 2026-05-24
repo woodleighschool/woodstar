@@ -11,6 +11,7 @@ import { PlatformSelector } from "@/components/queries/platform-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -117,18 +118,19 @@ function CheckEditForm({
             <AlertDescription>{error.message}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid max-w-3xl gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="check-name">Name</Label>
+        <FieldGroup className="max-w-3xl">
+          <Field>
+            <FieldLabel htmlFor="check-name">Name</FieldLabel>
             <Input
               id="check-name"
               required
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="check-description">Description</Label>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="check-description">Description</FieldLabel>
             <Textarea
               id="check-description"
               rows={3}
@@ -136,19 +138,16 @@ function CheckEditForm({
               value={form.description ?? ""}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
-          </div>
-        </div>
+          </Field>
 
-        <div className="grid gap-4">
-          <div className="grid max-w-3xl gap-4">
-            <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
-          </div>
-          <LabelScopeSelector
-            entity="check"
-            value={form.label_scope}
-            onChange={(label_scope) => setForm({ ...form, label_scope })}
-          />
-        </div>
+          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+        </FieldGroup>
+
+        <LabelScopeSelector
+          entity="check"
+          value={form.label_scope}
+          onChange={(label_scope) => setForm({ ...form, label_scope })}
+        />
 
         <div className="grid max-w-5xl gap-2">
           <Label>Query</Label>

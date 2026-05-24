@@ -367,27 +367,28 @@ func marshalCompressedProto(msg proto.Message) ([]byte, error) {
 
 func applyConfigurationToPreflightResponse(resp *syncv1.PreflightResponse, config *configurations.Configuration) {
 	resp.ClientMode = protoClientMode(config.ClientMode)
-	resp.EnableBundles = config.EnableBundles
-	resp.EnableTransitiveRules = config.EnableTransitiveRules
-	resp.EnableAllEventUpload = config.EnableAllEventUpload
-	if config.FullSyncIntervalSeconds != nil {
-		resp.FullSyncIntervalSeconds = uint32(*config.FullSyncIntervalSeconds)
+	resp.EnableBundles = &config.EnableBundles
+	resp.EnableTransitiveRules = &config.EnableTransitiveRules
+	resp.EnableAllEventUpload = &config.EnableAllEventUpload
+	resp.FullSyncIntervalSeconds = uint32(config.FullSyncIntervalSeconds)
+	resp.BatchSize = uint32(config.BatchSize)
+	if config.AllowedPathRegex != "" {
+		resp.AllowedPathRegex = &config.AllowedPathRegex
 	}
-	if config.BatchSize != nil {
-		resp.BatchSize = uint32(*config.BatchSize)
+	if config.BlockedPathRegex != "" {
+		resp.BlockedPathRegex = &config.BlockedPathRegex
 	}
-	resp.AllowedPathRegex = config.AllowedPathRegex
-	resp.BlockedPathRegex = config.BlockedPathRegex
-	resp.EventDetailUrl = config.EventDetailURL
-	resp.EventDetailText = config.EventDetailText
+	if config.EventDetailURL != "" {
+		resp.EventDetailUrl = &config.EventDetailURL
+	}
+	if config.EventDetailText != "" {
+		resp.EventDetailText = &config.EventDetailText
+	}
 	resp.RemovableMediaPolicy = protoRemovableMediaPolicy(config.RemovableMediaPolicy)
 	resp.EncryptedRemovableMediaPolicy = protoRemovableMediaPolicy(config.EncryptedRemovableMediaPolicy)
 }
 
-func protoRemovableMediaPolicy(policy *configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
-	if policy == nil {
-		return nil
-	}
+func protoRemovableMediaPolicy(policy configurations.RemovableMediaPolicy) *syncv1.RemovableMediaPolicy {
 	switch policy.Action {
 	case configurations.RemovableMediaActionAllow:
 		return &syncv1.RemovableMediaPolicy{Action: &syncv1.RemovableMediaPolicy_Allow{Allow: true}}

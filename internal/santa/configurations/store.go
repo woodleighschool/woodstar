@@ -336,22 +336,25 @@ func cleanConfigurationMutation(params ConfigurationMutation) (ConfigurationMuta
 	if params.Name == "" {
 		return ConfigurationMutation{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
-	if params.ClientMode == "" {
-		params.ClientMode = ClientModeMonitor
-	}
 	if !validDesiredClientMode(params.ClientMode) {
-		return ConfigurationMutation{}, fmt.Errorf("%w: unknown client mode", dbutil.ErrInvalidInput)
+		return ConfigurationMutation{}, fmt.Errorf(
+			"%w: client_mode must be monitor, lockdown, or standalone",
+			dbutil.ErrInvalidInput,
+		)
 	}
-	params.AllowedPathRegex = dbutil.CleanStringPtr(params.AllowedPathRegex)
-	params.BlockedPathRegex = dbutil.CleanStringPtr(params.BlockedPathRegex)
-	params.EventDetailURL = dbutil.CleanStringPtr(params.EventDetailURL)
-	params.EventDetailText = dbutil.CleanStringPtr(params.EventDetailText)
-	if params.FullSyncIntervalSeconds != nil && *params.FullSyncIntervalSeconds < 60 {
+	if params.FullSyncIntervalSeconds < 60 {
 		return ConfigurationMutation{}, fmt.Errorf(
 			"%w: full_sync_interval_seconds must be at least 60",
 			dbutil.ErrInvalidInput,
 		)
 	}
+	if params.BatchSize < 5 || params.BatchSize > 100 {
+		return ConfigurationMutation{}, fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
+	}
+	params.AllowedPathRegex = strings.TrimSpace(params.AllowedPathRegex)
+	params.BlockedPathRegex = strings.TrimSpace(params.BlockedPathRegex)
+	params.EventDetailURL = strings.TrimSpace(params.EventDetailURL)
+	params.EventDetailText = strings.TrimSpace(params.EventDetailText)
 	policy, err := cleanRemovableMediaPolicy(params.RemovableMediaPolicy, "removable_media_policy")
 	if err != nil {
 		return ConfigurationMutation{}, err
@@ -373,24 +376,25 @@ func cleanConfigurationMutation(params ConfigurationMutation) (ConfigurationMuta
 	return params, nil
 }
 
-func cleanRemovableMediaPolicy(policy *RemovableMediaPolicy, name string) (*RemovableMediaPolicy, error) {
-	if policy == nil {
-		return nil, nil //nolint:nilnil // omitted policy is represented by a nil policy and no error.
-	}
+func cleanRemovableMediaPolicy(policy RemovableMediaPolicy, name string) (RemovableMediaPolicy, error) {
 	cleaned := RemovableMediaPolicy{
 		Action:       RemovableMediaAction(strings.TrimSpace(string(policy.Action))),
 		RemountFlags: cleanStringList(policy.RemountFlags),
 	}
 	if cleaned.Action == "" {
-		return nil, nil //nolint:nilnil // an empty policy object clears the optional policy.
+		return RemovableMediaPolicy{}, nil
 	}
 	if !validRemovableMediaAction(cleaned.Action) {
-		return nil, fmt.Errorf("%w: unknown %s action", dbutil.ErrInvalidInput, name)
+		return RemovableMediaPolicy{}, fmt.Errorf("%w: unknown %s action", dbutil.ErrInvalidInput, name)
 	}
 	if cleaned.Action == RemovableMediaActionRemount && len(cleaned.RemountFlags) == 0 {
-		return nil, fmt.Errorf("%w: %s.remount_flags are required when action is remount", dbutil.ErrInvalidInput, name)
+		return RemovableMediaPolicy{}, fmt.Errorf(
+			"%w: %s.remount_flags are required when action is remount",
+			dbutil.ErrInvalidInput,
+			name,
+		)
 	}
-	return &cleaned, nil
+	return cleaned, nil
 }
 
 func cleanStringList(values []string) []string {
@@ -457,8 +461,8 @@ func createConfigurationParams(configuration ConfigurationMutation) sqlc.CreateS
 		EnableBundles:                       configuration.EnableBundles,
 		EnableTransitiveRules:               configuration.EnableTransitiveRules,
 		EnableAllEventUpload:                configuration.EnableAllEventUpload,
-		FullSyncIntervalSeconds:             int32Ptr(configuration.FullSyncIntervalSeconds),
-		BatchSize:                           int32Ptr(configuration.BatchSize),
+		FullSyncIntervalSeconds:             int32(configuration.FullSyncIntervalSeconds),
+		BatchSize:                           int32(configuration.BatchSize),
 		AllowedPathRegex:                    configuration.AllowedPathRegex,
 		BlockedPathRegex:                    configuration.BlockedPathRegex,
 		RemovableMediaAction:                removableMediaAction,
@@ -501,8 +505,8 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
 		EnableBundles:           row.EnableBundles,
 		EnableTransitiveRules:   row.EnableTransitiveRules,
 		EnableAllEventUpload:    row.EnableAllEventUpload,
-		FullSyncIntervalSeconds: intPtrFromSQLC(row.FullSyncIntervalSeconds),
-		BatchSize:               intPtrFromSQLC(row.BatchSize),
+		FullSyncIntervalSeconds: int(row.FullSyncIntervalSeconds),
+		BatchSize:               int(row.BatchSize),
 		AllowedPathRegex:        row.AllowedPathRegex,
 		BlockedPathRegex:        row.BlockedPathRegex,
 		RemovableMediaPolicy: removableMediaPolicyFromSQLC(
@@ -520,40 +524,19 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
 	}
 }
 
-func int32Ptr(value *int) *int32 {
-	if value == nil {
-		return nil
-	}
-	converted := int32(*value)
-	return &converted
-}
-
-func intPtrFromSQLC(value *int32) *int {
-	if value == nil {
-		return nil
-	}
-	converted := int(*value)
-	return &converted
-}
-
-func removableMediaPolicySQLC(
-	policy *RemovableMediaPolicy,
-) (*sqlc.SantaRemovableMediaAction, []string) {
-	if policy == nil {
+func removableMediaPolicySQLC(policy RemovableMediaPolicy) (*sqlc.SantaRemovableMediaAction, []string) {
+	if policy.Action == "" {
 		return nil, nil
 	}
 	action := sqlc.SantaRemovableMediaAction(policy.Action)
 	return &action, policy.RemountFlags
 }
 
-func removableMediaPolicyFromSQLC(
-	action *sqlc.SantaRemovableMediaAction,
-	flags []string,
-) *RemovableMediaPolicy {
+func removableMediaPolicyFromSQLC(action *sqlc.SantaRemovableMediaAction, flags []string) RemovableMediaPolicy {
 	if action == nil {
-		return nil
+		return RemovableMediaPolicy{}
 	}
-	return &RemovableMediaPolicy{
+	return RemovableMediaPolicy{
 		Action:       RemovableMediaAction(*action),
 		RemountFlags: flags,
 	}

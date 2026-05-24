@@ -5,7 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import type { Schemas } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
-export type ReportResultRow = Schemas["ReportResultBody"];
+export type ReportResultRow = Schemas["ReportResult"];
 
 export type ReportTableRow = {
   id: string;

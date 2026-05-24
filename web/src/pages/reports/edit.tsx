@@ -11,6 +11,7 @@ import { PlatformSelector } from "@/components/queries/platform-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -135,18 +136,19 @@ function ReportEditForm({
             <AlertDescription>{error.message}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid max-w-3xl gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="report-name">Name</Label>
+        <FieldGroup className="max-w-3xl">
+          <Field>
+            <FieldLabel htmlFor="report-name">Name</FieldLabel>
             <Input
               id="report-name"
               required
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="report-description">Description</Label>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="report-description">Description</FieldLabel>
             <Textarea
               id="report-description"
               rows={3}
@@ -154,35 +156,34 @@ function ReportEditForm({
               value={form.description ?? ""}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
-          </div>
-        </div>
-        <div className="grid gap-4">
-          <div className="grid max-w-3xl gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="report-interval">Interval</Label>
-              <Select
-                value={String(form.schedule_interval ?? 0)}
-                onValueChange={(value) => setForm({ ...form, schedule_interval: Number(value) })}
-              >
-                <SelectTrigger id="report-interval" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {FREQUENCY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={String(option.value)}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">This is how often your report collects data.</p>
-            </div>
-            <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
-          </div>
-          <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
-        </div>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="report-interval">Interval</FieldLabel>
+            <Select
+              value={String(form.schedule_interval ?? 0)}
+              onValueChange={(value) => setForm({ ...form, schedule_interval: Number(value) })}
+            >
+              <SelectTrigger id="report-interval" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {FREQUENCY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription>How often the report collects data.</FieldDescription>
+          </Field>
+
+          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+        </FieldGroup>
+
+        <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
 
         <div className="grid max-w-5xl gap-2">
           <Label>Query</Label>
@@ -194,7 +195,7 @@ function ReportEditForm({
           />
         </div>
 
-        <div className="grid max-w-3xl gap-3">
+        <FieldGroup className="max-w-3xl">
           <Button
             type="button"
             variant="ghost"
@@ -206,19 +207,17 @@ function ReportEditForm({
             Advanced options
           </Button>
           {advancedOpen ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="report-min-version">Minimum osquery version</Label>
-                <Input
-                  id="report-min-version"
-                  value={form.min_osquery_version ?? ""}
-                  placeholder="5.18.1"
-                  onChange={(event) => setForm({ ...form, min_osquery_version: event.target.value || undefined })}
-                />
-              </div>
-            </div>
+            <Field>
+              <FieldLabel htmlFor="report-min-version">Minimum osquery version</FieldLabel>
+              <Input
+                id="report-min-version"
+                value={form.min_osquery_version ?? ""}
+                placeholder="5.18.1"
+                onChange={(event) => setForm({ ...form, min_osquery_version: event.target.value || undefined })}
+              />
+            </Field>
           ) : null}
-        </div>
+        </FieldGroup>
 
         <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>

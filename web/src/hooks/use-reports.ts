@@ -5,10 +5,11 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Report = Schemas["ReportBody"];
-export type ReportListResult = Schemas["PaginatedBodyReportBody"];
-export type ReportMutation = Schemas["ReportMutationBody"];
-export type ReportResults = Schemas["ReportResultsBody"];
+export type Report = Schemas["Report"];
+export type ReportListResult = Schemas["PaginatedBodyReport"];
+// ReportCreate and ReportUpdate carry identical wire shape; alias one for callers.
+export type ReportMutation = Schemas["ReportCreate"];
+export type ReportResults = Schemas["ItemsBodyReportResult"];
 
 export interface ReportListParams {
   q?: string;

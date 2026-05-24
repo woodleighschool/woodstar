@@ -59,12 +59,13 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		t.Fatalf("set label membership: %v", err)
 	}
 
-	enableBundles := true
 	if _, err := stores.configurations.CreateConfiguration(ctx, configurations.ConfigurationMutation{
-		Name:          "Contract configuration " + suffix,
-		ClientMode:    configurations.ClientModeLockdown,
-		EnableBundles: &enableBundles,
-		LabelIDs:      []int64{label.ID},
+		Name:                    "Contract configuration " + suffix,
+		ClientMode:              configurations.ClientModeLockdown,
+		EnableBundles:           true,
+		FullSyncIntervalSeconds: 600,
+		BatchSize:               50,
+		LabelIDs:                []int64{label.ID},
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}

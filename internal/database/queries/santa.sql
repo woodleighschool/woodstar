@@ -61,19 +61,19 @@ VALUES (
     @name,
     (SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
     @client_mode::santa_client_mode,
-    sqlc.narg(enable_bundles),
-    sqlc.narg(enable_transitive_rules),
-    sqlc.narg(enable_all_event_upload),
-    sqlc.narg(full_sync_interval_seconds)::integer,
-    sqlc.narg(batch_size)::integer,
-    sqlc.narg(allowed_path_regex),
-    sqlc.narg(blocked_path_regex),
+    @enable_bundles,
+    @enable_transitive_rules,
+    @enable_all_event_upload,
+    @full_sync_interval_seconds::integer,
+    @batch_size::integer,
+    @allowed_path_regex,
+    @blocked_path_regex,
     sqlc.narg(removable_media_action)::santa_removable_media_action,
     sqlc.narg(removable_media_remount_flags)::text[],
     sqlc.narg(encrypted_removable_media_action)::santa_removable_media_action,
     sqlc.narg(encrypted_removable_media_remount_flags)::text[],
-    sqlc.narg(event_detail_url),
-    sqlc.narg(event_detail_text)
+    @event_detail_url,
+    @event_detail_text
 )
 RETURNING *;
 
@@ -87,19 +87,19 @@ UPDATE santa_configurations
 SET
     name = @name,
     client_mode = @client_mode::santa_client_mode,
-    enable_bundles = sqlc.narg(enable_bundles),
-    enable_transitive_rules = sqlc.narg(enable_transitive_rules),
-    enable_all_event_upload = sqlc.narg(enable_all_event_upload),
-    full_sync_interval_seconds = sqlc.narg(full_sync_interval_seconds)::integer,
-    batch_size = sqlc.narg(batch_size)::integer,
-    allowed_path_regex = sqlc.narg(allowed_path_regex),
-    blocked_path_regex = sqlc.narg(blocked_path_regex),
+    enable_bundles = @enable_bundles,
+    enable_transitive_rules = @enable_transitive_rules,
+    enable_all_event_upload = @enable_all_event_upload,
+    full_sync_interval_seconds = @full_sync_interval_seconds::integer,
+    batch_size = @batch_size::integer,
+    allowed_path_regex = @allowed_path_regex,
+    blocked_path_regex = @blocked_path_regex,
     removable_media_action = sqlc.narg(removable_media_action)::santa_removable_media_action,
     removable_media_remount_flags = sqlc.narg(removable_media_remount_flags)::text[],
     encrypted_removable_media_action = sqlc.narg(encrypted_removable_media_action)::santa_removable_media_action,
     encrypted_removable_media_remount_flags = sqlc.narg(encrypted_removable_media_remount_flags)::text[],
-    event_detail_url = sqlc.narg(event_detail_url),
-    event_detail_text = sqlc.narg(event_detail_text),
+    event_detail_url = @event_detail_url,
+    event_detail_text = @event_detail_text,
     updated_at = now()
 WHERE id = @id
 RETURNING *;

@@ -42,13 +42,12 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if err := labelStore.SetMembership(ctx, labelID, host.ID, true); err != nil {
 		t.Fatalf("set label membership: %v", err)
 	}
-	enableBundles := true
-	fullSyncInterval := 120
 	if _, err := configurationStore.CreateConfiguration(ctx, configurations.ConfigurationMutation{
 		Name:                    "Sync Config",
 		ClientMode:              configurations.ClientModeLockdown,
-		EnableBundles:           &enableBundles,
-		FullSyncIntervalSeconds: &fullSyncInterval,
+		EnableBundles:           true,
+		FullSyncIntervalSeconds: 120,
+		BatchSize:               50,
 		LabelIDs:                []int64{labelID},
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
@@ -81,11 +80,10 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if preflight.Configuration == nil || preflight.Configuration.ClientMode != configurations.ClientModeLockdown {
 		t.Fatalf("configuration = %+v, want lockdown", preflight.Configuration)
 	}
-	if preflight.Configuration.EnableBundles == nil || !*preflight.Configuration.EnableBundles {
+	if !preflight.Configuration.EnableBundles {
 		t.Fatalf("enable bundles = %v, want true", preflight.Configuration.EnableBundles)
 	}
-	if preflight.Configuration.FullSyncIntervalSeconds == nil ||
-		*preflight.Configuration.FullSyncIntervalSeconds != 120 {
+	if preflight.Configuration.FullSyncIntervalSeconds != 120 {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
 

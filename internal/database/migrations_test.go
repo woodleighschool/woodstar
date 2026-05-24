@@ -26,20 +26,21 @@ func TestSantaMigrationEnforcesConfigurationAndRuleInvariants(t *testing.T) {
 		t.Fatalf("load built-in label: %v", err)
 	}
 
-	var firstConfigID int64
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO santa_configurations (name, position)
-		VALUES ('baseline', 0)
+	insertConfiguration := `
+		INSERT INTO santa_configurations AS c (
+			name, position, client_mode, enable_bundles, enable_transitive_rules,
+			enable_all_event_upload, full_sync_interval_seconds, batch_size,
+			allowed_path_regex, blocked_path_regex, event_detail_url, event_detail_text
+		)
+		VALUES ($1, $2, 'monitor', false, false, false, 600, 50, '', '', '', '')
 		RETURNING id
-	`).Scan(&firstConfigID); err != nil {
+	`
+	var firstConfigID int64
+	if err := tx.QueryRow(ctx, insertConfiguration, "baseline", 0).Scan(&firstConfigID); err != nil {
 		t.Fatalf("insert first configuration: %v", err)
 	}
 	var secondConfigID int64
-	if err := tx.QueryRow(ctx, `
-		INSERT INTO santa_configurations (name, position)
-		VALUES ('restricted', 1)
-		RETURNING id
-	`).Scan(&secondConfigID); err != nil {
+	if err := tx.QueryRow(ctx, insertConfiguration, "restricted", 1).Scan(&secondConfigID); err != nil {
 		t.Fatalf("insert second configuration: %v", err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -54,8 +55,16 @@ func TestSantaMigrationEnforcesConfigurationAndRuleInvariants(t *testing.T) {
 	`, allHostsLabelID, secondConfigID)
 
 	expectPgError(t, tx, "remount_without_flags", "23514", `
-		INSERT INTO santa_configurations (name, position, removable_media_action)
-		VALUES ('invalid-remount', 2, 'remount')
+		INSERT INTO santa_configurations (
+			name, position, client_mode, enable_bundles, enable_transitive_rules,
+			enable_all_event_upload, full_sync_interval_seconds, batch_size,
+			allowed_path_regex, blocked_path_regex, event_detail_url, event_detail_text,
+			removable_media_action
+		)
+		VALUES (
+			'invalid-remount', 2, 'monitor', false, false, false, 600, 50, '', '', '', '',
+			'remount'
+		)
 	`)
 
 	var ruleID int64

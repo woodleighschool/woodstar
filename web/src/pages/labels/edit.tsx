@@ -9,6 +9,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformSelector } from "@/components/queries/platform-selector";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -182,18 +183,19 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
           </Alert>
         ) : null}
 
-        <div className="grid max-w-3xl gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="label-name">Name</Label>
+        <FieldGroup className="max-w-3xl">
+          <Field>
+            <FieldLabel htmlFor="label-name">Name</FieldLabel>
             <Input
               id="label-name"
               required
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="label-description">Description</Label>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="label-description">Description</FieldLabel>
             <Textarea
               id="label-description"
               rows={3}
@@ -201,10 +203,10 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
-          </div>
+          </Field>
 
-          <div className="grid gap-2">
-            <Label>Type</Label>
+          <Field>
+            <FieldLabel>Type</FieldLabel>
             <RadioGroup
               value={form.label_membership_type}
               onValueChange={(value) => setForm({ ...form, label_membership_type: value as MembershipType })}
@@ -219,11 +221,11 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
                 </div>
               ))}
             </RadioGroup>
-            {memberOption ? <p className="text-muted-foreground text-xs">{memberOption.helpText}</p> : null}
-          </div>
+            {memberOption ? <FieldDescription>{memberOption.helpText}</FieldDescription> : null}
+          </Field>
 
           <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
-        </div>
+        </FieldGroup>
 
         {isDynamic ? (
           <div className="flex flex-1">

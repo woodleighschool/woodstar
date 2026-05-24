@@ -185,6 +185,35 @@ components:
         - created_at
         - updated_at
       type: object
+    CheckCreate:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/CheckCreate.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          type: string
+        label_scope:
+          $ref: "#/components/schemas/LabelScope"
+        name:
+          type: string
+        platforms:
+          items:
+            type: string
+          minItems: 1
+          type: array
+        query:
+          type: string
+      required:
+        - name
+        - query
+        - platforms
+        - label_scope
+      type: object
     CheckHostStatus:
       additionalProperties: false
       properties:
@@ -215,32 +244,13 @@ components:
         - host_name
         - response
       type: object
-    CheckHostsOutputBody:
+    CheckUpdate:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/CheckHostsOutputBody.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/CheckHostStatus"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-      type: object
-    CheckMutationBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/CheckMutationBody.json
+            - https://example.com/api/schemas/CheckUpdate.json
           format: uri
           readOnly: true
           type: string
@@ -329,6 +339,11 @@ components:
         - name
         - position
         - client_mode
+        - enable_bundles
+        - enable_transitive_rules
+        - enable_all_event_upload
+        - full_sync_interval_seconds
+        - batch_size
         - label_ids
         - created_at
         - updated_at
@@ -347,6 +362,8 @@ components:
           type: string
         batch_size:
           format: int64
+          maximum: 100
+          minimum: 5
           type: integer
         blocked_path_regex:
           type: string
@@ -370,6 +387,7 @@ components:
           type: string
         full_sync_interval_seconds:
           format: int64
+          minimum: 60
           type: integer
         label_ids:
           items:
@@ -384,6 +402,12 @@ components:
           $ref: "#/components/schemas/RemovableMediaPolicy"
       required:
         - name
+        - client_mode
+        - enable_bundles
+        - enable_transitive_rules
+        - enable_all_event_upload
+        - full_sync_interval_seconds
+        - batch_size
       type: object
     EffectiveRuleStatus:
       additionalProperties: false
@@ -490,6 +514,22 @@ components:
           format: uri
           type: string
       type: object
+    Event:
+      additionalProperties: false
+      properties:
+        data: {}
+        error:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        status:
+          type: string
+      required:
+        - status
+      type: object
     EventPage:
       additionalProperties: false
       properties:
@@ -586,6 +626,33 @@ components:
         - current_sessions
         - decision
         - ingested_at
+      type: object
+    Handle:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/Handle.json
+          format: uri
+          readOnly: true
+          type: string
+        id:
+          format: int64
+          type: integer
+        resolved_host_count:
+          format: int64
+          type: integer
+        sql:
+          type: string
+        started_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - sql
+        - started_at
+        - resolved_host_count
       type: object
     Host:
       additionalProperties: false
@@ -1029,7 +1096,7 @@ components:
           type: string
         items:
           items:
-            $ref: "#/components/schemas/ReportResultBody"
+            $ref: "#/components/schemas/ReportResult"
           type:
             - array
             - "null"
@@ -1043,25 +1110,6 @@ components:
         - report_id
         - host_id
         - host_name
-        - items
-      type: object
-    HostReportsBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/HostReportsBody.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/HostReport"
-          type:
-            - array
-            - "null"
-      required:
         - items
       type: object
     HostSoftwareInstalledVersion:
@@ -1166,6 +1214,63 @@ components:
         - description
         - directory
         - shell
+      type: object
+    ItemsBodyCheckHostStatus:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/ItemsBodyCheckHostStatus.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/CheckHostStatus"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    ItemsBodyHostReport:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/ItemsBodyHostReport.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/HostReport"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    ItemsBodyReportResult:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/ItemsBodyReportResult.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/ReportResult"
+          type:
+            - array
+            - "null"
+      required:
+        - items
       type: object
     Label:
       additionalProperties: false
@@ -1326,52 +1431,9 @@ components:
       required:
         - sql
       type: object
-    LiveQueryHandleBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/LiveQueryHandleBody.json
-          format: uri
-          readOnly: true
-          type: string
-        id:
-          format: int64
-          type: integer
-        resolved_host_count:
-          format: int64
-          type: integer
-        sql:
-          type: string
-        started_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - sql
-        - started_at
-        - resolved_host_count
-      type: object
     LiveQueryPingEvent:
       additionalProperties: false
       properties:
-        status:
-          type: string
-      required:
-        - status
-      type: object
-    LiveQueryResultEvent:
-      additionalProperties: false
-      properties:
-        data: {}
-        error:
-          type: string
-        host_id:
-          format: int64
-          type: integer
-        host_name:
-          type: string
         status:
           type: string
       required:
@@ -1593,13 +1655,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyReportBody:
+    PaginatedBodyReport:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyReportBody.json
+            - https://example.com/api/schemas/PaginatedBodyReport.json
           format: uri
           readOnly: true
           type: string
@@ -1608,7 +1670,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/ReportBody"
+            $ref: "#/components/schemas/Report"
           type:
             - array
             - "null"
@@ -1721,16 +1783,14 @@ components:
           type:
             - array
             - "null"
-      required:
-        - action
       type: object
-    ReportBody:
+    Report:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ReportBody.json
+            - https://example.com/api/schemas/Report.json
           format: uri
           readOnly: true
           type: string
@@ -1774,13 +1834,13 @@ components:
         - created_at
         - updated_at
       type: object
-    ReportMutationBody:
+    ReportCreate:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ReportMutationBody.json
+            - https://example.com/api/schemas/ReportCreate.json
           format: uri
           readOnly: true
           type: string
@@ -1808,7 +1868,7 @@ components:
         - platforms
         - label_scope
       type: object
-    ReportResultBody:
+    ReportResult:
       additionalProperties: false
       properties:
         columns:
@@ -1835,24 +1895,39 @@ components:
         - host_name
         - columns
       type: object
-    ReportResultsBody:
+    ReportUpdate:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ReportResultsBody.json
+            - https://example.com/api/schemas/ReportUpdate.json
           format: uri
           readOnly: true
           type: string
-        items:
+        description:
+          type: string
+        label_scope:
+          $ref: "#/components/schemas/LabelScope"
+        min_osquery_version:
+          type: string
+        name:
+          type: string
+        platforms:
           items:
-            $ref: "#/components/schemas/ReportResultBody"
-          type:
-            - array
-            - "null"
+            type: string
+          minItems: 1
+          type: array
+        query:
+          type: string
+        schedule_interval:
+          format: int64
+          type: integer
       required:
-        - items
+        - name
+        - query
+        - platforms
+        - label_scope
       type: object
     ResolvedConfiguration:
       additionalProperties: false
@@ -1915,6 +1990,11 @@ components:
         - name
         - position
         - client_mode
+        - enable_bundles
+        - enable_transitive_rules
+        - enable_all_event_upload
+        - full_sync_interval_seconds
+        - batch_size
         - label_ids
         - created_at
         - updated_at
@@ -2350,7 +2430,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: cbe38ca-dirty
+  version: 267eea3-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2982,7 +3062,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CheckHostsOutputBody"
+                $ref: "#/components/schemas/ItemsBodyCheckHostStatus"
           description: OK
         "401":
           content:
@@ -3026,7 +3106,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostReportsBody"
+                $ref: "#/components/schemas/ItemsBodyHostReport"
           description: OK
         "401":
           content:
@@ -3537,7 +3617,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LiveQueryHandleBody"
+                $ref: "#/components/schemas/Handle"
           description: Created
         "400":
           content:
@@ -3707,7 +3787,7 @@ paths:
                       type: object
                     - properties:
                         data:
-                          $ref: "#/components/schemas/LiveQueryResultEvent"
+                          $ref: "#/components/schemas/Event"
                         event:
                           const: result
                           description: The event name.
@@ -3823,7 +3903,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckMutationBody"
+              $ref: "#/components/schemas/CheckCreate"
         required: true
       responses:
         "201":
@@ -4003,7 +4083,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckMutationBody"
+              $ref: "#/components/schemas/CheckUpdate"
         required: true
       responses:
         "200":
@@ -4065,7 +4145,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CheckHostsOutputBody"
+                $ref: "#/components/schemas/ItemsBodyCheckHostStatus"
           description: OK
         "401":
           content:
@@ -4135,7 +4215,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyReportBody"
+                $ref: "#/components/schemas/PaginatedBodyReport"
           description: OK
         "401":
           content:
@@ -4164,14 +4244,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportMutationBody"
+              $ref: "#/components/schemas/ReportCreate"
         required: true
       responses:
         "201":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportBody"
+                $ref: "#/components/schemas/Report"
           description: Created
         "400":
           content:
@@ -4303,7 +4383,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportBody"
+                $ref: "#/components/schemas/Report"
           description: OK
         "401":
           content:
@@ -4344,14 +4424,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportMutationBody"
+              $ref: "#/components/schemas/ReportUpdate"
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportBody"
+                $ref: "#/components/schemas/Report"
           description: OK
         "400":
           content:
@@ -4406,7 +4486,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportResultsBody"
+                $ref: "#/components/schemas/ItemsBodyReportResult"
           description: OK
         "401":
           content:

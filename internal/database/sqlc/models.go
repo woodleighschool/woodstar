@@ -715,19 +715,19 @@ type SantaConfiguration struct {
 	Name                                string                     `json:"name"`
 	Position                            int32                      `json:"position"`
 	ClientMode                          SantaClientMode            `json:"client_mode"`
-	EnableBundles                       *bool                      `json:"enable_bundles"`
-	EnableTransitiveRules               *bool                      `json:"enable_transitive_rules"`
-	EnableAllEventUpload                *bool                      `json:"enable_all_event_upload"`
-	FullSyncIntervalSeconds             *int32                     `json:"full_sync_interval_seconds"`
-	BatchSize                           *int32                     `json:"batch_size"`
-	AllowedPathRegex                    *string                    `json:"allowed_path_regex"`
-	BlockedPathRegex                    *string                    `json:"blocked_path_regex"`
+	EnableBundles                       bool                       `json:"enable_bundles"`
+	EnableTransitiveRules               bool                       `json:"enable_transitive_rules"`
+	EnableAllEventUpload                bool                       `json:"enable_all_event_upload"`
+	FullSyncIntervalSeconds             int32                      `json:"full_sync_interval_seconds"`
+	BatchSize                           int32                      `json:"batch_size"`
+	AllowedPathRegex                    string                     `json:"allowed_path_regex"`
+	BlockedPathRegex                    string                     `json:"blocked_path_regex"`
 	RemovableMediaAction                *SantaRemovableMediaAction `json:"removable_media_action"`
 	RemovableMediaRemountFlags          []string                   `json:"removable_media_remount_flags"`
 	EncryptedRemovableMediaAction       *SantaRemovableMediaAction `json:"encrypted_removable_media_action"`
 	EncryptedRemovableMediaRemountFlags []string                   `json:"encrypted_removable_media_remount_flags"`
-	EventDetailURL                      *string                    `json:"event_detail_url"`
-	EventDetailText                     *string                    `json:"event_detail_text"`
+	EventDetailURL                      string                     `json:"event_detail_url"`
+	EventDetailText                     string                     `json:"event_detail_text"`
 	CreatedAt                           time.Time                  `json:"created_at"`
 	UpdatedAt                           time.Time                  `json:"updated_at"`
 }
