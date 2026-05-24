@@ -14,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 const (
@@ -28,19 +28,23 @@ const (
 // Host detail Santa enrichment.
 
 type santaHostDetailEnricher struct {
-	store *santa.Store
+	loader santaHostStateLoader
+}
+
+type santaHostStateLoader interface {
+	LoadHostState(context.Context, int64) (*santa.HostState, error)
 }
 
 // SantaHostDetailEnricher returns a host detail enricher backed by Santa state.
-func SantaHostDetailEnricher(store *santa.Store) HostDetailEnricher {
-	if store == nil {
+func SantaHostDetailEnricher(loader santaHostStateLoader) HostDetailEnricher {
+	if loader == nil {
 		return nil
 	}
-	return santaHostDetailEnricher{store: store}
+	return santaHostDetailEnricher{loader: loader}
 }
 
 func (e santaHostDetailEnricher) EnrichHostDetail(ctx context.Context, hostID int64, body *hostDetailBody) error {
-	detail, err := e.store.LoadHostState(ctx, hostID)
+	detail, err := e.loader.LoadHostState(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -542,14 +546,14 @@ type santaSyncTokenDeleteInput struct {
 }
 
 type santaSyncTokenListOutput struct {
-	Body []santasync.SyncToken
+	Body []syncstate.SyncToken
 }
 
 type santaSyncTokenCreateOutput struct {
-	Body santasync.SyncToken
+	Body syncstate.SyncToken
 }
 
-func RegisterSantaSyncTokens(api huma.API, store *santasync.Store) {
+func RegisterSantaSyncTokens(api huma.API, store *syncstate.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-sync-tokens",
 		Method:      http.MethodGet,

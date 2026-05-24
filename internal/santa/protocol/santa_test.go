@@ -14,43 +14,70 @@ import (
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/proto"
 
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-func TestSantaSyncRoutesDecodeAndEncodeGzippedProtobuf(t *testing.T) {
+func TestSantaSyncRoutesDecodeAndEncodeRuleDownloadCursor(t *testing.T) {
+	service := &recordingService{ruleDownloadResponse: syncstate.RuleDownloadResponse{Cursor: "next"}}
+	router := testRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1",
+		&syncv1.RuleDownloadRequest{Cursor: "current"})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != protobufContentType {
+		t.Fatalf("content type = %q, want %q", got, protobufContentType)
+	}
+	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
+		t.Fatalf("content encoding = %q, want gzip", got)
+	}
+	var resp syncv1.RuleDownloadResponse
+	mustReadProtoResponse(t, rec.Body.Bytes(), &resp)
+	if resp.GetCursor() != "next" {
+		t.Fatalf("cursor = %q, want next", resp.GetCursor())
+	}
+	if service.stage != "ruledownload" || service.machineID != "machine-1" {
+		t.Fatalf("stage/machine = %q/%q", service.stage, service.machineID)
+	}
+	if service.ruleDownloadCursor != "current" {
+		t.Fatalf("request cursor = %q, want current", service.ruleDownloadCursor)
+	}
+}
+
+func TestSantaSyncRoutesCoverAllStages(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
 		request   proto.Message
-		response  proto.Message
 		wantStage string
 	}{
 		{
 			name:      "preflight",
 			path:      "/santa/sync/preflight/machine-1",
 			request:   &syncv1.PreflightRequest{},
-			response:  &syncv1.PreflightResponse{},
 			wantStage: "preflight",
 		},
 		{
 			name:      "event upload",
 			path:      "/santa/sync/eventupload/machine-1",
 			request:   &syncv1.EventUploadRequest{},
-			response:  &syncv1.EventUploadResponse{},
 			wantStage: "eventupload",
 		},
 		{
 			name:      "rule download",
 			path:      "/santa/sync/ruledownload/machine-1",
 			request:   &syncv1.RuleDownloadRequest{},
-			response:  &syncv1.RuleDownloadResponse{},
 			wantStage: "ruledownload",
 		},
 		{
 			name:      "postflight",
 			path:      "/santa/sync/postflight/machine-1",
 			request:   &syncv1.PostflightRequest{},
-			response:  &syncv1.PostflightResponse{},
 			wantStage: "postflight",
 		},
 	}
@@ -67,13 +94,6 @@ func TestSantaSyncRoutesDecodeAndEncodeGzippedProtobuf(t *testing.T) {
 			if rec.Code != http.StatusOK {
 				t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 			}
-			if got := rec.Header().Get("Content-Type"); got != protobufContentType {
-				t.Fatalf("content type = %q, want %q", got, protobufContentType)
-			}
-			if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
-				t.Fatalf("content encoding = %q, want gzip", got)
-			}
-			mustUnzipProto(t, rec.Body.Bytes(), tt.response)
 			if service.stage != tt.wantStage {
 				t.Fatalf("stage = %q, want %q", service.stage, tt.wantStage)
 			}
@@ -127,8 +147,17 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 			name:            "wrong content type",
 			tokenVerifier:   &staticVerifier{ok: true},
 			body:            validBody,
-			contentType:     "application/json",
+			contentType:     "text/plain",
 			contentEncoding: "gzip",
+			authorization:   "Bearer ok",
+			wantStatus:      http.StatusUnsupportedMediaType,
+		},
+		{
+			name:            "unsupported encoding",
+			tokenVerifier:   &staticVerifier{ok: true},
+			body:            validBody,
+			contentType:     protobufContentType,
+			contentEncoding: "deflate",
 			authorization:   "Bearer ok",
 			wantStatus:      http.StatusUnsupportedMediaType,
 		},
@@ -187,6 +216,20 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 	}
 }
 
+func TestSantaSyncRoutesMapInvalidCursorToBadRequest(t *testing.T) {
+	service := &recordingService{err: dbutil.ErrInvalidInput}
+	router := testRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1",
+		&syncv1.RuleDownloadRequest{Cursor: "bad"})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
 func testRouter(verifier SyncTokenVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
 	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
@@ -227,7 +270,16 @@ func mustGzip(t *testing.T, payload []byte) []byte {
 	return buf.Bytes()
 }
 
-func mustUnzipProto(t *testing.T, payload []byte, msg proto.Message) {
+func mustReadProtoResponse(t *testing.T, payload []byte, msg proto.Message) {
+	t.Helper()
+
+	payload = mustGunzip(t, payload)
+	if err := proto.Unmarshal(payload, msg); err != nil {
+		t.Fatalf("unmarshal proto: %v", err)
+	}
+}
+
+func mustGunzip(t *testing.T, payload []byte) []byte {
 	t.Helper()
 
 	zr, err := gzip.NewReader(bytes.NewReader(payload))
@@ -235,14 +287,11 @@ func mustUnzipProto(t *testing.T, payload []byte, msg proto.Message) {
 		t.Fatalf("new gzip reader: %v", err)
 	}
 	defer zr.Close()
-
 	decoded, err := io.ReadAll(zr)
 	if err != nil {
 		t.Fatalf("read gzip: %v", err)
 	}
-	if err := proto.Unmarshal(decoded, msg); err != nil {
-		t.Fatalf("unmarshal proto: %v", err)
-	}
+	return decoded
 }
 
 type staticVerifier struct {
@@ -255,46 +304,50 @@ func (v *staticVerifier) VerifySyncToken(context.Context, string) (bool, error) 
 }
 
 type recordingService struct {
-	stage     string
-	machineID string
+	stage                string
+	machineID            string
+	ruleDownloadCursor   string
+	ruleDownloadResponse syncstate.RuleDownloadResponse
+	err                  error
 }
 
 func (s *recordingService) Preflight(
 	_ context.Context,
 	machineID string,
-	_ santasync.PreflightRequest,
-) (santasync.PreflightResponse, error) {
+	_ syncstate.PreflightRequest,
+) (syncstate.PreflightResponse, error) {
 	s.stage = "preflight"
 	s.machineID = machineID
-	return santasync.PreflightResponse{}, nil
+	return syncstate.PreflightResponse{}, s.err
 }
 
 func (s *recordingService) EventUpload(
 	_ context.Context,
 	machineID string,
-	_ santasync.EventUploadRequest,
-) (santasync.EventUploadResponse, error) {
+	_ syncstate.EventUploadRequest,
+) (syncstate.EventUploadResponse, error) {
 	s.stage = "eventupload"
 	s.machineID = machineID
-	return santasync.EventUploadResponse{}, nil
+	return syncstate.EventUploadResponse{}, s.err
 }
 
 func (s *recordingService) RuleDownload(
 	_ context.Context,
 	machineID string,
-	_ santasync.RuleDownloadRequest,
-) (santasync.RuleDownloadResponse, error) {
+	req syncstate.RuleDownloadRequest,
+) (syncstate.RuleDownloadResponse, error) {
 	s.stage = "ruledownload"
 	s.machineID = machineID
-	return santasync.RuleDownloadResponse{}, nil
+	s.ruleDownloadCursor = req.Cursor
+	return s.ruleDownloadResponse, s.err
 }
 
 func (s *recordingService) Postflight(
 	_ context.Context,
 	machineID string,
-	_ santasync.PostflightRequest,
-) (santasync.PostflightResponse, error) {
+	_ syncstate.PostflightRequest,
+) (syncstate.PostflightResponse, error) {
 	s.stage = "postflight"
 	s.machineID = machineID
-	return santasync.PostflightResponse{}, nil
+	return syncstate.PostflightResponse{}, s.err
 }

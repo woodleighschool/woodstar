@@ -32,7 +32,7 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santaprotocol "github.com/woodleighschool/woodstar/internal/santa/protocol"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -97,11 +97,11 @@ type OsqueryDependencies struct {
 
 type SantaDependencies struct {
 	Service        *santa.Service
-	Store          *santa.Store
+	HostState      *santa.HostStateService
 	Configurations *configurations.Store
 	Rules          *santarules.Store
 	Events         *santaevents.Store
-	Sync           *santasync.Store
+	Sync           *syncstate.Store
 }
 
 // Server owns the HTTP listener and router.

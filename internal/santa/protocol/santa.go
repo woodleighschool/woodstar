@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 	"strings"
 
@@ -18,10 +17,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 const (
@@ -43,10 +43,10 @@ type SyncTokenVerifier interface {
 
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
-	Preflight(context.Context, string, santasync.PreflightRequest) (santasync.PreflightResponse, error)
-	EventUpload(context.Context, string, santasync.EventUploadRequest) (santasync.EventUploadResponse, error)
-	RuleDownload(context.Context, string, santasync.RuleDownloadRequest) (santasync.RuleDownloadResponse, error)
-	Postflight(context.Context, string, santasync.PostflightRequest) (santasync.PostflightResponse, error)
+	Preflight(context.Context, string, syncstate.PreflightRequest) (syncstate.PreflightResponse, error)
+	EventUpload(context.Context, string, syncstate.EventUploadRequest) (syncstate.EventUploadResponse, error)
+	RuleDownload(context.Context, string, syncstate.RuleDownloadRequest) (syncstate.RuleDownloadResponse, error)
+	Postflight(context.Context, string, syncstate.PostflightRequest) (syncstate.PostflightResponse, error)
 }
 
 type handler struct {
@@ -159,13 +159,13 @@ func handleSyncRequest[ProtoReq proto.Message, DomainReq any, DomainResp any, Pr
 	}
 }
 
-func preflightRequestFromProto(req *syncv1.PreflightRequest) (santasync.PreflightRequest, error) {
+func preflightRequestFromProto(req *syncv1.PreflightRequest) (syncstate.PreflightRequest, error) {
 	var sipStatus *int16
 	if req.GetSipStatus() != 0 {
 		value := int16(req.GetSipStatus())
 		sipStatus = &value
 	}
-	return santasync.PreflightRequest{
+	return syncstate.PreflightRequest{
 		SerialNumber:      req.GetSerialNumber(),
 		Version:           req.GetSantaVersion(),
 		ClientMode:        clientModeFromProto(req.GetClientMode()),
@@ -179,7 +179,7 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santasync.Prefligh
 	}, nil
 }
 
-func preflightResponseToProto(resp santasync.PreflightResponse) (*syncv1.PreflightResponse, error) {
+func preflightResponseToProto(resp syncstate.PreflightResponse) (*syncv1.PreflightResponse, error) {
 	syncType := protoSyncType(resp.SyncType)
 	out := &syncv1.PreflightResponse{SyncType: &syncType}
 	if resp.Configuration != nil {
@@ -188,7 +188,7 @@ func preflightResponseToProto(resp santasync.PreflightResponse) (*syncv1.Preflig
 	return out, nil
 }
 
-func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santasync.EventUploadRequest, error) {
+func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (syncstate.EventUploadRequest, error) {
 	events := make([]santaevents.ExecutionEventInput, 0, len(req.GetEvents()))
 	for _, event := range req.GetEvents() {
 		if event == nil {
@@ -196,34 +196,37 @@ func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santasync.Even
 		}
 		converted, err := executionEventFromProto(event)
 		if err != nil {
-			return santasync.EventUploadRequest{}, err
+			return syncstate.EventUploadRequest{}, err
 		}
 		events = append(events, converted)
 	}
-	return santasync.EventUploadRequest{Events: events}, nil
+	return syncstate.EventUploadRequest{Events: events}, nil
 }
 
-func eventUploadResponseToProto(santasync.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
+func eventUploadResponseToProto(syncstate.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
 	return &syncv1.EventUploadResponse{}, nil
 }
 
-func ruleDownloadRequestFromProto(*syncv1.RuleDownloadRequest) (santasync.RuleDownloadRequest, error) {
-	return santasync.RuleDownloadRequest{}, nil
+func ruleDownloadRequestFromProto(req *syncv1.RuleDownloadRequest) (syncstate.RuleDownloadRequest, error) {
+	return syncstate.RuleDownloadRequest{Cursor: req.GetCursor()}, nil
 }
 
-func ruleDownloadResponseToProto(resp santasync.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
-	return &syncv1.RuleDownloadResponse{Rules: protoRulesFromSyncTargets(resp.Rules)}, nil
+func ruleDownloadResponseToProto(resp syncstate.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
+	return &syncv1.RuleDownloadResponse{
+		Rules:  protoRulesFromSyncTargets(resp.Rules),
+		Cursor: resp.Cursor,
+	}, nil
 }
 
-func postflightRequestFromProto(req *syncv1.PostflightRequest) (santasync.PostflightRequest, error) {
-	return santasync.PostflightRequest{
+func postflightRequestFromProto(req *syncv1.PostflightRequest) (syncstate.PostflightRequest, error) {
+	return syncstate.PostflightRequest{
 		RulesHash:      req.GetRulesHash(),
 		RulesReceived:  int(req.GetRulesReceived()),
 		RulesProcessed: int(req.GetRulesProcessed()),
 	}, nil
 }
 
-func postflightResponseToProto(santasync.PostflightResponse) (*syncv1.PostflightResponse, error) {
+func postflightResponseToProto(syncstate.PostflightResponse) (*syncv1.PostflightResponse, error) {
 	return &syncv1.PostflightResponse{}, nil
 }
 
@@ -303,8 +306,7 @@ func bearerToken(authorization string) (string, bool) {
 }
 
 func validateTransportHeaders(r *http.Request) error {
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || mediaType != protobufContentType {
+	if r.Header.Get("Content-Type") != protobufContentType {
 		return errUnsupportedMedia
 	}
 	if !strings.EqualFold(r.Header.Get("Content-Encoding"), "gzip") {
@@ -428,16 +430,16 @@ func protoClientMode(mode configurations.ClientMode) syncv1.ClientMode {
 	}
 }
 
-func protoSyncType(syncType santasync.SyncType) syncv1.SyncType {
+func protoSyncType(syncType syncstate.SyncType) syncv1.SyncType {
 	switch syncType {
-	case santasync.SyncTypeClean:
+	case syncstate.SyncTypeClean:
 		return syncv1.SyncType_CLEAN
 	default:
 		return syncv1.SyncType_NORMAL
 	}
 }
 
-func protoRulesFromSyncTargets(targets []santasync.Target) []*syncv1.Rule {
+func protoRulesFromSyncTargets(targets []syncstate.Target) []*syncv1.Rule {
 	rules := make([]*syncv1.Rule, 0, len(targets))
 	for _, target := range targets {
 		rules = append(rules, &syncv1.Rule{
@@ -535,7 +537,9 @@ func statusCodeForError(err error) int {
 		return http.StatusUnauthorized
 	case errors.Is(err, errUnsupportedMedia):
 		return http.StatusUnsupportedMediaType
-	case errors.Is(err, errInvalidSyncBody), errors.Is(err, errRequestBodyTooBig):
+	case errors.Is(err, errInvalidSyncBody),
+		errors.Is(err, errRequestBodyTooBig),
+		errors.Is(err, dbutil.ErrInvalidInput):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError

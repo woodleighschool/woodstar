@@ -14,6 +14,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
+	hostState := santa.NewHostStateService(store, configurations.NewStore(db))
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   "santa-host-observation-uuid",
@@ -24,7 +25,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 
-	if detail, err := store.LoadHostState(ctx, host.ID); err != nil {
+	if detail, err := hostState.LoadHostState(ctx, host.ID); err != nil {
 		t.Fatalf("load absent santa detail: %v", err)
 	} else if detail != nil {
 		t.Fatalf("absent santa detail = %+v, want nil", detail)
@@ -48,7 +49,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 		t.Fatalf("upsert santa host observation: %v", err)
 	}
 
-	detail, err := store.LoadHostState(ctx, host.ID)
+	detail, err := hostState.LoadHostState(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("load santa detail: %v", err)
 	}

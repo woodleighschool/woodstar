@@ -172,8 +172,9 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		t.Fatalf("create configuration: %v", err)
 	}
 
+	hostState := santa.NewHostStateService(santaStore, configurations.NewStore(db))
 	router, cookie := santaAuthedRouter(t, db, "enricher-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, nil, SantaHostDetailEnricher(santaStore))
+		RegisterHosts(api, hostStore, nil, SantaHostDetailEnricher(hostState))
 	})
 	rec := santaAdminRequest(t, router, cookie, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
 	if rec.Code != http.StatusOK {

@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
@@ -22,12 +22,12 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	store := santa.NewStore(db)
 	ruleStore := santarules.NewStore(db)
 	configurationStore := configurations.NewStore(db)
-	service := santa.NewService(santa.ServiceDependencies{
-		Store:          store,
+	service := santa.NewService(santa.Dependencies{
+		HostStore:      store,
 		Configurations: configurationStore,
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
-		SyncStore:      santasync.NewStore(db),
+		Sync:           syncstate.NewStore(db),
 	})
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
@@ -65,7 +65,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("create rule: %v", err)
 	}
 
-	preflight, err := service.Preflight(ctx, "santa-sync-host", santasync.PreflightRequest{
+	preflight, err := service.Preflight(ctx, "santa-sync-host", syncstate.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
 		Version:          "2026.2",
 		ClientMode:       configurations.ClientModeMonitor,
@@ -75,7 +75,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preflight: %v", err)
 	}
-	if preflight.SyncType != santasync.SyncTypeClean {
+	if preflight.SyncType != syncstate.SyncTypeClean {
 		t.Fatalf("sync type = %v, want clean", preflight.SyncType)
 	}
 	if preflight.Configuration == nil || preflight.Configuration.ClientMode != configurations.ClientModeLockdown {
@@ -89,7 +89,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
 
-	download, err := service.RuleDownload(ctx, "santa-sync-host", santasync.RuleDownloadRequest{})
+	download, err := service.RuleDownload(ctx, "santa-sync-host", syncstate.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("rule download: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("downloaded rule = %+v", download.Rules[0])
 	}
 
-	if _, err := service.Postflight(ctx, "santa-sync-host", santasync.PostflightRequest{
+	if _, err := service.Postflight(ctx, "santa-sync-host", syncstate.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,
 		RulesHash:      "new-client-hash",
@@ -111,7 +111,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("postflight: %v", err)
 	}
 
-	state, err := store.LoadHostState(ctx, host.ID)
+	hostState := santa.NewHostStateService(store, configurationStore)
+	state, err := hostState.LoadHostState(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("load host state: %v", err)
 	}

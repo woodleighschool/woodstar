@@ -14,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 // Store persists Santa rule definitions and resolves effective rule state.
@@ -328,7 +328,7 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 	if err != nil {
 		return nil, err
 	}
-	return santasync.TargetSet(applied), nil
+	return syncstate.TargetSet(applied), nil
 }
 
 func replaceRuleChildren(
@@ -648,10 +648,10 @@ func scanEffectiveRule(row pgx.CollectableRow) (EffectiveRule, error) {
 }
 
 // SyncTargetsFromRules returns Santa sync payload targets for effective rules.
-func SyncTargetsFromRules(rules []EffectiveRule) []santasync.Target {
-	targets := make([]santasync.Target, 0, len(rules))
+func SyncTargetsFromRules(rules []EffectiveRule) []syncstate.Target {
+	targets := make([]syncstate.Target, 0, len(rules))
 	for _, rule := range rules {
-		target := santasync.Target{
+		target := syncstate.Target{
 			RuleType:      string(rule.RuleType),
 			Identifier:    rule.Identifier,
 			Policy:        string(rule.Policy),
@@ -665,7 +665,7 @@ func SyncTargetsFromRules(rules []EffectiveRule) []santasync.Target {
 	return targets
 }
 
-func syncTargetPayloadHash(target santasync.Target) string {
+func syncTargetPayloadHash(target syncstate.Target) string {
 	var payload strings.Builder
 	payload.WriteString("v1")
 	writeHashField(&payload, target.RuleType)
@@ -685,12 +685,12 @@ func writeHashField(payload *strings.Builder, value string) {
 	payload.WriteString(value)
 }
 
-func syncTargetKey(target santasync.Target) string {
+func syncTargetKey(target syncstate.Target) string {
 	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
 }
 
-func scanSyncTarget(row pgx.CollectableRow) (santasync.Target, error) {
-	var target santasync.Target
+func scanSyncTarget(row pgx.CollectableRow) (syncstate.Target, error) {
+	var target syncstate.Target
 	err := row.Scan(
 		&target.RuleType,
 		&target.Identifier,

@@ -1,9 +1,18 @@
-package sync
+package syncstate
 
 import (
+	"time"
+
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 )
+
+// SyncToken is a reusable Santa sync bearer token.
+type SyncToken struct {
+	ID        int64     `json:"id"`
+	Value     string    `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+}
 
 type SyncType string
 
@@ -36,10 +45,13 @@ type EventUploadRequest struct {
 
 type EventUploadResponse struct{}
 
-type RuleDownloadRequest struct{}
+type RuleDownloadRequest struct {
+	Cursor string
+}
 
 type RuleDownloadResponse struct {
-	Rules []Target
+	Rules  []Target
+	Cursor string
 }
 
 type PostflightRequest struct {

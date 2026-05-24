@@ -36,7 +36,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -184,7 +184,7 @@ type appStores struct {
 	santaConfigurations *configurations.Store
 	santaEvents         *events.Store
 	santaRules          *rules.Store
-	santaSync           *santasync.Store
+	santaSync           *syncstate.Store
 }
 
 func newStores(db *database.DB) appStores {
@@ -201,7 +201,7 @@ func newStores(db *database.DB) appStores {
 		santaConfigurations: configurations.NewStore(db),
 		santaEvents:         events.NewStore(db),
 		santaRules:          rules.NewStore(db),
-		santaSync:           santasync.NewStore(db),
+		santaSync:           syncstate.NewStore(db),
 	}
 }
 
@@ -287,20 +287,21 @@ func newSanta(
 	stores appStores,
 	logger *slog.Logger,
 ) (api.SantaDependencies, func()) {
-	santaService := santa.NewService(santa.ServiceDependencies{
-		Store:          stores.santa,
+	santaService := santa.NewService(santa.Dependencies{
+		HostStore:      stores.santa,
 		Configurations: stores.santaConfigurations,
 		Events:         stores.santaEvents,
 		Rules:          stores.santaRules,
-		SyncStore:      stores.santaSync,
+		Sync:           stores.santaSync,
 	})
+	santaHostState := santa.NewHostStateService(stores.santa, stores.santaConfigurations)
 	eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
 		RetentionDays: cfg.SantaEventRetentionDays,
 		SweepInterval: cfg.SantaEventSweepInterval,
 	}, logger.With("component", "santa"))
 	return api.SantaDependencies{
 		Service:        santaService,
-		Store:          stores.santa,
+		HostState:      santaHostState,
 		Configurations: stores.santaConfigurations,
 		Rules:          stores.santaRules,
 		Events:         stores.santaEvents,

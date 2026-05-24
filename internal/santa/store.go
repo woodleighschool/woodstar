@@ -15,17 +15,12 @@ import (
 
 // Store persists Santa state.
 type Store struct {
-	db             *database.DB
-	q              *sqlc.Queries
-	configurations *configurations.Store
+	db *database.DB
+	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{
-		db:             db,
-		q:              db.Queries(),
-		configurations: configurations.NewStore(db),
-	}
+	return &Store{db: db, q: db.Queries()}
 }
 
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
@@ -56,7 +51,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 	})
 }
 
-func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
+func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
 	var detail HostState
 	var clientMode string
 	err := s.db.Pool().QueryRow(ctx, `
@@ -89,13 +84,6 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 
 	detail.ClientModeReported = configurations.ClientMode(clientMode)
 	detail.RuleSync = ruleSync
-	effectiveConfiguration, err := s.configurations.ResolveConfigurationForHost(ctx, hostID)
-	if err != nil {
-		return nil, err
-	}
-	if effectiveConfiguration != nil {
-		detail.EffectiveConfiguration = effectiveConfiguration
-	}
 	return &detail, nil
 }
 

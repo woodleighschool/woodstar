@@ -11,66 +11,87 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
+
+const ruleDownloadPageSize = 500
 
 // Service coordinates Santa sync protocol stages.
 type Service struct {
-	store          *Store
-	configurations *configurations.Store
-	events         *santaevents.Store
-	rules          *santarules.Store
-	syncStore      *santasync.Store
+	hosts          hostStore
+	configurations configurationResolver
+	events         eventStore
+	rules          ruleStore
+	sync           syncStore
 }
 
-type ServiceDependencies struct {
-	Store          *Store
-	Configurations *configurations.Store
-	Events         *santaevents.Store
-	Rules          *santarules.Store
-	SyncStore      *santasync.Store
+type Dependencies struct {
+	HostStore      hostStore
+	Configurations configurationResolver
+	Events         eventStore
+	Rules          ruleStore
+	Sync           syncStore
 }
 
-func NewService(deps ServiceDependencies) *Service {
-	if deps.Store == nil || deps.Configurations == nil || deps.Events == nil || deps.Rules == nil ||
-		deps.SyncStore == nil {
-		panic("santa service requires store, configurations, events, rules, and sync store")
-	}
+type hostStore interface {
+	hostIDByMachineID(context.Context, string) (int64, error)
+	UpsertHostObservation(context.Context, HostObservation) error
+}
+
+type configurationResolver interface {
+	ResolveConfigurationForHost(context.Context, int64) (*configurations.ResolvedConfiguration, error)
+}
+
+type eventStore interface {
+	IngestExecutionEvents(context.Context, int64, []santaevents.ExecutionEventInput) error
+}
+
+type ruleStore interface {
+	ResolveRulesForHost(context.Context, int64) ([]santarules.EffectiveRule, error)
+}
+
+type syncStore interface {
+	ReplacePending(context.Context, int64, string, []syncstate.Target, []syncstate.Target, bool) error
+	LoadPendingTargetsPage(context.Context, int64, string, int) (syncstate.TargetPage, error)
+	PromotePending(context.Context, int64, string, int, int) error
+}
+
+func NewService(deps Dependencies) *Service {
 	return &Service{
-		store:          deps.Store,
+		hosts:          deps.HostStore,
 		configurations: deps.Configurations,
 		events:         deps.Events,
 		rules:          deps.Rules,
-		syncStore:      deps.SyncStore,
+		sync:           deps.Sync,
 	}
 }
 
 func (s *Service) Preflight(
 	ctx context.Context,
 	machineID string,
-	req santasync.PreflightRequest,
-) (santasync.PreflightResponse, error) {
-	hostID, err := s.store.hostIDByMachineID(ctx, machineID)
+	req syncstate.PreflightRequest,
+) (syncstate.PreflightResponse, error) {
+	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return santasync.PreflightResponse{}, err
+		return syncstate.PreflightResponse{}, err
 	}
-	if err := s.store.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
-		return santasync.PreflightResponse{}, err
+	if err := s.hosts.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
+		return syncstate.PreflightResponse{}, err
 	}
 
 	effectiveRules, err := s.rules.ResolveRulesForHost(ctx, hostID)
 	if err != nil {
-		return santasync.PreflightResponse{}, err
+		return syncstate.PreflightResponse{}, err
 	}
 	targets := santarules.SyncTargetsFromRules(effectiveRules)
 	pending := targets
-	syncType := santasync.SyncTypeNormal
+	syncType := syncstate.SyncTypeNormal
 	pendingFullSync := false
 	if req.RequestCleanSync {
-		syncType = santasync.SyncTypeClean
+		syncType = syncstate.SyncTypeClean
 		pendingFullSync = true
 	}
-	if err := s.syncStore.ReplacePending(
+	if err := s.sync.ReplacePending(
 		ctx,
 		hostID,
 		req.RulesHash,
@@ -78,13 +99,13 @@ func (s *Service) Preflight(
 		pending,
 		pendingFullSync,
 	); err != nil {
-		return santasync.PreflightResponse{}, err
+		return syncstate.PreflightResponse{}, err
 	}
 
-	resp := santasync.PreflightResponse{SyncType: syncType}
+	resp := syncstate.PreflightResponse{SyncType: syncType}
 	configuration, err := s.configurations.ResolveConfigurationForHost(ctx, hostID)
 	if err != nil {
-		return santasync.PreflightResponse{}, err
+		return syncstate.PreflightResponse{}, err
 	}
 	if configuration != nil {
 		resp.Configuration = &configuration.Configuration
@@ -95,53 +116,53 @@ func (s *Service) Preflight(
 func (s *Service) EventUpload(
 	ctx context.Context,
 	machineID string,
-	req santasync.EventUploadRequest,
-) (santasync.EventUploadResponse, error) {
-	hostID, err := s.store.hostIDByMachineID(ctx, machineID)
+	req syncstate.EventUploadRequest,
+) (syncstate.EventUploadResponse, error) {
+	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return santasync.EventUploadResponse{}, err
+		return syncstate.EventUploadResponse{}, err
 	}
 	if err := s.events.IngestExecutionEvents(ctx, hostID, req.Events); err != nil {
-		return santasync.EventUploadResponse{}, err
+		return syncstate.EventUploadResponse{}, err
 	}
-	return santasync.EventUploadResponse{}, nil
+	return syncstate.EventUploadResponse{}, nil
 }
 
 func (s *Service) RuleDownload(
 	ctx context.Context,
 	machineID string,
-	_ santasync.RuleDownloadRequest,
-) (santasync.RuleDownloadResponse, error) {
-	hostID, err := s.store.hostIDByMachineID(ctx, machineID)
+	req syncstate.RuleDownloadRequest,
+) (syncstate.RuleDownloadResponse, error) {
+	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return santasync.RuleDownloadResponse{}, err
+		return syncstate.RuleDownloadResponse{}, err
 	}
-	targets, err := s.syncStore.LoadPendingTargets(ctx, hostID)
+	page, err := s.sync.LoadPendingTargetsPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
 	if err != nil {
-		return santasync.RuleDownloadResponse{}, err
+		return syncstate.RuleDownloadResponse{}, err
 	}
-	return santasync.RuleDownloadResponse{Rules: targets}, nil
+	return syncstate.RuleDownloadResponse{Rules: page.Targets, Cursor: page.Cursor}, nil
 }
 
 func (s *Service) Postflight(
 	ctx context.Context,
 	machineID string,
-	req santasync.PostflightRequest,
-) (santasync.PostflightResponse, error) {
-	hostID, err := s.store.hostIDByMachineID(ctx, machineID)
+	req syncstate.PostflightRequest,
+) (syncstate.PostflightResponse, error) {
+	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return santasync.PostflightResponse{}, err
+		return syncstate.PostflightResponse{}, err
 	}
-	if err := s.syncStore.PromotePending(
+	if err := s.sync.PromotePending(
 		ctx,
 		hostID,
 		req.RulesHash,
 		req.RulesReceived,
 		req.RulesProcessed,
 	); err != nil {
-		return santasync.PostflightResponse{}, err
+		return syncstate.PostflightResponse{}, err
 	}
-	return santasync.PostflightResponse{}, nil
+	return syncstate.PostflightResponse{}, nil
 }
 
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
@@ -162,7 +183,7 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 	return hostID, err
 }
 
-func hostObservationFromPreflight(hostID int64, machineID string, req santasync.PreflightRequest) HostObservation {
+func hostObservationFromPreflight(hostID int64, machineID string, req syncstate.PreflightRequest) HostObservation {
 	return HostObservation{
 		HostID:             hostID,
 		MachineID:          machineID,

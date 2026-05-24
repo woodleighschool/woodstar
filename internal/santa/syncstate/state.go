@@ -1,16 +1,19 @@
-package sync
+package syncstate
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const (
 	phaseDesired = "desired"
 	phasePending = "pending"
-	phaseApplied = "applied"
 )
 
 type Target struct {
@@ -21,6 +24,16 @@ type Target struct {
 	CustomMessage string `json:"custom_message,omitempty"`
 	CustomURL     string `json:"custom_url,omitempty"`
 	PayloadHash   string `json:"payload_hash"`
+}
+
+// TargetPage is one page of pending Santa rule targets.
+type TargetPage struct {
+	Targets []Target
+	Cursor  string
+}
+
+type pageCursor struct {
+	Offset int `json:"offset"`
 }
 
 func (target Target) key() string {
@@ -76,12 +89,53 @@ func (s *Store) ReplacePending(
 	})
 }
 
-func (s *Store) LoadPendingTargets(ctx context.Context, hostID int64) ([]Target, error) {
-	targets, err := s.loadTargets(ctx, hostID, phasePending)
-	if err != nil {
-		return nil, err
+// LoadPendingTargetsPage returns pending targets starting at the opaque cursor.
+func (s *Store) LoadPendingTargetsPage(
+	ctx context.Context,
+	hostID int64,
+	cursor string,
+	limit int,
+) (TargetPage, error) {
+	if limit <= 0 {
+		return TargetPage{}, dbutil.ErrInvalidInput
 	}
-	return targets, nil
+	offset, err := decodeCursor(cursor)
+	if err != nil {
+		return TargetPage{}, err
+	}
+
+	rows, err := s.db.Pool().Query(ctx, `
+		SELECT
+			rule_type::text,
+			identifier,
+			policy::text,
+			cel_expression,
+			custom_message,
+			custom_url,
+			payload_hash
+		FROM santa_sync_targets
+		WHERE host_id = $1 AND phase = 'pending'
+		ORDER BY position
+		LIMIT $2 OFFSET $3
+	`, hostID, limit+1, offset)
+	if err != nil {
+		return TargetPage{}, err
+	}
+	defer rows.Close()
+
+	targets, err := pgx.CollectRows(rows, scanTarget)
+	if err != nil {
+		return TargetPage{}, err
+	}
+	nextCursor := ""
+	if len(targets) > limit {
+		targets = targets[:limit]
+		nextCursor, err = encodeCursor(offset + limit)
+		if err != nil {
+			return TargetPage{}, err
+		}
+	}
+	return TargetPage{Targets: targets, Cursor: nextCursor}, nil
 }
 
 func (s *Store) PromotePending(
@@ -167,28 +221,6 @@ func (s *Store) PromotePending(
 	})
 }
 
-func (s *Store) loadTargets(ctx context.Context, hostID int64, phase string) ([]Target, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT
-			rule_type::text,
-			identifier,
-			policy::text,
-			cel_expression,
-			custom_message,
-			custom_url,
-			payload_hash
-		FROM santa_sync_targets
-		WHERE host_id = $1 AND phase = $2::santa_sync_target_phase
-		ORDER BY position
-	`, hostID, phase)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return pgx.CollectRows(rows, scanTarget)
-}
-
 func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, targets []Target) error {
 	for position, target := range targets {
 		if _, err := tx.Exec(ctx, `
@@ -246,4 +278,30 @@ func scanTarget(row pgx.CollectableRow) (Target, error) {
 		&target.PayloadHash,
 	)
 	return target, err
+}
+
+func decodeCursor(cursor string) (int, error) {
+	if cursor == "" {
+		return 0, nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil {
+		return 0, dbutil.ErrInvalidInput
+	}
+	var decoded pageCursor
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return 0, dbutil.ErrInvalidInput
+	}
+	if decoded.Offset < 0 {
+		return 0, dbutil.ErrInvalidInput
+	}
+	return decoded.Offset, nil
+}
+
+func encodeCursor(offset int) (string, error) {
+	payload, err := json.Marshal(pageCursor{Offset: offset})
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
 }
