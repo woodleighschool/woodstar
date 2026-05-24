@@ -1,8 +1,9 @@
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ListChecks, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
@@ -11,25 +12,8 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
 import { SortableList, type SortableItem } from "@/components/santa/sortable-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -37,14 +21,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
+  useBulkDeleteSantaRules,
   useCreateSantaRule,
-  useDeleteSantaRule,
   useSantaRule,
   useSantaRules,
   useUpdateSantaRule,
   type SantaRule,
   type SantaRuleMutation,
-  type SantaRuleUpdate,
 } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
@@ -66,6 +49,29 @@ const POLICIES = [
 
 type RuleType = (typeof RULE_TYPES)[number]["value"];
 type RulePolicy = (typeof POLICIES)[number]["value"];
+
+const RULE_IDENTIFIER_RULES: Record<RuleType, { pattern: RegExp; hint: string }> = {
+  binary: {
+    pattern: /^[0-9a-fA-F]{64}$/,
+    hint: "Use a 64 character SHA-256 hex hash.",
+  },
+  certificate: {
+    pattern: /^[0-9a-fA-F]{64}$/,
+    hint: "Use a 64 character certificate SHA-256 hex fingerprint.",
+  },
+  cdhash: {
+    pattern: /^[0-9a-fA-F]{40}$/,
+    hint: "Use a 40 character CDHash hex value.",
+  },
+  signingid: {
+    pattern: /^(?:[A-Z0-9]{10}|platform):[a-zA-Z0-9.-]+$/,
+    hint: "Use TEAMID:bundle.identifier or platform:bundle.identifier.",
+  },
+  teamid: {
+    pattern: /^[A-Z0-9]{10}$/,
+    hint: "Use a 10 character uppercase Team ID.",
+  },
+};
 
 interface RuleIncludeForm extends SortableItem {
   policy: RulePolicy;
@@ -105,11 +111,22 @@ export function SantaRulesPage() {
     rule_type: ruleType,
     ...tableQueryParams(state),
   });
-  const remove = useDeleteSantaRule();
-  const [deleting, setDeleting] = useState<SantaRule | null>(null);
+  const bulkDelete = useBulkDeleteSantaRules();
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const rows = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!ruleType;
+  const selectedIDs = selectedRuleIds.map(Number);
+
+  function deleteSelectedRules() {
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => {
+        setSelectedRuleIds([]);
+        setDeleteOpen(false);
+      },
+    });
+  }
 
   const columns: ColumnDef<SantaRule>[] = [
     {
@@ -141,15 +158,6 @@ export function SantaRulesPage() {
         ) : (
           <Badge variant="outline">inactive</Badge>
         ),
-    },
-    {
-      id: "actions",
-      header: () => null,
-      enableSorting: false,
-      cell: ({ row }) => (
-        <RuleRowActions rule={row.original} pending={remove.isPending} onDelete={() => setDeleting(row.original)} />
-      ),
-      meta: { headClassName: "w-12" },
     },
   ];
 
@@ -183,6 +191,15 @@ export function SantaRulesPage() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedRuleIds}
+          onSelectedRowIdsChange={setSelectedRuleIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
+          }
           rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
@@ -223,96 +240,20 @@ export function SantaRulesPage() {
         />
       )}
 
-      <RuleDeleteDialog
-        rule={deleting}
-        open={deleting !== null}
-        pending={remove.isPending}
-        error={remove.error?.message}
+      <BulkDeleteDialog
+        open={deleteOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            remove.reset();
-            setDeleting(null);
-          }
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
         }}
-        onConfirm={async () => {
-          if (!deleting) return;
-          await remove.mutateAsync(deleting.id);
-          setDeleting(null);
-        }}
+        count={selectedIDs.length}
+        noun="rule"
+        description="Deleted rules stop syncing to Santa clients."
+        error={bulkDelete.error?.message}
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedRules}
       />
     </PageShell>
-  );
-}
-
-function RuleRowActions({ rule, pending, onDelete }: { rule: SantaRule; pending: boolean; onDelete: () => void }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" disabled={pending}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link to="/santa/rules/$ruleId/edit" params={{ ruleId: String(rule.id) }}>
-              Edit
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function RuleDeleteDialog({
-  rule,
-  open,
-  pending,
-  error,
-  onOpenChange,
-  onConfirm,
-}: {
-  rule: SantaRule | null;
-  open: boolean;
-  pending: boolean;
-  error?: string;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Santa rule?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {rule
-              ? `${rule.name || rule.identifier} will be removed from Santa rule sync.`
-              : "This rule will be removed from Santa rule sync."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            size="sm"
-            disabled={pending}
-            onClick={(event) => {
-              event.preventDefault();
-              void onConfirm();
-            }}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 
@@ -353,11 +294,13 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
   const [form, setForm] = useState<RuleFormState>(initial);
   const pending = create.isPending || update.isPending;
   const error = create.error ?? update.error;
-  const isEditing = mode === "edit";
+  const identifierError = ruleIdentifierError(form.rule_type, form.identifier);
+  const identifierInvalid = form.identifier.trim() !== "" && identifierError !== null;
 
   async function submit() {
-    if (mode === "create") await create.mutateAsync(ruleCreateBody(form));
-    else await update.mutateAsync({ id: Number(ruleId), body: ruleUpdateBody(form) });
+    if (!canSaveRule(form)) return;
+    if (mode === "create") await create.mutateAsync(ruleBody(form));
+    else await update.mutateAsync({ id: Number(ruleId), body: ruleBody(form) });
     void navigate({ to: "/santa/rules" });
   }
 
@@ -379,17 +322,6 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
         <PageHeader
           title={mode === "create" ? "New Santa rule" : "Edit Santa rule"}
           description="Define the Santa rule identity, policy targets, and user-facing block text."
-          actions={
-            <>
-              <Button asChild type="button" variant="outline" size="sm">
-                <Link to="/santa/rules">Cancel</Link>
-              </Button>
-              <Button type="submit" size="sm" disabled={pending || !canSaveRule(form)}>
-                {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                Save
-              </Button>
-            </>
-          }
         />
 
         {error ? (
@@ -403,11 +335,10 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
           <FieldSet>
             <FieldLegend>Identity</FieldLegend>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field data-disabled={isEditing}>
+              <Field>
                 <FieldLabel htmlFor="santa-rule-type">Rule type</FieldLabel>
                 <Select
                   value={form.rule_type}
-                  disabled={isEditing}
                   onValueChange={(rule_type) => setForm({ ...form, rule_type: rule_type as RuleType })}
                 >
                   <SelectTrigger id="santa-rule-type" className="w-full">
@@ -423,18 +354,17 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <FieldDescription>Rule type cannot change after creation.</FieldDescription>
               </Field>
-              <Field data-disabled={isEditing}>
+              <Field data-invalid={identifierInvalid}>
                 <FieldLabel htmlFor="santa-rule-identifier">Identifier</FieldLabel>
                 <Input
                   id="santa-rule-identifier"
                   required
-                  disabled={isEditing}
+                  aria-invalid={identifierInvalid}
                   value={form.identifier}
                   onChange={(event) => setForm({ ...form, identifier: event.target.value })}
                 />
-                <FieldDescription>Hash, Team ID, Signing ID, or certificate fingerprint.</FieldDescription>
+                <FieldDescription>{identifierError ?? ruleIdentifierHint(form.rule_type)}</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
@@ -606,20 +536,10 @@ function formFromRule(rule: SantaRule): RuleFormState {
   };
 }
 
-function ruleCreateBody(form: RuleFormState): SantaRuleMutation {
+function ruleBody(form: RuleFormState): SantaRuleMutation {
   return {
     rule_type: form.rule_type,
     identifier: form.identifier.trim(),
-    name: optionalText(form.name),
-    custom_message: optionalText(form.custom_message),
-    custom_url: optionalText(form.custom_url),
-    exclude_label_ids: form.exclude_label_ids,
-    includes: form.includes.map(includeBody),
-  };
-}
-
-function ruleUpdateBody(form: RuleFormState): SantaRuleUpdate {
-  return {
     name: optionalText(form.name),
     custom_message: optionalText(form.custom_message),
     custom_url: optionalText(form.custom_url),
@@ -642,9 +562,24 @@ function optionalText(value: string) {
 }
 
 function canSaveRule(form: RuleFormState) {
-  return form.rule_type.trim() !== "" && form.identifier.trim() !== "";
+  return (
+    form.rule_type.trim() !== "" &&
+    form.identifier.trim() !== "" &&
+    ruleIdentifierError(form.rule_type, form.identifier) === null
+  );
 }
 
 function ruleTypeLabel(ruleType: string) {
   return RULE_TYPES.find((type) => type.value === ruleType)?.label ?? ruleType;
+}
+
+function ruleIdentifierHint(ruleType: RuleType) {
+  return RULE_IDENTIFIER_RULES[ruleType].hint;
+}
+
+function ruleIdentifierError(ruleType: RuleType, identifier: string) {
+  const trimmed = identifier.trim();
+  if (trimmed === "") return null;
+  const rule = RULE_IDENTIFIER_RULES[ruleType];
+  return rule.pattern.test(trimmed) ? null : rule.hint;
 }

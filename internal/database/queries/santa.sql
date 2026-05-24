@@ -135,6 +135,11 @@ DELETE FROM santa_configurations
 WHERE id = @id
 RETURNING id;
 
+-- name: DeleteSantaConfigurations :many
+DELETE FROM santa_configurations
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
+
 -- name: CreateSantaRule :one
 INSERT INTO santa_rules (
     rule_type,
@@ -160,6 +165,8 @@ WHERE id = @id;
 -- name: UpdateSantaRule :one
 UPDATE santa_rules
 SET
+    rule_type = @rule_type::santa_rule_type,
+    identifier = @identifier,
     name = @name,
     custom_message = @custom_message,
     custom_url = @custom_url,
@@ -170,4 +177,9 @@ RETURNING *;
 -- name: DeleteSantaRule :one
 DELETE FROM santa_rules
 WHERE id = @id
+RETURNING id;
+
+-- name: DeleteSantaRules :many
+DELETE FROM santa_rules
+WHERE id = ANY(@ids::bigint[])
 RETURNING id;

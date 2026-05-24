@@ -14,6 +14,7 @@ import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
 import { useReport } from "@/hooks/use-reports";
+import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
 import { useSoftwareTitle } from "@/hooks/use-software";
 import { useUser } from "@/hooks/use-users";
 
@@ -178,15 +179,44 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Santa
+    case "/_authenticated/santa/configurations/":
     case "/_authenticated/santa/configurations":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
         { key: "santa-configurations", label: "Configurations" },
       ];
+    case "/_authenticated/santa/configurations/new":
+      return [
+        { key: "santa", label: "Santa", to: "/santa/configurations" },
+        { key: "santa-configurations", label: "Configurations", to: "/santa/configurations" },
+        { key: "santa-configurations-new", label: "New" },
+      ];
+    case "/_authenticated/santa/configurations/$configurationId/edit":
+      return [
+        { key: "santa", label: "Santa", to: "/santa/configurations" },
+        { key: "santa-configurations", label: "Configurations", to: "/santa/configurations" },
+        {
+          key: `santa-configuration-${params.configurationId}`,
+          label: <SantaConfigurationCrumb id={params.configurationId} />,
+        },
+      ];
+    case "/_authenticated/santa/rules/":
     case "/_authenticated/santa/rules":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
         { key: "santa-rules", label: "Rules" },
+      ];
+    case "/_authenticated/santa/rules/new":
+      return [
+        { key: "santa", label: "Santa", to: "/santa/configurations" },
+        { key: "santa-rules", label: "Rules", to: "/santa/rules" },
+        { key: "santa-rules-new", label: "New" },
+      ];
+    case "/_authenticated/santa/rules/$ruleId/edit":
+      return [
+        { key: "santa", label: "Santa", to: "/santa/configurations" },
+        { key: "santa-rules", label: "Rules", to: "/santa/rules" },
+        { key: `santa-rule-${params.ruleId}`, label: <SantaRuleCrumb id={params.ruleId} /> },
       ];
     case "/_authenticated/santa/sync-tokens":
       return [
@@ -239,6 +269,18 @@ function ReportCrumb({ id }: { id: string }) {
   const { data, isLoading } = useReport(id);
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
+}
+
+function SantaConfigurationCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useSantaConfiguration(id);
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{data.name || id}</span>;
+}
+
+function SantaRuleCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useSantaRule(id);
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{data.name || data.identifier || id}</span>;
 }
 
 function LabelCrumb({ id }: { id: string }) {

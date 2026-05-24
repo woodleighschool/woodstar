@@ -12,8 +12,7 @@ export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"]
 export type SantaEvent = Schemas["ExecutionEvent"];
 export type SantaEventPage = Schemas["EventPage"];
 export type SantaRule = Schemas["Rule"];
-export type SantaRuleMutation = Schemas["RuleCreate"];
-export type SantaRuleUpdate = Schemas["RuleUpdate"];
+export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
 export type SantaSyncToken = Schemas["SyncToken"];
 
@@ -125,6 +124,16 @@ export function useDeleteSantaConfiguration() {
   });
 }
 
+export function useBulkDeleteSantaConfigurations() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/santa/configurations/bulk-delete", { body: { ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
+    },
+  });
+}
+
 export function useReorderSantaConfigurations() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number[]>({
@@ -147,7 +156,7 @@ export function useCreateSantaRule() {
 
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
-  return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleUpdate }>({
+  return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(apiClient.PATCH("/api/santa/rules/{id}", { params: { path: { id: String(id) } }, body })),
     onSuccess: () => {
@@ -160,6 +169,16 @@ export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
     mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id: String(id) } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
+    },
+  });
+}
+
+export function useBulkDeleteSantaRules() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/santa/rules/bulk-delete", { body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
     },

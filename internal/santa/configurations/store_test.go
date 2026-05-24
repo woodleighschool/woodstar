@@ -171,6 +171,36 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	}
 }
 
+func TestConfigurationStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := configurations.NewStore(db)
+
+	first, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{Name: "First"})
+	if err != nil {
+		t.Fatalf("create first configuration: %v", err)
+	}
+	second, err := store.CreateConfiguration(ctx, configurations.ConfigurationMutation{Name: "Second"})
+	if err != nil {
+		t.Fatalf("create second configuration: %v", err)
+	}
+
+	deleted, err := store.DeleteMany(ctx, []int64{first.ID, second.ID + 999})
+	if err != nil {
+		t.Fatalf("bulk delete configurations: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+
+	got, _, err := store.ListConfigurations(ctx, configurations.ConfigurationListParams{})
+	if err != nil {
+		t.Fatalf("list configurations: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != second.ID {
+		t.Fatalf("configurations after delete = %+v, want only second", got)
+	}
+}
+
 func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) int64 {
 	t.Helper()
 

@@ -1,10 +1,9 @@
-import { Link } from "@tanstack/react-router";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { Button } from "@/components/ui/button";
+import { LabelChips } from "@/components/labels/label-chips";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -107,15 +106,7 @@ export function HostLabelsCard({ host }: { host: HostDetail }) {
         <CardTitle>Labels</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-1.5">
-          {labels.map((l) => (
-            <Button key={l.id} asChild size="xs" variant="outline" className="font-normal">
-              <Link to="/hosts" search={{ label_id: String(l.id) }}>
-                {l.name}
-              </Link>
-            </Button>
-          ))}
-        </div>
+        <LabelChips labels={labels} />
       </CardContent>
     </Card>
   );

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -29,26 +28,6 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-type RuleType string
-
-const (
-	RuleTypeBinary      RuleType = "binary"
-	RuleTypeCertificate RuleType = "certificate"
-	RuleTypeTeamID      RuleType = "teamid"
-	RuleTypeSigningID   RuleType = "signingid"
-	RuleTypeCDHash      RuleType = "cdhash"
-)
-
-type Policy string
-
-const (
-	PolicyAllowlist         Policy = "allowlist"
-	PolicyAllowlistCompiler Policy = "allowlist_compiler"
-	PolicyBlocklist         Policy = "blocklist"
-	PolicySilentBlocklist   Policy = "silent_blocklist"
-	PolicyCEL               Policy = "cel"
-)
-
 var validRuleTypes = map[RuleType]struct{}{
 	RuleTypeBinary:      {},
 	RuleTypeCertificate: {},
@@ -63,78 +42,6 @@ var validPolicies = map[Policy]struct{}{
 	PolicyBlocklist:         {},
 	PolicySilentBlocklist:   {},
 	PolicyCEL:               {},
-}
-
-type RuleListParams struct {
-	dbutil.ListParams
-
-	RuleType RuleType
-}
-
-type RuleCreate struct {
-	RuleType        RuleType           `json:"rule_type"                   enum:"binary,certificate,teamid,signingid,cdhash"`
-	Identifier      string             `json:"identifier"`
-	Name            string             `json:"name,omitempty"`
-	CustomMessage   string             `json:"custom_message,omitempty"`
-	CustomURL       string             `json:"custom_url,omitempty"`
-	Includes        []RuleIncludeWrite `json:"includes,omitempty"`
-	ExcludeLabelIDs []int64            `json:"exclude_label_ids,omitempty"`
-}
-
-type RuleUpdate struct {
-	Name            string             `json:"name,omitempty"`
-	CustomMessage   string             `json:"custom_message,omitempty"`
-	CustomURL       string             `json:"custom_url,omitempty"`
-	Includes        []RuleIncludeWrite `json:"includes,omitempty"`
-	ExcludeLabelIDs []int64            `json:"exclude_label_ids,omitempty"`
-}
-
-type RuleIncludeWrite struct {
-	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
-	CELExpression string  `json:"cel_expression,omitempty"`
-	LabelIDs      []int64 `json:"label_ids"`
-}
-
-type Rule struct {
-	ID              int64         `json:"id"`
-	RuleType        RuleType      `json:"rule_type"         enum:"binary,certificate,teamid,signingid,cdhash"`
-	Identifier      string        `json:"identifier"`
-	Name            string        `json:"name"`
-	CustomMessage   string        `json:"custom_message"`
-	CustomURL       string        `json:"custom_url"`
-	Includes        []RuleInclude `json:"includes"`
-	ExcludeLabelIDs []int64       `json:"exclude_label_ids"`
-	CreatedAt       time.Time     `json:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at"`
-}
-
-type RuleInclude struct {
-	ID            int64   `json:"id"`
-	Position      int     `json:"position"`
-	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
-	CELExpression string  `json:"cel_expression,omitempty"`
-	LabelIDs      []int64 `json:"label_ids"`
-}
-
-type EffectiveRule struct {
-	RuleID           int64    `json:"rule_id"`
-	RuleType         RuleType `json:"rule_type"                enum:"binary,certificate,teamid,signingid,cdhash"`
-	Identifier       string   `json:"identifier"`
-	Policy           Policy   `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
-	CELExpression    string   `json:"cel_expression,omitempty"`
-	CustomMessage    string   `json:"custom_message,omitempty"`
-	CustomURL        string   `json:"custom_url,omitempty"`
-	MatchedIncludeID int64    `json:"matched_include_id"`
-}
-
-type EffectiveRuleStatus struct {
-	EffectiveRule
-	Applied     bool   `json:"applied"`
-	PayloadHash string `json:"payload_hash"`
-}
-
-type EffectiveRuleListParams struct {
-	dbutil.ListParams
 }
 
 func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
@@ -202,8 +109,8 @@ func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 	return &rule, nil
 }
 
-func (s *Store) CreateRule(ctx context.Context, params RuleCreate) (*Rule, error) {
-	cleaned, err := cleanRuleCreate(params)
+func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, error) {
+	cleaned, err := cleanRuleMutation(params)
 	if err != nil {
 		return nil, err
 	}
@@ -232,14 +139,16 @@ func (s *Store) CreateRule(ctx context.Context, params RuleCreate) (*Rule, error
 	return s.GetRuleByID(ctx, ruleID)
 }
 
-func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleUpdate) (*Rule, error) {
-	cleaned, err := cleanRuleUpdate(params)
+func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (*Rule, error) {
+	cleaned, err := cleanRuleMutation(params)
 	if err != nil {
 		return nil, err
 	}
 
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
+			RuleType:      sqlc.SantaRuleType(cleaned.RuleType),
+			Identifier:    cleaned.Identifier,
 			Name:          cleaned.Name,
 			CustomMessage: cleaned.CustomMessage,
 			CustomURL:     cleaned.CustomURL,
@@ -249,6 +158,9 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleUpdate) (*R
 			return dbutil.ErrNotFound
 		}
 		if err != nil {
+			if dbutil.IsUniqueViolation(err) {
+				return dbutil.ErrAlreadyExists
+			}
 			return err
 		}
 		return replaceRuleChildren(ctx, tx, row.ID, cleaned.Includes, cleaned.ExcludeLabelIDs)
@@ -265,6 +177,18 @@ func (s *Store) DeleteRule(ctx context.Context, id int64) error {
 		return dbutil.ErrNotFound
 	}
 	return err
+}
+
+// DeleteMany removes multiple Santa rules. Missing IDs are ignored so repeated bulk actions are idempotent.
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	deletedIDs, err := s.q.DeleteSantaRules(ctx, sqlc.DeleteSantaRulesParams{Ids: ids})
+	if err != nil {
+		return 0, err
+	}
+	return len(deletedIDs), nil
 }
 
 func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIncludeIDs []int64) error {
@@ -581,42 +505,25 @@ func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map
 	return out, rows.Err()
 }
 
-func cleanRuleCreate(params RuleCreate) (RuleCreate, error) {
+func cleanRuleMutation(params RuleMutation) (RuleMutation, error) {
 	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
 	params.Identifier = strings.TrimSpace(params.Identifier)
 	params.Name = strings.TrimSpace(params.Name)
 	params.CustomMessage = strings.TrimSpace(params.CustomMessage)
 	params.CustomURL = strings.TrimSpace(params.CustomURL)
 	if !validRuleType(params.RuleType) {
-		return RuleCreate{}, fmt.Errorf("%w: unknown rule type", dbutil.ErrInvalidInput)
+		return RuleMutation{}, fmt.Errorf("%w: unknown rule type", dbutil.ErrInvalidInput)
 	}
 	if params.Identifier == "" {
-		return RuleCreate{}, fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
+		return RuleMutation{}, fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
 	}
 	includes, err := cleanRuleIncludes(params.Includes)
 	if err != nil {
-		return RuleCreate{}, err
+		return RuleMutation{}, err
 	}
 	excludeLabelIDs, err := santaids.CleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
 	if err != nil {
-		return RuleCreate{}, err
-	}
-	params.Includes = includes
-	params.ExcludeLabelIDs = excludeLabelIDs
-	return params, nil
-}
-
-func cleanRuleUpdate(params RuleUpdate) (RuleUpdate, error) {
-	params.Name = strings.TrimSpace(params.Name)
-	params.CustomMessage = strings.TrimSpace(params.CustomMessage)
-	params.CustomURL = strings.TrimSpace(params.CustomURL)
-	includes, err := cleanRuleIncludes(params.Includes)
-	if err != nil {
-		return RuleUpdate{}, err
-	}
-	excludeLabelIDs, err := santaids.CleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
-	if err != nil {
-		return RuleUpdate{}, err
+		return RuleMutation{}, err
 	}
 	params.Includes = includes
 	params.ExcludeLabelIDs = excludeLabelIDs

@@ -71,6 +71,10 @@ type santaConfigurationDeleteInput struct {
 	ID string `path:"id"`
 }
 
+type santaConfigurationBulkDeleteInput struct {
+	Body bulkIDsBody
+}
+
 type santaConfigurationReorderInput struct {
 	Body santaConfigurationReorderBody
 }
@@ -113,6 +117,7 @@ func RegisterSantaConfigurations(api huma.API, store *configurations.Store) {
 	registerGetSantaConfiguration(api, store)
 	registerPatchSantaConfiguration(api, store)
 	registerDeleteSantaConfiguration(api, store)
+	registerBulkDeleteSantaConfigurations(api, store)
 	registerReorderSantaConfigurations(api, store)
 }
 
@@ -221,6 +226,26 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store)
 	})
 }
 
+func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-santa-configurations",
+		Method:      http.MethodPost,
+		Path:        "/api/santa/configurations/bulk-delete",
+		Tags:        []string{santaTag},
+		Summary:     "Delete Santa configurations",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *santaConfigurationBulkDeleteInput) (*struct{}, error) {
+		ids, err := input.Body.ids("configuration IDs")
+		if err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, ids); err != nil {
+			return nil, santaConfigurationMutationError(err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
 func registerReorderSantaConfigurations(api huma.API, store *configurations.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "reorder-santa-configurations",
@@ -261,16 +286,20 @@ type santaRuleGetInput struct {
 }
 
 type santaRuleCreateInput struct {
-	Body santarules.RuleCreate
+	Body santarules.RuleMutation
 }
 
 type santaRulePatchInput struct {
 	ID   string `path:"id"`
-	Body santarules.RuleUpdate
+	Body santarules.RuleMutation
 }
 
 type santaRuleDeleteInput struct {
 	ID string `path:"id"`
+}
+
+type santaRuleBulkDeleteInput struct {
+	Body bulkIDsBody
 }
 
 type santaRuleReorderIncludesInput struct {
@@ -303,6 +332,7 @@ func RegisterSantaRules(api huma.API, store *santarules.Store) {
 	registerGetSantaRule(api, store)
 	registerPatchSantaRule(api, store)
 	registerDeleteSantaRule(api, store)
+	registerBulkDeleteSantaRules(api, store)
 	registerReorderSantaRuleIncludes(api, store)
 }
 
@@ -403,6 +433,26 @@ func registerDeleteSantaRule(api huma.API, store *santarules.Store) {
 			return nil, err
 		}
 		if err := store.DeleteRule(ctx, id); err != nil {
+			return nil, resourceMutationError(santaRuleResource, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteSantaRules(api huma.API, store *santarules.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-santa-rules",
+		Method:      http.MethodPost,
+		Path:        "/api/santa/rules/bulk-delete",
+		Tags:        []string{santaTag},
+		Summary:     "Delete Santa rules",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
+		ids, err := input.Body.ids("rule IDs")
+		if err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, ids); err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil

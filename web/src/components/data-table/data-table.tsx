@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
 import {
   flexRender,
   getCoreRowModel,
@@ -17,25 +16,11 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { DataTableBodyRow } from "@/components/data-table/data-table-row";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-
-const INTERACTIVE_SELECTOR = [
-  "a",
-  "button",
-  "input",
-  "label",
-  "select",
-  "textarea",
-  "[role=checkbox]",
-  "[role=menu]",
-  "[role=menuitem]",
-  "[role=button]",
-  "[role=dialog]",
-  "[data-slot=dropdown-menu-content]",
-].join(", ");
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -97,7 +82,6 @@ export function DataTable<TData, TValue>({
   perPageOptions,
   clientSort = false,
 }: DataTableProps<TData, TValue>) {
-  const navigate = useNavigate();
   const [localPagination, setLocalPagination] = useState<PaginationState>(pagination);
   const [localSorting, setLocalSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -147,6 +131,7 @@ export function DataTable<TData, TValue>({
 
   const showSkeleton = isLoading && data.length === 0;
   const showEmpty = !showSkeleton && data.length === 0;
+  const visibleRows = table.getRowModel().rows;
   const skeletonRowIds = Array.from({ length: skeletonRows }, (_, row) => `skeleton-row-${row}`);
 
   return (
@@ -184,44 +169,15 @@ export function DataTable<TData, TValue>({
                 ))
               : showEmpty
                 ? null
-                : table.getRowModel().rows.map((row) => {
-                    const linkProps = rowHref?.(row.original);
-                    const hasRowAction = linkProps !== undefined || onRowClick !== undefined;
-                    const cells = row.getVisibleCells();
-                    const firstDataIndex = enableRowSelection ? 1 : 0;
-                    return (
-                      <TableRow
-                        key={row.id}
-                        className={cn(hasRowAction && "cursor-pointer")}
-                        onClick={
-                          hasRowAction
-                            ? (e) => {
-                                const target = e.target as HTMLElement;
-                                if (target.closest(INTERACTIVE_SELECTOR)) return;
-                                if (window.getSelection()?.toString()) return;
-                                if (linkProps !== undefined) {
-                                  void navigate({ to: linkProps.to, params: linkProps.params });
-                                } else {
-                                  onRowClick?.(row.original);
-                                }
-                              }
-                            : undefined
-                        }
-                      >
-                        {cells.map((cell, i) => (
-                          <TableCell
-                            key={cell.id}
-                            className={cn(
-                              cell.column.columnDef.meta?.cellClassName,
-                              i === firstDataIndex && linkProps && "font-medium",
-                            )}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
+                : visibleRows.map((row) => (
+                    <DataTableBodyRow
+                      key={row.id}
+                      row={row}
+                      enableRowSelection={enableRowSelection}
+                      rowHref={rowHref}
+                      onRowClick={onRowClick}
+                    />
+                  ))}
           </TableBody>
         </Table>
         {showEmpty ? <div className="flex min-h-72 justify-center px-4 py-12">{empty}</div> : null}

@@ -197,6 +197,36 @@ func (q *Queries) DeleteSantaConfiguration(ctx context.Context, arg DeleteSantaC
 	return id, err
 }
 
+const deleteSantaConfigurations = `-- name: DeleteSantaConfigurations :many
+DELETE FROM santa_configurations
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteSantaConfigurationsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteSantaConfigurations(ctx context.Context, arg DeleteSantaConfigurationsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteSantaConfigurations, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteSantaRule = `-- name: DeleteSantaRule :one
 DELETE FROM santa_rules
 WHERE id = $1
@@ -212,6 +242,36 @@ func (q *Queries) DeleteSantaRule(ctx context.Context, arg DeleteSantaRuleParams
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const deleteSantaRules = `-- name: DeleteSantaRules :many
+DELETE FROM santa_rules
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteSantaRulesParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteSantaRules(ctx context.Context, arg DeleteSantaRulesParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteSantaRules, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteSantaSyncToken = `-- name: DeleteSantaSyncToken :one
@@ -428,23 +488,29 @@ func (q *Queries) UpdateSantaConfiguration(ctx context.Context, arg UpdateSantaC
 const updateSantaRule = `-- name: UpdateSantaRule :one
 UPDATE santa_rules
 SET
-    name = $1,
-    custom_message = $2,
-    custom_url = $3,
+    rule_type = $1::santa_rule_type,
+    identifier = $2,
+    name = $3,
+    custom_message = $4,
+    custom_url = $5,
     updated_at = now()
-WHERE id = $4
+WHERE id = $6
 RETURNING id, rule_type, identifier, name, custom_message, custom_url, created_at, updated_at
 `
 
 type UpdateSantaRuleParams struct {
-	Name          string `json:"name"`
-	CustomMessage string `json:"custom_message"`
-	CustomURL     string `json:"custom_url"`
-	ID            int64  `json:"id"`
+	RuleType      SantaRuleType `json:"rule_type"`
+	Identifier    string        `json:"identifier"`
+	Name          string        `json:"name"`
+	CustomMessage string        `json:"custom_message"`
+	CustomURL     string        `json:"custom_url"`
+	ID            int64         `json:"id"`
 }
 
 func (q *Queries) UpdateSantaRule(ctx context.Context, arg UpdateSantaRuleParams) (SantaRule, error) {
 	row := q.db.QueryRow(ctx, updateSantaRule,
+		arg.RuleType,
+		arg.Identifier,
 		arg.Name,
 		arg.CustomMessage,
 		arg.CustomURL,

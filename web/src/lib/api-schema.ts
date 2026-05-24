@@ -528,6 +528,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/santa/configurations/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Santa configurations */
+        post: operations["bulk-delete-santa-configurations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/santa/configurations/order": {
         parameters: {
             query?: never;
@@ -593,6 +610,23 @@ export interface paths {
         put?: never;
         /** Create a Santa rule */
         post: operations["create-santa-rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/santa/rules/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Santa rules */
+        post: operations["bulk-delete-santa-rules"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1646,22 +1680,6 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        RuleCreate: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/RuleCreate.json
-             */
-            readonly $schema?: string;
-            custom_message?: string;
-            custom_url?: string;
-            exclude_label_ids?: number[] | null;
-            identifier: string;
-            includes?: components["schemas"]["RuleIncludeWrite"][] | null;
-            name?: string;
-            /** @enum {string} */
-            rule_type: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
-        };
         RuleInclude: {
             cel_expression?: string;
             /** Format: int64 */
@@ -1678,6 +1696,22 @@ export interface components {
             /** @enum {string} */
             policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
         };
+        RuleMutation: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/RuleMutation.json
+             */
+            readonly $schema?: string;
+            custom_message?: string;
+            custom_url?: string;
+            exclude_label_ids?: number[] | null;
+            identifier: string;
+            includes?: components["schemas"]["RuleIncludeWrite"][] | null;
+            name?: string;
+            /** @enum {string} */
+            rule_type: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
+        };
         RuleSyncSummary: {
             /** Format: int64 */
             applied_count: number;
@@ -1687,19 +1721,6 @@ export interface components {
             last_clean_sync_at?: string;
             /** Format: int64 */
             pending_count: number;
-        };
-        RuleUpdate: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/RuleUpdate.json
-             */
-            readonly $schema?: string;
-            custom_message?: string;
-            custom_url?: string;
-            exclude_label_ids?: number[] | null;
-            includes?: components["schemas"]["RuleIncludeWrite"][] | null;
-            name?: string;
         };
         SantaConfigurationReorderBody: {
             /**
@@ -4471,6 +4492,73 @@ export interface operations {
             };
         };
     };
+    "bulk-delete-santa-configurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkIDsBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "reorder-santa-configurations": {
         parameters: {
             query?: never;
@@ -4910,7 +4998,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RuleCreate"];
+                "application/json": components["schemas"]["RuleMutation"];
             };
         };
         responses: {
@@ -4952,6 +5040,73 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "bulk-delete-santa-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkIDsBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5122,7 +5277,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RuleUpdate"];
+                "application/json": components["schemas"]["RuleMutation"];
             };
         };
         responses: {

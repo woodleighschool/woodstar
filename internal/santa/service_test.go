@@ -53,7 +53,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
-	if _, err := ruleStore.CreateRule(ctx, santarules.RuleCreate{
+	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
 		RuleType:      santarules.RuleTypeBinary,
 		Identifier:    "binary-sha",
 		CustomMessage: "Blocked",

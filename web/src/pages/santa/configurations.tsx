@@ -1,12 +1,14 @@
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, FileSliders, Loader2, MoreHorizontal, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
+import { FileSliders, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
+import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { DraggableDataTable, DraggableDataTableRowDragHandle } from "@/components/data-table/draggable-data-table";
+import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
+import { LabelChips } from "@/components/labels/label-chips";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,21 +24,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useLabels } from "@/hooks/use-labels";
 import {
+  useBulkDeleteSantaConfigurations,
   useCreateSantaConfiguration,
-  useDeleteSantaConfiguration,
   useReorderSantaConfigurations,
   useSantaConfiguration,
   useSantaConfigurations,
@@ -115,90 +113,110 @@ export function SantaConfigurationsPage() {
     q: typeof search.q === "string" ? search.q : undefined,
     page_size: MAX_PAGE_SIZE,
   });
-  const remove = useDeleteSantaConfiguration();
+  const labels = useLabels({
+    page_size: MAX_PAGE_SIZE,
+    sort: "name.asc",
+    label_type: "regular",
+    platform: "darwin",
+  });
+  const bulkDelete = useBulkDeleteSantaConfigurations();
   const reorder = useReorderSantaConfigurations();
-  const [deleting, setDeleting] = useState<SantaConfiguration | null>(null);
-  const orderedRows = useMemo(
+  const [selectedConfigurationIds, setSelectedConfigurationIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reorderWarningOpen, setReorderWarningOpen] = useState(false);
+  const [reorderEnabled, setReorderEnabled] = useState(false);
+  const serverRows = useMemo(
     () => [...(query.data?.items ?? [])].sort((a, b) => a.position - b.position),
     [query.data?.items],
   );
+  const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
+    () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
+    [labels.data?.items],
+  );
+  const [orderedRows, setOrderedRows] = useState<SantaConfiguration[]>([]);
   const hasFilters = !!search.q;
+  const canEnableReorder = !hasFilters && orderedRows.length > 0 && !query.isLoading;
+  const selectedIDs = selectedConfigurationIds.map(Number);
 
-  function saveOrder(next: SantaConfiguration[]) {
+  useEffect(() => {
+    setOrderedRows(serverRows);
+  }, [serverRows]);
+
+  function enableReorder() {
+    setSelectedConfigurationIds([]);
+    setReorderEnabled(true);
+    setReorderWarningOpen(false);
+  }
+
+  function deleteSelectedConfigurations() {
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => {
+        setSelectedConfigurationIds([]);
+        setDeleteOpen(false);
+      },
+    });
+  }
+
+  function moveOrder(next: SantaConfiguration[]) {
+    const nextRows = next.map((row, position) => ({ ...row, position }));
+    setOrderedRows(nextRows);
+  }
+
+  function saveOrder() {
     reorder.mutate(
-      next.map((row) => row.id),
-      { onSuccess: () => toast.success("Configuration order saved") },
+      orderedRows.map((row) => row.id),
+      {
+        onSuccess: () => {
+          setReorderEnabled(false);
+        },
+        onError: () => setOrderedRows(serverRows),
+      },
     );
   }
 
-  function moveConfiguration(configuration: SantaConfiguration, direction: "up" | "down") {
-    const index = orderedRows.findIndex((row) => row.id === configuration.id);
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (index < 0 || targetIndex < 0 || targetIndex >= orderedRows.length) return;
-
-    const next = [...orderedRows];
-    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-    saveOrder(next);
-  }
-
   const columns: ColumnDef<SantaConfiguration>[] = [
-    {
-      id: "position",
-      accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.position}</span>,
-      meta: { headClassName: "w-24" },
-    },
+    ...(reorderEnabled
+      ? ([
+          {
+            id: "drag",
+            header: () => null,
+            enableSorting: false,
+            enableHiding: false,
+            cell: () => <DraggableDataTableRowDragHandle label="Reorder configuration" />,
+            meta: { headClassName: "w-10", cellClassName: "w-10" },
+          },
+        ] satisfies ColumnDef<SantaConfiguration>[])
+      : []),
     {
       id: "name",
       accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{row.original.name}</span>
-          <Badge variant="secondary">{clientModeLabel(row.original.client_mode)}</Badge>
-        </div>
-      ),
+      header: "Name",
+      enableSorting: false,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      id: "client_mode",
+      accessorKey: "client_mode",
+      header: "Client mode",
+      enableSorting: false,
+      cell: ({ row }) => <Badge variant="secondary">{clientModeLabel(row.original.client_mode)}</Badge>,
     },
     {
       id: "labels",
       header: "Targets",
       enableSorting: false,
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm tabular-nums">
-          {row.original.label_ids?.length ?? 0} label{row.original.label_ids?.length === 1 ? "" : "s"}
-        </span>
-      ),
+      cell: ({ row }) => <TargetLabelsCell labelIDs={row.original.label_ids ?? []} labelsByID={labelsByID} />,
     },
     {
       id: "updated_at",
       accessorKey: "updated_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+      header: "Updated",
+      enableSorting: false,
       cell: ({ row }) => (
         <span className="text-muted-foreground" title={new Date(row.original.updated_at).toLocaleString()}>
           {formatRelative(row.original.updated_at)}
         </span>
       ),
-    },
-    {
-      id: "actions",
-      header: () => null,
-      enableSorting: false,
-      cell: ({ row }) => {
-        const index = orderedRows.findIndex((configuration) => configuration.id === row.original.id);
-        return (
-          <ConfigurationRowActions
-            configuration={row.original}
-            pending={reorder.isPending || remove.isPending}
-            canMoveUp={index > 0}
-            canMoveDown={index >= 0 && index < orderedRows.length - 1}
-            onMoveUp={() => moveConfiguration(row.original, "up")}
-            onMoveDown={() => moveConfiguration(row.original, "down")}
-            onDelete={() => setDeleting(row.original)}
-          />
-        );
-      },
-      meta: { headClassName: "w-12" },
     },
   ];
 
@@ -208,12 +226,44 @@ export function SantaConfigurationsPage() {
         title="Santa configurations"
         description="Resolve host settings top-down by label membership."
         actions={
-          <Button asChild size="sm">
-            <Link to="/santa/configurations/new">
-              <Plus data-icon="inline-start" />
-              Add configuration
-            </Link>
-          </Button>
+          <>
+            <ButtonGroup>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={reorderEnabled || !canEnableReorder}
+                onClick={() => setReorderWarningOpen(true)}
+              >
+                Edit order
+              </Button>
+              {reorderEnabled ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={reorder.isPending}
+                    onClick={saveOrder}
+                  >
+                    {reorder.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                    Save
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setReorderEnabled(false)}>
+                    Cancel
+                  </Button>
+                </>
+              ) : null}
+            </ButtonGroup>
+            {reorderEnabled ? null : (
+              <Button asChild size="sm">
+                <Link to="/santa/configurations/new">
+                  <Plus data-icon="inline-start" />
+                  Add configuration
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -222,6 +272,15 @@ export function SantaConfigurationsPage() {
           <AlertTitle>Failed to load configurations</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
+      ) : reorderEnabled ? (
+        <DraggableDataTable
+          columns={columns}
+          data={orderedRows}
+          isLoading={query.isLoading}
+          disabled={reorder.isPending || orderedRows.length <= 1}
+          onRowReorder={moveOrder}
+          empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
+        />
       ) : (
         <DataTable
           columns={columns}
@@ -233,6 +292,15 @@ export function SantaConfigurationsPage() {
           onSortingChange={() => undefined}
           isLoading={query.isLoading}
           clientSort
+          enableRowSelection
+          selectedRowIds={selectedConfigurationIds}
+          onSelectedRowIdsChange={setSelectedConfigurationIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
+          }
           rowHref={(row) => ({
             to: "/santa/configurations/$configurationId/edit",
             params: { configurationId: String(row.id) },
@@ -247,137 +315,109 @@ export function SantaConfigurationsPage() {
               />
             </div>
           }
-          empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <FileSliders />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No configurations yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No Santa configurations matched the current filters."
-                    : "Add a Santa configuration to start sending client settings."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          }
+          empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
         />
       )}
 
-      <ConfigurationDeleteDialog
-        configuration={deleting}
-        open={deleting !== null}
-        pending={remove.isPending}
-        error={remove.error?.message}
+      <BulkDeleteDialog
+        open={deleteOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            remove.reset();
-            setDeleting(null);
-          }
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
         }}
-        onConfirm={async () => {
-          if (!deleting) return;
-          await remove.mutateAsync(deleting.id);
-          setDeleting(null);
-        }}
+        count={selectedIDs.length}
+        noun="configuration"
+        description="Deleted configurations stop applying to matching hosts."
+        error={bulkDelete.error?.message}
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedConfigurations}
       />
+      <ReorderWarningDialog open={reorderWarningOpen} onOpenChange={setReorderWarningOpen} onConfirm={enableReorder} />
     </PageShell>
   );
 }
 
-function ConfigurationRowActions({
-  configuration,
-  pending,
-  canMoveUp,
-  canMoveDown,
-  onMoveUp,
-  onMoveDown,
-  onDelete,
-}: {
-  configuration: SantaConfiguration;
-  pending: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onDelete: () => void;
-}) {
+function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" disabled={pending}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link
-              to="/santa/configurations/$configurationId/edit"
-              params={{ configurationId: String(configuration.id) }}
-            >
-              Edit
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={!canMoveUp || pending} onSelect={onMoveUp}>
-            <ArrowUp />
-            Move up
-          </DropdownMenuItem>
-          <DropdownMenuItem disabled={!canMoveDown || pending} onSelect={onMoveDown}>
-            <ArrowDown />
-            Move down
-          </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileSliders />
+        </EmptyMedia>
+        <EmptyTitle>{hasFilters ? "No matches" : "No configurations yet"}</EmptyTitle>
+        <EmptyDescription>
+          {hasFilters
+            ? "No Santa configurations matched the current filters."
+            : "Add a Santa configuration to start sending client settings."}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
-function ConfigurationDeleteDialog({
-  configuration,
+function TargetLabelsCell({
+  labelIDs,
+  labelsByID,
+}: {
+  labelIDs: number[];
+  labelsByID: ReadonlyMap<number, LabelChip>;
+}) {
+  const countText = `${labelIDs.length} label${labelIDs.length === 1 ? "" : "s"}`;
+
+  if (labelIDs.length === 0) {
+    return <span className="text-muted-foreground text-sm tabular-nums">{countText}</span>;
+  }
+
+  const labels = labelsFromIDs(labelIDs, labelsByID);
+
+  return (
+    <HoverCard openDelay={150} closeDelay={150}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="text-muted-foreground rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {countText}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" side="top" className="w-auto max-w-80 p-2">
+        <LabelChips labels={labels} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+function ReorderWarningDialog({
   open,
-  pending,
-  error,
   onOpenChange,
   onConfirm,
 }: {
-  configuration: SantaConfiguration | null;
   open: boolean;
-  pending: boolean;
-  error?: string;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void>;
+  onConfirm: () => void;
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Santa configuration?</AlertDialogTitle>
+          <AlertDialogTitle>Reorder Santa configurations?</AlertDialogTitle>
           <AlertDialogDescription>
-            {configuration
-              ? `${configuration.name} will stop applying to matching hosts.`
-              : "This Santa configuration will stop applying to matching hosts."}
+            Santa uses the first matching configuration for each host. Reordering can change client behavior
+            immediately, so make sure you know what you&apos;re doing before continuing.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <AlertDialogFooter>
-          <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
+          <AlertDialogCancel variant="ghost" size="sm">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
             size="sm"
-            disabled={pending}
             onClick={(event) => {
               event.preventDefault();
-              void onConfirm();
+              onConfirm();
             }}
           >
-            Delete
+            Continue
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -451,17 +491,6 @@ function ConfigurationForm({
         <PageHeader
           title={mode === "create" ? "New Santa configuration" : "Edit Santa configuration"}
           description="Set Santa client behavior and assign the configuration to labels."
-          actions={
-            <>
-              <Button asChild type="button" variant="outline" size="sm">
-                <Link to="/santa/configurations">Cancel</Link>
-              </Button>
-              <Button type="submit" size="sm" disabled={pending || form.name.trim() === ""}>
-                {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                Save
-              </Button>
-            </>
-          }
         />
 
         {error ? (
