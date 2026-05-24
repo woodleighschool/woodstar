@@ -14,7 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	santaids "github.com/woodleighschool/woodstar/internal/santa/ids"
 	santasync "github.com/woodleighschool/woodstar/internal/santa/sync"
 )
 
@@ -195,7 +194,7 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 	if ruleID <= 0 {
 		return dbutil.ErrNotFound
 	}
-	ids, err := santaids.ParsePositive(orderedIncludeIDs, "ordered_include_ids")
+	ids, err := dbutil.ParsePositiveIDs(orderedIncludeIDs, "ordered_include_ids")
 	if err != nil {
 		return err
 	}
@@ -228,7 +227,7 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 		if err != nil {
 			return err
 		}
-		if !santaids.SameSet(ids, currentIDs) {
+		if !dbutil.SameIDSet(ids, currentIDs) {
 			return fmt.Errorf("%w: ordered_include_ids must exactly match existing include IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
@@ -521,7 +520,7 @@ func cleanRuleMutation(params RuleMutation) (RuleMutation, error) {
 	if err != nil {
 		return RuleMutation{}, err
 	}
-	excludeLabelIDs, err := santaids.CleanLabelIDs(params.ExcludeLabelIDs, "exclude_label_ids")
+	excludeLabelIDs, err := dbutil.CleanPositiveIDList(params.ExcludeLabelIDs, "exclude_label_ids")
 	if err != nil {
 		return RuleMutation{}, err
 	}
@@ -544,7 +543,7 @@ func cleanRuleIncludes(includes []RuleIncludeWrite) ([]RuleIncludeWrite, error) 
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
 			return nil, fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
 		}
-		labelIDs, err := santaids.CleanLabelIDs(include.LabelIDs, "label_ids")
+		labelIDs, err := dbutil.CleanPositiveIDList(include.LabelIDs, "label_ids")
 		if err != nil {
 			return nil, err
 		}

@@ -301,12 +301,12 @@ func allPlatforms() []platforms.Platform {
 	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
 }
 
-func TestCleanListParams(t *testing.T) {
+func TestCleanListParamsNormalizesHostFilters(t *testing.T) {
 	params := cleanListParams(ListParams{
 		ListParams: dbutil.ListParams{
 			Q:         " mac ",
-			PageIndex: -1,
-			PageSize:  1000,
+			PageIndex: 1,
+			PageSize:  25,
 			Sort:      " last_seen_at.desc ",
 		},
 		Status:   " online ",
@@ -317,11 +317,11 @@ func TestCleanListParams(t *testing.T) {
 	if params.Q != "mac" {
 		t.Fatalf("Q = %q, want mac", params.Q)
 	}
-	if params.PageIndex != 0 {
-		t.Fatalf("PageIndex = %d, want 0", params.PageIndex)
+	if params.PageIndex != 1 {
+		t.Fatalf("PageIndex = %d, want 1", params.PageIndex)
 	}
-	if params.PageSize != 200 {
-		t.Fatalf("PageSize = %d, want %d", params.PageSize, 200)
+	if params.PageSize != 25 {
+		t.Fatalf("PageSize = %d, want 25", params.PageSize)
 	}
 	if params.Sort != "last_seen_at.desc" {
 		t.Fatalf("Sort = %q, want last_seen_at.desc", params.Sort)

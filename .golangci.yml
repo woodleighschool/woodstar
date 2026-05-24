@@ -98,12 +98,7 @@ linters:
     staticcheck:
       checks:
         - all
-        - -ST1000  # missing package comment
-        - -ST1003  # poorly chosen identifier
-        - -ST1016  # inconsistent receiver name
-        - -ST1020  # exported func comment
-        - -ST1021  # exported type comment
-        - -ST1022  # exported var/const comment
+        - -ST1000  # package comments are optional in internal product packages
         - -QF1008  # omit embedded fields from selector
 
     usetesting:

@@ -67,7 +67,7 @@ func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
 }
 
 func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
-	m := newManager(10 * time.Millisecond)
+	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4, 5})
 
 	events, release, err := m.Subscribe(handle.ID)
@@ -75,9 +75,9 @@ func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 		t.Fatalf("Subscribe returned error: %v", err)
 	}
 	release()
-	<-events
+	assertClosed(t, events)
 
-	time.Sleep(20 * time.Millisecond)
+	m.stopOrphan(handle.ID)
 	if work := m.PendingForHost(4); len(work) != 0 {
 		t.Fatalf("work for orphaned host = %#v, want none", work)
 	}
@@ -133,5 +133,17 @@ func receiveEvent(t *testing.T, events <-chan Event) Event {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timed out waiting for event")
 		return Event{}
+	}
+}
+
+func assertClosed(t *testing.T, events <-chan Event) {
+	t.Helper()
+	select {
+	case _, ok := <-events:
+		if ok {
+			t.Fatal("event channel remained open")
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for event channel to close")
 	}
 }

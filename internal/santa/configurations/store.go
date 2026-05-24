@@ -13,7 +13,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/santa/ids"
 )
 
 type Store struct {
@@ -185,7 +184,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
-	cleanedIDs, err := ids.ParsePositive(orderedIDs, "ordered_ids")
+	cleanedIDs, err := dbutil.ParsePositiveIDs(orderedIDs, "ordered_ids")
 	if err != nil {
 		return err
 	}
@@ -203,7 +202,7 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 		if err != nil {
 			return err
 		}
-		if !ids.SameSet(cleanedIDs, currentIDs) {
+		if !dbutil.SameIDSet(cleanedIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
@@ -365,7 +364,7 @@ func cleanConfigurationMutation(params ConfigurationMutation) (ConfigurationMuta
 	}
 	params.RemovableMediaPolicy = policy
 	params.EncryptedRemovableMediaPolicy = encryptedPolicy
-	labelIDs, err := ids.CleanLabelIDs(params.LabelIDs, "label_ids")
+	labelIDs, err := dbutil.CleanPositiveIDList(params.LabelIDs, "label_ids")
 	if err != nil {
 		return ConfigurationMutation{}, err
 	}
