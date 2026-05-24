@@ -40,7 +40,7 @@ test:
 	go test -race -count=1 -v ./...
 
 test-integration:
-	go test -race -count=1 -v ./internal/enrollment ./internal/users ./internal/orbit/protocol ./internal/osquery/protocol
+	go test -race -count=1 -v ./internal/agentauth ./internal/users ./internal/orbit/protocol ./internal/osquery/protocol ./internal/santa/protocol
 
 openapi:
 	go run $(LDFLAGS) ./cmd/woodstar openapi --output $(OPENAPI_FILE)

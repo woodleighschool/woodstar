@@ -252,17 +252,8 @@ CREATE INDEX santa_execution_events_host_time_idx
 CREATE INDEX santa_execution_events_decision_ingested_idx
     ON santa_execution_events (decision, ingested_at DESC);
 
--- Santa sync tokens
-CREATE TABLE santa_sync_tokens (
-    id BIGSERIAL PRIMARY KEY,
-    value TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CHECK (NULLIF(btrim(value), '') IS NOT NULL)
-);
-
 -- +goose Down
 
-DROP TABLE santa_sync_tokens;
 DROP TABLE santa_execution_events;
 DROP TABLE santa_executable_signing_chains;
 DROP TABLE santa_signing_chains;

@@ -159,27 +159,6 @@ func (q *Queries) CreateSantaRule(ctx context.Context, arg CreateSantaRuleParams
 	return i, err
 }
 
-const createSantaSyncToken = `-- name: CreateSantaSyncToken :one
-INSERT INTO santa_sync_tokens (
-    value
-)
-VALUES (
-    $1
-)
-RETURNING id, value, created_at
-`
-
-type CreateSantaSyncTokenParams struct {
-	Value string `json:"value"`
-}
-
-func (q *Queries) CreateSantaSyncToken(ctx context.Context, arg CreateSantaSyncTokenParams) (SantaSyncToken, error) {
-	row := q.db.QueryRow(ctx, createSantaSyncToken, arg.Value)
-	var i SantaSyncToken
-	err := row.Scan(&i.ID, &i.Value, &i.CreatedAt)
-	return i, err
-}
-
 const deleteSantaConfiguration = `-- name: DeleteSantaConfiguration :one
 DELETE FROM santa_configurations
 WHERE id = $1
@@ -274,23 +253,6 @@ func (q *Queries) DeleteSantaRules(ctx context.Context, arg DeleteSantaRulesPara
 	return items, nil
 }
 
-const deleteSantaSyncToken = `-- name: DeleteSantaSyncToken :one
-DELETE FROM santa_sync_tokens
-WHERE id = $1
-RETURNING id
-`
-
-type DeleteSantaSyncTokenParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) DeleteSantaSyncToken(ctx context.Context, arg DeleteSantaSyncTokenParams) (int64, error) {
-	row := q.db.QueryRow(ctx, deleteSantaSyncToken, arg.ID)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
 const getSantaConfigurationByID = `-- name: GetSantaConfigurationByID :one
 SELECT id, name, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at
 FROM santa_configurations
@@ -352,51 +314,6 @@ func (q *Queries) GetSantaRuleByID(ctx context.Context, arg GetSantaRuleByIDPara
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const hasSantaSyncToken = `-- name: HasSantaSyncToken :one
-SELECT EXISTS (
-    SELECT 1
-    FROM santa_sync_tokens
-    WHERE value = $1
-)
-`
-
-type HasSantaSyncTokenParams struct {
-	Value string `json:"value"`
-}
-
-func (q *Queries) HasSantaSyncToken(ctx context.Context, arg HasSantaSyncTokenParams) (bool, error) {
-	row := q.db.QueryRow(ctx, hasSantaSyncToken, arg.Value)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
-const listSantaSyncTokens = `-- name: ListSantaSyncTokens :many
-SELECT id, value, created_at
-FROM santa_sync_tokens
-ORDER BY created_at DESC, id DESC
-`
-
-func (q *Queries) ListSantaSyncTokens(ctx context.Context) ([]SantaSyncToken, error) {
-	rows, err := q.db.Query(ctx, listSantaSyncTokens)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []SantaSyncToken{}
-	for rows.Next() {
-		var i SantaSyncToken
-		if err := rows.Scan(&i.ID, &i.Value, &i.CreatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const updateSantaConfiguration = `-- name: UpdateSantaConfiguration :one

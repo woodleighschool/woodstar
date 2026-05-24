@@ -1,6 +1,7 @@
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
+CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
@@ -31,15 +32,17 @@ CREATE TABLE sessions (
 
 CREATE INDEX sessions_expiry_idx ON sessions (expiry);
 
-CREATE TABLE enroll_secrets (
+CREATE TABLE agent_secrets (
     id BIGSERIAL PRIMARY KEY,
+    agent agent NOT NULL,
     value TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+    CHECK (length(btrim(value)) >= 32)
 );
 
-CREATE INDEX enroll_secrets_active_idx
-    ON enroll_secrets (created_at DESC)
+CREATE INDEX agent_secrets_active_idx
+    ON agent_secrets (agent, created_at DESC)
     WHERE deleted_at IS NULL;
 
 -- Directory (Entra-only MVP; table shape stays portable) ---------------------
@@ -471,9 +474,10 @@ DROP TABLE hosts;
 DROP TABLE directory_user_groups;
 DROP TABLE directory_groups;
 DROP TABLE directory_users;
-DROP TABLE enroll_secrets;
+DROP TABLE agent_secrets;
 DROP TABLE sessions;
 DROP TABLE users;
 DROP TYPE platform;
 DROP TYPE label_scope_mode;
+DROP TYPE agent;
 DROP TYPE user_role;

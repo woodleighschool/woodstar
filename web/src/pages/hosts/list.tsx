@@ -1,6 +1,6 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
-import { Check, KeyRound, ListFilter, ServerCog, Trash2 } from "lucide-react";
+import { Check, ListFilter, ServerCog, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
@@ -10,7 +10,6 @@ import { DataTableColumnToggle } from "@/components/data-table/data-table-column
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageActions } from "@/components/layout/page-actions";
 import { PageShell } from "@/components/layout/page-layout";
-import { EnrollSecretsDialog } from "@/components/secrets/enroll-secrets-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -220,13 +219,6 @@ export function HostsListPage() {
             <Link to="/hosts">Clear filter</Link>
           </Button>
         ) : null}
-        <EnrollSecretsDialog
-          trigger={
-            <Button variant="outline" size="sm" className="gap-2">
-              <KeyRound data-icon="inline-start" /> Manage enroll secrets
-            </Button>
-          }
-        />
       </PageActions>
 
       <PageShell>
@@ -285,7 +277,7 @@ export function HostsListPage() {
                   <EmptyDescription>
                     {hasFilters
                       ? "No hosts matched the current filters."
-                      : "Create an enroll secret, then point a managed host at this Woodstar deployment."}
+                      : "Create an Orbit agent secret, then point a managed host at this Woodstar deployment."}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
@@ -301,7 +293,7 @@ export function HostsListPage() {
         }}
         count={selectedIDs.length}
         noun="host"
-        description="Deleted hosts will re-enroll if their agent can still use a valid enroll secret."
+        description="Deleted hosts will re-enroll if their agent can still use a valid Orbit agent secret."
         error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedHosts}

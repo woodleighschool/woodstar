@@ -218,11 +218,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "santa-rules", label: "Rules", to: "/santa/rules" },
         { key: `santa-rule-${params.ruleId}`, label: <SantaRuleCrumb id={params.ruleId} /> },
       ];
-    case "/_authenticated/santa/sync-tokens":
-      return [
-        { key: "santa", label: "Santa", to: "/santa/configurations" },
-        { key: "santa-sync-tokens", label: "Sync tokens" },
-      ];
     case "/_authenticated/santa/events":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
@@ -232,6 +227,8 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
     // System
     case "/_authenticated/account":
       return [{ key: "account", label: "Account" }];
+    case "/_authenticated/secrets":
+      return [{ key: "secrets", label: "Secrets" }];
     case "/_authenticated/users":
       return [{ key: "users", label: "Users" }];
     case "/_authenticated/users/$userId/edit":

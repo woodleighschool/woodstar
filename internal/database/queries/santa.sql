@@ -1,29 +1,3 @@
--- name: ListSantaSyncTokens :many
-SELECT id, value, created_at
-FROM santa_sync_tokens
-ORDER BY created_at DESC, id DESC;
-
--- name: CreateSantaSyncToken :one
-INSERT INTO santa_sync_tokens (
-    value
-)
-VALUES (
-    @value
-)
-RETURNING id, value, created_at;
-
--- name: DeleteSantaSyncToken :one
-DELETE FROM santa_sync_tokens
-WHERE id = @id
-RETURNING id;
-
--- name: HasSantaSyncToken :one
-SELECT EXISTS (
-    SELECT 1
-    FROM santa_sync_tokens
-    WHERE value = @value
-);
-
 -- name: UpsertSantaHostObservation :exec
 INSERT INTO santa_hosts (
     host_id,

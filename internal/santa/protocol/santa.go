@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -36,9 +37,9 @@ var (
 	errRequestBodyTooBig = errors.New("santa sync request body too large")
 )
 
-// SyncTokenVerifier verifies Santa sync tokens parsed from bearer authorization.
-type SyncTokenVerifier interface {
-	VerifySyncToken(context.Context, string) (bool, error)
+// AgentSecretVerifier verifies shared agent secrets parsed from bearer authorization.
+type AgentSecretVerifier interface {
+	Verify(context.Context, agentauth.Agent, string) (bool, error)
 }
 
 // SyncService handles decoded Santa sync requests.
@@ -50,17 +51,17 @@ type SyncService interface {
 }
 
 type handler struct {
-	tokenVerifier SyncTokenVerifier
-	service       SyncService
-	logger        *slog.Logger
+	secretVerifier AgentSecretVerifier
+	service        SyncService
+	logger         *slog.Logger
 }
 
 // RegisterSantaRoutes mounts Santa sync v1 endpoints on r.
-func RegisterSantaRoutes(r chi.Router, tokenVerifier SyncTokenVerifier, service SyncService, logger *slog.Logger) {
+func RegisterSantaRoutes(r chi.Router, secretVerifier AgentSecretVerifier, service SyncService, logger *slog.Logger) {
 	h := handler{
-		tokenVerifier: tokenVerifier,
-		service:       service,
-		logger:        logger,
+		secretVerifier: secretVerifier,
+		service:        service,
+		logger:         logger,
 	}
 	r.Post("/santa/sync/preflight/{machine_id}", h.preflight)
 	r.Post("/santa/sync/eventupload/{machine_id}", h.eventUpload)
@@ -288,12 +289,12 @@ func signingChainFromProto(chain []*syncv1.Certificate) []santaevents.Certificat
 }
 
 func (h handler) authorize(r *http.Request) error {
-	token, ok := bearerToken(r.Header.Get("Authorization"))
+	token, ok := agentauth.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
 		return errUnauthorized
 	}
 
-	ok, err := h.tokenVerifier.VerifySyncToken(r.Context(), token)
+	ok, err := h.secretVerifier.Verify(r.Context(), agentauth.AgentSanta, token)
 	if err != nil {
 		return err
 	}
@@ -301,15 +302,6 @@ func (h handler) authorize(r *http.Request) error {
 		return errUnauthorized
 	}
 	return nil
-}
-
-func bearerToken(authorization string) (string, bool) {
-	scheme, value, ok := strings.Cut(authorization, " ")
-	if !ok || !strings.EqualFold(scheme, "Bearer") {
-		return "", false
-	}
-	value = strings.TrimSpace(value)
-	return value, value != "" && !strings.Contains(value, " ")
 }
 
 func validateTransportHeaders(r *http.Request) error {

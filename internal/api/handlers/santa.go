@@ -14,7 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 const (
@@ -536,75 +535,6 @@ func RegisterSantaEvents(api huma.API, store *santaevents.Store) {
 			return nil, resourceMutationError("Santa event", err)
 		}
 		return &santaEventListOutput{Body: page}, nil
-	})
-}
-
-// Santa sync tokens.
-
-type santaSyncTokenDeleteInput struct {
-	ID string `path:"id"`
-}
-
-type santaSyncTokenListOutput struct {
-	Body []syncstate.SyncToken
-}
-
-type santaSyncTokenCreateOutput struct {
-	Body syncstate.SyncToken
-}
-
-func RegisterSantaSyncTokens(api huma.API, store *syncstate.Store) {
-	huma.Register(api, huma.Operation{
-		OperationID: "list-santa-sync-tokens",
-		Method:      http.MethodGet,
-		Path:        "/api/santa/sync-tokens",
-		Tags:        []string{santaTag},
-		Summary:     "List Santa sync tokens",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, _ *struct{}) (*santaSyncTokenListOutput, error) {
-		tokens, err := store.ListTokens(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &santaSyncTokenListOutput{Body: tokens}, nil
-	})
-
-	huma.Register(api, huma.Operation{
-		OperationID:   "create-santa-sync-token",
-		Method:        http.MethodPost,
-		Path:          "/api/santa/sync-tokens",
-		Tags:          []string{santaTag},
-		Summary:       "Create Santa sync token",
-		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, _ *struct{}) (*santaSyncTokenCreateOutput, error) {
-		token, err := store.CreateToken(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &santaSyncTokenCreateOutput{Body: token}, nil
-	})
-
-	huma.Register(api, huma.Operation{
-		OperationID: "delete-santa-sync-token",
-		Method:      http.MethodDelete,
-		Path:        "/api/santa/sync-tokens/{id}",
-		Tags:        []string{santaTag},
-		Summary:     "Delete Santa sync token",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
-	}, func(ctx context.Context, input *santaSyncTokenDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, "sync token")
-		if err != nil {
-			return nil, err
-		}
-		err = store.DeleteToken(ctx, id)
-		if errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("sync token not found")
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &struct{}{}, nil
 	})
 }
 

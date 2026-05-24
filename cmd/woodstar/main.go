@@ -16,13 +16,13 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
-	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
@@ -156,13 +156,13 @@ func newServer(
 			AuthService: authService,
 			UserService: userService,
 		},
-		Hosts:      api.HostsDependencies{Store: stores.hosts},
-		Software:   api.SoftwareDependencies{Store: stores.software},
-		Labels:     api.LabelsDependencies{Store: stores.labels},
-		Enrollment: api.EnrollmentDependencies{SecretStore: stores.secrets},
-		Orbit:      orbitDeps,
-		Osquery:    osqueryDeps,
-		Santa:      santaDeps,
+		Hosts:     api.HostsDependencies{Store: stores.hosts},
+		Software:  api.SoftwareDependencies{Store: stores.software},
+		Labels:    api.LabelsDependencies{Store: stores.labels},
+		AgentAuth: api.AgentAuthDependencies{Store: stores.secrets},
+		Orbit:     orbitDeps,
+		Osquery:   osqueryDeps,
+		Santa:     santaDeps,
 	})
 	return server, func() {
 		for _, v := range slices.Backward(stopBackground) {
@@ -175,7 +175,7 @@ type appStores struct {
 	users               *users.Store
 	hosts               *hosts.Store
 	deviceMappings      *hosts.DeviceMappingStore
-	secrets             *enrollment.Store
+	secrets             *agentauth.Store
 	software            *software.Store
 	labels              *labels.Store
 	reports             *reports.Store
@@ -192,7 +192,7 @@ func newStores(db *database.DB) appStores {
 		users:               users.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		deviceMappings:      hosts.NewDeviceMappingStore(db),
-		secrets:             enrollment.NewStore(db),
+		secrets:             agentauth.NewStore(db),
 		software:            software.NewStore(db),
 		labels:              labels.NewStore(db),
 		reports:             reports.NewStore(db),

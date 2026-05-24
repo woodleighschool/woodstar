@@ -13,9 +13,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -37,9 +37,9 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	softwareName := "Example App " + suffix
 	bundleID := "com.example.osquery." + suffix
 
-	secret, err := stores.secrets.Create(ctx)
+	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-contract-secret-value-"+suffix)
 	if err != nil {
-		t.Fatalf("create enroll secret: %v", err)
+		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	t.Cleanup(func() {
 		cleanupOsqueryContractRows(context.Background(), t, database, hardwareUUID, secret.Value, bundleID)
@@ -80,9 +80,9 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-schedule-" + suffix
-	secret, err := stores.secrets.Create(ctx)
+	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-schedule-secret-value-"+suffix)
 	if err != nil {
-		t.Fatalf("create enroll secret: %v", err)
+		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	minVersion := "6.0.0"
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
@@ -126,9 +126,9 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-report-" + suffix
-	secret, err := stores.secrets.Create(ctx)
+	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-report-secret-value-"+suffix)
 	if err != nil {
-		t.Fatalf("create enroll secret: %v", err)
+		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:             "Installed apps " + suffix,
@@ -186,7 +186,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 type osqueryContractStores struct {
 	hosts    *hosts.Store
 	labels   *labels.Store
-	secrets  *enrollment.Store
+	secrets  *agentauth.Store
 	reports  *reports.Store
 	checks   *checks.Store
 	live     *livequery.Manager
@@ -197,7 +197,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 	return osqueryContractStores{
 		hosts:    hosts.NewStore(database),
 		labels:   labels.NewStore(database),
-		secrets:  enrollment.NewStore(database),
+		secrets:  agentauth.NewStore(database),
 		reports:  reports.NewStore(database),
 		checks:   checks.NewStore(database),
 		live:     livequery.NewManager(),
@@ -473,7 +473,7 @@ func cleanupOsqueryContractRows(
 		args []any
 	}{
 		{sql: `DELETE FROM hosts WHERE hardware_uuid = $1`, args: []any{hardwareUUID}},
-		{sql: `DELETE FROM enroll_secrets WHERE value = $1`, args: []any{secretValue}},
+		{sql: `DELETE FROM agent_secrets WHERE value = $1`, args: []any{secretValue}},
 		{sql: `DELETE FROM software_titles WHERE bundle_identifier = $1`, args: []any{bundleID}},
 	} {
 		if _, err := database.Pool().Exec(ctx, stmt.sql, stmt.args...); err != nil {

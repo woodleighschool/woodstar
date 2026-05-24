@@ -13,11 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api/middleware"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -43,15 +43,15 @@ import (
 // internal/, so adding a capability means adding one block, not editing a
 // shared umbrella.
 type Dependencies struct {
-	Runtime    RuntimeDependencies
-	Auth       AuthDependencies
-	Hosts      HostsDependencies
-	Software   SoftwareDependencies
-	Labels     LabelsDependencies
-	Enrollment EnrollmentDependencies
-	Orbit      OrbitDependencies
-	Osquery    OsqueryDependencies
-	Santa      SantaDependencies
+	Runtime   RuntimeDependencies
+	Auth      AuthDependencies
+	Hosts     HostsDependencies
+	Software  SoftwareDependencies
+	Labels    LabelsDependencies
+	AgentAuth AgentAuthDependencies
+	Orbit     OrbitDependencies
+	Osquery   OsqueryDependencies
+	Santa     SantaDependencies
 }
 
 type RuntimeDependencies struct {
@@ -80,8 +80,8 @@ type LabelsDependencies struct {
 	Store *labels.Store
 }
 
-type EnrollmentDependencies struct {
-	SecretStore *enrollment.Store
+type AgentAuthDependencies struct {
+	Store *agentauth.Store
 }
 
 type OrbitDependencies struct {
@@ -193,7 +193,7 @@ func protocolRoutes(r chi.Router, deps Dependencies) {
 	)
 	santaprotocol.RegisterSantaRoutes(
 		r,
-		deps.Santa.Sync,
+		deps.AgentAuth.Store,
 		deps.Santa.Service,
 		deps.Runtime.Logger.With("component", "santa"),
 	)

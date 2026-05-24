@@ -57,7 +57,6 @@ export const navSections: NavMenu[] = [
     items: [
       { label: "Configurations", to: "/santa/configurations", icon: FileSliders },
       { label: "Rules", to: "/santa/rules", icon: ListChecks },
-      { label: "Sync tokens", to: "/santa/sync-tokens", icon: KeyRound },
       { label: "Events", to: "/santa/events", icon: ClipboardCheck },
     ],
   },
@@ -67,6 +66,12 @@ export const navSections: NavMenu[] = [
     collapsible: true,
     items: [],
     placeholder: true,
+  },
+  {
+    label: "Secrets",
+    icon: KeyRound,
+    collapsible: false,
+    items: [{ label: "Secrets", to: "/secrets", icon: KeyRound, adminOnly: true }],
   },
   {
     label: "Settings",

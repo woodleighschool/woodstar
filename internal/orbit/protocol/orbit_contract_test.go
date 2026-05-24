@@ -14,9 +14,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
@@ -30,9 +30,9 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 	hardwareUUID := "orbit-contract-" + suffix
 	deviceEmail := "student-" + suffix + "@example.test"
 
-	secret, err := stores.secrets.Create(ctx)
+	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "orbit-contract-secret-value-"+suffix)
 	if err != nil {
-		t.Fatalf("create enroll secret: %v", err)
+		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	t.Cleanup(func() {
 		cleanupOrbitContractRows(context.Background(), t, database, hardwareUUID, secret.Value)
@@ -99,14 +99,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 type orbitContractStores struct {
 	hosts          *hosts.Store
 	deviceMappings *hosts.DeviceMappingStore
-	secrets        *enrollment.Store
+	secrets        *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:          hosts.NewStore(database),
 		deviceMappings: hosts.NewDeviceMappingStore(database),
-		secrets:        enrollment.NewStore(database),
+		secrets:        agentauth.NewStore(database),
 	}
 }
 
@@ -142,7 +142,7 @@ func cleanupOrbitContractRows(
 		args []any
 	}{
 		{sql: `DELETE FROM hosts WHERE hardware_uuid = $1`, args: []any{hardwareUUID}},
-		{sql: `DELETE FROM enroll_secrets WHERE value = $1`, args: []any{secretValue}},
+		{sql: `DELETE FROM agent_secrets WHERE value = $1`, args: []any{secretValue}},
 	} {
 		if _, err := database.Pool().Exec(ctx, stmt.sql, stmt.args...); err != nil {
 			t.Fatalf("cleanup orbit contract rows: %v", err)

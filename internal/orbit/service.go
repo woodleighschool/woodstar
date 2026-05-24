@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
 	hostStore          *hosts.Store
-	secretStore        *enrollment.Store
+	secretStore        *agentauth.Store
 	deviceMappingStore *hosts.DeviceMappingStore
 }
 
 func NewService(
 	hostStore *hosts.Store,
-	secretStore *enrollment.Store,
+	secretStore *agentauth.Store,
 	deviceMappingStore *hosts.DeviceMappingStore,
 ) *Service {
 	return &Service{hostStore: hostStore, secretStore: secretStore, deviceMappingStore: deviceMappingStore}
@@ -29,20 +29,12 @@ func NewService(
 // keys stop authenticating immediately.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
 	if strings.TrimSpace(req.HardwareUUID) == "" {
-		return nil, "", enrollment.ErrMissingHardwareUUID
+		return nil, "", ErrMissingHardwareUUID
 	}
 
-	ok, err := s.secretStore.HasActive(ctx, req.EnrollSecret)
+	nodeKey, err := IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
 	if err != nil {
-		return nil, "", fmt.Errorf("validate enroll secret: %w", err)
-	}
-	if !ok {
-		return nil, "", enrollment.ErrInvalidEnrollSecret
-	}
-
-	nodeKey, err := enrollment.GenerateNodeKey()
-	if err != nil {
-		return nil, "", fmt.Errorf("generate node key: %w", err)
+		return nil, "", err
 	}
 
 	host, err := s.hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{

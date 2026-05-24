@@ -14,7 +14,6 @@ export type SantaEventPage = Schemas["EventPage"];
 export type SantaRule = Schemas["Rule"];
 export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
-export type SantaSyncToken = Schemas["SyncToken"];
 
 export type SantaListParams = NonNullable<paths["/api/santa/configurations"]["get"]["parameters"]["query"]>;
 export type SantaRuleListParams = NonNullable<paths["/api/santa/rules"]["get"]["parameters"]["query"]>;
@@ -82,13 +81,6 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     queryKey: queryKeys.santaEvents(queryParams),
     queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
-  });
-}
-
-export function useSantaSyncTokens() {
-  return useQuery<SantaSyncToken[], ApiError>({
-    queryKey: queryKeys.santaSyncTokens,
-    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/santa/sync-tokens", { signal }))) ?? [],
   });
 }
 
@@ -197,27 +189,6 @@ export function useReorderSantaRuleIncludes(ruleID: number | null) {
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
-    },
-  });
-}
-
-export function useCreateSantaSyncToken() {
-  const queryClient = useQueryClient();
-  return useMutation<SantaSyncToken, ApiError>({
-    mutationFn: () => unwrap(apiClient.POST("/api/santa/sync-tokens")),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaSyncTokens });
-    },
-  });
-}
-
-export function useDeleteSantaSyncToken() {
-  const queryClient = useQueryClient();
-  return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/santa/sync-tokens/{id}", { params: { path: { id: String(id) } } })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.santaSyncTokens });
     },
   });
 }

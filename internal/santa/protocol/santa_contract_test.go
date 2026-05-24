@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -81,13 +82,13 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		t.Fatalf("create rule: %v", err)
 	}
 
-	token, err := stores.sync.CreateToken(ctx)
+	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentSanta, "santa-contract-secret-value-long-32")
 	if err != nil {
-		t.Fatalf("create sync token: %v", err)
+		t.Fatalf("create santa agent secret: %v", err)
 	}
 
 	var preflight syncv1.PreflightResponse
-	doSantaContractProto(t, router, token.Value, "/santa/sync/preflight/"+machineID, &syncv1.PreflightRequest{
+	doSantaContractProto(t, router, secret.Value, "/santa/sync/preflight/"+machineID, &syncv1.PreflightRequest{
 		SerialNumber:     "SANTACONTRACT",
 		SantaVersion:     "2026.2",
 		ClientMode:       syncv1.ClientMode_MONITOR,
@@ -105,7 +106,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	}
 
 	var download syncv1.RuleDownloadResponse
-	doSantaContractProto(t, router, token.Value, "/santa/sync/ruledownload/"+machineID,
+	doSantaContractProto(t, router, secret.Value, "/santa/sync/ruledownload/"+machineID,
 		&syncv1.RuleDownloadRequest{}, http.StatusOK, &download)
 	if len(download.GetRules()) != 1 {
 		t.Fatalf("downloaded rules = %+v, want one", download.GetRules())
@@ -118,13 +119,13 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		t.Fatalf("downloaded rule = %+v", rule)
 	}
 
-	doSantaContractProto(t, router, token.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
+	doSantaContractProto(t, router, secret.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
 		RulesHash:      "client-hash-after",
 		RulesReceived:  uint32(len(download.GetRules())),
 		RulesProcessed: uint32(len(download.GetRules())),
 	}, http.StatusOK, &syncv1.PostflightResponse{})
 
-	doSantaContractProto(t, router, token.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
+	doSantaContractProto(t, router, secret.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
 		Events: []*syncv1.Event{{
 			FileSha256:    "sha256-contract-" + suffix,
 			FilePath:      "/Applications/Contract.app/Contents/MacOS/Contract",
@@ -286,7 +287,7 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		tokenVerifier   SyncTokenVerifier
+		tokenVerifier   AgentSecretVerifier
 		body            []byte
 		contentType     string
 		contentEncoding string
@@ -392,6 +393,53 @@ func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 	}
 }
 
+func TestSantaHTTPAuthorizesOnlyActiveSantaAgentSecrets(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	secrets := agentauth.NewStore(db)
+	service := &recordingService{}
+	router := newSantaContractRouter(secrets, service)
+
+	santaSecret, err := secrets.Create(ctx, agentauth.AgentSanta, "santa-active-secret-value-long-32")
+	if err != nil {
+		t.Fatalf("create santa agent secret: %v", err)
+	}
+	orbitSecret, err := secrets.Create(ctx, agentauth.AgentOrbit, "orbit-wrong-agent-secret-value-32")
+	if err != nil {
+		t.Fatalf("create orbit agent secret: %v", err)
+	}
+	deletedSecret, err := secrets.Create(ctx, agentauth.AgentSanta, "santa-deleted-secret-value-long-32")
+	if err != nil {
+		t.Fatalf("create deleted santa agent secret: %v", err)
+	}
+	if err := secrets.Delete(ctx, deletedSecret.ID); err != nil {
+		t.Fatalf("delete santa agent secret: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		secret     string
+		wantStatus int
+	}{
+		{name: "valid santa", secret: santaSecret.Value, wantStatus: http.StatusOK},
+		{name: "orbit secret rejected", secret: orbitSecret.Value, wantStatus: http.StatusUnauthorized},
+		{name: "deleted santa rejected", secret: deletedSecret.Value, wantStatus: http.StatusUnauthorized},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := santaContractRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{})
+			req.Header.Set("Authorization", "Bearer "+tt.secret)
+
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body = %q", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 	service := &recordingService{err: dbutil.ErrInvalidInput}
 	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
@@ -406,7 +454,7 @@ func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 	}
 }
 
-func newSantaContractRouter(verifier SyncTokenVerifier, service SyncService) chi.Router {
+func newSantaContractRouter(verifier AgentSecretVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
 	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
 	return r
@@ -416,6 +464,7 @@ type santaContractStores struct {
 	hosts          *hosts.Store
 	labels         *labels.Store
 	hostState      *santa.Store
+	agentSecrets   *agentauth.Store
 	configurations *configurations.Store
 	events         *santaevents.Store
 	rules          *santarules.Store
@@ -427,6 +476,7 @@ func newSantaContractStores(db *database.DB) santaContractStores {
 		hosts:          hosts.NewStore(db),
 		labels:         labels.NewStore(db),
 		hostState:      santa.NewStore(db),
+		agentSecrets:   agentauth.NewStore(db),
 		configurations: configurations.NewStore(db),
 		events:         santaevents.NewStore(db),
 		rules:          santarules.NewStore(db),
@@ -442,7 +492,7 @@ func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
 		Rules:          stores.rules,
 		Sync:           stores.sync,
 	})
-	return newSantaContractRouter(stores.sync, service)
+	return newSantaContractRouter(stores.agentSecrets, service)
 }
 
 func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Request {
@@ -531,7 +581,7 @@ type staticVerifier struct {
 	err error
 }
 
-func (v *staticVerifier) VerifySyncToken(context.Context, string) (bool, error) {
+func (v *staticVerifier) Verify(context.Context, agentauth.Agent, string) (bool, error) {
 	return v.ok, v.err
 }
 

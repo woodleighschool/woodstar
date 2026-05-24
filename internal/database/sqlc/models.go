@@ -11,6 +11,48 @@ import (
 	"time"
 )
 
+type Agent string
+
+const (
+	AgentOrbit Agent = "orbit"
+	AgentSanta Agent = "santa"
+)
+
+func (e *Agent) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Agent(s)
+	case string:
+		*e = Agent(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Agent: %T", src)
+	}
+	return nil
+}
+
+type NullAgent struct {
+	Agent Agent `json:"agent"`
+	Valid bool  `json:"valid"` // Valid is true if Agent is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAgent) Scan(value interface{}) error {
+	if value == nil {
+		ns.Agent, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Agent.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAgent) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Agent), nil
+}
+
 type LabelScopeMode string
 
 const (
@@ -415,6 +457,14 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type AgentSecret struct {
+	ID        int64      `json:"id"`
+	Agent     Agent      `json:"agent"`
+	Value     string     `json:"value"`
+	CreatedAt time.Time  `json:"created_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
+}
+
 type Check struct {
 	ID              int64          `json:"id"`
 	Name            string         `json:"name"`
@@ -469,13 +519,6 @@ type DirectoryUser struct {
 type DirectoryUserGroup struct {
 	DirectoryUserID  int64 `json:"directory_user_id"`
 	DirectoryGroupID int64 `json:"directory_group_id"`
-}
-
-type EnrollSecret struct {
-	ID        int64      `json:"id"`
-	Value     string     `json:"value"`
-	CreatedAt time.Time  `json:"created_at"`
-	DeletedAt *time.Time `json:"deleted_at"`
 }
 
 type Host struct {
@@ -827,12 +870,6 @@ type SantaSyncTarget struct {
 	CustomURL     string               `json:"custom_url"`
 	PayloadHash   string               `json:"payload_hash"`
 	UpdatedAt     time.Time            `json:"updated_at"`
-}
-
-type SantaSyncToken struct {
-	ID        int64     `json:"id"`
-	Value     string    `json:"value"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 type Session struct {

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -28,7 +28,7 @@ type Service struct {
 	reportStore        reportStore
 	checkStore         checkStore
 	liveQueries        liveQueries
-	secretStore        secretStore
+	secretStore        orbit.SecretVerifier
 	logger             *slog.Logger
 }
 
@@ -39,7 +39,7 @@ type Dependencies struct {
 	ReportStore        reportStore
 	CheckStore         checkStore
 	LiveQueries        liveQueries
-	SecretStore        secretStore
+	SecretStore        orbit.SecretVerifier
 	Logger             *slog.Logger
 }
 
@@ -75,10 +75,6 @@ type liveQueries interface {
 	RecordResult(int64, int64, string, livequery.Status, json.RawMessage, string)
 }
 
-type secretStore interface {
-	HasActive(context.Context, string) (bool, error)
-}
-
 func NewService(deps Dependencies) *Service {
 	return &Service{
 		hostStore:          deps.HostStore,
@@ -94,12 +90,9 @@ func NewService(deps Dependencies) *Service {
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	ok, err := s.secretStore.HasActive(ctx, req.EnrollSecret)
+	nodeKey, err := orbit.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
 	if err != nil {
-		return "", fmt.Errorf("validate enroll secret: %w", err)
-	}
-	if !ok {
-		return "", enrollment.ErrInvalidEnrollSecret
+		return "", err
 	}
 
 	update := ingest.ParseHostDetails(req.HostDetails)
@@ -107,12 +100,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
 	}
 	if update.HardwareUUID == "" {
-		return "", enrollment.ErrMissingHardwareUUID
-	}
-
-	nodeKey, err := enrollment.GenerateNodeKey()
-	if err != nil {
-		return "", fmt.Errorf("generate node key: %w", err)
+		return "", orbit.ErrMissingHardwareUUID
 	}
 	update.OsqueryNodeKey = nodeKey
 

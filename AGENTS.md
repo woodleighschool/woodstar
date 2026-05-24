@@ -29,7 +29,7 @@ For single-commit changes (bugfix, small feature) the usual "code compiles, touc
 - `internal/database/` for DB connection, pool, migrations, sqlc gen, dbtest.
 - `internal/dbutil/` for pagination, sentinel errors, pgx helpers.
 - `internal/httpjson/` for tiny JSON encode/decode helpers used by raw `net/http` protocol endpoints.
-- `internal/enrollment/` for the shared enroll-secret store and node-key generation used by Orbit and osquery enrollment.
+- `internal/agentauth/` for admin-managed shared agent secrets accepted by Orbit/osquery enrollment and Santa sync.
 - `internal/orbit/` for Orbit enrollment, Orbit config, and Orbit-specific protocol endpoints.
 - `internal/osquery/` for osquery TLS-plugin enrollment, config, distributed query/log handling, catalog, checks, reports, live queries, and inventory projection. Orbit can provide extension tables that osquery queries use, but osquery remains the protocol/client boundary for those queries.
 - `internal/santa/` and `internal/munki/` for the optional native capabilities (subtrees materialise when that work begins).
@@ -53,7 +53,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 
 4. **`scope/` stays concrete.** Labels are the main targeting primitive. No generic targeting-expression engine. When Santa needs its own scoping shape it gets a parallel type next door, not a generalisation.
 
-5. **`enrollment/` stays core enrollment-only.** The shared `EnrollSecret` is accepted by the current Orbit and osquery enrollment flows. Do not add a pre-shaped `kind` discriminator for Santa/Munki. Santa sync tokens and Munki repo tokens have different protocol lifecycles and get their own packages when they ship.
+5. **`agentauth/` owns shared agent secrets.** Agent secrets are the admin-managed shared credentials accepted by agent-facing protocols. `agent=orbit` is accepted by Orbit and osquery enrollment; `agent=santa` is accepted as the Santa sync bearer credential. Do not add Munki until its server exists. Orbit/osquery issued node keys remain on `hosts`.
 
 6. **Domain types are real.** Each domain owns a `model.go` with an explicit struct; `store.go` maps `sqlc.X → X`. Do not embed `sqlc.X` in domain types. Keep explicit mappers where they enforce domain/public DTO boundaries, hide internal columns, normalize enum/platform types, or join computed fields. Only introduce generated mapping when the source and destination are truly mechanical mirrors across enough call sites to justify owning the generator; do not use reflection/mapstructure-style runtime mappers.
 
@@ -66,7 +66,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 - `labels` must not import `orbit`, `osquery`, `santa`, or `munki`.
 - `santa` and `munki` may import `hosts`, `labels`, `scope`, `software`. Never the reverse.
 - `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `osquery/reports`, `osquery/checks`, `osquery/livequery`, etc.). Domain packages never import `handlers`.
-- `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `orbit/protocol` may import `orbit`; `osquery/protocol` may import `osquery`), plus leaf packages such as `enrollment`.
+- `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `orbit/protocol` may import `orbit`; `osquery/protocol` may import `osquery`), plus leaf packages such as `agentauth` and `enrollment`.
 - Route-shape rule for new endpoints: session-authed REST/JSON → `internal/api/handlers/`; agent-authed protocol (Orbit/osquery TLS plugin/etc.) → `internal/{capability}/protocol/`. Do not split admin handlers by domain ownership.
 - `dbutil`, `database`, `config`, `buildinfo`, `logging`, `platform` are leaves: stdlib + third-party only.
 - Cross-capability host enrichment: `hosts` defines an enricher interface; each capability registers an implementation at wiring time. `hosts` never imports `orbit` / `osquery` / `santa` / `munki`.
@@ -75,7 +75,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 ## Admin API Naming
 
 - Admin API paths live under `/api`.
-- Use lowercase resource nouns for path segments. Use kebab-case when a segment has multiple words (`/api/live-queries`, `/api/enroll-secrets`, `/api/account/api-key`).
+- Use lowercase resource nouns for path segments. Use kebab-case when a segment has multiple words (`/api/live-queries`, `/api/agent-secrets`, `/api/account/api-key`).
 - Use plural collection nouns for ordinary collections (`/api/hosts`, `/api/users`, `/api/osquery/reports`). Singular singleton resources are acceptable when there is only one resource in the caller's context (`/api/account`, `/api/auth/session`).
 - osquery-owned admin resources live under `/api/osquery` (`/api/osquery/reports`, `/api/osquery/checks`) rather than at the API root.
 - Prefer state/resource paths over action paths. Keep action suffixes only for command-shaped operations that do not naturally address a separate resource (`/api/auth/login`, `/api/auth/logout`, `/api/setup`, `/api/live-queries/{id}/stop`).
@@ -277,7 +277,7 @@ internal/
   software/            observed software inventory: titles, versions, paths
   labels/              label entity + store
   scope/               concrete scope joins (LabelScope today)
-  enrollment/          core enroll secrets + node-key helpers
+  agentauth/           shared agent-secret store and bearer helpers
 
   orbit/
     service.go           Orbit service (config + enrollment business logic)
@@ -311,7 +311,7 @@ internal/
   # domain package owns the entity
   api/
     handlers/            Huma route registration per resource
-                         (hosts, labels, users, software, enroll_secrets,
+                         (hosts, labels, users, software, agent_secrets,
                           reports, checks, live_queries, auth, …)
     middleware/
     routes.go            wires handlers onto the chi router

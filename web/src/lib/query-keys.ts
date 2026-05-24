@@ -22,11 +22,10 @@ export const queryKeys = {
   checkHosts: (id: string) => ["checks", id, "hosts"] as const,
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: string) => ["software", id] as const,
-  enrollSecrets: ["enrollment", "enroll-secrets"] as const,
+  agentSecrets: ["agent-secrets"] as const,
   santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
   santaConfiguration: (id: string) => ["santa", "configurations", id] as const,
   santaEvents: (params?: unknown) => ["santa", "events", params ?? {}] as const,
   santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
   santaRule: (id: string) => ["santa", "rules", id] as const,
-  santaSyncTokens: ["santa", "sync-tokens"] as const,
 };

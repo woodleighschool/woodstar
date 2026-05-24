@@ -12,8 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/woodleighschool/woodstar/internal/enrollment"
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/httpjson"
+	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -47,7 +48,7 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, enrollment.ErrInvalidEnrollSecret):
+		case errors.Is(err, agentauth.ErrInvalidSecret):
 			logger.WarnContext(
 				r.Context(),
 				"osquery enroll rejected", "operation", "enroll",
@@ -61,7 +62,7 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 				httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret"),
 			)
 			return
-		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
+		case errors.Is(err, orbit.ErrMissingHardwareUUID):
 			httpjson.LogWriteError(
 				r.Context(),
 				logger,

@@ -13,6 +13,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -25,13 +26,216 @@ func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 	server := NewServer(testDependencies(testConfig()))
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/enroll-secrets", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/agent-secrets", nil)
 
 	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
+}
+
+func TestAgentSecretsAdminAPI(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Agent Secret Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.AgentAuth.Store = agentauth.NewStore(database)
+	server := NewServer(deps)
+	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+
+	createRec := httptest.NewRecorder()
+	createReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/api/agent-secrets",
+		strings.NewReader(`{"agent":"santa","value":"created-santa-secret-value-long-32"}`),
+	)
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Sec-Fetch-Site", "same-origin")
+	createReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(createRec, createReq)
+
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d; body = %q", createRec.Code, http.StatusCreated, createRec.Body.String())
+	}
+	var created agentauth.AgentSecret
+	if err := json.NewDecoder(createRec.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created secret: %v", err)
+	}
+	if created.Agent != agentauth.AgentSanta || created.Value != "created-santa-secret-value-long-32" {
+		t.Fatalf("created secret = %+v, want santa value", created)
+	}
+
+	ok, err := deps.AgentAuth.Store.Verify(ctx, agentauth.AgentSanta, created.Value)
+	if err != nil {
+		t.Fatalf("verify created secret: %v", err)
+	}
+	if !ok {
+		t.Fatal("created santa secret did not verify")
+	}
+
+	listRec := httptest.NewRecorder()
+	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/agent-secrets", nil)
+	listReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var listed []agentauth.AgentSecret
+	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode listed secrets: %v", err)
+	}
+	if !containsAgentSecret(listed, created.ID, agentauth.AgentSanta, created.Value) {
+		t.Fatalf("created secret missing from list: %+v", listed)
+	}
+
+	const updatedValue = "updated-santa-secret-value-long-32"
+	updateRec := httptest.NewRecorder()
+	updateReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPatch,
+		fmt.Sprintf("/api/agent-secrets/%d", created.ID),
+		strings.NewReader(fmt.Sprintf(`{"value":%q}`, updatedValue)),
+	)
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq.Header.Set("Sec-Fetch-Site", "same-origin")
+	updateReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, want %d; body = %q", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+	var updated agentauth.AgentSecret
+	if err := json.NewDecoder(updateRec.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode updated secret: %v", err)
+	}
+	if updated.ID != created.ID || updated.Agent != agentauth.AgentSanta || updated.Value != updatedValue {
+		t.Fatalf("updated secret = %+v, want id %d santa value %q", updated, created.ID, updatedValue)
+	}
+	ok, err = deps.AgentAuth.Store.Verify(ctx, agentauth.AgentSanta, created.Value)
+	if err != nil {
+		t.Fatalf("verify old secret after update: %v", err)
+	}
+	if ok {
+		t.Fatal("old santa secret still verifies after update")
+	}
+	ok, err = deps.AgentAuth.Store.Verify(ctx, agentauth.AgentSanta, updated.Value)
+	if err != nil {
+		t.Fatalf("verify updated secret: %v", err)
+	}
+	if !ok {
+		t.Fatal("updated santa secret did not verify")
+	}
+	created = updated
+
+	deleteRec := httptest.NewRecorder()
+	deleteReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodDelete,
+		fmt.Sprintf("/api/agent-secrets/%d", created.ID),
+		nil,
+	)
+	deleteReq.Header.Set("Sec-Fetch-Site", "same-origin")
+	deleteReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, want %d; body = %q", deleteRec.Code, http.StatusOK, deleteRec.Body.String())
+	}
+
+	ok, err = deps.AgentAuth.Store.Verify(ctx, agentauth.AgentSanta, created.Value)
+	if err != nil {
+		t.Fatalf("verify deleted secret: %v", err)
+	}
+	if ok {
+		t.Fatal("deleted santa secret still verifies")
+	}
+}
+
+func TestAgentSecretsRejectBadAgent(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "admin@example.test",
+		Name:     "Agent Secret Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.AgentAuth.Store = agentauth.NewStore(database)
+	server := NewServer(deps)
+	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/api/agent-secrets",
+		strings.NewReader(`{"agent":"munki"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestAgentSecretsRequireAdmin(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.CreateParams{
+		Email:    "viewer@example.test",
+		Name:     "Agent Secret Viewer",
+		Password: testUserPassword,
+		Role:     users.RoleViewer,
+	}); err != nil {
+		t.Fatalf("create viewer user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.AgentAuth.Store = agentauth.NewStore(database)
+	server := NewServer(deps)
+	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/agent-secrets", nil)
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
+	for _, secret := range secrets {
+		if secret.ID == id && secret.Agent == agent && secret.Value == value {
+			return true
+		}
+	}
+	return false
 }
 
 func TestLiveQueryStreamRequiresSession(t *testing.T) {

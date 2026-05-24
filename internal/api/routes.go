@@ -17,8 +17,8 @@ func Mount(r chi.Router, deps Dependencies) {
 func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	protected := huma.NewGroup(humaAPI)
 	protected.UseMiddleware(handlers.RequireAuth(humaAPI, deps.Auth.AuthService))
-	santaAdmin := huma.NewGroup(protected)
-	santaAdmin.UseMiddleware(handlers.RequireAdmin(humaAPI))
+	admin := huma.NewGroup(protected)
+	admin.UseMiddleware(handlers.RequireAdmin(humaAPI))
 
 	handlers.RegisterPublicAuth(humaAPI, deps.Auth.AuthService)
 	handlers.RegisterSSO(r, deps.Auth.AuthService)
@@ -32,13 +32,12 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	)
 	handlers.RegisterSoftware(protected, deps.Software.Store)
 	handlers.RegisterLabels(protected, deps.Labels.Store)
-	handlers.RegisterEnrollSecrets(protected, deps.Enrollment.SecretStore)
+	handlers.RegisterAgentSecrets(admin, deps.AgentAuth.Store)
 	handlers.RegisterReports(protected, deps.Osquery.Reports, deps.Hosts.Store)
 	handlers.RegisterChecks(protected, deps.Osquery.Checks, deps.Hosts.Store)
 	handlers.RegisterLiveQueries(protected, deps.Osquery.LiveQueries, deps.Hosts.Store)
-	handlers.RegisterSantaSyncTokens(santaAdmin, deps.Santa.Sync)
-	handlers.RegisterSantaConfigurations(santaAdmin, deps.Santa.Configurations)
-	handlers.RegisterSantaRules(santaAdmin, deps.Santa.Rules)
-	handlers.RegisterSantaEvents(santaAdmin, deps.Santa.Events)
+	handlers.RegisterSantaConfigurations(admin, deps.Santa.Configurations)
+	handlers.RegisterSantaRules(admin, deps.Santa.Rules)
+	handlers.RegisterSantaEvents(admin, deps.Santa.Events)
 	handlers.RegisterHostSantaEffectiveRules(protected, deps.Hosts.Store, deps.Santa.Rules)
 }
