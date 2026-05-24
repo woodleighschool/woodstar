@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 )
 
-// Generate returns a 32-byte random URL-safe secret string.
-func Generate() (string, error) {
-	var b [32]byte
-	if _, err := rand.Read(b[:]); err != nil {
+// Generate returns a URL-safe base64 string backed by byteCount random bytes.
+func Generate(byteCount int) (string, error) {
+	b := make([]byte, byteCount)
+	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	return base64.RawURLEncoding.EncodeToString(b[:]), nil
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/job"
 )
 
 const defaultMaxReportRows = 1000
@@ -13,41 +15,23 @@ type CleanupOptions struct {
 	MaxReportRows int
 }
 
-type Cleanup struct {
-	stop context.CancelFunc
-	done <-chan struct{}
-}
-
-// Stop cancels the cleanup loop and waits for it to exit.
-func (c *Cleanup) Stop() {
-	if c == nil {
-		return
-	}
-	c.stop()
-	<-c.done
-}
-
-// StartCleanup starts the periodic report-row trimmer. The goroutine exits
-// when ctx is cancelled or the returned cleanup handle is stopped.
+// StartCleanup starts the periodic report-row trimmer. The returned handle
+// stops the goroutine and waits for it to finish.
 func StartCleanup(
 	ctx context.Context,
 	store *Store,
 	options CleanupOptions,
 	logger *slog.Logger,
-) *Cleanup {
+) *job.Handle {
 	if store == nil {
 		return nil
 	}
 	if options.MaxReportRows <= 0 {
 		options.MaxReportRows = defaultMaxReportRows
 	}
-	ctx, stop := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
+	return job.Start(ctx, func(ctx context.Context) {
 		reportTrimLoop(ctx, store, options, logger)
-	}()
-	return &Cleanup{stop: stop, done: done}
+	})
 }
 
 func reportTrimLoop(

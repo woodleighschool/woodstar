@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const createReport = `-- name: CreateReport :one
@@ -43,13 +45,13 @@ RETURNING
 `
 
 type CreateReportParams struct {
-	Name              string     `json:"name"`
-	Description       string     `json:"description"`
-	Query             string     `json:"query"`
-	Platforms         []Platform `json:"platforms"`
-	MinOsqueryVersion *string    `json:"min_osquery_version"`
-	ScheduleInterval  int32      `json:"schedule_interval"`
-	CreatedByUserID   *int64     `json:"created_by_user_id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"`
+	MinOsqueryVersion *string              `json:"min_osquery_version"`
+	ScheduleInterval  int32                `json:"schedule_interval"`
+	CreatedByUserID   *int64               `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Report, error) {
@@ -293,13 +295,13 @@ RETURNING
 `
 
 type UpdateReportParams struct {
-	Name              string     `json:"name"`
-	Description       string     `json:"description"`
-	Query             string     `json:"query"`
-	Platforms         []Platform `json:"platforms"`
-	MinOsqueryVersion *string    `json:"min_osquery_version"`
-	ScheduleInterval  int32      `json:"schedule_interval"`
-	ID                int64      `json:"id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"`
+	MinOsqueryVersion *string              `json:"min_osquery_version"`
+	ScheduleInterval  int32                `json:"schedule_interval"`
+	ID                int64                `json:"id"`
 }
 
 func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Report, error) {

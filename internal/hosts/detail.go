@@ -141,7 +141,7 @@ type hostDetailLabelRecord struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platforms           []sqlc.Platform
+	Platforms           []platforms.Platform
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
@@ -155,19 +155,11 @@ func labelFromHostDetailRecord(row hostDetailLabelRecord) labels.Label {
 		Query:               row.Query,
 		LabelType:           labels.LabelType(row.LabelType),
 		LabelMembershipType: row.LabelMembershipType,
-		Platforms:           hostDetailPlatformsFromSQLC(row.Platforms),
+		Platforms:           row.Platforms,
 		HostsCount:          int(row.HostsCount),
 		CreatedAt:           row.CreatedAt,
 		UpdatedAt:           row.UpdatedAt,
 	}
-}
-
-func hostDetailPlatformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
-	out := make([]platforms.Platform, len(values))
-	for i, value := range values {
-		out[i] = platforms.Platform(value)
-	}
-	return out
 }
 
 const hostDetailLabelsSQL = `

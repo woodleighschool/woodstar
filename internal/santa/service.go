@@ -2,12 +2,7 @@ package santa
 
 import (
 	"context"
-	"errors"
-	"strings"
 
-	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -76,19 +71,19 @@ func NewService(deps Dependencies) *Service {
 func (s *Service) Preflight(
 	ctx context.Context,
 	machineID string,
-	req syncstate.PreflightRequest,
-) (syncstate.PreflightResponse, error) {
+	req PreflightRequest,
+) (PreflightResponse, error) {
 	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return syncstate.PreflightResponse{}, err
+		return PreflightResponse{}, err
 	}
 	if err := s.hosts.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
-		return syncstate.PreflightResponse{}, err
+		return PreflightResponse{}, err
 	}
 
 	effectiveRules, err := s.rules.ResolveRulesForHost(ctx, hostID)
 	if err != nil {
-		return syncstate.PreflightResponse{}, err
+		return PreflightResponse{}, err
 	}
 	targets := santarules.SyncTargetsFromRules(effectiveRules)
 	syncType, err := s.sync.PreparePending(
@@ -100,13 +95,13 @@ func (s *Service) Preflight(
 		req.RequestCleanSync,
 	)
 	if err != nil {
-		return syncstate.PreflightResponse{}, err
+		return PreflightResponse{}, err
 	}
 
-	resp := syncstate.PreflightResponse{SyncType: syncType}
+	resp := PreflightResponse{SyncType: syncType}
 	configuration, err := s.configurations.ResolveConfigurationForHost(ctx, hostID)
 	if err != nil {
-		return syncstate.PreflightResponse{}, err
+		return PreflightResponse{}, err
 	}
 	if configuration != nil {
 		resp.Configuration = &configuration.Configuration
@@ -117,42 +112,38 @@ func (s *Service) Preflight(
 func (s *Service) EventUpload(
 	ctx context.Context,
 	machineID string,
-	req syncstate.EventUploadRequest,
-) (syncstate.EventUploadResponse, error) {
+	req EventUploadRequest,
+) (EventUploadResponse, error) {
 	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return syncstate.EventUploadResponse{}, err
+		return EventUploadResponse{}, err
 	}
 	if err := s.events.IngestExecutionEvents(ctx, hostID, req.Events); err != nil {
-		return syncstate.EventUploadResponse{}, err
+		return EventUploadResponse{}, err
 	}
-	return syncstate.EventUploadResponse{}, nil
+	return EventUploadResponse{}, nil
 }
 
 func (s *Service) RuleDownload(
 	ctx context.Context,
 	machineID string,
-	req syncstate.RuleDownloadRequest,
-) (syncstate.RuleDownloadResponse, error) {
+	req RuleDownloadRequest,
+) (RuleDownloadResponse, error) {
 	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return syncstate.RuleDownloadResponse{}, err
+		return RuleDownloadResponse{}, err
 	}
-	page, err := s.sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
-	if err != nil {
-		return syncstate.RuleDownloadResponse{}, err
-	}
-	return syncstate.RuleDownloadResponse(page), nil
+	return s.sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
 }
 
 func (s *Service) Postflight(
 	ctx context.Context,
 	machineID string,
-	req syncstate.PostflightRequest,
-) (syncstate.PostflightResponse, error) {
+	req PostflightRequest,
+) (PostflightResponse, error) {
 	hostID, err := s.hosts.hostIDByMachineID(ctx, machineID)
 	if err != nil {
-		return syncstate.PostflightResponse{}, err
+		return PostflightResponse{}, err
 	}
 	if err := s.sync.PromotePending(
 		ctx,
@@ -161,30 +152,12 @@ func (s *Service) Postflight(
 		req.RulesReceived,
 		req.RulesProcessed,
 	); err != nil {
-		return syncstate.PostflightResponse{}, err
+		return PostflightResponse{}, err
 	}
-	return syncstate.PostflightResponse{}, nil
+	return PostflightResponse{}, nil
 }
 
-func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
-	machineID = strings.TrimSpace(machineID)
-	if machineID == "" {
-		return 0, dbutil.ErrNotFound
-	}
-	var hostID int64
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT id
-		FROM hosts
-		WHERE hardware_uuid = $1
-			AND deleted_at IS NULL
-	`, machineID).Scan(&hostID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, dbutil.ErrNotFound
-	}
-	return hostID, err
-}
-
-func hostObservationFromPreflight(hostID int64, machineID string, req syncstate.PreflightRequest) HostObservation {
+func hostObservationFromPreflight(hostID int64, machineID string, req PreflightRequest) HostObservation {
 	return HostObservation{
 		HostID:             hostID,
 		MachineID:          machineID,

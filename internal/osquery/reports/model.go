@@ -24,27 +24,29 @@ type Report struct {
 	UpdatedAt         time.Time            `json:"updated_at"`
 }
 
-// ReportCreate contains editable report fields.
+// ReportCreate contains editable report fields. The handler layer accepts the
+// JSON shape directly; CreatedByUserID is stamped from the session, not the
+// wire.
 type ReportCreate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platforms         []platforms.Platform
-	MinOsqueryVersion *string
-	ScheduleInterval  int
-	LabelScope        scope.LabelScope
-	CreatedByUserID   *int64
+	Name              string               `json:"name"`
+	Description       string               `json:"description,omitempty"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int                  `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope     `json:"label_scope"`
+	CreatedByUserID   *int64               `json:"-"`
 }
 
 // ReportUpdate replaces editable report fields.
 type ReportUpdate struct {
-	Name              string
-	Description       string
-	Query             string
-	Platforms         []platforms.Platform
-	MinOsqueryVersion *string
-	ScheduleInterval  int
-	LabelScope        scope.LabelScope
+	Name              string               `json:"name"`
+	Description       string               `json:"description,omitempty"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int                  `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope     `json:"label_scope"`
 }
 
 // ReportListParams filters saved report lists.

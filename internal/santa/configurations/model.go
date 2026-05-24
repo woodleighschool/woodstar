@@ -91,3 +91,8 @@ type ConfigurationLabelConflictError struct {
 func (e *ConfigurationLabelConflictError) Error() string {
 	return "configuration label already belongs to another configuration"
 }
+
+// GetStatus lets Huma map the error to HTTP 409 without a parallel handler-layer type.
+func (e *ConfigurationLabelConflictError) GetStatus() int {
+	return 409
+}

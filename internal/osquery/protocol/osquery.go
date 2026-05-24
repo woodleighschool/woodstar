@@ -2,7 +2,6 @@
 package protocol
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"net"
@@ -38,12 +37,7 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.EnrollRequest](r)
 		if err != nil {
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"osquery invalid request response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, "invalid request body"),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		nodeKey, err := svc.Enroll(r.Context(), req)
@@ -55,20 +49,10 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 				"reason", "invalid_enroll_secret",
 				"host_identifier", req.HostIdentifier,
 			)
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"osquery enroll response write failed",
-				httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret"),
-			)
+			httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case errors.Is(err, orbit.ErrMissingHardwareUUID):
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"osquery enroll response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, err.Error()),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case err != nil:
 			logger.ErrorContext(
@@ -77,73 +61,58 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 				"host_identifier", req.HostIdentifier,
 				"err", err,
 			)
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"osquery enroll response write failed",
-				httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed"),
-			)
+			httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
-		httpjson.LogWriteError(
-			r.Context(),
-			logger,
-			"osquery enroll response write failed",
-			httpjson.Write(w, http.StatusOK, osquery.EnrollResponse{NodeKey: nodeKey}),
-		)
+		httpjson.Write(w, http.StatusOK, osquery.EnrollResponse{NodeKey: nodeKey})
 	}
 }
 
 func osqueryConfigHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return osqueryNodeKeyHandler(logger, "config",
-		func(ctx context.Context, req osquery.ConfigRequest, publicIP string) (any, error) {
-			return svc.Config(ctx, req.NodeKey, publicIP)
-		},
-	)
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpjson.Decode[osquery.ConfigRequest](r)
+		if err != nil {
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		resp, err := svc.Config(r.Context(), req.NodeKey, clientIP(r))
+		writeOsqueryResult(r, w, logger, "config", resp, err)
+	}
 }
 
 func osqueryDistributedReadHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return osqueryNodeKeyHandler(logger, "distributed_read",
-		func(ctx context.Context, req osquery.DistributedReadRequest, publicIP string) (any, error) {
-			return svc.DistributedRead(ctx, req.NodeKey, publicIP)
-		},
-	)
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpjson.Decode[osquery.DistributedReadRequest](r)
+		if err != nil {
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		resp, err := svc.DistributedRead(r.Context(), req.NodeKey, clientIP(r))
+		writeOsqueryResult(r, w, logger, "distributed_read", resp, err)
+	}
 }
 
 func osqueryDistributedWriteHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return osqueryNodeKeyHandler(logger, "distributed_write",
-		func(ctx context.Context, req osquery.DistributedWriteRequest, publicIP string) (any, error) {
-			return svc.DistributedWrite(ctx, req, publicIP)
-		},
-	)
+	return func(w http.ResponseWriter, r *http.Request) {
+		req, err := httpjson.Decode[osquery.DistributedWriteRequest](r)
+		if err != nil {
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		resp, err := svc.DistributedWrite(r.Context(), req, clientIP(r))
+		writeOsqueryResult(r, w, logger, "distributed_write", resp, err)
+	}
 }
 
 func osqueryLogHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
-	return osqueryNodeKeyHandler(logger, "log",
-		func(ctx context.Context, req osquery.LogRequest, publicIP string) (any, error) {
-			return svc.Log(ctx, req.NodeKey, publicIP, req)
-		},
-	)
-}
-
-func osqueryNodeKeyHandler[T any](
-	logger *slog.Logger,
-	operation string,
-	handle func(context.Context, T, string) (any, error),
-) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req, err := httpjson.Decode[T](r)
+		req, err := httpjson.Decode[osquery.LogRequest](r)
 		if err != nil {
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"osquery invalid request response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, "invalid request body"),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		resp, err := handle(r.Context(), req, clientIP(r))
-		writeOsqueryResult(r, w, logger, operation, resp, err)
+		resp, err := svc.Log(r.Context(), req.NodeKey, clientIP(r), req)
+		writeOsqueryResult(r, w, logger, "log", resp, err)
 	}
 }
 
@@ -175,29 +144,13 @@ func writeOsqueryResult(
 	err error,
 ) {
 	if err != nil {
-		logger.ErrorContext(
-			r.Context(),
-			"osquery handler failed",
-			"operation", operation,
-			"err",
-			err,
-		)
-		httpjson.LogWriteError(
-			r.Context(),
-			logger,
-			"osquery response write failed",
-			httpjson.WriteError(w, http.StatusInternalServerError, "request failed"),
-		)
+		logger.ErrorContext(r.Context(), "osquery handler failed", "operation", operation, "err", err)
+		httpjson.WriteError(w, http.StatusInternalServerError, "request failed")
 		return
 	}
-	httpjson.LogWriteError(
-		r.Context(),
-		logger,
-		"osquery response write failed",
-		httpjson.Write(w, http.StatusOK, body),
-	)
+	httpjson.Write(w, http.StatusOK, body)
 }
 
 func osqueryEmptyJSONHandler(w http.ResponseWriter, _ *http.Request) {
-	_ = httpjson.Write(w, http.StatusOK, struct{}{})
+	httpjson.Write(w, http.StatusOK, struct{}{})
 }

@@ -92,7 +92,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		Query:               params.Query,
 		LabelType:           string(params.LabelType),
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           toSQLCPlatforms(params.Platforms),
+		Platforms:           params.Platforms,
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -113,7 +113,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		Description:         params.Description,
 		Query:               params.Query,
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           toSQLCPlatforms(params.Platforms),
+		Platforms:           params.Platforms,
 		ID:                  id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -296,7 +296,7 @@ type labelListRecord struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platforms           []sqlc.Platform
+	Platforms           []platforms.Platform
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
@@ -334,7 +334,7 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Query:               s.Query,
 		LabelType:           LabelType(s.LabelType),
 		LabelMembershipType: s.LabelMembershipType,
-		Platforms:           platformsFromSQLC(s.Platforms),
+		Platforms:           s.Platforms,
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
@@ -354,20 +354,4 @@ func labelFromListRecord(s labelListRecord) Label {
 	})
 	label.HostsCount = int(s.HostsCount)
 	return label
-}
-
-func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(values))
-	for i, value := range values {
-		out[i] = sqlc.Platform(value)
-	}
-	return out
-}
-
-func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
-	out := make([]platforms.Platform, len(values))
-	for i, value := range values {
-		out[i] = platforms.Platform(value)
-	}
-	return out
 }

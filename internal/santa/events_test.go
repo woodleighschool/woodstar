@@ -38,7 +38,7 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	}
 
 	occurredAt := time.Date(2026, 5, 23, 12, 30, 0, 0, time.UTC)
-	_, err = service.EventUpload(ctx, "santa-events-host", syncstate.EventUploadRequest{
+	_, err = service.EventUpload(ctx, "santa-events-host", santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{
 			{
 				FileSHA256:           "sha256-a",
@@ -157,7 +157,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		santaevents.ExecutionDecisionAllowBinary,
 		santaevents.ExecutionDecisionBlockCertificate,
 	} {
-		_, err := service.EventUpload(ctx, "santa-event-list-host", syncstate.EventUploadRequest{
+		_, err := service.EventUpload(ctx, "santa-event-list-host", santa.EventUploadRequest{
 			Events: []santaevents.ExecutionEventInput{{
 				FileSHA256:           string(rune('a' + i)),
 				FileName:             string(rune('A' + i)),
@@ -240,7 +240,7 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 		wg.Add(1)
 		go func(sha string) {
 			defer wg.Done()
-			_, err := service.EventUpload(ctx, "santa-concurrent-chain-host", syncstate.EventUploadRequest{
+			_, err := service.EventUpload(ctx, "santa-concurrent-chain-host", santa.EventUploadRequest{
 				Events: []santaevents.ExecutionEventInput{{
 					FileSHA256:   sha,
 					FileName:     sha,

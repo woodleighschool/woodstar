@@ -2,13 +2,10 @@ package events
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,6 +13,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 // Store persists Santa execution events and executable metadata.
@@ -284,20 +282,11 @@ func signingChainEntries(chain []CertificateInput) []signingChainEntry {
 }
 
 func signingChainHash(entries []signingChainEntry) string {
-	var payload strings.Builder
-	payload.WriteString("v1")
-	for _, entry := range entries {
-		writeHashField(&payload, entry.SHA256)
+	fields := make([]string, len(entries))
+	for i, entry := range entries {
+		fields[i] = entry.SHA256
 	}
-	sum := sha256.Sum256([]byte(payload.String()))
-	return hex.EncodeToString(sum[:])
-}
-
-func writeHashField(payload *strings.Builder, value string) {
-	payload.WriteByte(0)
-	payload.WriteString(strconv.Itoa(len(value)))
-	payload.WriteByte(':')
-	payload.WriteString(value)
+	return syncstate.PayloadHash(fields...)
 }
 
 func eventOccurredAt(seconds float64) *time.Time {

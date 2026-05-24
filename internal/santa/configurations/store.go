@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
@@ -58,20 +57,16 @@ func (s *Store) ListConfigurations(
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
-
-	configurations := []Configuration{}
-	configurationIDs := []int64{}
-	for rows.Next() {
-		configuration, err := scanConfiguration(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		configurations = append(configurations, configuration)
-		configurationIDs = append(configurationIDs, configuration.ID)
-	}
-	if err := rows.Err(); err != nil {
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.SantaConfiguration])
+	if err != nil {
 		return nil, 0, err
+	}
+
+	configurations := make([]Configuration, len(records))
+	configurationIDs := make([]int64, len(records))
+	for i, record := range records {
+		configurations[i] = *configurationFromSQLC(record)
+		configurationIDs[i] = record.ID
 	}
 	if err := s.attachConfigurationLabels(ctx, configurations, configurationIDs); err != nil {
 		return nil, 0, err
@@ -99,8 +94,7 @@ func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configurat
 	if err != nil {
 		return nil, err
 	}
-	configuration := configurationFromSQLC(row)
-	return configuration, nil
+	return configurationFromSQLC(row), nil
 }
 
 func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
@@ -222,20 +216,27 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 }
 
 func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ResolvedConfiguration, error) {
-	resolved, err := scanResolvedConfigurationRow(s.db.Pool().QueryRow(ctx, configurationWithMatchedLabelSelectSQL+`
+	rows, err := s.db.Pool().Query(ctx, configurationWithMatchedLabelSelectSQL+`
 		JOIN santa_configuration_labels cl ON cl.configuration_id = c.id
 		JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = $1
 		JOIN labels l ON l.id = cl.label_id
 		ORDER BY c.position, c.id, l.name, l.id
 		LIMIT 1
-	`, hostID))
+	`, hostID)
+	if err != nil {
+		return nil, err
+	}
+	record, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[resolvedConfigurationRecord])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no matching configuration is represented by a nil result.
 	}
 	if err != nil {
 		return nil, err
 	}
-	return resolved, nil
+	return &ResolvedConfiguration{
+		Configuration:   *configurationFromSQLC(record.SantaConfiguration),
+		MatchedViaLabel: &LabelMatch{ID: record.LabelID, Name: record.LabelName},
+	}, nil
 }
 
 func replaceConfigurationLabels(ctx context.Context, tx pgx.Tx, configurationID int64, labelIDs []int64) error {
@@ -542,7 +543,7 @@ func removableMediaPolicySQLC(
 		return nil, nil
 	}
 	action := sqlc.SantaRemovableMediaAction(policy.Action)
-	return &action, nilIfEmptyStrings(policy.RemountFlags)
+	return &action, policy.RemountFlags
 }
 
 func removableMediaPolicyFromSQLC(
@@ -558,228 +559,18 @@ func removableMediaPolicyFromSQLC(
 	}
 }
 
-func scanConfiguration(row pgx.Row) (Configuration, error) {
-	configuration, err := scanConfigurationRow(row)
-	if err != nil {
-		return Configuration{}, err
-	}
-	return *configuration, nil
+type resolvedConfigurationRecord struct {
+	sqlc.SantaConfiguration
+	LabelID   int64  `db:"label_id"`
+	LabelName string `db:"label_name"`
 }
 
-func scanConfigurationRow(row pgx.Row) (*Configuration, error) {
-	var configuration Configuration
-	var clientMode string
-	var fullSyncInterval pgtype.Int4
-	var batchSize pgtype.Int4
-	var enableBundles pgtype.Bool
-	var enableTransitiveRules pgtype.Bool
-	var enableAllEventUpload pgtype.Bool
-	var allowedPathRegex pgtype.Text
-	var blockedPathRegex pgtype.Text
-	var removableMediaAction pgtype.Text
-	var removableMediaRemountFlags []string
-	var encryptedRemovableMediaAction pgtype.Text
-	var encryptedRemovableMediaRemountFlags []string
-	var eventDetailURL pgtype.Text
-	var eventDetailText pgtype.Text
-
-	err := row.Scan(
-		&configuration.ID,
-		&configuration.Name,
-		&configuration.Position,
-		&clientMode,
-		&enableBundles,
-		&enableTransitiveRules,
-		&enableAllEventUpload,
-		&fullSyncInterval,
-		&batchSize,
-		&allowedPathRegex,
-		&blockedPathRegex,
-		&removableMediaAction,
-		&removableMediaRemountFlags,
-		&encryptedRemovableMediaAction,
-		&encryptedRemovableMediaRemountFlags,
-		&eventDetailURL,
-		&eventDetailText,
-		&configuration.CreatedAt,
-		&configuration.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	hydrateConfiguration(
-		&configuration,
-		clientMode,
-		enableBundles,
-		enableTransitiveRules,
-		enableAllEventUpload,
-		fullSyncInterval,
-		batchSize,
-		allowedPathRegex,
-		blockedPathRegex,
-		removableMediaAction,
-		removableMediaRemountFlags,
-		encryptedRemovableMediaAction,
-		encryptedRemovableMediaRemountFlags,
-		eventDetailURL,
-		eventDetailText,
-	)
-	return &configuration, nil
-}
-
-func scanResolvedConfigurationRow(row pgx.Row) (*ResolvedConfiguration, error) {
-	configuration, label, err := scanConfigurationAndMatchedLabel(row)
-	if err != nil {
-		return nil, err
-	}
-	return &ResolvedConfiguration{Configuration: *configuration, MatchedViaLabel: label}, nil
-}
-
-func scanConfigurationAndMatchedLabel(row pgx.Row) (*Configuration, *LabelMatch, error) {
-	var configuration Configuration
-	var label LabelMatch
-	var clientMode string
-	var fullSyncInterval pgtype.Int4
-	var batchSize pgtype.Int4
-	var enableBundles pgtype.Bool
-	var enableTransitiveRules pgtype.Bool
-	var enableAllEventUpload pgtype.Bool
-	var allowedPathRegex pgtype.Text
-	var blockedPathRegex pgtype.Text
-	var removableMediaAction pgtype.Text
-	var removableMediaRemountFlags []string
-	var encryptedRemovableMediaAction pgtype.Text
-	var encryptedRemovableMediaRemountFlags []string
-	var eventDetailURL pgtype.Text
-	var eventDetailText pgtype.Text
-
-	err := row.Scan(
-		&configuration.ID,
-		&configuration.Name,
-		&configuration.Position,
-		&clientMode,
-		&enableBundles,
-		&enableTransitiveRules,
-		&enableAllEventUpload,
-		&fullSyncInterval,
-		&batchSize,
-		&allowedPathRegex,
-		&blockedPathRegex,
-		&removableMediaAction,
-		&removableMediaRemountFlags,
-		&encryptedRemovableMediaAction,
-		&encryptedRemovableMediaRemountFlags,
-		&eventDetailURL,
-		&eventDetailText,
-		&configuration.CreatedAt,
-		&configuration.UpdatedAt,
-		&label.ID,
-		&label.Name,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	hydrateConfiguration(
-		&configuration,
-		clientMode,
-		enableBundles,
-		enableTransitiveRules,
-		enableAllEventUpload,
-		fullSyncInterval,
-		batchSize,
-		allowedPathRegex,
-		blockedPathRegex,
-		removableMediaAction,
-		removableMediaRemountFlags,
-		encryptedRemovableMediaAction,
-		encryptedRemovableMediaRemountFlags,
-		eventDetailURL,
-		eventDetailText,
-	)
-	return &configuration, &label, nil
-}
-
-func hydrateConfiguration(
-	configuration *Configuration,
-	clientMode string,
-	enableBundles pgtype.Bool,
-	enableTransitiveRules pgtype.Bool,
-	enableAllEventUpload pgtype.Bool,
-	fullSyncInterval pgtype.Int4,
-	batchSize pgtype.Int4,
-	allowedPathRegex pgtype.Text,
-	blockedPathRegex pgtype.Text,
-	removableMediaAction pgtype.Text,
-	removableMediaRemountFlags []string,
-	encryptedRemovableMediaAction pgtype.Text,
-	encryptedRemovableMediaRemountFlags []string,
-	eventDetailURL pgtype.Text,
-	eventDetailText pgtype.Text,
-) {
-	configuration.ClientMode = ClientMode(clientMode)
-	configuration.EnableBundles = boolPtrFromPG(enableBundles)
-	configuration.EnableTransitiveRules = boolPtrFromPG(enableTransitiveRules)
-	configuration.EnableAllEventUpload = boolPtrFromPG(enableAllEventUpload)
-	configuration.FullSyncIntervalSeconds = intPtrFromPG(fullSyncInterval)
-	configuration.BatchSize = intPtrFromPG(batchSize)
-	configuration.AllowedPathRegex = stringPtrFromPG(allowedPathRegex)
-	configuration.BlockedPathRegex = stringPtrFromPG(blockedPathRegex)
-	configuration.RemovableMediaPolicy = removableMediaPolicyFromPG(
-		removableMediaAction,
-		removableMediaRemountFlags,
-	)
-	configuration.EncryptedRemovableMediaPolicy = removableMediaPolicyFromPG(
-		encryptedRemovableMediaAction,
-		encryptedRemovableMediaRemountFlags,
-	)
-	configuration.EventDetailURL = stringPtrFromPG(eventDetailURL)
-	configuration.EventDetailText = stringPtrFromPG(eventDetailText)
-}
-
-func boolPtrFromPG(value pgtype.Bool) *bool {
-	if !value.Valid {
-		return nil
-	}
-	return &value.Bool
-}
-
-func intPtrFromPG(value pgtype.Int4) *int {
-	if !value.Valid {
-		return nil
-	}
-	out := int(value.Int32)
-	return &out
-}
-
-func stringPtrFromPG(value pgtype.Text) *string {
-	if !value.Valid {
-		return nil
-	}
-	return &value.String
-}
-
-func removableMediaPolicyFromPG(value pgtype.Text, flags []string) *RemovableMediaPolicy {
-	if !value.Valid {
-		return nil
-	}
-	return &RemovableMediaPolicy{
-		Action:       RemovableMediaAction(value.String),
-		RemountFlags: flags,
-	}
-}
-
-func nilIfEmptyStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	return values
-}
-
-const configurationSelectFields = `
+const configurationSelectSQL = `
+SELECT
 	c.id,
 	c.name,
 	c.position,
-	c.client_mode::text,
+	c.client_mode,
 	c.enable_bundles,
 	c.enable_transitive_rules,
 	c.enable_all_event_upload,
@@ -787,21 +578,37 @@ const configurationSelectFields = `
 	c.batch_size,
 	c.allowed_path_regex,
 	c.blocked_path_regex,
-	c.removable_media_action::text,
+	c.removable_media_action,
 	c.removable_media_remount_flags,
-	c.encrypted_removable_media_action::text,
+	c.encrypted_removable_media_action,
 	c.encrypted_removable_media_remount_flags,
 	c.event_detail_url,
 	c.event_detail_text,
 	c.created_at,
-	c.updated_at`
-
-const configurationSelectSQL = `
-SELECT` + configurationSelectFields + `
+	c.updated_at
 FROM santa_configurations c`
 
 const configurationWithMatchedLabelSelectSQL = `
-SELECT` + configurationSelectFields + `,
-	l.id,
-	l.name
+SELECT
+	c.id,
+	c.name,
+	c.position,
+	c.client_mode,
+	c.enable_bundles,
+	c.enable_transitive_rules,
+	c.enable_all_event_upload,
+	c.full_sync_interval_seconds,
+	c.batch_size,
+	c.allowed_path_regex,
+	c.blocked_path_regex,
+	c.removable_media_action,
+	c.removable_media_remount_flags,
+	c.encrypted_removable_media_action,
+	c.encrypted_removable_media_remount_flags,
+	c.event_detail_url,
+	c.event_detail_text,
+	c.created_at,
+	c.updated_at,
+	l.id AS label_id,
+	l.name AS label_name
 FROM santa_configurations c`

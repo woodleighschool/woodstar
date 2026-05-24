@@ -51,6 +51,24 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 	})
 }
 
+func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
+	machineID = strings.TrimSpace(machineID)
+	if machineID == "" {
+		return 0, dbutil.ErrNotFound
+	}
+	var hostID int64
+	err := s.db.Pool().QueryRow(ctx, `
+		SELECT id
+		FROM hosts
+		WHERE hardware_uuid = $1
+			AND deleted_at IS NULL
+	`, machineID).Scan(&hostID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, dbutil.ErrNotFound
+	}
+	return hostID, err
+}
+
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
 	var detail HostState
 	var clientMode string

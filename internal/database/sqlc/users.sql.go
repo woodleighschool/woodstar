@@ -251,6 +251,39 @@ func (q *Queries) SetUserAPIKey(ctx context.Context, arg SetUserAPIKeyParams) (U
 	return i, err
 }
 
+const updateAccountByID = `-- name: UpdateAccountByID :one
+UPDATE users
+SET
+    name = $1,
+    password_hash = COALESCE($2, password_hash),
+    updated_at = now()
+WHERE id = $3
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+`
+
+type UpdateAccountByIDParams struct {
+	Name         string  `json:"name"`
+	PasswordHash *string `json:"password_hash"`
+	ID           int64   `json:"id"`
+}
+
+func (q *Queries) UpdateAccountByID(ctx context.Context, arg UpdateAccountByIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateAccountByID, arg.Name, arg.PasswordHash, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.APIKey,
+		&i.APIKeyCreatedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET

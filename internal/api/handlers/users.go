@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -204,23 +205,15 @@ func parseUserID(id string) (int64, error) {
 // userMutationError extends resourceMutationError with user-owned mutation
 // errors that don't apply to other resources.
 func userMutationError(err error) error {
-	if ok, mapped := mapSentinelHTTPError(err,
-		staticSentinelHTTPError(dbutil.ErrAlreadyExists, huma.Error409Conflict("email already in use")),
-		sentinelHTTPError{
-			sentinel: users.ErrCannotDeleteInitialUser,
-			response: func(err error) error {
-				return huma.Error422UnprocessableEntity(err.Error())
-			},
-		},
-		sentinelHTTPError{
-			sentinel: users.ErrCannotModifyInitialUser,
-			response: func(err error) error {
-				return huma.Error422UnprocessableEntity(err.Error())
-			},
-		},
-		staticSentinelHTTPError(users.ErrWeakPassword, huma.Error400BadRequest(users.ErrWeakPassword.Error())),
-	); ok {
-		return mapped
+	switch {
+	case errors.Is(err, dbutil.ErrAlreadyExists):
+		return huma.Error409Conflict("email already in use")
+	case errors.Is(err, users.ErrCannotDeleteInitialUser),
+		errors.Is(err, users.ErrCannotModifyInitialUser):
+		return huma.Error422UnprocessableEntity(err.Error())
+	case errors.Is(err, users.ErrWeakPassword):
+		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
+	default:
+		return resourceMutationError(userResource, err)
 	}
-	return resourceMutationError(userResource, err)
 }

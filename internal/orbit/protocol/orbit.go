@@ -34,24 +34,14 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[orbit.EnrollRequest](r)
 		if err != nil {
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit invalid request response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, "invalid request body"),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
 		case errors.Is(err, orbit.ErrMissingHardwareUUID):
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit enroll response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, err.Error()),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case errors.Is(err, agentauth.ErrInvalidSecret):
 			logger.WarnContext(
@@ -60,12 +50,7 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 				"reason", "invalid_enroll_secret",
 				"hardware_uuid", req.HardwareUUID,
 			)
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit enroll response write failed",
-				httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret"),
-			)
+			httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
 		case err != nil:
 			logger.ErrorContext(
@@ -74,12 +59,7 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 				"hardware_uuid", req.HardwareUUID,
 				"err", err,
 			)
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit enroll response write failed",
-				httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed"),
-			)
+			httpjson.WriteError(w, http.StatusInternalServerError, "enrollment failed")
 			return
 		}
 
@@ -90,13 +70,7 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 			"hardware_uuid", host.HardwareUUID,
 			"display_name", host.DisplayName,
 		)
-
-		httpjson.LogWriteError(
-			r.Context(),
-			logger,
-			"orbit enroll response write failed",
-			httpjson.Write(w, http.StatusOK, orbit.EnrollResponse{OrbitNodeKey: nodeKey}),
-		)
+		httpjson.Write(w, http.StatusOK, orbit.EnrollResponse{OrbitNodeKey: nodeKey})
 	}
 }
 
@@ -111,20 +85,10 @@ func orbitConfigHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 					"orbit config rejected", "operation", "config",
 					"reason", "invalid_node_key",
 				)
-				httpjson.LogWriteError(
-					r.Context(),
-					logger,
-					"orbit config response write failed",
-					httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key"),
-				)
+				httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 				return
 			}
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit config response write failed",
-				httpjson.Write(w, http.StatusOK, resp),
-			)
+			httpjson.Write(w, http.StatusOK, resp)
 		})
 }
 
@@ -138,20 +102,10 @@ func orbitDeviceMappingHandler(svc *orbit.Service, logger *slog.Logger) http.Han
 					"orbit device mapping rejected", "operation", "device_mapping",
 					"reason", "invalid_node_key",
 				)
-				httpjson.LogWriteError(
-					r.Context(),
-					logger,
-					"orbit device mapping response write failed",
-					httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key"),
-				)
+				httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 				return
 			}
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit device mapping response write failed",
-				httpjson.Write(w, http.StatusOK, struct{}{}),
-			)
+			httpjson.Write(w, http.StatusOK, struct{}{})
 		})
 }
 
@@ -169,18 +123,9 @@ func orbitCapabilities(next http.Handler) http.Handler {
 func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.Service, logger *slog.Logger) {
 	r.Post(
 		"/api/fleet/orbit/scripts/request",
-		requireOrbitNodeKey(
-			svc,
-			logger,
-			func(w http.ResponseWriter, r *http.Request, _ orbitNodeKeyRequest) {
-				httpjson.LogWriteError(
-					r.Context(),
-					logger,
-					"orbit scripts request response write failed",
-					httpjson.Write(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}}),
-				)
-			},
-		),
+		requireOrbitNodeKey(svc, logger, func(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
+			httpjson.Write(w, http.StatusOK, scriptsRequestResponse{Scripts: []string{}})
+		}),
 	)
 	r.Post("/api/fleet/orbit/scripts/result", requireOrbitNodeKey(svc, logger, orbitNoContentHandler))
 	r.Post(
@@ -228,28 +173,18 @@ func requireOrbitNodeKey(
 
 func orbitNodeKeyHandler[T any](
 	svc *orbit.Service,
-	logger *slog.Logger,
+	_ *slog.Logger,
 	nodeKey func(T) string,
 	handle func(http.ResponseWriter, *http.Request, T),
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[T](r)
 		if err != nil {
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit invalid request response write failed",
-				httpjson.WriteError(w, http.StatusBadRequest, "invalid request body"),
-			)
+			httpjson.WriteError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 		if err := svc.ValidateNodeKey(r.Context(), nodeKey(req)); err != nil {
-			httpjson.LogWriteError(
-				r.Context(),
-				logger,
-				"orbit node key response write failed",
-				httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key"),
-			)
+			httpjson.WriteError(w, http.StatusUnauthorized, "invalid orbit node key")
 			return
 		}
 		handle(w, r, req)
@@ -266,11 +201,11 @@ type setupExperienceResponse struct {
 }
 
 func orbitEmptyObjectHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
-	_ = httpjson.Write(w, http.StatusOK, struct{}{})
+	httpjson.Write(w, http.StatusOK, struct{}{})
 }
 
 func setupExperienceStatusHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
-	_ = httpjson.Write(w, http.StatusOK, setupExperienceResponse{OK: true})
+	httpjson.Write(w, http.StatusOK, setupExperienceResponse{OK: true})
 }
 
 func orbitNoContentHandler(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {

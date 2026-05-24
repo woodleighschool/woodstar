@@ -31,10 +31,10 @@ type Work struct {
 
 // Handle is the public summary of a started live query.
 type Handle struct {
-	ID                int64
-	SQL               string
-	StartedAt         time.Time
-	ResolvedHostCount int
+	ID                int64     `json:"id"`
+	SQL               string    `json:"sql"`
+	StartedAt         time.Time `json:"started_at"`
+	ResolvedHostCount int       `json:"resolved_host_count"`
 }
 
 // Event is published to subscribers for SSE delivery.

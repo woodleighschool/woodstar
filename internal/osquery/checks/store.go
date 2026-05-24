@@ -19,13 +19,12 @@ import (
 
 // Store persists checks and per-host membership state.
 type Store struct {
-	db     *database.DB
-	q      *sqlc.Queries
-	scopes *scope.Store
+	db *database.DB
+	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: sqlc.New(db.Pool()), scopes: scope.NewStore(db)}
+	return &Store{db: db, q: sqlc.New(db.Pool())}
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
@@ -60,7 +59,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	scopes, err := s.scopes.LoadChecks(ctx, checkIDs)
+	scopes, err := s.loadCheckScopes(ctx, checkIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,7 +78,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 		return nil, err
 	}
 	check := checkFromSQLC(row)
-	labelScope, err := s.scopes.LoadCheck(ctx, check.ID)
+	labelScope, err := s.loadCheckScope(ctx, check.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +98,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			Name:            params.Name,
 			Description:     params.Description,
 			Query:           params.Query,
-			Platforms:       toSQLCPlatforms(params.Platforms),
+			Platforms:       params.Platforms,
 			CreatedByUserID: params.CreatedByUserID,
 		})
 		if err != nil {
@@ -109,7 +108,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, params.LabelScope); err != nil {
+		if err := replaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -131,7 +130,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			Name:        cleaned.Name,
 			Description: cleaned.Description,
 			Query:       cleaned.Query,
-			Platforms:   toSQLCPlatforms(cleaned.Platforms),
+			Platforms:   cleaned.Platforms,
 			ID:          id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -144,7 +143,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := s.scopes.ReplaceCheck(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
+		if err := replaceCheckScope(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		check.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -261,18 +260,16 @@ func cleanCheckListParams(params CheckListParams) CheckListParams {
 
 func scanCheck(row pgx.Row) (*Check, error) {
 	var check Check
-	var sqlcPlatforms []sqlc.Platform
 	err := row.Scan(
 		&check.ID,
 		&check.Name,
 		&check.Description,
 		&check.Query,
-		&sqlcPlatforms,
+		&check.Platforms,
 		&check.CreatedByUserID,
 		&check.CreatedAt,
 		&check.UpdatedAt,
 	)
-	check.Platforms = platformsFromSQLC(sqlcPlatforms)
 	return &check, err
 }
 
@@ -282,7 +279,7 @@ func checkFromSQLC(row sqlc.Check) *Check {
 		Name:            row.Name,
 		Description:     row.Description,
 		Query:           row.Query,
-		Platforms:       platformsFromSQLC(row.Platforms),
+		Platforms:       row.Platforms,
 		CreatedByUserID: row.CreatedByUserID,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
@@ -328,22 +325,6 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 		status = CheckStatusPass
 	}
 	return &status
-}
-
-func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(values))
-	for i, value := range values {
-		out[i] = sqlc.Platform(value)
-	}
-	return out
-}
-
-func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
-	out := make([]platforms.Platform, len(values))
-	for i, value := range values {
-		out[i] = platforms.Platform(value)
-	}
-	return out
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {

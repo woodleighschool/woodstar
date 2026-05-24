@@ -44,6 +44,15 @@ SET
 WHERE id = @id
 RETURNING *;
 
+-- name: UpdateAccountByID :one
+UPDATE users
+SET
+    name = @name,
+    password_hash = COALESCE(sqlc.narg(password_hash), password_hash),
+    updated_at = now()
+WHERE id = @id
+RETURNING *;
+
 -- name: DeleteUser :one
 DELETE FROM users
 WHERE id = @id

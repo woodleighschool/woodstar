@@ -4,7 +4,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -44,70 +43,39 @@ func parseOptionalPositiveID(id string, name string) (int64, error) {
 
 // parseIDList validates every element as a positive int64.
 func parseIDList(values []int64, name string) ([]int64, error) {
-	ids := make([]int64, 0, len(values))
-	for _, id := range values {
-		if id <= 0 {
-			return nil, huma.Error400BadRequest(name + " includes a non-positive ID")
-		}
-		ids = append(ids, id)
+	ids, err := dbutil.ParsePositiveIDs(values, name)
+	if err != nil {
+		return nil, huma.Error400BadRequest(name + " includes a non-positive ID")
 	}
 	return ids, nil
 }
 
 // cleanBulkIDs validates, deduplicates, and sorts IDs for bulk operations.
 func cleanBulkIDs(values []int64, name string) ([]int64, error) {
-	ids, err := parseIDList(values, name)
+	ids, err := dbutil.CleanPositiveIDList(values, name)
 	if err != nil {
-		return nil, err
+		return nil, huma.Error400BadRequest(name + " includes a non-positive ID")
 	}
-	slices.Sort(ids)
-	ids = slices.Compact(ids)
 	if len(ids) == 0 {
 		return nil, huma.Error400BadRequest(name + " must include at least one ID")
 	}
 	return ids, nil
 }
 
-type sentinelHTTPError struct {
-	sentinel error
-	response func(error) error
-}
-
-func staticSentinelHTTPError(sentinel error, response error) sentinelHTTPError {
-	return sentinelHTTPError{
-		sentinel: sentinel,
-		response: func(error) error {
-			return response
-		},
-	}
-}
-
-func mapSentinelHTTPError(err error, mappings ...sentinelHTTPError) (bool, error) {
-	for _, mapping := range mappings {
-		if errors.Is(err, mapping.sentinel) {
-			return true, mapping.response(err)
-		}
-	}
-	return false, nil
-}
-
 // resourceMutationError translates store errors into resource-shaped HTTP errors.
 func resourceMutationError(resource string, err error) error {
-	if ok, mapped := mapSentinelHTTPError(err,
-		staticSentinelHTTPError(dbutil.ErrNotFound, huma.Error404NotFound(resource+" not found")),
-		staticSentinelHTTPError(dbutil.ErrAlreadyExists, huma.Error409Conflict(resource+" already exists")),
-		sentinelHTTPError{
-			sentinel: dbutil.ErrInvalidInput,
-			response: func(err error) error {
-				return huma.Error400BadRequest(
-					strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "),
-				)
-			},
-		},
-	); ok {
-		return mapped
+	switch {
+	case errors.Is(err, dbutil.ErrNotFound):
+		return huma.Error404NotFound(resource + " not found")
+	case errors.Is(err, dbutil.ErrAlreadyExists):
+		return huma.Error409Conflict(resource + " already exists")
+	case errors.Is(err, dbutil.ErrInvalidInput):
+		return huma.Error400BadRequest(
+			strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "),
+		)
+	default:
+		return err
 	}
-	return err
 }
 
 // bulkIDsBody is the shared request body for bulk-delete operations.
@@ -118,6 +86,10 @@ type bulkIDsBody struct {
 type paginatedBody[T any] struct {
 	Items []T `json:"items"`
 	Count int `json:"count"`
+}
+
+type itemsBody[T any] struct {
+	Items []T `json:"items"`
 }
 
 type ListQueryInput struct {

@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/secret"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -87,11 +86,11 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	if s.oidc == nil {
 		return "", ErrSSONotConfigured
 	}
-	state, err := randomToken()
+	state, err := secret.Generate(apiKeyByteLen)
 	if err != nil {
 		return "", err
 	}
-	nonce, err := randomToken()
+	nonce, err := secret.Generate(apiKeyByteLen)
 	if err != nil {
 		return "", err
 	}
@@ -151,12 +150,4 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.U
 		return nil, err
 	}
 	return user, nil
-}
-
-func randomToken() (string, error) {
-	b := make([]byte, 24)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("read random: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }

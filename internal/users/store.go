@@ -135,6 +135,31 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateParams) (*Use
 	return new(userFromSQLC(row)), nil
 }
 
+// UpdateAccount writes the signed-in user's editable account fields and
+// returns the fresh account view in a single round trip.
+func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountUpdateParams) (*Account, error) {
+	var passwordHash *string
+	if params.Password != nil {
+		hash, err := HashPassword(*params.Password)
+		if err != nil {
+			return nil, err
+		}
+		passwordHash = &hash
+	}
+	row, err := s.q.UpdateAccountByID(ctx, sqlc.UpdateAccountByIDParams{
+		Name:         strings.TrimSpace(params.Name),
+		PasswordHash: passwordHash,
+		ID:           id,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return new(accountFromSQLC(row)), nil
+}
+
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {

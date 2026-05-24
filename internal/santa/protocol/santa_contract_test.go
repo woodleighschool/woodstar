@@ -145,7 +145,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 }
 
 func TestSantaHTTPRuleDownloadRoundTripsCursor(t *testing.T) {
-	service := &recordingService{ruleDownloadResponse: syncstate.RuleDownloadResponse{Cursor: "next"}}
+	service := &recordingService{ruleDownloadResponse: santa.RuleDownloadResponse{Cursor: "next"}}
 	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
 	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1",
@@ -199,7 +199,7 @@ func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 
 func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	service := &recordingService{
-		ruleDownloadResponse: syncstate.RuleDownloadResponse{
+		ruleDownloadResponse: santa.RuleDownloadResponse{
 			Rules: []syncstate.PayloadRule{{
 				RuleType:   "binary",
 				Identifier: "old-rule",
@@ -590,36 +590,36 @@ type recordingService struct {
 	machineID            string
 	preflightCounts      syncstate.RuleCounts
 	ruleDownloadCursor   string
-	ruleDownloadResponse syncstate.RuleDownloadResponse
+	ruleDownloadResponse santa.RuleDownloadResponse
 	err                  error
 }
 
 func (s *recordingService) Preflight(
 	_ context.Context,
 	machineID string,
-	req syncstate.PreflightRequest,
-) (syncstate.PreflightResponse, error) {
+	req santa.PreflightRequest,
+) (santa.PreflightResponse, error) {
 	s.stage = "preflight"
 	s.machineID = machineID
 	s.preflightCounts = req.RuleCounts
-	return syncstate.PreflightResponse{}, s.err
+	return santa.PreflightResponse{}, s.err
 }
 
 func (s *recordingService) EventUpload(
 	_ context.Context,
 	machineID string,
-	_ syncstate.EventUploadRequest,
-) (syncstate.EventUploadResponse, error) {
+	_ santa.EventUploadRequest,
+) (santa.EventUploadResponse, error) {
 	s.stage = "eventupload"
 	s.machineID = machineID
-	return syncstate.EventUploadResponse{}, s.err
+	return santa.EventUploadResponse{}, s.err
 }
 
 func (s *recordingService) RuleDownload(
 	_ context.Context,
 	machineID string,
-	req syncstate.RuleDownloadRequest,
-) (syncstate.RuleDownloadResponse, error) {
+	req santa.RuleDownloadRequest,
+) (santa.RuleDownloadResponse, error) {
 	s.stage = "ruledownload"
 	s.machineID = machineID
 	s.ruleDownloadCursor = req.Cursor
@@ -629,9 +629,9 @@ func (s *recordingService) RuleDownload(
 func (s *recordingService) Postflight(
 	_ context.Context,
 	machineID string,
-	_ syncstate.PostflightRequest,
-) (syncstate.PostflightResponse, error) {
+	_ santa.PostflightRequest,
+) (santa.PostflightResponse, error) {
 	s.stage = "postflight"
 	s.machineID = machineID
-	return syncstate.PostflightResponse{}, s.err
+	return santa.PostflightResponse{}, s.err
 }

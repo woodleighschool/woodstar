@@ -32,6 +32,11 @@ sql:
               import: time
               type: Time
               pointer: true
+          - db_type: platform
+            go_type:
+              import: github.com/woodleighschool/woodstar/internal/platforms
+              package: platforms
+              type: Platform
           - column: hosts.cpu_logical_cores
             go_type: int
           - column: hosts.cpu_physical_cores

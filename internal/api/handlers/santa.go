@@ -94,20 +94,6 @@ type santaConfigurationOutput struct {
 	Body configurations.Configuration
 }
 
-type santaConfigurationConflictError struct {
-	LabelID           int64  `json:"label_id"`
-	ConfigurationID   int64  `json:"configuration_id"`
-	ConfigurationName string `json:"configuration_name"`
-}
-
-func (e santaConfigurationConflictError) Error() string {
-	return "configuration label already belongs to another configuration"
-}
-
-func (e santaConfigurationConflictError) GetStatus() int {
-	return http.StatusConflict
-}
-
 func (input santaConfigurationListInput) params() configurations.ConfigurationListParams {
 	return configurations.ConfigurationListParams{
 		ListParams: input.ListQueryInput.params(),
@@ -268,11 +254,7 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 func santaConfigurationMutationError(err error) error {
 	var conflict *configurations.ConfigurationLabelConflictError
 	if errors.As(err, &conflict) {
-		return santaConfigurationConflictError{
-			LabelID:           conflict.LabelID,
-			ConfigurationID:   conflict.ConfigurationID,
-			ConfigurationName: conflict.ConfigurationName,
-		}
+		return conflict
 	}
 	return resourceMutationError(santaConfigurationResource, err)
 }
@@ -497,13 +479,7 @@ type santaEventListOutput struct {
 }
 
 func (input santaEventListInput) params() (santaevents.EventListParams, error) {
-	var hostID int64
-	if input.HostID != 0 {
-		if input.HostID < 0 {
-			return santaevents.EventListParams{}, huma.Error400BadRequest("host_id must be positive")
-		}
-		hostID = input.HostID
-	}
+	hostID := input.HostID
 	var since *time.Time
 	if !input.Since.IsZero() {
 		since = &input.Since

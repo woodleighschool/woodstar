@@ -19,13 +19,12 @@ import (
 
 // Store persists saved reports and their per-host result snapshots.
 type Store struct {
-	db     *database.DB
-	q      *sqlc.Queries
-	scopes *scope.Store
+	db *database.DB
+	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: sqlc.New(db.Pool()), scopes: scope.NewStore(db)}
+	return &Store{db: db, q: sqlc.New(db.Pool())}
 }
 
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
@@ -60,7 +59,7 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	scopes, err := s.scopes.LoadReports(ctx, reportIDs)
+	scopes, err := s.loadReportScopes(ctx, reportIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -75,7 +74,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := s.scopes.LoadReport(ctx, report.ID)
+	labelScope, err := s.loadReportScope(ctx, report.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +105,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			Name:              params.Name,
 			Description:       params.Description,
 			Query:             params.Query,
-			Platforms:         toSQLCPlatforms(params.Platforms),
+			Platforms:         params.Platforms,
 			MinOsqueryVersion: params.MinOsqueryVersion,
 			ScheduleInterval:  int32(params.ScheduleInterval),
 			CreatedByUserID:   params.CreatedByUserID,
@@ -118,7 +117,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := s.scopes.ReplaceReport(ctx, tx, report.ID, params.LabelScope); err != nil {
+		if err := replaceReportScope(ctx, tx, report.ID, params.LabelScope); err != nil {
 			return err
 		}
 		report.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
@@ -140,7 +139,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			Name:              cleaned.Name,
 			Description:       cleaned.Description,
 			Query:             cleaned.Query,
-			Platforms:         toSQLCPlatforms(cleaned.Platforms),
+			Platforms:         cleaned.Platforms,
 			MinOsqueryVersion: cleaned.MinOsqueryVersion,
 			ScheduleInterval:  int32(cleaned.ScheduleInterval),
 			ID:                id,
@@ -155,7 +154,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := s.scopes.ReplaceReport(ctx, tx, report.ID, cleaned.LabelScope); err != nil {
+		if err := replaceReportScope(ctx, tx, report.ID, cleaned.LabelScope); err != nil {
 			return err
 		}
 		report.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
@@ -255,20 +254,18 @@ func cleanReportListParams(params ReportListParams) ReportListParams {
 
 func scanReport(row pgx.Row) (*Report, error) {
 	var report Report
-	var sqlcPlatforms []sqlc.Platform
 	err := row.Scan(
 		&report.ID,
 		&report.Name,
 		&report.Description,
 		&report.Query,
-		&sqlcPlatforms,
+		&report.Platforms,
 		&report.MinOsqueryVersion,
 		&report.ScheduleInterval,
 		&report.CreatedByUserID,
 		&report.CreatedAt,
 		&report.UpdatedAt,
 	)
-	report.Platforms = platformsFromSQLC(sqlcPlatforms)
 	return &report, err
 }
 
@@ -278,29 +275,13 @@ func reportFromSQLC(row sqlc.Report) *Report {
 		Name:              row.Name,
 		Description:       row.Description,
 		Query:             row.Query,
-		Platforms:         platformsFromSQLC(row.Platforms),
+		Platforms:         row.Platforms,
 		MinOsqueryVersion: row.MinOsqueryVersion,
 		ScheduleInterval:  int(row.ScheduleInterval),
 		CreatedByUserID:   row.CreatedByUserID,
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
-}
-
-func toSQLCPlatforms(values []platforms.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(values))
-	for i, value := range values {
-		out[i] = sqlc.Platform(value)
-	}
-	return out
-}
-
-func platformsFromSQLC(values []sqlc.Platform) []platforms.Platform {
-	out := make([]platforms.Platform, len(values))
-	for i, value := range values {
-		out[i] = platforms.Platform(value)
-	}
-	return out
 }
 
 func reportListWhere(params ReportListParams) (string, []any) {

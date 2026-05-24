@@ -2,11 +2,8 @@ package rules
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -666,23 +663,14 @@ func SyncTargetsFromRules(rules []EffectiveRule) []syncstate.Target {
 }
 
 func syncTargetPayloadHash(target syncstate.Target) string {
-	var payload strings.Builder
-	payload.WriteString("v1")
-	writeHashField(&payload, target.RuleType)
-	writeHashField(&payload, target.Identifier)
-	writeHashField(&payload, target.Policy)
-	writeHashField(&payload, target.CELExpression)
-	writeHashField(&payload, target.CustomMessage)
-	writeHashField(&payload, target.CustomURL)
-	sum := sha256.Sum256([]byte(payload.String()))
-	return hex.EncodeToString(sum[:])
-}
-
-func writeHashField(payload *strings.Builder, value string) {
-	payload.WriteByte(0)
-	payload.WriteString(strconv.Itoa(len(value)))
-	payload.WriteByte(':')
-	payload.WriteString(value)
+	return syncstate.PayloadHash(
+		target.RuleType,
+		target.Identifier,
+		target.Policy,
+		target.CELExpression,
+		target.CustomMessage,
+		target.CustomURL,
+	)
 }
 
 func syncTargetKey(target syncstate.Target) string {

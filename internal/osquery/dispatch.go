@@ -125,7 +125,7 @@ func (s *Service) dispatchWriteResults(
 		message := req.Messages[name]
 
 		var err error
-		switch kind {
+		switch kind { //nolint:exhaustive // parseQueryName narrows to the four handled kinds.
 		case kindDetail:
 			err = handleDetailResult(
 				ctx,
@@ -144,8 +144,6 @@ func (s *Service) dispatchWriteResults(
 			err = handleCheckResult(ctx, s.logger, s.checkStore, host.ID, suffix, rows, status, message)
 		case kindLive:
 			err = handleLiveResult(s.liveQueries, host, suffix, rows, status, message)
-		default:
-			err = fmt.Errorf("unexpected query kind: %q", kind)
 		}
 		if err != nil {
 			return fmt.Errorf("ingest %s: %w", name, err)

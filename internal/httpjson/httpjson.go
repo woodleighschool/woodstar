@@ -2,9 +2,7 @@
 package httpjson
 
 import (
-	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 )
 
@@ -12,32 +10,26 @@ type ErrorBody struct {
 	Error string `json:"error"`
 }
 
-func Write(w http.ResponseWriter, status int, body any) error {
+// Write encodes body as JSON and writes it with the given status. Write
+// failures are dropped: when the client has hung up there is nothing useful
+// the handler can do.
+func Write(w http.ResponseWriter, status int, body any) {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return err
+		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, err = w.Write(append(payload, '\n'))
-	return err
+	_, _ = w.Write(append(payload, '\n'))
 }
 
-func WriteError(w http.ResponseWriter, status int, message string) error {
-	return Write(w, status, ErrorBody{Error: message})
+func WriteError(w http.ResponseWriter, status int, message string) {
+	Write(w, status, ErrorBody{Error: message})
 }
 
 func Decode[T any](r *http.Request) (T, error) {
 	var req T
 	err := json.NewDecoder(r.Body).Decode(&req)
 	return req, err
-}
-
-func LogWriteError(ctx context.Context, logger *slog.Logger, message string, err error) {
-	if err == nil || logger == nil {
-		return
-	}
-	logger.DebugContext(ctx, message, "err", err)
 }

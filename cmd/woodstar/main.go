@@ -40,7 +40,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
-	webfs "github.com/woodleighschool/woodstar/web"
+	webdist "github.com/woodleighschool/woodstar/web"
 )
 
 func main() {
@@ -147,7 +147,7 @@ func newServer(
 			Logger:         logger,
 			SessionManager: sessionManager,
 			WebHandler: web.NewHandler(web.HandlerOptions{
-				FS:      webfs.DistDirFS,
+				FS:      webdist.DistDirFS,
 				Version: buildinfo.Version,
 				Logger:  logger.With("component", "web"),
 			}),

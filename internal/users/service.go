@@ -72,7 +72,7 @@ func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParam
 // admin login always exists; the immutable id:1 admin floor also makes
 // "last admin removed" structurally impossible.
 func (s *Service) Delete(ctx context.Context, targetID int64) error {
-	if s.IsInitialUser(&User{ID: targetID}) {
+	if targetID == initialUserID {
 		return ErrCannotDeleteInitialUser
 	}
 	return s.store.Delete(ctx, targetID)

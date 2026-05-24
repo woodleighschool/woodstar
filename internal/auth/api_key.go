@@ -2,13 +2,11 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/secret"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -19,7 +17,7 @@ const apiKeyByteLen = 24
 // RotateAPIKey generates a fresh API key for userID, persists it, and returns
 // the updated account self-view with the retrievable plaintext key.
 func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
-	key, err := generateAPIKey()
+	key, err := secret.Generate(apiKeyByteLen)
 	if err != nil {
 		return nil, err
 	}
@@ -54,29 +52,4 @@ func (s *Service) userByAPIKey(ctx context.Context, token string) (*users.User, 
 		return nil, fmt.Errorf("get user by api key: %w", err)
 	}
 	return user, nil
-}
-
-// bearerToken extracts the token from a "Bearer <token>" Authorization
-// header value. Returns ok=false when the scheme is missing or empty.
-func bearerToken(authHeader string) (string, bool) {
-	const prefix = "Bearer "
-	if len(authHeader) <= len(prefix) {
-		return "", false
-	}
-	if !strings.EqualFold(authHeader[:len(prefix)], prefix) {
-		return "", false
-	}
-	token := strings.TrimSpace(authHeader[len(prefix):])
-	if token == "" {
-		return "", false
-	}
-	return token, true
-}
-
-func generateAPIKey() (string, error) {
-	b := make([]byte, apiKeyByteLen)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("read random: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }

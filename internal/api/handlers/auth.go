@@ -195,14 +195,18 @@ func userFromContext(ctx context.Context) (*users.User, bool) {
 }
 
 func authError(err error) error {
-	if ok, mapped := mapSentinelHTTPError(err,
-		staticSentinelHTTPError(auth.ErrInvalidCredentials, huma.Error401Unauthorized("invalid email or password")),
-		staticSentinelHTTPError(auth.ErrNotAuthenticated, huma.Error401Unauthorized("not authenticated")),
-		staticSentinelHTTPError(auth.ErrNotSetup, huma.Error409Conflict("setup required")),
-		staticSentinelHTTPError(auth.ErrAlreadySetup, huma.Error409Conflict("woodstar is already set up")),
-		staticSentinelHTTPError(users.ErrWeakPassword, huma.Error400BadRequest(users.ErrWeakPassword.Error())),
-	); ok {
-		return mapped
+	switch {
+	case errors.Is(err, auth.ErrInvalidCredentials):
+		return huma.Error401Unauthorized("invalid email or password")
+	case errors.Is(err, auth.ErrNotAuthenticated):
+		return huma.Error401Unauthorized("not authenticated")
+	case errors.Is(err, auth.ErrNotSetup):
+		return huma.Error409Conflict("setup required")
+	case errors.Is(err, auth.ErrAlreadySetup):
+		return huma.Error409Conflict("woodstar is already set up")
+	case errors.Is(err, users.ErrWeakPassword):
+		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
+	default:
+		return err
 	}
-	return err
 }

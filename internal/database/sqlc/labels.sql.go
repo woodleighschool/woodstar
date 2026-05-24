@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const createLabel = `-- name: CreateLabel :one
@@ -30,12 +32,12 @@ RETURNING id, name, description, query, criteria, label_type, label_membership_t
 `
 
 type CreateLabelParams struct {
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	LabelType           string     `json:"label_type"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Query               *string              `json:"query"`
+	LabelType           string               `json:"label_type"`
+	LabelMembershipType string               `json:"label_membership_type"`
+	Platforms           []platforms.Platform `json:"platforms"`
 }
 
 func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
@@ -309,12 +311,12 @@ RETURNING id, name, description, query, criteria, label_type, label_membership_t
 `
 
 type UpdateLabelParams struct {
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
-	ID                  int64      `json:"id"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Query               *string              `json:"query"`
+	LabelMembershipType string               `json:"label_membership_type"`
+	Platforms           []platforms.Platform `json:"platforms"`
+	ID                  int64                `json:"id"`
 }
 
 func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {

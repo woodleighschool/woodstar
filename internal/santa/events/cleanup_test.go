@@ -2,17 +2,20 @@ package events_test
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 )
 
-func TestCleanupStopDoesNotWaitForStalledSweep(t *testing.T) {
-	store := &blockingStore{started: make(chan struct{})}
+// Stop must wait for the cleanup goroutine to exit so a slow sweep cannot
+// still be running while the rest of shutdown advances.
+func TestCleanupStopWaitsForInFlightSweep(t *testing.T) {
+	store := &observingStore{started: make(chan struct{})}
 	cleanup := events.StartCleanup(t.Context(), store, events.CleanupOptions{
 		RetentionDays: 1,
-		SweepInterval: time.Nanosecond,
+		SweepInterval: time.Hour,
 	}, nil)
 
 	select {
@@ -21,28 +24,25 @@ func TestCleanupStopDoesNotWaitForStalledSweep(t *testing.T) {
 		t.Fatal("cleanup sweep did not start")
 	}
 
-	done := make(chan struct{})
-	go func() {
-		cleanup.Stop()
-		close(done)
-	}()
+	cleanup.Stop()
 
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("cleanup stop waited for stalled sweep")
+	if !store.done.Load() {
+		t.Fatal("cleanup stop returned before sweep observed cancellation")
 	}
 }
 
-type blockingStore struct {
+type observingStore struct {
 	started chan struct{}
+	done    atomic.Bool
 }
 
-func (s *blockingStore) SweepEventsBefore(context.Context, time.Time) (int, error) {
+func (s *observingStore) SweepEventsBefore(ctx context.Context, _ time.Time) (int, error) {
 	select {
 	case <-s.started:
 	default:
 		close(s.started)
 	}
-	select {}
+	<-ctx.Done()
+	s.done.Store(true)
+	return 0, ctx.Err()
 }

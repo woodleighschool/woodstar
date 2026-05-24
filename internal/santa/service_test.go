@@ -65,7 +65,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("create rule: %v", err)
 	}
 
-	preflight, err := service.Preflight(ctx, "santa-sync-host", syncstate.PreflightRequest{
+	preflight, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
 		Version:          "2026.2",
 		ClientMode:       configurations.ClientModeMonitor,
@@ -89,7 +89,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
 
-	download, err := service.RuleDownload(ctx, "santa-sync-host", syncstate.RuleDownloadRequest{})
+	download, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("rule download: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create post-preflight rule: %v", err)
 	}
-	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", syncstate.RuleDownloadRequest{})
+	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})
 	if err != nil {
 		t.Fatalf("rule download after desired change: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("frozen download = %+v, want original preflight payload", frozenDownload.Rules)
 	}
 
-	if _, err := service.Postflight(ctx, "santa-sync-host", syncstate.PostflightRequest{
+	if _, err := service.Postflight(ctx, "santa-sync-host", santa.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,
 		RulesHash:      "new-client-hash",

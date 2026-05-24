@@ -27,7 +27,7 @@ func IssueNodeKey(ctx context.Context, verifier SecretVerifier, enrollSecret str
 		return "", agentauth.ErrInvalidSecret
 	}
 
-	nodeKey, err := secret.Generate()
+	nodeKey, err := secret.Generate(32)
 	if err != nil {
 		return "", fmt.Errorf("generate node key: %w", err)
 	}

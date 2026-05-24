@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const createCheck = `-- name: CreateCheck :one
@@ -38,11 +40,11 @@ RETURNING
 `
 
 type CreateCheckParams struct {
-	Name            string     `json:"name"`
-	Description     string     `json:"description"`
-	Query           string     `json:"query"`
-	Platforms       []Platform `json:"platforms"`
-	CreatedByUserID *int64     `json:"created_by_user_id"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description"`
+	Query           string               `json:"query"`
+	Platforms       []platforms.Platform `json:"platforms"`
+	CreatedByUserID *int64               `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check, error) {
@@ -490,11 +492,11 @@ RETURNING
 `
 
 type UpdateCheckParams struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Query       string     `json:"query"`
-	Platforms   []Platform `json:"platforms"`
-	ID          int64      `json:"id"`
+	Name        string               `json:"name"`
+	Description string               `json:"description"`
+	Query       string               `json:"query"`
+	Platforms   []platforms.Platform `json:"platforms"`
+	ID          int64                `json:"id"`
 }
 
 func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check, error) {

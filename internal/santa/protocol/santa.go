@@ -19,6 +19,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -44,10 +45,10 @@ type AgentSecretVerifier interface {
 
 // SyncService handles decoded Santa sync requests.
 type SyncService interface {
-	Preflight(context.Context, string, syncstate.PreflightRequest) (syncstate.PreflightResponse, error)
-	EventUpload(context.Context, string, syncstate.EventUploadRequest) (syncstate.EventUploadResponse, error)
-	RuleDownload(context.Context, string, syncstate.RuleDownloadRequest) (syncstate.RuleDownloadResponse, error)
-	Postflight(context.Context, string, syncstate.PostflightRequest) (syncstate.PostflightResponse, error)
+	Preflight(context.Context, string, santa.PreflightRequest) (santa.PreflightResponse, error)
+	EventUpload(context.Context, string, santa.EventUploadRequest) (santa.EventUploadResponse, error)
+	RuleDownload(context.Context, string, santa.RuleDownloadRequest) (santa.RuleDownloadResponse, error)
+	Postflight(context.Context, string, santa.PostflightRequest) (santa.PostflightResponse, error)
 }
 
 type handler struct {
@@ -160,13 +161,13 @@ func handleSyncRequest[ProtoReq proto.Message, DomainReq any, DomainResp any, Pr
 	}
 }
 
-func preflightRequestFromProto(req *syncv1.PreflightRequest) (syncstate.PreflightRequest, error) {
+func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightRequest, error) {
 	var sipStatus *int16
 	if req.GetSipStatus() != 0 {
 		value := int16(req.GetSipStatus())
 		sipStatus = &value
 	}
-	return syncstate.PreflightRequest{
+	return santa.PreflightRequest{
 		SerialNumber:     req.GetSerialNumber(),
 		Version:          req.GetSantaVersion(),
 		ClientMode:       clientModeFromProto(req.GetClientMode()),
@@ -187,7 +188,7 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (syncstate.Prefligh
 	}, nil
 }
 
-func preflightResponseToProto(resp syncstate.PreflightResponse) (*syncv1.PreflightResponse, error) {
+func preflightResponseToProto(resp santa.PreflightResponse) (*syncv1.PreflightResponse, error) {
 	syncType := protoSyncType(resp.SyncType)
 	out := &syncv1.PreflightResponse{SyncType: &syncType}
 	if resp.Configuration != nil {
@@ -196,7 +197,7 @@ func preflightResponseToProto(resp syncstate.PreflightResponse) (*syncv1.Preflig
 	return out, nil
 }
 
-func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (syncstate.EventUploadRequest, error) {
+func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santa.EventUploadRequest, error) {
 	events := make([]santaevents.ExecutionEventInput, 0, len(req.GetEvents()))
 	for _, event := range req.GetEvents() {
 		if event == nil {
@@ -204,37 +205,37 @@ func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (syncstate.Even
 		}
 		converted, err := executionEventFromProto(event)
 		if err != nil {
-			return syncstate.EventUploadRequest{}, err
+			return santa.EventUploadRequest{}, err
 		}
 		events = append(events, converted)
 	}
-	return syncstate.EventUploadRequest{Events: events}, nil
+	return santa.EventUploadRequest{Events: events}, nil
 }
 
-func eventUploadResponseToProto(syncstate.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
+func eventUploadResponseToProto(santa.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
 	return &syncv1.EventUploadResponse{}, nil
 }
 
-func ruleDownloadRequestFromProto(req *syncv1.RuleDownloadRequest) (syncstate.RuleDownloadRequest, error) {
-	return syncstate.RuleDownloadRequest{Cursor: req.GetCursor()}, nil
+func ruleDownloadRequestFromProto(req *syncv1.RuleDownloadRequest) (santa.RuleDownloadRequest, error) {
+	return santa.RuleDownloadRequest{Cursor: req.GetCursor()}, nil
 }
 
-func ruleDownloadResponseToProto(resp syncstate.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
+func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
 	return &syncv1.RuleDownloadResponse{
 		Rules:  protoRulesFromPayloadRules(resp.Rules),
 		Cursor: resp.Cursor,
 	}, nil
 }
 
-func postflightRequestFromProto(req *syncv1.PostflightRequest) (syncstate.PostflightRequest, error) {
-	return syncstate.PostflightRequest{
+func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.PostflightRequest, error) {
+	return santa.PostflightRequest{
 		RulesHash:      req.GetRulesHash(),
 		RulesReceived:  int(req.GetRulesReceived()),
 		RulesProcessed: int(req.GetRulesProcessed()),
 	}, nil
 }
 
-func postflightResponseToProto(syncstate.PostflightResponse) (*syncv1.PostflightResponse, error) {
+func postflightResponseToProto(santa.PostflightResponse) (*syncv1.PostflightResponse, error) {
 	return &syncv1.PostflightResponse{}, nil
 }
 

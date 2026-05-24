@@ -9,6 +9,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
@@ -69,7 +70,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
 // already loaded into ctx by scs middleware. Returns ErrNotAuthenticated for
 // both missing and bad credentials.
 func (s *Service) Authenticate(ctx context.Context, authHeader string) (*users.User, error) {
-	if token, ok := bearerToken(authHeader); ok {
+	if token, ok := agentauth.BearerToken(authHeader); ok {
 		return s.userByAPIKey(ctx, token)
 	}
 	return s.CurrentUser(ctx)

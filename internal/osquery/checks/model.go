@@ -21,23 +21,25 @@ type Check struct {
 	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
-// CheckCreate contains editable check fields.
+// CheckCreate contains editable check fields. The handler layer accepts the
+// JSON shape directly; CreatedByUserID is stamped from the session, not the
+// wire.
 type CheckCreate struct {
-	Name            string
-	Description     string
-	Query           string
-	Platforms       []platforms.Platform
-	LabelScope      scope.LabelScope
-	CreatedByUserID *int64
+	Name            string               `json:"name"`
+	Description     string               `json:"description,omitempty"`
+	Query           string               `json:"query"`
+	Platforms       []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
+	LabelScope      scope.LabelScope     `json:"label_scope"`
+	CreatedByUserID *int64               `json:"-"`
 }
 
 // CheckUpdate replaces editable check fields.
 type CheckUpdate struct {
-	Name        string
-	Description string
-	Query       string
-	Platforms   []platforms.Platform
-	LabelScope  scope.LabelScope
+	Name        string               `json:"name"`
+	Description string               `json:"description,omitempty"`
+	Query       string               `json:"query"`
+	Platforms   []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
+	LabelScope  scope.LabelScope     `json:"label_scope"`
 }
 
 // CheckListParams filters checks.

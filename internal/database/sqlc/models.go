@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
+
+	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 type Agent string
@@ -466,15 +468,15 @@ type AgentSecret struct {
 }
 
 type Check struct {
-	ID              int64          `json:"id"`
-	Name            string         `json:"name"`
-	Description     string         `json:"description"`
-	Query           string         `json:"query"`
-	Platforms       []Platform     `json:"platforms"`
-	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID *int64         `json:"created_by_user_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID              int64                `json:"id"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description"`
+	Query           string               `json:"query"`
+	Platforms       []platforms.Platform `json:"platforms"`
+	LabelScopeMode  LabelScopeMode       `json:"label_scope_mode"`
+	CreatedByUserID *int64               `json:"created_by_user_id"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
 type CheckLabel struct {
@@ -662,16 +664,16 @@ type HostUser struct {
 }
 
 type Label struct {
-	ID                  int64      `json:"id"`
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	Criteria            []byte     `json:"criteria"`
-	LabelType           string     `json:"label_type"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	ID                  int64                `json:"id"`
+	Name                string               `json:"name"`
+	Description         string               `json:"description"`
+	Query               *string              `json:"query"`
+	Criteria            []byte               `json:"criteria"`
+	LabelType           string               `json:"label_type"`
+	LabelMembershipType string               `json:"label_membership_type"`
+	Platforms           []platforms.Platform `json:"platforms"`
+	CreatedAt           time.Time            `json:"created_at"`
+	UpdatedAt           time.Time            `json:"updated_at"`
 }
 
 type LabelMembership struct {
@@ -682,17 +684,17 @@ type LabelMembership struct {
 }
 
 type Report struct {
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Query             string         `json:"query"`
-	Platforms         []Platform     `json:"platforms"`
-	MinOsqueryVersion *string        `json:"min_osquery_version"`
-	ScheduleInterval  int32          `json:"schedule_interval"`
-	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID   *int64         `json:"created_by_user_id"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	ID                int64                `json:"id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	Platforms         []platforms.Platform `json:"platforms"`
+	MinOsqueryVersion *string              `json:"min_osquery_version"`
+	ScheduleInterval  int32                `json:"schedule_interval"`
+	LabelScopeMode    LabelScopeMode       `json:"label_scope_mode"`
+	CreatedByUserID   *int64               `json:"created_by_user_id"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
 }
 
 type ReportLabel struct {
