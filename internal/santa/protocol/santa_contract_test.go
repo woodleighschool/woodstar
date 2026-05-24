@@ -8,21 +8,146 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/santa"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-func TestSantaSyncRoutesDecodeAndEncodeRuleDownloadCursor(t *testing.T) {
+func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newSantaContractStores(db)
+	router := newSantaIntegratedContractRouter(stores)
+
+	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
+	machineID := "santa-contract-" + suffix
+	host, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID:   machineID,
+		HardwareSerial: "SANTACONTRACT",
+		OrbitNodeKey:   "santa-contract-orbit-" + suffix,
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	label, err := stores.labels.Create(ctx, labels.LabelCreate{
+		Name:                "Santa Contract " + suffix,
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		Platforms:           []platforms.Platform{platforms.PlatformDarwin},
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	if err := stores.labels.SetMembership(ctx, label.ID, host.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+
+	enableBundles := true
+	if _, err := stores.configurations.CreateConfiguration(ctx, configurations.ConfigurationMutation{
+		Name:          "Contract configuration " + suffix,
+		ClientMode:    configurations.ClientModeLockdown,
+		EnableBundles: &enableBundles,
+		LabelIDs:      []int64{label.ID},
+	}); err != nil {
+		t.Fatalf("create configuration: %v", err)
+	}
+
+	ruleIdentifier := strings.Repeat("a", 64)
+	if _, err := stores.rules.CreateRule(ctx, santarules.RuleMutation{
+		RuleType:      santarules.RuleTypeBinary,
+		Identifier:    ruleIdentifier,
+		CustomMessage: "Blocked by contract",
+		Includes: []santarules.RuleIncludeWrite{{
+			Policy:   santarules.PolicyBlocklist,
+			LabelIDs: []int64{label.ID},
+		}},
+	}); err != nil {
+		t.Fatalf("create rule: %v", err)
+	}
+
+	token, err := stores.sync.CreateToken(ctx)
+	if err != nil {
+		t.Fatalf("create sync token: %v", err)
+	}
+
+	var preflight syncv1.PreflightResponse
+	doSantaContractProto(t, router, token.Value, "/santa/sync/preflight/"+machineID, &syncv1.PreflightRequest{
+		SerialNumber:     "SANTACONTRACT",
+		SantaVersion:     "2026.2",
+		ClientMode:       syncv1.ClientMode_MONITOR,
+		RequestCleanSync: true,
+		RulesHash:        "client-hash-before",
+	}, http.StatusOK, &preflight)
+	if preflight.GetSyncType() != syncv1.SyncType_CLEAN {
+		t.Fatalf("sync type = %v, want CLEAN", preflight.GetSyncType())
+	}
+	if preflight.GetClientMode() != syncv1.ClientMode_LOCKDOWN {
+		t.Fatalf("client mode = %v, want LOCKDOWN", preflight.GetClientMode())
+	}
+	if preflight.EnableBundles == nil || !preflight.GetEnableBundles() {
+		t.Fatalf("enable bundles = %v, want true", preflight.EnableBundles)
+	}
+
+	var download syncv1.RuleDownloadResponse
+	doSantaContractProto(t, router, token.Value, "/santa/sync/ruledownload/"+machineID,
+		&syncv1.RuleDownloadRequest{}, http.StatusOK, &download)
+	if len(download.GetRules()) != 1 {
+		t.Fatalf("downloaded rules = %+v, want one", download.GetRules())
+	}
+	rule := download.GetRules()[0]
+	if rule.GetIdentifier() != ruleIdentifier ||
+		rule.GetRuleType() != syncv1.RuleType_BINARY ||
+		rule.GetPolicy() != syncv1.Policy_BLOCKLIST ||
+		rule.GetCustomMsg() != "Blocked by contract" {
+		t.Fatalf("downloaded rule = %+v", rule)
+	}
+
+	doSantaContractProto(t, router, token.Value, "/santa/sync/postflight/"+machineID, &syncv1.PostflightRequest{
+		RulesHash:      "client-hash-after",
+		RulesReceived:  uint32(len(download.GetRules())),
+		RulesProcessed: uint32(len(download.GetRules())),
+	}, http.StatusOK, &syncv1.PostflightResponse{})
+
+	doSantaContractProto(t, router, token.Value, "/santa/sync/eventupload/"+machineID, &syncv1.EventUploadRequest{
+		Events: []*syncv1.Event{{
+			FileSha256:    "sha256-contract-" + suffix,
+			FilePath:      "/Applications/Contract.app/Contents/MacOS/Contract",
+			FileName:      "Contract",
+			ExecutingUser: "alice",
+			Decision:      syncv1.Decision_BLOCK_BINARY,
+		}},
+	}, http.StatusOK, &syncv1.EventUploadResponse{})
+
+	page, err := stores.events.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].Decision != santaevents.ExecutionDecisionBlockBinary {
+		t.Fatalf("stored events = %+v, want one block_binary event", page.Items)
+	}
+}
+
+func TestSantaHTTPRuleDownloadRoundTripsCursor(t *testing.T) {
 	service := &recordingService{ruleDownloadResponse: syncstate.RuleDownloadResponse{Cursor: "next"}}
-	router := testRouter(&staticVerifier{ok: true}, service)
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
-	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1",
+	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1",
 		&syncv1.RuleDownloadRequest{Cursor: "current"})
 
 	router.ServeHTTP(rec, req)
@@ -49,11 +174,11 @@ func TestSantaSyncRoutesDecodeAndEncodeRuleDownloadCursor(t *testing.T) {
 	}
 }
 
-func TestSantaSyncRoutesDecodePreflightRuleCounts(t *testing.T) {
+func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 	service := &recordingService{}
-	router := testRouter(&staticVerifier{ok: true}, service)
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
-	req := santaSyncRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{
+	req := santaContractRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{
 		BinaryRuleCount:      1,
 		CertificateRuleCount: 2,
 		TeamidRuleCount:      3,
@@ -71,7 +196,7 @@ func TestSantaSyncRoutesDecodePreflightRuleCounts(t *testing.T) {
 	}
 }
 
-func TestSantaSyncRoutesEncodeRemovedPayloadRule(t *testing.T) {
+func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	service := &recordingService{
 		ruleDownloadResponse: syncstate.RuleDownloadResponse{
 			Rules: []syncstate.PayloadRule{{
@@ -81,9 +206,9 @@ func TestSantaSyncRoutesEncodeRemovedPayloadRule(t *testing.T) {
 			}},
 		},
 	}
-	router := testRouter(&staticVerifier{ok: true}, service)
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
-	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1", &syncv1.RuleDownloadRequest{})
+	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1", &syncv1.RuleDownloadRequest{})
 
 	router.ServeHTTP(rec, req)
 
@@ -100,7 +225,7 @@ func TestSantaSyncRoutesEncodeRemovedPayloadRule(t *testing.T) {
 	}
 }
 
-func TestSantaSyncRoutesCoverAllStages(t *testing.T) {
+func TestSantaHTTPCoversAllSyncStages(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
@@ -136,9 +261,9 @@ func TestSantaSyncRoutesCoverAllStages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := &recordingService{}
-			router := testRouter(&staticVerifier{ok: true}, service)
+			router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 			rec := httptest.NewRecorder()
-			req := santaSyncRequest(t, tt.path, tt.request)
+			req := santaContractRequest(t, tt.path, tt.request)
 
 			router.ServeHTTP(rec, req)
 
@@ -155,7 +280,7 @@ func TestSantaSyncRoutesCoverAllStages(t *testing.T) {
 	}
 }
 
-func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
+func TestSantaHTTPRejectsAgentErrorsWithEmptyBodies(t *testing.T) {
 	validBody := mustGzipProto(t, &syncv1.PreflightRequest{})
 	malformedProto := mustGzip(t, []byte("not a protobuf"))
 
@@ -242,7 +367,7 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := testRouter(tt.tokenVerifier, &recordingService{})
+			router := newSantaContractRouter(tt.tokenVerifier, &recordingService{})
 			rec := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPost, "/santa/sync/preflight/machine-1", bytes.NewReader(tt.body))
 			if tt.contentType != "" {
@@ -267,11 +392,11 @@ func TestSantaSyncRoutesRejectAgentErrorsWithEmptyBodies(t *testing.T) {
 	}
 }
 
-func TestSantaSyncRoutesMapInvalidCursorToBadRequest(t *testing.T) {
+func TestSantaHTTPMapsInvalidCursorToBadRequest(t *testing.T) {
 	service := &recordingService{err: dbutil.ErrInvalidInput}
-	router := testRouter(&staticVerifier{ok: true}, service)
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
 	rec := httptest.NewRecorder()
-	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1",
+	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1",
 		&syncv1.RuleDownloadRequest{Cursor: "bad"})
 
 	router.ServeHTTP(rec, req)
@@ -281,13 +406,46 @@ func TestSantaSyncRoutesMapInvalidCursorToBadRequest(t *testing.T) {
 	}
 }
 
-func testRouter(verifier SyncTokenVerifier, service SyncService) chi.Router {
+func newSantaContractRouter(verifier SyncTokenVerifier, service SyncService) chi.Router {
 	r := chi.NewRouter()
 	RegisterSantaRoutes(r, verifier, service, slog.New(slog.DiscardHandler))
 	return r
 }
 
-func santaSyncRequest(t *testing.T, path string, msg proto.Message) *http.Request {
+type santaContractStores struct {
+	hosts          *hosts.Store
+	labels         *labels.Store
+	hostState      *santa.Store
+	configurations *configurations.Store
+	events         *santaevents.Store
+	rules          *santarules.Store
+	sync           *syncstate.Store
+}
+
+func newSantaContractStores(db *database.DB) santaContractStores {
+	return santaContractStores{
+		hosts:          hosts.NewStore(db),
+		labels:         labels.NewStore(db),
+		hostState:      santa.NewStore(db),
+		configurations: configurations.NewStore(db),
+		events:         santaevents.NewStore(db),
+		rules:          santarules.NewStore(db),
+		sync:           syncstate.NewStore(db),
+	}
+}
+
+func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
+	service := santa.NewService(santa.Dependencies{
+		HostStore:      stores.hostState,
+		Configurations: stores.configurations,
+		Events:         stores.events,
+		Rules:          stores.rules,
+		Sync:           stores.sync,
+	})
+	return newSantaContractRouter(stores.sync, service)
+}
+
+func santaContractRequest(t *testing.T, path string, msg proto.Message) *http.Request {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(mustGzipProto(t, msg)))
@@ -295,6 +453,29 @@ func santaSyncRequest(t *testing.T, path string, msg proto.Message) *http.Reques
 	req.Header.Set("Content-Type", protobufContentType)
 	req.Header.Set("Content-Encoding", "gzip")
 	return req
+}
+
+func doSantaContractProto(
+	t *testing.T,
+	router http.Handler,
+	token string,
+	path string,
+	request proto.Message,
+	wantStatus int,
+	response proto.Message,
+) {
+	t.Helper()
+
+	req := santaContractRequest(t, path, request)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != wantStatus {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, wantStatus, rec.Body.String())
+	}
+	if response != nil {
+		mustReadProtoResponse(t, rec.Body.Bytes(), response)
+	}
 }
 
 func mustGzipProto(t *testing.T, msg proto.Message) []byte {
