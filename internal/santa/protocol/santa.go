@@ -166,11 +166,18 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (syncstate.Prefligh
 		sipStatus = &value
 	}
 	return syncstate.PreflightRequest{
-		SerialNumber:      req.GetSerialNumber(),
-		Version:           req.GetSantaVersion(),
-		ClientMode:        clientModeFromProto(req.GetClientMode()),
-		RequestCleanSync:  req.GetRequestCleanSync(),
-		RulesHash:         req.GetRulesHash(),
+		SerialNumber:     req.GetSerialNumber(),
+		Version:          req.GetSantaVersion(),
+		ClientMode:       clientModeFromProto(req.GetClientMode()),
+		RequestCleanSync: req.GetRequestCleanSync(),
+		RulesHash:        req.GetRulesHash(),
+		RuleCounts: syncstate.RuleCounts{
+			Binary:      int(req.GetBinaryRuleCount()),
+			Certificate: int(req.GetCertificateRuleCount()),
+			TeamID:      int(req.GetTeamidRuleCount()),
+			SigningID:   int(req.GetSigningidRuleCount()),
+			CDHash:      int(req.GetCdhashRuleCount()),
+		},
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),
 		SIPStatus:         sipStatus,
@@ -213,7 +220,7 @@ func ruleDownloadRequestFromProto(req *syncv1.RuleDownloadRequest) (syncstate.Ru
 
 func ruleDownloadResponseToProto(resp syncstate.RuleDownloadResponse) (*syncv1.RuleDownloadResponse, error) {
 	return &syncv1.RuleDownloadResponse{
-		Rules:  protoRulesFromSyncTargets(resp.Rules),
+		Rules:  protoRulesFromPayloadRules(resp.Rules),
 		Cursor: resp.Cursor,
 	}, nil
 }
@@ -439,16 +446,16 @@ func protoSyncType(syncType syncstate.SyncType) syncv1.SyncType {
 	}
 }
 
-func protoRulesFromSyncTargets(targets []syncstate.Target) []*syncv1.Rule {
-	rules := make([]*syncv1.Rule, 0, len(targets))
-	for _, target := range targets {
+func protoRulesFromPayloadRules(payload []syncstate.PayloadRule) []*syncv1.Rule {
+	rules := make([]*syncv1.Rule, 0, len(payload))
+	for _, rule := range payload {
 		rules = append(rules, &syncv1.Rule{
-			Identifier: target.Identifier,
-			RuleType:   protoRuleType(target.RuleType),
-			Policy:     protoPolicy(target.Policy),
-			CelExpr:    target.CELExpression,
-			CustomMsg:  target.CustomMessage,
-			CustomUrl:  target.CustomURL,
+			Identifier: rule.Identifier,
+			RuleType:   protoRuleType(rule.RuleType),
+			Policy:     protoPolicy(rule),
+			CelExpr:    rule.CELExpression,
+			CustomMsg:  rule.CustomMessage,
+			CustomUrl:  rule.CustomURL,
 		})
 	}
 	return rules
@@ -471,8 +478,11 @@ func protoRuleType(ruleType string) syncv1.RuleType {
 	}
 }
 
-func protoPolicy(policy string) syncv1.Policy {
-	switch santarules.Policy(policy) {
+func protoPolicy(rule syncstate.PayloadRule) syncv1.Policy {
+	if rule.Removed {
+		return syncv1.Policy_REMOVE
+	}
+	switch santarules.Policy(rule.Policy) {
 	case santarules.PolicyAllowlist:
 		return syncv1.Policy_ALLOWLIST
 	case santarules.PolicyAllowlistCompiler:

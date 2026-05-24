@@ -49,6 +49,57 @@ func TestSantaSyncRoutesDecodeAndEncodeRuleDownloadCursor(t *testing.T) {
 	}
 }
 
+func TestSantaSyncRoutesDecodePreflightRuleCounts(t *testing.T) {
+	service := &recordingService{}
+	router := testRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaSyncRequest(t, "/santa/sync/preflight/machine-1", &syncv1.PreflightRequest{
+		BinaryRuleCount:      1,
+		CertificateRuleCount: 2,
+		TeamidRuleCount:      3,
+		SigningidRuleCount:   4,
+		CdhashRuleCount:      5,
+	})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if service.preflightCounts != (syncstate.RuleCounts{Binary: 1, Certificate: 2, TeamID: 3, SigningID: 4, CDHash: 5}) {
+		t.Fatalf("rule counts = %+v", service.preflightCounts)
+	}
+}
+
+func TestSantaSyncRoutesEncodeRemovedPayloadRule(t *testing.T) {
+	service := &recordingService{
+		ruleDownloadResponse: syncstate.RuleDownloadResponse{
+			Rules: []syncstate.PayloadRule{{
+				RuleType:   "binary",
+				Identifier: "old-rule",
+				Removed:    true,
+			}},
+		},
+	}
+	router := testRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaSyncRequest(t, "/santa/sync/ruledownload/machine-1", &syncv1.RuleDownloadRequest{})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var resp syncv1.RuleDownloadResponse
+	mustReadProtoResponse(t, rec.Body.Bytes(), &resp)
+	if len(resp.GetRules()) != 1 {
+		t.Fatalf("rules = %+v, want one", resp.GetRules())
+	}
+	if resp.GetRules()[0].GetPolicy() != syncv1.Policy_REMOVE {
+		t.Fatalf("policy = %v, want REMOVE", resp.GetRules()[0].GetPolicy())
+	}
+}
+
 func TestSantaSyncRoutesCoverAllStages(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -306,6 +357,7 @@ func (v *staticVerifier) VerifySyncToken(context.Context, string) (bool, error) 
 type recordingService struct {
 	stage                string
 	machineID            string
+	preflightCounts      syncstate.RuleCounts
 	ruleDownloadCursor   string
 	ruleDownloadResponse syncstate.RuleDownloadResponse
 	err                  error
@@ -314,10 +366,11 @@ type recordingService struct {
 func (s *recordingService) Preflight(
 	_ context.Context,
 	machineID string,
-	_ syncstate.PreflightRequest,
+	req syncstate.PreflightRequest,
 ) (syncstate.PreflightResponse, error) {
 	s.stage = "preflight"
 	s.machineID = machineID
+	s.preflightCounts = req.RuleCounts
 	return syncstate.PreflightResponse{}, s.err
 }
 

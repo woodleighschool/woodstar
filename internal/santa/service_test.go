@@ -103,6 +103,24 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		t.Fatalf("downloaded rule = %+v", download.Rules[0])
 	}
 
+	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
+		RuleType:   santarules.RuleTypeCertificate,
+		Identifier: "cert-sha",
+		Includes: []santarules.RuleIncludeWrite{{
+			Policy:   santarules.PolicyBlocklist,
+			LabelIDs: []int64{labelID},
+		}},
+	}); err != nil {
+		t.Fatalf("create post-preflight rule: %v", err)
+	}
+	frozenDownload, err := service.RuleDownload(ctx, "santa-sync-host", syncstate.RuleDownloadRequest{})
+	if err != nil {
+		t.Fatalf("rule download after desired change: %v", err)
+	}
+	if len(frozenDownload.Rules) != 1 || frozenDownload.Rules[0].Identifier != "binary-sha" {
+		t.Fatalf("frozen download = %+v, want original preflight payload", frozenDownload.Rules)
+	}
+
 	if _, err := service.Postflight(ctx, "santa-sync-host", syncstate.PostflightRequest{
 		RulesReceived:  1,
 		RulesProcessed: 1,

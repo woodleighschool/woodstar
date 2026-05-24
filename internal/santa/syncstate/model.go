@@ -21,12 +21,21 @@ const (
 	SyncTypeClean  SyncType = "clean"
 )
 
+type RuleCounts struct {
+	Binary      int
+	Certificate int
+	TeamID      int
+	SigningID   int
+	CDHash      int
+}
+
 type PreflightRequest struct {
 	SerialNumber      string
 	Version           string
 	ClientMode        configurations.ClientMode
 	RequestCleanSync  bool
 	RulesHash         string
+	RuleCounts        RuleCounts
 	PrimaryUser       string
 	PrimaryUserGroups []string
 	SIPStatus         *int16
@@ -50,7 +59,7 @@ type RuleDownloadRequest struct {
 }
 
 type RuleDownloadResponse struct {
-	Rules  []Target
+	Rules  []PayloadRule
 	Cursor string
 }
 

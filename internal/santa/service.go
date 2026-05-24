@@ -51,8 +51,15 @@ type ruleStore interface {
 }
 
 type syncStore interface {
-	ReplacePending(context.Context, int64, string, []syncstate.Target, []syncstate.Target, bool) error
-	LoadPendingTargetsPage(context.Context, int64, string, int) (syncstate.TargetPage, error)
+	PreparePending(
+		context.Context,
+		int64,
+		string,
+		[]syncstate.Target,
+		syncstate.RuleCounts,
+		bool,
+	) (syncstate.SyncType, error)
+	LoadPendingPayloadPage(context.Context, int64, string, int) (syncstate.PayloadRulePage, error)
 	PromotePending(context.Context, int64, string, int, int) error
 }
 
@@ -84,21 +91,15 @@ func (s *Service) Preflight(
 		return syncstate.PreflightResponse{}, err
 	}
 	targets := santarules.SyncTargetsFromRules(effectiveRules)
-	pending := targets
-	syncType := syncstate.SyncTypeNormal
-	pendingFullSync := false
-	if req.RequestCleanSync {
-		syncType = syncstate.SyncTypeClean
-		pendingFullSync = true
-	}
-	if err := s.sync.ReplacePending(
+	syncType, err := s.sync.PreparePending(
 		ctx,
 		hostID,
 		req.RulesHash,
 		targets,
-		pending,
-		pendingFullSync,
-	); err != nil {
+		req.RuleCounts,
+		req.RequestCleanSync,
+	)
+	if err != nil {
 		return syncstate.PreflightResponse{}, err
 	}
 
@@ -137,11 +138,11 @@ func (s *Service) RuleDownload(
 	if err != nil {
 		return syncstate.RuleDownloadResponse{}, err
 	}
-	page, err := s.sync.LoadPendingTargetsPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
+	page, err := s.sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
 	if err != nil {
 		return syncstate.RuleDownloadResponse{}, err
 	}
-	return syncstate.RuleDownloadResponse{Rules: page.Targets, Cursor: page.Cursor}, nil
+	return syncstate.RuleDownloadResponse(page), nil
 }
 
 func (s *Service) Postflight(

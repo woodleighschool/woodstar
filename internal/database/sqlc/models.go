@@ -335,7 +335,6 @@ type SantaSyncTargetPhase string
 
 const (
 	SantaSyncTargetPhaseDesired SantaSyncTargetPhase = "desired"
-	SantaSyncTargetPhasePending SantaSyncTargetPhase = "pending"
 	SantaSyncTargetPhaseApplied SantaSyncTargetPhase = "applied"
 )
 
@@ -777,15 +776,43 @@ type SantaSigningChain struct {
 	FirstSeenAt time.Time `json:"first_seen_at"`
 }
 
+type SantaSyncPendingRule struct {
+	HostID        int64         `json:"host_id"`
+	Position      int32         `json:"position"`
+	RuleType      SantaRuleType `json:"rule_type"`
+	Identifier    string        `json:"identifier"`
+	Policy        *SantaPolicy  `json:"policy"`
+	CelExpression string        `json:"cel_expression"`
+	CustomMessage string        `json:"custom_message"`
+	CustomURL     string        `json:"custom_url"`
+	PayloadHash   string        `json:"payload_hash"`
+	Removed       bool          `json:"removed"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+}
+
 type SantaSyncState struct {
-	HostID                int64      `json:"host_id"`
-	ClientRulesHash       string     `json:"client_rules_hash"`
-	PendingFullSync       bool       `json:"pending_full_sync"`
-	PendingPreflightAt    *time.Time `json:"pending_preflight_at"`
-	LastRuleSyncAttemptAt *time.Time `json:"last_rule_sync_attempt_at"`
-	LastRuleSyncSuccessAt *time.Time `json:"last_rule_sync_success_at"`
-	LastCleanSyncAt       *time.Time `json:"last_clean_sync_at"`
-	UpdatedAt             time.Time  `json:"updated_at"`
+	HostID                      int64      `json:"host_id"`
+	ClientRulesHash             string     `json:"client_rules_hash"`
+	PendingFullSync             bool       `json:"pending_full_sync"`
+	PendingPayloadRuleCount     int32      `json:"pending_payload_rule_count"`
+	PendingPreflightAt          *time.Time `json:"pending_preflight_at"`
+	DesiredBinaryRuleCount      int32      `json:"desired_binary_rule_count"`
+	DesiredCertificateRuleCount int32      `json:"desired_certificate_rule_count"`
+	DesiredTeamidRuleCount      int32      `json:"desired_teamid_rule_count"`
+	DesiredSigningidRuleCount   int32      `json:"desired_signingid_rule_count"`
+	DesiredCdhashRuleCount      int32      `json:"desired_cdhash_rule_count"`
+	BinaryRuleCount             int32      `json:"binary_rule_count"`
+	CertificateRuleCount        int32      `json:"certificate_rule_count"`
+	TeamidRuleCount             int32      `json:"teamid_rule_count"`
+	SigningidRuleCount          int32      `json:"signingid_rule_count"`
+	CdhashRuleCount             int32      `json:"cdhash_rule_count"`
+	RulesReceived               int32      `json:"rules_received"`
+	RulesProcessed              int32      `json:"rules_processed"`
+	LastRuleSyncAttemptAt       *time.Time `json:"last_rule_sync_attempt_at"`
+	LastRuleSyncSuccessAt       *time.Time `json:"last_rule_sync_success_at"`
+	LastCleanSyncAt             *time.Time `json:"last_clean_sync_at"`
+	LastReportedCountsMatchAt   *time.Time `json:"last_reported_counts_match_at"`
+	UpdatedAt                   time.Time  `json:"updated_at"`
 }
 
 type SantaSyncTarget struct {

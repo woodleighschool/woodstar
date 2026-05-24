@@ -23,8 +23,7 @@ CREATE TYPE santa_execution_decision AS ENUM (
     'bundle_binary'
 );
 
--- Santa host observation -----------------------------------------------------
-
+-- Santa host observation
 CREATE TABLE santa_hosts (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     machine_id TEXT NOT NULL,
@@ -48,14 +47,28 @@ CREATE TABLE santa_sync_state (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     client_rules_hash TEXT NOT NULL DEFAULT '',
     pending_full_sync BOOLEAN NOT NULL DEFAULT FALSE,
+    pending_payload_rule_count INT NOT NULL DEFAULT 0 CHECK (pending_payload_rule_count >= 0),
     pending_preflight_at TIMESTAMPTZ,
+    desired_binary_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_binary_rule_count >= 0),
+    desired_certificate_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_certificate_rule_count >= 0),
+    desired_teamid_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_teamid_rule_count >= 0),
+    desired_signingid_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_signingid_rule_count >= 0),
+    desired_cdhash_rule_count INT NOT NULL DEFAULT 0 CHECK (desired_cdhash_rule_count >= 0),
+    binary_rule_count INT NOT NULL DEFAULT 0 CHECK (binary_rule_count >= 0),
+    certificate_rule_count INT NOT NULL DEFAULT 0 CHECK (certificate_rule_count >= 0),
+    teamid_rule_count INT NOT NULL DEFAULT 0 CHECK (teamid_rule_count >= 0),
+    signingid_rule_count INT NOT NULL DEFAULT 0 CHECK (signingid_rule_count >= 0),
+    cdhash_rule_count INT NOT NULL DEFAULT 0 CHECK (cdhash_rule_count >= 0),
+    rules_received INT NOT NULL DEFAULT 0 CHECK (rules_received >= 0),
+    rules_processed INT NOT NULL DEFAULT 0 CHECK (rules_processed >= 0),
     last_rule_sync_attempt_at TIMESTAMPTZ,
     last_rule_sync_success_at TIMESTAMPTZ,
     last_clean_sync_at TIMESTAMPTZ,
+    last_reported_counts_match_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TYPE santa_sync_target_phase AS ENUM ('desired', 'pending', 'applied');
+CREATE TYPE santa_sync_target_phase AS ENUM ('desired', 'applied');
 
 CREATE TABLE santa_sync_targets (
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
@@ -78,8 +91,30 @@ CREATE TABLE santa_sync_targets (
 CREATE INDEX santa_sync_targets_host_phase_idx
     ON santa_sync_targets (host_id, phase);
 
--- Santa configurations -------------------------------------------------------
+CREATE TABLE santa_sync_pending_rules (
+    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
+    position INT NOT NULL CHECK (position >= 0),
+    rule_type santa_rule_type NOT NULL,
+    identifier TEXT NOT NULL,
+    policy santa_policy,
+    cel_expression TEXT NOT NULL DEFAULT '',
+    custom_message TEXT NOT NULL DEFAULT '',
+    custom_url TEXT NOT NULL DEFAULT '',
+    payload_hash TEXT NOT NULL DEFAULT '',
+    removed BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (host_id, position),
+    CHECK (NULLIF(btrim(identifier), '') IS NOT NULL),
+    CHECK (
+        (removed AND policy IS NULL AND payload_hash = '')
+        OR (NOT removed AND policy IS NOT NULL AND NULLIF(btrim(payload_hash), '') IS NOT NULL)
+    )
+);
 
+CREATE UNIQUE INDEX santa_sync_pending_rules_host_identity_idx
+    ON santa_sync_pending_rules (host_id, rule_type, identifier);
+
+-- Santa configurations
 CREATE TABLE santa_configurations (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
@@ -121,8 +156,7 @@ CREATE TABLE santa_configuration_labels (
 CREATE INDEX santa_configuration_labels_configuration_idx
     ON santa_configuration_labels (configuration_id);
 
--- Santa rules ----------------------------------------------------------------
-
+-- Santa rules
 CREATE TABLE santa_rules (
     id BIGSERIAL PRIMARY KEY,
     rule_type santa_rule_type NOT NULL,
@@ -167,8 +201,7 @@ CREATE TABLE santa_rule_exclude_labels (
 CREATE INDEX santa_rule_exclude_labels_label_idx
     ON santa_rule_exclude_labels (label_id);
 
--- Santa execution events -----------------------------------------------------
-
+-- Santa execution events
 CREATE TABLE santa_executables (
     id BIGSERIAL PRIMARY KEY,
     sha256 TEXT NOT NULL UNIQUE,
@@ -219,8 +252,7 @@ CREATE INDEX santa_execution_events_host_time_idx
 CREATE INDEX santa_execution_events_decision_ingested_idx
     ON santa_execution_events (decision, ingested_at DESC);
 
--- Santa sync tokens ----------------------------------------------------------
-
+-- Santa sync tokens
 CREATE TABLE santa_sync_tokens (
     id BIGSERIAL PRIMARY KEY,
     value TEXT NOT NULL UNIQUE,
@@ -241,6 +273,7 @@ DROP TABLE santa_rule_includes;
 DROP TABLE santa_rules;
 DROP TABLE santa_configuration_labels;
 DROP TABLE santa_configurations;
+DROP TABLE santa_sync_pending_rules;
 DROP TABLE santa_sync_targets;
 DROP TABLE santa_sync_state;
 DROP TABLE santa_hosts;

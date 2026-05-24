@@ -90,25 +90,10 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 func (s *Store) syncSummary(ctx context.Context, hostID int64) (RuleSyncSummary, error) {
 	var summary RuleSyncSummary
 	err := s.db.Pool().QueryRow(ctx, `
-		WITH desired AS (
-			SELECT rule_type, identifier, policy, cel_expression, custom_message, custom_url, payload_hash
-			FROM santa_sync_targets
-			WHERE host_id = $1 AND phase = 'desired'
-		),
-		applied AS (
-			SELECT rule_type, identifier, policy, cel_expression, custom_message, custom_url, payload_hash
-			FROM santa_sync_targets
-			WHERE host_id = $1 AND phase = 'applied'
-		),
-		pending AS (
-			(SELECT * FROM desired EXCEPT SELECT * FROM applied)
-			UNION
-			(SELECT * FROM applied EXCEPT SELECT * FROM desired)
-		)
 		SELECT
-			(SELECT count(*) FROM desired),
-			(SELECT count(*) FROM applied),
-			(SELECT count(*) FROM pending)
+			(SELECT count(*) FROM santa_sync_targets WHERE host_id = $1 AND phase = 'desired'),
+			(SELECT count(*) FROM santa_sync_targets WHERE host_id = $1 AND phase = 'applied'),
+			(SELECT count(*) FROM santa_sync_pending_rules WHERE host_id = $1)
 	`, hostID).Scan(&summary.DesiredCount, &summary.AppliedCount, &summary.PendingCount)
 	return summary, err
 }
