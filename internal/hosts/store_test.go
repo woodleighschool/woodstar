@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/platforms"
 )
@@ -36,11 +35,6 @@ func TestDisplayNamePriority(t *testing.T) {
 			name: "uuid when no friendly name",
 			in:   DetailUpdate{HardwareUUID: "uuid-1"},
 			want: "uuid-1",
-		},
-		{
-			name: "whitespace-only fields fall through",
-			in:   DetailUpdate{ComputerName: "  ", Hostname: " ", HardwareUUID: "uuid-2"},
-			want: "uuid-2",
 		},
 	}
 
@@ -299,40 +293,4 @@ func newIntegrationHostStore(t *testing.T) (*Store, context.Context) {
 
 func allPlatforms() []platforms.Platform {
 	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
-}
-
-func TestCleanListParamsNormalizesHostFilters(t *testing.T) {
-	params := cleanListParams(ListParams{
-		ListParams: dbutil.ListParams{
-			Q:         " mac ",
-			PageIndex: 1,
-			PageSize:  25,
-			Sort:      " last_seen_at.desc ",
-		},
-		Status:   " online ",
-		Platform: " darwin ",
-		LabelID:  42,
-	})
-
-	if params.Q != "mac" {
-		t.Fatalf("Q = %q, want mac", params.Q)
-	}
-	if params.PageIndex != 1 {
-		t.Fatalf("PageIndex = %d, want 1", params.PageIndex)
-	}
-	if params.PageSize != 25 {
-		t.Fatalf("PageSize = %d, want 25", params.PageSize)
-	}
-	if params.Sort != "last_seen_at.desc" {
-		t.Fatalf("Sort = %q, want last_seen_at.desc", params.Sort)
-	}
-	if params.Status != "online" {
-		t.Fatalf("Status = %q, want online", params.Status)
-	}
-	if params.Platform != "darwin" {
-		t.Fatalf("Platform = %q, want darwin", params.Platform)
-	}
-	if params.LabelID != 42 {
-		t.Fatalf("LabelID = %d, want 42", params.LabelID)
-	}
 }

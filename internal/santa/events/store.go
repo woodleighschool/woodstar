@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -80,9 +79,11 @@ func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events 
 }
 
 func (s *Store) ListEvents(ctx context.Context, params EventListParams) (EventPage, error) {
-	params, err := cleanEventListParams(params)
-	if err != nil {
-		return EventPage{}, err
+	if params.Limit <= 0 {
+		params.Limit = 100
+	}
+	if params.Limit > 500 {
+		params.Limit = 500
 	}
 	after, hasAfter, err := decodeEventCursor(params.After)
 	if err != nil {
@@ -137,10 +138,6 @@ func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, e
 }
 
 func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, error) {
-	sha := strings.TrimSpace(event.FileSHA256)
-	if sha == "" {
-		return 0, fmt.Errorf("%w: file_sha256 is required", dbutil.ErrInvalidInput)
-	}
 	entitlements, err := entitlementJSON(event)
 	if err != nil {
 		return 0, err
@@ -169,13 +166,13 @@ func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput)
 			entitlements = EXCLUDED.entitlements,
 			updated_at = now()
 		RETURNING id
-	`, sha,
-		strings.TrimSpace(event.FileName),
-		strings.TrimSpace(event.BundleID),
-		strings.TrimSpace(event.BundlePath),
-		strings.TrimSpace(event.SigningID),
-		strings.TrimSpace(event.TeamID),
-		strings.TrimSpace(event.CDHash),
+	`, event.FileSHA256,
+		event.FileName,
+		event.BundleID,
+		event.BundlePath,
+		event.SigningID,
+		event.TeamID,
+		event.CDHash,
 		entitlements,
 	).Scan(&id)
 	return id, err
@@ -229,31 +226,14 @@ func insertExecutionEvent(
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, hostID,
 		executableID,
-		strings.TrimSpace(event.FilePath),
-		strings.TrimSpace(event.ExecutingUser),
-		cleanEventStringList(event.LoggedInUsers),
-		cleanEventStringList(event.CurrentSessions),
+		event.FilePath,
+		event.ExecutingUser,
+		event.LoggedInUsers,
+		event.CurrentSessions,
 		event.Decision,
 		eventOccurredAt(event.ExecutionTimeSeconds),
 	)
 	return err
-}
-
-func cleanEventStringList(values []string) []string {
-	cleaned := make([]string, 0, len(values))
-	seen := map[string]struct{}{}
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		cleaned = append(cleaned, value)
-		seen[value] = struct{}{}
-	}
-	return cleaned
 }
 
 func entitlementJSON(event ExecutionEventInput) ([]byte, error) {
@@ -266,17 +246,7 @@ func entitlementJSON(event ExecutionEventInput) ([]byte, error) {
 func signingChainEntries(chain []CertificateInput) []signingChainEntry {
 	entries := make([]signingChainEntry, 0, len(chain))
 	for _, cert := range chain {
-		if strings.TrimSpace(cert.SHA256) == "" {
-			continue
-		}
-		entries = append(entries, signingChainEntry{
-			SHA256:     strings.TrimSpace(cert.SHA256),
-			CommonName: strings.TrimSpace(cert.CommonName),
-			Org:        strings.TrimSpace(cert.Org),
-			OU:         strings.TrimSpace(cert.OU),
-			ValidFrom:  cert.ValidFrom,
-			ValidUntil: cert.ValidUntil,
-		})
+		entries = append(entries, signingChainEntry(cert))
 	}
 	return entries
 }
@@ -296,18 +266,6 @@ func eventOccurredAt(seconds float64) *time.Time {
 	whole, fraction := math.Modf(seconds)
 	t := time.Unix(int64(whole), int64(fraction*1e9)).UTC()
 	return &t
-}
-
-func cleanEventListParams(params EventListParams) (EventListParams, error) {
-	if params.Limit <= 0 {
-		params.Limit = 100
-	}
-	if params.Limit > 500 {
-		return EventListParams{}, fmt.Errorf("%w: limit must be at most 500", dbutil.ErrInvalidInput)
-	}
-	params.Decision = DecisionFilter(strings.TrimSpace(string(params.Decision)))
-	params.After = strings.TrimSpace(params.After)
-	return params, nil
 }
 
 func eventListQuery(params EventListParams, after eventCursor, hasAfter bool) (string, []any, error) {

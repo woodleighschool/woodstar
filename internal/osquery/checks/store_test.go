@@ -11,25 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-func TestCleanCheckCreate(t *testing.T) {
-	got, err := cleanCheckCreate(CheckCreate{
-		Name:        " Gatekeeper enabled ",
-		Description: " Security check ",
-		Query:       " select 1 from gatekeeper where assessments_enabled = 1; ",
-		Platforms:   []platforms.Platform{" darwin ", "DARWIN"},
-	})
-	if err != nil {
-		t.Fatalf("cleanCheckCreate returned error: %v", err)
-	}
-	if got.Name != "Gatekeeper enabled" {
-		t.Fatalf("Name = %q, want Gatekeeper enabled", got.Name)
-	}
-	if got.Query != "select 1 from gatekeeper where assessments_enabled = 1;" {
-		t.Fatalf("Query = %q, want trimmed SQL", got.Query)
-	}
-	assertPlatforms(t, "Platforms", got.Platforms, []platforms.Platform{platforms.PlatformDarwin})
-}
-
 func TestListIncludesLabelScope(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationCheckStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Check A")
@@ -295,18 +276,6 @@ func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 		return false
 	default:
 		return *a == *b
-	}
-}
-
-func assertPlatforms(t *testing.T, name string, got []platforms.Platform, want []platforms.Platform) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("%s = %#v, want %#v", name, got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("%s = %#v, want %#v", name, got, want)
-		}
 	}
 }
 

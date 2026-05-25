@@ -146,7 +146,6 @@ export function ChecksPage() {
         }}
         count={selectedIDs.length}
         noun="check"
-        error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedChecks}
       />

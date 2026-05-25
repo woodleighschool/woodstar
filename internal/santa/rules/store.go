@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -24,25 +23,7 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-var validRuleTypes = map[RuleType]struct{}{
-	RuleTypeBinary:      {},
-	RuleTypeCertificate: {},
-	RuleTypeTeamID:      {},
-	RuleTypeSigningID:   {},
-	RuleTypeCDHash:      {},
-}
-
-var validPolicies = map[Policy]struct{}{
-	PolicyAllowlist:         {},
-	PolicyAllowlistCompiler: {},
-	PolicyBlocklist:         {},
-	PolicySilentBlocklist:   {},
-	PolicyCEL:               {},
-}
-
 func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, int, error) {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
 	where, args, err := ruleListWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -106,19 +87,18 @@ func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, error) {
-	cleaned, err := cleanRuleMutation(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
 	var ruleID int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateSantaRule(ctx, sqlc.CreateSantaRuleParams{
-			RuleType:      sqlc.SantaRuleType(cleaned.RuleType),
-			Identifier:    cleaned.Identifier,
-			Name:          cleaned.Name,
-			CustomMessage: cleaned.CustomMessage,
-			CustomURL:     cleaned.CustomURL,
+			RuleType:      sqlc.SantaRuleType(params.RuleType),
+			Identifier:    params.Identifier,
+			Name:          params.Name,
+			CustomMessage: params.CustomMessage,
+			CustomURL:     params.CustomURL,
 		})
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
@@ -127,7 +107,7 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 			return err
 		}
 		ruleID = row.ID
-		return replaceRuleChildren(ctx, tx, ruleID, cleaned.Includes, cleaned.ExcludeLabelIDs)
+		return replaceRuleChildren(ctx, tx, ruleID, params.Includes, params.ExcludeLabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -136,18 +116,17 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 }
 
 func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (*Rule, error) {
-	cleaned, err := cleanRuleMutation(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
-			RuleType:      sqlc.SantaRuleType(cleaned.RuleType),
-			Identifier:    cleaned.Identifier,
-			Name:          cleaned.Name,
-			CustomMessage: cleaned.CustomMessage,
-			CustomURL:     cleaned.CustomURL,
+			RuleType:      sqlc.SantaRuleType(params.RuleType),
+			Identifier:    params.Identifier,
+			Name:          params.Name,
+			CustomMessage: params.CustomMessage,
+			CustomURL:     params.CustomURL,
 			ID:            id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -159,7 +138,7 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 			}
 			return err
 		}
-		return replaceRuleChildren(ctx, tx, row.ID, cleaned.Includes, cleaned.ExcludeLabelIDs)
+		return replaceRuleChildren(ctx, tx, row.ID, params.Includes, params.ExcludeLabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -260,7 +239,6 @@ func (s *Store) ListEffectiveRulesForHost(
 	hostID int64,
 	params EffectiveRuleListParams,
 ) ([]EffectiveRuleStatus, int, error) {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	if params.PageSize <= 0 {
 		params.PageSize = 100
 	}
@@ -501,66 +479,22 @@ func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map
 	return out, rows.Err()
 }
 
-func cleanRuleMutation(params RuleMutation) (RuleMutation, error) {
-	params.RuleType = RuleType(strings.TrimSpace(string(params.RuleType)))
-	params.Identifier = strings.TrimSpace(params.Identifier)
-	params.Name = strings.TrimSpace(params.Name)
-	params.CustomMessage = strings.TrimSpace(params.CustomMessage)
-	params.CustomURL = strings.TrimSpace(params.CustomURL)
-	if !validRuleType(params.RuleType) {
-		return RuleMutation{}, fmt.Errorf("%w: unknown rule type", dbutil.ErrInvalidInput)
-	}
-	if params.Identifier == "" {
-		return RuleMutation{}, fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
-	}
-	includes, err := cleanRuleIncludes(params.Includes)
-	if err != nil {
-		return RuleMutation{}, err
-	}
-	excludeLabelIDs, err := dbutil.CleanPositiveIDList(params.ExcludeLabelIDs, "exclude_label_ids")
-	if err != nil {
-		return RuleMutation{}, err
-	}
-	params.Includes = includes
-	params.ExcludeLabelIDs = excludeLabelIDs
-	return params, nil
-}
-
-func cleanRuleIncludes(includes []RuleIncludeWrite) ([]RuleIncludeWrite, error) {
-	cleaned := make([]RuleIncludeWrite, 0, len(includes))
-	for _, include := range includes {
-		include.Policy = Policy(strings.TrimSpace(string(include.Policy)))
-		include.CELExpression = strings.TrimSpace(include.CELExpression)
-		if !validPolicy(include.Policy) {
-			return nil, fmt.Errorf("%w: unknown policy", dbutil.ErrInvalidInput)
-		}
+// Validate enforces cross-field rules that the DB and Huma DTO can't express:
+// CEL-policy includes require a cel_expression and non-CEL includes must omit
+// it, and every include must target at least one label.
+func (p RuleMutation) Validate() error {
+	for _, include := range p.Includes {
 		if include.Policy == PolicyCEL && include.CELExpression == "" {
-			return nil, fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
 		}
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
-			return nil, fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
 		}
-		labelIDs, err := dbutil.CleanPositiveIDList(include.LabelIDs, "label_ids")
-		if err != nil {
-			return nil, err
+		if len(include.LabelIDs) == 0 {
+			return fmt.Errorf("%w: include label_ids must not be empty", dbutil.ErrInvalidInput)
 		}
-		if len(labelIDs) == 0 {
-			return nil, fmt.Errorf("%w: include label_ids must not be empty", dbutil.ErrInvalidInput)
-		}
-		include.LabelIDs = labelIDs
-		cleaned = append(cleaned, include)
 	}
-	return cleaned, nil
-}
-
-func validRuleType(ruleType RuleType) bool {
-	_, ok := validRuleTypes[ruleType]
-	return ok
-}
-
-func validPolicy(policy Policy) bool {
-	_, ok := validPolicies[policy]
-	return ok
+	return nil
 }
 
 func ruleListWhere(params RuleListParams) (string, []any, error) {
@@ -570,9 +504,6 @@ func ruleListWhere(params RuleListParams) (string, []any, error) {
 		where.Add("(identifier ILIKE " + search + " OR name ILIKE " + search + ")")
 	}
 	if params.RuleType != "" {
-		if !validRuleType(params.RuleType) {
-			return "", nil, fmt.Errorf("%w: unknown rule type", dbutil.ErrInvalidInput)
-		}
 		where.Add("rule_type = " + where.Arg(params.RuleType))
 	}
 	whereSQL, args := where.Build()

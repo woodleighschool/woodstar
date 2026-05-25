@@ -151,7 +151,6 @@ export function SecretsPage() {
           initialValue={creating.value}
           open
           pending={create.isPending}
-          error={create.error?.message}
           saveLabel="Create"
           onOpenChange={(open) => {
             if (!open) {
@@ -175,7 +174,6 @@ export function SecretsPage() {
           initialValue={editing.value}
           open
           pending={update.isPending}
-          error={update.error?.message}
           saveLabel="Save"
           onOpenChange={(open) => {
             if (!open) {
@@ -195,7 +193,6 @@ export function SecretsPage() {
         secret={deleting}
         open={deleting !== null}
         pending={remove.isPending}
-        error={remove.error?.message}
         onOpenChange={(open) => {
           if (!open) {
             remove.reset();
@@ -370,7 +367,6 @@ function SecretValueDialog({
   initialValue,
   open,
   pending,
-  error,
   saveLabel,
   onOpenChange,
   onSave,
@@ -380,7 +376,6 @@ function SecretValueDialog({
   initialValue: string;
   open: boolean;
   pending: boolean;
-  error?: string;
   saveLabel: string;
   onOpenChange: (open: boolean) => void;
   onSave: (value: string) => Promise<void>;
@@ -408,7 +403,6 @@ function SecretValueDialog({
           />
           {message ? <p className="text-sm text-destructive">{message}</p> : null}
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
             Cancel
@@ -435,14 +429,12 @@ function SecretDeleteDialog({
   secret,
   open,
   pending,
-  error,
   onOpenChange,
   onConfirm,
 }: {
   secret: AgentSecret | null;
   open: boolean;
   pending: boolean;
-  error?: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => Promise<void>;
 }) {
@@ -455,7 +447,6 @@ function SecretDeleteDialog({
             {secret ? deleteDescription(secret.agent) : "This secret will stop authenticating agent requests."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>
             Cancel

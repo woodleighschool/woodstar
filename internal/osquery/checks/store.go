@@ -4,7 +4,6 @@ package checks
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -12,9 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/osquery/queries"
-	"github.com/woodleighschool/woodstar/internal/platforms"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists checks and per-host membership state.
@@ -28,7 +24,6 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
-	params = cleanCheckListParams(params)
 	where, args := checkListWhere(params)
 
 	var count int
@@ -87,13 +82,8 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) {
-	params, err := cleanCheckCreate(params)
-	if err != nil {
-		return nil, err
-	}
-
 	var created *Check
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
 			Name:            params.Name,
 			Description:     params.Description,
@@ -111,7 +101,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 		if err := replaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
+		check.LabelScope = params.LabelScope
 		created = check
 		return nil
 	})
@@ -119,18 +109,13 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
-	cleaned, err := cleanCheckUpdate(params)
-	if err != nil {
-		return nil, err
-	}
-
 	var updated *Check
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
-			Name:        cleaned.Name,
-			Description: cleaned.Description,
-			Query:       cleaned.Query,
-			Platforms:   cleaned.Platforms,
+			Name:        params.Name,
+			Description: params.Description,
+			Query:       params.Query,
+			Platforms:   params.Platforms,
 			ID:          id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -143,10 +128,10 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := replaceCheckScope(ctx, tx, check.ID, cleaned.LabelScope); err != nil {
+		if err := replaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
 			return err
 		}
-		check.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
+		check.LabelScope = params.LabelScope
 		updated = check
 		return nil
 	})
@@ -211,51 +196,6 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 		return nil, err
 	}
 	return checkHostStatusesFromHostRows(rows), nil
-}
-
-func cleanCheckCreate(params CheckCreate) (CheckCreate, error) {
-	cleaned, err := queries.CleanQueryDefinition(queries.QueryDefinition{
-		Name:        params.Name,
-		Description: params.Description,
-		Query:       params.Query,
-		Platforms:   params.Platforms,
-		LabelScope:  params.LabelScope,
-	})
-	if err != nil {
-		return CheckCreate{}, err
-	}
-	params.Name = cleaned.Name
-	params.Description = cleaned.Description
-	params.Query = cleaned.Query
-	params.Platforms = cleaned.Platforms
-	params.LabelScope = cleaned.LabelScope
-	return params, nil
-}
-
-func cleanCheckUpdate(params CheckUpdate) (CheckUpdate, error) {
-	cleaned, err := cleanCheckCreate(CheckCreate{
-		Name:        params.Name,
-		Description: params.Description,
-		Query:       params.Query,
-		Platforms:   params.Platforms,
-		LabelScope:  params.LabelScope,
-	})
-	if err != nil {
-		return CheckUpdate{}, err
-	}
-	return CheckUpdate{
-		Name:        cleaned.Name,
-		Description: cleaned.Description,
-		Query:       cleaned.Query,
-		Platforms:   cleaned.Platforms,
-		LabelScope:  cleaned.LabelScope,
-	}, nil
-}
-
-func cleanCheckListParams(params CheckListParams) CheckListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.Platform = platforms.CleanPlatform(params.Platform)
-	return params
 }
 
 func scanCheck(row pgx.Row) (*Check, error) {
@@ -330,8 +270,8 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 func checkListWhere(params CheckListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		search := where.Arg("%" + strings.ToLower(params.Q) + "%")
-		where.Add("(lower(name) LIKE " + search + " OR lower(description) LIKE " + search + ")")
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
 	}
 	if params.Platform != "" {
 		where.Add(where.Arg(params.Platform) + " = ANY(platforms::text[])")

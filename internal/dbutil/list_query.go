@@ -35,7 +35,6 @@ type WhereBuilder struct {
 }
 
 func (b *WhereBuilder) Add(clause string) {
-	clause = strings.TrimSpace(clause)
 	if clause == "" {
 		return
 	}
@@ -64,12 +63,12 @@ func (q ListQuery) Build() (string, []any, error) {
 	limitIndex := len(args) + 1
 	args = append(args, int32(params.PageSize), int32(params.PageIndex*params.PageSize))
 
-	parts := []string{strings.TrimSpace(q.SelectSQL)}
+	parts := []string{q.SelectSQL}
 	if q.WhereSQL != "" {
-		parts = append(parts, strings.TrimSpace(q.WhereSQL))
+		parts = append(parts, q.WhereSQL)
 	}
 	if q.GroupBySQL != "" {
-		parts = append(parts, strings.TrimSpace(q.GroupBySQL))
+		parts = append(parts, q.GroupBySQL)
 	}
 	if orderSQL != "" {
 		parts = append(parts, orderSQL)
@@ -120,13 +119,10 @@ func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []O
 }
 
 func parseSort(sort string) (string, string, error) {
-	sort = strings.TrimSpace(sort)
 	if sort == "" {
 		return "", orderAsc, nil
 	}
 	key, direction, ok := strings.Cut(sort, ".")
-	key = strings.TrimSpace(key)
-	direction = strings.ToLower(strings.TrimSpace(direction))
 	if key == "" {
 		return "", "", fmt.Errorf("%w: sort key is required", ErrInvalidInput)
 	}

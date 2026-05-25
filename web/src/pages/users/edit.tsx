@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,7 +74,7 @@ function UserEditForm({ user }: { user: User }) {
     const saved = await update.mutateAsync({
       id: user.id,
       body: {
-        name: isInitialUser ? user.name : name,
+        name: isInitialUser ? user.name : name.trim(),
         role: isInitialUser ? user.role : role,
         password: passwordChanged ? password : undefined,
       },
@@ -144,8 +144,6 @@ function UserEditForm({ user }: { user: User }) {
                 />
                 <FieldDescription>Leave blank to keep the current password.</FieldDescription>
               </Field>
-
-              <FieldError>{update.error?.message}</FieldError>
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex justify-between gap-3 pt-6">

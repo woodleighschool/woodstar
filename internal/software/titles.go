@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
-	params = cleanSoftwareTitleListParams(params)
+	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	whereSQL, args := softwareTitleWhere(params)
 
 	countSQL := `SELECT count(*) FROM software_titles st`
@@ -67,12 +67,6 @@ func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) 
 		return nil, err
 	}
 	return &titles[0], nil
-}
-
-func cleanSoftwareTitleListParams(params SoftwareTitleListParams) SoftwareTitleListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
-	return params
 }
 
 func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {

@@ -3,7 +3,6 @@ package orbit
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/hosts"
@@ -28,7 +27,7 @@ func NewService(
 // Re-enrollment of the same hardware UUID overwrites the existing key, so prior
 // keys stop authenticating immediately.
 func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
-	if strings.TrimSpace(req.HardwareUUID) == "" {
+	if req.HardwareUUID == "" {
 		return nil, "", ErrMissingHardwareUUID
 	}
 
@@ -73,5 +72,5 @@ func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) e
 	if err != nil {
 		return err
 	}
-	return s.deviceMappingStore.Upsert(ctx, host.ID, strings.TrimSpace(email), hosts.DeviceMappingSourceOrbitProfile)
+	return s.deviceMappingStore.Upsert(ctx, host.ID, email, hosts.DeviceMappingSourceOrbitProfile)
 }

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
@@ -22,19 +21,13 @@ export function LoginPage() {
   const router = useRouter();
   const { session } = useSession();
   const search: { sso_error?: string } = useSearch({ strict: false });
-  const [error, setError] = useState<string | null>(search.sso_error ?? null);
-
   const ssoEnabled = session?.sso_enabled ?? false;
 
   const login = useMutation<UserBody, ApiError, LoginInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/auth/login", { body })),
     onSuccess: async () => {
-      setError(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
       await router.navigate({ to: "/hosts" });
-    },
-    onError: (err) => {
-      setError(err.message);
     },
   });
 
@@ -52,7 +45,7 @@ export function LoginPage() {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
               login.mutate({
-                email: formString(form, "email"),
+                email: formString(form, "email").trim(),
                 password: formString(form, "password"),
               });
             }}
@@ -68,7 +61,7 @@ export function LoginPage() {
               </Field>
             </FieldGroup>
 
-            <FieldError>{error}</FieldError>
+            {search.sso_error ? <FieldError>{search.sso_error}</FieldError> : null}
 
             <Button type="submit" className="w-full" disabled={login.isPending}>
               {login.isPending ? "Signing in..." : "Sign in"}

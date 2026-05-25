@@ -1,7 +1,6 @@
 package agentauth
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -76,12 +75,6 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	if !ok {
 		t.Fatal("updated orbit secret did not verify")
 	}
-	if _, err := store.Update(ctx, orbitSecret.ID, " "); !errors.Is(err, ErrInvalidSecret) {
-		t.Fatalf("update with empty secret error = %v, want ErrInvalidSecret", err)
-	}
-	if _, err := store.Update(ctx, orbitSecret.ID, "short"); !errors.Is(err, ErrInvalidSecret) {
-		t.Fatalf("update with short secret error = %v, want ErrInvalidSecret", err)
-	}
 	orbitSecret = updatedOrbitSecret
 
 	if err := store.Delete(ctx, orbitSecret.ID); err != nil {
@@ -102,15 +95,6 @@ func TestCreateRejectsUnknownAgent(t *testing.T) {
 
 	if _, err := store.Create(ctx, Agent("osquery"), "raw-osquery-secret-value-long-32"); err == nil {
 		t.Fatal("Create accepted unknown agent")
-	}
-}
-
-func TestCreateRejectsShortSecret(t *testing.T) {
-	database, ctx := dbtest.Open(t)
-	store := NewStore(database)
-
-	if _, err := store.Create(ctx, AgentOrbit, "short"); !errors.Is(err, ErrInvalidSecret) {
-		t.Fatalf("Create with short secret error = %v, want ErrInvalidSecret", err)
 	}
 }
 

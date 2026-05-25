@@ -10,7 +10,6 @@ import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformToggleGroup } from "@/components/queries/platform-selector";
 import { ShowQueryButton } from "@/components/queries/query-ui";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -149,19 +148,6 @@ export function LiveRunner({
           </>
         }
       />
-
-      {create.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Run failed</AlertTitle>
-          <AlertDescription>{create.error.message}</AlertDescription>
-        </Alert>
-      ) : null}
-      {stop.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Stop failed</AlertTitle>
-          <AlertDescription>{stop.error.message}</AlertDescription>
-        </Alert>
-      ) : null}
 
       {step === "targets" ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(20rem,24rem)_1fr]">

@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 // AccountUpdateParams contains fields a signed-in user can mutate on their own account.
@@ -24,7 +23,7 @@ func (s *Service) UpdateAccount(ctx context.Context, id int64, params AccountUpd
 		if err != nil {
 			return nil, fmt.Errorf("get user: %w", err)
 		}
-		if strings.TrimSpace(params.Name) != current.Name {
+		if params.Name != current.Name {
 			return nil, ErrCannotModifyInitialUser
 		}
 	}

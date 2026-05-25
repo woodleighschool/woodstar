@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 // Store persists enrolled hosts.
@@ -28,10 +26,6 @@ func NewStore(db *database.DB) *Store {
 // hardware UUID. Re-enrollment overwrites the orbit node key so prior keys
 // stop authenticating. Newly-enrolled hosts are added to the All Hosts label.
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
-	update, err := cleanOrbitEnrollUpdate(update)
-	if err != nil {
-		return nil, err
-	}
 	row, err := s.q.UpsertHostOnOrbitEnroll(ctx, sqlc.UpsertHostOnOrbitEnrollParams{
 		HardwareUUID:   update.HardwareUUID,
 		DisplayName:    displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
@@ -55,10 +49,6 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*
 // UpsertOnOsqueryEnroll refreshes the osquery node key and host inventory.
 // Newly-enrolled hosts are added to the All Hosts label.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
-	update, err := cleanDetailUpdate(update)
-	if err != nil {
-		return nil, err
-	}
 	row, err := s.q.UpsertHostOnOsqueryEnroll(ctx, sqlc.UpsertHostOnOsqueryEnrollParams{
 		HardwareUUID:     update.HardwareUUID,
 		DisplayName:      displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
@@ -92,7 +82,6 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update DetailUpdate) 
 }
 
 func (s *Store) List(ctx context.Context, params ListParams) ([]Host, int, error) {
-	params = cleanListParams(params)
 	where, args, err := hostListWhere(params)
 	if err != nil {
 		return nil, 0, err
@@ -158,10 +147,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	nodeKey = strings.TrimSpace(nodeKey)
-	if nodeKey == "" {
-		return nil, dbutil.ErrNotFound
-	}
 	row, err := s.q.TouchHostByOrbitNodeKey(ctx, sqlc.TouchHostByOrbitNodeKeyParams{OrbitNodeKey: nodeKey})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -173,10 +158,6 @@ func (s *Store) GetByOrbitNodeKey(ctx context.Context, nodeKey string) (*Host, e
 }
 
 func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host, error) {
-	nodeKey = strings.TrimSpace(nodeKey)
-	if nodeKey == "" {
-		return nil, dbutil.ErrNotFound
-	}
 	row, err := s.q.TouchHostByOsqueryNodeKey(ctx, sqlc.TouchHostByOsqueryNodeKeyParams{OsqueryNodeKey: nodeKey})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -380,13 +361,6 @@ func (s *Store) attachDeviceMappings(ctx context.Context, hosts []Host) error {
 	return nil
 }
 
-func cleanListParams(params ListParams) ListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.Status = strings.TrimSpace(params.Status)
-	params.Platform = platforms.CleanPlatform(params.Platform)
-	return params
-}
-
 func hostListSQLWithWhere(params ListParams, where string, args []any) (string, []any, error) {
 	return dbutil.ListQuery{
 		SelectSQL: "SELECT * FROM hosts",
@@ -475,45 +449,15 @@ func hostListWhere(params ListParams) (string, []any, error) {
 	return whereSQL, args, nil
 }
 
-func cleanOrbitEnrollUpdate(update DetailUpdate) (DetailUpdate, error) {
-	update, nodeKey, err := cleanRequiredDetailKey(update, update.OrbitNodeKey, "orbit_node_key")
-	if err != nil {
-		return DetailUpdate{}, err
-	}
-	update.OrbitNodeKey = nodeKey
-	return update, nil
-}
-
-func cleanDetailUpdate(update DetailUpdate) (DetailUpdate, error) {
-	update, nodeKey, err := cleanRequiredDetailKey(update, update.OsqueryNodeKey, "osquery_node_key")
-	if err != nil {
-		return DetailUpdate{}, err
-	}
-	update.OsqueryNodeKey = nodeKey
-	return update, nil
-}
-
-func cleanRequiredDetailKey(update DetailUpdate, nodeKey, nodeKeyName string) (DetailUpdate, string, error) {
-	update.HardwareUUID = strings.TrimSpace(update.HardwareUUID)
-	nodeKey = strings.TrimSpace(nodeKey)
-	if update.HardwareUUID == "" {
-		return DetailUpdate{}, "", errors.New("hardware_uuid is required")
-	}
-	if nodeKey == "" {
-		return DetailUpdate{}, "", fmt.Errorf("%s is required", nodeKeyName)
-	}
-	return update, nodeKey, nil
-}
-
 // displayName picks the most user-friendly identifier from enrollment values.
 func displayName(hardwareUUID, hostname, computerName string) string {
-	if v := strings.TrimSpace(computerName); v != "" {
-		return v
+	if computerName != "" {
+		return computerName
 	}
-	if v := strings.TrimSpace(hostname); v != "" {
-		return v
+	if hostname != "" {
+		return hostname
 	}
-	return strings.TrimSpace(hardwareUUID)
+	return hardwareUUID
 }
 
 func hostFromSQLC(s sqlc.Host) Host {

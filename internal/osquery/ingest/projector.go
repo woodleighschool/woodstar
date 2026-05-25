@@ -179,18 +179,18 @@ func ingestCertificates(
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {
 	users := make([]hosts.HostUser, 0, len(rows))
 	for _, row := range rows {
-		username := strings.TrimSpace(row["username"])
-		uid := strings.TrimSpace(row["uid"])
+		username := row["username"]
+		uid := row["uid"]
 		if username == "" || uid == "" {
 			continue
 		}
 		users = append(users, hosts.HostUser{
 			UID:         uid,
 			Username:    username,
-			Type:        strings.TrimSpace(row["type"]),
-			Description: strings.TrimSpace(row["description"]),
-			Directory:   strings.TrimSpace(row["directory"]),
-			Shell:       strings.TrimSpace(row["shell"]),
+			Type:        row["type"],
+			Description: row["description"],
+			Directory:   row["directory"],
+			Shell:       row["shell"],
 		})
 	}
 	return users
@@ -199,17 +199,17 @@ func parseHostUsers(rows []map[string]string) []hosts.HostUser {
 func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
 	batteries := make([]hosts.HostBattery, 0, len(rows))
 	for _, row := range rows {
-		serialNumber := strings.TrimSpace(row["serial_number"])
+		serialNumber := row["serial_number"]
 		if serialNumber == "" {
 			continue
 		}
 		batteries = append(batteries, hosts.HostBattery{
 			SerialNumber:     serialNumber,
-			Manufacturer:     strings.TrimSpace(row["manufacturer"]),
-			Model:            strings.TrimSpace(row["model"]),
-			Chemistry:        strings.TrimSpace(row["chemistry"]),
+			Manufacturer:     row["manufacturer"],
+			Model:            row["model"],
+			Chemistry:        row["chemistry"],
 			CycleCount:       parseInt32Ptr(row["cycle_count"]),
-			Health:           strings.TrimSpace(row["health"]),
+			Health:           row["health"],
 			DesignedCapacity: parseInt32Ptr(row["designed_capacity"]),
 			MaxCapacity:      parseInt32Ptr(row["max_capacity"]),
 			CurrentCapacity:  parseInt32Ptr(row["current_capacity"]),
@@ -222,13 +222,13 @@ func parseHostBatteries(rows []map[string]string) []hosts.HostBattery {
 func parseHostCertificates(queryName string, rows []map[string]string) []hosts.HostCertificate {
 	certificates := make([]hosts.HostCertificate, 0, len(rows))
 	for _, row := range rows {
-		sha1 := strings.TrimSpace(row["sha1"])
+		sha1 := row["sha1"]
 		if sha1 == "" {
 			continue
 		}
 		subject := parseCertificateName(queryName, row["subject"])
 		issuer := parseCertificateName(queryName, row["issuer"])
-		commonName := strings.TrimSpace(row["common_name"])
+		commonName := row["common_name"]
 		if commonName == "" {
 			commonName = subject.CommonName
 		}
@@ -237,24 +237,23 @@ func parseHostCertificates(queryName string, rows []map[string]string) []hosts.H
 			CommonName:           commonName,
 			Subject:              subject,
 			Issuer:               issuer,
-			KeyAlgorithm:         strings.TrimSpace(row["key_algorithm"]),
+			KeyAlgorithm:         row["key_algorithm"],
 			KeyStrength:          parseInt32Ptr(row["key_strength"]),
-			KeyUsage:             strings.TrimSpace(row["key_usage"]),
-			SigningAlgorithm:     strings.TrimSpace(row["signing_algorithm"]),
+			KeyUsage:             row["key_usage"],
+			SigningAlgorithm:     row["signing_algorithm"],
 			NotValidAfter:        parseUnixTime(row["not_valid_after"]),
 			NotValidBefore:       parseUnixTime(row["not_valid_before"]),
-			Serial:               strings.TrimSpace(row["serial"]),
+			Serial:               row["serial"],
 			CertificateAuthority: parseBool(row["ca"]),
 			Source:               certificateSource(row),
 			Username:             certificateUsername(row),
-			Path:                 strings.TrimSpace(row["path"]),
+			Path:                 row["path"],
 		})
 	}
 	return certificates
 }
 
 func parseCertificateName(queryName string, value string) hosts.CertificateName {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		return hosts.CertificateName{}
 	}
@@ -264,8 +263,9 @@ func parseCertificateName(queryName string, value string) hosts.CertificateName 
 	return parseDarwinCertificateName(value)
 }
 
+// parseDarwinCertificateName splits an osquery-formatted DN string like "/CN=foo/O=bar/OU=baz" into its component fields.
 func parseDarwinCertificateName(value string) hosts.CertificateName {
-	dn := strings.Trim(strings.TrimSpace(value), "/")
+	dn := strings.Trim(value, "/")
 	escapedSlash := "\x00SLASH\x00"
 	dn = strings.ReplaceAll(dn, `\/`, escapedSlash)
 	parts := strings.Split(dn, "/")
@@ -280,8 +280,8 @@ func parseDarwinCertificateName(value string) hosts.CertificateName {
 		if !ok {
 			continue
 		}
-		val = strings.ReplaceAll(strings.TrimSpace(val), escapedSlash, "/")
-		switch strings.ToUpper(strings.TrimSpace(key)) {
+		val = strings.ReplaceAll(val, escapedSlash, "/")
+		switch strings.ToUpper(key) {
 		case "C":
 			name.Country = val
 		case "O":
@@ -300,21 +300,20 @@ func parseDarwinCertificateName(value string) hosts.CertificateName {
 }
 
 func certificateSource(row map[string]string) string {
-	source := strings.TrimSpace(row["source"])
-	if source != "" {
+	if source := row["source"]; source != "" {
 		return source
 	}
-	if strings.EqualFold(strings.TrimSpace(row["username"]), "SYSTEM") {
+	if strings.EqualFold(row["username"], "SYSTEM") {
 		return "system"
 	}
 	return "user"
 }
 
 func certificateUsername(row map[string]string) string {
-	if username := strings.TrimSpace(row["username"]); username != "" && !strings.EqualFold(username, "SYSTEM") {
+	if username := row["username"]; username != "" && !strings.EqualFold(username, "SYSTEM") {
 		return username
 	}
-	path := filepath.Clean(strings.TrimSpace(row["path"]))
+	path := filepath.Clean(row["path"])
 	const prefix = "/Users/"
 	const suffix = "/Library/Keychains/login.keychain-db"
 	if strings.HasPrefix(path, prefix) && strings.HasSuffix(path, suffix) {
@@ -324,7 +323,7 @@ func certificateUsername(row map[string]string) string {
 }
 
 func parseBool(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	switch strings.ToLower(value) {
 	case "1", "true", "t", "yes":
 		return true
 	default:
@@ -335,7 +334,7 @@ func parseBool(value string) bool {
 func parseOsqueryFlags(rows []map[string]string) hosts.DetailUpdate {
 	var update hosts.DetailUpdate
 	for _, row := range rows {
-		switch strings.TrimSpace(row["name"]) {
+		switch row["name"] {
 		case "distributed_interval":
 			update.DistributedInterval = parseInt32Ptr(row["value"])
 		case "config_tls_refresh":
@@ -346,7 +345,7 @@ func parseOsqueryFlags(rows []map[string]string) hosts.DetailUpdate {
 }
 
 func parseInt32Ptr(value string) *int32 {
-	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 32)
+	parsed, err := strconv.ParseInt(value, 10, 32)
 	if err != nil {
 		return nil
 	}
@@ -354,7 +353,7 @@ func parseInt32Ptr(value string) *int32 {
 }
 
 func parseFloat64Ptr(value string) *float64 {
-	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	parsed, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return nil
 	}
@@ -373,25 +372,25 @@ type softwarePathEnrichment struct {
 func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows []map[string]string) softwareEnrichment {
 	enrichment := make(softwareEnrichment)
 	for _, row := range codesignRows {
-		path := strings.TrimSpace(row["path"])
+		path := row["path"]
 		if path == "" {
 			continue
 		}
 		// Read-modify-write preserves fields set by the other row source for the same path.
 		info := enrichment[path]
-		info.TeamIdentifier = strings.TrimSpace(row["team_identifier"])
-		info.CDHashSHA256 = strings.TrimSpace(row["cdhash_sha256"])
+		info.TeamIdentifier = row["team_identifier"]
+		info.CDHashSHA256 = row["cdhash_sha256"]
 		enrichment[path] = info
 	}
 	for _, row := range executableRows {
-		path := strings.TrimSpace(row["path"])
+		path := row["path"]
 		if path == "" {
 			continue
 		}
 		// Read-modify-write preserves fields set by the other row source for the same path.
 		info := enrichment[path]
-		info.ExecutableSHA256 = strings.TrimSpace(row["executable_sha256"])
-		info.ExecutablePath = strings.TrimSpace(row["executable_path"])
+		info.ExecutableSHA256 = row["executable_sha256"]
+		info.ExecutablePath = row["executable_path"]
 		enrichment[path] = info
 	}
 	return enrichment
@@ -400,22 +399,22 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []software.HostSoftwareEntry {
 	entries := make([]software.HostSoftwareEntry, 0, len(rows))
 	for _, row := range rows {
-		name := strings.TrimSpace(row["name"])
+		name := row["name"]
 		if name == "" {
 			continue
 		}
-		installedPath := strings.TrimSpace(row["installed_path"])
+		installedPath := row["installed_path"]
 		pathEnrichment := enrichment[installedPath]
 		entries = append(entries, software.HostSoftwareEntry{
 			Name:             name,
-			Version:          strings.TrimSpace(row["version"]),
-			Source:           strings.TrimSpace(row["source"]),
-			BundleIdentifier: strings.TrimSpace(row["bundle_identifier"]),
-			ExtensionID:      strings.TrimSpace(row["extension_id"]),
-			ExtensionFor:     strings.TrimSpace(row["extension_for"]),
-			Vendor:           strings.TrimSpace(row["vendor"]),
-			Arch:             strings.TrimSpace(row["arch"]),
-			Release:          strings.TrimSpace(row["release"]),
+			Version:          row["version"],
+			Source:           row["source"],
+			BundleIdentifier: row["bundle_identifier"],
+			ExtensionID:      row["extension_id"],
+			ExtensionFor:     row["extension_for"],
+			Vendor:           row["vendor"],
+			Arch:             row["arch"],
+			Release:          row["release"],
 			InstalledPath:    installedPath,
 			TeamIdentifier:   pathEnrichment.TeamIdentifier,
 			CDHashSHA256:     pathEnrichment.CDHashSHA256,
@@ -432,7 +431,6 @@ func parseSoftwareLastOpenedAt(row map[string]string) *time.Time {
 }
 
 func parseUnixTime(value string) *time.Time {
-	value = strings.TrimSpace(value)
 	if value == "" || value == "0" || strings.EqualFold(value, "null") {
 		return nil
 	}

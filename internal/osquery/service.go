@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -97,7 +96,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 
 	update := ingest.ParseHostDetails(req.HostDetails)
 	if update.HardwareUUID == "" {
-		update.HardwareUUID = strings.TrimSpace(req.HostIdentifier)
+		update.HardwareUUID = req.HostIdentifier
 	}
 	if update.HardwareUUID == "" {
 		return "", orbit.ErrMissingHardwareUUID
@@ -279,7 +278,6 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req 
 }
 
 func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publicIP string) error {
-	publicIP = strings.TrimSpace(publicIP)
 	if publicIP == "" {
 		return nil
 	}

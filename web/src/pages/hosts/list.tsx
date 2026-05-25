@@ -290,7 +290,6 @@ export function HostsListPage() {
         count={selectedIDs.length}
         noun="host"
         description="Deleted hosts will re-enroll if their agent can still use a valid Orbit agent secret."
-        error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedHosts}
       />

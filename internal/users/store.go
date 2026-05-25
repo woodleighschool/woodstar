@@ -47,8 +47,8 @@ func (s *Store) Create(ctx context.Context, params CreateParams) (*User, error) 
 	}
 
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
-		Email:        normalizeEmail(params.Email),
-		Name:         strings.TrimSpace(params.Name),
+		Email:        strings.ToLower(params.Email),
+		Name:         params.Name,
 		PasswordHash: hash,
 		Role:         sqlc.UserRole(params.Role),
 	})
@@ -62,7 +62,7 @@ func (s *Store) Create(ctx context.Context, params CreateParams) (*User, error) 
 }
 
 func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: normalizeEmail(email)})
+	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: strings.ToLower(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
@@ -118,7 +118,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateParams) (*Use
 	}
 
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
-		Name:         strings.TrimSpace(params.Name),
+		Name:         params.Name,
 		Role:         sqlc.UserRole(params.Role),
 		PasswordHash: passwordHash,
 		ID:           id,
@@ -147,7 +147,7 @@ func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountUpdat
 		passwordHash = &hash
 	}
 	row, err := s.q.UpdateAccountByID(ctx, sqlc.UpdateAccountByIDParams{
-		Name:         strings.TrimSpace(params.Name),
+		Name:         params.Name,
 		PasswordHash: passwordHash,
 		ID:           id,
 	})
@@ -204,10 +204,6 @@ func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*Account, error) {
 		return nil, err
 	}
 	return new(accountFromSQLC(row)), nil
-}
-
-func normalizeEmail(email string) string {
-	return strings.ToLower(strings.TrimSpace(email))
 }
 
 func userFromSQLC(s sqlc.User) User {

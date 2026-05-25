@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import type { ColumnDef } from "@tanstack/react-table";
 import { FileSliders, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
@@ -27,7 +28,15 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,7 +53,6 @@ import {
   type SantaConfiguration,
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
-import type { ApiError } from "@/lib/api";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
@@ -81,6 +89,21 @@ const MEDIA_ACTION_OPTIONS: { value: MediaAction; label: string }[] = [
   { value: "block", label: "Block" },
   { value: "remount", label: "Remount" },
 ];
+
+const mediaActionSchema = z
+  .object({
+    action: z.enum(["none", "allow", "block", "remount"]),
+    flags: z.string(),
+  })
+  .refine((value) => value.action !== "remount" || splitWords(value.flags).length > 0, {
+    message: "Remount requires at least one mount flag.",
+    path: ["flags"],
+  });
+
+const configurationFormSchema = z.object({
+  removable_media: mediaActionSchema,
+  encrypted_removable_media: mediaActionSchema,
+});
 
 // Santa client defaults sourced from upstream Santa. The form pre-fills these
 // so the backend never substitutes hidden defaults.
@@ -325,7 +348,6 @@ export function SantaConfigurationsPage() {
         count={selectedIDs.length}
         noun="configuration"
         description="Deleted configurations stop applying to matching hosts."
-        error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedConfigurations}
       />
@@ -467,10 +489,25 @@ function ConfigurationForm({
   const create = useCreateSantaConfiguration();
   const update = useUpdateSantaConfiguration();
   const [form, setForm] = useState<ConfigurationFormState>(initial);
-  const error = configurationError(create.error ?? update.error);
+  const [showErrors, setShowErrors] = useState(false);
   const pending = create.isPending || update.isPending;
+  const parsed = configurationFormSchema.safeParse({
+    removable_media: {
+      action: form.removable_media_action,
+      flags: form.removable_media_remount_flags,
+    },
+    encrypted_removable_media: {
+      action: form.encrypted_removable_media_action,
+      flags: form.encrypted_removable_media_remount_flags,
+    },
+  });
+  const mediaFlagsErrors = mediaFlagsErrorMap(parsed);
 
   async function submit() {
+    if (!parsed.success) {
+      setShowErrors(true);
+      return;
+    }
     const body = configurationBody(form);
     if (mode === "create") await create.mutateAsync(body);
     else await update.mutateAsync({ id: Number(configurationId), body });
@@ -489,13 +526,6 @@ function ConfigurationForm({
           title={mode === "create" ? "New Santa configuration" : "Edit Santa configuration"}
           description="Set Santa client behavior and assign the configuration to labels."
         />
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save configuration</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
 
         <Tabs defaultValue="settings" className="max-w-4xl">
           <TabsList>
@@ -637,6 +667,7 @@ function ConfigurationForm({
                   label="Removable media"
                   action={form.removable_media_action}
                   flags={form.removable_media_remount_flags}
+                  flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
                   onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
                   onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
                 />
@@ -645,6 +676,7 @@ function ConfigurationForm({
                   label="Encrypted removable media"
                   action={form.encrypted_removable_media_action}
                   flags={form.encrypted_removable_media_remount_flags}
+                  flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
                   onActionChange={(encrypted_removable_media_action) =>
                     setForm({ ...form, encrypted_removable_media_action })
                   }
@@ -709,6 +741,7 @@ function MediaActionField({
   label,
   action,
   flags,
+  flagsError,
   onActionChange,
   onFlagsChange,
 }: {
@@ -716,11 +749,12 @@ function MediaActionField({
   label: string;
   action: MediaAction;
   flags: string;
+  flagsError?: string;
   onActionChange: (value: MediaAction) => void;
   onFlagsChange: (value: string) => void;
 }) {
   return (
-    <Field>
+    <Field data-invalid={flagsError ? true : undefined}>
       <FieldLabel htmlFor={`${id}-action`}>{label}</FieldLabel>
       <Select value={action} onValueChange={(value) => onActionChange(value as MediaAction)}>
         <SelectTrigger id={`${id}-action`} className="w-full">
@@ -740,10 +774,12 @@ function MediaActionField({
         <Input
           id={`${id}-flags`}
           placeholder="remount flags"
+          required
           value={flags}
           onChange={(event) => onFlagsChange(event.target.value)}
         />
       ) : null}
+      {flagsError ? <FieldError>{flagsError}</FieldError> : null}
       <FieldDescription>Remount requires one or more mount flags.</FieldDescription>
     </Field>
   );
@@ -811,13 +847,20 @@ function splitWords(value: string) {
     .filter(Boolean);
 }
 
-function configurationError(error: ApiError | null) {
-  if (!error) return undefined;
-  if (error.body && typeof error.body === "object" && "configuration_name" in error.body) {
-    const body = error.body as { configuration_name?: string };
-    if (body.configuration_name) return `Label already belongs to ${body.configuration_name}.`;
+function mediaFlagsErrorMap(result: ReturnType<typeof configurationFormSchema.safeParse>): {
+  removable_media?: string;
+  encrypted_removable_media?: string;
+} {
+  if (result.success) return {};
+  const out: { removable_media?: string; encrypted_removable_media?: string } = {};
+  for (const issue of result.error.issues) {
+    const key = issue.path[0];
+    if (key === "removable_media" && !out.removable_media) out.removable_media = issue.message;
+    if (key === "encrypted_removable_media" && !out.encrypted_removable_media) {
+      out.encrypted_removable_media = issue.message;
+    }
   }
-  return error.message;
+  return out;
 }
 
 function clientModeLabel(mode: SantaConfiguration["client_mode"]) {

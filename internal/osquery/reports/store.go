@@ -3,8 +3,6 @@ package reports
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -12,9 +10,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/osquery/queries"
-	"github.com/woodleighschool/woodstar/internal/platforms"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists saved reports and their per-host result snapshots.
@@ -28,7 +23,6 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
-	params = cleanReportListParams(params)
 	where, args := reportListWhere(params)
 
 	var count int
@@ -94,13 +88,8 @@ func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error) {
-	params, err := cleanReportCreate(params)
-	if err != nil {
-		return nil, err
-	}
-
 	var created *Report
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateReport(ctx, sqlc.CreateReportParams{
 			Name:              params.Name,
 			Description:       params.Description,
@@ -120,7 +109,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 		if err := replaceReportScope(ctx, tx, report.ID, params.LabelScope); err != nil {
 			return err
 		}
-		report.LabelScope = scope.NormalizeLabelScope(params.LabelScope)
+		report.LabelScope = params.LabelScope
 		created = report
 		return nil
 	})
@@ -128,20 +117,15 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Report, error) {
-	cleaned, err := cleanReportUpdate(params)
-	if err != nil {
-		return nil, err
-	}
-
 	var updated *Report
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateReport(ctx, sqlc.UpdateReportParams{
-			Name:              cleaned.Name,
-			Description:       cleaned.Description,
-			Query:             cleaned.Query,
-			Platforms:         cleaned.Platforms,
-			MinOsqueryVersion: cleaned.MinOsqueryVersion,
-			ScheduleInterval:  int32(cleaned.ScheduleInterval),
+			Name:              params.Name,
+			Description:       params.Description,
+			Query:             params.Query,
+			Platforms:         params.Platforms,
+			MinOsqueryVersion: params.MinOsqueryVersion,
+			ScheduleInterval:  int32(params.ScheduleInterval),
 			ID:                id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -154,10 +138,10 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := replaceReportScope(ctx, tx, report.ID, cleaned.LabelScope); err != nil {
+		if err := replaceReportScope(ctx, tx, report.ID, params.LabelScope); err != nil {
 			return err
 		}
-		report.LabelScope = scope.NormalizeLabelScope(cleaned.LabelScope)
+		report.LabelScope = params.LabelScope
 		updated = report
 		return nil
 	})
@@ -199,59 +183,6 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Repor
 	return reports, nil
 }
 
-func cleanReportCreate(params ReportCreate) (ReportCreate, error) {
-	cleaned, err := queries.CleanQueryDefinition(queries.QueryDefinition{
-		Name:        params.Name,
-		Description: params.Description,
-		Query:       params.Query,
-		Platforms:   params.Platforms,
-		LabelScope:  params.LabelScope,
-	})
-	if err != nil {
-		return ReportCreate{}, err
-	}
-	params.Name = cleaned.Name
-	params.Description = cleaned.Description
-	params.Query = cleaned.Query
-	params.Platforms = cleaned.Platforms
-	params.LabelScope = cleaned.LabelScope
-	params.MinOsqueryVersion = dbutil.CleanStringPtr(params.MinOsqueryVersion)
-	if params.ScheduleInterval < 0 {
-		return ReportCreate{}, fmt.Errorf("%w: schedule interval cannot be negative", dbutil.ErrInvalidInput)
-	}
-	return params, nil
-}
-
-func cleanReportUpdate(params ReportUpdate) (ReportUpdate, error) {
-	cleaned, err := cleanReportCreate(ReportCreate{
-		Name:              params.Name,
-		Description:       params.Description,
-		Query:             params.Query,
-		Platforms:         params.Platforms,
-		MinOsqueryVersion: params.MinOsqueryVersion,
-		ScheduleInterval:  params.ScheduleInterval,
-		LabelScope:        params.LabelScope,
-	})
-	if err != nil {
-		return ReportUpdate{}, err
-	}
-	return ReportUpdate{
-		Name:              cleaned.Name,
-		Description:       cleaned.Description,
-		Query:             cleaned.Query,
-		Platforms:         cleaned.Platforms,
-		MinOsqueryVersion: cleaned.MinOsqueryVersion,
-		ScheduleInterval:  cleaned.ScheduleInterval,
-		LabelScope:        cleaned.LabelScope,
-	}, nil
-}
-
-func cleanReportListParams(params ReportListParams) ReportListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.Platform = platforms.CleanPlatform(params.Platform)
-	return params
-}
-
 func scanReport(row pgx.Row) (*Report, error) {
 	var report Report
 	err := row.Scan(
@@ -287,8 +218,8 @@ func reportFromSQLC(row sqlc.Report) *Report {
 func reportListWhere(params ReportListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
-		search := where.Arg("%" + strings.ToLower(params.Q) + "%")
-		where.Add("(lower(name) LIKE " + search + " OR lower(description) LIKE " + search + ")")
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
 	}
 	if params.Platform != "" {
 		where.Add(where.Arg(params.Platform) + " = ANY(platforms::text[])")

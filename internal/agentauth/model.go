@@ -10,8 +10,6 @@ type Agent string
 const (
 	AgentOrbit Agent = "orbit"
 	AgentSanta Agent = "santa"
-
-	MinSecretLength = 32
 )
 
 var (

@@ -1,11 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { useState } from "react";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
@@ -18,17 +17,12 @@ type UserBody = Schemas["User"];
 export function SetupPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
 
   const setup = useMutation<UserBody, ApiError, SetupInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/setup", { body })),
     onSuccess: async () => {
-      setError(null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
       await router.navigate({ to: "/hosts" });
-    },
-    onError: (err) => {
-      setError(err.message);
     },
   });
 
@@ -51,8 +45,8 @@ export function SetupPage() {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
               setup.mutate({
-                email: formString(form, "email"),
-                name: formString(form, "name"),
+                email: formString(form, "email").trim(),
+                name: formString(form, "name").trim(),
                 password: formString(form, "password"),
               });
             }}
@@ -86,8 +80,6 @@ export function SetupPage() {
                 />
               </Field>
             </FieldGroup>
-
-            <FieldError>{error}</FieldError>
 
             <Button type="submit" className="w-full" disabled={setup.isPending}>
               {setup.isPending ? "Creating account..." : "Create admin account"}

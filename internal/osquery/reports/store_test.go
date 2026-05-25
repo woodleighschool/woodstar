@@ -2,7 +2,6 @@ package reports
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,88 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
-
-func TestCleanReportCreate(t *testing.T) {
-	tests := []struct {
-		name    string
-		in      ReportCreate
-		want    ReportCreate
-		wantErr string
-	}{
-		{
-			name: "saved report trims fields",
-			in: ReportCreate{
-				Name:        " Local admins ",
-				Description: " Users with admin rights ",
-				Query:       " select * from users; ",
-				Platforms:   []platforms.Platform{" darwin ", "DARWIN", "linux"},
-			},
-			want: ReportCreate{
-				Name:        "Local admins",
-				Description: "Users with admin rights",
-				Query:       "select * from users;",
-				Platforms:   []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformLinux},
-			},
-		},
-		{
-			name: "scheduled report keeps interval",
-			in: ReportCreate{
-				Name:             "Battery health",
-				Query:            "select * from battery;",
-				Platforms:        allPlatforms(),
-				ScheduleInterval: 3600,
-			},
-			want: ReportCreate{
-				Name:             "Battery health",
-				Query:            "select * from battery;",
-				Platforms:        allPlatforms(),
-				ScheduleInterval: 3600,
-			},
-		},
-		{
-			name:    "missing name is invalid",
-			in:      ReportCreate{Query: "select 1;", Platforms: allPlatforms()},
-			wantErr: "name is required",
-		},
-		{
-			name:    "missing sql is invalid",
-			in:      ReportCreate{Name: "No SQL", Platforms: allPlatforms()},
-			wantErr: "query is required",
-		},
-		{
-			name:    "empty platforms are invalid",
-			in:      ReportCreate{Name: "No targets", Query: "select 1;"},
-			wantErr: "platforms are required",
-		},
-		{
-			name: "negative schedule is invalid",
-			in: ReportCreate{
-				Name:             "Bad schedule",
-				Query:            "select 1;",
-				Platforms:        allPlatforms(),
-				ScheduleInterval: -1,
-			},
-			wantErr: "schedule interval cannot be negative",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := cleanReportCreate(tt.in)
-			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("cleanReportCreate error = %v, want containing %q", err, tt.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("cleanReportCreate returned error: %v", err)
-			}
-			assertReportCreate(t, got, tt.want)
-		})
-	}
-}
 
 func TestListIncludesLabelScope(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationReportStore(t)
@@ -401,35 +318,6 @@ func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
 	}
 	if got[0].Columns["name"] != "newest" || got[1].Columns["name"] != "middle" {
 		t.Fatalf("Results kept %+v, want newest and middle rows", got)
-	}
-}
-
-func assertReportCreate(t *testing.T, got ReportCreate, want ReportCreate) {
-	t.Helper()
-	if got.Name != want.Name {
-		t.Fatalf("Name = %q, want %q", got.Name, want.Name)
-	}
-	if got.Description != want.Description {
-		t.Fatalf("Description = %q, want %q", got.Description, want.Description)
-	}
-	if got.Query != want.Query {
-		t.Fatalf("Query = %q, want %q", got.Query, want.Query)
-	}
-	if got.ScheduleInterval != want.ScheduleInterval {
-		t.Fatalf("ScheduleInterval = %d, want %d", got.ScheduleInterval, want.ScheduleInterval)
-	}
-	assertPlatforms(t, "Platforms", got.Platforms, want.Platforms)
-}
-
-func assertPlatforms(t *testing.T, name string, got []platforms.Platform, want []platforms.Platform) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("%s = %#v, want %#v", name, got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("%s = %#v, want %#v", name, got, want)
-		}
 	}
 }
 

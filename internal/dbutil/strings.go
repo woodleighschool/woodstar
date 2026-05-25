@@ -1,18 +1,11 @@
 package dbutil
 
-import "strings"
-
-func CleanStringPtr(value *string) *string {
-	if value == nil {
+// NullString returns a *string that is nil when value is empty. It exists so
+// callers can map a model's plain string into a nullable Postgres column
+// without inlining the same two-line check at every store call site.
+func NullString(value string) *string {
+	if value == "" {
 		return nil
 	}
-	return StringPtrOrNil(*value)
-}
-
-func StringPtrOrNil(value string) *string {
-	cleaned := strings.TrimSpace(value)
-	if cleaned == "" {
-		return nil
-	}
-	return new(cleaned)
+	return &value
 }

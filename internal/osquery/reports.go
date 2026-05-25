@@ -56,7 +56,6 @@ func parseReportQueryName(name string) (int64, bool) {
 }
 
 func parseCalendarTime(value string) time.Time {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		return time.Now().UTC()
 	}

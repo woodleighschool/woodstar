@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { z } from "zod";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
@@ -15,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +74,39 @@ const RULE_IDENTIFIER_RULES: Record<RuleType, { pattern: RegExp; hint: string }>
     hint: "Use a 10 character uppercase Team ID.",
   },
 };
+
+const ruleFormSchema = z
+  .object({
+    rule_type: z.enum(["binary", "certificate", "teamid", "signingid", "cdhash"]),
+    identifier: z.string().trim(),
+    name: z.string().trim(),
+    custom_message: z.string().trim(),
+    custom_url: z.string().trim(),
+    exclude_label_ids: z.array(z.number().int().positive()),
+    includes: z.array(
+      z
+        .object({
+          id: z.number(),
+          policy: z.enum(["allowlist", "allowlist_compiler", "blocklist", "silent_blocklist", "cel"]),
+          cel_expression: z.string().trim(),
+          label_ids: z.array(z.number().int().positive()).min(1, "Pick at least one label."),
+        })
+        .refine((value) => value.policy !== "cel" || value.cel_expression !== "", {
+          message: "CEL policy requires an expression.",
+          path: ["cel_expression"],
+        }),
+    ),
+  })
+  .superRefine((value, ctx) => {
+    // Empty identifier is the HTML `required` attribute's job; only check pattern when filled.
+    if (value.identifier === "") return;
+    const rule = RULE_IDENTIFIER_RULES[value.rule_type];
+    if (!rule.pattern.test(value.identifier)) {
+      ctx.addIssue({ code: "custom", message: rule.hint, path: ["identifier"] });
+    }
+  });
+
+type RuleFormParse = ReturnType<typeof ruleFormSchema.safeParse>;
 
 interface RuleIncludeForm extends SortableItem {
   policy: RulePolicy;
@@ -250,7 +284,6 @@ export function SantaRulesPage() {
         count={selectedIDs.length}
         noun="rule"
         description="Deleted rules stop syncing to Santa clients."
-        error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedRules}
       />
@@ -293,13 +326,19 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
   const create = useCreateSantaRule();
   const update = useUpdateSantaRule();
   const [form, setForm] = useState<RuleFormState>(initial);
+  const [showErrors, setShowErrors] = useState(false);
   const pending = create.isPending || update.isPending;
-  const error = create.error ?? update.error;
-  const identifierError = ruleIdentifierError(form.rule_type, form.identifier);
-  const identifierInvalid = form.identifier.trim() !== "" && identifierError !== null;
+  const parsed = useMemo(() => ruleFormSchema.safeParse(form), [form]);
+  const identifierError = identifierErrorFor(parsed);
+  const identifierInvalid = form.identifier.trim() !== "" && identifierError !== undefined;
+  const includeErrors = useMemo(() => includeErrorMap(parsed, form.includes), [parsed, form.includes]);
+  const canSave = parsed.success && form.identifier.trim() !== "";
 
   async function submit() {
-    if (!canSaveRule(form)) return;
+    if (!canSave) {
+      setShowErrors(true);
+      return;
+    }
     if (mode === "create") await create.mutateAsync(ruleBody(form));
     else await update.mutateAsync({ id: Number(ruleId), body: ruleBody(form) });
     void navigate({ to: "/santa/rules" });
@@ -324,13 +363,6 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
           title={mode === "create" ? "New Santa rule" : "Edit Santa rule"}
           description="Define the Santa rule identity, policy targets, and user-facing block text."
         />
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save rule</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
 
         <Tabs defaultValue="details" className="max-w-5xl">
           <TabsList>
@@ -446,6 +478,7 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
                     renderItem={(include) => (
                       <IncludeEditor
                         include={include}
+                        errors={showErrors ? includeErrors[include.id] : undefined}
                         onChange={(next) => updateInclude(include.id, next)}
                         onDelete={() =>
                           setForm({ ...form, includes: form.includes.filter((item) => item.id !== include.id) })
@@ -460,7 +493,7 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
         </Tabs>
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
-          <Button type="submit" size="sm" disabled={pending || !canSaveRule(form)}>
+          <Button type="submit" size="sm" disabled={pending || !canSave}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
           </Button>
@@ -475,10 +508,12 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
 
 function IncludeEditor({
   include,
+  errors,
   onChange,
   onDelete,
 }: {
   include: RuleIncludeForm;
+  errors?: { cel_expression?: string; label_ids?: string };
   onChange: (include: Partial<RuleIncludeForm>) => void;
   onDelete: () => void;
 }) {
@@ -507,19 +542,22 @@ function IncludeEditor({
         </Button>
       </div>
       {include.policy === "cel" ? (
-        <Field>
+        <Field data-invalid={errors?.cel_expression ? true : undefined}>
           <FieldLabel htmlFor={`include-cel-${include.id}`}>CEL expression</FieldLabel>
           <Textarea
             id={`include-cel-${include.id}`}
             rows={3}
+            required
             value={include.cel_expression}
             onChange={(event) => onChange({ cel_expression: event.target.value })}
           />
+          {errors?.cel_expression ? <FieldError>{errors.cel_expression}</FieldError> : null}
         </Field>
       ) : null}
-      <Field>
+      <Field data-invalid={errors?.label_ids ? true : undefined}>
         <FieldLabel>Labels</FieldLabel>
         <LabelPicker value={include.label_ids} onChange={(label_ids) => onChange({ label_ids })} />
+        {errors?.label_ids ? <FieldError>{errors.label_ids}</FieldError> : null}
       </Field>
     </div>
   );
@@ -557,22 +595,34 @@ function ruleBody(form: RuleFormState): SantaRuleMutation {
 function includeBody(include: RuleIncludeForm) {
   return {
     policy: include.policy,
-    cel_expression: optionalText(include.cel_expression),
+    cel_expression: include.policy === "cel" ? optionalText(include.cel_expression) : undefined,
     label_ids: include.label_ids,
   };
+}
+
+function includeErrorMap(
+  result: RuleFormParse,
+  includes: RuleIncludeForm[],
+): Record<number, { cel_expression?: string; label_ids?: string }> {
+  if (result.success) return {};
+  const out: Record<number, { cel_expression?: string; label_ids?: string }> = {};
+  for (const issue of result.error.issues) {
+    if (issue.path[0] !== "includes") continue;
+    const index = issue.path[1];
+    if (typeof index !== "number" || index >= includes.length) continue;
+    const include = includes[index];
+    const entry = out[include.id] ?? {};
+    const field = issue.path[2];
+    if (field === "cel_expression" && !entry.cel_expression) entry.cel_expression = issue.message;
+    if (field === "label_ids" && !entry.label_ids) entry.label_ids = issue.message;
+    out[include.id] = entry;
+  }
+  return out;
 }
 
 function optionalText(value: string) {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
-}
-
-function canSaveRule(form: RuleFormState) {
-  return (
-    form.rule_type.trim() !== "" &&
-    form.identifier.trim() !== "" &&
-    ruleIdentifierError(form.rule_type, form.identifier) === null
-  );
 }
 
 function ruleTypeLabel(ruleType: string) {
@@ -583,9 +633,7 @@ function ruleIdentifierHint(ruleType: RuleType) {
   return RULE_IDENTIFIER_RULES[ruleType].hint;
 }
 
-function ruleIdentifierError(ruleType: RuleType, identifier: string) {
-  const trimmed = identifier.trim();
-  if (trimmed === "") return null;
-  const rule = RULE_IDENTIFIER_RULES[ruleType];
-  return rule.pattern.test(trimmed) ? null : rule.hint;
+function identifierErrorFor(result: RuleFormParse): string | undefined {
+  if (result.success) return undefined;
+  return result.error.issues.find((issue) => issue.path[0] === "identifier")?.message;
 }

@@ -31,8 +31,6 @@ func CleanListParams(params ListParams) ListParams {
 	if params.PageSize > maxPageSize {
 		params.PageSize = maxPageSize
 	}
-	params.Q = strings.TrimSpace(params.Q)
-	params.Sort = strings.TrimSpace(params.Sort)
 	return params
 }
 
@@ -41,7 +39,6 @@ func SplitListValues(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		for item := range strings.SplitSeq(value, ",") {
-			item = strings.TrimSpace(item)
 			if item == "" {
 				continue
 			}

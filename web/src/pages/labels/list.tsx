@@ -245,7 +245,6 @@ function LabelDeleteDialog({
             {label ? `${label.name} will be removed from hosts and filters.` : "This label will be removed."}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {remove.error ? <p className="text-destructive text-sm">{remove.error.message}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
             Cancel

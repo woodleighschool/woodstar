@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -26,7 +25,6 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) List(ctx context.Context, params ListParams) ([]Label, int, error) {
-	params = cleanListParams(params)
 	where, args := labelListWhere(params)
 	var count int
 	if err := s.db.Pool().
@@ -82,8 +80,7 @@ func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) 
 }
 
 func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) {
-	params, err := cleanLabelCreate(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 	row, err := s.q.CreateLabel(ctx, sqlc.CreateLabelParams{
@@ -104,8 +101,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
-	params, err := cleanLabelUpdate(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 	row, err := s.q.UpdateLabel(ctx, sqlc.UpdateLabelParams{
@@ -137,9 +133,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]Label, error) {
-	rows, err := s.q.ListApplicableDynamicLabels(ctx, sqlc.ListApplicableDynamicLabelsParams{
-		Platform: strings.TrimSpace(platform),
-	})
+	rows, err := s.q.ListApplicableDynamicLabels(ctx, sqlc.ListApplicableDynamicLabelsParams{Platform: platform})
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +151,7 @@ func (s *Store) ApplicableDynamicIDs(
 ) (map[int64]struct{}, error) {
 	rows, err := s.q.ListApplicableDynamicLabelIDs(ctx, sqlc.ListApplicableDynamicLabelIDsParams{
 		Ids:      ids,
-		Platform: strings.TrimSpace(platform),
+		Platform: platform,
 	})
 	if err != nil {
 		return nil, err
@@ -180,64 +174,33 @@ func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
 }
 
-func cleanLabelCreate(params LabelCreate) (LabelCreate, error) {
-	params.Name = strings.TrimSpace(params.Name)
-	params.Description = strings.TrimSpace(params.Description)
-	params.Query = dbutil.CleanStringPtr(params.Query)
-	params.LabelType = cleanLabelType(params.LabelType)
-	params.LabelMembershipType = cleanMembershipType(params.LabelMembershipType)
-	targets, err := platforms.CleanTargets(params.Platforms)
-	if err != nil {
-		return LabelCreate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+// Validate enforces semantic rules that the DB and Huma DTO can't express:
+// builtin labels cannot be created, and the query/membership-type pairing
+// must be consistent.
+func (p LabelCreate) Validate() error {
+	if p.LabelType == LabelTypeBuiltin {
+		return fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
 	}
-	params.Platforms = targets
-	if params.LabelType == LabelTypeBuiltin {
-		return LabelCreate{}, fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
-	}
-	if err := validateLabelFields(params.Name, params.Query, params.LabelType, params.LabelMembershipType); err != nil {
-		return LabelCreate{}, err
-	}
-	return params, nil
+	return validateMembershipPairing(p.LabelMembershipType, p.Query)
 }
 
-func cleanLabelUpdate(params LabelUpdate) (LabelUpdate, error) {
-	params.Name = strings.TrimSpace(params.Name)
-	params.Description = strings.TrimSpace(params.Description)
-	params.Query = dbutil.CleanStringPtr(params.Query)
-	params.LabelMembershipType = cleanMembershipType(params.LabelMembershipType)
-	targets, err := platforms.CleanTargets(params.Platforms)
-	if err != nil {
-		return LabelUpdate{}, fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
-	}
-	params.Platforms = targets
-	if err := validateLabelFields(params.Name, params.Query, LabelTypeRegular, params.LabelMembershipType); err != nil {
-		return LabelUpdate{}, err
-	}
-	return params, nil
+// Validate enforces the same cross-field rules as LabelCreate for updates.
+func (p LabelUpdate) Validate() error {
+	return validateMembershipPairing(p.LabelMembershipType, p.Query)
 }
 
-func cleanLabelType(labelType LabelType) LabelType {
-	labelType = LabelType(strings.TrimSpace(string(labelType)))
-	if labelType == "" {
-		return LabelTypeRegular
+func validateMembershipPairing(membershipType string, query *string) error {
+	switch membershipType {
+	case LabelMembershipTypeDynamic:
+		if query == nil || *query == "" {
+			return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
+		}
+	case LabelMembershipTypeManual, LabelMembershipTypeDerived:
+		if query != nil {
+			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
+		}
 	}
-	return labelType
-}
-
-func cleanMembershipType(membershipType string) string {
-	membershipType = strings.TrimSpace(membershipType)
-	if membershipType == "" {
-		return LabelMembershipTypeDynamic
-	}
-	return membershipType
-}
-
-func cleanListParams(params ListParams) ListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.LabelType = LabelType(strings.TrimSpace(string(params.LabelType)))
-	params.LabelMembershipType = strings.TrimSpace(params.LabelMembershipType)
-	params.Platform = platforms.CleanPlatform(params.Platform)
-	return params
+	return nil
 }
 
 func labelListSQLWithWhere(params ListParams, where string, args []any) (string, []any, error) {
@@ -300,30 +263,6 @@ type labelListRecord struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
-}
-
-func validateLabelFields(name string, query *string, labelType LabelType, labelMembershipType string) error {
-	if name == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	switch labelType {
-	case LabelTypeBuiltin, LabelTypeRegular:
-	default:
-		return fmt.Errorf("%w: unknown label type", dbutil.ErrInvalidInput)
-	}
-	switch labelMembershipType {
-	case LabelMembershipTypeDynamic:
-		if query == nil {
-			return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
-		}
-	case LabelMembershipTypeManual, LabelMembershipTypeDerived:
-		if query != nil {
-			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
-		}
-	default:
-		return fmt.Errorf("%w: unknown label membership type", dbutil.ErrInvalidInput)
-	}
-	return nil
 }
 
 func labelFromSQLC(s sqlc.Label) Label {

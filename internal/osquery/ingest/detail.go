@@ -12,35 +12,35 @@ import (
 func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 	var update hosts.DetailUpdate
 	if row := details["system_info"]; row != nil {
-		update.HardwareUUID = strings.TrimSpace(row["uuid"])
-		update.Hostname = strings.TrimSpace(row["hostname"])
-		update.ComputerName = strings.TrimSpace(row["computer_name"])
-		update.HardwareSerial = strings.TrimSpace(row["hardware_serial"])
-		update.HardwareModel = strings.TrimSpace(row["hardware_model"])
-		update.HardwareVersion = strings.TrimSpace(row["hardware_version"])
-		update.HardwareVendor = strings.TrimSpace(row["hardware_vendor"])
-		update.CPUType = strings.TrimSpace(row["cpu_type"])
-		update.CPUSubtype = strings.TrimSpace(row["cpu_subtype"])
-		update.CPUBrand = strings.TrimSpace(row["cpu_brand"])
+		update.HardwareUUID = row["uuid"]
+		update.Hostname = row["hostname"]
+		update.ComputerName = row["computer_name"]
+		update.HardwareSerial = row["hardware_serial"]
+		update.HardwareModel = row["hardware_model"]
+		update.HardwareVersion = row["hardware_version"]
+		update.HardwareVendor = row["hardware_vendor"]
+		update.CPUType = row["cpu_type"]
+		update.CPUSubtype = row["cpu_subtype"]
+		update.CPUBrand = row["cpu_brand"]
 		update.CPULogicalCores = parseInt(row["cpu_logical_cores"])
 		update.CPUPhysicalCores = parseInt(row["cpu_physical_cores"])
 		update.PhysicalMemory = parseInt64(row["physical_memory"])
 	}
 	if row := details["osquery_info"]; row != nil {
-		update.OsqueryVersion = strings.TrimSpace(row["version"])
+		update.OsqueryVersion = row["version"]
 	}
 	if row := details["orbit_info"]; row != nil {
-		update.OrbitVersion = strings.TrimSpace(row["version"])
+		update.OrbitVersion = row["version"]
 	}
 	if row := details["os_version"]; row != nil {
-		update.OSName = strings.TrimSpace(row["name"])
+		update.OSName = row["name"]
 		update.OSVersion = osVersion(row)
-		update.OSBuild = strings.TrimSpace(row["build"])
-		update.Platform = strings.TrimSpace(row["platform"])
-		update.PlatformLike = strings.TrimSpace(row["platform_like"])
+		update.OSBuild = row["build"]
+		update.Platform = row["platform"]
+		update.PlatformLike = row["platform_like"]
 	}
 	if row := details["platform_info"]; row != nil {
-		update.KernelVersion = strings.TrimSpace(row["extra"])
+		update.KernelVersion = row["extra"]
 	}
 	if row := details["uptime"]; row != nil {
 		update.UptimeSeconds = parsePositiveInt64Ptr(row["total_seconds"])
@@ -56,19 +56,19 @@ func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 		}
 	}
 	if row := details["primary_interface"]; row != nil {
-		update.PrimaryIP = strings.TrimSpace(row["primary_ip"])
-		update.PrimaryMAC = strings.TrimSpace(row["primary_mac"])
+		update.PrimaryIP = row["primary_ip"]
+		update.PrimaryMAC = row["primary_mac"]
 	}
 	return update
 }
 
 func osVersion(row map[string]string) string {
-	name := strings.TrimSpace(row["name"])
-	version := strings.TrimSpace(row["version"])
+	name := row["name"]
+	version := row["version"]
 	if version == "" {
 		version = dottedVersion(row)
 	}
-	build := strings.TrimSpace(row["build"])
+	build := row["build"]
 	switch {
 	case name == "":
 		return version
@@ -84,7 +84,7 @@ func osVersion(row map[string]string) string {
 func dottedVersion(row map[string]string) string {
 	parts := make([]string, 0, 4)
 	for _, key := range []string{"major", "minor", "patch"} {
-		if value := strings.TrimSpace(row[key]); value != "" {
+		if value := row[key]; value != "" {
 			parts = append(parts, value)
 		}
 	}
@@ -92,17 +92,17 @@ func dottedVersion(row map[string]string) string {
 }
 
 func parseInt(value string) int {
-	parsed, _ := strconv.Atoi(strings.TrimSpace(value))
+	parsed, _ := strconv.Atoi(value)
 	return parsed
 }
 
 func parseInt64(value string) int64 {
-	parsed, _ := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	parsed, _ := strconv.ParseInt(value, 10, 64)
 	return parsed
 }
 
 func parsePositiveInt64Ptr(value string) *int64 {
-	parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || parsed <= 0 {
 		return nil
 	}

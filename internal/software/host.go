@@ -15,7 +15,7 @@ func (s *Store) ListForHost(
 	hostID int64,
 	params HostSoftwareListParams,
 ) ([]HostSoftwareRow, int, error) {
-	params = cleanHostSoftwareListParams(params)
+	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	whereSQL, args := hostSoftwareWhere(hostID, params)
 
 	countSQL := `
@@ -148,12 +148,6 @@ func scanHostSoftwareDBRow(rows pgx.Rows) (hostSoftwareDBRow, error) {
 		&row.ExecutablePath,
 	)
 	return row, err
-}
-
-func cleanHostSoftwareListParams(params HostSoftwareListParams) HostSoftwareListParams {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
-	return params
 }
 
 func (s *Store) hostSoftwareTitleIDs(

@@ -152,7 +152,6 @@ export function ReportsPage() {
         }}
         count={selectedIDs.length}
         noun="report"
-        error={bulkDelete.error?.message}
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedReports}
       />

@@ -82,15 +82,11 @@ const (
 )
 
 func (q DetailQuery) RunsForPlatform(hostPlatform string) bool {
-	if len(q.Platforms) == 0 {
-		return true
-	}
-	hostPlatform = strings.ToLower(strings.TrimSpace(hostPlatform))
-	if hostPlatform == "" {
+	if len(q.Platforms) == 0 || hostPlatform == "" {
 		return true
 	}
 	for _, platform := range q.Platforms {
-		switch strings.ToLower(strings.TrimSpace(platform)) {
+		switch platform {
 		case hostPlatform:
 			return true
 		case "darwin":
@@ -98,8 +94,7 @@ func (q DetailQuery) RunsForPlatform(hostPlatform string) bool {
 				return true
 			}
 		case "linux":
-			if hostPlatform != "" && hostPlatform != "darwin" && hostPlatform != "macos" &&
-				hostPlatform != "windows" {
+			if hostPlatform != "darwin" && hostPlatform != "macos" && hostPlatform != "windows" {
 				return true
 			}
 		}

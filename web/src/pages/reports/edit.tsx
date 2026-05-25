@@ -101,11 +101,11 @@ function ReportEditForm({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
-  const error = createReport.error ?? updateReport.error;
   const pending = createReport.isPending || updateReport.isPending;
 
   async function submit() {
-    const saved = mode === "create" ? await createReport.mutateAsync(form) : await updateReport.mutateAsync(form);
+    const payload = trimReport(form);
+    const saved = mode === "create" ? await createReport.mutateAsync(payload) : await updateReport.mutateAsync(payload);
     void navigate({ to: "/reports/$reportId", params: { reportId: String(saved.id) } });
   }
 
@@ -130,12 +130,6 @@ function ReportEditForm({
           title={mode === "create" ? "New report" : "Edit report"}
           description="Use osquery SQL to gather data about hosts. Add an interval to collect snapshot results on a schedule."
         />
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save report</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
         <FieldGroup className="max-w-3xl">
           <Field>
             <FieldLabel htmlFor="report-name">Name</FieldLabel>
@@ -229,4 +223,15 @@ function ReportEditForm({
       </form>
     </PageShell>
   );
+}
+
+function trimReport(form: ReportMutation): ReportMutation {
+  const min = form.min_osquery_version?.trim() ?? "";
+  return {
+    ...form,
+    name: form.name.trim(),
+    description: form.description?.trim() ?? "",
+    query: form.query.trim(),
+    min_osquery_version: min === "" ? undefined : min,
+  };
 }

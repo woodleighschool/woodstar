@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
@@ -64,7 +64,7 @@ function AccountProfileCard({ account }: { account: Account }) {
   async function submit() {
     if (!canSubmit) return;
     await update.mutateAsync({
-      name: isInitialUser ? user.name : name,
+      name: isInitialUser ? user.name : name.trim(),
       password: passwordChanged ? password : undefined,
     });
     setPassword("");
@@ -113,8 +113,6 @@ function AccountProfileCard({ account }: { account: Account }) {
               />
               <FieldDescription>Leave blank to keep the current password.</FieldDescription>
             </Field>
-
-            <FieldError>{update.error?.message}</FieldError>
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex justify-between gap-3 pt-6">

@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -23,24 +21,10 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-var validClientModes = map[ClientMode]bool{
-	ClientModeUnknown:    false,
-	ClientModeMonitor:    true,
-	ClientModeLockdown:   true,
-	ClientModeStandalone: true,
-}
-
-var validRemovableMediaActions = map[RemovableMediaAction]struct{}{
-	RemovableMediaActionAllow:   {},
-	RemovableMediaActionBlock:   {},
-	RemovableMediaActionRemount: {},
-}
-
 func (s *Store) ListConfigurations(
 	ctx context.Context,
 	params ConfigurationListParams,
 ) ([]Configuration, int, error) {
-	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := configurationListWhere(params)
 
 	var count int
@@ -98,18 +82,17 @@ func (s *Store) getConfigurationByID(ctx context.Context, id int64) (*Configurat
 }
 
 func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMutation) (*Configuration, error) {
-	cleaned, err := cleanConfigurationMutation(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
 	var configurationID int64
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		err := validateConfigurationLabelsAvailable(ctx, tx, 0, cleaned.LabelIDs)
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		err := validateConfigurationLabelsAvailable(ctx, tx, 0, params.LabelIDs)
 		if err != nil {
 			return err
 		}
-		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(cleaned))
+		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(params))
 		if err != nil {
 			if dbutil.IsUniqueViolation(err) {
 				return dbutil.ErrAlreadyExists
@@ -117,7 +100,7 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMut
 			return err
 		}
 		configurationID = row.ID
-		return replaceConfigurationLabels(ctx, tx, configurationID, cleaned.LabelIDs)
+		return replaceConfigurationLabels(ctx, tx, configurationID, params.LabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -130,17 +113,16 @@ func (s *Store) UpdateConfiguration(
 	id int64,
 	params ConfigurationMutation,
 ) (*Configuration, error) {
-	cleaned, err := cleanConfigurationMutation(params)
-	if err != nil {
+	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		err := validateConfigurationLabelsAvailable(ctx, tx, id, cleaned.LabelIDs)
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		err := validateConfigurationLabelsAvailable(ctx, tx, id, params.LabelIDs)
 		if err != nil {
 			return err
 		}
-		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, cleaned))
+		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, params))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		} else if err != nil {
@@ -149,7 +131,7 @@ func (s *Store) UpdateConfiguration(
 			}
 			return err
 		}
-		return replaceConfigurationLabels(ctx, tx, row.ID, cleaned.LabelIDs)
+		return replaceConfigurationLabels(ctx, tx, row.ID, params.LabelIDs)
 	})
 	if err != nil {
 		return nil, err
@@ -331,91 +313,28 @@ func (s *Store) attachConfigurationLabels(
 	return rows.Err()
 }
 
-func cleanConfigurationMutation(params ConfigurationMutation) (ConfigurationMutation, error) {
-	params.Name = strings.TrimSpace(params.Name)
-	if params.Name == "" {
-		return ConfigurationMutation{}, fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+// Validate enforces cross-field rules that the DB and Huma DTO can't express:
+// the removable-media action must pair with non-empty remount flags when set
+// to "remount".
+func (p ConfigurationMutation) Validate() error {
+	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
+		return err
 	}
-	if !validDesiredClientMode(params.ClientMode) {
-		return ConfigurationMutation{}, fmt.Errorf(
-			"%w: client_mode must be monitor, lockdown, or standalone",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	if params.FullSyncIntervalSeconds < 60 {
-		return ConfigurationMutation{}, fmt.Errorf(
-			"%w: full_sync_interval_seconds must be at least 60",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	if params.BatchSize < 5 || params.BatchSize > 100 {
-		return ConfigurationMutation{}, fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
-	}
-	params.AllowedPathRegex = strings.TrimSpace(params.AllowedPathRegex)
-	params.BlockedPathRegex = strings.TrimSpace(params.BlockedPathRegex)
-	params.EventDetailURL = strings.TrimSpace(params.EventDetailURL)
-	params.EventDetailText = strings.TrimSpace(params.EventDetailText)
-	policy, err := cleanRemovableMediaPolicy(params.RemovableMediaPolicy, "removable_media_policy")
-	if err != nil {
-		return ConfigurationMutation{}, err
-	}
-	encryptedPolicy, err := cleanRemovableMediaPolicy(
-		params.EncryptedRemovableMediaPolicy,
-		"encrypted_removable_media_policy",
-	)
-	if err != nil {
-		return ConfigurationMutation{}, err
-	}
-	params.RemovableMediaPolicy = policy
-	params.EncryptedRemovableMediaPolicy = encryptedPolicy
-	labelIDs, err := dbutil.CleanPositiveIDList(params.LabelIDs, "label_ids")
-	if err != nil {
-		return ConfigurationMutation{}, err
-	}
-	params.LabelIDs = labelIDs
-	return params, nil
+	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
 }
 
-func cleanRemovableMediaPolicy(policy RemovableMediaPolicy, name string) (RemovableMediaPolicy, error) {
-	cleaned := RemovableMediaPolicy{
-		Action:       RemovableMediaAction(strings.TrimSpace(string(policy.Action))),
-		RemountFlags: cleanStringList(policy.RemountFlags),
+func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) error {
+	if policy.Action == "" {
+		return nil
 	}
-	if cleaned.Action == "" {
-		return RemovableMediaPolicy{}, nil
-	}
-	if !validRemovableMediaAction(cleaned.Action) {
-		return RemovableMediaPolicy{}, fmt.Errorf("%w: unknown %s action", dbutil.ErrInvalidInput, name)
-	}
-	if cleaned.Action == RemovableMediaActionRemount && len(cleaned.RemountFlags) == 0 {
-		return RemovableMediaPolicy{}, fmt.Errorf(
+	if policy.Action == RemovableMediaActionRemount && len(policy.RemountFlags) == 0 {
+		return fmt.Errorf(
 			"%w: %s.remount_flags are required when action is remount",
 			dbutil.ErrInvalidInput,
 			name,
 		)
 	}
-	return cleaned, nil
-}
-
-func cleanStringList(values []string) []string {
-	cleaned := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value != "" {
-			cleaned = append(cleaned, value)
-		}
-	}
-	slices.Sort(cleaned)
-	return slices.Compact(cleaned)
-}
-
-func validDesiredClientMode(clientMode ClientMode) bool {
-	return validClientModes[clientMode]
-}
-
-func validRemovableMediaAction(action RemovableMediaAction) bool {
-	_, ok := validRemovableMediaActions[action]
-	return ok
+	return nil
 }
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {

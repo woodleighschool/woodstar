@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -130,7 +129,6 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.U
 		return nil, fmt.Errorf("decode id token claims: %w", err)
 	}
 	email, _ := claims[s.oidc.emailClaim].(string)
-	email = strings.TrimSpace(email)
 	if email == "" {
 		return nil, ErrSSOEmailClaimEmpty
 	}

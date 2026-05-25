@@ -1,7 +1,8 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -9,7 +10,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { PlatformSelector } from "@/components/queries/platform-selector";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -54,6 +55,21 @@ const empty: FormState = {
   label_membership_type: "dynamic",
   platforms: [...DEFAULT_TARGET_PLATFORMS],
 };
+
+const labelFormSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required."),
+    description: z.string().trim(),
+    query: z.string().trim(),
+    label_membership_type: z.enum(["dynamic", "manual", "derived"]),
+    platforms: z.array(z.enum(["darwin", "windows", "linux"])).min(1, "Pick at least one platform."),
+  })
+  .refine((value) => value.label_membership_type !== "dynamic" || value.query !== "", {
+    message: "Dynamic labels need a query.",
+    path: ["query"],
+  });
+
+type LabelFormParse = ReturnType<typeof labelFormSchema.safeParse>;
 
 export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -109,32 +125,32 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
   const createLabel = useCreateLabel();
   const updateLabel = useUpdateLabel(labelId ? Number(labelId) : null);
   const [form, setForm] = useState<FormState>(initial);
+  const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
-  const error = createLabel.error ?? updateLabel.error;
   const pending = createLabel.isPending || updateLabel.isPending;
   const isDynamic = form.label_membership_type === "dynamic";
   const memberOption = MEMBERSHIP_OPTIONS.find((o) => o.value === form.label_membership_type);
+  const parsed = useMemo(() => labelFormSchema.safeParse(form), [form]);
+  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
   async function submit() {
+    if (!parsed.success) {
+      setShowErrors(true);
+      return;
+    }
+    const cleaned = parsed.data;
+    const body: LabelCreate | LabelMutation = {
+      name: cleaned.name,
+      description: cleaned.description,
+      label_membership_type: cleaned.label_membership_type,
+      platforms: cleaned.platforms,
+      query: cleaned.label_membership_type === "dynamic" ? cleaned.query : undefined,
+    };
     if (mode === "create") {
-      const body: LabelCreate = {
-        name: form.name,
-        description: form.description,
-        label_membership_type: form.label_membership_type,
-        platforms: form.platforms,
-        query: isDynamic ? form.query : undefined,
-      };
       await createLabel.mutateAsync(body);
     } else {
-      const body: LabelMutation = {
-        name: form.name,
-        description: form.description,
-        label_membership_type: form.label_membership_type,
-        platforms: form.platforms,
-        query: isDynamic ? form.query : undefined,
-      };
       await updateLabel.mutateAsync(body);
     }
     void navigate({ to: "/labels" });
@@ -164,15 +180,9 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
           title={mode === "create" ? "New label" : "Edit label"}
           description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
         />
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save label</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
 
         <FieldGroup className="max-w-3xl">
-          <Field>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
             <FieldLabel htmlFor="label-name">Name</FieldLabel>
             <Input
               id="label-name"
@@ -180,6 +190,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field>
@@ -212,7 +223,10 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
             {memberOption ? <FieldDescription>{memberOption.helpText}</FieldDescription> : null}
           </Field>
 
-          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+          <Field data-invalid={showErrors && errors.platforms ? true : undefined}>
+            <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
+            {showErrors && errors.platforms ? <FieldError>{errors.platforms}</FieldError> : null}
+          </Field>
         </FieldGroup>
 
         {isDynamic ? (
@@ -223,6 +237,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
               onChange={(query) => setForm({ ...form, query })}
               placeholder="SELECT ..."
             />
+            {showErrors && errors.query ? <FieldError className="mt-2">{errors.query}</FieldError> : null}
           </div>
         ) : null}
 
@@ -243,6 +258,16 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
       </form>
     </PageShell>
   );
+}
+
+function fieldErrors(result: LabelFormParse): Record<string, string> {
+  if (result.success) return {};
+  const out: Record<string, string> = {};
+  for (const issue of result.error.issues) {
+    const key = issue.path[0];
+    if (typeof key === "string" && !out[key]) out[key] = issue.message;
+  }
+  return out;
 }
 
 function membershipFromString(value: string | undefined): MembershipType {

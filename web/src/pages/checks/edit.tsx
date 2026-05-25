@@ -83,11 +83,11 @@ function CheckEditForm({
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
-  const error = createCheck.error ?? updateCheck.error;
   const pending = createCheck.isPending || updateCheck.isPending;
 
   async function submit() {
-    const saved = mode === "create" ? await createCheck.mutateAsync(form) : await updateCheck.mutateAsync(form);
+    const payload = trimCheck(form);
+    const saved = mode === "create" ? await createCheck.mutateAsync(payload) : await updateCheck.mutateAsync(payload);
     void navigate({ to: "/checks/$checkId", params: { checkId: String(saved.id) } });
   }
 
@@ -112,12 +112,6 @@ function CheckEditForm({
           title={mode === "create" ? "New check" : "Edit check"}
           description="Checks pass when their SQL returns rows and fail when it returns none."
         />
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to save check</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        ) : null}
         <FieldGroup className="max-w-3xl">
           <Field>
             <FieldLabel htmlFor="check-name">Name</FieldLabel>
@@ -168,4 +162,13 @@ function CheckEditForm({
       </form>
     </PageShell>
   );
+}
+
+function trimCheck(form: CheckMutation): CheckMutation {
+  return {
+    ...form,
+    name: form.name.trim(),
+    description: form.description?.trim() ?? "",
+    query: form.query.trim(),
+  };
 }

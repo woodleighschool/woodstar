@@ -15,7 +15,6 @@ export interface BulkDeleteDialogProps {
   count: number;
   noun: string;
   description?: string;
-  error?: string;
   pending?: boolean;
   onConfirm: () => void;
 }
@@ -26,7 +25,6 @@ export function BulkDeleteDialog({
   count,
   noun,
   description,
-  error,
   pending = false,
   onConfirm,
 }: BulkDeleteDialogProps) {
@@ -41,8 +39,6 @@ export function BulkDeleteDialog({
           </AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>
-
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <AlertDialogFooter>
           <AlertDialogCancel variant="ghost" size="sm" disabled={pending}>

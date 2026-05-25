@@ -3,7 +3,6 @@ package santa
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -24,11 +23,6 @@ func NewStore(db *database.DB) *Store {
 }
 
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
-	observation.MachineID = strings.TrimSpace(observation.MachineID)
-	observation.SerialNumber = strings.TrimSpace(observation.SerialNumber)
-	if observation.HostID <= 0 || observation.MachineID == "" || observation.SerialNumber == "" {
-		return dbutil.ErrInvalidInput
-	}
 	if observation.ClientModeReported == "" {
 		observation.ClientModeReported = configurations.ClientModeUnknown
 	}
@@ -52,10 +46,6 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 }
 
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
-	machineID = strings.TrimSpace(machineID)
-	if machineID == "" {
-		return 0, dbutil.ErrNotFound
-	}
 	var hostID int64
 	err := s.db.Pool().QueryRow(ctx, `
 		SELECT id

@@ -41,7 +41,7 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			if _, err := q.UpsertDirectoryGroup(ctx, sqlc.UpsertDirectoryGroupParams{
 				ExternalID:   g.ExternalID,
 				DisplayName:  g.DisplayName,
-				MailNickname: dbutil.StringPtrOrNil(g.MailNickname),
+				MailNickname: dbutil.NullString(g.MailNickname),
 				LastSyncedAt: syncedAt,
 			}); err != nil {
 				return err
@@ -59,12 +59,12 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			row, err := q.UpsertDirectoryUser(ctx, sqlc.UpsertDirectoryUserParams{
 				ExternalID:        u.ExternalID,
 				UserPrincipalName: u.UserPrincipalName,
-				Mail:              dbutil.StringPtrOrNil(u.Mail),
-				MailNickname:      dbutil.StringPtrOrNil(u.MailNickname),
+				Mail:              dbutil.NullString(u.Mail),
+				MailNickname:      dbutil.NullString(u.MailNickname),
 				DisplayName:       u.DisplayName,
-				GivenName:         dbutil.StringPtrOrNil(u.GivenName),
-				FamilyName:        dbutil.StringPtrOrNil(u.FamilyName),
-				Department:        dbutil.StringPtrOrNil(u.Department),
+				GivenName:         dbutil.NullString(u.GivenName),
+				FamilyName:        dbutil.NullString(u.FamilyName),
+				Department:        dbutil.NullString(u.Department),
 				Active:            u.Active,
 				LastSyncedAt:      syncedAt,
 			})

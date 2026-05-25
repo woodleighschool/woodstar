@@ -49,8 +49,6 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
           {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
         </p>
 
-        {remove.error ? <p className="text-sm text-destructive">{remove.error.message}</p> : null}
-
         <AlertDialogFooter>
           <AlertDialogCancel variant="ghost" size="sm" disabled={remove.isPending}>
             Cancel
