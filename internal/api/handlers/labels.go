@@ -28,7 +28,7 @@ type labelListInput struct {
 	ListQueryInput
 	LabelType      string `query:"label_type,omitempty"`
 	MembershipType string `query:"label_membership_type,omitempty"`
-	Platform       string `query:"platform,omitempty" enum:"darwin,windows,linux"`
+	Platform       string `query:"platform,omitempty"              enum:"darwin,windows,linux"`
 }
 
 type labelGetInput struct {

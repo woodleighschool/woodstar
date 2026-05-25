@@ -9,7 +9,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/secret"
+	"github.com/woodleighschool/woodstar/internal/randtoken"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -85,11 +85,11 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	if s.oidc == nil {
 		return "", ErrSSONotConfigured
 	}
-	state, err := secret.Generate(apiKeyByteLen)
+	state, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
 		return "", err
 	}
-	nonce, err := secret.Generate(apiKeyByteLen)
+	nonce, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
 		return "", err
 	}

@@ -30,7 +30,7 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 	hardwareUUID := "orbit-contract-" + suffix
 	deviceEmail := "student-" + suffix + "@example.test"
 
-	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "orbit-contract-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "orbit-contract-secret-value-"+suffix)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
@@ -99,14 +99,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 type orbitContractStores struct {
 	hosts          *hosts.Store
 	deviceMappings *hosts.DeviceMappingStore
-	secrets        *agentauth.Store
+	agentSecrets   *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:          hosts.NewStore(database),
 		deviceMappings: hosts.NewDeviceMappingStore(database),
-		secrets:        agentauth.NewStore(database),
+		agentSecrets:   agentauth.NewStore(database),
 	}
 }
 
@@ -114,7 +114,7 @@ func newOrbitContractRouter(stores orbitContractStores) http.Handler {
 	router := chi.NewRouter()
 	RegisterOrbitRoutes(
 		router,
-		orbit.NewService(stores.hosts, stores.secrets, stores.deviceMappings),
+		orbit.NewService(stores.hosts, stores.agentSecrets, stores.deviceMappings),
 		slog.New(slog.DiscardHandler),
 	)
 	return router

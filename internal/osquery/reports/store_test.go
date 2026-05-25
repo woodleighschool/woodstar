@@ -279,47 +279,6 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	}
 }
 
-func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationReportStore(t)
-	report, err := store.Create(ctx, ReportCreate{
-		Name:             "Trimmed report",
-		Query:            "select name from apps;",
-		Platforms:        allPlatforms(),
-		ScheduleInterval: 60,
-	})
-	if err != nil {
-		t.Fatalf("create scheduled report: %v", err)
-	}
-	baseFetchedAt := time.Date(2026, 5, 14, 9, 0, 0, 0, time.UTC)
-	for i, name := range []string{"oldest", "middle", "newest"} {
-		host := enrollTestHost(t, ctx, hostStore, "report-trim-host-"+name)
-		if err := store.OverwriteResults(
-			ctx,
-			report.ID,
-			host.ID,
-			[]map[string]string{{"name": name}},
-			baseFetchedAt.Add(time.Duration(i)*time.Minute),
-		); err != nil {
-			t.Fatalf("overwrite %s snapshot: %v", name, err)
-		}
-	}
-
-	if err := store.TrimResults(ctx, 2); err != nil {
-		t.Fatalf("trim results: %v", err)
-	}
-
-	got, err := store.Results(ctx, report.ID)
-	if err != nil {
-		t.Fatalf("report results: %v", err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("Results returned %d rows, want 2: %+v", len(got), got)
-	}
-	if got[0].Columns["name"] != "newest" || got[1].Columns["name"] != "middle" {
-		t.Fatalf("Results kept %+v, want newest and middle rows", got)
-	}
-}
-
 func allPlatforms() []scope.Platform {
 	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/job"
 )
 
 const (
@@ -22,12 +20,27 @@ type CleanupStore interface {
 	SweepEventsBefore(context.Context, time.Time) (int, error)
 }
 
+// Cleanup owns the Santa event-retention background loop.
+type Cleanup struct {
+	stop context.CancelFunc
+	done <-chan struct{}
+}
+
+// Stop cancels the cleanup loop and waits for it to exit.
+func (c *Cleanup) Stop() {
+	if c == nil {
+		return
+	}
+	c.stop()
+	<-c.done
+}
+
 func StartCleanup(
 	ctx context.Context,
 	store CleanupStore,
 	options CleanupOptions,
 	logger *slog.Logger,
-) *job.Handle {
+) *Cleanup {
 	if store == nil {
 		return nil
 	}
@@ -37,9 +50,13 @@ func StartCleanup(
 	if options.SweepInterval <= 0 {
 		options.SweepInterval = defaultSweepInterval
 	}
-	return job.Start(ctx, func(ctx context.Context) {
+	ctx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
 		cleanupLoop(ctx, store, options, logger)
-	})
+	}()
+	return &Cleanup{stop: stop, done: done}
 }
 
 func cleanupLoop(ctx context.Context, store CleanupStore, options CleanupOptions, logger *slog.Logger) {

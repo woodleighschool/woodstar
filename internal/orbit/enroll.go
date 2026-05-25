@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/secret"
+	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
 // ErrMissingHardwareUUID reports an enrollment request without a host identity.
@@ -27,7 +27,7 @@ func IssueNodeKey(ctx context.Context, verifier SecretVerifier, enrollSecret str
 		return "", agentauth.ErrInvalidSecret
 	}
 
-	nodeKey, err := secret.Generate(32)
+	nodeKey, err := randtoken.Generate(32)
 	if err != nil {
 		return "", fmt.Errorf("generate node key: %w", err)
 	}

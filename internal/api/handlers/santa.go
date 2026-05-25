@@ -24,9 +24,9 @@ const (
 	santaRuleIDPath            = "/api/santa/rules/{id}"
 )
 
-// Host detail Santa enrichment.
+// Host detail Santa contribution.
 
-type santaHostDetailEnricher struct {
+type santaHostDetailContributor struct {
 	loader santaHostStateLoader
 }
 
@@ -34,16 +34,20 @@ type santaHostStateLoader interface {
 	LoadHostState(context.Context, int64) (*santa.HostState, error)
 }
 
-// SantaHostDetailEnricher returns a host detail enricher backed by Santa state.
-func SantaHostDetailEnricher(loader santaHostStateLoader) HostDetailEnricher {
+// SantaHostDetailContributor returns a host detail contributor backed by Santa state.
+func SantaHostDetailContributor(loader santaHostStateLoader) HostDetailContributor {
 	if loader == nil {
 		return nil
 	}
-	return santaHostDetailEnricher{loader: loader}
+	return santaHostDetailContributor{loader: loader}
 }
 
-func (e santaHostDetailEnricher) EnrichHostDetail(ctx context.Context, hostID int64, body *hostDetailBody) error {
-	detail, err := e.loader.LoadHostState(ctx, hostID)
+func (c santaHostDetailContributor) ContributeHostDetail(
+	ctx context.Context,
+	hostID int64,
+	body *hostDetailBody,
+) error {
+	detail, err := c.loader.LoadHostState(ctx, hostID)
 	if err != nil {
 		return err
 	}

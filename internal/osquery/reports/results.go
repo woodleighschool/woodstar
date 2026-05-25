@@ -14,10 +14,6 @@ import (
 
 const maxSnapshotResultRows = 1000
 
-// trimBatchSize caps how many rows are deleted per TrimResults call; unrelated
-// to the per-report retention limit maxRows.
-const trimBatchSize = 500
-
 // ErrSnapshotTooLarge is returned by OverwriteResults when the incoming
 // snapshot exceeds maxSnapshotResultRows.
 var ErrSnapshotTooLarge = errors.New("snapshot exceeds max result rows")
@@ -159,32 +155,6 @@ func (s *Store) HostResults(
 		}
 	}
 	return results, lastFetched, rows.Err()
-}
-
-// TrimResults keeps the newest maxRows scheduled-report result rows per report.
-func (s *Store) TrimResults(ctx context.Context, maxRows int) error {
-	if maxRows <= 0 {
-		return nil
-	}
-	_, err := s.db.Pool().Exec(ctx,
-		`DELETE FROM report_results rr
-		 USING (
-		     SELECT id
-		     FROM (
-		         SELECT rr.id,
-		                row_number() OVER (PARTITION BY rr.report_id ORDER BY rr.last_fetched DESC, rr.id DESC) AS rn
-		         FROM report_results rr
-		         JOIN reports r ON r.id = rr.report_id
-		         WHERE r.schedule_interval > 0 AND rr.data IS NOT NULL
-		     ) ranked
-		     WHERE rn > $1
-		     LIMIT $2
-		 ) doomed
-		 WHERE rr.id = doomed.id`,
-		maxRows,
-		trimBatchSize,
-	)
-	return err
 }
 
 func copyFromSnapshotRows(reportID int64, hostID int64, rows []snapshotResultRow) [][]any {

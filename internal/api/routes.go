@@ -28,7 +28,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 		protected,
 		deps.Hosts.Store,
 		deps.Software.Store,
-		handlers.SantaHostDetailEnricher(deps.Santa.HostState),
+		handlers.SantaHostDetailContributor(deps.Santa.HostState),
 	)
 	handlers.RegisterSoftware(protected, deps.Software.Store)
 	handlers.RegisterLabels(protected, deps.Labels.Store)

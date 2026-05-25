@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/secret"
+	"github.com/woodleighschool/woodstar/internal/randtoken"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -17,7 +17,7 @@ const apiKeyByteLen = 24
 // RotateAPIKey generates a fresh API key for userID, persists it, and returns
 // the updated account self-view with the retrievable plaintext key.
 func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
-	key, err := secret.Generate(apiKeyByteLen)
+	key, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
 		return nil, err
 	}

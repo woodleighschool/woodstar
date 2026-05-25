@@ -37,7 +37,7 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	softwareName := "Example App " + suffix
 	bundleID := "com.example.osquery." + suffix
 
-	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-contract-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-contract-secret-value-"+suffix)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-schedule-" + suffix
-	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-schedule-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-schedule-secret-value-"+suffix)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-report-" + suffix
-	secret, err := stores.secrets.Create(ctx, agentauth.AgentOrbit, "osquery-report-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-report-secret-value-"+suffix)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
@@ -184,24 +184,24 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 }
 
 type osqueryContractStores struct {
-	hosts    *hosts.Store
-	labels   *labels.Store
-	secrets  *agentauth.Store
-	reports  *reports.Store
-	checks   *checks.Store
-	live     *livequery.Manager
-	software *software.Store
+	hosts        *hosts.Store
+	labels       *labels.Store
+	agentSecrets *agentauth.Store
+	reports      *reports.Store
+	checks       *checks.Store
+	live         *livequery.Manager
+	software     *software.Store
 }
 
 func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 	return osqueryContractStores{
-		hosts:    hosts.NewStore(database),
-		labels:   labels.NewStore(database),
-		secrets:  agentauth.NewStore(database),
-		reports:  reports.NewStore(database),
-		checks:   checks.NewStore(database),
-		live:     livequery.NewManager(),
-		software: software.NewStore(database),
+		hosts:        hosts.NewStore(database),
+		labels:       labels.NewStore(database),
+		agentSecrets: agentauth.NewStore(database),
+		reports:      reports.NewStore(database),
+		checks:       checks.NewStore(database),
+		live:         livequery.NewManager(),
+		software:     software.NewStore(database),
 	}
 }
 
@@ -219,7 +219,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 			ReportStore:        stores.reports,
 			CheckStore:         stores.checks,
 			LiveQueries:        stores.live,
-			SecretStore:        stores.secrets,
+			SecretStore:        stores.agentSecrets,
 			Logger:             logger.With("component", "osquery"),
 		}),
 		logger,

@@ -3,18 +3,18 @@ package auth
 import (
 	"testing"
 
-	"github.com/woodleighschool/woodstar/internal/secret"
+	"github.com/woodleighschool/woodstar/internal/randtoken"
 )
 
 func TestGenerateAPIKey(t *testing.T) {
 	t.Parallel()
-	a, err := secret.Generate(apiKeyByteLen)
+	a, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
-		t.Fatalf("secret.Generate returned error: %v", err)
+		t.Fatalf("randtoken.Generate returned error: %v", err)
 	}
-	b, err := secret.Generate(apiKeyByteLen)
+	b, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
-		t.Fatalf("secret.Generate returned error: %v", err)
+		t.Fatalf("randtoken.Generate returned error: %v", err)
 	}
 	if a == b {
 		t.Fatalf("two consecutive keys collided: %q", a)

@@ -70,7 +70,7 @@ type Host struct {
 	OSName                  string              `json:"os_name"`
 	OSVersion               string              `json:"os_version"`
 	OSBuild                 string              `json:"os_build"`
-	Platform                scope.Platform      `json:"platform" enum:"unknown,darwin,windows,linux"`
+	Platform                scope.Platform      `json:"platform"                             enum:"unknown,darwin,windows,linux"`
 	OsqueryPlatform         string              `json:"osquery_platform"`
 	OsqueryPlatformLike     string              `json:"osquery_platform_like"`
 	OsqueryVersion          string              `json:"osquery_version"`

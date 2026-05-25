@@ -44,7 +44,7 @@ type hostGetInput struct {
 type hostListInput struct {
 	ListQueryInput
 	Status          string `query:"status,omitempty"`
-	Platform        string `query:"platform,omitempty" enum:"unknown,darwin,windows,linux"`
+	Platform        string `query:"platform,omitempty"          enum:"unknown,darwin,windows,linux"`
 	LabelID         string `query:"label_id,omitempty"`
 	SoftwareTitleID string `query:"software_title_id,omitempty"`
 	SoftwareID      string `query:"software_id,omitempty"`
@@ -76,7 +76,7 @@ func (i hostListInput) params() (hosts.ListParams, error) {
 type hostSoftwareInput struct {
 	ID string `path:"id"`
 	ListQueryInput
-	Source []string `query:"source,omitempty"`
+	Source []string `          query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
@@ -94,8 +94,8 @@ type hostBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
-// HostDetailEnricher attaches capability-specific data to a host detail response.
-type HostDetailEnricher = hosts.DetailEnricher[hostDetailBody]
+// HostDetailContributor adds capability-specific sections to a host detail response.
+type HostDetailContributor = hosts.DetailContributor[hostDetailBody]
 
 // RegisterHosts registers admin host inventory endpoints.
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
@@ -103,10 +103,10 @@ func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
 	softwareStore *software.Store,
-	enrichers ...HostDetailEnricher,
+	contributors ...HostDetailContributor,
 ) {
 	registerListHosts(api, hostStore)
-	registerGetHost(api, hostStore, enrichers)
+	registerGetHost(api, hostStore, contributors)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
@@ -133,7 +133,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerGetHost(api huma.API, hostStore *hosts.Store, enrichers []HostDetailEnricher) {
+func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDetailContributor) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -158,11 +158,11 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, enrichers []HostDetai
 			return nil, err
 		}
 		body := hostDetailBody{HostDetail: *detail}
-		for _, enricher := range enrichers {
-			if enricher == nil {
+		for _, contributor := range contributors {
+			if contributor == nil {
 				continue
 			}
-			if err := enricher.EnrichHostDetail(ctx, id, &body); err != nil {
+			if err := contributor.ContributeHostDetail(ctx, id, &body); err != nil {
 				return nil, err
 			}
 		}
