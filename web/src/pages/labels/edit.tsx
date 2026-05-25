@@ -163,18 +163,6 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
         <PageHeader
           title={mode === "create" ? "New label" : "Edit label"}
           description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
-          actions={
-            <>
-              {mode === "edit" ? (
-                <Button asChild type="button" variant="outline" size="sm">
-                  <Link to="/labels">Cancel</Link>
-                </Button>
-              ) : null}
-              <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Saving..." : mode === "create" ? "Save label" : "Save"}
-              </Button>
-            </>
-          }
         />
         {error ? (
           <Alert variant="destructive">
@@ -228,13 +216,12 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
         </FieldGroup>
 
         {isDynamic ? (
-          <div className="flex flex-1">
+          <div className="max-w-3xl">
             <SQLEditor
               ref={editorRef}
               value={form.query}
               onChange={(query) => setForm({ ...form, query })}
               placeholder="SELECT ..."
-              className="flex-1"
             />
           </div>
         ) : null}
@@ -242,6 +229,17 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
         {isDynamic ? (
           <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
         ) : null}
+
+        <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Saving..." : "Save"}
+          </Button>
+          {mode === "edit" ? (
+            <Button asChild type="button" variant="ghost" size="sm">
+              <Link to="/labels">Cancel</Link>
+            </Button>
+          ) : null}
+        </div>
       </form>
     </PageShell>
   );

@@ -154,7 +154,7 @@ function UserEditForm({ user }: { user: User }) {
             </p>
             <Button type="submit" size="sm" disabled={!changed || update.isPending}>
               {update.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-              Save changes
+              Save
             </Button>
           </CardFooter>
         </form>

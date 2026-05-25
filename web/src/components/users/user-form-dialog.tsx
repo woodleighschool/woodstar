@@ -192,7 +192,7 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
             </Button>
           </DialogClose>
           <Button type="submit" size="sm" disabled={pending}>
-            {mode === "create" ? "Create user" : "Save changes"}
+            {mode === "create" ? "Create" : "Save"}
           </Button>
         </DialogFooter>
       </form>

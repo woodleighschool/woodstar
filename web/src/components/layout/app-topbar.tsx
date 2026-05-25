@@ -1,5 +1,4 @@
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
-import { PageActionsSlot } from "@/components/layout/page-actions";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function AppTopbar() {
@@ -8,7 +7,6 @@ export function AppTopbar() {
       <SidebarTrigger className="md:hidden" />
       <AppBreadcrumbs />
       <div className="flex-1" />
-      <PageActionsSlot className="flex items-center gap-2" />
     </header>
   );
 }

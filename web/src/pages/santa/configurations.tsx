@@ -221,7 +221,7 @@ export function SantaConfigurationsPage() {
     <PageShell>
       <PageHeader
         title="Santa configurations"
-        description="Resolve host settings top-down by label membership."
+        description="Configurations are evaluated in list order; each label can belong to one configuration."
         actions={
           <>
             <ButtonGroup>
@@ -661,9 +661,6 @@ function ConfigurationForm({
               <Field>
                 <FieldLabel>Labels</FieldLabel>
                 <LabelPicker value={form.label_ids} onChange={(label_ids) => setForm({ ...form, label_ids })} />
-                <FieldDescription>
-                  Configurations are evaluated in list order; each label can belong to one configuration.
-                </FieldDescription>
               </Field>
             </FieldGroup>
           </TabsContent>

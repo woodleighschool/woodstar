@@ -123,7 +123,7 @@ function AccountProfileCard({ account }: { account: Account }) {
           </p>
           <Button type="submit" size="sm" disabled={!canSubmit || update.isPending}>
             {update.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-            Save changes
+            Save
           </Button>
         </CardFooter>
       </form>

@@ -8,8 +8,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PageActions } from "@/components/layout/page-actions";
-import { PageShell } from "@/components/layout/page-layout";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -212,79 +211,76 @@ export function HostsListPage() {
   };
 
   return (
-    <>
-      <PageActions>
-        {isSoftwareFiltered ? (
-          <Button asChild variant="outline" size="sm">
-            <Link to="/hosts">Clear filter</Link>
-          </Button>
-        ) : null}
-      </PageActions>
-
-      <PageShell>
-        {query.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Failed to load hosts</AlertTitle>
-            <AlertDescription>{query.error.message}</AlertDescription>
-            <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
-              Retry
+    <PageShell>
+      <PageHeader
+        title="Hosts"
+        description="Inventory and status from enrolled hosts."
+        actions={
+          isSoftwareFiltered ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/hosts">Clear filter</Link>
             </Button>
-          </Alert>
-        ) : (
-          <DataTable
-            columns={allColumns}
-            data={data}
-            totalCount={totalCount}
-            pagination={state.pagination}
-            sorting={state.sorting}
-            onPaginationChange={setters.setPagination}
-            onSortingChange={setters.setSorting}
-            isLoading={query.isLoading}
-            enableRowSelection
-            selectedRowIds={selectedHostIds}
-            onSelectedRowIdsChange={setSelectedHostIds}
-            bulkActions={
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeleteOpen(true)}
-                disabled={bulkDelete.isPending}
-              >
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            }
-            rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
-            toolbar={(table) => (
-              <HostsToolbar
-                draft={draft}
-                onDraftChange={setDraft}
-                platform={search.platform}
-                onPlatformChange={(v) => setters.setFilter("platform", v)}
-                labelId={search.label_id}
-                onLabelChange={(v) => setters.setFilter("label_id", v)}
-                labelOptions={labelOptions}
-                table={table}
-              />
-            )}
-            empty={
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ServerCog />
-                  </EmptyMedia>
-                  <EmptyTitle>{hasFilters ? "No matches" : "No hosts enrolled yet"}</EmptyTitle>
-                  <EmptyDescription>
-                    {hasFilters
-                      ? "No hosts matched the current filters."
-                      : "Create an Orbit agent secret, then point a managed host at this Woodstar deployment."}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            }
-          />
-        )}
-      </PageShell>
+          ) : null
+        }
+      />
+
+      {query.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load hosts</AlertTitle>
+          <AlertDescription>{query.error.message}</AlertDescription>
+          <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
+            Retry
+          </Button>
+        </Alert>
+      ) : (
+        <DataTable
+          columns={allColumns}
+          data={data}
+          totalCount={totalCount}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
+          isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedHostIds}
+          onSelectedRowIdsChange={setSelectedHostIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
+          }
+          rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
+          toolbar={(table) => (
+            <HostsToolbar
+              draft={draft}
+              onDraftChange={setDraft}
+              platform={search.platform}
+              onPlatformChange={(v) => setters.setFilter("platform", v)}
+              labelId={search.label_id}
+              onLabelChange={(v) => setters.setFilter("label_id", v)}
+              labelOptions={labelOptions}
+              table={table}
+            />
+          )}
+          empty={
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ServerCog />
+                </EmptyMedia>
+                <EmptyTitle>{hasFilters ? "No matches" : "No hosts enrolled yet"}</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "No hosts matched the current filters."
+                    : "Create an Orbit agent secret, then point a managed host at this Woodstar deployment."}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          }
+        />
+      )}
       <BulkDeleteDialog
         open={deleteOpen}
         onOpenChange={(open) => {
@@ -298,7 +294,7 @@ export function HostsListPage() {
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedHosts}
       />
-    </>
+    </PageShell>
   );
 }
 

@@ -2,7 +2,6 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Loader2, Package } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { PageActions } from "@/components/layout/page-actions";
 import { PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -59,14 +58,6 @@ export function SoftwareTitleDetailPage() {
 
   return (
     <PageShell className="gap-6">
-      <PageActions>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/hosts" search={{ software_title_id: title.id.toString() }}>
-            View hosts
-          </Link>
-        </Button>
-      </PageActions>
-
       <SoftwareHeader title={title} />
       <SoftwareInfoCard title={title} />
       <SoftwareVersionsCard title={title} />
@@ -79,27 +70,34 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
   const typeLabel = softwareSourceLabel(title.source, title.extension_for);
 
   return (
-    <div className="flex items-center gap-4">
-      <SoftwareIcon source={title.source} size="lg" />
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-foreground truncate text-xl font-semibold" title={displayName}>
-            {displayName}
-          </h1>
-          <Badge variant="secondary" className="font-normal">
-            {typeLabel}
-          </Badge>
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <SoftwareIcon source={title.source} size="lg" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-foreground truncate text-xl font-semibold" title={displayName}>
+              {displayName}
+            </h1>
+            <Badge variant="secondary" className="font-normal">
+              {typeLabel}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            {title.counts_updated_at ? (
+              <span title={new Date(title.counts_updated_at).toLocaleString()}>
+                Counts updated {formatRelative(title.counts_updated_at)}
+              </span>
+            ) : (
+              "Counts not yet computed"
+            )}
+          </p>
         </div>
-        <p className="text-muted-foreground text-xs">
-          {title.counts_updated_at ? (
-            <span title={new Date(title.counts_updated_at).toLocaleString()}>
-              Counts updated {formatRelative(title.counts_updated_at)}
-            </span>
-          ) : (
-            "Counts not yet computed"
-          )}
-        </p>
       </div>
+      <Button asChild variant="outline" size="sm">
+        <Link to="/hosts" search={{ software_title_id: title.id.toString() }}>
+          View hosts
+        </Link>
+      </Button>
     </div>
   );
 }

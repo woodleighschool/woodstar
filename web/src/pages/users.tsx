@@ -2,8 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
-import { PageActions } from "@/components/layout/page-actions";
-import { PageShell } from "@/components/layout/page-layout";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,16 +31,20 @@ export function UsersPage() {
   const [deleting, setDeleting] = useState<User | null>(null);
 
   return (
-    <>
-      <PageActions>
-        <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-          <UserPlus data-icon="inline-start" /> Add user
-        </Button>
-      </PageActions>
+    <PageShell>
+      <PageHeader
+        title="Users"
+        description="Manage local Woodstar accounts and roles."
+        actions={
+          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
+            <UserPlus data-icon="inline-start" /> Add user
+          </Button>
+        }
+      />
 
-      <PageShell>
+      <div>
         <UsersTable query={query} currentUserId={currentUser?.id ?? null} onDelete={setDeleting} />
-      </PageShell>
+      </div>
 
       <UserFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
 
@@ -52,7 +55,7 @@ export function UsersPage() {
         }}
         user={deleting}
       />
-    </>
+    </PageShell>
   );
 }
 

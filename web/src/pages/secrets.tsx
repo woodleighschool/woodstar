@@ -69,17 +69,9 @@ export function SecretsPage() {
 
   return (
     <PageShell className="gap-6">
-      <PageHeader title="Secrets" />
-
-      <Tabs value={agent} onValueChange={(value) => setAgent(value as Agent)}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList>
-            {AGENTS.map((option) => (
-              <TabsTrigger key={option.value} value={option.value}>
-                {option.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      <PageHeader
+        title="Secrets"
+        actions={
           <Button
             size="sm"
             onClick={() => {
@@ -88,9 +80,19 @@ export function SecretsPage() {
             }}
           >
             <Plus data-icon="inline-start" />
-            New {agentLabel(agent)} secret
+            Add secret
           </Button>
-        </div>
+        }
+      />
+
+      <Tabs value={agent} onValueChange={(value) => setAgent(value as Agent)}>
+        <TabsList>
+          {AGENTS.map((option) => (
+            <TabsTrigger key={option.value} value={option.value}>
+              {option.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
         <TabsContent value="orbit" className="grid gap-4">
           <SecretTabDescription>

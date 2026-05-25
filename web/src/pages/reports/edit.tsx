@@ -185,7 +185,7 @@ function ReportEditForm({
 
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
 
-        <div className="grid max-w-5xl gap-2">
+        <div className="grid max-w-3xl gap-2">
           <Label>Query</Label>
           <SQLEditor
             ref={editorRef}
