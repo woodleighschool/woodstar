@@ -7,8 +7,6 @@ package sqlc
 
 import (
 	"context"
-
-	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const createReport = `-- name: CreateReport :one
@@ -45,13 +43,13 @@ RETURNING
 `
 
 type CreateReportParams struct {
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"`
-	MinOsqueryVersion *string              `json:"min_osquery_version"`
-	ScheduleInterval  int32                `json:"schedule_interval"`
-	CreatedByUserID   *int64               `json:"created_by_user_id"`
+	Name              string     `json:"name"`
+	Description       string     `json:"description"`
+	Query             string     `json:"query"`
+	Platforms         []Platform `json:"platforms"`
+	MinOsqueryVersion *string    `json:"min_osquery_version"`
+	ScheduleInterval  int32      `json:"schedule_interval"`
+	CreatedByUserID   *int64     `json:"created_by_user_id"`
 }
 
 func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Report, error) {
@@ -172,9 +170,9 @@ const listScheduledReportsForHost = `-- name: ListScheduledReportsForHost :many
 WITH host_row AS (
     SELECT
         id,
-        lower(platform) AS platform
+        platform
     FROM hosts h
-    WHERE h.id = $1 AND h.deleted_at IS NULL
+    WHERE h.id = $1
 )
 SELECT
     r.id,
@@ -191,11 +189,7 @@ SELECT
 FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
-  AND (
-      h.platform = ANY(r.platforms::text[])
-      OR ('darwin' = ANY(r.platforms::text[]) AND h.platform = 'macos')
-      OR ('linux' = ANY(r.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
-  )
+  AND h.platform = ANY(r.platforms)
   AND (
       r.label_scope_mode = 'none'
       OR (
@@ -295,13 +289,13 @@ RETURNING
 `
 
 type UpdateReportParams struct {
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"`
-	MinOsqueryVersion *string              `json:"min_osquery_version"`
-	ScheduleInterval  int32                `json:"schedule_interval"`
-	ID                int64                `json:"id"`
+	Name              string     `json:"name"`
+	Description       string     `json:"description"`
+	Query             string     `json:"query"`
+	Platforms         []Platform `json:"platforms"`
+	MinOsqueryVersion *string    `json:"min_osquery_version"`
+	ScheduleInterval  int32      `json:"schedule_interval"`
+	ID                int64      `json:"id"`
 }
 
 func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Report, error) {

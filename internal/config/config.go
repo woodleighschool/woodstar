@@ -15,7 +15,7 @@ const minSessionSecretLength = 32
 // SessionLifetime is the browser session lifetime.
 const SessionLifetime = 14 * 24 * time.Hour
 
-// ErrInvalidPublicURL is returned when WOODSTAR_PUBLIC_URL is not a valid public origin.
+// ErrInvalidPublicURL means the public URL is bogus.
 var ErrInvalidPublicURL = errors.New("invalid WOODSTAR_PUBLIC_URL")
 
 // Config contains runtime settings.

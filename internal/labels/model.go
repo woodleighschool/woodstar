@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// LabelType separates system-seeded labels from admin-created ones.
+// LabelType marks builtin vs regular labels.
 type LabelType string
 
 const (
@@ -15,31 +15,28 @@ const (
 	LabelTypeRegular LabelType = "regular"
 )
 
-// Label membership types. LabelMembershipType controls how membership rows are produced:
-//   - dynamic: an osquery query result drives membership
-//   - manual: the server writes membership rows (e.g. All Hosts on enroll)
-//   - derived: membership is computed from non-osquery host attributes (criteria JSON)
+// Label membership types.
 const (
 	LabelMembershipTypeDynamic = "dynamic"
 	LabelMembershipTypeManual  = "manual"
 	LabelMembershipTypeDerived = "derived"
 )
 
-// Label is a host grouping and targeting primitive.
+// Label groups hosts.
 type Label struct {
-	ID                  int64                `json:"id"`
-	Name                string               `json:"name"`
-	Description         string               `json:"description"`
-	Query               *string              `json:"query,omitempty"`
-	LabelType           LabelType            `json:"label_type"`
-	LabelMembershipType string               `json:"label_membership_type"`
-	Platforms           []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
-	HostsCount          int                  `json:"hosts_count"`
-	CreatedAt           time.Time            `json:"created_at,omitzero"`
-	UpdatedAt           time.Time            `json:"updated_at,omitzero"`
+	ID                  int64            `json:"id"`
+	Name                string           `json:"name"`
+	Description         string           `json:"description"`
+	Query               *string          `json:"query,omitempty"`
+	LabelType           LabelType        `json:"label_type"`
+	LabelMembershipType string           `json:"label_membership_type"`
+	Platforms           []scope.Platform `json:"platforms"             enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	HostsCount          int              `json:"hosts_count"`
+	CreatedAt           time.Time        `json:"created_at,omitzero"`
+	UpdatedAt           time.Time        `json:"updated_at,omitzero"`
 }
 
-// ListParams filters the admin label list.
+// ListParams filters labels.
 type ListParams struct {
 	dbutil.ListParams
 
@@ -48,21 +45,21 @@ type ListParams struct {
 	Platform            string
 }
 
-// LabelCreate contains fields for an admin-created label.
+// LabelCreate is a new label.
 type LabelCreate struct {
 	Name                string
 	Description         string
 	Query               *string
 	LabelType           LabelType
 	LabelMembershipType string
-	Platforms           []platforms.Platform
+	Platforms           []scope.Platform
 }
 
-// LabelUpdate contains the full editable label state.
+// LabelUpdate is the editable label state.
 type LabelUpdate struct {
 	Name                string
 	Description         string
 	Query               *string
 	LabelMembershipType string
-	Platforms           []platforms.Platform
+	Platforms           []scope.Platform
 }

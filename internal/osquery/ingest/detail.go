@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// ParseHostDetails converts osquery detail rows into host inventory fields.
+// ParseHostDetails maps osquery detail rows to host fields.
 func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 	var update hosts.DetailUpdate
 	if row := details["system_info"]; row != nil {
@@ -36,14 +38,18 @@ func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 		update.OSName = row["name"]
 		update.OSVersion = osVersion(row)
 		update.OSBuild = row["build"]
-		update.Platform = row["platform"]
-		update.PlatformLike = row["platform_like"]
+		update.OsqueryPlatform = row["platform"]
+		update.OsqueryPlatformLike = row["platform_like"]
+		update.Platform = scope.PlatformFromOsquery(update.OsqueryPlatform, update.OsqueryPlatformLike)
 	}
 	if row := details["platform_info"]; row != nil {
 		update.KernelVersion = row["extra"]
 	}
 	if row := details["uptime"]; row != nil {
-		update.UptimeSeconds = parsePositiveInt64Ptr(row["total_seconds"])
+		if seconds := parsePositiveInt64Ptr(row["total_seconds"]); seconds != nil {
+			restarted := time.Now().Add(-time.Duration(*seconds) * time.Second)
+			update.LastRestartedAt = &restarted
+		}
 	}
 	if row := details["root_disk"]; row != nil {
 		total := parseInt64(row["bytes_total"])

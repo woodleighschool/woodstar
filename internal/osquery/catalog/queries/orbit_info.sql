@@ -1,1 +1,1 @@
-SELECT * FROM orbit_info;
+SELECT version FROM orbit_info;

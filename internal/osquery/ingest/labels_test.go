@@ -7,12 +7,13 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.T) {
 	store := &fakelabelStore{applicable: map[int64]struct{}{1: {}, 2: {}}}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
-	host := &hosts.Host{ID: 9, Platform: "darwin"}
+	host := &hosts.Host{ID: 9, Platform: scope.PlatformDarwin}
 
 	results := []LabelResult{
 		{LabelID: 1, Matched: true},
@@ -41,7 +42,7 @@ func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.
 func TestLabelEvaluatorFinalizeNoOpOnEmpty(t *testing.T) {
 	store := &fakelabelStore{applicable: map[int64]struct{}{1: {}}}
 	evaluator := NewLabelEvaluator(store, slog.New(slog.DiscardHandler))
-	host := &hosts.Host{ID: 5, Platform: "darwin"}
+	host := &hosts.Host{ID: 5, Platform: scope.PlatformDarwin}
 
 	if err := evaluator.Finalize(context.Background(), host, nil); err != nil {
 		t.Fatalf("Finalize returned error: %v", err)
@@ -63,14 +64,14 @@ type fakeSetCall struct {
 	matched bool
 }
 
-func (s *fakelabelStore) ListApplicableDynamic(context.Context, string) ([]labels.Label, error) {
+func (s *fakelabelStore) ListApplicableDynamic(context.Context, scope.Platform) ([]labels.Label, error) {
 	return nil, nil
 }
 
 func (s *fakelabelStore) ApplicableDynamicIDs(
 	_ context.Context,
 	_ []int64,
-	_ string,
+	_ scope.Platform,
 ) (map[int64]struct{}, error) {
 	return s.applicable, nil
 }

@@ -48,15 +48,7 @@ SELECT *
 FROM labels
 WHERE
     label_membership_type = 'dynamic'
-    AND (
-        @platform::text = ANY(platforms::text[])
-        OR ('darwin' = ANY(platforms::text[]) AND @platform::text IN ('darwin', 'macos'))
-        OR (
-            'linux' = ANY(platforms::text[])
-            AND @platform::text <> ''
-            AND @platform::text NOT IN ('darwin', 'macos', 'windows')
-        )
-    )
+    AND @platform::platform = ANY(platforms)
 ORDER BY id;
 
 -- name: ListApplicableDynamicLabelIDs :many
@@ -65,15 +57,7 @@ FROM labels
 WHERE
     id = ANY(@ids::bigint[])
     AND label_membership_type = 'dynamic'
-    AND (
-        @platform::text = ANY(platforms::text[])
-        OR ('darwin' = ANY(platforms::text[]) AND @platform::text IN ('darwin', 'macos'))
-        OR (
-            'linux' = ANY(platforms::text[])
-            AND @platform::text <> ''
-            AND @platform::text NOT IN ('darwin', 'macos', 'windows')
-        )
-    )
+    AND @platform::platform = ANY(platforms)
 ORDER BY id;
 
 -- name: UpsertLabelMembership :exec
@@ -99,4 +83,4 @@ ORDER BY lower(l.name), l.id;
 -- name: MarkHostLabelsFresh :exec
 UPDATE hosts
 SET label_updated_at = now(), updated_at = now()
-WHERE id = @host_id AND deleted_at IS NULL;
+WHERE id = @host_id;

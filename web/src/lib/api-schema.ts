@@ -850,7 +850,7 @@ export interface components {
             id: number;
             label_scope?: components["schemas"]["LabelScope"];
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
             /** Format: date-time */
             updated_at: string;
@@ -865,7 +865,7 @@ export interface components {
             description?: string;
             label_scope: components["schemas"]["LabelScope"];
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
         };
         CheckHostStatus: {
@@ -890,7 +890,7 @@ export interface components {
             description?: string;
             label_scope: components["schemas"]["LabelScope"];
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
         };
         Configuration: {
@@ -1118,11 +1118,13 @@ export interface components {
             os_build: string;
             os_name: string;
             os_version: string;
+            osquery_platform: string;
+            osquery_platform_like: string;
             osquery_version: string;
             /** Format: int64 */
             physical_memory: number;
-            platform: string;
-            platform_like: string;
+            /** @enum {string} */
+            platform: "unknown" | "darwin" | "windows" | "linux";
             /** Format: ip */
             primary_ip?: string;
             primary_mac: string;
@@ -1132,8 +1134,6 @@ export interface components {
             software_updated_at?: string;
             /** Format: date-time */
             updated_at: string;
-            /** Format: int64 */
-            uptime_seconds?: number;
         };
         HostBattery: {
             chemistry: string;
@@ -1225,11 +1225,13 @@ export interface components {
             os_build: string;
             os_name: string;
             os_version: string;
+            osquery_platform: string;
+            osquery_platform_like: string;
             osquery_version: string;
             /** Format: int64 */
             physical_memory: number;
-            platform: string;
-            platform_like: string;
+            /** @enum {string} */
+            platform: "unknown" | "darwin" | "windows" | "linux";
             /** Format: ip */
             primary_ip?: string;
             primary_mac: string;
@@ -1240,8 +1242,6 @@ export interface components {
             software_updated_at?: string;
             /** Format: date-time */
             updated_at: string;
-            /** Format: int64 */
-            uptime_seconds?: number;
             users: components["schemas"]["HostUser"][] | null;
         };
         HostDeviceMapping: {
@@ -1355,7 +1355,7 @@ export interface components {
             label_membership_type: string;
             label_type: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query?: string;
             /** Format: date-time */
             updated_at?: string;
@@ -1371,7 +1371,7 @@ export interface components {
             label_membership_type?: string;
             label_type?: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query?: string;
         };
         LabelMatch: {
@@ -1389,7 +1389,7 @@ export interface components {
             description?: string;
             label_membership_type?: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query?: string;
         };
         LabelScope: {
@@ -1595,7 +1595,7 @@ export interface components {
             label_scope?: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
             /** Format: int64 */
             schedule_interval: number;
@@ -1613,7 +1613,7 @@ export interface components {
             label_scope: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
             /** Format: int64 */
             schedule_interval?: number;
@@ -1642,7 +1642,7 @@ export interface components {
             label_scope: components["schemas"]["LabelScope"];
             min_osquery_version?: string;
             name: string;
-            platforms: string[];
+            platforms: ("darwin" | "windows" | "linux")[];
             query: string;
             /** Format: int64 */
             schedule_interval?: number;
@@ -2451,7 +2451,7 @@ export interface operations {
                 page_size?: number;
                 sort?: string;
                 status?: string;
-                platform?: string;
+                platform?: "unknown" | "darwin" | "windows" | "linux";
                 label_id?: string;
                 software_title_id?: string;
                 software_id?: string;
@@ -3010,7 +3010,7 @@ export interface operations {
                 sort?: string;
                 label_type?: string;
                 label_membership_type?: string;
-                platform?: string;
+                platform?: "darwin" | "windows" | "linux";
             };
             header?: never;
             path?: never;
@@ -3593,7 +3593,7 @@ export interface operations {
                 page_index?: number;
                 page_size?: number;
                 sort?: string;
-                platform?: string;
+                platform?: "darwin" | "windows" | "linux";
             };
             header?: never;
             path?: never;
@@ -4034,7 +4034,7 @@ export interface operations {
                 page_index?: number;
                 page_size?: number;
                 sort?: string;
-                platform?: string;
+                platform?: "darwin" | "windows" | "linux";
             };
             header?: never;
             path?: never;

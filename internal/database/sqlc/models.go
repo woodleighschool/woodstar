@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
-
-	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 type Agent string
@@ -102,6 +100,7 @@ func (ns NullLabelScopeMode) Value() (driver.Value, error) {
 type Platform string
 
 const (
+	PlatformUnknown Platform = "unknown"
 	PlatformDarwin  Platform = "darwin"
 	PlatformWindows Platform = "windows"
 	PlatformLinux   Platform = "linux"
@@ -468,15 +467,15 @@ type AgentSecret struct {
 }
 
 type Check struct {
-	ID              int64                `json:"id"`
-	Name            string               `json:"name"`
-	Description     string               `json:"description"`
-	Query           string               `json:"query"`
-	Platforms       []platforms.Platform `json:"platforms"`
-	LabelScopeMode  LabelScopeMode       `json:"label_scope_mode"`
-	CreatedByUserID *int64               `json:"created_by_user_id"`
-	CreatedAt       time.Time            `json:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at"`
+	ID              int64          `json:"id"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	Query           string         `json:"query"`
+	Platforms       []Platform     `json:"platforms"`
+	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID *int64         `json:"created_by_user_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 type CheckLabel struct {
@@ -536,8 +535,9 @@ type Host struct {
 	OSName                  string      `json:"os_name"`
 	OSVersion               string      `json:"os_version"`
 	OSBuild                 string      `json:"os_build"`
-	Platform                string      `json:"platform"`
-	PlatformLike            string      `json:"platform_like"`
+	Platform                Platform    `json:"platform"`
+	OsqueryPlatform         string      `json:"osquery_platform"`
+	OsqueryPlatformLike     string      `json:"osquery_platform_like"`
 	OsqueryVersion          string      `json:"osquery_version"`
 	OrbitVersion            string      `json:"orbit_version"`
 	OrbitNodeKey            string      `json:"orbit_node_key"`
@@ -549,7 +549,6 @@ type Host struct {
 	CPUPhysicalCores        int         `json:"cpu_physical_cores"`
 	PhysicalMemory          int64       `json:"physical_memory"`
 	KernelVersion           string      `json:"kernel_version"`
-	UptimeSeconds           *int64      `json:"uptime_seconds"`
 	LastRestartedAt         *time.Time  `json:"last_restarted_at"`
 	DiskSpaceAvailableBytes *int64      `json:"disk_space_available_bytes"`
 	DiskSpaceTotalBytes     *int64      `json:"disk_space_total_bytes"`
@@ -566,7 +565,6 @@ type Host struct {
 	SoftwareUpdatedAt       *time.Time  `json:"software_updated_at"`
 	CreatedAt               time.Time   `json:"created_at"`
 	UpdatedAt               time.Time   `json:"updated_at"`
-	DeletedAt               *time.Time  `json:"deleted_at"`
 }
 
 type HostBattery struct {
@@ -664,16 +662,16 @@ type HostUser struct {
 }
 
 type Label struct {
-	ID                  int64                `json:"id"`
-	Name                string               `json:"name"`
-	Description         string               `json:"description"`
-	Query               *string              `json:"query"`
-	Criteria            []byte               `json:"criteria"`
-	LabelType           string               `json:"label_type"`
-	LabelMembershipType string               `json:"label_membership_type"`
-	Platforms           []platforms.Platform `json:"platforms"`
-	CreatedAt           time.Time            `json:"created_at"`
-	UpdatedAt           time.Time            `json:"updated_at"`
+	ID                  int64      `json:"id"`
+	Name                string     `json:"name"`
+	Description         string     `json:"description"`
+	Query               *string    `json:"query"`
+	Criteria            []byte     `json:"criteria"`
+	LabelType           string     `json:"label_type"`
+	LabelMembershipType string     `json:"label_membership_type"`
+	Platforms           []Platform `json:"platforms"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 type LabelMembership struct {
@@ -684,17 +682,17 @@ type LabelMembership struct {
 }
 
 type Report struct {
-	ID                int64                `json:"id"`
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"`
-	MinOsqueryVersion *string              `json:"min_osquery_version"`
-	ScheduleInterval  int32                `json:"schedule_interval"`
-	LabelScopeMode    LabelScopeMode       `json:"label_scope_mode"`
-	CreatedByUserID   *int64               `json:"created_by_user_id"`
-	CreatedAt         time.Time            `json:"created_at"`
-	UpdatedAt         time.Time            `json:"updated_at"`
+	ID                int64          `json:"id"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	Query             string         `json:"query"`
+	Platforms         []Platform     `json:"platforms"`
+	MinOsqueryVersion *string        `json:"min_osquery_version"`
+	ScheduleInterval  int32          `json:"schedule_interval"`
+	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID   *int64         `json:"created_by_user_id"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 type ReportLabel struct {

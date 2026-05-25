@@ -4,59 +4,55 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// Report is an admin-authored, scheduled osquery snapshot query whose results
-// are persisted per host.
+// Report is a saved osquery snapshot query.
 type Report struct {
-	ID                int64                `json:"id"`
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
-	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int                  `json:"schedule_interval"`
-	LabelScope        scope.LabelScope     `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64               `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time            `json:"created_at"`
-	UpdatedAt         time.Time            `json:"updated_at"`
+	ID                int64            `json:"id"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description"`
+	Query             string           `json:"query"`
+	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int              `json:"schedule_interval"`
+	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
+	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
+	CreatedAt         time.Time        `json:"created_at"`
+	UpdatedAt         time.Time        `json:"updated_at"`
 }
 
-// ReportCreate contains editable report fields. The handler layer accepts the
-// JSON shape directly; CreatedByUserID is stamped from the session, not the
-// wire.
+// ReportCreate is a new report.
 type ReportCreate struct {
-	Name              string               `json:"name"`
-	Description       string               `json:"description,omitempty"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
-	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int                  `json:"schedule_interval,omitempty"`
-	LabelScope        scope.LabelScope     `json:"label_scope"`
-	CreatedByUserID   *int64               `json:"-"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description,omitempty"`
+	Query             string           `json:"query"`
+	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope `json:"label_scope"`
+	CreatedByUserID   *int64           `json:"-"`
 }
 
-// ReportUpdate replaces editable report fields.
+// ReportUpdate is the editable report state.
 type ReportUpdate struct {
-	Name              string               `json:"name"`
-	Description       string               `json:"description,omitempty"`
-	Query             string               `json:"query"`
-	Platforms         []platforms.Platform `json:"platforms"                     minItems:"1" nullable:"false"`
-	MinOsqueryVersion *string              `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int                  `json:"schedule_interval,omitempty"`
-	LabelScope        scope.LabelScope     `json:"label_scope"`
+	Name              string           `json:"name"`
+	Description       string           `json:"description,omitempty"`
+	Query             string           `json:"query"`
+	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
+	LabelScope        scope.LabelScope `json:"label_scope"`
 }
 
-// ReportListParams filters saved report lists.
+// ReportListParams filters reports.
 type ReportListParams struct {
 	dbutil.ListParams
 
 	Platform string
 }
 
-// ReportResult is one stored snapshot row from one host.
+// ReportResult is one saved result row.
 type ReportResult struct {
 	ReportID    int64             `json:"report_id"`
 	ReportName  string            `json:"report_name"`
@@ -66,7 +62,7 @@ type ReportResult struct {
 	LastFetched time.Time         `json:"last_fetched,omitzero"`
 }
 
-// HostReport is a scheduled report as it appears on one host detail page.
+// HostReport is one report on a host detail page.
 type HostReport struct {
 	ReportID        int64             `json:"report_id"`
 	Name            string            `json:"name"`

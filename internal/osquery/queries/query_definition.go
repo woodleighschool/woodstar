@@ -1,15 +1,14 @@
 package queries
 
 import (
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// QueryDefinition is the shared editable shape for saved osquery definitions.
+// QueryDefinition is the shared saved-query shape.
 type QueryDefinition struct {
 	Name        string
 	Description string
 	Query       string
-	Platforms   []platforms.Platform
+	Platforms   []scope.Platform
 	LabelScope  scope.LabelScope
 }

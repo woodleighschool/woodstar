@@ -6,7 +6,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
-// HostObservation is Santa-reported state for an existing Woodstar host.
+// HostObservation is Santa state for an existing host.
 type HostObservation struct {
 	HostID             int64
 	MachineID          string

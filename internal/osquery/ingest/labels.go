@@ -8,23 +8,24 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// labelStore is the persistence surface required by LabelEvaluator.
+// labelStore is what label evaluation needs.
 type labelStore interface {
-	ListApplicableDynamic(context.Context, string) ([]labels.Label, error)
-	ApplicableDynamicIDs(context.Context, []int64, string) (map[int64]struct{}, error)
+	ListApplicableDynamic(context.Context, scope.Platform) ([]labels.Label, error)
+	ApplicableDynamicIDs(context.Context, []int64, scope.Platform) (map[int64]struct{}, error)
 	SetMembership(context.Context, int64, int64, bool) error
 	MarkHostLabelsFresh(context.Context, int64) error
 }
 
-// LabelResult is one host-label match outcome accumulated during a pass.
+// LabelResult is one label match.
 type LabelResult struct {
 	LabelID int64
 	Matched bool
 }
 
-// LabelEvaluator evaluates dynamic-label membership from agent query results.
+// LabelEvaluator handles dynamic label results.
 type LabelEvaluator struct {
 	store  labelStore
 	logger *slog.Logger
@@ -34,12 +35,12 @@ func NewLabelEvaluator(store labelStore, logger *slog.Logger) *LabelEvaluator {
 	return &LabelEvaluator{store: store, logger: logger}
 }
 
-// ApplicableLabels returns dynamic labels applicable to host.Platform.
+// ApplicableLabels returns labels for the host family.
 func (e *LabelEvaluator) ApplicableLabels(ctx context.Context, host *hosts.Host) ([]labels.Label, error) {
 	return e.store.ListApplicableDynamic(ctx, host.Platform)
 }
 
-// Finalize persists accumulated label results for host. No-op when nothing accumulated.
+// Finalize saves label results.
 func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results []LabelResult) error {
 	if len(results) == 0 {
 		return nil

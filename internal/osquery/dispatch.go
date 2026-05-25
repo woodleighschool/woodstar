@@ -12,9 +12,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// queryKind tags each kind of query Woodstar emits to osquery clients.
+// queryKind tags our osquery work.
 type queryKind string
 
 const (
@@ -39,7 +40,7 @@ func detailQueryName(suffix string) string {
 	return queryName(kindDetail, suffix)
 }
 
-// parseQueryName splits a Woodstar query name into kind and suffix.
+// parseQueryName splits our query name into kind and suffix.
 func parseQueryName(name string) (queryKind, string, bool) {
 	raw, ok := strings.CutPrefix(name, namePrefix)
 	if !ok {
@@ -280,10 +281,10 @@ func successfulSoftwareRows(
 
 func sawEveryRequiredDetailQuery(
 	pass *detailDispatchPass,
-	hostPlatform string,
+	platform scope.Platform,
 ) bool {
 	for name, query := range pass.registry {
-		if query.Optional || !query.RunsForPlatform(hostPlatform) {
+		if query.Optional || !query.RunsForPlatform(platform) {
 			continue
 		}
 		result, ok := pass.results[name]

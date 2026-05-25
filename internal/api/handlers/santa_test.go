@@ -21,10 +21,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -37,7 +37,7 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 		Name:                "Conflict Label",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           []platforms.Platform{platforms.PlatformDarwin},
+		Platforms:           []scope.Platform{scope.PlatformDarwin},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -156,7 +156,7 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		Name:                "Enricher Label",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           []platforms.Platform{platforms.PlatformDarwin},
+		Platforms:           []scope.Platform{scope.PlatformDarwin},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)

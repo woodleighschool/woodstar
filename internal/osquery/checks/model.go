@@ -4,42 +4,39 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// Check is a query-backed pass/fail policy.
+// Check is a query-backed pass/fail rule.
 type Check struct {
-	ID              int64                `json:"id"`
-	Name            string               `json:"name"`
-	Description     string               `json:"description"`
-	Query           string               `json:"query"`
-	Platforms       []platforms.Platform `json:"platforms"                    minItems:"1" nullable:"false"`
-	LabelScope      scope.LabelScope     `json:"label_scope,omitzero"`
-	CreatedByUserID *int64               `json:"created_by_user_id,omitempty"`
-	CreatedAt       time.Time            `json:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at"`
+	ID              int64            `json:"id"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description"`
+	Query           string           `json:"query"`
+	Platforms       []scope.Platform `json:"platforms"                    enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	LabelScope      scope.LabelScope `json:"label_scope,omitzero"`
+	CreatedByUserID *int64           `json:"created_by_user_id,omitempty"`
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
 }
 
-// CheckCreate contains editable check fields. The handler layer accepts the
-// JSON shape directly; CreatedByUserID is stamped from the session, not the
-// wire.
+// CheckCreate is a new check.
 type CheckCreate struct {
-	Name            string               `json:"name"`
-	Description     string               `json:"description,omitempty"`
-	Query           string               `json:"query"`
-	Platforms       []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
-	LabelScope      scope.LabelScope     `json:"label_scope"`
-	CreatedByUserID *int64               `json:"-"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description,omitempty"`
+	Query           string           `json:"query"`
+	Platforms       []scope.Platform `json:"platforms"             enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	LabelScope      scope.LabelScope `json:"label_scope"`
+	CreatedByUserID *int64           `json:"-"`
 }
 
-// CheckUpdate replaces editable check fields.
+// CheckUpdate is the editable check state.
 type CheckUpdate struct {
-	Name        string               `json:"name"`
-	Description string               `json:"description,omitempty"`
-	Query       string               `json:"query"`
-	Platforms   []platforms.Platform `json:"platforms"             minItems:"1" nullable:"false"`
-	LabelScope  scope.LabelScope     `json:"label_scope"`
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Query       string           `json:"query"`
+	Platforms   []scope.Platform `json:"platforms"             enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	LabelScope  scope.LabelScope `json:"label_scope"`
 }
 
 // CheckListParams filters checks.
@@ -49,7 +46,7 @@ type CheckListParams struct {
 	Platform string
 }
 
-// CheckStatus is a check's current response value for a host.
+// CheckStatus is the latest check result.
 type CheckStatus string
 
 const (
@@ -57,7 +54,7 @@ const (
 	CheckStatusFail CheckStatus = "fail"
 )
 
-// CheckHostStatus is a check's current state for one host.
+// CheckHostStatus is one host's check state.
 type CheckHostStatus struct {
 	CheckID   int64        `json:"check_id"`
 	CheckName string       `json:"check_name"`

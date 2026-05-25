@@ -21,7 +21,7 @@ const (
 
 type reportListInput struct {
 	ListQueryInput
-	Platform string `query:"platform,omitempty"`
+	Platform string `query:"platform,omitempty" enum:"darwin,windows,linux"`
 }
 
 type reportGetInput struct {

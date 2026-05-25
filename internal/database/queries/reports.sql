@@ -84,9 +84,9 @@ RETURNING id;
 WITH host_row AS (
     SELECT
         id,
-        lower(platform) AS platform
+        platform
     FROM hosts h
-    WHERE h.id = @host_id AND h.deleted_at IS NULL
+    WHERE h.id = @host_id
 )
 SELECT
     r.id,
@@ -103,11 +103,7 @@ SELECT
 FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
-  AND (
-      h.platform = ANY(r.platforms::text[])
-      OR ('darwin' = ANY(r.platforms::text[]) AND h.platform = 'macos')
-      OR ('linux' = ANY(r.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
-  )
+  AND h.platform = ANY(r.platforms)
   AND (
       r.label_scope_mode = 'none'
       OR (

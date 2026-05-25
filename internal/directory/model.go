@@ -1,8 +1,4 @@
-// Package directory mirrors human identities and group memberships from an
-// external identity provider (Entra ID for the MVP) into local tables so
-// the rest of Woodstar can target hosts by directory metadata. Directory
-// users are observed state separate from local Woodstar accounts; they
-// never receive UI access.
+// Package directory syncs people and groups from an identity provider.
 package directory
 
 import "time"
@@ -31,14 +27,14 @@ type Group struct {
 	LastSyncedAt time.Time `json:"last_synced_at"`
 }
 
-// Snapshot is the result of a single Entra fetch, fed into Service.Apply.
+// Snapshot is one provider sync result.
 type Snapshot struct {
 	Users       []SnapshotUser
 	Groups      []SnapshotGroup
 	GeneratedAt time.Time
 }
 
-// SnapshotUser is the provider-facing user shape (group memberships nested).
+// SnapshotUser is a synced user.
 type SnapshotUser struct {
 	ExternalID        string
 	UserPrincipalName string
@@ -49,12 +45,11 @@ type SnapshotUser struct {
 	FamilyName        string
 	Department        string
 	Active            bool
-	// GroupExternalIDs are the IDs of every directory group the user
-	// belongs to, direct or transitive depending on the sync mode.
+	// GroupExternalIDs are this user's synced groups.
 	GroupExternalIDs []string
 }
 
-// SnapshotGroup is the provider-facing group shape.
+// SnapshotGroup is a synced group.
 type SnapshotGroup struct {
 	ExternalID   string
 	DisplayName  string

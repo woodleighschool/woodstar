@@ -1,5 +1,4 @@
-// Package auth owns local setup, login (password and SSO), API-key issuance,
-// and session lookup for the Woodstar admin surface.
+// Package auth handles setup, login, API keys, and sessions.
 package auth
 
 import (
@@ -16,7 +15,7 @@ import (
 
 const sessionUserKey = "user_id"
 
-// Auth errors describe expected setup, login, and authentication failures.
+// Auth errors for expected auth failures.
 var (
 	ErrAlreadySetup       = errors.New("woodstar is already set up")
 	ErrInvalidCredentials = errors.New("invalid email or password")
@@ -24,14 +23,14 @@ var (
 	ErrNotSetup           = errors.New("woodstar setup is required")
 )
 
-// Service owns local setup, login, and session lookup behavior.
+// Service owns setup, login, and session lookup.
 type Service struct {
 	users    *users.Service
 	sessions *scs.SessionManager
 	oidc     *oidcProvider
 }
 
-// NewService creates an auth service backed by a user service and an scs session manager.
+// NewService wires auth to users and sessions.
 func NewService(users *users.Service, sessions *scs.SessionManager) *Service {
 	return &Service{users: users, sessions: sessions}
 }

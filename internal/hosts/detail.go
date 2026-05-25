@@ -8,7 +8,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error) {
@@ -141,7 +141,7 @@ type hostDetailLabelRecord struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platforms           []platforms.Platform
+	Platforms           []sqlc.Platform
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
@@ -155,11 +155,19 @@ func labelFromHostDetailRecord(row hostDetailLabelRecord) labels.Label {
 		Query:               row.Query,
 		LabelType:           labels.LabelType(row.LabelType),
 		LabelMembershipType: row.LabelMembershipType,
-		Platforms:           row.Platforms,
+		Platforms:           scopePlatforms(row.Platforms),
 		HostsCount:          int(row.HostsCount),
 		CreatedAt:           row.CreatedAt,
 		UpdatedAt:           row.UpdatedAt,
 	}
+}
+
+func scopePlatforms(platforms []sqlc.Platform) []scope.Platform {
+	out := make([]scope.Platform, len(platforms))
+	for i, platform := range platforms {
+		out[i] = scope.Platform(platform)
+	}
+	return out
 }
 
 const hostDetailLabelsSQL = `

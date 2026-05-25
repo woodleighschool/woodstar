@@ -9,7 +9,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// migrationLockID guards concurrent migration runs across woodstar instances.
+// migrationLockID keeps migration runs from racing.
 // Goose's global API does not lock; without this, a rolling restart can race
 // two pods both applying the same migration.
 const migrationLockID int64 = 7146808627076917000

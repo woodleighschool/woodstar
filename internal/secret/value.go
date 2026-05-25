@@ -1,4 +1,4 @@
-// Package secret creates opaque shared secrets for Woodstar credentials.
+// Package secret makes random shared secrets.
 package secret
 
 import (
@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 )
 
-// Generate returns a URL-safe base64 string backed by byteCount random bytes.
+// Generate makes a URL-safe random string.
 func Generate(byteCount int) (string, error) {
 	b := make([]byte, byteCount)
 	if _, err := rand.Read(b); err != nil {

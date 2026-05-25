@@ -15,6 +15,8 @@ SELECT
   '' AS extension_for,
   'python_packages' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   '' AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN python_packages USING (uid);

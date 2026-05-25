@@ -15,6 +15,8 @@ SELECT
   vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
+  '' AS arch,
+  '' AS release,
   '' AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN vscode_extensions USING (uid);

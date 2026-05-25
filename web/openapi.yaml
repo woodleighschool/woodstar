@@ -168,6 +168,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -203,6 +207,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -262,6 +270,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -734,14 +746,21 @@ components:
           type: string
         os_version:
           type: string
+        osquery_platform:
+          type: string
+        osquery_platform_like:
+          type: string
         osquery_version:
           type: string
         physical_memory:
           format: int64
           type: integer
         platform:
-          type: string
-        platform_like:
+          enum:
+            - unknown
+            - darwin
+            - windows
+            - linux
           type: string
         primary_ip:
           format: ip
@@ -757,9 +776,6 @@ components:
         updated_at:
           format: date-time
           type: string
-        uptime_seconds:
-          format: int64
-          type: integer
       required:
         - id
         - hardware_uuid
@@ -774,7 +790,8 @@ components:
         - os_version
         - os_build
         - platform
-        - platform_like
+        - osquery_platform
+        - osquery_platform_like
         - osquery_version
         - orbit_version
         - cpu_type
@@ -976,14 +993,21 @@ components:
           type: string
         os_version:
           type: string
+        osquery_platform:
+          type: string
+        osquery_platform_like:
+          type: string
         osquery_version:
           type: string
         physical_memory:
           format: int64
           type: integer
         platform:
-          type: string
-        platform_like:
+          enum:
+            - unknown
+            - darwin
+            - windows
+            - linux
           type: string
         primary_ip:
           format: ip
@@ -1001,9 +1025,6 @@ components:
         updated_at:
           format: date-time
           type: string
-        uptime_seconds:
-          format: int64
-          type: integer
         users:
           items:
             $ref: "#/components/schemas/HostUser"
@@ -1028,7 +1049,8 @@ components:
         - os_version
         - os_build
         - platform
-        - platform_like
+        - osquery_platform
+        - osquery_platform_like
         - osquery_version
         - orbit_version
         - cpu_type
@@ -1301,6 +1323,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -1338,6 +1364,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -1377,6 +1407,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -1813,6 +1847,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -1854,6 +1892,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -1915,6 +1957,10 @@ components:
           type: string
         platforms:
           items:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
           minItems: 1
           type: array
@@ -2430,7 +2476,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 267eea3-dirty
+  version: f990a63-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -2872,6 +2918,11 @@ paths:
           in: query
           name: platform
           schema:
+            enum:
+              - unknown
+              - darwin
+              - windows
+              - linux
             type: string
         - explode: false
           in: query
@@ -3385,6 +3436,10 @@ paths:
           in: query
           name: platform
           schema:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
       responses:
         "200":
@@ -3868,6 +3923,10 @@ paths:
           in: query
           name: platform
           schema:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
       responses:
         "200":
@@ -4209,6 +4268,10 @@ paths:
           in: query
           name: platform
           schema:
+            enum:
+              - darwin
+              - windows
+              - linux
             type: string
       responses:
         "200":

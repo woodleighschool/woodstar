@@ -1,7 +1,6 @@
 package directory
 
-// These are Microsoft Graph wire shapes, so their JSON tags intentionally
-// follow Graph's camelCase and @odata names rather than Woodstar's snake_case.
+// Graph wire shapes keep Graph's weird names.
 type graphUser struct {
 	ID                string  `json:"id"`
 	UserPrincipalName string  `json:"userPrincipalName"`

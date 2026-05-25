@@ -15,6 +15,8 @@ SELECT
   '' AS extension_for,
   'apps' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
@@ -27,6 +29,8 @@ SELECT
   browser_type AS extension_for,
   'chrome_extensions' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
@@ -39,6 +43,8 @@ SELECT
   'firefox' AS extension_for,
   'firefox_addons' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
@@ -51,6 +57,8 @@ SELECT
   '' AS extension_for,
   'safari_extensions' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
@@ -63,6 +71,8 @@ SELECT
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages
@@ -76,6 +86,8 @@ SELECT
   '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM npm_packages
@@ -88,6 +100,8 @@ SELECT
   '' AS extension_for,
   'homebrew_packages' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages

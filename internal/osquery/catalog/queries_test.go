@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestDetailQueryRegistryIsComplete(t *testing.T) {
@@ -49,7 +51,7 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 }
 
 func TestDetailQueriesDue(t *testing.T) {
-	got := DetailQueriesDue(nil, "", "darwin")
+	got := DetailQueriesDue(nil, "", scope.PlatformDarwin)
 	for _, name := range []string{
 		QueryOSVersion,
 		QuerySystemInfo,
@@ -87,7 +89,7 @@ func TestDetailQueriesDue(t *testing.T) {
 }
 
 func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
-	got := DetailQueriesDue(nil, "", "darwin")
+	got := DetailQueriesDue(nil, "", scope.PlatformDarwin)
 	for _, name := range []string{
 		QueryBatteries,
 		QueryCertificatesDarwin,
@@ -106,12 +108,12 @@ func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
 
 func TestDetailQueriesDueFiltersByPlatform(t *testing.T) {
 	cases := []struct {
-		platform string
+		platform scope.Platform
 		include  []string
 		exclude  []string
 	}{
 		{
-			platform: "windows",
+			platform: scope.PlatformWindows,
 			include:  []string{QueryPrimaryInterfaceWindows, QuerySoftwareWindows, QueryCertificatesWindows},
 			exclude: []string{
 				QueryPrimaryInterfaceUnix,
@@ -121,7 +123,7 @@ func TestDetailQueriesDueFiltersByPlatform(t *testing.T) {
 			},
 		},
 		{
-			platform: "ubuntu",
+			platform: scope.PlatformLinux,
 			include:  []string{QueryPrimaryInterfaceUnix, QuerySoftwareLinux},
 			exclude: []string{
 				QueryPrimaryInterfaceWindows,
@@ -131,9 +133,22 @@ func TestDetailQueriesDueFiltersByPlatform(t *testing.T) {
 				QueryCertificatesWindows,
 			},
 		},
+		{
+			platform: scope.PlatformUnknown,
+			exclude: []string{
+				QueryPrimaryInterfaceUnix,
+				QueryPrimaryInterfaceWindows,
+				QueryRootDiskDarwin,
+				QuerySoftwareMacOS,
+				QuerySoftwareLinux,
+				QuerySoftwareWindows,
+				QueryCertificatesDarwin,
+				QueryCertificatesWindows,
+			},
+		},
 	}
 	for _, tc := range cases {
-		t.Run(tc.platform, func(t *testing.T) {
+		t.Run(string(tc.platform), func(t *testing.T) {
 			got := DetailQueriesDue(nil, "", tc.platform)
 			for _, name := range tc.include {
 				if got.Queries[name] == "" {
@@ -151,11 +166,85 @@ func TestDetailQueriesDueFiltersByPlatform(t *testing.T) {
 
 func TestDetailQueriesDueWhenHashChanges(t *testing.T) {
 	now := time.Now()
-	if got := DetailQueriesDue(&now, DetailQueryHash(), "darwin"); len(got.Queries) != 0 {
+	if got := DetailQueriesDue(&now, DetailQueryHash(), scope.PlatformDarwin); len(got.Queries) != 0 {
 		t.Fatalf("fresh matching hash returned %d queries, want 0", len(got.Queries))
 	}
-	if got := DetailQueriesDue(&now, "old-hash", "darwin"); len(got.Queries) == 0 {
+	if got := DetailQueriesDue(&now, "old-hash", scope.PlatformDarwin); len(got.Queries) == 0 {
 		t.Fatal("fresh stale hash returned no queries")
+	}
+}
+
+func TestDetailQueriesUseExplicitColumns(t *testing.T) {
+	for name, query := range DetailQueries() {
+		upperSQL := strings.ToUpper(query.SQL)
+		if strings.Contains(upperSQL, "SELECT *") || strings.Contains(query.SQL, ".*") {
+			t.Fatalf("%s uses wildcard columns: %s", name, query.SQL)
+		}
+	}
+}
+
+func TestHostDetailQueriesProjectIngestShape(t *testing.T) {
+	osVersionSQL := DetailQueries()[QueryOSVersion].SQL
+	for _, want := range []string{"name", "version", "major", "minor", "build", "platform", "platform_like"} {
+		if !strings.Contains(osVersionSQL, want) {
+			t.Fatalf("os_version SQL missing %q: %s", want, osVersionSQL)
+		}
+	}
+	if strings.Contains(osVersionSQL, "arch") {
+		t.Fatalf("os_version SQL includes unused arch: %s", osVersionSQL)
+	}
+
+	orbitSQL := strings.TrimSpace(DetailQueries()[QueryOrbitInfo].SQL)
+	if orbitSQL != "SELECT version FROM orbit_info;" {
+		t.Fatalf("orbit_info SQL = %q, want version only", orbitSQL)
+	}
+}
+
+func TestSoftwareQueriesProjectIngestShape(t *testing.T) {
+	for _, name := range []string{
+		QuerySoftwareMacOS,
+		QuerySoftwareLinux,
+		QuerySoftwareWindows,
+		QuerySoftwareVSCodeExtensions,
+		QuerySoftwareJetBrainsPlugins,
+		QuerySoftwareGoBinaries,
+		QuerySoftwarePythonPackages,
+		QuerySoftwarePythonPackagesLegacy,
+	} {
+		sql := DetailQueries()[name].SQL
+		for _, want := range []string{
+			"name",
+			"version",
+			"bundle_identifier",
+			"extension_id",
+			"extension_for",
+			"source",
+			"vendor",
+			"arch",
+			"release",
+			"last_opened_at",
+			"installed_path",
+		} {
+			if !strings.Contains(sql, want) {
+				t.Fatalf("%s SQL missing %q: %s", name, want, sql)
+			}
+		}
+	}
+}
+
+func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
+	codesignSQL := DetailQueries()[QuerySoftwareMacOSCodesign].SQL
+	for _, want := range []string{"path", "team_identifier", "cdhash_sha256"} {
+		if !strings.Contains(codesignSQL, want) {
+			t.Fatalf("codesign SQL missing %q: %s", want, codesignSQL)
+		}
+	}
+
+	hashSQL := DetailQueries()[QuerySoftwareMacOSExecutableHash].SQL
+	for _, want := range []string{"path", "executable_path", "executable_sha256"} {
+		if !strings.Contains(hashSQL, want) {
+			t.Fatalf("executable hash SQL missing %q: %s", want, hashSQL)
+		}
 	}
 }
 

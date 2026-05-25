@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestParseHostDetails(t *testing.T) {
@@ -57,8 +58,9 @@ func TestParseHostDetails(t *testing.T) {
 	got := ParseHostDetails(details)
 	want := hosts.DetailUpdate{
 		OSVersion:               "macOS 26.5 (build 25F5068a)",
-		Platform:                "darwin",
-		PlatformLike:            "darwin",
+		Platform:                scope.PlatformDarwin,
+		OsqueryPlatform:         "darwin",
+		OsqueryPlatformLike:     "darwin",
 		Hostname:                "example-host",
 		ComputerName:            "EXAMPLE-HOST",
 		HardwareUUID:            "00000000-0000-4000-8000-000000000000",
@@ -77,7 +79,6 @@ func TestParseHostDetails(t *testing.T) {
 		OsqueryVersion:          "5.22.1",
 		OrbitVersion:            "1.47.0",
 		KernelVersion:           "Darwin Kernel Version 25.5.0",
-		UptimeSeconds:           new(int64(3600)),
 		DiskSpaceAvailableBytes: new(int64(102400)),
 		DiskSpaceTotalBytes:     new(int64(409600)),
 		PrimaryIP:               "192.0.2.10",
@@ -115,7 +116,8 @@ func assertDetailUpdate(t *testing.T, got hosts.DetailUpdate, want hosts.DetailU
 		got.OSVersion != want.OSVersion ||
 		got.OSBuild != want.OSBuild ||
 		got.Platform != want.Platform ||
-		got.PlatformLike != want.PlatformLike ||
+		got.OsqueryPlatform != want.OsqueryPlatform ||
+		got.OsqueryPlatformLike != want.OsqueryPlatformLike ||
 		got.KernelVersion != want.KernelVersion ||
 		got.OrbitVersion != want.OrbitVersion ||
 		got.CPUType != want.CPUType ||
@@ -129,7 +131,9 @@ func assertDetailUpdate(t *testing.T, got hosts.DetailUpdate, want hosts.DetailU
 		got.PrimaryMAC != want.PrimaryMAC {
 		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
 	}
-	assertInt64Ptr(t, "UptimeSeconds", got.UptimeSeconds, want.UptimeSeconds)
+	if got.LastRestartedAt == nil {
+		t.Fatalf("LastRestartedAt is nil, want timestamp")
+	}
 	assertInt64Ptr(t, "DiskSpaceAvailableBytes", got.DiskSpaceAvailableBytes, want.DiskSpaceAvailableBytes)
 	assertInt64Ptr(t, "DiskSpaceTotalBytes", got.DiskSpaceTotalBytes, want.DiskSpaceTotalBytes)
 }

@@ -37,14 +37,14 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 	}
 
 	host, err := s.hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   req.HardwareUUID,
-		HardwareSerial: req.HardwareSerial,
-		Hostname:       req.Hostname,
-		ComputerName:   req.ComputerName,
-		HardwareModel:  req.HardwareModel,
-		Platform:       req.Platform,
-		PlatformLike:   req.PlatformLike,
-		OrbitNodeKey:   nodeKey,
+		HardwareUUID:        req.HardwareUUID,
+		HardwareSerial:      req.HardwareSerial,
+		Hostname:            req.Hostname,
+		ComputerName:        req.ComputerName,
+		HardwareModel:       req.HardwareModel,
+		OsqueryPlatform:     req.Platform,
+		OsqueryPlatformLike: req.PlatformLike,
+		OrbitNodeKey:        nodeKey,
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("upsert host: %w", err)

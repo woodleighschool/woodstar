@@ -11,10 +11,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-// Store persists labels and host memberships.
+// Store persists labels.
 type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
@@ -89,7 +89,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		Query:               params.Query,
 		LabelType:           string(params.LabelType),
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           params.Platforms,
+		Platforms:           sqlcPlatforms(params.Platforms),
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -109,7 +109,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		Description:         params.Description,
 		Query:               params.Query,
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           params.Platforms,
+		Platforms:           sqlcPlatforms(params.Platforms),
 		ID:                  id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -132,8 +132,11 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]Label, error) {
-	rows, err := s.q.ListApplicableDynamicLabels(ctx, sqlc.ListApplicableDynamicLabelsParams{Platform: platform})
+func (s *Store) ListApplicableDynamic(ctx context.Context, platform scope.Platform) ([]Label, error) {
+	rows, err := s.q.ListApplicableDynamicLabels(
+		ctx,
+		sqlc.ListApplicableDynamicLabelsParams{Platform: sqlcPlatform(platform)},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -147,11 +150,11 @@ func (s *Store) ListApplicableDynamic(ctx context.Context, platform string) ([]L
 func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
-	platform string,
+	platform scope.Platform,
 ) (map[int64]struct{}, error) {
 	rows, err := s.q.ListApplicableDynamicLabelIDs(ctx, sqlc.ListApplicableDynamicLabelIDsParams{
 		Ids:      ids,
-		Platform: platform,
+		Platform: sqlcPlatform(platform),
 	})
 	if err != nil {
 		return nil, err
@@ -174,9 +177,7 @@ func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
 }
 
-// Validate enforces semantic rules that the DB and Huma DTO can't express:
-// builtin labels cannot be created, and the query/membership-type pairing
-// must be consistent.
+// Validate checks the label shape before the DB sees it.
 func (p LabelCreate) Validate() error {
 	if p.LabelType == LabelTypeBuiltin {
 		return fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
@@ -184,7 +185,7 @@ func (p LabelCreate) Validate() error {
 	return validateMembershipPairing(p.LabelMembershipType, p.Query)
 }
 
-// Validate enforces the same cross-field rules as LabelCreate for updates.
+// Validate checks the update shape.
 func (p LabelUpdate) Validate() error {
 	return validateMembershipPairing(p.LabelMembershipType, p.Query)
 }
@@ -259,7 +260,7 @@ type labelListRecord struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platforms           []platforms.Platform
+	Platforms           []sqlc.Platform
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
@@ -273,7 +274,7 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Query:               s.Query,
 		LabelType:           LabelType(s.LabelType),
 		LabelMembershipType: s.LabelMembershipType,
-		Platforms:           s.Platforms,
+		Platforms:           scopePlatforms(s.Platforms),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
@@ -293,4 +294,27 @@ func labelFromListRecord(s labelListRecord) Label {
 	})
 	label.HostsCount = int(s.HostsCount)
 	return label
+}
+
+func sqlcPlatform(platform scope.Platform) sqlc.Platform {
+	if platform == "" {
+		platform = scope.PlatformUnknown
+	}
+	return sqlc.Platform(platform)
+}
+
+func sqlcPlatforms(platforms []scope.Platform) []sqlc.Platform {
+	out := make([]sqlc.Platform, len(platforms))
+	for i, platform := range platforms {
+		out[i] = sqlcPlatform(platform)
+	}
+	return out
+}
+
+func scopePlatforms(platforms []sqlc.Platform) []scope.Platform {
+	out := make([]scope.Platform, len(platforms))
+	for i, platform := range platforms {
+		out[i] = scope.Platform(platform)
+	}
+	return out
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // baseline returns a valid ConfigurationMutation using Santa's own defaults.
@@ -215,10 +215,10 @@ func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) i
 		Name:                name,
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms: []platforms.Platform{
-			platforms.PlatformDarwin,
-			platforms.PlatformWindows,
-			platforms.PlatformLinux,
+		Platforms: []scope.Platform{
+			scope.PlatformDarwin,
+			scope.PlatformWindows,
+			scope.PlatformLinux,
 		},
 	})
 	if err != nil {

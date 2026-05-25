@@ -23,12 +23,12 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
@@ -50,7 +50,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	label, err := stores.labels.Create(ctx, labels.LabelCreate{
 		Name:                "Santa Contract " + suffix,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           []platforms.Platform{platforms.PlatformDarwin},
+		Platforms:           []scope.Platform{scope.PlatformDarwin},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)

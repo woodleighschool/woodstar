@@ -5,9 +5,7 @@ import (
 	"errors"
 )
 
-// User management errors describe expected admin failures. The frontend
-// gates self-mutation and last-admin removal in the UI; the backend only
-// enforces invariants that protect the system from being locked out.
+// User management errors for expected admin failures.
 var (
 	ErrCannotDeleteInitialUser = errors.New("the initial user cannot be deleted")
 	ErrCannotModifyInitialUser = errors.New(
@@ -18,7 +16,7 @@ var (
 // initialUserID is the row created by the setup wizard.
 const initialUserID int64 = 1
 
-// Service owns local Woodstar account management.
+// Service owns local account management.
 type Service struct {
 	store *Store
 }
@@ -43,7 +41,7 @@ func (s *Service) List(ctx context.Context) ([]User, error) {
 	return s.store.List(ctx)
 }
 
-// IsInitialUser reports whether user is the permanent local password login.
+// IsInitialUser checks the setup admin.
 func (s *Service) IsInitialUser(user *User) bool {
 	return user != nil && user.ID == initialUserID
 }
@@ -52,8 +50,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*User, error
 	return s.store.Create(ctx, params)
 }
 
-// Update writes the full target record. The initial user's name and role are
-// locked.
+// Update writes the full target record.
 func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParams) (*User, error) {
 	if targetID == initialUserID {
 		current, err := s.store.GetByID(ctx, targetID)
@@ -68,9 +65,7 @@ func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParam
 	return s.store.Update(ctx, targetID, params)
 }
 
-// Delete hard-deletes targetID. The initial user is protected so a working
-// admin login always exists; the immutable id:1 admin floor also makes
-// "last admin removed" structurally impossible.
+// Delete hard-deletes targetID.
 func (s *Service) Delete(ctx context.Context, targetID int64) error {
 	if targetID == initialUserID {
 		return ErrCannotDeleteInitialUser

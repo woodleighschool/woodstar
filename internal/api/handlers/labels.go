@@ -7,7 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const (
@@ -28,7 +28,7 @@ type labelListInput struct {
 	ListQueryInput
 	LabelType      string `query:"label_type,omitempty"`
 	MembershipType string `query:"label_membership_type,omitempty"`
-	Platform       string `query:"platform,omitempty"`
+	Platform       string `query:"platform,omitempty" enum:"darwin,windows,linux"`
 }
 
 type labelGetInput struct {
@@ -49,20 +49,20 @@ type labelDeleteInput struct {
 }
 
 type labelCreateBody struct {
-	Name           string               `json:"name"`
-	Description    string               `json:"description,omitempty"`
-	Query          *string              `json:"query,omitempty"`
-	LabelType      string               `json:"label_type,omitempty"`
-	MembershipType string               `json:"label_membership_type,omitempty"`
-	Platforms      []platforms.Platform `json:"platforms"                       minItems:"1" nullable:"false"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description,omitempty"`
+	Query          *string          `json:"query,omitempty"`
+	LabelType      string           `json:"label_type,omitempty"`
+	MembershipType string           `json:"label_membership_type,omitempty"`
+	Platforms      []scope.Platform `json:"platforms"                       enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 }
 
 type labelMutationBody struct {
-	Name           string               `json:"name"`
-	Description    string               `json:"description,omitempty"`
-	Query          *string              `json:"query,omitempty"`
-	MembershipType string               `json:"label_membership_type,omitempty"`
-	Platforms      []platforms.Platform `json:"platforms"                       minItems:"1" nullable:"false"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description,omitempty"`
+	Query          *string          `json:"query,omitempty"`
+	MembershipType string           `json:"label_membership_type,omitempty"`
+	Platforms      []scope.Platform `json:"platforms"                       enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 }
 
 func (i labelListInput) params() labels.ListParams {

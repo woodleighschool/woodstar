@@ -51,7 +51,6 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 		SELECT id
 		FROM hosts
 		WHERE hardware_uuid = $1
-			AND deleted_at IS NULL
 	`, machineID).Scan(&hostID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, dbutil.ErrNotFound

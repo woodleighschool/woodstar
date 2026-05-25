@@ -8,7 +8,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -55,7 +54,7 @@ func TestListFiltersByPlatformTargetSet(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:      "Windows only report",
 		Query:     "select 2;",
-		Platforms: []platforms.Platform{platforms.PlatformWindows},
+		Platforms: []scope.Platform{scope.PlatformWindows},
 	}); err != nil {
 		t.Fatalf("create windows report: %v", err)
 	}
@@ -113,7 +112,7 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
-		Platforms:         []platforms.Platform{platforms.PlatformDarwin},
+		Platforms:         []scope.Platform{scope.PlatformDarwin},
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
 	}); err != nil {
@@ -122,7 +121,7 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
-		Platforms:        []platforms.Platform{platforms.PlatformDarwin},
+		Platforms:        []scope.Platform{scope.PlatformDarwin},
 		ScheduleInterval: 0,
 	}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
@@ -130,7 +129,7 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Wrong platform report",
 		Query:            "select 3;",
-		Platforms:        []platforms.Platform{platforms.PlatformWindows},
+		Platforms:        []scope.Platform{scope.PlatformWindows},
 		ScheduleInterval: 60,
 	}); err != nil {
 		t.Fatalf("create wrong platform report: %v", err)
@@ -321,8 +320,8 @@ func TestTrimResultsKeepsNewestScheduledRows(t *testing.T) {
 	}
 }
 
-func allPlatforms() []platforms.Platform {
-	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
+func allPlatforms() []scope.Platform {
+	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }
 
 func newIntegrationReportStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
@@ -361,7 +360,7 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	hostPlatform string,
+	hostPlatform scope.Platform,
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()

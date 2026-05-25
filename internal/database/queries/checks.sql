@@ -72,9 +72,9 @@ RETURNING id;
 WITH host_row AS (
     SELECT
         id,
-        lower(platform) AS platform
+        platform
     FROM hosts h
-    WHERE h.id = @host_id AND h.deleted_at IS NULL
+    WHERE h.id = @host_id
 )
 SELECT
     c.id,
@@ -88,11 +88,7 @@ SELECT
     c.updated_at
 FROM checks c
 JOIN host_row h ON true
-WHERE (
-      h.platform = ANY(c.platforms::text[])
-      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
-      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
-  )
+WHERE h.platform = ANY(c.platforms)
   AND (
       c.label_scope_mode = 'none'
       OR (
@@ -156,9 +152,8 @@ host_rows AS (
     SELECT
         id,
         display_name,
-        lower(platform) AS platform
+        platform
     FROM hosts
-    WHERE deleted_at IS NULL
 )
 SELECT
     c.id AS check_id,
@@ -170,11 +165,7 @@ SELECT
 FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      h.platform = ANY(c.platforms::text[])
-      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
-      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
-  )
+WHERE h.platform = ANY(c.platforms)
   AND (
       c.label_scope_mode = 'none'
       OR (
@@ -223,9 +214,9 @@ WITH host_row AS (
     SELECT
         id,
         display_name,
-        lower(platform) AS platform
+        platform
     FROM hosts h
-    WHERE h.id = @host_id AND h.deleted_at IS NULL
+    WHERE h.id = @host_id
 )
 SELECT
     c.id AS check_id,
@@ -237,11 +228,7 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      h.platform = ANY(c.platforms::text[])
-      OR ('darwin' = ANY(c.platforms::text[]) AND h.platform = 'macos')
-      OR ('linux' = ANY(c.platforms::text[]) AND h.platform <> '' AND h.platform NOT IN ('darwin', 'macos', 'windows'))
-  )
+WHERE h.platform = ANY(c.platforms)
   AND (
       c.label_scope_mode = 'none'
       OR (

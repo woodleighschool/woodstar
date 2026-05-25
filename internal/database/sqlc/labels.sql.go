@@ -7,8 +7,6 @@ package sqlc
 
 import (
 	"context"
-
-	platforms "github.com/woodleighschool/woodstar/internal/platforms"
 )
 
 const createLabel = `-- name: CreateLabel :one
@@ -32,12 +30,12 @@ RETURNING id, name, description, query, criteria, label_type, label_membership_t
 `
 
 type CreateLabelParams struct {
-	Name                string               `json:"name"`
-	Description         string               `json:"description"`
-	Query               *string              `json:"query"`
-	LabelType           string               `json:"label_type"`
-	LabelMembershipType string               `json:"label_membership_type"`
-	Platforms           []platforms.Platform `json:"platforms"`
+	Name                string     `json:"name"`
+	Description         string     `json:"description"`
+	Query               *string    `json:"query"`
+	LabelType           string     `json:"label_type"`
+	LabelMembershipType string     `json:"label_membership_type"`
+	Platforms           []Platform `json:"platforms"`
 }
 
 func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
@@ -141,21 +139,13 @@ FROM labels
 WHERE
     id = ANY($1::bigint[])
     AND label_membership_type = 'dynamic'
-    AND (
-        $2::text = ANY(platforms::text[])
-        OR ('darwin' = ANY(platforms::text[]) AND $2::text IN ('darwin', 'macos'))
-        OR (
-            'linux' = ANY(platforms::text[])
-            AND $2::text <> ''
-            AND $2::text NOT IN ('darwin', 'macos', 'windows')
-        )
-    )
+    AND $2::platform = ANY(platforms)
 ORDER BY id
 `
 
 type ListApplicableDynamicLabelIDsParams struct {
-	Ids      []int64 `json:"ids"`
-	Platform string  `json:"platform"`
+	Ids      []int64  `json:"ids"`
+	Platform Platform `json:"platform"`
 }
 
 func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApplicableDynamicLabelIDsParams) ([]int64, error) {
@@ -183,20 +173,12 @@ SELECT id, name, description, query, criteria, label_type, label_membership_type
 FROM labels
 WHERE
     label_membership_type = 'dynamic'
-    AND (
-        $1::text = ANY(platforms::text[])
-        OR ('darwin' = ANY(platforms::text[]) AND $1::text IN ('darwin', 'macos'))
-        OR (
-            'linux' = ANY(platforms::text[])
-            AND $1::text <> ''
-            AND $1::text NOT IN ('darwin', 'macos', 'windows')
-        )
-    )
+    AND $1::platform = ANY(platforms)
 ORDER BY id
 `
 
 type ListApplicableDynamicLabelsParams struct {
-	Platform string `json:"platform"`
+	Platform Platform `json:"platform"`
 }
 
 func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListApplicableDynamicLabelsParams) ([]Label, error) {
@@ -285,7 +267,7 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 const markHostLabelsFresh = `-- name: MarkHostLabelsFresh :exec
 UPDATE hosts
 SET label_updated_at = now(), updated_at = now()
-WHERE id = $1 AND deleted_at IS NULL
+WHERE id = $1
 `
 
 type MarkHostLabelsFreshParams struct {
@@ -311,12 +293,12 @@ RETURNING id, name, description, query, criteria, label_type, label_membership_t
 `
 
 type UpdateLabelParams struct {
-	Name                string               `json:"name"`
-	Description         string               `json:"description"`
-	Query               *string              `json:"query"`
-	LabelMembershipType string               `json:"label_membership_type"`
-	Platforms           []platforms.Platform `json:"platforms"`
-	ID                  int64                `json:"id"`
+	Name                string     `json:"name"`
+	Description         string     `json:"description"`
+	Query               *string    `json:"query"`
+	LabelMembershipType string     `json:"label_membership_type"`
+	Platforms           []Platform `json:"platforms"`
+	ID                  int64      `json:"id"`
 }
 
 func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {

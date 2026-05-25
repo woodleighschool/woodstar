@@ -61,8 +61,7 @@ func (s *Store) ResolveOnlineSelectedTargets(
 	rows, err := s.db.Pool().Query(ctx,
 		`SELECT id
 		 FROM hosts
-		 WHERE deleted_at IS NULL
-		   AND id = ANY($1::bigint[])
+		 WHERE id = ANY($1::bigint[])
 		   AND last_seen_at >= $2
 		 ORDER BY id`,
 		hostIDs,
@@ -96,7 +95,7 @@ func (s *Store) CountSelectedTargets(
 		     count(*) FILTER (WHERE last_seen_at >= $2)::integer AS online,
 		     count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $2)::integer AS offline
 		 FROM hosts
-		 WHERE deleted_at IS NULL AND id = ANY($1::bigint[])`,
+		 WHERE id = ANY($1::bigint[])`,
 		hostIDs,
 		now.Add(-hostOnlineWindow),
 	).Scan(&metrics.Total, &metrics.Online, &metrics.Offline)
@@ -113,7 +112,7 @@ func activeSelectedHostIDs(ctx context.Context, db *database.DB, hostIDs []int64
 	rows, err := db.Pool().Query(ctx,
 		`SELECT id
 		 FROM hosts
-		 WHERE deleted_at IS NULL AND id = ANY($1::bigint[])
+		 WHERE id = ANY($1::bigint[])
 		 ORDER BY id`,
 		hostIDs,
 	)
@@ -172,7 +171,7 @@ func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs 
 }
 
 func allActiveHostIDs(ctx context.Context, db *database.DB) ([]int64, error) {
-	rows, err := db.Pool().Query(ctx, `SELECT id FROM hosts WHERE deleted_at IS NULL ORDER BY id`)
+	rows, err := db.Pool().Query(ctx, `SELECT id FROM hosts ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +184,7 @@ func hostsMatchingAnyLabel(ctx context.Context, db *database.DB, labelIDs []int6
 		`SELECT DISTINCT h.id
 		 FROM hosts h
 		 JOIN label_membership lm ON lm.host_id = h.id
-		 WHERE h.deleted_at IS NULL AND lm.label_id = ANY($1::bigint[])
+		 WHERE lm.label_id = ANY($1::bigint[])
 		 ORDER BY h.id`,
 		labelIDs,
 	)
@@ -205,8 +204,7 @@ func hostsMatchingBuiltinAndRegularLabels(
 	rows, err := db.Pool().Query(ctx,
 		`SELECT DISTINCT h.id
 		 FROM hosts h
-		 WHERE h.deleted_at IS NULL
-		   AND EXISTS (
+		 WHERE EXISTS (
 		       SELECT 1 FROM label_membership lm
 		       WHERE lm.host_id = h.id AND lm.label_id = ANY($1::bigint[])
 		   )

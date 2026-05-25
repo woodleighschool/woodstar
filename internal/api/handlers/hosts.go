@@ -44,7 +44,7 @@ type hostGetInput struct {
 type hostListInput struct {
 	ListQueryInput
 	Status          string `query:"status,omitempty"`
-	Platform        string `query:"platform,omitempty"`
+	Platform        string `query:"platform,omitempty" enum:"unknown,darwin,windows,linux"`
 	LabelID         string `query:"label_id,omitempty"`
 	SoftwareTitleID string `query:"software_title_id,omitempty"`
 	SoftwareID      string `query:"software_id,omitempty"`

@@ -6,6 +6,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // ListParams filters host list results.
@@ -30,8 +31,9 @@ type DetailUpdate struct {
 	OSName                  string
 	OSVersion               string
 	OSBuild                 string
-	Platform                string
-	PlatformLike            string
+	Platform                scope.Platform
+	OsqueryPlatform         string
+	OsqueryPlatformLike     string
 	KernelVersion           string
 	HardwareVendor          string
 	OrbitVersion            string
@@ -44,7 +46,6 @@ type DetailUpdate struct {
 	OrbitNodeKey            string
 	OsqueryVersion          string
 	OsqueryNodeKey          string
-	UptimeSeconds           *int64
 	LastRestartedAt         *time.Time
 	DiskSpaceAvailableBytes *int64
 	DiskSpaceTotalBytes     *int64
@@ -69,8 +70,9 @@ type Host struct {
 	OSName                  string              `json:"os_name"`
 	OSVersion               string              `json:"os_version"`
 	OSBuild                 string              `json:"os_build"`
-	Platform                string              `json:"platform"`
-	PlatformLike            string              `json:"platform_like"`
+	Platform                scope.Platform      `json:"platform" enum:"unknown,darwin,windows,linux"`
+	OsqueryPlatform         string              `json:"osquery_platform"`
+	OsqueryPlatformLike     string              `json:"osquery_platform_like"`
 	OsqueryVersion          string              `json:"osquery_version"`
 	OrbitVersion            string              `json:"orbit_version"`
 	OrbitNodeKey            string              `json:"-"`
@@ -82,7 +84,6 @@ type Host struct {
 	CPUPhysicalCores        int                 `json:"cpu_physical_cores"`
 	PhysicalMemory          int64               `json:"physical_memory"`
 	KernelVersion           string              `json:"kernel_version"`
-	UptimeSeconds           *int64              `json:"uptime_seconds,omitempty"`
 	LastRestartedAt         *time.Time          `json:"last_restarted_at,omitempty"`
 	DiskSpaceAvailableBytes *int64              `json:"disk_space_available_bytes,omitempty"`
 	DiskSpaceTotalBytes     *int64              `json:"disk_space_total_bytes,omitempty"`
@@ -99,7 +100,6 @@ type Host struct {
 	SoftwareUpdatedAt       *time.Time          `json:"software_updated_at,omitempty"`
 	CreatedAt               time.Time           `json:"created_at"`
 	UpdatedAt               time.Time           `json:"updated_at"`
-	DeletedAt               *time.Time          `json:"-"`
 	DeviceMappings          []HostDeviceMapping `json:"device_mappings,omitempty"`
 }
 

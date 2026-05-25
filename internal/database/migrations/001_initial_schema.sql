@@ -2,7 +2,7 @@
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
-CREATE TYPE platform AS ENUM ('darwin', 'windows', 'linux');
+CREATE TYPE platform AS ENUM ('unknown', 'darwin', 'windows', 'linux');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
 -- Users, sessions, Enrollment ------------------------------------------
@@ -105,8 +105,9 @@ CREATE TABLE hosts (
     os_name TEXT NOT NULL DEFAULT '',
     os_version TEXT NOT NULL DEFAULT '',
     os_build TEXT NOT NULL DEFAULT '',
-    platform TEXT NOT NULL DEFAULT '',
-    platform_like TEXT NOT NULL DEFAULT '',
+    platform platform NOT NULL DEFAULT 'unknown',
+    osquery_platform TEXT NOT NULL DEFAULT '',
+    osquery_platform_like TEXT NOT NULL DEFAULT '',
     osquery_version TEXT NOT NULL DEFAULT '',
     orbit_version TEXT NOT NULL DEFAULT '',
     -- Empty string means "no key issued yet"; a partial unique index enforces
@@ -120,7 +121,6 @@ CREATE TABLE hosts (
     cpu_physical_cores INTEGER NOT NULL DEFAULT 0,
     physical_memory BIGINT NOT NULL DEFAULT 0,
     kernel_version TEXT NOT NULL DEFAULT '',
-    uptime_seconds BIGINT,
     last_restarted_at TIMESTAMPTZ,
     disk_space_available_bytes BIGINT,
     disk_space_total_bytes BIGINT,
@@ -136,8 +136,7 @@ CREATE TABLE hosts (
     label_updated_at TIMESTAMPTZ,
     software_updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX hosts_orbit_node_key_idx
@@ -147,14 +146,11 @@ CREATE UNIQUE INDEX hosts_osquery_node_key_idx
     ON hosts (osquery_node_key)
     WHERE osquery_node_key <> '';
 CREATE INDEX hosts_platform_idx
-    ON hosts (platform)
-    WHERE deleted_at IS NULL;
+    ON hosts (platform);
 CREATE INDEX hosts_active_seen_idx
-    ON hosts (last_seen_at DESC NULLS LAST)
-    WHERE deleted_at IS NULL;
+    ON hosts (last_seen_at DESC NULLS LAST);
 CREATE INDEX hosts_detail_stale_idx
-    ON hosts (detail_updated_at NULLS FIRST)
-    WHERE deleted_at IS NULL;
+    ON hosts (detail_updated_at NULLS FIRST);
 
 CREATE TABLE host_emails (
     id BIGSERIAL PRIMARY KEY,
@@ -340,7 +336,10 @@ CREATE TABLE labels (
     label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'derived')),
     platforms platform[] NOT NULL
         DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (cardinality(platforms) > 0),
+        CHECK (
+            cardinality(platforms) > 0
+            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
+        ),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
@@ -369,7 +368,7 @@ VALUES
     ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', ARRAY['darwin','windows','linux']::platform[]),
     ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', ARRAY['darwin']::platform[]),
     ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', ARRAY['windows']::platform[]),
-    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform <> '''' and platform not in (''darwin'', ''windows'');', 'builtin', 'dynamic', ARRAY['linux']::platform[]);
+    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform in (''linux'', ''ubuntu'', ''debian'', ''rhel'', ''centos'', ''sles'', ''kali'', ''gentoo'', ''amzn'', ''pop'', ''arch'', ''linuxmint'', ''void'', ''nixos'', ''endeavouros'', ''manjaro'', ''manjaro-arm'', ''opensuse-leap'', ''opensuse-tumbleweed'', ''tuxedo'', ''neon'', ''archarm'', ''flatcar'', ''coreos'');', 'builtin', 'dynamic', ARRAY['linux']::platform[]);
 
 -- Reports / Checks -----------------------------------------------------------
 
@@ -380,7 +379,10 @@ CREATE TABLE reports (
     query TEXT NOT NULL,
     platforms platform[] NOT NULL
         DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (cardinality(platforms) > 0),
+        CHECK (
+            cardinality(platforms) > 0
+            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
+        ),
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
@@ -416,7 +418,10 @@ CREATE TABLE checks (
     query TEXT NOT NULL,
     platforms platform[] NOT NULL
         DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (cardinality(platforms) > 0),
+        CHECK (
+            cardinality(platforms) > 0
+            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
+        ),
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

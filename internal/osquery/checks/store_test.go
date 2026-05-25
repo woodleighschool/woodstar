@@ -7,7 +7,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/platforms"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -53,7 +52,7 @@ func TestListFiltersByPlatformTargetSet(t *testing.T) {
 	if _, err := store.Create(ctx, CheckCreate{
 		Name:      "Windows only check",
 		Query:     "select 2;",
-		Platforms: []platforms.Platform{platforms.PlatformWindows},
+		Platforms: []scope.Platform{scope.PlatformWindows},
 	}); err != nil {
 		t.Fatalf("create windows check: %v", err)
 	}
@@ -109,7 +108,7 @@ func TestHostChecksUseApplicability(t *testing.T) {
 	matching, err := store.Create(ctx, CheckCreate{
 		Name:      "Matching check",
 		Query:     "select 1;",
-		Platforms: []platforms.Platform{platforms.PlatformDarwin},
+		Platforms: []scope.Platform{scope.PlatformDarwin},
 	})
 	if err != nil {
 		t.Fatalf("create matching check: %v", err)
@@ -117,7 +116,7 @@ func TestHostChecksUseApplicability(t *testing.T) {
 	wrongPlatform, err := store.Create(ctx, CheckCreate{
 		Name:      "Wrong platform check",
 		Query:     "select 2;",
-		Platforms: []platforms.Platform{platforms.PlatformWindows},
+		Platforms: []scope.Platform{scope.PlatformWindows},
 	})
 	if err != nil {
 		t.Fatalf("create wrong platform check: %v", err)
@@ -279,8 +278,8 @@ func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 	}
 }
 
-func allPlatforms() []platforms.Platform {
-	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
+func allPlatforms() []scope.Platform {
+	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }
 
 func newIntegrationCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
@@ -307,7 +306,7 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	hostPlatform string,
+	hostPlatform scope.Platform,
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()

@@ -7,7 +7,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// LabelScopeMode is the Postgres enum that selects how LabelIDs are interpreted.
+// LabelScopeMode says how to read LabelIDs.
 type LabelScopeMode string
 
 const (
@@ -17,19 +17,18 @@ const (
 	ScopeExcludeAny LabelScopeMode = "exclude_any"
 )
 
-// LabelScope is the shared label targeting shape for reports and checks.
+// LabelScope is shared label targeting.
 type LabelScope struct {
 	Mode     LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
 	LabelIDs []int64        `json:"label_ids,omitempty"`
 }
 
-// IsZero reports whether s is the "no scope" value so json:omitzero can drop
-// it from wire output. ScopeNone is the canonical empty mode.
+// IsZero lets json:omitzero drop the no-scope value.
 func (s LabelScope) IsZero() bool {
 	return (s.Mode == "" || s.Mode == ScopeNone) && len(s.LabelIDs) == 0
 }
 
-// NormalizeLabelScope sorts label IDs, removes invalid duplicates, and collapses empty scopes.
+// NormalizeLabelScope cleans IDs and collapses empty scopes.
 func NormalizeLabelScope(s LabelScope) LabelScope {
 	s.LabelIDs = dbutil.CleanPositiveIDs(s.LabelIDs)
 	switch s.Mode {

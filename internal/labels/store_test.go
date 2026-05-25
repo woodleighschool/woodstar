@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestLabelCreateValidate(t *testing.T) {
@@ -23,7 +23,7 @@ func TestLabelCreateValidate(t *testing.T) {
 				Name:                "Macs",
 				Query:               &query,
 				LabelMembershipType: LabelMembershipTypeDynamic,
-				Platforms:           []platforms.Platform{platforms.PlatformDarwin},
+				Platforms:           []scope.Platform{scope.PlatformDarwin},
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestLabelListFiltersByPlatformTargetSet(t *testing.T) {
 		LabelType:           LabelTypeRegular,
 		Query:               &query,
 		LabelMembershipType: LabelMembershipTypeDynamic,
-		Platforms:           []platforms.Platform{platforms.PlatformWindows},
+		Platforms:           []scope.Platform{scope.PlatformWindows},
 	}); err != nil {
 		t.Fatalf("create windows label: %v", err)
 	}
@@ -106,8 +106,8 @@ func TestLabelListFiltersByPlatformTargetSet(t *testing.T) {
 	}
 }
 
-func allPlatforms() []platforms.Platform {
-	return []platforms.Platform{platforms.PlatformDarwin, platforms.PlatformWindows, platforms.PlatformLinux}
+func allPlatforms() []scope.Platform {
+	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }
 
 func newIntegrationLabelStore(t *testing.T) (*Store, context.Context) {

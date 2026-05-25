@@ -151,11 +151,11 @@ func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows 
 	if len(rows) == 0 {
 		return nil
 	}
-	update := ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]})
-	if update.UptimeSeconds != nil {
-		update.LastRestartedAt = new(time.Now().Add(-time.Duration(*update.UptimeSeconds) * time.Second))
-	}
-	return projector.hostStore.ApplyDetail(ctx, hostID, update)
+	return projector.hostStore.ApplyDetail(
+		ctx,
+		hostID,
+		ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]}),
+	)
 }
 
 func ingestUsers(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {

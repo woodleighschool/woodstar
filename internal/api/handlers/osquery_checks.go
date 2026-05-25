@@ -20,7 +20,7 @@ const (
 
 type checkListInput struct {
 	ListQueryInput
-	Platform string `query:"platform,omitempty"`
+	Platform string `query:"platform,omitempty" enum:"darwin,windows,linux"`
 }
 
 type checkGetInput struct {

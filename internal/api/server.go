@@ -1,4 +1,4 @@
-// Package api provides Woodstar's HTTP server and route composition.
+// Package api wires the HTTP server.
 package api
 
 import (

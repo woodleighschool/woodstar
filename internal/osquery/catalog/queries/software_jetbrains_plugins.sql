@@ -15,6 +15,8 @@ SELECT
   product_type AS extension_for,
   'jetbrains_plugins' AS source,
   vendor,
+  '' AS arch,
+  '' AS release,
   '' AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN jetbrains_plugins USING (uid);

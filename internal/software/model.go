@@ -6,16 +6,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Software source values come from osquery table names. Listed here are the
-// ones Woodstar branches on; new sources are accepted as-is on ingest.
+// Source values come from osquery table names.
 const (
 	SourceChromeExtensions = "chrome_extensions"
 	SourceFirefoxAddons    = "firefox_addons"
 	SourceSafariExtensions = "safari_extensions"
 )
 
-// HostSoftwareEntry is one installed software version reported by a host.
-// Used only on the ingest path; never serialized to clients.
+// HostSoftwareEntry is ingest-only installed software.
 type HostSoftwareEntry struct {
 	Name             string
 	Version          string
@@ -42,7 +40,7 @@ type SoftwareVersion struct {
 	HostsCount       int    `json:"hosts_count"`
 }
 
-// PathSignatureInformation is code-signing and executable hash data for an installed path.
+// PathSignatureInformation is signing/hash data for one path.
 type PathSignatureInformation struct {
 	InstalledPath    string `json:"installed_path"`
 	TeamIdentifier   string `json:"team_identifier"`

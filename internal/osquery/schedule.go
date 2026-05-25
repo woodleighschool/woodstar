@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/platforms"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.
@@ -47,7 +47,7 @@ func buildScheduleForHost(
 	return schedule, nil
 }
 
-func platformsToStrings(targets []platforms.Platform) []string {
+func platformsToStrings(targets []scope.Platform) []string {
 	out := make([]string, len(targets))
 	for i, platform := range targets {
 		out[i] = string(platform)

@@ -6,6 +6,8 @@ SELECT
   '' AS extension_for,
   'go_binaries' AS source,
   '' AS vendor,
+  '' AS arch,
+  '' AS release,
   '' AS last_opened_at,
   installed_path
 FROM go_binaries;

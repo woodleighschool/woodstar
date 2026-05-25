@@ -4,16 +4,16 @@ import (
 	"time"
 )
 
-// Role controls application permissions.
+// Role controls permissions.
 type Role string
 
-// User roles are intentionally small.
+// User roles.
 const (
 	RoleAdmin  Role = "admin"
 	RoleViewer Role = "viewer"
 )
 
-// User is a local Woodstar account.
+// User is a local account.
 type User struct {
 	ID           int64     `json:"id"`
 	Email        string    `json:"email"      format:"email"`
