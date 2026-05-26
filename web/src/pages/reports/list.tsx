@@ -16,7 +16,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
+import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
@@ -27,16 +27,17 @@ export function ReportsPage() {
   const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteReports();
+  const platform = search.platform && isQueryablePlatform(search.platform) ? search.platform : undefined;
 
   const reports = useReports({
     q: search.q,
-    platform: search.platform,
+    platform,
     ...tableQueryParams(state),
   });
 
   const data = reports.data?.items ?? [];
   const totalCount = reports.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.platform;
+  const hasFilters = !!search.q || !!platform;
   const selectedIDs = selectedReportIds.map(Number);
 
   const deleteSelectedReports = () => {
@@ -121,7 +122,7 @@ export function ReportsPage() {
               <DataTableFacetedFilter
                 title="Platform"
                 options={PLATFORM_OPTIONS}
-                selected={search.platform ? [search.platform] : []}
+                selected={platform ? [platform] : []}
                 onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />

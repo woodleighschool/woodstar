@@ -1,86 +1,74 @@
 import {
-  ClipboardCheck,
   Database,
-  FileBarChart2,
-  FileSliders,
   KeyRound,
-  ListChecks,
   Package,
   PackageSearch,
   ServerCog,
-  Settings as SettingsIcon,
   ShieldCheck,
   Tag,
   Users as UsersIcon,
-  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
 export interface NavItem {
   label: string;
-  to: string;
-  icon: LucideIcon;
+  to?: string;
+  icon?: LucideIcon;
   adminOnly?: boolean;
+  disabled?: boolean;
+  items?: NavItem[];
 }
 
 export interface NavMenu {
   label: string;
-  icon: LucideIcon;
   items: NavItem[];
-  collapsible?: boolean;
-  placeholder?: boolean;
 }
 
 export const navSections: NavMenu[] = [
   {
     label: "Inventory",
-    icon: Warehouse,
-    collapsible: false,
     items: [
       { label: "Hosts", to: "/hosts", icon: ServerCog },
       { label: "Software", to: "/software", icon: Package },
     ],
   },
   {
-    label: "Osquery",
-    icon: Database,
-    collapsible: true,
+    label: "Integrations",
     items: [
-      { label: "Reports", to: "/reports", icon: FileBarChart2 },
-      { label: "Checks", to: "/checks", icon: ClipboardCheck },
+      {
+        label: "Osquery",
+        icon: Database,
+        items: [
+          { label: "Reports", to: "/reports" },
+          { label: "Checks", to: "/checks" },
+        ],
+      },
+      {
+        label: "Santa",
+        icon: ShieldCheck,
+        items: [
+          { label: "Configurations", to: "/santa/configurations" },
+          { label: "Rules", to: "/santa/rules" },
+          { label: "Events", to: "/santa/events" },
+        ],
+      },
+      { label: "Munki", icon: PackageSearch, disabled: true },
     ],
   },
   {
-    label: "Santa",
-    icon: ShieldCheck,
-    collapsible: true,
+    label: "System",
     items: [
-      { label: "Configurations", to: "/santa/configurations", icon: FileSliders },
-      { label: "Rules", to: "/santa/rules", icon: ListChecks },
-      { label: "Events", to: "/santa/events", icon: ClipboardCheck },
-    ],
-  },
-  {
-    label: "Munki",
-    icon: PackageSearch,
-    collapsible: true,
-    items: [],
-    placeholder: true,
-  },
-  {
-    label: "Secrets",
-    icon: KeyRound,
-    collapsible: false,
-    items: [{ label: "Secrets", to: "/secrets", icon: KeyRound, adminOnly: true }],
-  },
-  {
-    label: "Settings",
-    icon: SettingsIcon,
-    collapsible: false,
-    items: [
+      {
+        label: "Enrollments",
+        icon: KeyRound,
+        adminOnly: true,
+        items: [
+          { label: "Orbit", to: "/enrollments/orbit" },
+          { label: "Santa", to: "/enrollments/santa" },
+        ],
+      },
       { label: "Labels", to: "/labels", icon: Tag },
       { label: "Users", to: "/users", icon: UsersIcon, adminOnly: true },
-      { label: "Settings", to: "/settings", icon: SettingsIcon },
     ],
   },
 ];

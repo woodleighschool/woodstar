@@ -471,29 +471,34 @@ func registerReorderSantaRuleIncludes(api huma.API, store *santarules.Store) {
 // Santa events.
 
 type santaEventListInput struct {
-	HostID   int64     `query:"host_id,omitempty"`
-	Decision string    `query:"decision,omitempty"`
-	Since    time.Time `query:"since,omitempty"`
-	Limit    int       `query:"limit,omitempty"`
-	After    string    `query:"after,omitempty"`
+	ListQueryInput
+	HostID    string    `query:"host_id,omitempty"`
+	Decisions []string  `query:"decisions,omitempty"`
+	Since     time.Time `query:"since,omitempty"`
 }
 
 type santaEventListOutput struct {
-	Body santaevents.EventPage
+	Body paginatedBody[santaevents.ExecutionEvent]
 }
 
 func (input santaEventListInput) params() (santaevents.EventListParams, error) {
-	hostID := input.HostID
+	hostID, err := parseOptionalPositiveID(input.HostID, "host_id")
+	if err != nil {
+		return santaevents.EventListParams{}, err
+	}
 	var since *time.Time
 	if !input.Since.IsZero() {
 		since = &input.Since
 	}
+	decisions := make([]santaevents.DecisionFilter, len(input.Decisions))
+	for i, decision := range input.Decisions {
+		decisions[i] = santaevents.DecisionFilter(decision)
+	}
 	return santaevents.EventListParams{
-		HostID:   hostID,
-		Decision: santaevents.DecisionFilter(input.Decision),
-		Since:    since,
-		Limit:    input.Limit,
-		After:    input.After,
+		ListParams: input.ListQueryInput.params(),
+		HostID:     hostID,
+		Decisions:  decisions,
+		Since:      since,
 	}, nil
 }
 
@@ -510,11 +515,11 @@ func RegisterSantaEvents(api huma.API, store *santaevents.Store) {
 		if err != nil {
 			return nil, err
 		}
-		page, err := store.ListEvents(ctx, params)
+		events, count, err := store.ListEvents(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: page}, nil
+		return &santaEventListOutput{Body: paginatedBody[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
 	})
 }
 

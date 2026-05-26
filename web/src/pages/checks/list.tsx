@@ -16,7 +16,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
+import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
@@ -27,16 +27,17 @@ export function ChecksPage() {
   const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteChecks();
+  const platform = search.platform && isQueryablePlatform(search.platform) ? search.platform : undefined;
 
   const query = useChecks({
     q: search.q,
-    platform: search.platform,
+    platform,
     ...tableQueryParams(state),
   });
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.platform;
+  const hasFilters = !!search.q || !!platform;
   const selectedIDs = selectedCheckIds.map(Number);
 
   const deleteSelectedChecks = () => {
@@ -115,7 +116,7 @@ export function ChecksPage() {
               <DataTableFacetedFilter
                 title="Platform"
                 options={PLATFORM_OPTIONS}
-                selected={search.platform ? [search.platform] : []}
+                selected={platform ? [platform] : []}
                 onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />

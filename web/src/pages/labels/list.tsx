@@ -31,7 +31,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { PLATFORM_LABELS, QUERYABLE_PLATFORMS, platformLabel } from "@/lib/targeting";
+import { isQueryablePlatform, PLATFORM_LABELS, platformLabel, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { formatRelative } from "@/lib/utils";
 
 const MEMBERSHIP_OPTIONS = [
@@ -47,18 +47,19 @@ export function LabelsPage() {
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [deleting, setDeleting] = useState<Label | null>(null);
+  const platform = search.platform && isQueryablePlatform(search.platform) ? search.platform : undefined;
 
   const query = useLabels({
     q: search.q,
     ...tableQueryParams(state),
     label_type: "regular",
     label_membership_type: search.label_membership_type,
-    platform: search.platform,
+    platform,
   });
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.label_membership_type || !!search.platform;
+  const hasFilters = !!search.q || !!search.label_membership_type || !!platform;
 
   const columns: ColumnDef<Label>[] = [
     {
@@ -160,7 +161,7 @@ export function LabelsPage() {
               <DataTableFacetedFilter
                 title="Platform"
                 options={PLATFORM_OPTIONS}
-                selected={search.platform ? [search.platform] : []}
+                selected={platform ? [platform] : []}
                 onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />

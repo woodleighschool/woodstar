@@ -15,12 +15,11 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSoftwareRouteImport } from './routes/_authenticated/software'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedSecretsRouteImport } from './routes/_authenticated/secrets'
 import { Route as AuthenticatedSantaRouteImport } from './routes/_authenticated/santa'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedLabelsRouteImport } from './routes/_authenticated/labels'
 import { Route as AuthenticatedHostsRouteImport } from './routes/_authenticated/hosts'
+import { Route as AuthenticatedEnrollmentsRouteImport } from './routes/_authenticated/enrollments'
 import { Route as AuthenticatedChecksRouteImport } from './routes/_authenticated/checks'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users.index'
@@ -29,6 +28,7 @@ import { Route as AuthenticatedSantaIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports.index'
 import { Route as AuthenticatedLabelsIndexRouteImport } from './routes/_authenticated/labels.index'
 import { Route as AuthenticatedHostsIndexRouteImport } from './routes/_authenticated/hosts.index'
+import { Route as AuthenticatedEnrollmentsIndexRouteImport } from './routes/_authenticated/enrollments.index'
 import { Route as AuthenticatedChecksIndexRouteImport } from './routes/_authenticated/checks.index'
 import { Route as AuthenticatedSantaRulesRouteImport } from './routes/_authenticated/santa.rules'
 import { Route as AuthenticatedSantaEventsRouteImport } from './routes/_authenticated/santa.events'
@@ -37,6 +37,8 @@ import { Route as AuthenticatedReportsNewRouteImport } from './routes/_authentic
 import { Route as AuthenticatedReportsReportIdRouteImport } from './routes/_authenticated/reports.$reportId'
 import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authenticated/labels.new'
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
+import { Route as AuthenticatedEnrollmentsSantaRouteImport } from './routes/_authenticated/enrollments.santa'
+import { Route as AuthenticatedEnrollmentsOrbitRouteImport } from './routes/_authenticated/enrollments.orbit'
 import { Route as AuthenticatedChecksNewRouteImport } from './routes/_authenticated/checks.new'
 import { Route as AuthenticatedChecksCheckIdRouteImport } from './routes/_authenticated/checks.$checkId'
 import { Route as AuthenticatedSantaRulesIndexRouteImport } from './routes/_authenticated/santa.rules.index'
@@ -85,16 +87,6 @@ const AuthenticatedSoftwareRoute = AuthenticatedSoftwareRouteImport.update({
   path: '/software',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedSecretsRoute = AuthenticatedSecretsRouteImport.update({
-  id: '/secrets',
-  path: '/secrets',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedSantaRoute = AuthenticatedSantaRouteImport.update({
   id: '/santa',
   path: '/santa',
@@ -115,6 +107,12 @@ const AuthenticatedHostsRoute = AuthenticatedHostsRouteImport.update({
   path: '/hosts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedEnrollmentsRoute =
+  AuthenticatedEnrollmentsRouteImport.update({
+    id: '/enrollments',
+    path: '/enrollments',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedChecksRoute = AuthenticatedChecksRouteImport.update({
   id: '/checks',
   path: '/checks',
@@ -158,6 +156,12 @@ const AuthenticatedHostsIndexRoute = AuthenticatedHostsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedHostsRoute,
 } as any)
+const AuthenticatedEnrollmentsIndexRoute =
+  AuthenticatedEnrollmentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedEnrollmentsRoute,
+  } as any)
 const AuthenticatedChecksIndexRoute =
   AuthenticatedChecksIndexRouteImport.update({
     id: '/',
@@ -202,6 +206,18 @@ const AuthenticatedHostsHostIdRoute =
     id: '/$hostId',
     path: '/$hostId',
     getParentRoute: () => AuthenticatedHostsRoute,
+  } as any)
+const AuthenticatedEnrollmentsSantaRoute =
+  AuthenticatedEnrollmentsSantaRouteImport.update({
+    id: '/santa',
+    path: '/santa',
+    getParentRoute: () => AuthenticatedEnrollmentsRoute,
+  } as any)
+const AuthenticatedEnrollmentsOrbitRoute =
+  AuthenticatedEnrollmentsOrbitRouteImport.update({
+    id: '/orbit',
+    path: '/orbit',
+    getParentRoute: () => AuthenticatedEnrollmentsRoute,
   } as any)
 const AuthenticatedChecksNewRoute = AuthenticatedChecksNewRouteImport.update({
   id: '/new',
@@ -317,16 +333,17 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/account': typeof AuthenticatedAccountRoute
   '/checks': typeof AuthenticatedChecksRouteWithChildren
+  '/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
   '/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/reports': typeof AuthenticatedReportsRouteWithChildren
   '/santa': typeof AuthenticatedSantaRouteWithChildren
-  '/secrets': typeof AuthenticatedSecretsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/users': typeof AuthenticatedUsersRouteWithChildren
   '/checks/$checkId': typeof AuthenticatedChecksCheckIdRouteWithChildren
   '/checks/new': typeof AuthenticatedChecksNewRoute
+  '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
+  '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
@@ -335,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/santa/events': typeof AuthenticatedSantaEventsRoute
   '/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/checks/': typeof AuthenticatedChecksIndexRoute
+  '/enrollments/': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts/': typeof AuthenticatedHostsIndexRoute
   '/labels/': typeof AuthenticatedLabelsIndexRoute
   '/reports/': typeof AuthenticatedReportsIndexRoute
@@ -363,14 +381,15 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AuthenticatedAccountRoute
-  '/secrets': typeof AuthenticatedSecretsRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/checks/new': typeof AuthenticatedChecksNewRoute
+  '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
+  '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/reports/new': typeof AuthenticatedReportsNewRoute
   '/santa/events': typeof AuthenticatedSantaEventsRoute
   '/checks': typeof AuthenticatedChecksIndexRoute
+  '/enrollments': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
   '/labels': typeof AuthenticatedLabelsIndexRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
@@ -402,16 +421,17 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/checks': typeof AuthenticatedChecksRouteWithChildren
+  '/_authenticated/enrollments': typeof AuthenticatedEnrollmentsRouteWithChildren
   '/_authenticated/hosts': typeof AuthenticatedHostsRouteWithChildren
   '/_authenticated/labels': typeof AuthenticatedLabelsRouteWithChildren
   '/_authenticated/reports': typeof AuthenticatedReportsRouteWithChildren
   '/_authenticated/santa': typeof AuthenticatedSantaRouteWithChildren
-  '/_authenticated/secrets': typeof AuthenticatedSecretsRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/_authenticated/users': typeof AuthenticatedUsersRouteWithChildren
   '/_authenticated/checks/$checkId': typeof AuthenticatedChecksCheckIdRouteWithChildren
   '/_authenticated/checks/new': typeof AuthenticatedChecksNewRoute
+  '/_authenticated/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
+  '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
   '/_authenticated/reports/$reportId': typeof AuthenticatedReportsReportIdRouteWithChildren
@@ -420,6 +440,7 @@ export interface FileRoutesById {
   '/_authenticated/santa/events': typeof AuthenticatedSantaEventsRoute
   '/_authenticated/santa/rules': typeof AuthenticatedSantaRulesRouteWithChildren
   '/_authenticated/checks/': typeof AuthenticatedChecksIndexRoute
+  '/_authenticated/enrollments/': typeof AuthenticatedEnrollmentsIndexRoute
   '/_authenticated/hosts/': typeof AuthenticatedHostsIndexRoute
   '/_authenticated/labels/': typeof AuthenticatedLabelsIndexRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
@@ -451,16 +472,17 @@ export interface FileRouteTypes {
     | '/setup'
     | '/account'
     | '/checks'
+    | '/enrollments'
     | '/hosts'
     | '/labels'
     | '/reports'
     | '/santa'
-    | '/secrets'
-    | '/settings'
     | '/software'
     | '/users'
     | '/checks/$checkId'
     | '/checks/new'
+    | '/enrollments/orbit'
+    | '/enrollments/santa'
     | '/hosts/$hostId'
     | '/labels/new'
     | '/reports/$reportId'
@@ -469,6 +491,7 @@ export interface FileRouteTypes {
     | '/santa/events'
     | '/santa/rules'
     | '/checks/'
+    | '/enrollments/'
     | '/hosts/'
     | '/labels/'
     | '/reports/'
@@ -497,14 +520,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/account'
-    | '/secrets'
-    | '/settings'
     | '/checks/new'
+    | '/enrollments/orbit'
+    | '/enrollments/santa'
     | '/hosts/$hostId'
     | '/labels/new'
     | '/reports/new'
     | '/santa/events'
     | '/checks'
+    | '/enrollments'
     | '/hosts'
     | '/labels'
     | '/reports'
@@ -535,16 +559,17 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_authenticated/account'
     | '/_authenticated/checks'
+    | '/_authenticated/enrollments'
     | '/_authenticated/hosts'
     | '/_authenticated/labels'
     | '/_authenticated/reports'
     | '/_authenticated/santa'
-    | '/_authenticated/secrets'
-    | '/_authenticated/settings'
     | '/_authenticated/software'
     | '/_authenticated/users'
     | '/_authenticated/checks/$checkId'
     | '/_authenticated/checks/new'
+    | '/_authenticated/enrollments/orbit'
+    | '/_authenticated/enrollments/santa'
     | '/_authenticated/hosts/$hostId'
     | '/_authenticated/labels/new'
     | '/_authenticated/reports/$reportId'
@@ -553,6 +578,7 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/events'
     | '/_authenticated/santa/rules'
     | '/_authenticated/checks/'
+    | '/_authenticated/enrollments/'
     | '/_authenticated/hosts/'
     | '/_authenticated/labels/'
     | '/_authenticated/reports/'
@@ -628,20 +654,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSoftwareRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/secrets': {
-      id: '/_authenticated/secrets'
-      path: '/secrets'
-      fullPath: '/secrets'
-      preLoaderRoute: typeof AuthenticatedSecretsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/santa': {
       id: '/_authenticated/santa'
       path: '/santa'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/hosts'
       fullPath: '/hosts'
       preLoaderRoute: typeof AuthenticatedHostsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/enrollments': {
+      id: '/_authenticated/enrollments'
+      path: '/enrollments'
+      fullPath: '/enrollments'
+      preLoaderRoute: typeof AuthenticatedEnrollmentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/checks': {
@@ -726,6 +745,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHostsIndexRouteImport
       parentRoute: typeof AuthenticatedHostsRoute
     }
+    '/_authenticated/enrollments/': {
+      id: '/_authenticated/enrollments/'
+      path: '/'
+      fullPath: '/enrollments/'
+      preLoaderRoute: typeof AuthenticatedEnrollmentsIndexRouteImport
+      parentRoute: typeof AuthenticatedEnrollmentsRoute
+    }
     '/_authenticated/checks/': {
       id: '/_authenticated/checks/'
       path: '/'
@@ -781,6 +807,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/hosts/$hostId'
       preLoaderRoute: typeof AuthenticatedHostsHostIdRouteImport
       parentRoute: typeof AuthenticatedHostsRoute
+    }
+    '/_authenticated/enrollments/santa': {
+      id: '/_authenticated/enrollments/santa'
+      path: '/santa'
+      fullPath: '/enrollments/santa'
+      preLoaderRoute: typeof AuthenticatedEnrollmentsSantaRouteImport
+      parentRoute: typeof AuthenticatedEnrollmentsRoute
+    }
+    '/_authenticated/enrollments/orbit': {
+      id: '/_authenticated/enrollments/orbit'
+      path: '/orbit'
+      fullPath: '/enrollments/orbit'
+      preLoaderRoute: typeof AuthenticatedEnrollmentsOrbitRouteImport
+      parentRoute: typeof AuthenticatedEnrollmentsRoute
     }
     '/_authenticated/checks/new': {
       id: '/_authenticated/checks/new'
@@ -943,6 +983,24 @@ const AuthenticatedChecksRouteChildren: AuthenticatedChecksRouteChildren = {
 
 const AuthenticatedChecksRouteWithChildren =
   AuthenticatedChecksRoute._addFileChildren(AuthenticatedChecksRouteChildren)
+
+interface AuthenticatedEnrollmentsRouteChildren {
+  AuthenticatedEnrollmentsOrbitRoute: typeof AuthenticatedEnrollmentsOrbitRoute
+  AuthenticatedEnrollmentsSantaRoute: typeof AuthenticatedEnrollmentsSantaRoute
+  AuthenticatedEnrollmentsIndexRoute: typeof AuthenticatedEnrollmentsIndexRoute
+}
+
+const AuthenticatedEnrollmentsRouteChildren: AuthenticatedEnrollmentsRouteChildren =
+  {
+    AuthenticatedEnrollmentsOrbitRoute: AuthenticatedEnrollmentsOrbitRoute,
+    AuthenticatedEnrollmentsSantaRoute: AuthenticatedEnrollmentsSantaRoute,
+    AuthenticatedEnrollmentsIndexRoute: AuthenticatedEnrollmentsIndexRoute,
+  }
+
+const AuthenticatedEnrollmentsRouteWithChildren =
+  AuthenticatedEnrollmentsRoute._addFileChildren(
+    AuthenticatedEnrollmentsRouteChildren,
+  )
 
 interface AuthenticatedHostsHostIdRouteChildren {
   AuthenticatedHostsHostIdReportsReportIdRoute: typeof AuthenticatedHostsHostIdReportsReportIdRoute
@@ -1114,12 +1172,11 @@ const AuthenticatedUsersRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedChecksRoute: typeof AuthenticatedChecksRouteWithChildren
+  AuthenticatedEnrollmentsRoute: typeof AuthenticatedEnrollmentsRouteWithChildren
   AuthenticatedHostsRoute: typeof AuthenticatedHostsRouteWithChildren
   AuthenticatedLabelsRoute: typeof AuthenticatedLabelsRouteWithChildren
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRouteWithChildren
   AuthenticatedSantaRoute: typeof AuthenticatedSantaRouteWithChildren
-  AuthenticatedSecretsRoute: typeof AuthenticatedSecretsRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSoftwareRoute: typeof AuthenticatedSoftwareRouteWithChildren
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRouteWithChildren
 }
@@ -1127,12 +1184,11 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedChecksRoute: AuthenticatedChecksRouteWithChildren,
+  AuthenticatedEnrollmentsRoute: AuthenticatedEnrollmentsRouteWithChildren,
   AuthenticatedHostsRoute: AuthenticatedHostsRouteWithChildren,
   AuthenticatedLabelsRoute: AuthenticatedLabelsRouteWithChildren,
   AuthenticatedReportsRoute: AuthenticatedReportsRouteWithChildren,
   AuthenticatedSantaRoute: AuthenticatedSantaRouteWithChildren,
-  AuthenticatedSecretsRoute: AuthenticatedSecretsRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSoftwareRoute: AuthenticatedSoftwareRouteWithChildren,
   AuthenticatedUsersRoute: AuthenticatedUsersRouteWithChildren,
 }

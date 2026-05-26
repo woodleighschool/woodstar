@@ -1,6 +1,10 @@
 package events
 
-import "time"
+import (
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+)
 
 type ExecutionDecision string
 
@@ -29,16 +33,11 @@ const (
 )
 
 type EventListParams struct {
-	HostID   int64
-	Decision DecisionFilter
-	Since    *time.Time
-	Limit    int
-	After    string
-}
+	dbutil.ListParams
 
-type EventPage struct {
-	Items      []ExecutionEvent `json:"items"`
-	NextCursor string           `json:"next_cursor,omitempty"`
+	HostID    int64
+	Decisions []DecisionFilter
+	Since     *time.Time
 }
 
 type ExecutionEvent struct {

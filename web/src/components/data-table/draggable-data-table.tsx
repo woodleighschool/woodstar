@@ -19,6 +19,7 @@ interface DraggableDataTableProps<TData, TValue> {
   disabled?: boolean;
   isLoading?: boolean;
   empty: ReactNode;
+  footer?: ReactNode;
   skeletonRows?: number;
 }
 
@@ -32,6 +33,7 @@ export function DraggableDataTable<TData, TValue>({
   disabled = false,
   isLoading = false,
   empty,
+  footer,
   skeletonRows = 8,
 }: DraggableDataTableProps<TData, TValue>) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -114,6 +116,7 @@ export function DraggableDataTable<TData, TValue>({
       ) : (
         tableContent
       )}
+      {footer}
     </div>
   );
 }

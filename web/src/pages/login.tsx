@@ -3,8 +3,8 @@ import { useRouter, useSearch } from "@tanstack/react-router";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/hooks/use-auth";
@@ -33,12 +33,13 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
-      <Card className="w-full max-w-md overflow-hidden">
+      <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <WoodstarMark size="md" />
-          <CardTitle>Sign in to Woodstar</CardTitle>
+          <CardTitle>Login to Woodstar</CardTitle>
+          <CardDescription>Enter your email below to login to your account.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <form
             className="flex flex-col gap-4"
             onSubmit={(event) => {
@@ -53,29 +54,40 @@ export function LoginPage() {
             <FieldGroup className="gap-4">
               <Field>
                 <FieldLabel htmlFor="login-email">Email</FieldLabel>
-                <Input id="login-email" name="email" type="email" autoComplete="email" required />
+                <Input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="admin@example.com"
+                  required
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="login-password">Password</FieldLabel>
                 <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
               </Field>
+
+              {search.sso_error ? <FieldError>{search.sso_error}</FieldError> : null}
+
+              <Field>
+                <Button type="submit" disabled={login.isPending}>
+                  {login.isPending ? "Signing in..." : "Login"}
+                </Button>
+
+                {ssoEnabled ? (
+                  <>
+                    <Separator />
+                    <Button asChild type="button" variant="outline">
+                      <a href="/api/auth/sso/start">Login with SSO</a>
+                    </Button>
+                  </>
+                ) : null}
+
+                <FieldDescription className="text-center">Use the account created during setup.</FieldDescription>
+              </Field>
             </FieldGroup>
-
-            {search.sso_error ? <FieldError>{search.sso_error}</FieldError> : null}
-
-            <Button type="submit" className="w-full" disabled={login.isPending}>
-              {login.isPending ? "Signing in..." : "Sign in"}
-            </Button>
           </form>
-
-          {ssoEnabled ? (
-            <>
-              <Separator />
-              <Button asChild type="button" variant="outline" className="w-full">
-                <a href="/api/auth/sso/start">Sign in with SSO</a>
-              </Button>
-            </>
-          ) : null}
         </CardContent>
       </Card>
     </div>

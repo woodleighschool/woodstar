@@ -542,27 +542,6 @@ components:
       required:
         - status
       type: object
-    EventPage:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/EventPage.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/ExecutionEvent"
-          type:
-            - array
-            - "null"
-        next_cursor:
-          type: string
-      required:
-        - items
-      type: object
     Executable:
       additionalProperties: false
       properties:
@@ -1620,6 +1599,29 @@ components:
         - items
         - count
       type: object
+    PaginatedBodyExecutionEvent:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyExecutionEvent.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/ExecutionEvent"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     PaginatedBodyHost:
       additionalProperties: false
       properties:
@@ -2476,7 +2478,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: f990a63-dirty
+  version: ff9ee03-dirty
 openapi: 3.1.0
 paths:
   /api/account:
@@ -4952,38 +4954,57 @@ paths:
       parameters:
         - explode: false
           in: query
-          name: host_id
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
           schema:
             format: int64
+            minimum: 0
             type: integer
         - explode: false
           in: query
-          name: decision
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: host_id
           schema:
             type: string
+        - explode: false
+          in: query
+          name: decisions
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
         - explode: false
           in: query
           name: since
           schema:
             format: date-time
             type: string
-        - explode: false
-          in: query
-          name: limit
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: after
-          schema:
-            type: string
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EventPage"
+                $ref: "#/components/schemas/PaginatedBodyExecutionEvent"
           description: OK
         "400":
           content:

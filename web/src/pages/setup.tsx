@@ -4,7 +4,7 @@ import { useRouter } from "@tanstack/react-router";
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
@@ -28,15 +28,11 @@ export function SetupPage() {
 
   return (
     <div className="flex min-h-dvh w-full min-w-0 items-center justify-center overflow-x-hidden bg-muted/40 px-4 py-10">
-      <Card className="w-full max-w-md overflow-hidden">
+      <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <WoodstarMark size="md" />
-          <CardTitle>Set up Woodstar</CardTitle>
-          <CardDescription>
-            Create the first administrator account. This account is permanent: it cannot be deleted and cannot sign in
-            with SSO. Use a generic or break-glass identity so an admin can always log in. Only the password may be
-            changed later. Other accounts can be added after sign-in.
-          </CardDescription>
+          <CardTitle>Create an account</CardTitle>
+          <CardDescription>Enter the first administrator account for this Woodstar server.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -62,6 +58,9 @@ export function SetupPage() {
                   placeholder="admin@example.com"
                   required
                 />
+                <FieldDescription>
+                  Use a generic or break-glass identity so an admin can always log in.
+                </FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="setup-name">Display name</FieldLabel>
@@ -78,12 +77,15 @@ export function SetupPage() {
                   minLength={12}
                   required
                 />
+                <FieldDescription>This first account cannot be deleted or converted to SSO later.</FieldDescription>
+              </Field>
+
+              <Field>
+                <Button type="submit" disabled={setup.isPending}>
+                  {setup.isPending ? "Creating account..." : "Create account"}
+                </Button>
               </Field>
             </FieldGroup>
-
-            <Button type="submit" className="w-full" disabled={setup.isPending}>
-              {setup.isPending ? "Creating account..." : "Create admin account"}
-            </Button>
           </form>
         </CardContent>
       </Card>

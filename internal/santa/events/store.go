@@ -2,10 +2,10 @@ package events
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -52,11 +52,6 @@ type signingChainEntry struct {
 	ValidUntil uint32 `json:"valid_until,omitempty"`
 }
 
-type eventCursor struct {
-	Time time.Time `json:"time"`
-	ID   int64     `json:"id"`
-}
-
 func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events []ExecutionEventInput) error {
 	if len(events) == 0 {
 		return nil
@@ -78,25 +73,25 @@ func (s *Store) IngestExecutionEvents(ctx context.Context, hostID int64, events 
 	})
 }
 
-func (s *Store) ListEvents(ctx context.Context, params EventListParams) (EventPage, error) {
-	if params.Limit <= 0 {
-		params.Limit = 100
-	}
-	if params.Limit > 500 {
-		params.Limit = 500
-	}
-	after, hasAfter, err := decodeEventCursor(params.After)
+func (s *Store) ListEvents(ctx context.Context, params EventListParams) ([]ExecutionEvent, int, error) {
+	params.Decisions = cleanDecisionFilters(params.Decisions)
+	where, args, err := eventListWhere(params)
 	if err != nil {
-		return EventPage{}, err
-	}
-	query, args, err := eventListQuery(params, after, hasAfter)
-	if err != nil {
-		return EventPage{}, err
+		return nil, 0, err
 	}
 
+	var count int
+	if err := s.db.Pool().QueryRow(ctx, eventListCountSQL+"\n"+where, args...).Scan(&count); err != nil {
+		return nil, 0, err
+	}
+
+	query, args, err := eventListQuery(params, where, args)
+	if err != nil {
+		return nil, 0, err
+	}
 	rows, err := s.db.Pool().Query(ctx, query, args...)
 	if err != nil {
-		return EventPage{}, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -104,29 +99,14 @@ func (s *Store) ListEvents(ctx context.Context, params EventListParams) (EventPa
 	for rows.Next() {
 		event, err := scanExecutionEvent(rows)
 		if err != nil {
-			return EventPage{}, err
+			return nil, 0, err
 		}
 		items = append(items, event)
 	}
 	if err := rows.Err(); err != nil {
-		return EventPage{}, err
+		return nil, 0, err
 	}
-
-	page := EventPage{Items: items}
-	if len(page.Items) > params.Limit {
-		last := page.Items[params.Limit-1]
-		cursorTime := last.IngestedAt
-		if last.OccurredAt != nil {
-			cursorTime = *last.OccurredAt
-		}
-		cursor, err := encodeEventCursor(eventCursor{Time: cursorTime, ID: last.ID})
-		if err != nil {
-			return EventPage{}, err
-		}
-		page.NextCursor = cursor
-		page.Items = page.Items[:params.Limit]
-	}
-	return page, nil
+	return items, count, nil
 }
 
 func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error) {
@@ -268,42 +248,70 @@ func eventOccurredAt(seconds float64) *time.Time {
 	return &t
 }
 
-func eventListQuery(params EventListParams, after eventCursor, hasAfter bool) (string, []any, error) {
+func eventListWhere(params EventListParams) (string, []any, error) {
 	var where dbutil.WhereBuilder
 	if params.HostID > 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
 	}
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(`(
+			ee.host_id::text ILIKE ` + search + `
+			OR ee.file_path ILIKE ` + search + `
+			OR ee.executing_user ILIKE ` + search + `
+			OR ee.decision::text ILIKE ` + search + `
+			OR ee.logged_in_users::text ILIKE ` + search + `
+			OR ee.current_sessions::text ILIKE ` + search + `
+			OR e.sha256 ILIKE ` + search + `
+			OR e.file_name ILIKE ` + search + `
+			OR e.file_bundle_id ILIKE ` + search + `
+			OR e.file_bundle_path ILIKE ` + search + `
+			OR e.signing_id ILIKE ` + search + `
+			OR e.team_id ILIKE ` + search + `
+			OR e.cdhash ILIKE ` + search + `
+		)`)
+	}
 	if params.Since != nil {
 		where.Add("COALESCE(ee.occurred_at, ee.ingested_at) >= " + where.Arg(*params.Since))
 	}
-	switch params.Decision {
-	case "":
-	case DecisionFilterAllowed:
-		where.Add("ee.decision::text LIKE 'allow_%'")
-	case DecisionFilterBlocked:
-		where.Add("ee.decision::text LIKE 'block_%'")
-	default:
-		decision := ExecutionDecision(params.Decision)
-		if !validExecutionDecision(decision) {
-			return "", nil, fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
+	if len(params.Decisions) > 0 {
+		clauses := make([]string, 0, len(params.Decisions))
+		for _, filter := range params.Decisions {
+			switch filter {
+			case DecisionFilterAllowed:
+				clauses = append(clauses, "ee.decision::text LIKE 'allow_%'")
+			case DecisionFilterBlocked:
+				clauses = append(clauses, "ee.decision::text LIKE 'block_%'")
+			default:
+				decision := ExecutionDecision(filter)
+				if !validExecutionDecision(decision) {
+					return "", nil, fmt.Errorf("%w: unknown decision", dbutil.ErrInvalidInput)
+				}
+				clauses = append(clauses, "ee.decision = "+where.Arg(decision))
+			}
 		}
-		where.Add("ee.decision = " + where.Arg(decision))
+		where.Add("(" + strings.Join(clauses, " OR ") + ")")
 	}
-	if hasAfter {
-		where.Add(
-			"(COALESCE(ee.occurred_at, ee.ingested_at), ee.id) < (" + where.Arg(
-				after.Time,
-			) + ", " + where.Arg(
-				after.ID,
-			) + ")",
-		)
-	}
-	limit := where.Arg(params.Limit + 1)
 	whereSQL, args := where.Build()
-	query := eventListSelectSQL + "\n" + whereSQL + `
-ORDER BY COALESCE(ee.occurred_at, ee.ingested_at) DESC, ee.id DESC
-LIMIT ` + limit
-	return query, args, nil
+	return whereSQL, args, nil
+}
+
+func eventListQuery(params EventListParams, where string, args []any) (string, []any, error) {
+	params.ListParams = dbutil.CleanListParams(params.ListParams)
+	if params.Sort == "" {
+		params.Sort = "occurred_at.desc"
+	}
+	return dbutil.ListQuery{
+		SelectSQL: eventListSelectSQL,
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: eventOrderKeys(),
+		Params:    params.ListParams,
+		DefaultOrder: []dbutil.OrderExpr{
+			{SQL: "-extract(epoch from COALESCE(ee.occurred_at, ee.ingested_at))"},
+			{SQL: "-ee.id"},
+		},
+	}.Build()
 }
 
 func scanExecutionEvent(row pgx.Row) (ExecutionEvent, error) {
@@ -330,35 +338,33 @@ func scanExecutionEvent(row pgx.Row) (ExecutionEvent, error) {
 	return event, err
 }
 
-func encodeEventCursor(cursor eventCursor) (string, error) {
-	payload, err := json.Marshal(cursor)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(payload), nil
-}
-
-func decodeEventCursor(value string) (eventCursor, bool, error) {
-	if value == "" {
-		return eventCursor{}, false, nil
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(value)
-	if err != nil {
-		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
-	}
-	var cursor eventCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil {
-		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
-	}
-	if cursor.ID <= 0 || cursor.Time.IsZero() {
-		return eventCursor{}, false, fmt.Errorf("%w: invalid after cursor", dbutil.ErrInvalidInput)
-	}
-	return cursor, true, nil
-}
-
 func validExecutionDecision(decision ExecutionDecision) bool {
 	_, ok := validExecutionDecisions[decision]
 	return ok
+}
+
+func cleanDecisionFilters(filters []DecisionFilter) []DecisionFilter {
+	raw := make([]string, len(filters))
+	for i, filter := range filters {
+		raw[i] = string(filter)
+	}
+	values := dbutil.SplitListValues(raw)
+	out := make([]DecisionFilter, len(values))
+	for i, value := range values {
+		out[i] = DecisionFilter(value)
+	}
+	return out
+}
+
+func eventOrderKeys() map[string]dbutil.OrderExpr {
+	return map[string]dbutil.OrderExpr{
+		"occurred_at":    {SQL: "COALESCE(ee.occurred_at, ee.ingested_at)"},
+		"ingested_at":    {SQL: "ee.ingested_at"},
+		"decision":       {SQL: "ee.decision::text"},
+		"host_id":        {SQL: "ee.host_id"},
+		"file_name":      {SQL: "lower(e.file_name)"},
+		"executing_user": {SQL: "lower(ee.executing_user)"},
+	}
 }
 
 const eventListSelectSQL = `
@@ -380,5 +386,10 @@ SELECT
 	e.signing_id,
 	e.team_id,
 	e.cdhash
+FROM santa_execution_events ee
+JOIN santa_executables e ON e.id = ee.executable_id`
+
+const eventListCountSQL = `
+SELECT count(*)
 FROM santa_execution_events ee
 JOIN santa_executables e ON e.id = ee.executable_id`

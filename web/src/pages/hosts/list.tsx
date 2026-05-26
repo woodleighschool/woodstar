@@ -28,7 +28,7 @@ import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
+import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
 const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
@@ -47,12 +47,16 @@ export function HostsListPage() {
   const bulkDelete = useBulkDeleteHosts();
 
   const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;
+  const platform =
+    search.platform === "unknown" || (search.platform && isQueryablePlatform(search.platform))
+      ? search.platform
+      : undefined;
 
   const query = useHosts({
     q: search.q,
     ...tableQueryParams(state),
     status: search.status,
-    platform: search.platform,
+    platform,
     label_id: search.label_id,
     software_title_id: search.software_title_id,
     software_id: search.software_id,
@@ -63,7 +67,7 @@ export function HostsListPage() {
   // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
   const [now] = useState(() => Date.now());
 
-  const hasFilters = !!search.q || !!search.status || !!search.platform || !!search.label_id || isSoftwareFiltered;
+  const hasFilters = !!search.q || !!search.status || !!platform || !!search.label_id || isSoftwareFiltered;
 
   const allColumns: ColumnDef<Host>[] = [
     {
@@ -256,7 +260,7 @@ export function HostsListPage() {
             <HostsToolbar
               draft={draft}
               onDraftChange={setDraft}
-              platform={search.platform}
+              platform={platform}
               onPlatformChange={(v) => setters.setFilter("platform", v)}
               labelId={search.label_id}
               onLabelChange={(v) => setters.setFilter("label_id", v)}
@@ -274,7 +278,13 @@ export function HostsListPage() {
                 <EmptyDescription>
                   {hasFilters
                     ? "No hosts matched the current filters."
-                    : "Create an Orbit agent secret, then point a managed host at this Woodstar deployment."}
+                    : "Create an Orbit enrollment first, then point a managed host at this Woodstar deployment."}
+                  {!hasFilters ? (
+                    <>
+                      {" "}
+                      <Link to="/enrollments">Open enrollments</Link>.
+                    </>
+                  ) : null}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -289,7 +299,7 @@ export function HostsListPage() {
         }}
         count={selectedIDs.length}
         noun="host"
-        description="Deleted hosts will re-enroll if their agent can still use a valid Orbit agent secret."
+        description="Deleted hosts will re-enroll if their agent can still use a valid Orbit enrollment."
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedHosts}
       />

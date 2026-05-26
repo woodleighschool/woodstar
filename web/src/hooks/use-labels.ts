@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
+import type { QueryablePlatform } from "@/lib/targeting";
 import { nonEmpty } from "@/lib/utils";
 
 export type Label = Schemas["Label"];
@@ -17,7 +18,7 @@ export interface LabelListParams {
   sort?: string;
   label_type?: string;
   label_membership_type?: string;
-  platform?: string;
+  platform?: QueryablePlatform;
 }
 
 export function useLabels(params: LabelListParams = {}) {
@@ -28,7 +29,7 @@ export function useLabels(params: LabelListParams = {}) {
     sort: nonEmpty(params.sort),
     label_type: nonEmpty(params.label_type),
     label_membership_type: nonEmpty(params.label_membership_type),
-    platform: nonEmpty(params.platform),
+    platform: params.platform,
   };
 
   return useQuery<LabelListResult, ApiError>({

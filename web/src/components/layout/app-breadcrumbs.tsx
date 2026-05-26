@@ -227,8 +227,19 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
     // System
     case "/_authenticated/account":
       return [{ key: "account", label: "Account" }];
-    case "/_authenticated/secrets":
-      return [{ key: "secrets", label: "Secrets" }];
+    case "/_authenticated/enrollments/":
+    case "/_authenticated/enrollments":
+      return [{ key: "enrollments", label: "Enrollments" }];
+    case "/_authenticated/enrollments/orbit":
+      return [
+        { key: "enrollments", label: "Enrollments", to: "/enrollments/orbit" },
+        { key: "enrollments-orbit", label: "Orbit" },
+      ];
+    case "/_authenticated/enrollments/santa":
+      return [
+        { key: "enrollments", label: "Enrollments", to: "/enrollments/orbit" },
+        { key: "enrollments-santa", label: "Santa" },
+      ];
     case "/_authenticated/users":
       return [{ key: "users", label: "Users" }];
     case "/_authenticated/users/$userId/edit":
@@ -236,9 +247,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "users", label: "Users", to: "/users" },
         { key: `user-${params.userId}`, label: <UserCrumb id={params.userId} /> },
       ];
-    case "/_authenticated/settings":
-      return [{ key: "settings", label: "Settings" }];
-
     default:
       return [];
   }

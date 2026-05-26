@@ -341,7 +341,15 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
-		where.Add("c.name ILIKE " + search)
+		where.Add(`(
+			c.name ILIKE ` + search + `
+			OR c.position::text ILIKE ` + search + `
+			OR c.client_mode::text ILIKE ` + search + `
+			OR c.allowed_path_regex ILIKE ` + search + `
+			OR c.blocked_path_regex ILIKE ` + search + `
+			OR c.event_detail_url ILIKE ` + search + `
+			OR c.event_detail_text ILIKE ` + search + `
+		)`)
 	}
 	return where.Build()
 }

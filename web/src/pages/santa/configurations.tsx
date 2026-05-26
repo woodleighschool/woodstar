@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { DraggableDataTable, DraggableDataTableRowDragHandle } from "@/components/data-table/draggable-data-table";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
@@ -53,6 +54,7 @@ import {
   type SantaConfiguration,
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
@@ -128,10 +130,15 @@ const emptyConfigurationForm: ConfigurationFormState = {
 
 export function SantaConfigurationsPage() {
   const search = useSearch({ strict: false });
+  const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [selectedConfigurationIds, setSelectedConfigurationIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reorderWarningOpen, setReorderWarningOpen] = useState(false);
+  const [reorderEnabled, setReorderEnabled] = useState(false);
   const query = useSantaConfigurations({
     q: typeof search.q === "string" ? search.q : undefined,
-    page_size: MAX_PAGE_SIZE,
+    ...(reorderEnabled ? { page_size: MAX_PAGE_SIZE, sort: "position.asc" } : tableQueryParams(state)),
   });
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
@@ -141,14 +148,9 @@ export function SantaConfigurationsPage() {
   });
   const bulkDelete = useBulkDeleteSantaConfigurations();
   const reorder = useReorderSantaConfigurations();
-  const [selectedConfigurationIds, setSelectedConfigurationIds] = useState<string[]>([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [reorderWarningOpen, setReorderWarningOpen] = useState(false);
-  const [reorderEnabled, setReorderEnabled] = useState(false);
-  const serverRows = useMemo(
-    () => [...(query.data?.items ?? [])].sort((a, b) => a.position - b.position),
-    [query.data?.items],
-  );
+  const totalCount = query.data?.count ?? 0;
+  const reorderTruncated = reorderEnabled && totalCount > MAX_PAGE_SIZE;
+  const serverRows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
@@ -208,10 +210,16 @@ export function SantaConfigurationsPage() {
         ] satisfies ColumnDef<SantaConfiguration>[])
       : []),
     {
+      id: "position",
+      accessorKey: "position",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.position + 1}</span>,
+      meta: { headClassName: "w-20", cellClassName: "w-20" },
+    },
+    {
       id: "name",
       accessorKey: "name",
-      header: "Name",
-      enableSorting: false,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
@@ -263,7 +271,7 @@ export function SantaConfigurationsPage() {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    disabled={reorder.isPending}
+                    disabled={reorder.isPending || query.isLoading || reorderTruncated}
                     onClick={saveOrder}
                   >
                     {reorder.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
@@ -297,21 +305,27 @@ export function SantaConfigurationsPage() {
           columns={columns}
           data={orderedRows}
           isLoading={query.isLoading}
-          disabled={reorder.isPending || orderedRows.length <= 1}
+          disabled={reorder.isPending || reorderTruncated || orderedRows.length <= 1}
           onRowReorder={moveOrder}
           empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
+          footer={
+            reorderTruncated ? (
+              <div className="text-muted-foreground rounded-md border px-3 py-2 text-sm">
+                Showing the first {MAX_PAGE_SIZE} of {totalCount} configurations. Narrow the list before editing order.
+              </div>
+            ) : null
+          }
         />
       ) : (
         <DataTable
           columns={columns}
-          data={orderedRows}
-          totalCount={orderedRows.length}
-          pagination={{ pageIndex: 0, pageSize: orderedRows.length || 50 }}
-          sorting={[]}
-          onPaginationChange={() => undefined}
-          onSortingChange={() => undefined}
+          data={serverRows}
+          totalCount={totalCount}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
-          clientSort
           enableRowSelection
           selectedRowIds={selectedConfigurationIds}
           onSelectedRowIdsChange={setSelectedConfigurationIds}

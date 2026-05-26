@@ -1,55 +1,59 @@
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSantaEvents, type SantaEvent } from "@/hooks/use-santa";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
 
 const DECISION_FILTERS = [
-  { value: "all", label: "All decisions" },
-  { value: "blocked", label: "Blocked" },
   { value: "allowed", label: "Allowed" },
+  { value: "blocked", label: "Blocked" },
+  { value: "allow_unknown", label: "Allow unknown" },
   { value: "allow_binary", label: "Allow binary" },
   { value: "allow_certificate", label: "Allow certificate" },
+  { value: "allow_scope", label: "Allow scope" },
+  { value: "allow_teamid", label: "Allow Team ID" },
+  { value: "allow_signingid", label: "Allow signing ID" },
+  { value: "allow_cdhash", label: "Allow CDHash" },
+  { value: "block_unknown", label: "Block unknown" },
   { value: "block_binary", label: "Block binary" },
   { value: "block_certificate", label: "Block certificate" },
+  { value: "block_scope", label: "Block scope" },
+  { value: "block_teamid", label: "Block Team ID" },
+  { value: "block_signingid", label: "Block signing ID" },
+  { value: "block_cdhash", label: "Block CDHash" },
+  { value: "bundle_binary", label: "Bundle binary" },
+  { value: "unknown", label: "Unknown" },
 ] as const;
 
 export function SantaEventsPage() {
   const search = useSearch({ strict: false });
-  const navigate = useNavigate();
-  const [hostID, setHostID] = useDebouncedSearchParam("host_id", { resetKeys: ["after"] });
-  const looseSearch = search as Record<string, unknown>;
-  const decision =
-    typeof looseSearch.decision === "string" && looseSearch.decision !== "" ? looseSearch.decision : "all";
-  const after = typeof looseSearch.after === "string" ? looseSearch.after : undefined;
-  const parsedHostID = Number(hostID);
+  const { state, setters } = useTablePaginationParams();
+  const [draft, setDraft] = useDebouncedSearchParam("q");
+  const decisions = search.decisions ?? [];
   const query = useSantaEvents({
-    host_id: hostID.trim() !== "" && Number.isFinite(parsedHostID) && parsedHostID > 0 ? parsedHostID : undefined,
-    decision: decision === "all" ? undefined : decision,
-    limit: 50,
-    after,
+    q: search.q,
+    decisions,
+    ...tableQueryParams(state),
   });
   const rows = query.data?.items ?? [];
-  const nextCursor = query.data?.next_cursor;
-  const hasFilters = !!hostID || decision !== "all";
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = !!search.q || decisions.length > 0;
 
   const columns: ColumnDef<SantaEvent>[] = [
     {
-      id: "executable",
-      header: "Executable",
-      enableSorting: false,
+      id: "file_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Executable" />,
       cell: ({ row }) => (
         <div className="grid gap-1">
           <span className="font-medium">{row.original.executable.file_name || row.original.executable.sha256}</span>
@@ -100,24 +104,6 @@ export function SantaEventsPage() {
     },
   ];
 
-  function setDecision(next: string) {
-    void navigate({
-      search: ((prev: Record<string, unknown>) => ({
-        ...prev,
-        decision: next === "all" ? undefined : next,
-        after: undefined,
-      })) as never,
-      replace: true,
-    });
-  }
-
-  function setAfter(next: string | undefined) {
-    void navigate({
-      search: ((prev: Record<string, unknown>) => ({ ...prev, after: next })) as never,
-      replace: true,
-    });
-  }
-
   return (
     <PageShell>
       <PageHeader title="Santa events" description="Recent execution events uploaded by Santa clients." />
@@ -131,31 +117,26 @@ export function SantaEventsPage() {
         <DataTable
           columns={columns}
           data={rows}
-          totalCount={rows.length}
-          pagination={{ pageIndex: 0, pageSize: rows.length || 50 }}
-          sorting={[]}
-          onPaginationChange={() => undefined}
-          onSortingChange={() => undefined}
+          totalCount={totalCount}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
-          clientSort
           toolbar={
-            <div className="flex flex-wrap items-end gap-2">
-              <DataTableSearch value={hostID} onChange={setHostID} placeholder="Host ID" label="Filter by host ID" />
-              <div className="grid gap-1">
-                <Label className="text-muted-foreground text-xs">Decision</Label>
-                <Select value={decision} onValueChange={setDecision}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DECISION_FILTERS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <DataTableSearch
+                value={draft}
+                onChange={setDraft}
+                placeholder="Search events"
+                label="Search Santa events"
+              />
+              <DataTableFacetedFilter
+                title="Decision"
+                options={[...DECISION_FILTERS]}
+                selected={decisions}
+                onChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
+              />
             </div>
           }
           empty={
@@ -175,19 +156,6 @@ export function SantaEventsPage() {
           }
         />
       )}
-
-      <div className="flex items-center gap-2">
-        {after ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAfter(undefined)}>
-            Newest
-          </Button>
-        ) : null}
-        {nextCursor ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAfter(nextCursor)}>
-            Next page
-          </Button>
-        ) : null}
-      </div>
     </PageShell>
   );
 }

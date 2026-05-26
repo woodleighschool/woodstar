@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -74,16 +75,16 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 		t.Fatalf("event upload: %v", err)
 	}
 
-	page, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
+	items, _, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID})
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
-	if len(page.Items) != 2 {
-		t.Fatalf("events = %+v, want two execution events", page.Items)
+	if len(items) != 2 {
+		t.Fatalf("events = %+v, want two execution events", items)
 	}
 	allowEvent := santaevents.ExecutionEvent{}
 	blockEvent := santaevents.ExecutionEvent{}
-	for _, event := range page.Items {
+	for _, event := range items {
 		if event.Decision == santaevents.ExecutionDecisionAllowBinary {
 			allowEvent = event
 		}
@@ -92,7 +93,7 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 		}
 	}
 	if allowEvent.ID == 0 || blockEvent.ID == 0 {
-		t.Fatalf("events = %+v, want allow_binary and block_binary", page.Items)
+		t.Fatalf("events = %+v, want allow_binary and block_binary", items)
 	}
 	if allowEvent.Executable.FileName != "Example Renamed" ||
 		allowEvent.Executable.BundleID != "com.example.new" ||
@@ -170,33 +171,56 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		}
 	}
 
-	firstPage, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 2})
+	firstPage, count, err := eventStore.ListEvents(
+		ctx,
+		santaevents.EventListParams{HostID: host.ID, ListParams: dbutil.ListParams{PageSize: 2}},
+	)
 	if err != nil {
 		t.Fatalf("list first page: %v", err)
 	}
-	if len(firstPage.Items) != 2 || firstPage.NextCursor == "" {
-		t.Fatalf("first page = %+v, want two items and cursor", firstPage)
+	if len(firstPage) != 2 || count != 3 {
+		t.Fatalf("first page = %+v count=%d, want two items and count 3", firstPage, count)
 	}
-	secondPage, err := eventStore.ListEvents(
+	secondPage, _, err := eventStore.ListEvents(
 		ctx,
-		santaevents.EventListParams{HostID: host.ID, Limit: 2, After: firstPage.NextCursor},
+		santaevents.EventListParams{
+			HostID:     host.ID,
+			ListParams: dbutil.ListParams{PageSize: 2, PageIndex: 1},
+		},
 	)
 	if err != nil {
 		t.Fatalf("list second page: %v", err)
 	}
-	if len(secondPage.Items) != 1 || secondPage.Items[0].Decision != santaevents.ExecutionDecisionBlockBinary {
-		t.Fatalf("second page = %+v, want oldest blocked binary event", secondPage.Items)
+	if len(secondPage) != 1 || secondPage[0].Decision != santaevents.ExecutionDecisionBlockBinary {
+		t.Fatalf("second page = %+v, want oldest blocked binary event", secondPage)
 	}
 
-	blocked, err := eventStore.ListEvents(
+	blocked, _, err := eventStore.ListEvents(
 		ctx,
-		santaevents.EventListParams{HostID: host.ID, Decision: santaevents.DecisionFilterBlocked, Limit: 10},
+		santaevents.EventListParams{
+			HostID:    host.ID,
+			Decisions: []santaevents.DecisionFilter{santaevents.DecisionFilterBlocked},
+		},
 	)
 	if err != nil {
 		t.Fatalf("list blocked events: %v", err)
 	}
-	if len(blocked.Items) != 2 {
-		t.Fatalf("blocked events = %+v, want two", blocked.Items)
+	if len(blocked) != 2 {
+		t.Fatalf("blocked events = %+v, want two", blocked)
+	}
+
+	allowedBinary, _, err := eventStore.ListEvents(
+		ctx,
+		santaevents.EventListParams{
+			ListParams: dbutil.ListParams{Q: "B"},
+			Decisions:  []santaevents.DecisionFilter{santaevents.DecisionFilterAllowed, "block_certificate"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("list searched decision events: %v", err)
+	}
+	if len(allowedBinary) != 2 {
+		t.Fatalf("searched decision events = %+v, want allow binary and block certificate", allowedBinary)
 	}
 
 	deleted, err := eventStore.SweepEventsBefore(ctx, base.Add(90*time.Second))
@@ -206,12 +230,12 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	if deleted != 2 {
 		t.Fatalf("deleted events = %d, want 2", deleted)
 	}
-	remaining, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
+	remaining, _, err := eventStore.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID})
 	if err != nil {
 		t.Fatalf("list remaining events: %v", err)
 	}
-	if len(remaining.Items) != 1 || remaining.Items[0].Decision != santaevents.ExecutionDecisionBlockCertificate {
-		t.Fatalf("remaining events = %+v, want newest event", remaining.Items)
+	if len(remaining) != 1 || remaining[0].Decision != santaevents.ExecutionDecisionBlockCertificate {
+		t.Fatalf("remaining events = %+v, want newest event", remaining)
 	}
 }
 

@@ -519,7 +519,7 @@ function TargetPicker({
                   onClick={() => addHost(host)}
                 >
                   <span>{host.display_name || host.hostname || String(host.id)}</span>
-                  <span className="text-muted-foreground text-xs">{host.platform || "unknown"}</span>
+                  <span className="text-muted-foreground text-xs">{host.platform}</span>
                 </button>
               ))
             ) : (

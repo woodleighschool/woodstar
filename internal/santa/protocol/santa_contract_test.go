@@ -136,12 +136,12 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		}},
 	}, http.StatusOK, &syncv1.EventUploadResponse{})
 
-	page, err := stores.events.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID, Limit: 10})
+	events, _, err := stores.events.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID})
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
-	if len(page.Items) != 1 || page.Items[0].Decision != santaevents.ExecutionDecisionBlockBinary {
-		t.Fatalf("stored events = %+v, want one block_binary event", page.Items)
+	if len(events) != 1 || events[0].Decision != santaevents.ExecutionDecisionBlockBinary {
+		t.Fatalf("stored events = %+v, want one block_binary event", events)
 	}
 }
 

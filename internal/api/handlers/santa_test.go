@@ -113,7 +113,14 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	router, protected, cookie := santaAdminTestAPI(t, db, "events-wire-admin@example.test")
 	RegisterSantaEvents(protected, eventsStore)
 
-	rec := santaAdminRequest(t, router, cookie, http.MethodGet, "/api/santa/events?decision=blocked&limit=1", "")
+	rec := santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodGet,
+		"/api/santa/events?decisions=blocked&page_size=1",
+		"",
+	)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -121,10 +128,18 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		t.Fatalf("body = %q, want a blocked event", rec.Body.String())
 	}
 	if strings.Contains(rec.Body.String(), "Allowed") {
-		t.Fatalf("body = %q, decision=blocked filter did not exclude allowed events", rec.Body.String())
+		t.Fatalf("body = %q, decisions=blocked filter did not exclude allowed events", rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"next_cursor"`) {
-		t.Fatalf("body = %q, want next_cursor key for forward pagination", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), `"count":2`) {
+		t.Fatalf("body = %q, want count=2 for normal pagination", rec.Body.String())
+	}
+
+	rec = santaAdminRequest(t, router, cookie, http.MethodGet, "/api/santa/events?q=Allowed&decisions=allowed", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("search status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Allowed") || strings.Contains(rec.Body.String(), "Blocked") {
+		t.Fatalf("search response = %q, want only allowed event", rec.Body.String())
 	}
 }
 

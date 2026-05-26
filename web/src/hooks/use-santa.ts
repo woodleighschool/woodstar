@@ -10,7 +10,7 @@ export type SantaConfiguration = Schemas["Configuration"];
 export type SantaConfigurationMutation = Schemas["ConfigurationMutation"];
 export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"];
 export type SantaEvent = Schemas["ExecutionEvent"];
-export type SantaEventPage = Schemas["EventPage"];
+export type SantaEventListResult = Schemas["PaginatedBodyExecutionEvent"];
 export type SantaRule = Schemas["Rule"];
 export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
@@ -70,14 +70,16 @@ export function useSantaRule(id: string) {
 
 export function useSantaEvents(params: SantaEventListParams = {}) {
   const queryParams = {
+    q: nonEmpty(params.q),
     host_id: params.host_id,
-    decision: nonEmpty(params.decision),
+    decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
     since: nonEmpty(params.since),
-    limit: params.limit ?? 50,
-    after: nonEmpty(params.after),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
   };
 
-  return useQuery<SantaEventPage, ApiError>({
+  return useQuery<SantaEventListResult, ApiError>({
     queryKey: queryKeys.santaEvents(queryParams),
     queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,

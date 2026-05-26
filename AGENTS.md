@@ -68,7 +68,7 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 - `internal/api/handlers/` is the single home for admin Huma handlers. It may import any domain package (`hosts`, `labels`, `osquery/reports`, `osquery/checks`, `osquery/livequery`, etc.). Domain packages never import `handlers`.
 - `internal/{capability}/protocol/` packages are leaves of the protocol surface: their imports stay inside their own capability subtree (e.g. `orbit/protocol` may import `orbit`; `osquery/protocol` may import `osquery`), plus leaf packages such as `agentauth` and `enrollment`.
 - Route-shape rule for new endpoints: session-authed REST/JSON → `internal/api/handlers/`; agent-authed protocol (Orbit/osquery TLS plugin/etc.) → `internal/{capability}/protocol/`. Do not split admin handlers by domain ownership.
-- `dbutil`, `database`, `config`, `buildinfo`, `logging`, `platform` are leaves: stdlib + third-party only.
+- `dbutil`, `database`, `config`, `buildinfo`, `logging`, `scope` are leaves: stdlib + third-party only.
 - Cross-capability host enrichment: `hosts` defines an enricher interface; each capability registers an implementation at wiring time. `hosts` never imports `orbit` / `osquery` / `santa` / `munki`.
 - Keep `dbutil` as the small shared database-helper leaf until a split removes real import pressure. It may own list/WHERE builders, sentinel persistence errors, and pgx/Postgres helpers, but it must not become a generic application `common` package.
 
@@ -265,7 +265,7 @@ cmd/
     main.go            single pane of dependency glass
 
 internal/
-  config/  buildinfo/  logging/  platform/  web/
+  config/  buildinfo/  logging/  web/
   database/            DB connection, pool, migrations, sqlc gen, dbtest
   dbutil/              pagination, sentinel errors, pgx helpers
   httpjson/            JSON transport helpers for raw net/http endpoints
@@ -276,7 +276,7 @@ internal/
   hosts/               canonical host identity + host detail loader
   software/            observed software inventory: titles, versions, paths
   labels/              label entity + store
-  scope/               concrete scope joins (LabelScope today)
+  scope/               concrete targeting primitives (LabelScope, Platform)
   agentauth/           shared agent-secret store and bearer helpers
 
   orbit/

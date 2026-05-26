@@ -1,5 +1,18 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileCode2,
+  KeyRound,
+  Loader2,
+  Pencil,
+  Plus,
+  Terminal,
+  Trash2,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -18,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -29,54 +43,54 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useAgentSecrets,
   useCreateAgentSecret,
   useDeleteAgentSecret,
   useUpdateAgentSecret,
-  type Agent,
   type AgentSecret,
 } from "@/hooks/use-agent-secrets";
+import { cn } from "@/lib/utils";
 
-const AGENTS: Array<{ value: Agent; label: string }> = [
-  { value: "orbit", label: "Orbit" },
-  { value: "santa", label: "Santa" },
-];
+type Integration = AgentSecret["agent"];
 
+const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
 const MIN_SECRET_LENGTH = 32;
-const secretValueSchema = z.string().trim().min(MIN_SECRET_LENGTH, "Secret must be at least 32 characters.");
+const secretValueSchema = z.string().trim().min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
 
-export function SecretsPage() {
+export function EnrollmentsPage({ integration }: { integration: Integration }) {
   const query = useAgentSecrets();
   const create = useCreateAgentSecret();
   const update = useUpdateAgentSecret();
   const remove = useDeleteAgentSecret();
-  const [agent, setAgent] = useState<Agent>("orbit");
-  const [creating, setCreating] = useState<{ agent: Agent; value: string } | null>(null);
+  const [creating, setCreating] = useState<{ integration: Integration; value: string } | null>(null);
   const [editing, setEditing] = useState<AgentSecret | null>(null);
   const [deleting, setDeleting] = useState<AgentSecret | null>(null);
   const [visibleSecrets, setVisibleSecrets] = useState<Record<number, boolean>>({});
   const secrets = query.data ?? [];
   const orbitSecrets = secrets.filter((secret) => secret.agent === "orbit");
   const santaSecrets = secrets.filter((secret) => secret.agent === "santa");
+  const serverURL = defaultServerURL();
 
   async function copySecret(secret: AgentSecret) {
     await navigator.clipboard.writeText(secret.value);
-    toast.success("Secret copied");
+    toast.success("Enrollment secret copied");
   }
+
+  const activeSecrets = integration === "orbit" ? orbitSecrets : santaSecrets;
 
   return (
     <PageShell className="gap-6">
       <PageHeader
-        title="Secrets"
+        title="Enrollments"
+        description="Enrollment secrets and install snippets for Orbit and Santa."
         actions={
           <Button
             size="sm"
             onClick={() => {
               create.reset();
-              setCreating({ agent, value: generateSecretValue() });
+              setCreating({ integration, value: generateSecretValue() });
             }}
           >
             <Plus data-icon="inline-start" />
@@ -85,69 +99,60 @@ export function SecretsPage() {
         }
       />
 
-      <Tabs value={agent} onValueChange={(value) => setAgent(value as Agent)}>
-        <TabsList>
-          {AGENTS.map((option) => (
-            <TabsTrigger key={option.value} value={option.value}>
-              {option.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="orbit" className="grid gap-4">
-          <SecretTabDescription>
-            Orbit secrets authenticate Orbit enrollment and osquery enrollment because Orbit is the expected wrapper for
-            osquery in this deployment. Deleting an Orbit secret stops future enrollment with that shared secret, but
-            already-enrolled hosts continue using their issued instance node keys.
-          </SecretTabDescription>
-          <SecretTable
-            rows={orbitSecrets}
-            isLoading={query.isLoading}
-            error={query.error ?? null}
-            onRetry={() => void query.refetch()}
-            deletingID={remove.variables ?? null}
-            visibleSecrets={visibleSecrets}
-            onToggleVisible={(secret) =>
-              setVisibleSecrets((current) => ({ ...current, [secret.id]: !current[secret.id] }))
-            }
-            onCopy={(secret) => void copySecret(secret)}
-            onEdit={setEditing}
-            onDelete={setDeleting}
-            emptyTitle="No Orbit secrets"
-            emptyDescription="Create an Orbit secret before enrolling managed hosts."
+      <div className="grid gap-4">
+        {integration === "orbit" ? (
+          <EnrollmentInstructions
+            title="Orbit package"
+            description="Use fleetctl to build an Orbit package for osquery enrollment."
+            icon={<Terminal />}
+            command={orbitPackageCommand(serverURL)}
+            copyLabel="Copy package command"
+            link={{ href: FLEETCTL_INSTALL_URL, label: "Install fleetctl" }}
+            notes={["The example builds a macOS pkg; change --type for another package format."]}
           />
-        </TabsContent>
-
-        <TabsContent value="santa" className="grid gap-4">
-          <SecretTabDescription>
-            Santa secrets authenticate every Santa sync request through the bearer authorization header. Deleting a
-            Santa secret immediately stops Santa clients using that value from syncing until they are configured with
-            another active secret.
-          </SecretTabDescription>
-          <SecretTable
-            rows={santaSecrets}
-            isLoading={query.isLoading}
-            error={query.error ?? null}
-            onRetry={() => void query.refetch()}
-            deletingID={remove.variables ?? null}
-            visibleSecrets={visibleSecrets}
-            onToggleVisible={(secret) =>
-              setVisibleSecrets((current) => ({ ...current, [secret.id]: !current[secret.id] }))
-            }
-            onCopy={(secret) => void copySecret(secret)}
-            onEdit={setEditing}
-            onDelete={setDeleting}
-            emptyTitle="No Santa secrets"
-            emptyDescription="Create a Santa secret before configuring Santa clients to sync."
-          />
-        </TabsContent>
-      </Tabs>
+        ) : (
+          <>
+            <EnrollmentInstructions
+              title="Santa"
+              description="Use this profile payload to point Santa at Woodstar."
+              icon={<FileCode2 />}
+              command={santaProfileTemplate(serverURL)}
+              copyLabel="Copy profile template"
+              multiline
+              notes={["Santa must send protobuf over gzip."]}
+            />
+            <SecretTabDescription>
+              Bearer credentials for Santa. Delete one to reject clients using that value.
+            </SecretTabDescription>
+          </>
+        )}
+        <SecretTable
+          rows={activeSecrets}
+          isLoading={query.isLoading}
+          error={query.error ?? null}
+          onRetry={() => void query.refetch()}
+          deletingID={remove.variables ?? null}
+          visibleSecrets={visibleSecrets}
+          onToggleVisible={(secret) =>
+            setVisibleSecrets((current) => ({ ...current, [secret.id]: !current[secret.id] }))
+          }
+          onCopy={(secret) => void copySecret(secret)}
+          onEdit={setEditing}
+          onDelete={setDeleting}
+          emptyTitle={integration === "orbit" ? "No Orbit secrets" : "No Santa secrets"}
+          emptyDescription={
+            integration === "orbit"
+              ? "Create an Orbit secret before deploying hosts."
+              : "Create a Santa secret before configuring clients."
+          }
+        />
+      </div>
 
       {creating ? (
         <SecretValueDialog
-          key={`create-${creating.agent}-${creating.value}`}
-          title={`New ${agentLabel(creating.agent)} secret`}
-          description="Review or replace the generated secret before saving it."
+          key={`create-${creating.integration}-${creating.value}`}
+          title={`New ${integrationLabel(creating.integration)} secret`}
+          description="Review the generated enrollment secret before saving it."
           initialValue={creating.value}
           open
           pending={create.isPending}
@@ -159,7 +164,7 @@ export function SecretsPage() {
             }
           }}
           onSave={async (value) => {
-            const secret = await create.mutateAsync({ agent: creating.agent, value });
+            const secret = await create.mutateAsync({ agent: creating.integration, value });
             setCreating(null);
             setVisibleSecrets((current) => ({ ...current, [secret.id]: true }));
           }}
@@ -169,8 +174,8 @@ export function SecretsPage() {
       {editing ? (
         <SecretValueDialog
           key={editing.id}
-          title={`Edit ${agentLabel(editing.agent)} secret`}
-          description="Update the shared secret value accepted by this agent."
+          title={`Edit ${integrationLabel(editing.agent)} secret`}
+          description="Update the shared enrollment secret accepted by this integration."
           initialValue={editing.value}
           open
           pending={update.isPending}
@@ -213,6 +218,107 @@ function SecretTabDescription({ children }: { children: ReactNode }) {
   return <p className="text-muted-foreground max-w-3xl text-sm leading-6">{children}</p>;
 }
 
+function EnrollmentInstructions({
+  title,
+  description,
+  icon,
+  command,
+  copyLabel,
+  link,
+  multiline = false,
+  notes,
+}: {
+  title: string;
+  description: string;
+  icon: ReactNode;
+  command: string;
+  copyLabel: string;
+  link?: {
+    href: string;
+    label: string;
+  };
+  multiline?: boolean;
+  notes: string[];
+}) {
+  return (
+    <Card className="max-w-full overflow-hidden">
+      <CardHeader>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md [&_svg]:size-4">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <CardTitle>{title}</CardTitle>
+              <CardDescription className="mt-1">{description}</CardDescription>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {link ? (
+              <Button type="button" variant="outline" size="sm" asChild>
+                <a href={link.href} target="_blank" rel="noreferrer">
+                  <ExternalLink data-icon="inline-start" />
+                  {link.label}
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex min-w-0 flex-col gap-4">
+        <CopyableExample value={command} label={copyLabel} multiline={multiline} />
+        <ul className="text-muted-foreground flex flex-col gap-1.5 text-sm">
+          {notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CopyableExample({ value, label, multiline = false }: { value: string; label: string; multiline?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+    void navigator.clipboard.writeText(value);
+  }
+
+  return (
+    <div className="relative min-w-0">
+      {multiline ? (
+        <Textarea
+          value={value}
+          readOnly
+          spellCheck={false}
+          aria-label="Enrollment example"
+          className="max-h-80 min-h-56 resize-y overflow-auto pr-11 font-mono text-xs leading-5"
+        />
+      ) : (
+        <Input
+          value={value}
+          readOnly
+          spellCheck={false}
+          aria-label="Enrollment example"
+          className="truncate pr-11 font-mono text-xs"
+        />
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className={cn("absolute right-0 top-0 rounded-l-none", multiline ? "h-9" : "h-full")}
+        aria-label={label}
+        onClick={copy}
+      >
+        {copied ? <Check /> : <Copy />}
+      </Button>
+    </div>
+  );
+}
+
 function IconAction({
   label,
   disabled,
@@ -225,14 +331,9 @@ function IconAction({
   children: ReactNode;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button type="button" size="icon" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <Button type="button" size="icon" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
+      {children}
+    </Button>
   );
 }
 
@@ -266,7 +367,7 @@ function SecretTable({
   if (error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load secrets</AlertTitle>
+        <AlertTitle>Failed to load enrollments</AlertTitle>
         <AlertDescription>{error.message}</AlertDescription>
         <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 w-fit">
           Retry
@@ -279,7 +380,7 @@ function SecretTable({
     {
       id: "value",
       accessorKey: "value",
-      header: "Secret",
+      header: "Enrollment secret",
       cell: ({ row }) => {
         const visible = Boolean(visibleSecrets[row.original.id]);
         return (
@@ -287,7 +388,7 @@ function SecretTable({
             className="block max-w-[34rem] truncate font-mono text-xs"
             title={visible ? row.original.value : undefined}
           >
-            {visible ? row.original.value : "************************"}
+            {visible ? row.original.value : "••••••••••••••••••••••••"}
           </span>
         );
       },
@@ -301,28 +402,28 @@ function SecretTable({
         return (
           <div className="flex justify-end gap-1">
             <IconAction
-              label={visible ? "Mask secret" : "Show secret"}
+              label={visible ? "Mask enrollment secret" : "Show enrollment secret"}
               disabled={deletingID === row.original.id}
               onClick={() => onToggleVisible(row.original)}
             >
               {visible ? <EyeOff /> : <Eye />}
             </IconAction>
             <IconAction
-              label="Copy secret"
+              label="Copy enrollment secret"
               disabled={deletingID === row.original.id}
               onClick={() => onCopy(row.original)}
             >
               <Copy />
             </IconAction>
             <IconAction
-              label="Edit secret"
+              label="Edit enrollment secret"
               disabled={deletingID === row.original.id}
               onClick={() => onEdit(row.original)}
             >
               <Pencil />
             </IconAction>
             <IconAction
-              label="Delete secret"
+              label="Delete enrollment secret"
               disabled={deletingID === row.original.id}
               onClick={() => onDelete(row.original)}
             >
@@ -392,7 +493,7 @@ function SecretValueDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          <Label htmlFor="agent-secret-value">Secret</Label>
+          <Label htmlFor="agent-secret-value">Enrollment secret</Label>
           <Input
             id="agent-secret-value"
             value={value}
@@ -442,9 +543,9 @@ function SecretDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {agentLabel(secret?.agent)} secret?</AlertDialogTitle>
+          <AlertDialogTitle>Delete {integrationLabel(secret?.agent)} secret?</AlertDialogTitle>
           <AlertDialogDescription>
-            {secret ? deleteDescription(secret.agent) : "This secret will stop authenticating agent requests."}
+            {secret ? deleteDescription(secret.agent) : "This secret will stop authenticating integration requests."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -468,17 +569,63 @@ function SecretDeleteDialog({
   );
 }
 
-function agentLabel(agent?: Agent) {
-  if (agent === "santa") return "Santa";
-  if (agent === "orbit") return "Orbit";
-  return "agent";
+function integrationLabel(integration?: Integration) {
+  if (integration === "santa") return "Santa";
+  if (integration === "orbit") return "Orbit";
+  return "integration";
 }
 
-function deleteDescription(agent: Agent) {
-  if (agent === "orbit") {
-    return "Future Orbit and osquery enrollment with this shared secret will stop. Existing hosts keep using their issued node keys.";
+function deleteDescription(integration: Integration) {
+  if (integration === "orbit") {
+    return "Future Orbit and osquery enrollment stops for this secret. Existing hosts keep their issued osquery node keys.";
   }
-  return "Santa clients using this bearer secret will stop syncing until they are configured with another active secret.";
+  return "Santa clients using this bearer secret will be rejected until they have another active secret.";
+}
+
+function defaultServerURL() {
+  if (window.location.hostname === "localhost" && window.location.port === "5173") {
+    return "http://localhost:8080";
+  }
+  return window.location.origin;
+}
+
+function orbitPackageCommand(serverURL: string) {
+  return ["fleetctl package", "--type=pkg", `--fleet-url=${serverURL}`, "--enroll-secret=REPLACE_WITH_SECRET"].join(
+    " ",
+  );
+}
+
+function santaProfileTemplate(serverURL: string) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadType</key>
+  <string>com.northpolesec.santa</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadIdentifier</key>
+  <string>au.edu.vic.woodleigh.woodstar.santa</string>
+  <key>PayloadUUID</key>
+  <string>896c4448-0b5a-4e0f-9020-51035e9d112a</string>
+  <key>PayloadDisplayName</key>
+  <string>Woodstar - Santa</string>
+
+  <key>ClientMode</key>
+  <integer>1</integer>
+  <key>SyncBaseURL</key>
+  <string>${serverURL}/santa/sync</string>
+  <key>SyncClientContentEncoding</key>
+  <string>gzip</string>
+  <key>SyncEnableProtoTransfer</key>
+  <true/>
+  <key>SyncExtraHeaders</key>
+  <dict>
+    <key>Authorization</key>
+    <string>Bearer REPLACE_WITH_SECRET</string>
+  </dict>
+</dict>
+</plist>`;
 }
 
 function generateSecretValue() {

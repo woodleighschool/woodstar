@@ -100,7 +100,7 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
   const title = mode === "create" ? "Add user" : "Edit user";
   const description =
     mode === "create"
-      ? "Create a new Woodstar user. Roles control whether the user can manage other users and secrets."
+      ? "Create a new Woodstar user. Roles control whether the user can manage other users and enrollments."
       : isInitialUser
         ? "The initial account is permanent. Only the password may be changed."
         : "Update name, role, or reset password. Email cannot change.";

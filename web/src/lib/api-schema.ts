@@ -1022,16 +1022,6 @@ export interface components {
             host_name?: string;
             status: string;
         };
-        EventPage: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/EventPage.json
-             */
-            readonly $schema?: string;
-            items: components["schemas"]["ExecutionEvent"][] | null;
-            next_cursor?: string;
-        };
         Executable: {
             cdhash: string;
             file_bundle_id: string;
@@ -1487,6 +1477,17 @@ export interface components {
             /** Format: int64 */
             count: number;
             items: components["schemas"]["EffectiveRuleStatus"][] | null;
+        };
+        PaginatedBodyExecutionEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyExecutionEvent.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["ExecutionEvent"][] | null;
         };
         PaginatedBodyHost: {
             /**
@@ -4965,11 +4966,13 @@ export interface operations {
     "list-santa-events": {
         parameters: {
             query?: {
-                host_id?: number;
-                decision?: string;
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
+                host_id?: string;
+                decisions?: string[] | null;
                 since?: string;
-                limit?: number;
-                after?: string;
             };
             header?: never;
             path?: never;
@@ -4983,7 +4986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventPage"];
+                    "application/json": components["schemas"]["PaginatedBodyExecutionEvent"];
                 };
             };
             /** @description Bad Request */

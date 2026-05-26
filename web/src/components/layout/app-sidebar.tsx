@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ChevronRight, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronRight, ChevronsUpDown, LogOut, Monitor, Moon, Sun, User as UserIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
-import { navSections, type NavItem } from "@/components/layout/nav-config";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { navSections, type NavItem, type NavMenu } from "@/components/layout/nav-config";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -19,7 +20,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -28,6 +29,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
@@ -37,122 +39,130 @@ export function AppSidebar() {
   const { location } = useRouterState();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-
   const visibleSections = navSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => !item.adminOnly || isAdmin),
+      items: visibleItems(section.items, isAdmin),
     }))
-    .filter((section) => section.placeholder === true || section.items.length > 0);
+    .filter((section) => section.items.length > 0);
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-sidebar-border border-b">
-        <div className="flex items-center gap-2 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <WoodstarMark />
-          <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-semibold tracking-tight">Woodstar</span>
-            <span className="text-muted-foreground truncate text-[11px]">{`v${runtime.version}`}</span>
-          </div>
-        </div>
+      <SidebarHeader>
+        <SidebarBrand />
       </SidebarHeader>
-
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {visibleSections.map((section) => {
-                const Icon = section.icon;
-                const active = section.items.some((item) => isActivePath(location.pathname, item));
-
-                if (section.collapsible === false) {
-                  return section.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton
-                          asChild
-                          tooltip={item.label}
-                          isActive={isActivePath(location.pathname, item)}
-                        >
-                          <Link to={item.to}>
-                            <ItemIcon />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  });
-                }
-
-                if (section.items.length === 0) {
-                  return (
-                    <SidebarMenuItem key={section.label}>
-                      <SidebarMenuButton disabled tooltip={section.label}>
-                        <Icon />
-                        <span>{section.label}</span>
-                        <ChevronRight className="ml-auto opacity-60" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                }
-
-                return (
-                  <Collapsible key={section.label} asChild defaultOpen={active} className="group/collapsible">
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={section.label} isActive={active}>
-                          <Icon />
-                          <span>{section.label}</span>
-                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {section.items.map((item) => {
-                            const ChildIcon = item.icon;
-                            return (
-                              <SidebarMenuSubItem key={item.to}>
-                                <SidebarMenuSubButton asChild isActive={isActivePath(location.pathname, item)}>
-                                  <Link to={item.to}>
-                                    <ChildIcon />
-                                    <span>{item.label}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            );
-                          })}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {visibleSections.map((section) => (
+          <SidebarNavGroup key={section.label} section={section} pathname={location.pathname} />
+        ))}
       </SidebarContent>
-
-      <SidebarFooter className="border-sidebar-border border-t">
-        <div className="flex items-center justify-between gap-1 px-1">
-          <UserMenu />
-          <ThemeToggle />
-        </div>
+      <SidebarFooter>
+        <SidebarUserMenu />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
 }
 
-function isActivePath(pathname: string, item: NavItem) {
-  return pathname === item.to || pathname.startsWith(`${item.to}/`);
+function SidebarBrand() {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton size="lg" asChild>
+          <Link to="/hosts">
+            <WoodstarMark />
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-semibold">Woodstar</span>
+              <span className="text-muted-foreground truncate text-xs">{`v${runtime.version}`}</span>
+            </div>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
 }
 
-function UserMenu() {
+function SidebarNavGroup({ section, pathname }: { section: NavMenu; pathname: string }) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+      <SidebarMenu>
+        {section.items.map((item) => (
+          <SidebarNavItem key={item.label} item={item} pathname={pathname} />
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
+function SidebarNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
+  const Icon = item.icon;
+  const active = isActivePath(pathname, item);
+
+  if (item.items?.length) {
+    return (
+      <Collapsible asChild defaultOpen={active} className="group/collapsible">
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton tooltip={item.label} isActive={active}>
+              {Icon ? <Icon /> : null}
+              <span>{item.label}</span>
+              <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="sidebar-subnav-collapsible">
+            <SidebarMenuSub>
+              {item.items.map((child) => (
+                <SidebarMenuSubItem key={child.to ?? child.label}>
+                  <SidebarMenuSubButton asChild={!!child.to} isActive={isActivePath(pathname, child)}>
+                    {child.to ? (
+                      <Link to={child.to}>
+                        <span>{child.label}</span>
+                      </Link>
+                    ) : (
+                      <span>{child.label}</span>
+                    )}
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </SidebarMenuItem>
+      </Collapsible>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild={!!item.to && !item.disabled}
+        tooltip={item.label}
+        isActive={active}
+        disabled={item.disabled}
+      >
+        {item.to && !item.disabled ? (
+          <Link to={item.to}>
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+          </Link>
+        ) : (
+          <>
+            {Icon ? <Icon /> : null}
+            <span>{item.label}</span>
+          </>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+function SidebarUserMenu() {
+  const { isMobile } = useSidebar();
+  const { setTheme } = useTheme();
   const { user } = useAuth();
   const logout = useLogout();
-
-  const initials = (nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "?")
+  const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
+  const initials = label
     .split(/[\s@]+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -160,32 +170,85 @@ function UserMenu() {
     .join("");
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-        <div className="bg-sidebar-accent text-sidebar-accent-foreground flex size-7 shrink-0 items-center justify-center rounded-md text-xs font-medium">
-          {initials || "?"}
-        </div>
-        <div className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-          <span className="truncate font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out"}</span>
-          {user?.role ? <span className="text-muted-foreground truncate text-[11px]">{user.role}</span> : null}
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-56">
-        <DropdownMenuLabel className="truncate">{user?.email ?? "Not signed in"}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link to="/account">
-              <UserIcon />
-              Account
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
-            <LogOut />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <Avatar className="rounded-lg">
+                <AvatarFallback className="rounded-lg">{initials || "?"}</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{label}</span>
+                {user?.role ? <span className="text-muted-foreground truncate text-xs">{user.role}</span> : null}
+              </div>
+              <ChevronsUpDown className="ml-auto" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                <Avatar className="rounded-lg">
+                  <AvatarFallback className="rounded-lg">{initials || "?"}</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">{label}</span>
+                  <span className="text-muted-foreground truncate text-xs">{user?.email ?? "Not signed in"}</span>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link to="/account">
+                  <UserIcon />
+                  Account
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onSelect={() => setTheme("light")}>
+                <Sun />
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTheme("dark")}>
+                <Moon />
+                Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setTheme("system")}>
+                <Monitor />
+                System
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
+              <LogOut />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
+}
+
+function isActivePath(pathname: string, item: NavItem): boolean {
+  if (item.to && (pathname === item.to || pathname.startsWith(`${item.to}/`))) return true;
+  return item.items?.some((child) => isActivePath(pathname, child)) ?? false;
+}
+
+function visibleItems(items: NavItem[], isAdmin: boolean): NavItem[] {
+  return items
+    .filter((item) => !item.adminOnly || isAdmin)
+    .map((item) => ({ ...item, items: item.items ? visibleItems(item.items, isAdmin) : undefined }))
+    .filter((item) => !item.items || item.items.length > 0);
 }
