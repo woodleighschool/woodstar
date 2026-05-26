@@ -1,0 +1,32 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: woodstar
+    main: ./cmd/woodstar
+    binary: woodstar
+    env:
+      - CGO_ENABLED=0
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit={{ .FullCommit }}
+      - -X github.com/woodleighschool/woodstar/internal/buildinfo.Date={{ .CommitDate }}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [binary]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+release:
+  draft: false
