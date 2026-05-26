@@ -50,7 +50,6 @@ func main() {
 	}
 	rootCmd.Version = buildinfo.Version
 	rootCmd.AddCommand(serveCommand())
-	rootCmd.AddCommand(versionCommand())
 	rootCmd.AddCommand(openAPICommand())
 
 	if err := rootCmd.Execute(); err != nil {
@@ -329,14 +328,4 @@ func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager,
 	sm.Cookie.SameSite = http.SameSiteLaxMode
 	sm.Cookie.Persist = true
 	return sm, store
-}
-
-func versionCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "version",
-		Short: "Print build version",
-		Run: func(cmd *cobra.Command, _ []string) {
-			_, _ = cmd.OutOrStdout().Write([]byte(buildinfo.String()))
-		},
-	}
 }
