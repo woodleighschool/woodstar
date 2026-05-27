@@ -12,6 +12,7 @@ INSERT INTO labels (
     name,
     description,
     query,
+    criteria,
     label_type,
     label_membership_type
 )
@@ -19,6 +20,7 @@ VALUES (
     @name,
     @description,
     sqlc.narg(query),
+    sqlc.narg(criteria),
     @label_type,
     @label_membership_type
 )
@@ -30,6 +32,7 @@ SET
     name = @name,
     description = @description,
     query = sqlc.narg(query),
+    criteria = sqlc.narg(criteria),
     label_membership_type = @label_membership_type,
     updated_at = now()
 WHERE id = @id AND label_type = 'regular'
@@ -64,6 +67,23 @@ ON CONFLICT (label_id, host_id) DO UPDATE SET
 -- name: DeleteLabelMembership :exec
 DELETE FROM label_membership
 WHERE label_id = @label_id AND host_id = @host_id;
+
+-- name: DeleteLabelMembershipsForLabel :exec
+DELETE FROM label_membership
+WHERE label_id = @label_id;
+
+-- name: InsertLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT @label_id, unnest(@host_ids::bigint[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET
+    updated_at = now();
+
+-- name: ListManualLabelHostIDs :many
+SELECT host_id
+FROM label_membership lm
+JOIN labels l ON l.id = lm.label_id
+WHERE lm.label_id = @label_id AND l.label_membership_type = 'manual'
+ORDER BY lm.host_id;
 
 -- name: ListLabelsForHost :many
 SELECT

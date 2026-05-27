@@ -33,6 +33,7 @@ export interface HostListParams extends ListParams {
   label_id?: string;
   software_title_id?: string;
   software_id?: string;
+  ids?: number[];
 }
 
 export function useHosts(params: HostListParams = {}) {
@@ -45,6 +46,7 @@ export function useHosts(params: HostListParams = {}) {
     label_id: nonEmpty(params.label_id),
     software_title_id: nonEmpty(params.software_title_id),
     software_id: nonEmpty(params.software_id),
+    ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
   };
 
   return useQuery<HostListResult, ApiError>({

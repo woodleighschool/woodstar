@@ -18,6 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/orbit"
@@ -48,6 +49,7 @@ type Dependencies struct {
 	Hosts     HostsDependencies
 	Software  SoftwareDependencies
 	Labels    LabelsDependencies
+	Directory DirectoryDependencies
 	AgentAuth AgentAuthDependencies
 	Orbit     OrbitDependencies
 	Osquery   OsqueryDependencies
@@ -78,6 +80,10 @@ type SoftwareDependencies struct {
 
 type LabelsDependencies struct {
 	Store *labels.Store
+}
+
+type DirectoryDependencies struct {
+	Store *directory.Store
 }
 
 type AgentAuthDependencies struct {

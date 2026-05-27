@@ -170,7 +170,8 @@ func handleLabelResult(
 	if !ok {
 		return
 	}
-	if !statusOK(status) {
+	matched, ok := rowPresenceResult(status, rows)
+	if !ok {
 		logger.WarnContext(
 			ctx,
 			"osquery label query failed", "operation", "label_evaluation",
@@ -181,7 +182,7 @@ func handleLabelResult(
 		)
 		return
 	}
-	pass.results = append(pass.results, ingest.LabelResult{LabelID: labelID, Matched: len(rows) > 0})
+	pass.results = append(pass.results, ingest.LabelResult{LabelID: labelID, Matched: matched})
 }
 
 func finalizeLabelPass(
@@ -305,9 +306,10 @@ func handleCheckResult(
 	if !ok {
 		return nil
 	}
+	matched, ok := rowPresenceResult(status, rows)
 	var passes *bool
-	if statusOK(status) {
-		passes = new(len(rows) > 0)
+	if ok {
+		passes = &matched
 	} else {
 		logger.WarnContext(
 			ctx,
@@ -318,6 +320,13 @@ func handleCheckResult(
 		)
 	}
 	return checkStore.UpsertMembership(ctx, checkID, hostID, passes)
+}
+
+func rowPresenceResult(status json.RawMessage, rows []map[string]string) (bool, bool) {
+	if !statusOK(status) {
+		return false, false
+	}
+	return len(rows) > 0, true
 }
 
 func handleLiveResult(

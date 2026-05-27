@@ -1,7 +1,11 @@
 // Package directory syncs people and groups from an identity provider.
 package directory
 
-import "time"
+import (
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+)
 
 // User is one synced directory account.
 type User struct {
@@ -25,6 +29,18 @@ type Group struct {
 	DisplayName  string    `json:"display_name"`
 	MailNickname string    `json:"mail_nickname,omitempty"`
 	LastSyncedAt time.Time `json:"last_synced_at"`
+}
+
+// Department is one non-empty department observed on synced directory users.
+type Department struct {
+	Value string `json:"value"`
+}
+
+// ListParams filters paginated directory selector lists.
+type ListParams struct {
+	dbutil.ListParams
+
+	Values []string
 }
 
 // Snapshot is one provider sync result.

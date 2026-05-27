@@ -43,10 +43,11 @@ type hostGetInput struct {
 
 type hostListInput struct {
 	ListQueryInput
-	Status          string `query:"status,omitempty"`
-	LabelID         string `query:"label_id,omitempty"`
-	SoftwareTitleID string `query:"software_title_id,omitempty"`
-	SoftwareID      string `query:"software_id,omitempty"`
+	Status          string  `query:"status,omitempty"`
+	LabelID         string  `query:"label_id,omitempty"`
+	SoftwareTitleID string  `query:"software_title_id,omitempty"`
+	SoftwareID      string  `query:"software_id,omitempty"`
+	IDs             []int64 `query:"ids,omitempty"`
 }
 
 func (i hostListInput) params() (hosts.ListParams, error) {
@@ -68,6 +69,7 @@ func (i hostListInput) params() (hosts.ListParams, error) {
 		LabelID:         labelID,
 		SoftwareTitleID: titleID,
 		SoftwareID:      softwareID,
+		IDs:             dbutil.CleanPositiveIDs(i.IDs),
 	}, nil
 }
 

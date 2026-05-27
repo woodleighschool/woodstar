@@ -47,18 +47,22 @@ type labelDeleteInput struct {
 }
 
 type labelCreateBody struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description,omitempty"`
-	Query          *string `json:"query,omitempty"`
-	LabelType      string  `json:"label_type,omitempty"`
-	MembershipType string  `json:"label_membership_type,omitempty"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description,omitempty"`
+	Query          *string          `json:"query,omitempty"`
+	Criteria       *labels.Criteria `json:"criteria,omitempty"`
+	HostIDs        []int64          `json:"host_ids,omitempty"`
+	LabelType      string           `json:"label_type,omitempty"`
+	MembershipType string           `json:"label_membership_type,omitempty"`
 }
 
 type labelMutationBody struct {
-	Name           string  `json:"name"`
-	Description    string  `json:"description,omitempty"`
-	Query          *string `json:"query,omitempty"`
-	MembershipType string  `json:"label_membership_type,omitempty"`
+	Name           string           `json:"name"`
+	Description    string           `json:"description,omitempty"`
+	Query          *string          `json:"query,omitempty"`
+	Criteria       *labels.Criteria `json:"criteria,omitempty"`
+	HostIDs        []int64          `json:"host_ids,omitempty"`
+	MembershipType string           `json:"label_membership_type,omitempty"`
 }
 
 func (i labelListInput) params() labels.ListParams {
@@ -108,6 +112,8 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
+			Criteria:            input.Body.Criteria,
+			HostIDs:             input.Body.HostIDs,
 			LabelType:           labels.LabelType(input.Body.LabelType),
 			LabelMembershipType: input.Body.MembershipType,
 		})
@@ -156,6 +162,8 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
+			Criteria:            input.Body.Criteria,
+			HostIDs:             input.Body.HostIDs,
 			LabelMembershipType: input.Body.MembershipType,
 		})
 		if err != nil {

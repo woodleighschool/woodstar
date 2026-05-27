@@ -2,8 +2,10 @@ package labels
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -46,7 +48,11 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]Label, int, erro
 	}
 	labels := make([]Label, len(records))
 	for i, record := range records {
-		labels[i] = labelFromListRecord(record)
+		label, err := labelFromListRecord(record)
+		if err != nil {
+			return nil, 0, err
+		}
+		labels[i] = label
 	}
 	return labels, count, nil
 }
@@ -59,8 +65,18 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	if err != nil {
 		return nil, err
 	}
-	label := new(labelFromSQLC(row.Label))
+	label, err := labelFromSQLC(row.Label)
+	if err != nil {
+		return nil, err
+	}
 	label.HostsCount = int(row.HostsCount)
+	if label.LabelMembershipType == LabelMembershipTypeManual {
+		hostIDs, err := s.q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
+		if err != nil {
+			return nil, err
+		}
+		label.HostIDs = hostIDs
+	}
 	return label, nil
 }
 
@@ -71,23 +87,48 @@ func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) 
 	}
 	labels := make([]Label, len(rows))
 	for i, row := range rows {
-		l := labelFromSQLC(row.Label)
+		l, err := labelFromSQLC(row.Label)
+		if err != nil {
+			return nil, err
+		}
 		l.HostsCount = int(row.HostsCount)
-		labels[i] = l
+		labels[i] = *l
 	}
 	return labels, nil
 }
 
 func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) {
+	params = params.withDefaults()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	row, err := s.q.CreateLabel(ctx, sqlc.CreateLabelParams{
-		Name:                params.Name,
-		Description:         params.Description,
-		Query:               params.Query,
-		LabelType:           string(params.LabelType),
-		LabelMembershipType: params.LabelMembershipType,
+	var out *Label
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		var criteria []byte
+		if params.Criteria != nil {
+			var err error
+			criteria, err = criteriaJSON(*params.Criteria)
+			if err != nil {
+				return err
+			}
+		}
+		row, err := q.CreateLabel(ctx, sqlc.CreateLabelParams{
+			Name:                params.Name,
+			Description:         params.Description,
+			Query:               params.Query,
+			Criteria:            criteria,
+			LabelType:           string(params.LabelType),
+			LabelMembershipType: params.LabelMembershipType,
+		})
+		if err != nil {
+			return err
+		}
+		if err := s.replaceMembership(ctx, tx, q, row.ID, params); err != nil {
+			return err
+		}
+		out, err = getLabelByID(ctx, q, row.ID)
+		return err
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -95,19 +136,45 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		}
 		return nil, err
 	}
-	return new(labelFromSQLC(row)), nil
+	return out, nil
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	row, err := s.q.UpdateLabel(ctx, sqlc.UpdateLabelParams{
-		Name:                params.Name,
-		Description:         params.Description,
-		Query:               params.Query,
-		LabelMembershipType: params.LabelMembershipType,
-		ID:                  id,
+	var out *Label
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		var criteria []byte
+		if params.Criteria != nil {
+			var err error
+			criteria, err = criteriaJSON(*params.Criteria)
+			if err != nil {
+				return err
+			}
+		}
+		row, err := q.UpdateLabel(ctx, sqlc.UpdateLabelParams{
+			Name:                params.Name,
+			Description:         params.Description,
+			Query:               params.Query,
+			Criteria:            criteria,
+			LabelMembershipType: params.LabelMembershipType,
+			ID:                  id,
+		})
+		if err != nil {
+			return err
+		}
+		if err := s.replaceMembership(ctx, tx, q, row.ID, LabelCreate{
+			Query:               params.Query,
+			Criteria:            params.Criteria,
+			HostIDs:             params.HostIDs,
+			LabelMembershipType: params.LabelMembershipType,
+		}); err != nil {
+			return err
+		}
+		out, err = getLabelByID(ctx, q, row.ID)
+		return err
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -118,7 +185,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		}
 		return nil, err
 	}
-	return new(labelFromSQLC(row)), nil
+	return out, nil
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
@@ -136,7 +203,11 @@ func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
 	}
 	labels := make([]Label, len(rows))
 	for i, row := range rows {
-		labels[i] = labelFromSQLC(row)
+		label, err := labelFromSQLC(row)
+		if err != nil {
+			return nil, err
+		}
+		labels[i] = *label
 	}
 	return labels, nil
 }
@@ -169,29 +240,115 @@ func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
 }
 
+func (s *Store) RefreshDerived(ctx context.Context) error {
+	type derivedLabel struct {
+		id       int64
+		criteria []byte
+	}
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+SELECT id, criteria
+FROM labels
+WHERE label_membership_type = 'derived'
+ORDER BY id`)
+		if err != nil {
+			return err
+		}
+		derived, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (derivedLabel, error) {
+			var label derivedLabel
+			err := row.Scan(&label.id, &label.criteria)
+			return label, err
+		})
+		if err != nil {
+			return err
+		}
+		for _, label := range derived {
+			criteria, err := decodeCriteria(label.criteria)
+			if err != nil {
+				return err
+			}
+			if err := refreshDerivedMembership(ctx, tx, label.id, &criteria); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // Validate checks the label shape before the DB sees it.
 func (p LabelCreate) Validate() error {
 	if p.LabelType == LabelTypeBuiltin {
 		return fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
 	}
-	return validateMembershipPairing(p.LabelMembershipType, p.Query)
+	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
 }
 
 // Validate checks the update shape.
 func (p LabelUpdate) Validate() error {
-	return validateMembershipPairing(p.LabelMembershipType, p.Query)
+	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
 }
 
-func validateMembershipPairing(membershipType string, query *string) error {
+func (p LabelCreate) withDefaults() LabelCreate {
+	if p.LabelType == "" {
+		p.LabelType = LabelTypeRegular
+	}
+	if p.LabelMembershipType == "" {
+		p.LabelMembershipType = LabelMembershipTypeDynamic
+	}
+	return p
+}
+
+func validateMembershipPairing(membershipType string, query *string, criteria *Criteria, hostIDs []int64) error {
 	switch membershipType {
 	case LabelMembershipTypeDynamic:
-		if query == nil || *query == "" {
+		if query == nil || strings.TrimSpace(*query) == "" {
 			return fmt.Errorf("%w: query is required for dynamic labels", dbutil.ErrInvalidInput)
 		}
-	case LabelMembershipTypeManual, LabelMembershipTypeDerived:
+		if criteria != nil {
+			return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
+		}
+		if len(hostIDs) > 0 {
+			return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
+		}
+	case LabelMembershipTypeManual:
 		if query != nil {
 			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
 		}
+		if criteria != nil {
+			return fmt.Errorf("%w: criteria is only allowed for derived labels", dbutil.ErrInvalidInput)
+		}
+	case LabelMembershipTypeDerived:
+		if query != nil {
+			return fmt.Errorf("%w: query is only allowed for dynamic labels", dbutil.ErrInvalidInput)
+		}
+		if len(hostIDs) > 0 {
+			return fmt.Errorf("%w: hosts are only allowed for manual labels", dbutil.ErrInvalidInput)
+		}
+		if err := validateCriteria(criteria); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%w: membership type must be dynamic, manual, or derived", dbutil.ErrInvalidInput)
+	}
+	for _, hostID := range hostIDs {
+		if hostID <= 0 {
+			return fmt.Errorf("%w: host IDs must be positive", dbutil.ErrInvalidInput)
+		}
+	}
+	return nil
+}
+
+func validateCriteria(criteria *Criteria) error {
+	if criteria == nil {
+		return fmt.Errorf("%w: criteria is required for derived labels", dbutil.ErrInvalidInput)
+	}
+	switch criteria.Attribute {
+	case DerivedAttributeDirectoryDepartment, DerivedAttributeDirectoryGroup, DerivedAttributeDirectoryUser:
+	default:
+		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
+	}
+	if len(cleanCriteriaValues(criteria.Values)) == 0 {
+		return fmt.Errorf("%w: derived label values are required", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
@@ -203,6 +360,7 @@ func labelListSQLWithWhere(params ListParams, where string, args []any) (string,
 	l.name,
 	l.description,
 	l.query,
+	l.criteria,
 	l.label_type,
 	l.label_membership_type,
 	l.created_at,
@@ -245,6 +403,7 @@ type labelListRecord struct {
 	Name                string
 	Description         string
 	Query               *string
+	Criteria            []byte
 	LabelType           string
 	LabelMembershipType string
 	CreatedAt           time.Time
@@ -252,30 +411,182 @@ type labelListRecord struct {
 	HostsCount          int32
 }
 
-func labelFromSQLC(s sqlc.Label) Label {
-	return Label{
+func labelFromSQLC(s sqlc.Label) (*Label, error) {
+	var criteria *Criteria
+	if len(s.Criteria) > 0 {
+		decoded, err := decodeCriteria(s.Criteria)
+		if err != nil {
+			return nil, err
+		}
+		criteria = &decoded
+	}
+	return &Label{
 		ID:                  s.ID,
 		Name:                s.Name,
 		Description:         s.Description,
 		Query:               s.Query,
+		Criteria:            criteria,
 		LabelType:           LabelType(s.LabelType),
 		LabelMembershipType: s.LabelMembershipType,
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
-	}
+	}, nil
 }
 
-func labelFromListRecord(s labelListRecord) Label {
-	label := labelFromSQLC(sqlc.Label{
+func labelFromListRecord(s labelListRecord) (Label, error) {
+	label, err := labelFromSQLC(sqlc.Label{
 		ID:                  s.ID,
 		Name:                s.Name,
 		Description:         s.Description,
 		Query:               s.Query,
+		Criteria:            s.Criteria,
 		LabelType:           s.LabelType,
 		LabelMembershipType: s.LabelMembershipType,
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	})
+	if err != nil {
+		return Label{}, err
+	}
 	label.HostsCount = int(s.HostsCount)
-	return label
+	return *label, nil
+}
+
+func criteriaJSON(criteria Criteria) ([]byte, error) {
+	normalized := Criteria{Attribute: criteria.Attribute, Values: cleanCriteriaValues(criteria.Values)}
+	return normalized.json()
+}
+
+func decodeCriteria(raw []byte) (Criteria, error) {
+	var criteria Criteria
+	if err := json.Unmarshal(raw, &criteria); err != nil {
+		return Criteria{}, fmt.Errorf("decode label criteria: %w", err)
+	}
+	return criteria, nil
+}
+
+func getLabelByID(ctx context.Context, q *sqlc.Queries, id int64) (*Label, error) {
+	row, err := q.GetLabelByID(ctx, sqlc.GetLabelByIDParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	label, err := labelFromSQLC(row.Label)
+	if err != nil {
+		return nil, err
+	}
+	label.HostsCount = int(row.HostsCount)
+	if label.LabelMembershipType == LabelMembershipTypeManual {
+		hostIDs, err := q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
+		if err != nil {
+			return nil, err
+		}
+		label.HostIDs = hostIDs
+	}
+	return label, nil
+}
+
+func (s *Store) replaceMembership(
+	ctx context.Context,
+	tx pgx.Tx,
+	q *sqlc.Queries,
+	labelID int64,
+	params LabelCreate,
+) error {
+	switch params.LabelMembershipType {
+	case LabelMembershipTypeManual:
+		hostIDs := compactHostIDs(params.HostIDs)
+		if err := q.DeleteLabelMembershipsForLabel(
+			ctx,
+			sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID},
+		); err != nil {
+			return err
+		}
+		if len(hostIDs) == 0 {
+			return nil
+		}
+		return q.InsertLabelMemberships(ctx, sqlc.InsertLabelMembershipsParams{LabelID: labelID, HostIds: hostIDs})
+	case LabelMembershipTypeDerived:
+		return refreshDerivedMembership(ctx, tx, labelID, params.Criteria)
+	case LabelMembershipTypeDynamic:
+		return q.DeleteLabelMembershipsForLabel(ctx, sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID})
+	default:
+		return nil
+	}
+}
+
+func compactHostIDs(hostIDs []int64) []int64 {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	seen := make(map[int64]struct{}, len(hostIDs))
+	out := make([]int64, 0, len(hostIDs))
+	for _, hostID := range hostIDs {
+		if _, ok := seen[hostID]; ok {
+			continue
+		}
+		seen[hostID] = struct{}{}
+		out = append(out, hostID)
+	}
+	return out
+}
+
+func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, criteria *Criteria) error {
+	if err := validateCriteria(criteria); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM label_membership WHERE label_id = $1`, labelID); err != nil {
+		return err
+	}
+
+	var query string
+	switch criteria.Attribute {
+	case DerivedAttributeDirectoryDepartment:
+		query = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.department = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+	case DerivedAttributeDirectoryGroup:
+		query = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
+JOIN directory_groups dg ON dg.id = dug.directory_group_id
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND dg.external_id = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+	case DerivedAttributeDirectoryUser:
+		query = `
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.external_id = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+	}
+	_, err := tx.Exec(ctx, query, labelID, cleanCriteriaValues(criteria.Values))
+	return err
+}
+
+func cleanCriteriaValues(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }

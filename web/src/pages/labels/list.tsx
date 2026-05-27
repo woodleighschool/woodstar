@@ -74,7 +74,9 @@ export function LabelsPage() {
       id: "label_membership_type",
       accessorKey: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.label_membership_type}</span>,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{membershipLabel(row.original.label_membership_type)}</span>
+      ),
     },
     {
       id: "hosts_count",
@@ -176,6 +178,10 @@ export function LabelsPage() {
       />
     </PageShell>
   );
+}
+
+function membershipLabel(value: string) {
+  return MEMBERSHIP_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: Label) => void }) {

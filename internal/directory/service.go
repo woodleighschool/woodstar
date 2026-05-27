@@ -13,16 +13,21 @@ type Fetcher interface {
 	Fetch(ctx context.Context) (Snapshot, error)
 }
 
+type DerivedLabelRefresher interface {
+	RefreshDerived(ctx context.Context) error
+}
+
 // Service runs sync passes on demand and on a fixed interval.
 type Service struct {
-	store   *Store
-	fetcher Fetcher
-	logger  *slog.Logger
+	store          *Store
+	fetcher        Fetcher
+	logger         *slog.Logger
+	labelRefresher DerivedLabelRefresher
 }
 
 // NewService composes a Store with a Fetcher and logger.
-func NewService(store *Store, fetcher Fetcher, logger *slog.Logger) *Service {
-	return &Service{store: store, fetcher: fetcher, logger: logger}
+func NewService(store *Store, fetcher Fetcher, logger *slog.Logger, labelRefresher DerivedLabelRefresher) *Service {
+	return &Service{store: store, fetcher: fetcher, logger: logger, labelRefresher: labelRefresher}
 }
 
 // Sync performs a single full reconciliation. Errors from either the fetch or
@@ -38,6 +43,11 @@ func (s *Service) Sync(ctx context.Context) error {
 	}
 	if err := s.store.Apply(ctx, snapshot); err != nil {
 		return err
+	}
+	if s.labelRefresher != nil {
+		if err := s.labelRefresher.RefreshDerived(ctx); err != nil {
+			return err
+		}
 	}
 	s.logger.InfoContext(ctx, "directory sync complete",
 		"component", "directory",

@@ -610,7 +610,6 @@ function santaProfileTemplate(serverURL: string) {
   <string>896c4448-0b5a-4e0f-9020-51035e9d112a</string>
   <key>PayloadDisplayName</key>
   <string>Woodstar - Santa</string>
-
   <key>ClientMode</key>
   <integer>1</integer>
   <key>SyncBaseURL</key>

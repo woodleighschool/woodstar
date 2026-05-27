@@ -14,6 +14,7 @@ INSERT INTO labels (
     name,
     description,
     query,
+    criteria,
     label_type,
     label_membership_type
 )
@@ -22,7 +23,8 @@ VALUES (
     $2,
     $3,
     $4,
-    $5
+    $5,
+    $6
 )
 RETURNING id, name, description, query, criteria, label_type, label_membership_type, created_at, updated_at
 `
@@ -31,6 +33,7 @@ type CreateLabelParams struct {
 	Name                string  `json:"name"`
 	Description         string  `json:"description"`
 	Query               *string `json:"query"`
+	Criteria            []byte  `json:"criteria"`
 	LabelType           string  `json:"label_type"`
 	LabelMembershipType string  `json:"label_membership_type"`
 }
@@ -40,6 +43,7 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		arg.Name,
 		arg.Description,
 		arg.Query,
+		arg.Criteria,
 		arg.LabelType,
 		arg.LabelMembershipType,
 	)
@@ -70,6 +74,20 @@ type DeleteLabelMembershipParams struct {
 
 func (q *Queries) DeleteLabelMembership(ctx context.Context, arg DeleteLabelMembershipParams) error {
 	_, err := q.db.Exec(ctx, deleteLabelMembership, arg.LabelID, arg.HostID)
+	return err
+}
+
+const deleteLabelMembershipsForLabel = `-- name: DeleteLabelMembershipsForLabel :exec
+DELETE FROM label_membership
+WHERE label_id = $1
+`
+
+type DeleteLabelMembershipsForLabelParams struct {
+	LabelID int64 `json:"label_id"`
+}
+
+func (q *Queries) DeleteLabelMembershipsForLabel(ctx context.Context, arg DeleteLabelMembershipsForLabelParams) error {
+	_, err := q.db.Exec(ctx, deleteLabelMembershipsForLabel, arg.LabelID)
 	return err
 }
 
@@ -125,6 +143,23 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 		&i.HostsCount,
 	)
 	return i, err
+}
+
+const insertLabelMemberships = `-- name: InsertLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT $1, unnest($2::bigint[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET
+    updated_at = now()
+`
+
+type InsertLabelMembershipsParams struct {
+	LabelID int64   `json:"label_id"`
+	HostIds []int64 `json:"host_ids"`
+}
+
+func (q *Queries) InsertLabelMemberships(ctx context.Context, arg InsertLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertLabelMemberships, arg.LabelID, arg.HostIds)
+	return err
 }
 
 const listApplicableDynamicLabelIDs = `-- name: ListApplicableDynamicLabelIDs :many
@@ -249,6 +284,38 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 	return items, nil
 }
 
+const listManualLabelHostIDs = `-- name: ListManualLabelHostIDs :many
+SELECT host_id
+FROM label_membership lm
+JOIN labels l ON l.id = lm.label_id
+WHERE lm.label_id = $1 AND l.label_membership_type = 'manual'
+ORDER BY lm.host_id
+`
+
+type ListManualLabelHostIDsParams struct {
+	LabelID int64 `json:"label_id"`
+}
+
+func (q *Queries) ListManualLabelHostIDs(ctx context.Context, arg ListManualLabelHostIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listManualLabelHostIDs, arg.LabelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var host_id int64
+		if err := rows.Scan(&host_id); err != nil {
+			return nil, err
+		}
+		items = append(items, host_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markHostLabelsFresh = `-- name: MarkHostLabelsFresh :exec
 UPDATE hosts
 SET label_updated_at = now(), updated_at = now()
@@ -270,9 +337,10 @@ SET
     name = $1,
     description = $2,
     query = $3,
-    label_membership_type = $4,
+    criteria = $4,
+    label_membership_type = $5,
     updated_at = now()
-WHERE id = $5 AND label_type = 'regular'
+WHERE id = $6 AND label_type = 'regular'
 RETURNING id, name, description, query, criteria, label_type, label_membership_type, created_at, updated_at
 `
 
@@ -280,6 +348,7 @@ type UpdateLabelParams struct {
 	Name                string  `json:"name"`
 	Description         string  `json:"description"`
 	Query               *string `json:"query"`
+	Criteria            []byte  `json:"criteria"`
 	LabelMembershipType string  `json:"label_membership_type"`
 	ID                  int64   `json:"id"`
 }
@@ -289,6 +358,7 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		arg.Name,
 		arg.Description,
 		arg.Query,
+		arg.Criteria,
 		arg.LabelMembershipType,
 		arg.ID,
 	)

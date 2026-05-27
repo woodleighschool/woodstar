@@ -393,6 +393,10 @@ func hostListWhere(params ListParams) (string, []any, error) {
 			)
 		)`)
 	}
+	if len(params.IDs) > 0 {
+		ids := where.Arg(dbutil.CleanPositiveIDs(params.IDs))
+		where.Add("id = ANY(" + ids + "::bigint[])")
+	}
 	switch params.Status {
 	case "":
 	case "online":

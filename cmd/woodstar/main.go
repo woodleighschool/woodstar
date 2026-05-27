@@ -136,7 +136,7 @@ func newServer(
 	osqueryDeps := newOsquery(stores, logger)
 	santaDeps, stopSanta := newSanta(ctx, cfg, stores, logger)
 
-	stopBackground := append([]func(){stopSanta}, startIntegrations(ctx, cfg, db, logger)...)
+	stopBackground := append([]func(){stopSanta}, startIntegrations(ctx, cfg, db, stores, logger)...)
 
 	server := api.NewServer(api.Dependencies{
 		Runtime: api.RuntimeDependencies{
@@ -158,6 +158,7 @@ func newServer(
 		Hosts:     api.HostsDependencies{Store: stores.hosts},
 		Software:  api.SoftwareDependencies{Store: stores.software},
 		Labels:    api.LabelsDependencies{Store: stores.labels},
+		Directory: api.DirectoryDependencies{Store: stores.directory},
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
 		Orbit:     orbitDeps,
 		Osquery:   osqueryDeps,
@@ -174,6 +175,7 @@ type appStores struct {
 	users               *users.Store
 	hosts               *hosts.Store
 	deviceMappings      *hosts.DeviceMappingStore
+	directory           *directory.Store
 	agentSecrets        *agentauth.Store
 	software            *software.Store
 	labels              *labels.Store
@@ -191,6 +193,7 @@ func newStores(db *database.DB) appStores {
 		users:               users.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		deviceMappings:      hosts.NewDeviceMappingStore(db),
+		directory:           directory.NewStore(db),
 		agentSecrets:        agentauth.NewStore(db),
 		software:            software.NewStore(db),
 		labels:              labels.NewStore(db),
@@ -301,18 +304,28 @@ func newSanta(
 	}, eventCleanup.Stop
 }
 
-func startIntegrations(ctx context.Context, cfg config.Config, db *database.DB, logger *slog.Logger) []func() {
+func startIntegrations(
+	ctx context.Context,
+	cfg config.Config,
+	db *database.DB,
+	stores appStores,
+	logger *slog.Logger,
+) []func() {
 	if !cfg.EntraEnabled() {
 		return nil
 	}
-	directoryStore := directory.NewStore(db)
 	entraClient := directory.NewEntraClient(directory.EntraConfig{
 		TenantID:         cfg.EntraTenantID,
 		ClientID:         cfg.EntraClientID,
 		ClientSecret:     cfg.EntraClientSecret,
 		TransitiveGroups: cfg.EntraTransitiveGroups,
 	})
-	directorySvc := directory.NewService(directoryStore, entraClient, logger.With("component", "directory"))
+	directorySvc := directory.NewService(
+		stores.directory,
+		entraClient,
+		logger.With("component", "directory"),
+		stores.labels,
+	)
 	return []func(){directorySvc.StartScheduler(ctx, cfg.EntraSyncInterval)}
 }
 

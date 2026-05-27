@@ -391,6 +391,146 @@ components:
         - full_sync_interval_seconds
         - batch_size
       type: object
+    Criteria:
+      additionalProperties: false
+      properties:
+        attribute:
+          type: string
+        values:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - attribute
+        - values
+      type: object
+    Department:
+      additionalProperties: false
+      properties:
+        value:
+          type: string
+      required:
+        - value
+      type: object
+    DirectoryDepartmentsBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/DirectoryDepartmentsBody.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/Department"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    DirectoryGroupBody:
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+        external_id:
+          type: string
+        id:
+          format: int64
+          type: integer
+        mail_nickname:
+          type: string
+      required:
+        - id
+        - external_id
+        - display_name
+      type: object
+    DirectoryGroupsBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/DirectoryGroupsBody.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/DirectoryGroupBody"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    DirectoryUserBody:
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        department:
+          type: string
+        display_name:
+          type: string
+        external_id:
+          type: string
+        family_name:
+          type: string
+        given_name:
+          type: string
+        id:
+          format: int64
+          type: integer
+        mail:
+          type: string
+        mail_nickname:
+          type: string
+        user_principal_name:
+          type: string
+      required:
+        - id
+        - external_id
+        - user_principal_name
+        - display_name
+        - active
+      type: object
+    DirectoryUsersBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/DirectoryUsersBody.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/DirectoryUserBody"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     EffectiveRuleStatus:
       additionalProperties: false
       properties:
@@ -1228,8 +1368,17 @@ components:
         created_at:
           format: date-time
           type: string
+        criteria:
+          $ref: "#/components/schemas/Criteria"
         description:
           type: string
+        host_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
         hosts_count:
           format: int64
           type: integer
@@ -1265,8 +1414,17 @@ components:
           format: uri
           readOnly: true
           type: string
+        criteria:
+          $ref: "#/components/schemas/Criteria"
         description:
           type: string
+        host_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
         label_membership_type:
           type: string
         label_type:
@@ -1300,8 +1458,17 @@ components:
           format: uri
           readOnly: true
           type: string
+        criteria:
+          $ref: "#/components/schemas/Criteria"
         description:
           type: string
+        host_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
         label_membership_type:
           type: string
         name:
@@ -2762,6 +2929,210 @@ paths:
       summary: Get setup state and the current signed-in user, if any
       tags:
         - Auth
+  /api/directory/departments:
+    get:
+      operationId: list-directory-departments
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: values
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectoryDepartmentsBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List directory departments
+      tags:
+        - Directory
+  /api/directory/groups:
+    get:
+      operationId: list-directory-groups
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: values
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectoryGroupsBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List directory groups
+      tags:
+        - Directory
+  /api/directory/users:
+    get:
+      operationId: list-directory-users
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: values
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectoryUsersBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List directory users
+      tags:
+        - Directory
   /api/hosts:
     get:
       operationId: list-hosts
@@ -2813,6 +3184,16 @@ paths:
           name: software_id
           schema:
             type: string
+        - explode: false
+          in: query
+          name: ids
+          schema:
+            items:
+              format: int64
+              type: integer
+            type:
+              - array
+              - "null"
       responses:
         "200":
           content:

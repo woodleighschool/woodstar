@@ -16,6 +16,7 @@ type ListParams struct {
 	LabelID         int64
 	SoftwareTitleID int64
 	SoftwareID      int64
+	IDs             []int64
 }
 
 // DetailUpdate is inventory reported by osquery detail queries.

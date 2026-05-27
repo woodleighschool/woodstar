@@ -32,6 +32,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	)
 	handlers.RegisterSoftware(protected, deps.Software.Store)
 	handlers.RegisterLabels(protected, deps.Labels.Store)
+	handlers.RegisterDirectory(protected, deps.Directory.Store)
 	handlers.RegisterAgentSecrets(admin, deps.AgentAuth.Store)
 	handlers.RegisterReports(protected, deps.Osquery.Reports, deps.Hosts.Store)
 	handlers.RegisterChecks(protected, deps.Osquery.Checks, deps.Hosts.Store)

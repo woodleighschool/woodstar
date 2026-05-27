@@ -127,6 +127,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/directory/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List directory departments */
+        get: operations["list-directory-departments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/directory/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List directory groups */
+        get: operations["list-directory-groups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/directory/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List directory users */
+        get: operations["list-directory-users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hosts": {
         parameters: {
             query?: never;
@@ -948,6 +999,66 @@ export interface components {
             name: string;
             removable_media_policy?: components["schemas"]["RemovableMediaPolicy"];
         };
+        Criteria: {
+            attribute: string;
+            values: string[] | null;
+        };
+        Department: {
+            value: string;
+        };
+        DirectoryDepartmentsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/DirectoryDepartmentsBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["Department"][] | null;
+        };
+        DirectoryGroupBody: {
+            display_name: string;
+            external_id: string;
+            /** Format: int64 */
+            id: number;
+            mail_nickname?: string;
+        };
+        DirectoryGroupsBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/DirectoryGroupsBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["DirectoryGroupBody"][] | null;
+        };
+        DirectoryUserBody: {
+            active: boolean;
+            department?: string;
+            display_name: string;
+            external_id: string;
+            family_name?: string;
+            given_name?: string;
+            /** Format: int64 */
+            id: number;
+            mail?: string;
+            mail_nickname?: string;
+            user_principal_name: string;
+        };
+        DirectoryUsersBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/DirectoryUsersBody.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["DirectoryUserBody"][] | null;
+        };
         EffectiveRuleStatus: {
             applied: boolean;
             cel_expression?: string;
@@ -1326,7 +1437,9 @@ export interface components {
             readonly $schema?: string;
             /** Format: date-time */
             created_at?: string;
+            criteria?: components["schemas"]["Criteria"];
             description: string;
+            host_ids?: number[] | null;
             /** Format: int64 */
             hosts_count: number;
             /** Format: int64 */
@@ -1345,7 +1458,9 @@ export interface components {
              * @example https://example.com/api/schemas/LabelCreateBody.json
              */
             readonly $schema?: string;
+            criteria?: components["schemas"]["Criteria"];
             description?: string;
+            host_ids?: number[] | null;
             label_membership_type?: string;
             label_type?: string;
             name: string;
@@ -1363,7 +1478,9 @@ export interface components {
              * @example https://example.com/api/schemas/LabelMutationBody.json
              */
             readonly $schema?: string;
+            criteria?: components["schemas"]["Criteria"];
             description?: string;
+            host_ids?: number[] | null;
             label_membership_type?: string;
             name: string;
             query?: string;
@@ -2427,6 +2544,165 @@ export interface operations {
             };
         };
     };
+    "list-directory-departments": {
+        parameters: {
+            query?: {
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
+                values?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryDepartmentsBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-directory-groups": {
+        parameters: {
+            query?: {
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
+                values?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryGroupsBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-directory-users": {
+        parameters: {
+            query?: {
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
+                values?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryUsersBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-hosts": {
         parameters: {
             query?: {
@@ -2438,6 +2714,7 @@ export interface operations {
                 label_id?: string;
                 software_title_id?: string;
                 software_id?: string;
+                ids?: number[] | null;
             };
             header?: never;
             path?: never;

@@ -1,24 +1,40 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { Loader2 } from "lucide-react";
+import { Loader2, ServerCog, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  useDirectoryDepartments,
+  useDirectoryGroups,
+  useDirectoryUsers,
+  type DirectoryDepartment,
+  type DirectoryGroup,
+  type DirectoryUser,
+} from "@/hooks/use-directory";
+import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 
 type MembershipType = "dynamic" | "manual" | "derived";
+type DerivedAttribute = "directory_department" | "directory_group" | "directory_user";
 
 const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: string }[] = [
   {
@@ -38,10 +54,19 @@ const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: stri
   },
 ];
 
+const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
+  { value: "directory_department", label: "Directory department" },
+  { value: "directory_group", label: "Directory group" },
+  { value: "directory_user", label: "Directory user" },
+];
+
 interface FormState {
   name: string;
   description: string;
   query: string;
+  host_ids: number[];
+  derived_attribute: DerivedAttribute;
+  derived_values: string[];
   label_membership_type: MembershipType;
 }
 
@@ -49,6 +74,9 @@ const empty: FormState = {
   name: "",
   description: "",
   query: "select 1 from os_version where major >= 13;",
+  host_ids: [],
+  derived_attribute: "directory_department",
+  derived_values: [],
   label_membership_type: "dynamic",
 };
 
@@ -57,11 +85,18 @@ const labelFormSchema = z
     name: z.string().trim().min(1, "Name is required."),
     description: z.string().trim(),
     query: z.string().trim(),
+    host_ids: z.array(z.number().int().positive()),
+    derived_attribute: z.enum(["directory_department", "directory_group", "directory_user"]),
+    derived_values: z.array(z.string().trim().min(1)),
     label_membership_type: z.enum(["dynamic", "manual", "derived"]),
   })
   .refine((value) => value.label_membership_type !== "dynamic" || value.query !== "", {
     message: "Dynamic labels need a query.",
     path: ["query"],
+  })
+  .refine((value) => value.label_membership_type !== "derived" || value.derived_values.length > 0, {
+    message: "Derived labels need at least one selected item.",
+    path: ["derived_values"],
   });
 
 type LabelFormParse = ReturnType<typeof labelFormSchema.safeParse>;
@@ -107,6 +142,9 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query ?? empty.query,
+          host_ids: detail.data.host_ids ?? [],
+          derived_attribute: derivedAttributeFromString(detail.data.criteria?.attribute),
+          derived_values: detail.data.criteria?.values ?? [],
           label_membership_type: membershipFromString(detail.data.label_membership_type),
         }
       : empty;
@@ -125,6 +163,8 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
 
   const pending = createLabel.isPending || updateLabel.isPending;
   const isDynamic = form.label_membership_type === "dynamic";
+  const isManual = form.label_membership_type === "manual";
+  const isDerived = form.label_membership_type === "derived";
   const memberOption = MEMBERSHIP_OPTIONS.find((o) => o.value === form.label_membership_type);
   const parsed = useMemo(() => labelFormSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
@@ -140,6 +180,11 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
       description: cleaned.description,
       label_membership_type: cleaned.label_membership_type,
       query: cleaned.label_membership_type === "dynamic" ? cleaned.query : undefined,
+      host_ids: cleaned.label_membership_type === "manual" ? cleaned.host_ids : undefined,
+      criteria:
+        cleaned.label_membership_type === "derived"
+          ? { attribute: cleaned.derived_attribute, values: cleaned.derived_values }
+          : undefined,
     };
     if (mode === "create") {
       await createLabel.mutateAsync(body);
@@ -174,7 +219,7 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
           description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
         />
 
-        <FieldGroup className="max-w-3xl">
+        <FieldGroup className="max-w-5xl">
           <Field data-invalid={showErrors && errors.name ? true : undefined}>
             <FieldLabel htmlFor="label-name">Name</FieldLabel>
             <Input
@@ -199,22 +244,73 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
 
           <Field>
             <FieldLabel>Type</FieldLabel>
-            <RadioGroup
+            <ToggleGroup
+              type="single"
               value={form.label_membership_type}
-              onValueChange={(value) => setForm({ ...form, label_membership_type: value as MembershipType })}
-              className="gap-2"
+              onValueChange={(value) => {
+                if (value) setForm({ ...form, label_membership_type: value as MembershipType });
+              }}
+              variant="outline"
+              size="sm"
+              aria-label="Label type"
+              className="flex-wrap"
             >
               {MEMBERSHIP_OPTIONS.map((option) => (
-                <div key={option.value} className="flex items-center gap-2">
-                  <RadioGroupItem id={`membership-${option.value}`} value={option.value} />
-                  <Label htmlFor={`membership-${option.value}`} className="font-normal">
-                    {option.label}
-                  </Label>
-                </div>
+                <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
+                  {option.label}
+                </ToggleGroupItem>
               ))}
-            </RadioGroup>
+            </ToggleGroup>
             {memberOption ? <FieldDescription>{memberOption.helpText}</FieldDescription> : null}
           </Field>
+
+          {isManual ? (
+            <Field data-invalid={showErrors && errors.host_ids ? true : undefined}>
+              <FieldLabel>Hosts</FieldLabel>
+              <HostSelector value={form.host_ids} onChange={(host_ids) => setForm({ ...form, host_ids })} />
+              <FieldDescription>Leave empty to create a manual label with no hosts yet.</FieldDescription>
+              {showErrors && errors.host_ids ? <FieldError>{errors.host_ids}</FieldError> : null}
+            </Field>
+          ) : null}
+
+          {isDerived ? (
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="label-derived-attribute">Attribute</FieldLabel>
+                <Select
+                  value={form.derived_attribute}
+                  onValueChange={(value) =>
+                    setForm({ ...form, derived_attribute: value as DerivedAttribute, derived_values: [] })
+                  }
+                >
+                  <SelectTrigger id="label-derived-attribute" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field data-invalid={showErrors && errors.derived_values ? true : undefined}>
+                <FieldLabel>{derivedSelectorLabel(form.derived_attribute)}</FieldLabel>
+                <DerivedSelector
+                  attribute={form.derived_attribute}
+                  value={form.derived_values}
+                  onChange={(derived_values) => setForm({ ...form, derived_values })}
+                />
+                <FieldDescription>
+                  Hosts match when their linked directory record matches any selected item.
+                </FieldDescription>
+                {showErrors && errors.derived_values ? <FieldError>{errors.derived_values}</FieldError> : null}
+              </Field>
+            </FieldGroup>
+          ) : null}
         </FieldGroup>
 
         {isDynamic ? (
@@ -233,8 +329,8 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
           <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
         ) : null}
 
-        <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
-          <Button type="submit" size="sm" disabled={pending}>
+        <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
+          <Button type="button" size="sm" disabled={pending} onClick={() => void submit()}>
             {pending ? "Saving..." : "Save"}
           </Button>
           {mode === "edit" ? (
@@ -246,6 +342,445 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
       </form>
     </PageShell>
   );
+}
+
+function hostName(host: Host) {
+  return host.display_name || host.hostname || host.computer_name || host.hardware_uuid;
+}
+
+function HostSelector({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
+  const controls = useSelectorControls([{ id: "display_name", desc: false }]);
+  const showSelected = controls.scope === "selected";
+  const hosts = useHosts({
+    q: controls.q,
+    page_index: controls.pagination.pageIndex,
+    page_size: controls.pagination.pageSize,
+    sort: sortParam(controls.sorting),
+    ids: showSelected ? value : undefined,
+  });
+  const rows = showSelected && value.length === 0 ? [] : (hosts.data?.items ?? []);
+  const count = showSelected && value.length === 0 ? 0 : (hosts.data?.count ?? 0);
+  const columns = useMemo<ColumnDef<Host>[]>(
+    () => [
+      {
+        accessorKey: "display_name",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="truncate font-medium">{hostName(row.original)}</div>
+            <div className="text-muted-foreground truncate text-xs">{row.original.hostname || "No hostname"}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "hardware_serial",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground truncate">
+            {row.original.hardware_serial || row.original.hardware_uuid}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "hardware_model",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground truncate">{row.original.hardware_model || "Unknown"}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <SelectorTable
+      columns={columns}
+      data={rows}
+      totalCount={count}
+      pagination={controls.pagination}
+      sorting={controls.sorting}
+      onPaginationChange={controls.setPagination}
+      onSortingChange={controls.setSorting}
+      searchValue={controls.q}
+      searchPlaceholder="Search hosts"
+      searchLabel="Search hosts"
+      scope={controls.scope}
+      selectedCount={value.length}
+      isLoading={hosts.isLoading}
+      error={hosts.error?.message}
+      selectedRowIds={value.map(String)}
+      onSearchChange={controls.setSearch}
+      onScopeChange={controls.setScopeFilter}
+      onSelectedRowIdsChange={(ids) => onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))}
+      getRowId={(host) => String(host.id)}
+      emptyTitle={showSelected ? "No selected hosts" : "No hosts found"}
+      emptyDescription={
+        showSelected ? "Selected hosts will appear here." : "Try another search term or enroll hosts first."
+      }
+      emptyIcon={<ServerCog className="size-5" />}
+    />
+  );
+}
+
+function DerivedSelector({
+  attribute,
+  value,
+  onChange,
+}: {
+  attribute: DerivedAttribute;
+  value: string[];
+  onChange: (value: string[]) => void;
+}) {
+  switch (attribute) {
+    case "directory_group":
+      return <DirectoryGroupSelector value={value} onChange={onChange} />;
+    case "directory_user":
+      return <DirectoryUserSelector value={value} onChange={onChange} />;
+    default:
+      return <DepartmentSelector value={value} onChange={onChange} />;
+  }
+}
+
+function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const controls = useSelectorControls([{ id: "value", desc: false }]);
+  const showSelected = controls.scope === "selected";
+  const departments = useDirectoryDepartments({
+    q: controls.q,
+    page_index: controls.pagination.pageIndex,
+    page_size: controls.pagination.pageSize,
+    sort: sortParam(controls.sorting),
+    values: showSelected ? value : undefined,
+  });
+  const rows = showSelected && value.length === 0 ? [] : (departments.data?.items ?? []);
+  const count = showSelected && value.length === 0 ? 0 : (departments.data?.count ?? 0);
+  const columns = useMemo<ColumnDef<DirectoryDepartment>[]>(
+    () => [
+      {
+        accessorKey: "value",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
+        cell: ({ row }) => <span className="font-medium">{row.original.value}</span>,
+      },
+    ],
+    [],
+  );
+
+  return (
+    <SelectorTable
+      columns={columns}
+      data={rows}
+      totalCount={count}
+      pagination={controls.pagination}
+      sorting={controls.sorting}
+      onPaginationChange={controls.setPagination}
+      onSortingChange={controls.setSorting}
+      searchValue={controls.q}
+      searchPlaceholder="Search departments"
+      searchLabel="Search departments"
+      scope={controls.scope}
+      selectedCount={value.length}
+      isLoading={departments.isLoading}
+      error={departments.error?.message}
+      selectedRowIds={value}
+      onSearchChange={controls.setSearch}
+      onScopeChange={controls.setScopeFilter}
+      onSelectedRowIdsChange={onChange}
+      getRowId={(department) => department.value}
+      emptyTitle={showSelected ? "No selected departments" : "No departments found"}
+      emptyDescription={
+        showSelected
+          ? "Selected departments will appear here."
+          : "Try another search term or sync directory users first."
+      }
+      emptyIcon={<UsersRound className="size-5" />}
+    />
+  );
+}
+
+function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const controls = useSelectorControls([{ id: "display_name", desc: false }]);
+  const showSelected = controls.scope === "selected";
+  const groups = useDirectoryGroups({
+    q: controls.q,
+    page_index: controls.pagination.pageIndex,
+    page_size: controls.pagination.pageSize,
+    sort: sortParam(controls.sorting),
+    values: showSelected ? value : undefined,
+  });
+  const rows = showSelected && value.length === 0 ? [] : (groups.data?.items ?? []);
+  const count = showSelected && value.length === 0 ? 0 : (groups.data?.count ?? 0);
+  const columns = useMemo<ColumnDef<DirectoryGroup>[]>(
+    () => [
+      {
+        accessorKey: "display_name",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Group" />,
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="truncate font-medium">{row.original.display_name}</div>
+            <div className="text-muted-foreground truncate text-xs">{row.original.external_id}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "mail_nickname",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Nickname" />,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground truncate">{row.original.mail_nickname ?? "None"}</span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <SelectorTable
+      columns={columns}
+      data={rows}
+      totalCount={count}
+      pagination={controls.pagination}
+      sorting={controls.sorting}
+      onPaginationChange={controls.setPagination}
+      onSortingChange={controls.setSorting}
+      searchValue={controls.q}
+      searchPlaceholder="Search groups"
+      searchLabel="Search groups"
+      scope={controls.scope}
+      selectedCount={value.length}
+      isLoading={groups.isLoading}
+      error={groups.error?.message}
+      selectedRowIds={value}
+      onSearchChange={controls.setSearch}
+      onScopeChange={controls.setScopeFilter}
+      onSelectedRowIdsChange={onChange}
+      getRowId={(group) => group.external_id}
+      emptyTitle={showSelected ? "No selected groups" : "No groups found"}
+      emptyDescription={
+        showSelected ? "Selected groups will appear here." : "Try another search term or sync groups first."
+      }
+      emptyIcon={<UsersRound className="size-5" />}
+    />
+  );
+}
+
+function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const controls = useSelectorControls([{ id: "display_name", desc: false }]);
+  const showSelected = controls.scope === "selected";
+  const users = useDirectoryUsers({
+    q: controls.q,
+    page_index: controls.pagination.pageIndex,
+    page_size: controls.pagination.pageSize,
+    sort: sortParam(controls.sorting),
+    values: showSelected ? value : undefined,
+  });
+  const rows = showSelected && value.length === 0 ? [] : (users.data?.items ?? []);
+  const count = showSelected && value.length === 0 ? 0 : (users.data?.count ?? 0);
+  const columns = useMemo<ColumnDef<DirectoryUser>[]>(
+    () => [
+      {
+        accessorKey: "display_name",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="truncate font-medium">{row.original.display_name}</div>
+            <div className="text-muted-foreground truncate text-xs">{row.original.user_principal_name}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "department",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
+        cell: ({ row }) => <span className="text-muted-foreground truncate">{row.original.department ?? "None"}</span>,
+      },
+    ],
+    [],
+  );
+
+  return (
+    <SelectorTable
+      columns={columns}
+      data={rows}
+      totalCount={count}
+      pagination={controls.pagination}
+      sorting={controls.sorting}
+      onPaginationChange={controls.setPagination}
+      onSortingChange={controls.setSorting}
+      searchValue={controls.q}
+      searchPlaceholder="Search users"
+      searchLabel="Search users"
+      scope={controls.scope}
+      selectedCount={value.length}
+      isLoading={users.isLoading}
+      error={users.error?.message}
+      selectedRowIds={value}
+      onSearchChange={controls.setSearch}
+      onScopeChange={controls.setScopeFilter}
+      onSelectedRowIdsChange={onChange}
+      getRowId={(user) => user.external_id}
+      emptyTitle={showSelected ? "No selected users" : "No users found"}
+      emptyDescription={
+        showSelected ? "Selected users will appear here." : "Try another search term or sync users first."
+      }
+      emptyIcon={<UsersRound className="size-5" />}
+    />
+  );
+}
+
+type SelectionScope = "all" | "selected";
+
+function useSelectorControls(defaultSorting: SortingState) {
+  const [q, setQ] = useState("");
+  const [scope, setScope] = useState<SelectionScope>("all");
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
+
+  function resetPage() {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }
+
+  const setSearch = (next: string) => {
+    setQ(next);
+    resetPage();
+  };
+  const setScopeFilter = (next: SelectionScope) => {
+    setScope(next);
+    resetPage();
+  };
+
+  return {
+    q,
+    scope,
+    pagination,
+    sorting,
+    setPagination,
+    setSorting,
+    setSearch,
+    setScopeFilter,
+  };
+}
+
+interface SelectorTableProps<TData> {
+  columns: ColumnDef<TData>[];
+  data: TData[];
+  totalCount: number;
+  pagination: PaginationState;
+  sorting: SortingState;
+  onPaginationChange: (pagination: PaginationState | ((pagination: PaginationState) => PaginationState)) => void;
+  onSortingChange: (sorting: SortingState | ((sorting: SortingState) => SortingState)) => void;
+  searchValue: string;
+  searchPlaceholder: string;
+  searchLabel: string;
+  scope: SelectionScope;
+  selectedCount: number;
+  isLoading: boolean;
+  error?: string;
+  selectedRowIds: string[];
+  onSearchChange: (value: string) => void;
+  onScopeChange: (value: SelectionScope) => void;
+  onSelectedRowIdsChange: (ids: string[]) => void;
+  getRowId: (row: TData) => string;
+  emptyTitle: string;
+  emptyDescription: string;
+  emptyIcon: ReactNode;
+}
+
+function SelectorTable<TData>({
+  columns,
+  data,
+  totalCount,
+  pagination,
+  sorting,
+  onPaginationChange,
+  onSortingChange,
+  searchValue,
+  searchPlaceholder,
+  searchLabel,
+  scope,
+  selectedCount,
+  isLoading,
+  error,
+  selectedRowIds,
+  onSearchChange,
+  onScopeChange,
+  onSelectedRowIdsChange,
+  getRowId,
+  emptyTitle,
+  emptyDescription,
+  emptyIcon,
+}: SelectorTableProps<TData>) {
+  if (error) {
+    return <p className="text-destructive text-sm">{error}</p>;
+  }
+
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      totalCount={totalCount}
+      pagination={pagination}
+      sorting={sorting}
+      onPaginationChange={onPaginationChange}
+      onSortingChange={onSortingChange}
+      isLoading={isLoading}
+      enableRowSelection
+      selectedRowIds={selectedRowIds}
+      onSelectedRowIdsChange={onSelectedRowIdsChange}
+      getRowId={getRowId}
+      perPageOptions={[10, 25, 50]}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-2">
+          <DataTableSearch
+            value={searchValue}
+            onChange={onSearchChange}
+            placeholder={searchPlaceholder}
+            label={searchLabel}
+            className="min-w-64"
+          />
+          <ToggleGroup
+            type="single"
+            value={scope}
+            onValueChange={(next) => {
+              if (next === "all" || next === "selected") onScopeChange(next);
+            }}
+            variant="outline"
+            size="sm"
+            aria-label="Selection filter"
+          >
+            <ToggleGroupItem value="all" aria-label="Show all">
+              Show all
+            </ToggleGroupItem>
+            <ToggleGroupItem value="selected" aria-label="Show selected">
+              Selected {selectedCount}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      }
+      empty={
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">{emptyIcon}</EmptyMedia>
+            <EmptyTitle>{emptyTitle}</EmptyTitle>
+            <EmptyDescription>{emptyDescription}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      }
+    />
+  );
+}
+
+function sortParam(sorting: SortingState) {
+  if (sorting.length === 0) return undefined;
+  const first = sorting[0];
+  return `${first.id}.${first.desc ? "desc" : "asc"}`;
+}
+
+function derivedSelectorLabel(attribute: DerivedAttribute) {
+  switch (attribute) {
+    case "directory_group":
+      return "Groups";
+    case "directory_user":
+      return "Users";
+    default:
+      return "Departments";
+  }
 }
 
 function fieldErrors(result: LabelFormParse): Record<string, string> {
@@ -265,5 +800,16 @@ function membershipFromString(value: string | undefined): MembershipType {
       return value;
     default:
       return "dynamic";
+  }
+}
+
+function derivedAttributeFromString(value: string | undefined): DerivedAttribute {
+  switch (value) {
+    case "directory_group":
+    case "directory_user":
+    case "directory_department":
+      return value;
+    default:
+      return "directory_department";
   }
 }
