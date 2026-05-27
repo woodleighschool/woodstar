@@ -1,0 +1,173 @@
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ListChecks, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/use-santa";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+
+import { RULE_TYPES, ruleTypeLabel } from "./shared";
+
+export function SantaRulesPage() {
+  const search = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const { state, setters } = useTablePaginationParams();
+  const [draft, setDraft] = useDebouncedSearchParam("q");
+  const looseSearch = search as Record<string, unknown>;
+  const ruleType = typeof looseSearch.rule_type === "string" ? looseSearch.rule_type : undefined;
+  const query = useSantaRules({
+    q: typeof search.q === "string" ? search.q : undefined,
+    rule_type: ruleType,
+    ...tableQueryParams(state),
+  });
+  const bulkDelete = useBulkDeleteSantaRules();
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const rows = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = !!search.q || !!ruleType;
+  const selectedIDs = selectedRuleIds.map(Number);
+
+  function deleteSelectedRules() {
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => {
+        setSelectedRuleIds([]);
+        setDeleteOpen(false);
+      },
+    });
+  }
+
+  const columns: ColumnDef<SantaRule>[] = [
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => (
+        <div className="grid gap-1">
+          <span className="font-medium">{row.original.name || row.original.identifier}</span>
+          <span className="text-muted-foreground truncate font-mono text-xs">{row.original.identifier}</span>
+        </div>
+      ),
+    },
+    {
+      id: "rule_type",
+      accessorKey: "rule_type",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
+      cell: ({ row }) => <Badge variant="secondary">{ruleTypeLabel(row.original.rule_type)}</Badge>,
+    },
+    {
+      id: "includes",
+      header: "Targets",
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.includes?.length ? (
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {row.original.includes.length} include{row.original.includes.length === 1 ? "" : "s"}
+          </span>
+        ) : (
+          <Badge variant="outline">inactive</Badge>
+        ),
+    },
+  ];
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="Santa rules"
+        description="Manage execution rules and ordered include targets."
+        actions={
+          <Button asChild size="sm">
+            <Link to="/santa/rules/new">
+              <Plus data-icon="inline-start" />
+              Create
+            </Link>
+          </Button>
+        }
+      />
+
+      {query.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load rules</AlertTitle>
+          <AlertDescription>{query.error.message}</AlertDescription>
+        </Alert>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rows}
+          totalCount={totalCount}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
+          isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedRuleIds}
+          onSelectedRowIdsChange={setSelectedRuleIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
+          }
+          rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
+          toolbar={
+            <div className="flex flex-wrap items-center gap-2">
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search rules" />
+              <DataTableFacetedFilter
+                title="Rule type"
+                selected={ruleType ? [ruleType] : []}
+                options={[...RULE_TYPES]}
+                singleSelect
+                onChange={(next) =>
+                  void navigate({
+                    search: ((prev: Record<string, unknown>) => ({
+                      ...prev,
+                      rule_type: next[0],
+                      page_index: undefined,
+                    })) as never,
+                    replace: true,
+                  })
+                }
+              />
+            </div>
+          }
+          empty={
+            <DataTableEmptyState
+              icon={<ListChecks />}
+              title={hasFilters ? "No matches" : "No execution rules"}
+              description={
+                hasFilters
+                  ? "No Santa rules matched the current filters."
+                  : "Create a Santa rule, then attach it to one or more label targets."
+              }
+            />
+          }
+        />
+      )}
+
+      <BulkDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
+        }}
+        count={selectedIDs.length}
+        noun="rule"
+        description="Deleted rules stop syncing to Santa clients."
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedRules}
+      />
+    </PageShell>
+  );
+}

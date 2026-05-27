@@ -1,45 +1,27 @@
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
-import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelPicker } from "@/components/santa/label-picker";
 import { SortableList, type SortableItem } from "@/components/santa/sortable-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
-  useBulkDeleteSantaRules,
   useCreateSantaRule,
   useSantaRule,
-  useSantaRules,
   useUpdateSantaRule,
   type SantaRule,
   type SantaRuleMutation,
 } from "@/hooks/use-santa";
-import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
-const RULE_TYPES = [
-  { value: "binary", label: "Binary" },
-  { value: "certificate", label: "Certificate" },
-  { value: "teamid", label: "Team ID" },
-  { value: "signingid", label: "Signing ID" },
-  { value: "cdhash", label: "CDHash" },
-] as const satisfies readonly { value: SantaRuleMutation["rule_type"]; label: string }[];
+import { RULE_IDENTIFIER_RULES, RULE_TYPES, type RuleType } from "./shared";
 
 const POLICIES = [
   { value: "allowlist", label: "Allowlist" },
@@ -49,31 +31,7 @@ const POLICIES = [
   { value: "cel", label: "CEL" },
 ] as const;
 
-type RuleType = (typeof RULE_TYPES)[number]["value"];
 type RulePolicy = (typeof POLICIES)[number]["value"];
-
-const RULE_IDENTIFIER_RULES: Record<RuleType, { pattern: RegExp; hint: string }> = {
-  binary: {
-    pattern: /^[0-9a-fA-F]{64}$/,
-    hint: "Use a 64 character SHA-256 hex hash.",
-  },
-  certificate: {
-    pattern: /^[0-9a-fA-F]{64}$/,
-    hint: "Use a 64 character certificate SHA-256 hex fingerprint.",
-  },
-  cdhash: {
-    pattern: /^[0-9a-fA-F]{40}$/,
-    hint: "Use a 40 character CDHash hex value.",
-  },
-  signingid: {
-    pattern: /^(?:[A-Z0-9]{10}|platform):[a-zA-Z0-9.-]+$/,
-    hint: "Use TEAMID:bundle.identifier or platform:bundle.identifier.",
-  },
-  teamid: {
-    pattern: /^[A-Z0-9]{10}$/,
-    hint: "Use a 10 character uppercase Team ID.",
-  },
-};
 
 const ruleFormSchema = z
   .object({
@@ -133,159 +91,6 @@ const emptyRuleForm: RuleFormState = {
   exclude_label_ids: [],
   includes: [],
 };
-
-export function SantaRulesPage() {
-  const search = useSearch({ strict: false });
-  const navigate = useNavigate();
-  const { state, setters } = useTablePaginationParams();
-  const [draft, setDraft] = useDebouncedSearchParam("q");
-  const looseSearch = search as Record<string, unknown>;
-  const ruleType = typeof looseSearch.rule_type === "string" ? looseSearch.rule_type : undefined;
-  const query = useSantaRules({
-    q: typeof search.q === "string" ? search.q : undefined,
-    rule_type: ruleType,
-    ...tableQueryParams(state),
-  });
-  const bulkDelete = useBulkDeleteSantaRules();
-  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const rows = query.data?.items ?? [];
-  const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!ruleType;
-  const selectedIDs = selectedRuleIds.map(Number);
-
-  function deleteSelectedRules() {
-    bulkDelete.mutate(selectedIDs, {
-      onSuccess: () => {
-        setSelectedRuleIds([]);
-        setDeleteOpen(false);
-      },
-    });
-  }
-
-  const columns: ColumnDef<SantaRule>[] = [
-    {
-      id: "name",
-      accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="grid gap-1">
-          <span className="font-medium">{row.original.name || row.original.identifier}</span>
-          <span className="text-muted-foreground truncate font-mono text-xs">{row.original.identifier}</span>
-        </div>
-      ),
-    },
-    {
-      id: "rule_type",
-      accessorKey: "rule_type",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
-      cell: ({ row }) => <Badge variant="secondary">{ruleTypeLabel(row.original.rule_type)}</Badge>,
-    },
-    {
-      id: "includes",
-      header: "Targets",
-      enableSorting: false,
-      cell: ({ row }) =>
-        row.original.includes?.length ? (
-          <span className="text-muted-foreground text-sm tabular-nums">
-            {row.original.includes.length} include{row.original.includes.length === 1 ? "" : "s"}
-          </span>
-        ) : (
-          <Badge variant="outline">inactive</Badge>
-        ),
-    },
-  ];
-
-  return (
-    <PageShell>
-      <PageHeader
-        title="Santa rules"
-        description="Manage execution rules and ordered include targets."
-        actions={
-          <Button asChild size="sm">
-            <Link to="/santa/rules/new">
-              <Plus data-icon="inline-start" />
-              Create
-            </Link>
-          </Button>
-        }
-      />
-
-      {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to load rules</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={rows}
-          totalCount={totalCount}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          enableRowSelection
-          selectedRowIds={selectedRuleIds}
-          onSelectedRowIdsChange={setSelectedRuleIds}
-          bulkActions={
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
-              <Trash2 data-icon="inline-start" />
-              Delete
-            </Button>
-          }
-          rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
-          toolbar={
-            <div className="flex flex-wrap items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search rules" />
-              <DataTableFacetedFilter
-                title="Rule type"
-                selected={ruleType ? [ruleType] : []}
-                options={[...RULE_TYPES]}
-                singleSelect
-                onChange={(next) =>
-                  void navigate({
-                    search: ((prev: Record<string, unknown>) => ({
-                      ...prev,
-                      rule_type: next[0],
-                      page_index: undefined,
-                    })) as never,
-                    replace: true,
-                  })
-                }
-              />
-            </div>
-          }
-          empty={
-            <DataTableEmptyState
-              icon={<ListChecks />}
-              title={hasFilters ? "No matches" : "No execution rules"}
-              description={
-                hasFilters
-                  ? "No Santa rules matched the current filters."
-                  : "Create a Santa rule, then attach it to one or more label targets."
-              }
-            />
-          }
-        />
-      )}
-
-      <BulkDeleteDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          if (!open) bulkDelete.reset();
-          setDeleteOpen(open);
-        }}
-        count={selectedIDs.length}
-        noun="rule"
-        description="Deleted rules stop syncing to Santa clients."
-        pending={bulkDelete.isPending}
-        onConfirm={deleteSelectedRules}
-      />
-    </PageShell>
-  );
-}
 
 export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -628,10 +433,6 @@ function includeErrorMap(
 function optionalText(value: string) {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
-}
-
-function ruleTypeLabel(ruleType: string) {
-  return RULE_TYPES.find((type) => type.value === ruleType)?.label ?? ruleType;
 }
 
 function ruleIdentifierHint(ruleType: RuleType) {
