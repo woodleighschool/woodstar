@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // ParseHostDetails maps osquery detail rows to host fields.
@@ -38,9 +37,6 @@ func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 		update.OSName = row["name"]
 		update.OSVersion = osVersion(row)
 		update.OSBuild = row["build"]
-		update.OsqueryPlatform = row["platform"]
-		update.OsqueryPlatformLike = row["platform_like"]
-		update.Platform = scope.PlatformFromOsquery(update.OsqueryPlatform, update.OsqueryPlatformLike)
 	}
 	if row := details["platform_info"]; row != nil {
 		update.KernelVersion = row["extra"]

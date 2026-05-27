@@ -10,7 +10,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists saved reports and their per-host result snapshots.
@@ -95,7 +94,6 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			Name:              params.Name,
 			Description:       params.Description,
 			Query:             params.Query,
-			Platforms:         sqlcPlatforms(params.Platforms),
 			MinOsqueryVersion: params.MinOsqueryVersion,
 			ScheduleInterval:  int32(params.ScheduleInterval),
 			CreatedByUserID:   params.CreatedByUserID,
@@ -124,7 +122,6 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			Name:              params.Name,
 			Description:       params.Description,
 			Query:             params.Query,
-			Platforms:         sqlcPlatforms(params.Platforms),
 			MinOsqueryVersion: params.MinOsqueryVersion,
 			ScheduleInterval:  int32(params.ScheduleInterval),
 			ID:                id,
@@ -186,20 +183,17 @@ func (s *Store) ScheduledForHost(ctx context.Context, host *hosts.Host) ([]Repor
 
 func scanReport(row pgx.Row) (*Report, error) {
 	var report Report
-	var platforms []sqlc.Platform
 	err := row.Scan(
 		&report.ID,
 		&report.Name,
 		&report.Description,
 		&report.Query,
-		&platforms,
 		&report.MinOsqueryVersion,
 		&report.ScheduleInterval,
 		&report.CreatedByUserID,
 		&report.CreatedAt,
 		&report.UpdatedAt,
 	)
-	report.Platforms = scopePlatforms(platforms)
 	return &report, err
 }
 
@@ -209,7 +203,6 @@ func reportFromSQLC(row sqlc.Report) *Report {
 		Name:              row.Name,
 		Description:       row.Description,
 		Query:             row.Query,
-		Platforms:         scopePlatforms(row.Platforms),
 		MinOsqueryVersion: row.MinOsqueryVersion,
 		ScheduleInterval:  int(row.ScheduleInterval),
 		CreatedByUserID:   row.CreatedByUserID,
@@ -218,37 +211,11 @@ func reportFromSQLC(row sqlc.Report) *Report {
 	}
 }
 
-func sqlcPlatform(platform scope.Platform) sqlc.Platform {
-	if platform == "" {
-		platform = scope.PlatformUnknown
-	}
-	return sqlc.Platform(platform)
-}
-
-func sqlcPlatforms(platforms []scope.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = sqlcPlatform(platform)
-	}
-	return out
-}
-
-func scopePlatforms(platforms []sqlc.Platform) []scope.Platform {
-	out := make([]scope.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = scope.Platform(platform)
-	}
-	return out
-}
-
 func reportListWhere(params ReportListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
-	}
-	if params.Platform != "" {
-		where.Add(where.Arg(params.Platform) + " = ANY(platforms::text[])")
 	}
 	return where.Build()
 }
@@ -270,6 +237,6 @@ func reportListSQL(where string, args []any, params ReportListParams) (string, [
 }
 
 const reportSelectSQL = `
-SELECT id, name, description, query, platforms, min_osquery_version, schedule_interval,
+SELECT id, name, description, query, min_osquery_version, schedule_interval,
        created_by_user_id, created_at, updated_at
 FROM reports`

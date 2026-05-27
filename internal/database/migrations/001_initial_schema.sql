@@ -2,7 +2,6 @@
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
-CREATE TYPE platform AS ENUM ('unknown', 'darwin', 'windows', 'linux');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 
 -- Users, sessions, Enrollment ------------------------------------------
@@ -105,9 +104,6 @@ CREATE TABLE hosts (
     os_name TEXT NOT NULL DEFAULT '',
     os_version TEXT NOT NULL DEFAULT '',
     os_build TEXT NOT NULL DEFAULT '',
-    platform platform NOT NULL DEFAULT 'unknown',
-    osquery_platform TEXT NOT NULL DEFAULT '',
-    osquery_platform_like TEXT NOT NULL DEFAULT '',
     osquery_version TEXT NOT NULL DEFAULT '',
     orbit_version TEXT NOT NULL DEFAULT '',
     -- Empty string means "no key issued yet"; a partial unique index enforces
@@ -145,8 +141,6 @@ CREATE UNIQUE INDEX hosts_orbit_node_key_idx
 CREATE UNIQUE INDEX hosts_osquery_node_key_idx
     ON hosts (osquery_node_key)
     WHERE osquery_node_key <> '';
-CREATE INDEX hosts_platform_idx
-    ON hosts (platform);
 CREATE INDEX hosts_active_seen_idx
     ON hosts (last_seen_at DESC NULLS LAST);
 CREATE INDEX hosts_detail_stale_idx
@@ -334,12 +328,6 @@ CREATE TABLE labels (
     criteria JSONB,
     label_type TEXT NOT NULL CHECK (label_type IN ('builtin', 'regular')),
     label_membership_type TEXT NOT NULL CHECK (label_membership_type IN ('dynamic', 'manual', 'derived')),
-    platforms platform[] NOT NULL
-        DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (
-            cardinality(platforms) > 0
-            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
-        ),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
@@ -351,7 +339,6 @@ CREATE TABLE labels (
 
 CREATE INDEX labels_label_type_idx ON labels (label_type);
 CREATE INDEX labels_label_membership_type_idx ON labels (label_membership_type);
-CREATE INDEX labels_platforms_idx ON labels USING GIN (platforms);
 
 CREATE TABLE label_membership (
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
@@ -363,12 +350,9 @@ CREATE TABLE label_membership (
 
 CREATE INDEX label_membership_host_idx ON label_membership (host_id);
 
-INSERT INTO labels (name, description, query, label_type, label_membership_type, platforms)
+INSERT INTO labels (name, description, query, label_type, label_membership_type)
 VALUES
-    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual', ARRAY['darwin','windows','linux']::platform[]),
-    ('macOS', 'All macOS hosts', 'select 1 from os_version where platform = ''darwin'';', 'builtin', 'dynamic', ARRAY['darwin']::platform[]),
-    ('Windows', 'All Windows hosts', 'select 1 from os_version where platform = ''windows'';', 'builtin', 'dynamic', ARRAY['windows']::platform[]),
-    ('Linux', 'All Linux hosts', 'select 1 from os_version where platform in (''linux'', ''ubuntu'', ''debian'', ''rhel'', ''centos'', ''sles'', ''kali'', ''gentoo'', ''amzn'', ''pop'', ''arch'', ''linuxmint'', ''void'', ''nixos'', ''endeavouros'', ''manjaro'', ''manjaro-arm'', ''opensuse-leap'', ''opensuse-tumbleweed'', ''tuxedo'', ''neon'', ''archarm'', ''flatcar'', ''coreos'');', 'builtin', 'dynamic', ARRAY['linux']::platform[]);
+    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual');
 
 -- Reports / Checks -----------------------------------------------------------
 
@@ -377,12 +361,6 @@ CREATE TABLE reports (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platforms platform[] NOT NULL
-        DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (
-            cardinality(platforms) > 0
-            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
-        ),
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
@@ -395,7 +373,6 @@ CREATE TABLE reports (
 CREATE INDEX reports_schedule_idx
     ON reports (schedule_interval)
     WHERE schedule_interval > 0;
-CREATE INDEX reports_platforms_idx ON reports USING GIN (platforms);
 
 CREATE TABLE report_results (
     id BIGSERIAL PRIMARY KEY,
@@ -416,12 +393,6 @@ CREATE TABLE checks (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    platforms platform[] NOT NULL
-        DEFAULT ARRAY['darwin','windows','linux']::platform[]
-        CHECK (
-            cardinality(platforms) > 0
-            AND platforms <@ ARRAY['darwin','windows','linux']::platform[]
-        ),
     label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -439,7 +410,6 @@ CREATE TABLE check_membership (
 
 CREATE INDEX check_membership_passes_idx
     ON check_membership (check_id, passes);
-CREATE INDEX checks_platforms_idx ON checks USING GIN (platforms);
 
 CREATE TABLE report_labels (
     report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
@@ -482,7 +452,6 @@ DROP TABLE directory_users;
 DROP TABLE agent_secrets;
 DROP TABLE sessions;
 DROP TABLE users;
-DROP TYPE platform;
 DROP TYPE label_scope_mode;
 DROP TYPE agent;
 DROP TYPE user_role;

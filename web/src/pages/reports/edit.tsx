@@ -7,7 +7,6 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
-import { PlatformSelector } from "@/components/queries/platform-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateReport, useReport, useUpdateReport, type ReportMutation } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -38,7 +36,6 @@ const emptyReport: ReportMutation = {
   name: "",
   description: "",
   query: "select * from os_version;",
-  platforms: [...DEFAULT_TARGET_PLATFORMS],
   schedule_interval: 0,
   label_scope: {},
 };
@@ -74,7 +71,6 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          platforms: [...detail.data.platforms],
           min_osquery_version: detail.data.min_osquery_version,
           schedule_interval: detail.data.schedule_interval,
           label_scope: detail.data.label_scope ?? {},
@@ -173,8 +169,6 @@ function ReportEditForm({
             </Select>
             <FieldDescription>How often the report collects data.</FieldDescription>
           </Field>
-
-          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
         </FieldGroup>
 
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />

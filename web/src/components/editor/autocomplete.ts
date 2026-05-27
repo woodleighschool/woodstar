@@ -67,7 +67,7 @@ function tableOptions(tables: OsqueryTable[]) {
   return tables.map((table) => ({
     label: table.name,
     type: "type",
-    info: table.description ?? table.platforms?.join(", "),
+    info: table.description,
   }));
 }
 

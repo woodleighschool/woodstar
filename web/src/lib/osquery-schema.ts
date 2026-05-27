@@ -11,7 +11,6 @@ export interface OsquerySchemaColumn {
 export interface OsquerySchemaTable {
   name: string;
   description?: string;
-  platforms?: string[];
   hidden?: boolean;
   columns: OsquerySchemaColumn[];
 }

@@ -3,7 +3,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { QueryablePlatform } from "@/lib/targeting";
 import { nonEmpty } from "@/lib/utils";
 
 export type Check = Schemas["Check"];
@@ -14,7 +13,6 @@ export type CheckHostStatus = Schemas["CheckHostStatus"];
 
 export interface CheckListParams {
   q?: string;
-  platform?: QueryablePlatform;
   page_index?: number;
   page_size?: number;
   sort?: string;
@@ -23,7 +21,6 @@ export interface CheckListParams {
 export function useChecks(params: CheckListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    platform: params.platform,
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),

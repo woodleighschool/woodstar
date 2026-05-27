@@ -10,7 +10,6 @@ const searchSchema = z.object({
   page_size: z.coerce.number().int().min(10).max(MAX_PAGE_SIZE).optional(),
   sort: z.string().optional(),
   status: z.string().optional(),
-  platform: z.string().optional(),
   label_id: z.string().optional(),
   software_title_id: z.string().optional(),
   software_id: z.string().optional(),

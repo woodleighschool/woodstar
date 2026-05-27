@@ -4,7 +4,6 @@ SELECT
     name,
     description,
     query,
-    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -17,14 +16,12 @@ INSERT INTO checks (
     name,
     description,
     query,
-    platforms,
     created_by_user_id
 )
 VALUES (
     @name,
     @description,
     @query,
-    @platforms,
     sqlc.narg(created_by_user_id)
 )
 RETURNING
@@ -32,7 +29,6 @@ RETURNING
     name,
     description,
     query,
-    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -44,7 +40,6 @@ SET
     name = @name,
     description = @description,
     query = @query,
-    platforms = @platforms,
     updated_at = now()
 WHERE id = @id
 RETURNING
@@ -52,7 +47,6 @@ RETURNING
     name,
     description,
     query,
-    platforms,
     label_scope_mode,
     created_by_user_id,
     created_at,
@@ -70,9 +64,7 @@ RETURNING id;
 
 -- name: ListApplicableChecksForHost :many
 WITH host_row AS (
-    SELECT
-        id,
-        platform
+    SELECT id
     FROM hosts h
     WHERE h.id = @host_id
 )
@@ -81,15 +73,13 @@ SELECT
     c.name,
     c.description,
     c.query,
-    c.platforms,
     c.label_scope_mode,
     c.created_by_user_id,
     c.created_at,
     c.updated_at
 FROM checks c
 JOIN host_row h ON true
-WHERE h.platform = ANY(c.platforms)
-  AND (
+WHERE (
       c.label_scope_mode = 'none'
       OR (
           c.label_scope_mode = 'include_any'
@@ -151,8 +141,7 @@ WITH check_row AS (
 host_rows AS (
     SELECT
         id,
-        display_name,
-        platform
+        display_name
     FROM hosts
 )
 SELECT
@@ -165,8 +154,7 @@ SELECT
 FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE h.platform = ANY(c.platforms)
-  AND (
+WHERE (
       c.label_scope_mode = 'none'
       OR (
           c.label_scope_mode = 'include_any'
@@ -213,8 +201,7 @@ ORDER BY
 WITH host_row AS (
     SELECT
         id,
-        display_name,
-        platform
+        display_name
     FROM hosts h
     WHERE h.id = @host_id
 )
@@ -228,8 +215,7 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE h.platform = ANY(c.platforms)
-  AND (
+WHERE (
       c.label_scope_mode = 'none'
       OR (
           c.label_scope_mode = 'include_any'

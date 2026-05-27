@@ -23,7 +23,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
-	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
@@ -88,7 +87,6 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:              "Versioned report " + suffix,
 		Query:             "select 42;",
-		Platforms:         allPlatforms(),
 		MinOsqueryVersion: &minVersion,
 		ScheduleInterval:  60,
 	})
@@ -110,8 +108,8 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	for _, entry := range body.Schedule {
 		if entry.Query == "select 42;" {
-			if entry.Version != "6.0.0" || entry.Platform != "darwin,windows,linux" {
-				t.Fatalf("schedule entry = %+v, want version and platform carried through", entry)
+			if entry.Version != "6.0.0" {
+				t.Fatalf("schedule entry = %+v, want version carried through", entry)
 			}
 			return
 		}
@@ -133,7 +131,6 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 	report, err := stores.reports.Create(ctx, reports.ReportCreate{
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 	})
 	if err != nil {
@@ -248,11 +245,9 @@ func enrollOsqueryContractHost(t *testing.T, router http.Handler, secret string,
 			},
 			"osquery_info": {"version": "5.22.1"},
 			"os_version": {
-				"name":          "macOS",
-				"version":       "26.5",
-				"build":         "25F5068a",
-				"platform":      "darwin",
-				"platform_like": "darwin",
+				"name":    "macOS",
+				"version": "26.5",
+				"build":   "25F5068a",
 			},
 			"platform_info": {"extra": "Darwin Kernel Version 25.5.0"},
 		},
@@ -304,11 +299,9 @@ func writeOsqueryContractDetails(
 	const prefix = "woodstar_detail_query_"
 	queryRows := map[string][]map[string]string{
 		prefix + "os_version": {{
-			"name":          "macOS",
-			"version":       "26.5",
-			"build":         "25F5068a",
-			"platform":      "darwin",
-			"platform_like": "darwin",
+			"name":    "macOS",
+			"version": "26.5",
+			"build":   "25F5068a",
 		}},
 		prefix + "system_info": {{
 			"hostname":           "osquery-mac",
@@ -359,7 +352,7 @@ func writeOsqueryContractDetails(
 			"sha1":              "certificate-sha1",
 			"common_name":       "Example Root CA",
 			"subject":           "/C=AU/O=Example Org/OU=Security/CN=Example Root CA",
-			"issuer":            "/C=AU/O=Example Issuer/OU=Platform/CN=Example Issuer CA",
+			"issuer":            "/C=AU/O=Example Issuer/OU=Operations/CN=Example Issuer CA",
 			"ca":                "1",
 			"not_valid_after":   "1777435200",
 			"not_valid_before":  "1745899200",
@@ -514,8 +507,4 @@ func doOsqueryJSON(
 			t.Fatalf("decode %s %s response: %v; body: %s", method, path, err, rec.Body.String())
 		}
 	}
-}
-
-func allPlatforms() []scope.Platform {
-	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }

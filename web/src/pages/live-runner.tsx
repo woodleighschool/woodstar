@@ -8,7 +8,6 @@ import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { PlatformToggleGroup } from "@/components/queries/platform-selector";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import {
   AlertDialog,
@@ -37,7 +36,6 @@ import {
   type LiveQueryTargetCountBody,
 } from "@/hooks/use-live-queries";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import type { QueryablePlatform } from "@/lib/targeting";
 
 type LiveRunKind = "report" | "check";
 type LiveRunStep = "targets" | "run";
@@ -470,17 +468,6 @@ function TargetPicker({
     setHostSearch("");
   }
 
-  function changePlatforms(next: QueryablePlatform[]) {
-    const platformLabels = grouped.platforms.filter((label) => {
-      const platform = platformForLabel(label);
-      return platform ? next.includes(platform) : false;
-    });
-    const nonPlatformLabels = selectedLabels.filter(
-      (label) => !isPrimaryPlatformLabel(label) && !(label.label_type === "builtin" && label.name === "All Hosts"),
-    );
-    onLabelsChange([...nonPlatformLabels, ...platformLabels]);
-  }
-
   return (
     <div className="grid content-start gap-5 rounded-md border p-4">
       <div>
@@ -489,10 +476,6 @@ function TargetPicker({
       </div>
 
       <TargetSection title="" labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
-      <div className="grid gap-2">
-        <h3 className="text-sm font-medium">Platforms</h3>
-        <PlatformToggleGroup selected={selectedPlatforms(selectedLabels)} onChange={changePlatforms} />
-      </div>
       <TargetSection title="Labels" labels={grouped.other} selected={selectedLabels} onToggle={toggleLabel} />
 
       <div className="grid gap-2">
@@ -519,7 +502,6 @@ function TargetPicker({
                   onClick={() => addHost(host)}
                 >
                   <span>{host.display_name || host.hostname || String(host.id)}</span>
-                  <span className="text-muted-foreground text-xs">{host.platform}</span>
                 </button>
               ))
             ) : (
@@ -728,39 +710,12 @@ function RunEmptyState({ title, description }: { title: string; description: str
 function groupLabels(labels: Label[]) {
   return {
     allHosts: labels.filter((label) => label.label_type === "builtin" && label.name === "All Hosts"),
-    platforms: labels.filter(isPrimaryPlatformLabel),
-    other: labels.filter((label) => label.name !== "All Hosts" && !isPrimaryPlatformLabel(label)),
+    other: labels.filter((label) => label.name !== "All Hosts"),
   };
 }
 
 function displayLabel(label: Label) {
   return label.name;
-}
-
-function isPrimaryPlatformLabel(label: Label) {
-  return (
-    label.label_type === "builtin" && (label.name === "macOS" || label.name === "Windows" || label.name === "Linux")
-  );
-}
-
-function platformForLabel(label: Label): QueryablePlatform | undefined {
-  switch (label.name) {
-    case "macOS":
-      return "darwin";
-    case "Windows":
-      return "windows";
-    case "Linux":
-      return "linux";
-    default:
-      return undefined;
-  }
-}
-
-function selectedPlatforms(labels: Label[]) {
-  return labels.flatMap((label) => {
-    const platform = platformForLabel(label);
-    return platform ? [platform] : [];
-  });
 }
 
 function reportResultRows(rows: LiveQueryRow[]) {

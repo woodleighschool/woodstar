@@ -2,10 +2,8 @@ package osquery
 
 import (
 	"context"
-	"strings"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // ScheduleEntry is one osquery scheduled query config item.
@@ -14,7 +12,6 @@ type ScheduleEntry struct {
 	Interval int    `json:"interval"`
 	Snapshot bool   `json:"snapshot"`
 	Removed  bool   `json:"removed"`
-	Platform string `json:"platform,omitempty"`
 	Version  string `json:"version,omitempty"`
 }
 
@@ -37,7 +34,6 @@ func buildScheduleForHost(
 			Query:    item.Query,
 			Interval: item.ScheduleInterval,
 			Snapshot: true,
-			Platform: strings.Join(platformsToStrings(item.Platforms), ","),
 		}
 		if item.MinOsqueryVersion != nil {
 			entry.Version = *item.MinOsqueryVersion
@@ -45,12 +41,4 @@ func buildScheduleForHost(
 		schedule[queryNameID(kindReport, item.ID)] = entry
 	}
 	return schedule, nil
-}
-
-func platformsToStrings(targets []scope.Platform) []string {
-	out := make([]string, len(targets))
-	for i, platform := range targets {
-		out[i] = string(platform)
-	}
-	return out
 }

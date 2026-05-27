@@ -11,7 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists checks and per-host membership state.
@@ -89,7 +88,6 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			Name:            params.Name,
 			Description:     params.Description,
 			Query:           params.Query,
-			Platforms:       sqlcPlatforms(params.Platforms),
 			CreatedByUserID: params.CreatedByUserID,
 		})
 		if err != nil {
@@ -116,7 +114,6 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			Name:        params.Name,
 			Description: params.Description,
 			Query:       params.Query,
-			Platforms:   sqlcPlatforms(params.Platforms),
 			ID:          id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -201,18 +198,15 @@ func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostSt
 
 func scanCheck(row pgx.Row) (*Check, error) {
 	var check Check
-	var platforms []sqlc.Platform
 	err := row.Scan(
 		&check.ID,
 		&check.Name,
 		&check.Description,
 		&check.Query,
-		&platforms,
 		&check.CreatedByUserID,
 		&check.CreatedAt,
 		&check.UpdatedAt,
 	)
-	check.Platforms = scopePlatforms(platforms)
 	return &check, err
 }
 
@@ -222,34 +216,10 @@ func checkFromSQLC(row sqlc.Check) *Check {
 		Name:            row.Name,
 		Description:     row.Description,
 		Query:           row.Query,
-		Platforms:       scopePlatforms(row.Platforms),
 		CreatedByUserID: row.CreatedByUserID,
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 	}
-}
-
-func sqlcPlatform(platform scope.Platform) sqlc.Platform {
-	if platform == "" {
-		platform = scope.PlatformUnknown
-	}
-	return sqlc.Platform(platform)
-}
-
-func sqlcPlatforms(platforms []scope.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = sqlcPlatform(platform)
-	}
-	return out
-}
-
-func scopePlatforms(platforms []sqlc.Platform) []scope.Platform {
-	out := make([]scope.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = scope.Platform(platform)
-	}
-	return out
 }
 
 func checkHostStatusesFromCheckRows(rows []sqlc.ListCheckHostStatusesRow) []CheckHostStatus {
@@ -299,9 +269,6 @@ func checkListWhere(params CheckListParams) (string, []any) {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
 	}
-	if params.Platform != "" {
-		where.Add(where.Arg(params.Platform) + " = ANY(platforms::text[])")
-	}
 	return where.Build()
 }
 
@@ -321,6 +288,6 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 }
 
 const checkSelectSQL = `
-SELECT id, name, description, query, platforms,
+SELECT id, name, description, query,
        created_by_user_id, created_at, updated_at
 FROM checks`

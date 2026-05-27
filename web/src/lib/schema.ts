@@ -5,7 +5,6 @@ export interface OsqueryColumn {
   required?: boolean;
   hidden?: boolean;
   index?: boolean;
-  platforms?: string[];
 }
 
 export interface OsqueryExample {
@@ -17,7 +16,6 @@ export interface OsqueryTable {
   name: string;
   description?: string;
   url?: string;
-  platforms?: string[];
   evented?: boolean;
   cacheable?: boolean;
   notes?: string;

@@ -99,8 +99,6 @@ func (p *Projector) IngestSoftware(
 func softwareRows(queryRows map[string][]map[string]string) []map[string]string {
 	keys := []string{
 		catalog.QuerySoftwareMacOS,
-		catalog.QuerySoftwareLinux,
-		catalog.QuerySoftwareWindows,
 		catalog.QuerySoftwareVSCodeExtensions,
 		catalog.QuerySoftwareJetBrainsPlugins,
 		catalog.QuerySoftwareGoBinaries,
@@ -136,7 +134,7 @@ func canonicalHostDetailName(name string) string {
 	switch name {
 	case catalog.QueryRootDiskDarwin:
 		return "root_disk"
-	case catalog.QueryPrimaryInterfaceUnix, catalog.QueryPrimaryInterfaceWindows:
+	case catalog.QueryPrimaryInterfaceUnix:
 		return "primary_interface"
 	default:
 		return name
@@ -256,9 +254,6 @@ func parseHostCertificates(queryName string, rows []map[string]string) []hosts.H
 func parseCertificateName(queryName string, value string) hosts.CertificateName {
 	if value == "" {
 		return hosts.CertificateName{}
-	}
-	if queryName == catalog.QueryCertificatesWindows {
-		return hosts.CertificateName{CommonName: value}
 	}
 	return parseDarwinCertificateName(value)
 }

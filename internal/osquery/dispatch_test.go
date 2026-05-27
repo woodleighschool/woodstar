@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestQueryNameRoundTrips(t *testing.T) {
@@ -56,15 +55,15 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 		"optional": {Optional: true},
 	}
 	pass := &detailDispatchPass{registry: registry, results: map[string]detailResult{}}
-	if sawEveryRequiredDetailQuery(pass, scope.PlatformDarwin) {
+	if sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("missing required query was treated as complete")
 	}
 	pass.results["required"] = detailResult{rows: []map[string]string{}, status: json.RawMessage(`1`)}
-	if sawEveryRequiredDetailQuery(pass, scope.PlatformDarwin) {
+	if sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("failed required query was treated as complete")
 	}
 	pass.results["required"] = detailResult{rows: []map[string]string{}}
-	if !sawEveryRequiredDetailQuery(pass, scope.PlatformDarwin) {
+	if !sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("empty successful required query was not treated as complete")
 	}
 }

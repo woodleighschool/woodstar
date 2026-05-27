@@ -10,7 +10,6 @@ const searchSchema = z.object({
   page_size: z.coerce.number().int().min(10).max(MAX_PAGE_SIZE).optional(),
   sort: z.string().optional(),
   label_membership_type: z.string().optional(),
-  platform: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/labels/")({

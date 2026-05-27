@@ -166,15 +166,6 @@ components:
           $ref: "#/components/schemas/LabelScope"
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
         updated_at:
@@ -185,7 +176,6 @@ components:
         - name
         - description
         - query
-        - platforms
         - created_at
         - updated_at
       type: object
@@ -205,21 +195,11 @@ components:
           $ref: "#/components/schemas/LabelScope"
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
       required:
         - name
         - query
-        - platforms
         - label_scope
       type: object
     CheckHostStatus:
@@ -268,21 +248,11 @@ components:
           $ref: "#/components/schemas/LabelScope"
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
       required:
         - name
         - query
-        - platforms
         - label_scope
       type: object
     Configuration:
@@ -725,22 +695,11 @@ components:
           type: string
         os_version:
           type: string
-        osquery_platform:
-          type: string
-        osquery_platform_like:
-          type: string
         osquery_version:
           type: string
         physical_memory:
           format: int64
           type: integer
-        platform:
-          enum:
-            - unknown
-            - darwin
-            - windows
-            - linux
-          type: string
         primary_ip:
           format: ip
           type: string
@@ -768,9 +727,6 @@ components:
         - os_name
         - os_version
         - os_build
-        - platform
-        - osquery_platform
-        - osquery_platform_like
         - osquery_version
         - orbit_version
         - cpu_type
@@ -972,22 +928,11 @@ components:
           type: string
         os_version:
           type: string
-        osquery_platform:
-          type: string
-        osquery_platform_like:
-          type: string
         osquery_version:
           type: string
         physical_memory:
           format: int64
           type: integer
-        platform:
-          enum:
-            - unknown
-            - darwin
-            - windows
-            - linux
-          type: string
         primary_ip:
           format: ip
           type: string
@@ -1027,9 +972,6 @@ components:
         - os_name
         - os_version
         - os_build
-        - platform
-        - osquery_platform
-        - osquery_platform_like
         - osquery_version
         - orbit_version
         - cpu_type
@@ -1300,15 +1242,6 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
         updated_at:
@@ -1320,7 +1253,6 @@ components:
         - description
         - label_type
         - label_membership_type
-        - platforms
         - hosts_count
       type: object
     LabelCreateBody:
@@ -1341,20 +1273,10 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
       required:
         - name
-        - platforms
       type: object
     LabelMatch:
       additionalProperties: false
@@ -1384,20 +1306,10 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
       required:
         - name
-        - platforms
       type: object
     LabelScope:
       additionalProperties: false
@@ -1847,15 +1759,6 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
         schedule_interval:
@@ -1869,7 +1772,6 @@ components:
         - name
         - description
         - query
-        - platforms
         - schedule_interval
         - created_at
         - updated_at
@@ -1892,15 +1794,6 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
         schedule_interval:
@@ -1909,7 +1802,6 @@ components:
       required:
         - name
         - query
-        - platforms
         - label_scope
       type: object
     ReportResult:
@@ -1957,15 +1849,6 @@ components:
           type: string
         name:
           type: string
-        platforms:
-          items:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
-          minItems: 1
-          type: array
         query:
           type: string
         schedule_interval:
@@ -1974,7 +1857,6 @@ components:
       required:
         - name
         - query
-        - platforms
         - label_scope
       type: object
     ResolvedConfiguration:
@@ -2918,16 +2800,6 @@ paths:
             type: string
         - explode: false
           in: query
-          name: platform
-          schema:
-            enum:
-              - unknown
-              - darwin
-              - windows
-              - linux
-            type: string
-        - explode: false
-          in: query
           name: label_id
           schema:
             type: string
@@ -3434,15 +3306,6 @@ paths:
           name: label_membership_type
           schema:
             type: string
-        - explode: false
-          in: query
-          name: platform
-          schema:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
       responses:
         "200":
           content:
@@ -3921,15 +3784,6 @@ paths:
             examples:
               - name.asc
             type: string
-        - explode: false
-          in: query
-          name: platform
-          schema:
-            enum:
-              - darwin
-              - windows
-              - linux
-            type: string
       responses:
         "200":
           content:
@@ -4265,15 +4119,6 @@ paths:
           schema:
             examples:
               - name.asc
-            type: string
-        - explode: false
-          in: query
-          name: platform
-          schema:
-            enum:
-              - darwin
-              - windows
-              - linux
             type: string
       responses:
         "200":

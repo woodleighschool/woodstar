@@ -13,7 +13,6 @@ type Report struct {
 	Name              string           `json:"name"`
 	Description       string           `json:"description"`
 	Query             string           `json:"query"`
-	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int              `json:"schedule_interval"`
 	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
@@ -27,7 +26,6 @@ type ReportCreate struct {
 	Name              string           `json:"name"`
 	Description       string           `json:"description,omitempty"`
 	Query             string           `json:"query"`
-	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
@@ -39,7 +37,6 @@ type ReportUpdate struct {
 	Name              string           `json:"name"`
 	Description       string           `json:"description,omitempty"`
 	Query             string           `json:"query"`
-	Platforms         []scope.Platform `json:"platforms"                     enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
@@ -48,8 +45,6 @@ type ReportUpdate struct {
 // ReportListParams filters reports.
 type ReportListParams struct {
 	dbutil.ListParams
-
-	Platform string
 }
 
 // ReportResult is one saved result row.

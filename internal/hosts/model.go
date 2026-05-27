@@ -6,7 +6,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // ListParams filters host list results.
@@ -14,7 +13,6 @@ type ListParams struct {
 	dbutil.ListParams
 
 	Status          string
-	Platform        string
 	LabelID         int64
 	SoftwareTitleID int64
 	SoftwareID      int64
@@ -31,9 +29,6 @@ type DetailUpdate struct {
 	OSName                  string
 	OSVersion               string
 	OSBuild                 string
-	Platform                scope.Platform
-	OsqueryPlatform         string
-	OsqueryPlatformLike     string
 	KernelVersion           string
 	HardwareVendor          string
 	OrbitVersion            string
@@ -70,9 +65,6 @@ type Host struct {
 	OSName                  string              `json:"os_name"`
 	OSVersion               string              `json:"os_version"`
 	OSBuild                 string              `json:"os_build"`
-	Platform                scope.Platform      `json:"platform"                             enum:"unknown,darwin,windows,linux"`
-	OsqueryPlatform         string              `json:"osquery_platform"`
-	OsqueryPlatformLike     string              `json:"osquery_platform_like"`
 	OsqueryVersion          string              `json:"osquery_version"`
 	OrbitVersion            string              `json:"orbit_version"`
 	OrbitNodeKey            string              `json:"-"`

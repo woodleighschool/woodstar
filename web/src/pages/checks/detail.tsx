@@ -7,7 +7,6 @@ import {
   DetailSettings,
   EditButton,
   LiveRunButton,
-  PlatformBadge,
   SettingItem,
   ShowQueryButton,
   TargetSummary,
@@ -63,11 +62,8 @@ export function CheckDetailPage() {
       <DetailSettings>
         <SettingItem label="Hosts failing">{failing}</SettingItem>
         <SettingItem label="Hosts passing">{passing}</SettingItem>
-        <SettingItem label="Targeted platforms">
-          <PlatformBadge platforms={check.data.platforms} />
-        </SettingItem>
         <SettingItem label="Targets">
-          <TargetSummary scope={check.data.label_scope} platforms={check.data.platforms} />
+          <TargetSummary scope={check.data.label_scope} />
         </SettingItem>
       </DetailSettings>
 

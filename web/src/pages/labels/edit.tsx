@@ -7,7 +7,6 @@ import { z } from "zod";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { PlatformSelector } from "@/components/queries/platform-selector";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -17,7 +16,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 type MembershipType = "dynamic" | "manual" | "derived";
@@ -45,7 +43,6 @@ interface FormState {
   description: string;
   query: string;
   label_membership_type: MembershipType;
-  platforms: string[];
 }
 
 const empty: FormState = {
@@ -53,7 +50,6 @@ const empty: FormState = {
   description: "",
   query: "select 1 from os_version where major >= 13;",
   label_membership_type: "dynamic",
-  platforms: [...DEFAULT_TARGET_PLATFORMS],
 };
 
 const labelFormSchema = z
@@ -62,7 +58,6 @@ const labelFormSchema = z
     description: z.string().trim(),
     query: z.string().trim(),
     label_membership_type: z.enum(["dynamic", "manual", "derived"]),
-    platforms: z.array(z.enum(["darwin", "windows", "linux"])).min(1, "Pick at least one platform."),
   })
   .refine((value) => value.label_membership_type !== "dynamic" || value.query !== "", {
     message: "Dynamic labels need a query.",
@@ -113,7 +108,6 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
           description: detail.data.description,
           query: detail.data.query ?? empty.query,
           label_membership_type: membershipFromString(detail.data.label_membership_type),
-          platforms: [...detail.data.platforms],
         }
       : empty;
 
@@ -145,7 +139,6 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
       name: cleaned.name,
       description: cleaned.description,
       label_membership_type: cleaned.label_membership_type,
-      platforms: cleaned.platforms,
       query: cleaned.label_membership_type === "dynamic" ? cleaned.query : undefined,
     };
     if (mode === "create") {
@@ -221,11 +214,6 @@ function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; la
               ))}
             </RadioGroup>
             {memberOption ? <FieldDescription>{memberOption.helpText}</FieldDescription> : null}
-          </Field>
-
-          <Field data-invalid={showErrors && errors.platforms ? true : undefined}>
-            <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
-            {showErrors && errors.platforms ? <FieldError>{errors.platforms}</FieldError> : null}
           </Field>
         </FieldGroup>
 

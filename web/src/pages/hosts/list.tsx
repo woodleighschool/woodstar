@@ -28,10 +28,7 @@ import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
-
-const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
 export function HostsListPage() {
   const search = useSearch({ strict: false });
@@ -47,16 +44,11 @@ export function HostsListPage() {
   const bulkDelete = useBulkDeleteHosts();
 
   const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;
-  const platform =
-    search.platform === "unknown" || (search.platform && isQueryablePlatform(search.platform))
-      ? search.platform
-      : undefined;
 
   const query = useHosts({
     q: search.q,
     ...tableQueryParams(state),
     status: search.status,
-    platform,
     label_id: search.label_id,
     software_title_id: search.software_title_id,
     software_id: search.software_id,
@@ -67,7 +59,7 @@ export function HostsListPage() {
   // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
   const [now] = useState(() => Date.now());
 
-  const hasFilters = !!search.q || !!search.status || !!platform || !!search.label_id || isSoftwareFiltered;
+  const hasFilters = !!search.q || !!search.status || !!search.label_id || isSoftwareFiltered;
 
   const allColumns: ColumnDef<Host>[] = [
     {
@@ -260,8 +252,6 @@ export function HostsListPage() {
             <HostsToolbar
               draft={draft}
               onDraftChange={setDraft}
-              platform={platform}
-              onPlatformChange={(v) => setters.setFilter("platform", v)}
               labelId={search.label_id}
               onLabelChange={(v) => setters.setFilter("label_id", v)}
               labelOptions={labelOptions}
@@ -310,24 +300,13 @@ export function HostsListPage() {
 interface HostsToolbarProps {
   draft: string;
   onDraftChange: (next: string) => void;
-  platform: string | undefined;
-  onPlatformChange: (next: string | undefined) => void;
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
   table: TanStackTable<Host>;
 }
 
-function HostsToolbar({
-  draft,
-  onDraftChange,
-  platform,
-  onPlatformChange,
-  labelId,
-  onLabelChange,
-  labelOptions,
-  table,
-}: HostsToolbarProps) {
+function HostsToolbar({ draft, onDraftChange, labelId, onLabelChange, labelOptions, table }: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <DataTableSearch
@@ -338,36 +317,21 @@ function HostsToolbar({
         className="basis-full sm:basis-64"
       />
       <DataTableColumnToggle table={table} variant="ghost" />
-      <HostFilterDropdown
-        platform={platform}
-        onPlatformChange={onPlatformChange}
-        labelId={labelId}
-        onLabelChange={onLabelChange}
-        labelOptions={labelOptions}
-      />
+      <HostFilterDropdown labelId={labelId} onLabelChange={onLabelChange} labelOptions={labelOptions} />
     </div>
   );
 }
 
 interface HostFilterDropdownProps {
-  platform: string | undefined;
-  onPlatformChange: (next: string | undefined) => void;
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
 }
 
-function HostFilterDropdown({
-  platform,
-  onPlatformChange,
-  labelId,
-  onLabelChange,
-  labelOptions,
-}: HostFilterDropdownProps) {
-  const hasFilters = !!platform || !!labelId;
+function HostFilterDropdown({ labelId, onLabelChange, labelOptions }: HostFilterDropdownProps) {
+  const hasFilters = !!labelId;
 
   const clearFilters = () => {
-    onPlatformChange(undefined);
     onLabelChange(undefined);
   };
 
@@ -376,7 +340,7 @@ function HostFilterDropdown({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 border-dashed">
           <ListFilter data-icon="inline-start" />
-          Filter by platform or label
+          Filter by label
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="end">
@@ -384,18 +348,6 @@ function HostFilterDropdown({
           <CommandInput placeholder="Search labels" />
           <CommandList>
             <CommandEmpty>No labels found.</CommandEmpty>
-            <CommandGroup heading="Platforms">
-              {PLATFORM_OPTIONS.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={`platform ${option.label}`}
-                  onSelect={() => onPlatformChange(platform === option.value ? undefined : option.value)}
-                >
-                  <SelectionCheck selected={platform === option.value} />
-                  <span>{option.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
             <CommandGroup heading="Labels">
               {labelOptions.map((option) => (
                 <CommandItem

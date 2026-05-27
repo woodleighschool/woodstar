@@ -44,7 +44,6 @@ type hostGetInput struct {
 type hostListInput struct {
 	ListQueryInput
 	Status          string `query:"status,omitempty"`
-	Platform        string `query:"platform,omitempty"          enum:"unknown,darwin,windows,linux"`
 	LabelID         string `query:"label_id,omitempty"`
 	SoftwareTitleID string `query:"software_title_id,omitempty"`
 	SoftwareID      string `query:"software_id,omitempty"`
@@ -66,7 +65,6 @@ func (i hostListInput) params() (hosts.ListParams, error) {
 	return hosts.ListParams{
 		ListParams:      i.ListQueryInput.params(),
 		Status:          i.Status,
-		Platform:        i.Platform,
 		LabelID:         labelID,
 		SoftwareTitleID: titleID,
 		SoftwareID:      softwareID,

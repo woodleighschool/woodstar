@@ -7,7 +7,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestDisplayNamePriority(t *testing.T) {
@@ -73,44 +72,6 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 	}
 }
 
-func TestListFiltersByPlatform(t *testing.T) {
-	store, ctx := newIntegrationHostStore(t)
-
-	linuxHost, err := store.UpsertOnOsqueryEnroll(ctx, DetailUpdate{
-		HardwareUUID:    "test-platform-family-linux",
-		Hostname:        "test-platform-family-linux",
-		OsqueryPlatform: "ubuntu",
-		OsqueryNodeKey:  "node-key-platform-family-linux",
-	})
-	if err != nil {
-		t.Fatalf("enroll linux host: %v", err)
-	}
-	unknownHost, err := store.UpsertOnOsqueryEnroll(ctx, DetailUpdate{
-		HardwareUUID:    "test-platform-family-unknown",
-		Hostname:        "test-platform-family-unknown",
-		OsqueryPlatform: "chrome",
-		OsqueryNodeKey:  "node-key-platform-family-unknown",
-	})
-	if err != nil {
-		t.Fatalf("enroll unknown host: %v", err)
-	}
-
-	got, _, err := store.List(ctx, ListParams{Platform: "linux"})
-	if err != nil {
-		t.Fatalf("list linux hosts: %v", err)
-	}
-	gotIDs := make([]int64, 0, len(got))
-	for _, host := range got {
-		switch host.ID {
-		case linuxHost.ID, unknownHost.ID:
-			gotIDs = append(gotIDs, host.ID)
-		}
-	}
-	if !sameIDs(gotIDs, []int64{linuxHost.ID}) {
-		t.Fatalf("linux platform filter matched host ids %v, want only %d", gotIDs, linuxHost.ID)
-	}
-}
-
 // New hosts land in All Hosts.
 func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
@@ -165,7 +126,6 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 		Name:                "Live Target Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -224,7 +184,6 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 		Name:                "Live Count Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -269,7 +228,6 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 		Name:                "Live Online Target Test",
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -326,8 +284,4 @@ func newIntegrationHostStore(t *testing.T) (*Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
 	return NewStore(database), ctx
-}
-
-func allPlatforms() []scope.Platform {
-	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
 }

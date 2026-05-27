@@ -31,7 +31,6 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { isQueryablePlatform, PLATFORM_LABELS, platformLabel, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { formatRelative } from "@/lib/utils";
 
 const MEMBERSHIP_OPTIONS = [
@@ -40,26 +39,22 @@ const MEMBERSHIP_OPTIONS = [
   { value: "derived", label: "Derived" },
 ];
 
-const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
-
 export function LabelsPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [deleting, setDeleting] = useState<Label | null>(null);
-  const platform = search.platform && isQueryablePlatform(search.platform) ? search.platform : undefined;
 
   const query = useLabels({
     q: search.q,
     ...tableQueryParams(state),
     label_type: "regular",
     label_membership_type: search.label_membership_type,
-    platform,
   });
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.label_membership_type || !!platform;
+  const hasFilters = !!search.q || !!search.label_membership_type;
 
   const columns: ColumnDef<Label>[] = [
     {
@@ -80,12 +75,6 @@ export function LabelsPage() {
       accessorKey: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.label_membership_type}</span>,
-    },
-    {
-      id: "platform",
-      accessorKey: "platforms",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{platformLabel(row.original.platforms)}</span>,
     },
     {
       id: "hosts_count",
@@ -156,13 +145,6 @@ export function LabelsPage() {
                 options={MEMBERSHIP_OPTIONS}
                 selected={search.label_membership_type ? [search.label_membership_type] : []}
                 onChange={(next) => setters.setFilter("label_membership_type", next[0])}
-                singleSelect
-              />
-              <DataTableFacetedFilter
-                title="Platform"
-                options={PLATFORM_OPTIONS}
-                selected={platform ? [platform] : []}
-                onChange={(next) => setters.setFilter("platform", next[0])}
                 singleSelect
               />
             </div>

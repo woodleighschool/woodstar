@@ -16,9 +16,8 @@ func TestListIncludesLabelScope(t *testing.T) {
 	labelB := createManualLabel(t, ctx, labelStore, "Check B")
 
 	if _, err := store.Create(ctx, CheckCreate{
-		Name:      "Scoped check",
-		Query:     "select 1;",
-		Platforms: allPlatforms(),
+		Name:  "Scoped check",
+		Query: "select 1;",
 		LabelScope: scope.LabelScope{
 			Mode:     scope.ScopeExcludeAny,
 			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
@@ -40,35 +39,9 @@ func TestListIncludesLabelScope(t *testing.T) {
 	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
 }
 
-func TestListFiltersByPlatformTargetSet(t *testing.T) {
-	store, _, _, ctx := newIntegrationCheckStore(t)
-	if _, err := store.Create(ctx, CheckCreate{
-		Name:      "All targets check",
-		Query:     "select 1;",
-		Platforms: allPlatforms(),
-	}); err != nil {
-		t.Fatalf("create all-target check: %v", err)
-	}
-	if _, err := store.Create(ctx, CheckCreate{
-		Name:      "Windows only check",
-		Query:     "select 2;",
-		Platforms: []scope.Platform{scope.PlatformWindows},
-	}); err != nil {
-		t.Fatalf("create windows check: %v", err)
-	}
-
-	got, count, err := store.List(ctx, CheckListParams{Platform: "darwin"})
-	if err != nil {
-		t.Fatalf("list checks: %v", err)
-	}
-	if count != 1 || len(got) != 1 || got[0].Name != "All targets check" {
-		t.Fatalf("List(platform=darwin) returned count=%d rows=%+v, want only all-target check", count, got)
-	}
-}
-
 func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-scope-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-scope-host", "5.22.1")
 	matching := createManualLabel(t, ctx, labelStore, "Check match")
 	other := createManualLabel(t, ctx, labelStore, "Check other")
 	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
@@ -78,7 +51,6 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	if _, err := store.Create(ctx, CheckCreate{
 		Name:       "Matching check",
 		Query:      "select 1;",
-		Platforms:  allPlatforms(),
 		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
 	}); err != nil {
 		t.Fatalf("create matching check: %v", err)
@@ -86,7 +58,6 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	if _, err := store.Create(ctx, CheckCreate{
 		Name:       "Nonmatching check",
 		Query:      "select 2;",
-		Platforms:  allPlatforms(),
 		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
 	}); err != nil {
 		t.Fatalf("create nonmatching check: %v", err)
@@ -101,31 +72,20 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
-func TestHostChecksUseApplicability(t *testing.T) {
+func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "5.22.1")
 
 	matching, err := store.Create(ctx, CheckCreate{
-		Name:      "Matching check",
-		Query:     "select 1;",
-		Platforms: []scope.Platform{scope.PlatformDarwin},
+		Name:  "Matching check",
+		Query: "select 1;",
 	})
 	if err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
-	wrongPlatform, err := store.Create(ctx, CheckCreate{
-		Name:      "Wrong platform check",
-		Query:     "select 2;",
-		Platforms: []scope.Platform{scope.PlatformWindows},
-	})
-	if err != nil {
-		t.Fatalf("create wrong platform check: %v", err)
-	}
-	for _, checkID := range []int64{matching.ID, wrongPlatform.ID} {
-		passes := false
-		if err := store.UpsertMembership(ctx, checkID, host.ID, &passes); err != nil {
-			t.Fatalf("upsert membership for check %d: %v", checkID, err)
-		}
+	passes := false
+	if err := store.UpsertMembership(ctx, matching.ID, host.ID, &passes); err != nil {
+		t.Fatalf("upsert membership: %v", err)
 	}
 
 	got, err := store.HostChecks(ctx, host)
@@ -133,34 +93,31 @@ func TestHostChecksUseApplicability(t *testing.T) {
 		t.Fatalf("host checks: %v", err)
 	}
 	if len(got) != 1 || got[0].CheckID != matching.ID {
-		t.Fatalf("HostChecks returned %+v, want only matching check", got)
+		t.Fatalf("HostChecks returned %+v, want matching check", got)
 	}
 }
 
 func TestHostChecksIncludeMembershipState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host", "5.22.1")
 
 	passing, err := store.Create(ctx, CheckCreate{
-		Name:      "Passing check",
-		Query:     "select 1;",
-		Platforms: allPlatforms(),
+		Name:  "Passing check",
+		Query: "select 1;",
 	})
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
 	failing, err := store.Create(ctx, CheckCreate{
-		Name:      "Failing check",
-		Query:     "select 0;",
-		Platforms: allPlatforms(),
+		Name:  "Failing check",
+		Query: "select 0;",
 	})
 	if err != nil {
 		t.Fatalf("create failing check: %v", err)
 	}
 	unevaluated, err := store.Create(ctx, CheckCreate{
-		Name:      "Unevaluated check",
-		Query:     "select 2;",
-		Platforms: allPlatforms(),
+		Name:  "Unevaluated check",
+		Query: "select 2;",
 	})
 	if err != nil {
 		t.Fatalf("create unevaluated check: %v", err)
@@ -213,16 +170,15 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
 	check, err := store.Create(ctx, CheckCreate{
-		Name:      "Status list check",
-		Query:     "select 1;",
-		Platforms: allPlatforms(),
+		Name:  "Status list check",
+		Query: "select 1;",
 	})
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
-	failingHost := enrollTestHostDetail(t, ctx, hostStore, "aaa-failing-host", "darwin", "5.22.1")
-	notRunHost := enrollTestHostDetail(t, ctx, hostStore, "bbb-not-run-host", "darwin", "5.22.1")
-	passingHost := enrollTestHostDetail(t, ctx, hostStore, "ccc-passing-host", "darwin", "5.22.1")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "aaa-failing-host", "5.22.1")
+	notRunHost := enrollTestHostDetail(t, ctx, hostStore, "bbb-not-run-host", "5.22.1")
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "ccc-passing-host", "5.22.1")
 
 	fails := false
 	if err := store.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
@@ -278,10 +234,6 @@ func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 	}
 }
 
-func allPlatforms() []scope.Platform {
-	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
-}
-
 func newIntegrationCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
@@ -293,7 +245,6 @@ func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, n
 	label, err := store.Create(ctx, labels.LabelCreate{
 		Name:                name,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label %q: %v", name, err)
@@ -306,14 +257,12 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	hostPlatform scope.Platform,
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
 	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   hardwareUUID,
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		Platform:       hostPlatform,
 		OsqueryVersion: osqueryVersion,
 	})
 	if err != nil {

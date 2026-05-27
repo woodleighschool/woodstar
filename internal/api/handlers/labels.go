@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const (
@@ -28,7 +27,6 @@ type labelListInput struct {
 	ListQueryInput
 	LabelType      string `query:"label_type,omitempty"`
 	MembershipType string `query:"label_membership_type,omitempty"`
-	Platform       string `query:"platform,omitempty"              enum:"darwin,windows,linux"`
 }
 
 type labelGetInput struct {
@@ -49,20 +47,18 @@ type labelDeleteInput struct {
 }
 
 type labelCreateBody struct {
-	Name           string           `json:"name"`
-	Description    string           `json:"description,omitempty"`
-	Query          *string          `json:"query,omitempty"`
-	LabelType      string           `json:"label_type,omitempty"`
-	MembershipType string           `json:"label_membership_type,omitempty"`
-	Platforms      []scope.Platform `json:"platforms"                       enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Query          *string `json:"query,omitempty"`
+	LabelType      string  `json:"label_type,omitempty"`
+	MembershipType string  `json:"label_membership_type,omitempty"`
 }
 
 type labelMutationBody struct {
-	Name           string           `json:"name"`
-	Description    string           `json:"description,omitempty"`
-	Query          *string          `json:"query,omitempty"`
-	MembershipType string           `json:"label_membership_type,omitempty"`
-	Platforms      []scope.Platform `json:"platforms"                       enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Query          *string `json:"query,omitempty"`
+	MembershipType string  `json:"label_membership_type,omitempty"`
 }
 
 func (i labelListInput) params() labels.ListParams {
@@ -70,7 +66,6 @@ func (i labelListInput) params() labels.ListParams {
 		ListParams:          i.ListQueryInput.params(),
 		LabelType:           labels.LabelType(i.LabelType),
 		LabelMembershipType: i.MembershipType,
-		Platform:            i.Platform,
 	}
 }
 
@@ -115,7 +110,6 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Query:               input.Body.Query,
 			LabelType:           labels.LabelType(input.Body.LabelType),
 			LabelMembershipType: input.Body.MembershipType,
-			Platforms:           input.Body.Platforms,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
@@ -163,7 +157,6 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
 			LabelMembershipType: input.Body.MembershipType,
-			Platforms:           input.Body.Platforms,
 		})
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)

@@ -7,7 +7,6 @@ import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
-import { PlatformSelector } from "@/components/queries/platform-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,14 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { DEFAULT_TARGET_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const emptyCheck: CheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
-  platforms: [...DEFAULT_TARGET_PLATFORMS],
   label_scope: {},
 };
 
@@ -59,7 +56,6 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          platforms: [...detail.data.platforms],
           label_scope: detail.data.label_scope ?? {},
         }
       : emptyCheck;
@@ -133,8 +129,6 @@ function CheckEditForm({
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
           </Field>
-
-          <PlatformSelector value={form.platforms} onChange={(platforms) => setForm({ ...form, platforms })} />
         </FieldGroup>
 
         <LabelScopeSelector

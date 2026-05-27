@@ -12,7 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // queryKind tags our osquery work.
@@ -243,7 +242,7 @@ func finalizeDetailPass(
 			return fmt.Errorf("ingest software inventory: %w", err)
 		}
 	}
-	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass, host.Platform) {
+	if !pass.allSucceeded || !sawEveryRequiredDetailQuery(pass) {
 		return nil
 	}
 	if err := inventoryProjector.MarkFresh(ctx, host.ID); err != nil {
@@ -279,12 +278,9 @@ func successfulSoftwareRows(
 	return rowsBySuffix, baseSucceeded
 }
 
-func sawEveryRequiredDetailQuery(
-	pass *detailDispatchPass,
-	platform scope.Platform,
-) bool {
+func sawEveryRequiredDetailQuery(pass *detailDispatchPass) bool {
 	for name, query := range pass.registry {
-		if query.Optional || !query.RunsForPlatform(platform) {
+		if query.Optional {
 			continue
 		}
 		result, ok := pass.results[name]

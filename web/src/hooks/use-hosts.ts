@@ -4,7 +4,6 @@ import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
 import type { paths } from "@/lib/api-schema";
 import { queryKeys } from "@/lib/query-keys";
-import type { QueryablePlatform } from "@/lib/targeting";
 import { nonEmpty } from "@/lib/utils";
 
 export type Host = Schemas["Host"];
@@ -31,7 +30,6 @@ export interface ListParams {
 
 export interface HostListParams extends ListParams {
   status?: string;
-  platform?: QueryablePlatform | "unknown";
   label_id?: string;
   software_title_id?: string;
   software_id?: string;
@@ -44,7 +42,6 @@ export function useHosts(params: HostListParams = {}) {
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),
     status: nonEmpty(params.status),
-    platform: params.platform,
     label_id: nonEmpty(params.label_id),
     software_title_id: nonEmpty(params.software_title_id),
     software_id: nonEmpty(params.software_id),

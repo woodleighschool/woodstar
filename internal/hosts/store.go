@@ -10,7 +10,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists hosts.
@@ -25,18 +24,14 @@ func NewStore(db *database.DB) *Store {
 
 // UpsertOnOrbitEnroll creates or refreshes a host from Orbit enroll.
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
-	update.Platform = hostPlatform(update)
 	row, err := s.q.UpsertHostOnOrbitEnroll(ctx, sqlc.UpsertHostOnOrbitEnrollParams{
-		HardwareUUID:        update.HardwareUUID,
-		DisplayName:         displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
-		Hostname:            update.Hostname,
-		ComputerName:        update.ComputerName,
-		HardwareSerial:      update.HardwareSerial,
-		HardwareModel:       update.HardwareModel,
-		Platform:            sqlcPlatform(update.Platform),
-		OsqueryPlatform:     update.OsqueryPlatform,
-		OsqueryPlatformLike: update.OsqueryPlatformLike,
-		OrbitNodeKey:        update.OrbitNodeKey,
+		HardwareUUID:   update.HardwareUUID,
+		DisplayName:    displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
+		Hostname:       update.Hostname,
+		ComputerName:   update.ComputerName,
+		HardwareSerial: update.HardwareSerial,
+		HardwareModel:  update.HardwareModel,
+		OrbitNodeKey:   update.OrbitNodeKey,
 	})
 	if err != nil {
 		return nil, err
@@ -49,30 +44,26 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
-	update.Platform = hostPlatform(update)
 	row, err := s.q.UpsertHostOnOsqueryEnroll(ctx, sqlc.UpsertHostOnOsqueryEnrollParams{
-		HardwareUUID:        update.HardwareUUID,
-		DisplayName:         displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
-		Hostname:            update.Hostname,
-		ComputerName:        update.ComputerName,
-		HardwareSerial:      update.HardwareSerial,
-		HardwareModel:       update.HardwareModel,
-		HardwareVersion:     update.HardwareVersion,
-		OSName:              update.OSName,
-		OSVersion:           update.OSVersion,
-		OSBuild:             update.OSBuild,
-		Platform:            sqlcPlatform(update.Platform),
-		OsqueryPlatform:     update.OsqueryPlatform,
-		OsqueryPlatformLike: update.OsqueryPlatformLike,
-		OsqueryVersion:      update.OsqueryVersion,
-		OsqueryNodeKey:      update.OsqueryNodeKey,
-		OrbitVersion:        update.OrbitVersion,
-		CPUBrand:            update.CPUBrand,
-		CPULogicalCores:     update.CPULogicalCores,
-		CPUPhysicalCores:    update.CPUPhysicalCores,
-		PhysicalMemory:      update.PhysicalMemory,
-		HardwareVendor:      update.HardwareVendor,
-		KernelVersion:       update.KernelVersion,
+		HardwareUUID:     update.HardwareUUID,
+		DisplayName:      displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
+		Hostname:         update.Hostname,
+		ComputerName:     update.ComputerName,
+		HardwareSerial:   update.HardwareSerial,
+		HardwareModel:    update.HardwareModel,
+		HardwareVersion:  update.HardwareVersion,
+		OSName:           update.OSName,
+		OSVersion:        update.OSVersion,
+		OSBuild:          update.OSBuild,
+		OsqueryVersion:   update.OsqueryVersion,
+		OsqueryNodeKey:   update.OsqueryNodeKey,
+		OrbitVersion:     update.OrbitVersion,
+		CPUBrand:         update.CPUBrand,
+		CPULogicalCores:  update.CPULogicalCores,
+		CPUPhysicalCores: update.CPUPhysicalCores,
+		PhysicalMemory:   update.PhysicalMemory,
+		HardwareVendor:   update.HardwareVendor,
+		KernelVersion:    update.KernelVersion,
 	})
 	if err != nil {
 		return nil, err
@@ -171,7 +162,6 @@ func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host,
 }
 
 func (s *Store) ApplyDetail(ctx context.Context, hostID int64, update DetailUpdate) error {
-	platform := nullableSQLCPlatform(update.Platform)
 	return s.q.ApplyHostDetail(ctx, sqlc.ApplyHostDetailParams{
 		ID:                      hostID,
 		Hostname:                update.Hostname,
@@ -182,9 +172,6 @@ func (s *Store) ApplyDetail(ctx context.Context, hostID int64, update DetailUpda
 		OSName:                  update.OSName,
 		OSVersion:               update.OSVersion,
 		OSBuild:                 update.OSBuild,
-		Platform:                platform,
-		OsqueryPlatform:         update.OsqueryPlatform,
-		OsqueryPlatformLike:     update.OsqueryPlatformLike,
 		OsqueryVersion:          update.OsqueryVersion,
 		OrbitVersion:            update.OrbitVersion,
 		CPUType:                 update.CPUType,
@@ -371,7 +358,6 @@ func hostListSQLWithWhere(params ListParams, where string, args []any) (string, 
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
 			"display_name":               {SQL: "lower(display_name)"},
-			"platform":                   {SQL: "lower(platform)"},
 			"hardware_serial":            {SQL: "lower(hardware_serial)"},
 			"hardware_model":             {SQL: "lower(hardware_model)"},
 			"hardware_uuid":              {SQL: "hardware_uuid"},
@@ -406,10 +392,6 @@ func hostListWhere(params ListParams) (string, []any, error) {
 				WHERE he.host_id = hosts.id AND he.email ILIKE ` + search + `
 			)
 		)`)
-	}
-	if params.Platform != "" {
-		platform := where.Arg(params.Platform)
-		where.Add(`platform = ` + platform + `::platform`)
 	}
 	switch params.Status {
 	case "":
@@ -447,28 +429,6 @@ func hostListWhere(params ListParams) (string, []any, error) {
 	return whereSQL, args, nil
 }
 
-func hostPlatform(update DetailUpdate) scope.Platform {
-	if update.Platform != "" {
-		return update.Platform
-	}
-	return scope.PlatformFromOsquery(update.OsqueryPlatform, update.OsqueryPlatformLike)
-}
-
-func sqlcPlatform(platform scope.Platform) sqlc.Platform {
-	if platform == "" {
-		platform = scope.PlatformUnknown
-	}
-	return sqlc.Platform(platform)
-}
-
-func nullableSQLCPlatform(platform scope.Platform) *sqlc.Platform {
-	if platform == "" {
-		return nil
-	}
-	value := sqlcPlatform(platform)
-	return &value
-}
-
 // displayName picks the nicest name we have.
 func displayName(hardwareUUID, hostname, computerName string) string {
 	if computerName != "" {
@@ -494,9 +454,6 @@ func hostFromSQLC(s sqlc.Host) Host {
 		OSName:                  s.OSName,
 		OSVersion:               s.OSVersion,
 		OSBuild:                 s.OSBuild,
-		Platform:                scope.Platform(s.Platform),
-		OsqueryPlatform:         s.OsqueryPlatform,
-		OsqueryPlatformLike:     s.OsqueryPlatformLike,
 		OsqueryVersion:          s.OsqueryVersion,
 		OrbitVersion:            s.OrbitVersion,
 		OrbitNodeKey:            s.OrbitNodeKey,

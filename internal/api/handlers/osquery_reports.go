@@ -21,7 +21,6 @@ const (
 
 type reportListInput struct {
 	ListQueryInput
-	Platform string `query:"platform,omitempty" enum:"darwin,windows,linux"`
 }
 
 type reportGetInput struct {
@@ -313,6 +312,5 @@ func registerHostReportResults(api huma.API, reportStore *reports.Store, hostSto
 func (input reportListInput) params() reports.ReportListParams {
 	return reports.ReportListParams{
 		ListParams: input.ListQueryInput.params(),
-		Platform:   input.Platform,
 	}
 }

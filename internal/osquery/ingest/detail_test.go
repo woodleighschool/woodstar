@@ -4,19 +4,16 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestParseHostDetails(t *testing.T) {
 	details := map[string]map[string]string{
 		"os_version": {
-			"name":          "macOS",
-			"version":       "26.5",
-			"build":         "25F5068a",
-			"major":         "26",
-			"minor":         "5",
-			"platform":      "darwin",
-			"platform_like": "darwin",
+			"name":    "macOS",
+			"version": "26.5",
+			"build":   "25F5068a",
+			"major":   "26",
+			"minor":   "5",
 		},
 		"osquery_info": {
 			"version": "5.22.1",
@@ -58,9 +55,6 @@ func TestParseHostDetails(t *testing.T) {
 	got := ParseHostDetails(details)
 	want := hosts.DetailUpdate{
 		OSVersion:               "macOS 26.5 (build 25F5068a)",
-		Platform:                scope.PlatformDarwin,
-		OsqueryPlatform:         "darwin",
-		OsqueryPlatformLike:     "darwin",
 		Hostname:                "example-host",
 		ComputerName:            "EXAMPLE-HOST",
 		HardwareUUID:            "00000000-0000-4000-8000-000000000000",
@@ -115,9 +109,6 @@ func assertDetailUpdate(t *testing.T, got hosts.DetailUpdate, want hosts.DetailU
 		got.OSName != want.OSName ||
 		got.OSVersion != want.OSVersion ||
 		got.OSBuild != want.OSBuild ||
-		got.Platform != want.Platform ||
-		got.OsqueryPlatform != want.OsqueryPlatform ||
-		got.OsqueryPlatformLike != want.OsqueryPlatformLike ||
 		got.KernelVersion != want.KernelVersion ||
 		got.OrbitVersion != want.OrbitVersion ||
 		got.CPUType != want.CPUType ||

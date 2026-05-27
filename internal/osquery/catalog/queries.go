@@ -6,12 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
-	"slices"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const detailQueryCadence = time.Hour
@@ -25,14 +22,10 @@ const (
 	QueryUptime                       = "uptime"
 	QueryRootDiskDarwin               = "root_disk_darwin"
 	QueryPrimaryInterfaceUnix         = "primary_interface_unix"
-	QueryPrimaryInterfaceWindows      = "primary_interface_windows"
 	QueryUsers                        = "users"
 	QueryBatteries                    = "batteries"
 	QueryCertificatesDarwin           = "certificates_darwin"
-	QueryCertificatesWindows          = "certificates_windows"
 	QuerySoftwareMacOS                = "software_macos"
-	QuerySoftwareLinux                = "software_linux"
-	QuerySoftwareWindows              = "software_windows"
 	QuerySoftwareVSCodeExtensions     = "software_vscode_extensions"
 	QuerySoftwareJetBrainsPlugins     = "software_jetbrains_plugins"
 	QuerySoftwareGoBinaries           = "software_go_binaries"
@@ -67,7 +60,6 @@ type DetailQuery struct {
 	SQL       string
 	Discovery string
 	Optional  bool
-	Platforms []scope.Platform
 	Ingest    DetailIngest
 }
 
@@ -83,16 +75,6 @@ const (
 	IngestSoftwareBase       DetailIngest = "software_base"
 	IngestSoftwareEnrichment DetailIngest = "software_enrichment"
 )
-
-func (q DetailQuery) RunsForPlatform(platform scope.Platform) bool {
-	if len(q.Platforms) == 0 {
-		return true
-	}
-	if platform == "" || platform == scope.PlatformUnknown {
-		return false
-	}
-	return slices.Contains(q.Platforms, platform)
-}
 
 func (q DetailQuery) Deferred() bool {
 	return q.Ingest == IngestSoftwareBase || q.Ingest == IngestSoftwareEnrichment
@@ -124,63 +106,43 @@ func buildDetailQueries() map[string]DetailQuery {
 			Ingest: IngestHostDetail,
 		},
 		QueryOsqueryFlags: {
-			SQL:       mustQuery("queries/osquery_flags.sql"),
-			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
-			Ingest:    IngestOsqueryFlags,
+			SQL:      mustQuery("queries/osquery_flags.sql"),
+			Optional: true,
+			Ingest:   IngestOsqueryFlags,
 		},
 		QueryOrbitInfo: {
 			SQL:       mustQuery("queries/orbit_info.sql"),
 			Discovery: tableExistsSQL("orbit_info"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestHostDetail,
 		},
 		QueryUptime: {
-			SQL:       mustQuery("queries/uptime.sql"),
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
-			Ingest:    IngestUptime,
+			SQL:    mustQuery("queries/uptime.sql"),
+			Ingest: IngestUptime,
 		},
 		QueryRootDiskDarwin: {
 			SQL:       mustQuery("queries/root_disk_darwin.sql"),
 			Discovery: tableExistsSQL("disk_space"),
-			Platforms: []scope.Platform{scope.PlatformDarwin},
 			Ingest:    IngestHostDetail,
 		},
 		QueryPrimaryInterfaceUnix: {
-			SQL:       mustQuery("queries/primary_interface_unix.sql"),
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux},
-			Ingest:    IngestHostDetail,
-		},
-		QueryPrimaryInterfaceWindows: {
-			SQL:       mustQuery("queries/primary_interface_windows.sql"),
-			Platforms: []scope.Platform{scope.PlatformWindows},
-			Ingest:    IngestHostDetail,
+			SQL:    mustQuery("queries/primary_interface_unix.sql"),
+			Ingest: IngestHostDetail,
 		},
 		QueryUsers: {
-			SQL:       mustQuery("queries/users.sql"),
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
-			Ingest:    IngestUsers,
+			SQL:    mustQuery("queries/users.sql"),
+			Ingest: IngestUsers,
 		},
 		QueryBatteries: {
 			SQL:       mustQuery("queries/batteries.sql"),
 			Discovery: tableExistsSQL("battery"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows},
 			Ingest:    IngestBatteries,
 		},
 		QueryCertificatesDarwin: {
 			SQL:       mustQuery("queries/certificates_darwin.sql"),
 			Discovery: tableExistsSQL("certificates"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin},
-			Ingest:    IngestCertificates,
-		},
-		QueryCertificatesWindows: {
-			SQL:       mustQuery("queries/certificates_windows.sql"),
-			Discovery: tableExistsSQL("certificates"),
-			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformWindows},
 			Ingest:    IngestCertificates,
 		},
 	}
@@ -191,73 +153,55 @@ func buildDetailQueries() map[string]DetailQuery {
 func softwareDetailQueries() map[string]DetailQuery {
 	return map[string]DetailQuery{
 		QuerySoftwareMacOS: {
-			SQL:       mustQuery("queries/software_macos.sql"),
-			Platforms: []scope.Platform{scope.PlatformDarwin},
-			Ingest:    IngestSoftwareBase,
-		},
-		QuerySoftwareLinux: {
-			SQL:       mustQuery("queries/software_linux.sql"),
-			Platforms: []scope.Platform{scope.PlatformLinux},
-			Ingest:    IngestSoftwareBase,
-		},
-		QuerySoftwareWindows: {
-			SQL:       mustQuery("queries/software_windows.sql"),
-			Platforms: []scope.Platform{scope.PlatformWindows},
-			Ingest:    IngestSoftwareBase,
+			SQL:    mustQuery("queries/software_macos.sql"),
+			Ingest: IngestSoftwareBase,
 		},
 		QuerySoftwareVSCodeExtensions: {
 			SQL:       mustQuery("queries/software_vscode_extensions.sql"),
 			Discovery: tableExistsSQL("vscode_extensions"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwareJetBrainsPlugins: {
 			SQL:       mustQuery("queries/software_jetbrains_plugins.sql"),
 			Discovery: tableExistsSQL("jetbrains_plugins"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwareGoBinaries: {
 			SQL:       mustQuery("queries/software_go_binaries.sql"),
 			Discovery: tableExistsSQL("go_binaries"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwarePythonPackages: {
 			SQL:       mustQuery("queries/software_python_packages.sql"),
 			Discovery: osqueryVersionAtLeastSQL(5, 16),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwarePythonPackagesLegacy: {
 			SQL:       mustQuery("queries/software_python_packages_legacy.sql"),
 			Discovery: osqueryVersionBeforeSQL(5, 16),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin, scope.PlatformLinux, scope.PlatformWindows},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwareMacOSCodesign: {
 			SQL:       mustQuery("queries/software_macos_codesign.sql"),
 			Discovery: tableExistsSQL("codesign"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 		QuerySoftwareMacOSExecutableHash: {
 			SQL:       mustQuery("queries/software_macos_executable_sha256.sql"),
 			Discovery: tableExistsSQL("executable_hashes"),
 			Optional:  true,
-			Platforms: []scope.Platform{scope.PlatformDarwin},
 			Ingest:    IngestSoftwareEnrichment,
 		},
 	}
 }
 
-func DetailQueriesDue(lastUpdated *time.Time, lastHash string, platform scope.Platform) DueDetailQueries {
+func DetailQueriesDue(lastUpdated *time.Time, lastHash string) DueDetailQueries {
 	if lastUpdated != nil && lastHash == detailRegistryHash && time.Since(*lastUpdated) < detailQueryCadence {
 		return DueDetailQueries{}
 	}
@@ -265,9 +209,6 @@ func DetailQueriesDue(lastUpdated *time.Time, lastHash string, platform scope.Pl
 	querySQL := make(map[string]string, len(detailRegistry))
 	discovery := make(map[string]string)
 	for name, query := range detailRegistry {
-		if !query.RunsForPlatform(platform) {
-			continue
-		}
 		querySQL[name] = query.SQL
 		if query.Discovery != "" {
 			discovery[name] = query.Discovery

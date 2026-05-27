@@ -46,8 +46,6 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 		Hostname:       "orbit-mac",
 		ComputerName:   "Orbit Mac",
 		HardwareModel:  "Mac15,8",
-		Platform:       "darwin",
-		PlatformLike:   "darwin",
 	}, http.StatusOK, &enrollBody)
 	if enrollBody.OrbitNodeKey == "" {
 		t.Fatal("enroll returned empty orbit node key")

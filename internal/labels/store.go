@@ -11,7 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Store persists labels.
@@ -89,7 +88,6 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		Query:               params.Query,
 		LabelType:           string(params.LabelType),
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           sqlcPlatforms(params.Platforms),
 	})
 	if err != nil {
 		if dbutil.IsUniqueViolation(err) {
@@ -109,7 +107,6 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		Description:         params.Description,
 		Query:               params.Query,
 		LabelMembershipType: params.LabelMembershipType,
-		Platforms:           sqlcPlatforms(params.Platforms),
 		ID:                  id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -132,11 +129,8 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (s *Store) ListApplicableDynamic(ctx context.Context, platform scope.Platform) ([]Label, error) {
-	rows, err := s.q.ListApplicableDynamicLabels(
-		ctx,
-		sqlc.ListApplicableDynamicLabelsParams{Platform: sqlcPlatform(platform)},
-	)
+func (s *Store) ListApplicableDynamic(ctx context.Context) ([]Label, error) {
+	rows, err := s.q.ListApplicableDynamicLabels(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -150,11 +144,9 @@ func (s *Store) ListApplicableDynamic(ctx context.Context, platform scope.Platfo
 func (s *Store) ApplicableDynamicIDs(
 	ctx context.Context,
 	ids []int64,
-	platform scope.Platform,
 ) (map[int64]struct{}, error) {
 	rows, err := s.q.ListApplicableDynamicLabelIDs(ctx, sqlc.ListApplicableDynamicLabelIDsParams{
-		Ids:      ids,
-		Platform: sqlcPlatform(platform),
+		Ids: ids,
 	})
 	if err != nil {
 		return nil, err
@@ -213,7 +205,6 @@ func labelListSQLWithWhere(params ListParams, where string, args []any) (string,
 	l.query,
 	l.label_type,
 	l.label_membership_type,
-	l.platforms,
 	l.created_at,
 	l.updated_at,
 	count(lm.host_id)::integer AS hosts_count
@@ -226,7 +217,6 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 			"name":                  {SQL: "lower(l.name)"},
 			"label_type":            {SQL: "l.label_type"},
 			"label_membership_type": {SQL: "l.label_membership_type"},
-			"platform":              {SQL: "l.platforms::text"},
 			"hosts_count":           {SQL: "hosts_count"},
 			"updated_at":            {SQL: "l.updated_at"},
 		},
@@ -247,9 +237,6 @@ func labelListWhere(params ListParams) (string, []any) {
 	if params.LabelMembershipType != "" {
 		where.Add("l.label_membership_type = " + where.Arg(params.LabelMembershipType))
 	}
-	if params.Platform != "" {
-		where.Add(where.Arg(params.Platform) + " = ANY(l.platforms::text[])")
-	}
 	return where.Build()
 }
 
@@ -260,7 +247,6 @@ type labelListRecord struct {
 	Query               *string
 	LabelType           string
 	LabelMembershipType string
-	Platforms           []sqlc.Platform
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	HostsCount          int32
@@ -274,7 +260,6 @@ func labelFromSQLC(s sqlc.Label) Label {
 		Query:               s.Query,
 		LabelType:           LabelType(s.LabelType),
 		LabelMembershipType: s.LabelMembershipType,
-		Platforms:           scopePlatforms(s.Platforms),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
@@ -288,33 +273,9 @@ func labelFromListRecord(s labelListRecord) Label {
 		Query:               s.Query,
 		LabelType:           s.LabelType,
 		LabelMembershipType: s.LabelMembershipType,
-		Platforms:           s.Platforms,
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	})
 	label.HostsCount = int(s.HostsCount)
 	return label
-}
-
-func sqlcPlatform(platform scope.Platform) sqlc.Platform {
-	if platform == "" {
-		platform = scope.PlatformUnknown
-	}
-	return sqlc.Platform(platform)
-}
-
-func sqlcPlatforms(platforms []scope.Platform) []sqlc.Platform {
-	out := make([]sqlc.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = sqlcPlatform(platform)
-	}
-	return out
-}
-
-func scopePlatforms(platforms []sqlc.Platform) []scope.Platform {
-	out := make([]scope.Platform, len(platforms))
-	for i, platform := range platforms {
-		out[i] = scope.Platform(platform)
-	}
-	return out
 }

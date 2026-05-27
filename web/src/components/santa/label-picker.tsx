@@ -17,7 +17,6 @@ export function LabelPicker({ value, onChange }: { value: number[]; onChange: (v
     page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
     label_type: "regular",
-    platform: "darwin",
   });
   const rows = labels.data?.items ?? [];
   const selected = rows.filter((label) => value.includes(label.id));
@@ -43,10 +42,10 @@ export function LabelPicker({ value, onChange }: { value: number[]; onChange: (v
             <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
           ))}
         </ComboboxValue>
-        <ComboboxChipsInput placeholder={rows.length === 0 ? "No macOS labels available" : "Add label"} />
+        <ComboboxChipsInput placeholder={rows.length === 0 ? "No labels available" : "Add label"} />
       </ComboboxChips>
       <ComboboxContent>
-        <ComboboxEmpty>{rows.length === 0 ? "No macOS labels available." : "No labels found."}</ComboboxEmpty>
+        <ComboboxEmpty>{rows.length === 0 ? "No labels available." : "No labels found."}</ComboboxEmpty>
         <ComboboxList>
           {(label: WoodstarLabel) => (
             <ComboboxItem key={label.id} value={label}>

@@ -88,22 +88,6 @@ func TestParseHostCertificatesStructuresDistinguishedNames(t *testing.T) {
 	}
 }
 
-func TestParseHostCertificatesUsesWindowsDistinguishedNameAsCommonName(t *testing.T) {
-	got := parseHostCertificates("certificates_windows", []map[string]string{{
-		"sha1":    "sha1",
-		"subject": "Contoso Root CA, Contoso, AU",
-		"issuer":  "Contoso Issuer CA, Contoso, AU",
-	}})
-
-	if len(got) != 1 {
-		t.Fatalf("len = %d, want 1", len(got))
-	}
-	if got[0].Subject.CommonName != "Contoso Root CA, Contoso, AU" ||
-		got[0].Issuer.CommonName != "Contoso Issuer CA, Contoso, AU" {
-		t.Fatalf("certificate names = %#v / %#v, want raw Windows distinguished names", got[0].Subject, got[0].Issuer)
-	}
-}
-
 func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 	rows := []map[string]string{
 		{

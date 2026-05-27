@@ -19,7 +19,6 @@ func TestListIncludesLabelScope(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Scoped report",
 		Query:            "select 1;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 		LabelScope: scope.LabelScope{
 			Mode:     scope.ScopeIncludeAll,
@@ -42,35 +41,9 @@ func TestListIncludesLabelScope(t *testing.T) {
 	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
 }
 
-func TestListFiltersByPlatformTargetSet(t *testing.T) {
-	store, _, _, ctx := newIntegrationReportStore(t)
-	if _, err := store.Create(ctx, ReportCreate{
-		Name:      "All targets report",
-		Query:     "select 1;",
-		Platforms: allPlatforms(),
-	}); err != nil {
-		t.Fatalf("create all-target report: %v", err)
-	}
-	if _, err := store.Create(ctx, ReportCreate{
-		Name:      "Windows only report",
-		Query:     "select 2;",
-		Platforms: []scope.Platform{scope.PlatformWindows},
-	}); err != nil {
-		t.Fatalf("create windows report: %v", err)
-	}
-
-	got, count, err := store.List(ctx, ReportListParams{Platform: "darwin"})
-	if err != nil {
-		t.Fatalf("list reports: %v", err)
-	}
-	if count != 1 || len(got) != 1 || got[0].Name != "All targets report" {
-		t.Fatalf("List(platform=darwin) returned count=%d rows=%+v, want only all-target report", count, got)
-	}
-}
-
 func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-scope-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-scope-host", "5.22.1")
 	matching := createManualLabel(t, ctx, labelStore, "Report match")
 	other := createManualLabel(t, ctx, labelStore, "Report other")
 	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
@@ -80,7 +53,6 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
 	}); err != nil {
@@ -89,7 +61,6 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
 	}); err != nil {
@@ -105,14 +76,13 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
-func TestScheduledForHostUsesHostApplicability(t *testing.T) {
+func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "5.22.1")
 
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
-		Platforms:         []scope.Platform{scope.PlatformDarwin},
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
 	}); err != nil {
@@ -121,23 +91,13 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 	if _, err := store.Create(ctx, ReportCreate{
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
-		Platforms:        []scope.Platform{scope.PlatformDarwin},
 		ScheduleInterval: 0,
 	}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
 	if _, err := store.Create(ctx, ReportCreate{
-		Name:             "Wrong platform report",
-		Query:            "select 3;",
-		Platforms:        []scope.Platform{scope.PlatformWindows},
-		ScheduleInterval: 60,
-	}); err != nil {
-		t.Fatalf("create wrong platform report: %v", err)
-	}
-	if _, err := store.Create(ctx, ReportCreate{
 		Name:              "Version-gated scheduled report",
 		Query:             "select 4;",
-		Platforms:         allPlatforms(),
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
 	}); err != nil {
@@ -149,7 +109,7 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 		t.Fatalf("scheduled for host: %v", err)
 	}
 	if len(got) != 2 || got[0].Name != "Matching scheduled report" || got[1].Name != "Version-gated scheduled report" {
-		t.Fatalf("ScheduledForHost returned %+v, want matching platform/schedule reports", got)
+		t.Fatalf("ScheduledForHost returned %+v, want scheduled reports", got)
 	}
 	if got[1].MinOsqueryVersion == nil || *got[1].MinOsqueryVersion != "6.0.0" {
 		t.Fatalf("ScheduledForHost min version = %v, want preserved schedule metadata", got[1].MinOsqueryVersion)
@@ -158,13 +118,12 @@ func TestScheduledForHostUsesHostApplicability(t *testing.T) {
 
 func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-host", "darwin", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-host", "5.22.1")
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
 	reportWithRows, err := store.Create(ctx, ReportCreate{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 	})
 	if err != nil {
@@ -173,7 +132,6 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	reportEmpty, err := store.Create(ctx, ReportCreate{
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 	})
 	if err != nil {
@@ -231,7 +189,6 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	report, err := store.Create(ctx, ReportCreate{
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
-		Platforms:        allPlatforms(),
 		ScheduleInterval: 60,
 	})
 	if err != nil {
@@ -279,10 +236,6 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	}
 }
 
-func allPlatforms() []scope.Platform {
-	return []scope.Platform{scope.PlatformDarwin, scope.PlatformWindows, scope.PlatformLinux}
-}
-
 func newIntegrationReportStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {
 	t.Helper()
 	database, ctx := dbtest.Open(t)
@@ -294,7 +247,6 @@ func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, n
 	label, err := store.Create(ctx, labels.LabelCreate{
 		Name:                name,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms:           allPlatforms(),
 	})
 	if err != nil {
 		t.Fatalf("create label %q: %v", name, err)
@@ -319,14 +271,12 @@ func enrollTestHostDetail(
 	ctx context.Context,
 	store *hosts.Store,
 	hardwareUUID string,
-	hostPlatform scope.Platform,
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
 	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.DetailUpdate{
 		HardwareUUID:   hardwareUUID,
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		Platform:       hostPlatform,
 		OsqueryVersion: osqueryVersion,
 	})
 	if err != nil {

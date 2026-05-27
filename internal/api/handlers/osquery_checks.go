@@ -20,7 +20,6 @@ const (
 
 type checkListInput struct {
 	ListQueryInput
-	Platform string `query:"platform,omitempty" enum:"darwin,windows,linux"`
 }
 
 type checkGetInput struct {
@@ -252,6 +251,5 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 func (input checkListInput) params() checks.CheckListParams {
 	return checks.CheckListParams{
 		ListParams: input.ListQueryInput.params(),
-		Platform:   input.Platform,
 	}
 }

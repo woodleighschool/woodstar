@@ -4,7 +4,6 @@ SELECT
     name,
     description,
     query,
-    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -19,7 +18,6 @@ INSERT INTO reports (
     name,
     description,
     query,
-    platforms,
     min_osquery_version,
     schedule_interval,
     created_by_user_id
@@ -28,7 +26,6 @@ VALUES (
     @name,
     @description,
     @query,
-    @platforms,
     sqlc.narg(min_osquery_version),
     @schedule_interval,
     sqlc.narg(created_by_user_id)
@@ -38,7 +35,6 @@ RETURNING
     name,
     description,
     query,
-    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -52,7 +48,6 @@ SET
     name = @name,
     description = @description,
     query = @query,
-    platforms = @platforms,
     min_osquery_version = sqlc.narg(min_osquery_version),
     schedule_interval = @schedule_interval,
     updated_at = now()
@@ -62,7 +57,6 @@ RETURNING
     name,
     description,
     query,
-    platforms,
     min_osquery_version,
     schedule_interval,
     label_scope_mode,
@@ -82,9 +76,7 @@ RETURNING id;
 
 -- name: ListScheduledReportsForHost :many
 WITH host_row AS (
-    SELECT
-        id,
-        platform
+    SELECT id
     FROM hosts h
     WHERE h.id = @host_id
 )
@@ -93,7 +85,6 @@ SELECT
     r.name,
     r.description,
     r.query,
-    r.platforms,
     r.min_osquery_version,
     r.schedule_interval,
     r.label_scope_mode,
@@ -103,7 +94,6 @@ SELECT
 FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
-  AND h.platform = ANY(r.platforms)
   AND (
       r.label_scope_mode = 'none'
       OR (

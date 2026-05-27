@@ -102,12 +102,5 @@ func openPool(ctx context.Context, cfg *pgxpool.Config) (*pgxpool.Pool, error) {
 }
 
 func registerConnTypes(ctx context.Context, conn *pgx.Conn) error {
-	for _, name := range []string{"platform", "_platform"} {
-		dataType, err := conn.LoadType(ctx, name)
-		if err != nil {
-			return fmt.Errorf("load %s type: %w", name, err)
-		}
-		conn.TypeMap().RegisterType(dataType)
-	}
 	return nil
 }

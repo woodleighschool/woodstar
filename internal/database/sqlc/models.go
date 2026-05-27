@@ -97,50 +97,6 @@ func (ns NullLabelScopeMode) Value() (driver.Value, error) {
 	return string(ns.LabelScopeMode), nil
 }
 
-type Platform string
-
-const (
-	PlatformUnknown Platform = "unknown"
-	PlatformDarwin  Platform = "darwin"
-	PlatformWindows Platform = "windows"
-	PlatformLinux   Platform = "linux"
-)
-
-func (e *Platform) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Platform(s)
-	case string:
-		*e = Platform(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Platform: %T", src)
-	}
-	return nil
-}
-
-type NullPlatform struct {
-	Platform Platform `json:"platform"`
-	Valid    bool     `json:"valid"` // Valid is true if Platform is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullPlatform) Scan(value interface{}) error {
-	if value == nil {
-		ns.Platform, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Platform.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullPlatform) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Platform), nil
-}
-
 type SantaClientMode string
 
 const (
@@ -471,7 +427,6 @@ type Check struct {
 	Name            string         `json:"name"`
 	Description     string         `json:"description"`
 	Query           string         `json:"query"`
-	Platforms       []Platform     `json:"platforms"`
 	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
 	CreatedByUserID *int64         `json:"created_by_user_id"`
 	CreatedAt       time.Time      `json:"created_at"`
@@ -535,9 +490,6 @@ type Host struct {
 	OSName                  string      `json:"os_name"`
 	OSVersion               string      `json:"os_version"`
 	OSBuild                 string      `json:"os_build"`
-	Platform                Platform    `json:"platform"`
-	OsqueryPlatform         string      `json:"osquery_platform"`
-	OsqueryPlatformLike     string      `json:"osquery_platform_like"`
 	OsqueryVersion          string      `json:"osquery_version"`
 	OrbitVersion            string      `json:"orbit_version"`
 	OrbitNodeKey            string      `json:"orbit_node_key"`
@@ -662,16 +614,15 @@ type HostUser struct {
 }
 
 type Label struct {
-	ID                  int64      `json:"id"`
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	Criteria            []byte     `json:"criteria"`
-	LabelType           string     `json:"label_type"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
-	CreatedAt           time.Time  `json:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at"`
+	ID                  int64     `json:"id"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Query               *string   `json:"query"`
+	Criteria            []byte    `json:"criteria"`
+	LabelType           string    `json:"label_type"`
+	LabelMembershipType string    `json:"label_membership_type"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type LabelMembership struct {
@@ -686,7 +637,6 @@ type Report struct {
 	Name              string         `json:"name"`
 	Description       string         `json:"description"`
 	Query             string         `json:"query"`
-	Platforms         []Platform     `json:"platforms"`
 	MinOsqueryVersion *string        `json:"min_osquery_version"`
 	ScheduleInterval  int32          `json:"schedule_interval"`
 	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`

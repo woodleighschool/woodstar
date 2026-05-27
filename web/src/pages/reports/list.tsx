@@ -6,19 +6,15 @@ import { useState } from "react";
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { IntervalIndicator, PlatformBadge } from "@/components/queries/query-ui";
+import { IntervalIndicator } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
-
-const PLATFORM_OPTIONS = QUERYABLE_PLATFORMS.map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] }));
 
 export function ReportsPage() {
   const search = useSearch({ strict: false });
@@ -27,17 +23,15 @@ export function ReportsPage() {
   const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const bulkDelete = useBulkDeleteReports();
-  const platform = search.platform && isQueryablePlatform(search.platform) ? search.platform : undefined;
 
   const reports = useReports({
     q: search.q,
-    platform,
     ...tableQueryParams(state),
   });
 
   const data = reports.data?.items ?? [];
   const totalCount = reports.data?.count ?? 0;
-  const hasFilters = !!search.q || !!platform;
+  const hasFilters = !!search.q;
   const selectedIDs = selectedReportIds.map(Number);
 
   const deleteSelectedReports = () => {
@@ -62,12 +56,6 @@ export function ReportsPage() {
           ) : null}
         </div>
       ),
-    },
-    {
-      id: "platform",
-      header: "Targeted platforms",
-      enableSorting: false,
-      cell: ({ row }) => <PlatformBadge platforms={row.original.platforms} />,
     },
     {
       id: "schedule_interval",
@@ -119,13 +107,6 @@ export function ReportsPage() {
           toolbar={
             <div className="flex items-center gap-2">
               <DataTableSearch value={draft} onChange={setDraft} placeholder="Search by name" label="Search reports" />
-              <DataTableFacetedFilter
-                title="Platform"
-                options={PLATFORM_OPTIONS}
-                selected={platform ? [platform] : []}
-                onChange={(next) => setters.setFilter("platform", next[0])}
-                singleSelect
-              />
             </div>
           }
           empty={

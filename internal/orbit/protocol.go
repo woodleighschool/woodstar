@@ -6,8 +6,6 @@ type EnrollRequest struct {
 	HardwareUUID      string `json:"hardware_uuid"`
 	HardwareSerial    string `json:"hardware_serial,omitempty"`
 	Hostname          string `json:"hostname,omitempty"`
-	Platform          string `json:"platform,omitempty"`
-	PlatformLike      string `json:"platform_like,omitempty"`
 	OsqueryIdentifier string `json:"osquery_identifier,omitempty"`
 	ComputerName      string `json:"computer_name,omitempty"`
 	HardwareModel     string `json:"hardware_model,omitempty"`

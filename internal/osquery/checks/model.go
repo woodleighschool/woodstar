@@ -13,7 +13,6 @@ type Check struct {
 	Name            string           `json:"name"`
 	Description     string           `json:"description"`
 	Query           string           `json:"query"`
-	Platforms       []scope.Platform `json:"platforms"                    enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	LabelScope      scope.LabelScope `json:"label_scope,omitzero"`
 	CreatedByUserID *int64           `json:"created_by_user_id,omitempty"`
 	CreatedAt       time.Time        `json:"created_at"`
@@ -25,7 +24,6 @@ type CheckCreate struct {
 	Name            string           `json:"name"`
 	Description     string           `json:"description,omitempty"`
 	Query           string           `json:"query"`
-	Platforms       []scope.Platform `json:"platforms"             enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	LabelScope      scope.LabelScope `json:"label_scope"`
 	CreatedByUserID *int64           `json:"-"`
 }
@@ -35,15 +33,12 @@ type CheckUpdate struct {
 	Name        string           `json:"name"`
 	Description string           `json:"description,omitempty"`
 	Query       string           `json:"query"`
-	Platforms   []scope.Platform `json:"platforms"             enum:"darwin,windows,linux" minItems:"1" nullable:"false"`
 	LabelScope  scope.LabelScope `json:"label_scope"`
 }
 
 // CheckListParams filters checks.
 type CheckListParams struct {
 	dbutil.ListParams
-
-	Platform string
 }
 
 // CheckStatus is the latest check result.

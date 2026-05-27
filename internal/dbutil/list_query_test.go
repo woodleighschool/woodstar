@@ -58,16 +58,16 @@ func TestWhereBuilderBuildsClausesWithStablePlaceholders(t *testing.T) {
 	var where WhereBuilder
 	search := where.Arg("%mac%")
 	where.Add("(display_name ILIKE " + search + " OR hardware_serial ILIKE " + search + ")")
-	platform := where.Arg("darwin")
-	where.Add("platform = " + platform)
+	status := where.Arg("online")
+	where.Add("status = " + status)
 
 	query, args := where.Build()
 
-	wantQuery := "WHERE (display_name ILIKE $1 OR hardware_serial ILIKE $1) AND platform = $2"
+	wantQuery := "WHERE (display_name ILIKE $1 OR hardware_serial ILIKE $1) AND status = $2"
 	if query != wantQuery {
 		t.Fatalf("query = %q, want %q", query, wantQuery)
 	}
-	if len(args) != 2 || args[0] != "%mac%" || args[1] != "darwin" {
+	if len(args) != 2 || args[0] != "%mac%" || args[1] != "online" {
 		t.Fatalf("args = %#v", args)
 	}
 }

@@ -8,13 +8,12 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // labelStore is what label evaluation needs.
 type labelStore interface {
-	ListApplicableDynamic(context.Context, scope.Platform) ([]labels.Label, error)
-	ApplicableDynamicIDs(context.Context, []int64, scope.Platform) (map[int64]struct{}, error)
+	ListApplicableDynamic(context.Context) ([]labels.Label, error)
+	ApplicableDynamicIDs(context.Context, []int64) (map[int64]struct{}, error)
 	SetMembership(context.Context, int64, int64, bool) error
 	MarkHostLabelsFresh(context.Context, int64) error
 }
@@ -35,9 +34,9 @@ func NewLabelEvaluator(store labelStore, logger *slog.Logger) *LabelEvaluator {
 	return &LabelEvaluator{store: store, logger: logger}
 }
 
-// ApplicableLabels returns labels for the host family.
+// ApplicableLabels returns labels with dynamic membership.
 func (e *LabelEvaluator) ApplicableLabels(ctx context.Context, host *hosts.Host) ([]labels.Label, error) {
-	return e.store.ListApplicableDynamic(ctx, host.Platform)
+	return e.store.ListApplicableDynamic(ctx)
 }
 
 // Finalize saves label results.
@@ -52,7 +51,7 @@ func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results
 	for _, r := range results {
 		ids = append(ids, r.LabelID)
 	}
-	applicable, err := e.store.ApplicableDynamicIDs(ctx, ids, host.Platform)
+	applicable, err := e.store.ApplicableDynamicIDs(ctx, ids)
 	if err != nil {
 		return err
 	}

@@ -3,8 +3,6 @@ import { Download, FileCode2, Play, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { SQLEditor } from "@/components/editor/sql-editor";
-import { selectedPlatformIconTargets } from "@/components/platform/platform-icon-data";
-import { PlatformIconList } from "@/components/platform/platform-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,15 +19,10 @@ import { cn, formatInterval } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
 
-export function PlatformBadge({ platforms }: { platforms?: readonly string[] | null }) {
-  return <PlatformIconList platforms={selectedPlatformIconTargets(platforms)} iconClassName="size-4" />;
-}
-
-export function TargetSummary({ scope, platforms }: { scope?: LabelScope; platforms?: readonly string[] | null }) {
+export function TargetSummary({ scope }: { scope?: LabelScope }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <span>{targetScopeLabel(scope)}</span>
-      <PlatformIconList platforms={selectedPlatformIconTargets(platforms)} iconClassName="size-3.5" />
     </span>
   );
 }

@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestDetailQueryRegistryIsComplete(t *testing.T) {
@@ -19,14 +17,10 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 		"uptime",
 		"root_disk_darwin",
 		"primary_interface_unix",
-		"primary_interface_windows",
 		"users",
 		"batteries",
 		"certificates_darwin",
-		"certificates_windows",
 		"software_macos",
-		"software_linux",
-		"software_windows",
 		"software_vscode_extensions",
 		"software_jetbrains_plugins",
 		"software_go_binaries",
@@ -51,7 +45,7 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 }
 
 func TestDetailQueriesDue(t *testing.T) {
-	got := DetailQueriesDue(nil, "", scope.PlatformDarwin)
+	got := DetailQueriesDue(nil, "")
 	for _, name := range []string{
 		QueryOSVersion,
 		QuerySystemInfo,
@@ -63,16 +57,7 @@ func TestDetailQueriesDue(t *testing.T) {
 		QuerySoftwareMacOS,
 	} {
 		if got.Queries[name] == "" {
-			t.Fatalf("missing darwin detail query %q", name)
-		}
-	}
-	for _, name := range []string{
-		QueryPrimaryInterfaceWindows,
-		QuerySoftwareLinux,
-		QuerySoftwareWindows,
-	} {
-		if got.Queries[name] != "" {
-			t.Fatalf("unexpected darwin detail query %q", name)
+			t.Fatalf("missing detail query %q", name)
 		}
 	}
 	if got.Discovery["orbit_info"] == "" ||
@@ -89,7 +74,7 @@ func TestDetailQueriesDue(t *testing.T) {
 }
 
 func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
-	got := DetailQueriesDue(nil, "", scope.PlatformDarwin)
+	got := DetailQueriesDue(nil, "")
 	for _, name := range []string{
 		QueryBatteries,
 		QueryCertificatesDarwin,
@@ -106,70 +91,12 @@ func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
 	}
 }
 
-func TestDetailQueriesDueFiltersByPlatform(t *testing.T) {
-	cases := []struct {
-		platform scope.Platform
-		include  []string
-		exclude  []string
-	}{
-		{
-			platform: scope.PlatformWindows,
-			include:  []string{QueryPrimaryInterfaceWindows, QuerySoftwareWindows, QueryCertificatesWindows},
-			exclude: []string{
-				QueryPrimaryInterfaceUnix,
-				QueryRootDiskDarwin,
-				QuerySoftwareMacOS,
-				QueryCertificatesDarwin,
-			},
-		},
-		{
-			platform: scope.PlatformLinux,
-			include:  []string{QueryPrimaryInterfaceUnix, QuerySoftwareLinux},
-			exclude: []string{
-				QueryPrimaryInterfaceWindows,
-				QueryRootDiskDarwin,
-				QuerySoftwareMacOS,
-				QueryCertificatesDarwin,
-				QueryCertificatesWindows,
-			},
-		},
-		{
-			platform: scope.PlatformUnknown,
-			exclude: []string{
-				QueryPrimaryInterfaceUnix,
-				QueryPrimaryInterfaceWindows,
-				QueryRootDiskDarwin,
-				QuerySoftwareMacOS,
-				QuerySoftwareLinux,
-				QuerySoftwareWindows,
-				QueryCertificatesDarwin,
-				QueryCertificatesWindows,
-			},
-		},
-	}
-	for _, tc := range cases {
-		t.Run(string(tc.platform), func(t *testing.T) {
-			got := DetailQueriesDue(nil, "", tc.platform)
-			for _, name := range tc.include {
-				if got.Queries[name] == "" {
-					t.Fatalf("%s missing query %q", tc.platform, name)
-				}
-			}
-			for _, name := range tc.exclude {
-				if got.Queries[name] != "" {
-					t.Fatalf("%s unexpectedly included query %q", tc.platform, name)
-				}
-			}
-		})
-	}
-}
-
 func TestDetailQueriesDueWhenHashChanges(t *testing.T) {
 	now := time.Now()
-	if got := DetailQueriesDue(&now, DetailQueryHash(), scope.PlatformDarwin); len(got.Queries) != 0 {
+	if got := DetailQueriesDue(&now, DetailQueryHash()); len(got.Queries) != 0 {
 		t.Fatalf("fresh matching hash returned %d queries, want 0", len(got.Queries))
 	}
-	if got := DetailQueriesDue(&now, "old-hash", scope.PlatformDarwin); len(got.Queries) == 0 {
+	if got := DetailQueriesDue(&now, "old-hash"); len(got.Queries) == 0 {
 		t.Fatal("fresh stale hash returned no queries")
 	}
 }
@@ -185,7 +112,7 @@ func TestDetailQueriesUseExplicitColumns(t *testing.T) {
 
 func TestHostDetailQueriesProjectIngestShape(t *testing.T) {
 	osVersionSQL := DetailQueries()[QueryOSVersion].SQL
-	for _, want := range []string{"name", "version", "major", "minor", "build", "platform", "platform_like"} {
+	for _, want := range []string{"name", "version", "major", "minor", "build"} {
 		if !strings.Contains(osVersionSQL, want) {
 			t.Fatalf("os_version SQL missing %q: %s", want, osVersionSQL)
 		}
@@ -203,8 +130,6 @@ func TestHostDetailQueriesProjectIngestShape(t *testing.T) {
 func TestSoftwareQueriesProjectIngestShape(t *testing.T) {
 	for _, name := range []string{
 		QuerySoftwareMacOS,
-		QuerySoftwareLinux,
-		QuerySoftwareWindows,
 		QuerySoftwareVSCodeExtensions,
 		QuerySoftwareJetBrainsPlugins,
 		QuerySoftwareGoBinaries,

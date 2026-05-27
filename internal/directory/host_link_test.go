@@ -29,7 +29,6 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		HardwareUUID:   "fixture-uuid",
 		HardwareSerial: "fixture-serial",
 		Hostname:       "fixture",
-		Platform:       "darwin",
 		OrbitNodeKey:   "fixture-node",
 	})
 	if err != nil {

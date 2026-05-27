@@ -144,7 +144,6 @@ export function SantaConfigurationsPage() {
     page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
     label_type: "regular",
-    platform: "darwin",
   });
   const bulkDelete = useBulkDeleteSantaConfigurations();
   const reorder = useReorderSantaConfigurations();

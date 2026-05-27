@@ -1,7 +1,6 @@
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { isValidElement, useState } from "react";
 
-import { PlatformIcon } from "@/components/platform/platform-icons";
 import { Badge } from "@/components/ui/badge";
 import {
   Combobox,
@@ -13,13 +12,10 @@ import {
 } from "@/components/ui/combobox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useOsquerySchema, type OsqueryColumn, type OsqueryTable } from "@/hooks/use-osquery-schema";
-import { isQueryablePlatform, PLATFORM_LABELS, QUERYABLE_PLATFORMS } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { SQLEditor } from "./sql-editor";
-
-const PLATFORM_ORDER = QUERYABLE_PLATFORMS;
 
 interface SchemaSidebarProps {
   open: boolean;
@@ -154,8 +150,6 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
         </section>
       ) : null}
 
-      {table.platforms?.length ? <PlatformList platforms={table.platforms} /> : null}
-
       <ColumnList columns={table.columns} onInsertColumn={onInsertColumn} />
 
       {table.examples ? (
@@ -211,28 +205,6 @@ function exampleMarkdown(examples: NonNullable<OsqueryTable["examples"]>) {
   return examples
     .map((example) => [example.description, "```sql", example.query, "```"].filter(Boolean).join("\n\n"))
     .join("\n\n");
-}
-
-function PlatformList({ platforms }: { platforms: string[] }) {
-  const sorted = Array.from(new Set(platforms.filter(isQueryablePlatform))).sort(
-    (a, b) => PLATFORM_ORDER.indexOf(a) - PLATFORM_ORDER.indexOf(b),
-  );
-  if (!sorted.length) return null;
-  return (
-    <section>
-      <SectionHeading>Compatible with</SectionHeading>
-      <ul className="grid gap-1.5">
-        {sorted.map((p) => (
-          <li key={p}>
-            <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
-              <PlatformIcon platform={p} className="size-4" />
-              <span>{PLATFORM_LABELS[p]}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 function ColumnList({
@@ -300,7 +272,6 @@ function renderColumnTooltip(column: OsqueryColumn): React.ReactNode | null {
   const lines: { key: string; text: string }[] = [];
   if (column.description) lines.push({ key: "desc", text: column.description });
   if (column.required) lines.push({ key: "req", text: "Required in WHERE clause." });
-  if (column.platforms?.length) lines.push({ key: "plat", text: `Only on ${column.platforms.join(", ")}.` });
   if (column.hidden) lines.push({ key: "hide", text: "Not returned by SELECT *." });
   if (!lines.length) return null;
   return (

@@ -13,16 +13,14 @@ INSERT INTO labels (
     description,
     query,
     label_type,
-    label_membership_type,
-    platforms
+    label_membership_type
 )
 VALUES (
     @name,
     @description,
     sqlc.narg(query),
     @label_type,
-    @label_membership_type,
-    @platforms
+    @label_membership_type
 )
 RETURNING *;
 
@@ -33,7 +31,6 @@ SET
     description = @description,
     query = sqlc.narg(query),
     label_membership_type = @label_membership_type,
-    platforms = @platforms,
     updated_at = now()
 WHERE id = @id AND label_type = 'regular'
 RETURNING *;
@@ -48,7 +45,6 @@ SELECT *
 FROM labels
 WHERE
     label_membership_type = 'dynamic'
-    AND @platform::platform = ANY(platforms)
 ORDER BY id;
 
 -- name: ListApplicableDynamicLabelIDs :many
@@ -57,7 +53,6 @@ FROM labels
 WHERE
     id = ANY(@ids::bigint[])
     AND label_membership_type = 'dynamic'
-    AND @platform::platform = ANY(platforms)
 ORDER BY id;
 
 -- name: UpsertLabelMembership :exec

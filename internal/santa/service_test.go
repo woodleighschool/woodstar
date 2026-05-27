@@ -12,7 +12,6 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
@@ -147,11 +146,6 @@ func createSantaConfigurationLabel(t *testing.T, db *database.DB, name string) i
 		Name:                name,
 		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		Platforms: []scope.Platform{
-			scope.PlatformDarwin,
-			scope.PlatformWindows,
-			scope.PlatformLinux,
-		},
 	})
 	if err != nil {
 		t.Fatalf("create label %q: %v", name, err)

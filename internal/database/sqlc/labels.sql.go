@@ -15,27 +15,24 @@ INSERT INTO labels (
     description,
     query,
     label_type,
-    label_membership_type,
-    platforms
+    label_membership_type
 )
 VALUES (
     $1,
     $2,
     $3,
     $4,
-    $5,
-    $6
+    $5
 )
-RETURNING id, name, description, query, criteria, label_type, label_membership_type, platforms, created_at, updated_at
+RETURNING id, name, description, query, criteria, label_type, label_membership_type, created_at, updated_at
 `
 
 type CreateLabelParams struct {
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	LabelType           string     `json:"label_type"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
+	Name                string  `json:"name"`
+	Description         string  `json:"description"`
+	Query               *string `json:"query"`
+	LabelType           string  `json:"label_type"`
+	LabelMembershipType string  `json:"label_membership_type"`
 }
 
 func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label, error) {
@@ -45,7 +42,6 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		arg.Query,
 		arg.LabelType,
 		arg.LabelMembershipType,
-		arg.Platforms,
 	)
 	var i Label
 	err := row.Scan(
@@ -56,7 +52,6 @@ func (q *Queries) CreateLabel(ctx context.Context, arg CreateLabelParams) (Label
 		&i.Criteria,
 		&i.LabelType,
 		&i.LabelMembershipType,
-		&i.Platforms,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -97,7 +92,7 @@ func (q *Queries) DeleteRegularLabel(ctx context.Context, arg DeleteRegularLabel
 
 const getLabelByID = `-- name: GetLabelByID :one
 SELECT
-    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.platforms, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.created_at, l.updated_at,
     count(lm.host_id)::integer AS hosts_count
 FROM labels l
 LEFT JOIN label_membership lm ON lm.label_id = l.id
@@ -125,7 +120,6 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 		&i.Label.Criteria,
 		&i.Label.LabelType,
 		&i.Label.LabelMembershipType,
-		&i.Label.Platforms,
 		&i.Label.CreatedAt,
 		&i.Label.UpdatedAt,
 		&i.HostsCount,
@@ -139,17 +133,15 @@ FROM labels
 WHERE
     id = ANY($1::bigint[])
     AND label_membership_type = 'dynamic'
-    AND $2::platform = ANY(platforms)
 ORDER BY id
 `
 
 type ListApplicableDynamicLabelIDsParams struct {
-	Ids      []int64  `json:"ids"`
-	Platform Platform `json:"platform"`
+	Ids []int64 `json:"ids"`
 }
 
 func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApplicableDynamicLabelIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listApplicableDynamicLabelIDs, arg.Ids, arg.Platform)
+	rows, err := q.db.Query(ctx, listApplicableDynamicLabelIDs, arg.Ids)
 	if err != nil {
 		return nil, err
 	}
@@ -169,20 +161,15 @@ func (q *Queries) ListApplicableDynamicLabelIDs(ctx context.Context, arg ListApp
 }
 
 const listApplicableDynamicLabels = `-- name: ListApplicableDynamicLabels :many
-SELECT id, name, description, query, criteria, label_type, label_membership_type, platforms, created_at, updated_at
+SELECT id, name, description, query, criteria, label_type, label_membership_type, created_at, updated_at
 FROM labels
 WHERE
     label_membership_type = 'dynamic'
-    AND $1::platform = ANY(platforms)
 ORDER BY id
 `
 
-type ListApplicableDynamicLabelsParams struct {
-	Platform Platform `json:"platform"`
-}
-
-func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListApplicableDynamicLabelsParams) ([]Label, error) {
-	rows, err := q.db.Query(ctx, listApplicableDynamicLabels, arg.Platform)
+func (q *Queries) ListApplicableDynamicLabels(ctx context.Context) ([]Label, error) {
+	rows, err := q.db.Query(ctx, listApplicableDynamicLabels)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +185,6 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 			&i.Criteria,
 			&i.LabelType,
 			&i.LabelMembershipType,
-			&i.Platforms,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -214,7 +200,7 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context, arg ListAppli
 
 const listLabelsForHost = `-- name: ListLabelsForHost :many
 SELECT
-    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.platforms, l.created_at, l.updated_at,
+    l.id, l.name, l.description, l.query, l.criteria, l.label_type, l.label_membership_type, l.created_at, l.updated_at,
     count(lm_all.host_id)::integer AS hosts_count
 FROM labels l
 JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = $1
@@ -249,7 +235,6 @@ func (q *Queries) ListLabelsForHost(ctx context.Context, arg ListLabelsForHostPa
 			&i.Label.Criteria,
 			&i.Label.LabelType,
 			&i.Label.LabelMembershipType,
-			&i.Label.Platforms,
 			&i.Label.CreatedAt,
 			&i.Label.UpdatedAt,
 			&i.HostsCount,
@@ -286,19 +271,17 @@ SET
     description = $2,
     query = $3,
     label_membership_type = $4,
-    platforms = $5,
     updated_at = now()
-WHERE id = $6 AND label_type = 'regular'
-RETURNING id, name, description, query, criteria, label_type, label_membership_type, platforms, created_at, updated_at
+WHERE id = $5 AND label_type = 'regular'
+RETURNING id, name, description, query, criteria, label_type, label_membership_type, created_at, updated_at
 `
 
 type UpdateLabelParams struct {
-	Name                string     `json:"name"`
-	Description         string     `json:"description"`
-	Query               *string    `json:"query"`
-	LabelMembershipType string     `json:"label_membership_type"`
-	Platforms           []Platform `json:"platforms"`
-	ID                  int64      `json:"id"`
+	Name                string  `json:"name"`
+	Description         string  `json:"description"`
+	Query               *string `json:"query"`
+	LabelMembershipType string  `json:"label_membership_type"`
+	ID                  int64   `json:"id"`
 }
 
 func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label, error) {
@@ -307,7 +290,6 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		arg.Description,
 		arg.Query,
 		arg.LabelMembershipType,
-		arg.Platforms,
 		arg.ID,
 	)
 	var i Label
@@ -319,7 +301,6 @@ func (q *Queries) UpdateLabel(ctx context.Context, arg UpdateLabelParams) (Label
 		&i.Criteria,
 		&i.LabelType,
 		&i.LabelMembershipType,
-		&i.Platforms,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
