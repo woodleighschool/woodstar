@@ -7,6 +7,7 @@ import { z } from "zod";
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { DraggableDataTable, DraggableDataTableRowDragHandle } from "@/components/data-table/draggable-data-table";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
@@ -28,7 +29,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   Field,
   FieldDescription,
@@ -286,7 +286,7 @@ export function SantaConfigurationsPage() {
               <Button asChild size="sm">
                 <Link to="/santa/configurations/new">
                   <Plus data-icon="inline-start" />
-                  Add configuration
+                  Create
                 </Link>
               </Button>
             )}
@@ -340,12 +340,7 @@ export function SantaConfigurationsPage() {
           })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch
-                value={draft}
-                onChange={setDraft}
-                placeholder="Search configurations"
-                label="Search configurations"
-              />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search configurations" />
             </div>
           }
           empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
@@ -371,19 +366,15 @@ export function SantaConfigurationsPage() {
 
 function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <FileSliders />
-        </EmptyMedia>
-        <EmptyTitle>{hasFilters ? "No matches" : "No configurations yet"}</EmptyTitle>
-        <EmptyDescription>
-          {hasFilters
-            ? "No Santa configurations matched the current filters."
-            : "Add a Santa configuration to start sending client settings."}
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
+    <DataTableEmptyState
+      icon={<FileSliders />}
+      title={hasFilters ? "No matches" : "No client configurations"}
+      description={
+        hasFilters
+          ? "No Santa configurations matched the current filters."
+          : "Create a configuration to start sending Santa client settings."
+      }
+    />
   );
 }
 

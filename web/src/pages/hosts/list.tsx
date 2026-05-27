@@ -7,6 +7,7 @@ import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,7 +22,6 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
@@ -259,25 +259,20 @@ export function HostsListPage() {
             />
           )}
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ServerCog />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No hosts enrolled yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No hosts matched the current filters."
-                    : "Create an Orbit enrollment first, then point a managed host at this Woodstar deployment."}
-                  {!hasFilters ? (
-                    <>
-                      {" "}
-                      <Link to="/enrollments">Open enrollments</Link>.
-                    </>
-                  ) : null}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<ServerCog />}
+              title={hasFilters ? "No matches" : "No enrolled devices"}
+              description={
+                hasFilters ? (
+                  "No hosts matched the current filters."
+                ) : (
+                  <>
+                    Create an Orbit enrollment, then point a managed host at this deployment.{" "}
+                    <Link to="/enrollments">Open enrollments</Link>.
+                  </>
+                )
+              }
+            />
           }
         />
       )}
@@ -312,7 +307,7 @@ function HostsToolbar({ draft, onDraftChange, labelId, onLabelChange, labelOptio
       <DataTableSearch
         value={draft}
         onChange={onDraftChange}
-        placeholder="Search hosts"
+        placeholder="Search"
         label="Search hosts"
         className="basis-full sm:basis-64"
       />

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -15,7 +16,6 @@ import { SortableList, type SortableItem } from "@/components/santa/sortable-lis
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -205,7 +205,7 @@ export function SantaRulesPage() {
           <Button asChild size="sm">
             <Link to="/santa/rules/new">
               <Plus data-icon="inline-start" />
-              Add rule
+              Create
             </Link>
           </Button>
         }
@@ -238,7 +238,7 @@ export function SantaRulesPage() {
           rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search rules" label="Search rules" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search rules" />
               <DataTableFacetedFilter
                 title="Rule type"
                 selected={ruleType ? [ruleType] : []}
@@ -258,19 +258,15 @@ export function SantaRulesPage() {
             </div>
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ListChecks />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No rules yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No Santa rules matched the current filters."
-                    : "Add a Santa rule to make it effective for matching labels."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<ListChecks />}
+              title={hasFilters ? "No matches" : "No execution rules"}
+              description={
+                hasFilters
+                  ? "No Santa rules matched the current filters."
+                  : "Create a Santa rule, then attach it to one or more label targets."
+              }
+            />
           }
         />
       )}

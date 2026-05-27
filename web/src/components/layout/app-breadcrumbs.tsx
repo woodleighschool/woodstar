@@ -17,6 +17,7 @@ import { useReport } from "@/hooks/use-reports";
 import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
 import { useSoftwareTitle } from "@/hooks/use-software";
 import { useUser } from "@/hooks/use-users";
+import { cn } from "@/lib/utils";
 
 interface Crumb {
   key: string;
@@ -25,7 +26,7 @@ interface Crumb {
   params?: Record<string, string>;
 }
 
-export function AppBreadcrumbs() {
+export function AppBreadcrumbs({ className }: { className?: string }) {
   const matches = useMatches();
   const leaf = matches[matches.length - 1] as { routeId: string; params: Record<string, string> } | undefined;
   const crumbs = leaf ? crumbsForLeaf(leaf.routeId, leaf.params) : [];
@@ -33,7 +34,7 @@ export function AppBreadcrumbs() {
   if (crumbs.length === 0) return null;
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className={cn("min-w-0", className)}>
       <BreadcrumbList>
         {crumbs.map((crumb, i) => {
           const isLast = i === crumbs.length - 1;
@@ -60,10 +61,10 @@ export function AppBreadcrumbs() {
 }
 
 function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[] {
+  if (sidebarRouteIDs.has(routeId)) return [];
+
   switch (routeId) {
     // Hosts
-    case "/_authenticated/hosts/":
-      return [{ key: "hosts", label: "Hosts" }];
     case "/_authenticated/hosts/$hostId":
       return [
         { key: "hosts", label: "Hosts", to: "/hosts" },
@@ -82,8 +83,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Software
-    case "/_authenticated/software/":
-      return [{ key: "software", label: "Software" }];
     case "/_authenticated/software/titles/$softwareId":
       return [
         { key: "software", label: "Software", to: "/software" },
@@ -91,8 +90,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Labels
-    case "/_authenticated/labels/":
-      return [{ key: "labels", label: "Labels" }];
     case "/_authenticated/labels/new":
       return [
         { key: "labels", label: "Labels", to: "/labels" },
@@ -105,11 +102,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Osquery checks
-    case "/_authenticated/checks/":
-      return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "checks", label: "Checks" },
-      ];
     case "/_authenticated/checks/new":
       return [
         { key: "osquery", label: "Osquery", to: "/reports" },
@@ -136,11 +128,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Osquery reports
-    case "/_authenticated/reports/":
-      return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "reports", label: "Reports" },
-      ];
     case "/_authenticated/reports/new":
       return [
         { key: "osquery", label: "Osquery", to: "/reports" },
@@ -179,12 +166,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Santa
-    case "/_authenticated/santa/configurations/":
-    case "/_authenticated/santa/configurations":
-      return [
-        { key: "santa", label: "Santa", to: "/santa/configurations" },
-        { key: "santa-configurations", label: "Configurations" },
-      ];
     case "/_authenticated/santa/configurations/new":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
@@ -200,12 +181,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
           label: <SantaConfigurationCrumb id={params.configurationId} />,
         },
       ];
-    case "/_authenticated/santa/rules/":
-    case "/_authenticated/santa/rules":
-      return [
-        { key: "santa", label: "Santa", to: "/santa/configurations" },
-        { key: "santa-rules", label: "Rules" },
-      ];
     case "/_authenticated/santa/rules/new":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
@@ -218,30 +193,8 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "santa-rules", label: "Rules", to: "/santa/rules" },
         { key: `santa-rule-${params.ruleId}`, label: <SantaRuleCrumb id={params.ruleId} /> },
       ];
-    case "/_authenticated/santa/events":
-      return [
-        { key: "santa", label: "Santa", to: "/santa/configurations" },
-        { key: "santa-events", label: "Events" },
-      ];
 
     // System
-    case "/_authenticated/account":
-      return [{ key: "account", label: "Account" }];
-    case "/_authenticated/enrollments/":
-    case "/_authenticated/enrollments":
-      return [{ key: "enrollments", label: "Enrollments" }];
-    case "/_authenticated/enrollments/orbit":
-      return [
-        { key: "enrollments", label: "Enrollments", to: "/enrollments/orbit" },
-        { key: "enrollments-orbit", label: "Orbit" },
-      ];
-    case "/_authenticated/enrollments/santa":
-      return [
-        { key: "enrollments", label: "Enrollments", to: "/enrollments/orbit" },
-        { key: "enrollments-santa", label: "Santa" },
-      ];
-    case "/_authenticated/users":
-      return [{ key: "users", label: "Users" }];
     case "/_authenticated/users/$userId/edit":
       return [
         { key: "users", label: "Users", to: "/users" },
@@ -251,6 +204,25 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       return [];
   }
 }
+
+const sidebarRouteIDs = new Set([
+  "/_authenticated/account",
+  "/_authenticated/checks/",
+  "/_authenticated/enrollments",
+  "/_authenticated/enrollments/",
+  "/_authenticated/enrollments/orbit",
+  "/_authenticated/enrollments/santa",
+  "/_authenticated/hosts/",
+  "/_authenticated/labels/",
+  "/_authenticated/reports/",
+  "/_authenticated/santa/configurations",
+  "/_authenticated/santa/configurations/",
+  "/_authenticated/santa/events",
+  "/_authenticated/santa/rules",
+  "/_authenticated/santa/rules/",
+  "/_authenticated/software/",
+  "/_authenticated/users",
+]);
 
 function HostCrumb({ id }: { id: string }) {
   const { data, isLoading } = useHost(Number(id));

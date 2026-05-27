@@ -6,11 +6,11 @@ import { useState } from "react";
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -67,7 +67,7 @@ export function ChecksPage() {
           <Button asChild size="sm">
             <Link to="/checks/new">
               <Plus data-icon="inline-start" />
-              Add check
+              Create
             </Link>
           </Button>
         }
@@ -99,23 +99,17 @@ export function ChecksPage() {
           rowHref={(row) => ({ to: "/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search by name" label="Search checks" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search checks" />
             </div>
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ShieldCheck />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No checks yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "Try clearing the filters."
-                    : "Add checks to detect device health issues and trigger follow-up workflows later."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<ShieldCheck />}
+              title={hasFilters ? "No matches" : "No health checks"}
+              description={
+                hasFilters ? "Try clearing the filters." : "Create a check from SQL to track pass/fail host health."
+              }
+            />
           }
         />
       )}

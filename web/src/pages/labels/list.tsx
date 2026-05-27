@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -27,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -115,7 +115,7 @@ export function LabelsPage() {
           <Button asChild size="sm">
             <Link to="/labels/new">
               <Plus data-icon="inline-start" />
-              Add label
+              Create
             </Link>
           </Button>
         }
@@ -141,7 +141,7 @@ export function LabelsPage() {
           rowHref={(row) => ({ to: "/labels/$labelId/edit", params: { labelId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search labels" label="Search labels" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search labels" />
               <DataTableFacetedFilter
                 title="Membership"
                 options={MEMBERSHIP_OPTIONS}
@@ -152,19 +152,15 @@ export function LabelsPage() {
             </div>
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Tags />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No labels yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No labels matched the current filters."
-                    : "Add a label to target hosts in reports and checks."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<Tags />}
+              title={hasFilters ? "No matches" : "No host groups"}
+              description={
+                hasFilters
+                  ? "No labels matched the current filters."
+                  : "Create dynamic, manual, or derived labels for host targeting."
+              }
+            />
           }
         />
       )}

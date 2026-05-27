@@ -4,13 +4,13 @@ import { Package } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { PageShell } from "@/components/layout/page-layout";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSoftware, type SoftwareTitle } from "@/hooks/use-software";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -81,6 +81,8 @@ export function SoftwarePage() {
 
   return (
     <PageShell>
+      <PageHeader title="Software" description="Observed apps and packages reported by enrolled hosts." />
+
       {query.error ? (
         <Alert variant="destructive">
           <AlertTitle>Failed to load software</AlertTitle>
@@ -109,19 +111,15 @@ export function SoftwarePage() {
             />
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Package />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No software inventory yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No titles matched the current filters."
-                    : "Hosts will report installed apps and packages on their next detail refresh."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<Package />}
+              title={hasFilters ? "No matches" : "No observed software"}
+              description={
+                hasFilters
+                  ? "No titles matched the current filters."
+                  : "Installed apps and packages appear after hosts refresh inventory."
+              }
+            />
           }
         />
       )}
@@ -139,12 +137,7 @@ interface SoftwareToolbarProps {
 function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange }: SoftwareToolbarProps) {
   return (
     <div className="flex items-center gap-2">
-      <DataTableSearch
-        value={draft}
-        onChange={onDraftChange}
-        placeholder="Search by name, display name, bundle id..."
-        label="Search software"
-      />
+      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" label="Search software" />
       <DataTableFacetedFilter
         title="Type"
         options={SOURCE_FILTER_OPTIONS}

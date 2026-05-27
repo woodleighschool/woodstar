@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
@@ -37,7 +37,7 @@ export function UsersPage() {
         description="Manage local Woodstar accounts and roles."
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-            <UserPlus data-icon="inline-start" /> Add user
+            <UserPlus data-icon="inline-start" /> Create
           </Button>
         }
       />
@@ -89,17 +89,11 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
   const data = query.data ?? [];
   if (data.length === 0) {
     return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Users />
-          </EmptyMedia>
-          <EmptyTitle>No users yet</EmptyTitle>
-          <EmptyDescription>
-            Add a user to give other admins or viewers access to this Woodstar deployment.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <DataTableEmptyState
+        icon={<Users />}
+        title="No account access"
+        description="Create a local account to give another admin or viewer access to this deployment."
+      />
     );
   }
 

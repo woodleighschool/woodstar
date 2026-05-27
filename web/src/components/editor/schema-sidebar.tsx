@@ -35,7 +35,7 @@ export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSide
         title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         onClick={() => onOpenChange(!open)}
         className={cn(
-          "bg-card fixed top-20 z-40 rounded-l-md border border-r-0 p-2 shadow-sm",
+          "bg-card fixed top-20 z-40 rounded-l-md border border-r-0 p-2 shadow-sm md:top-6",
           "transition-[right,color,border-color] duration-200 ease-out hover:bg-accent hover:text-accent-foreground",
           open ? "right-80" : "right-0",
         )}
@@ -59,7 +59,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
   return (
     <aside
       className={cn(
-        "bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg",
+        "bg-card fixed top-12 right-0 bottom-0 z-30 flex w-80 flex-col border-l shadow-lg md:top-0",
         "transition-transform duration-200 ease-out",
         open ? "translate-x-0" : "translate-x-full",
       )}

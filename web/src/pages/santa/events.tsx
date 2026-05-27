@@ -4,12 +4,12 @@ import { Activity } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useSantaEvents, type SantaEvent } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -125,12 +125,7 @@ export function SantaEventsPage() {
           isLoading={query.isLoading}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
-              <DataTableSearch
-                value={draft}
-                onChange={setDraft}
-                placeholder="Search events"
-                label="Search Santa events"
-              />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search Santa events" />
               <DataTableFacetedFilter
                 title="Decision"
                 options={[...DECISION_FILTERS]}
@@ -140,19 +135,15 @@ export function SantaEventsPage() {
             </div>
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Activity />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No events yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "No Santa execution events matched these filters."
-                    : "Santa execution events will appear here after clients upload them."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<Activity />}
+              title={hasFilters ? "No matches" : "No execution events"}
+              description={
+                hasFilters
+                  ? "No Santa execution events matched these filters."
+                  : "Client allow/block decisions appear here after Santa uploads them."
+              }
+            />
           }
         />
       )}

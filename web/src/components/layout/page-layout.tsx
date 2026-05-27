@@ -1,18 +1,44 @@
-import { Slot } from "radix-ui";
-import type { ComponentProps, ReactNode } from "react";
+import { cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
 
+import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { cn } from "@/lib/utils";
 
 function PageShell({
   className,
   asChild = false,
+  children,
   ...props
 }: ComponentProps<"div"> & {
   asChild?: boolean;
 }) {
-  const Comp = asChild ? Slot.Root : "div";
+  const shellClassName = cn("flex min-w-0 flex-col gap-5 p-6", className);
+  const shellChildren = (
+    <>
+      <AppBreadcrumbs className="-mb-1" />
+      {children}
+    </>
+  );
 
-  return <Comp className={cn("flex min-w-0 flex-col gap-5 p-6", className)} {...props} />;
+  if (asChild && isValidElement(children)) {
+    const child = children as ReactElement<{ className?: string; children?: ReactNode }>;
+
+    return cloneElement(child, {
+      ...props,
+      className: cn(shellClassName, child.props.className),
+      children: (
+        <>
+          <AppBreadcrumbs className="-mb-1" />
+          {child.props.children}
+        </>
+      ),
+    });
+  }
+
+  return (
+    <div className={shellClassName} {...props}>
+      {shellChildren}
+    </div>
+  );
 }
 
 function PageHeader({

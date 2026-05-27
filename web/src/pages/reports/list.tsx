@@ -6,12 +6,12 @@ import { useState } from "react";
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { IntervalIndicator } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
@@ -74,7 +74,7 @@ export function ReportsPage() {
           <Button asChild size="sm">
             <Link to="/reports/new">
               <Plus data-icon="inline-start" />
-              Add report
+              Create
             </Link>
           </Button>
         }
@@ -106,23 +106,19 @@ export function ReportsPage() {
           rowHref={(row) => ({ to: "/reports/$reportId", params: { reportId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search by name" label="Search reports" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search reports" />
             </div>
           }
           empty={
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <FileBarChart2 />
-                </EmptyMedia>
-                <EmptyTitle>{hasFilters ? "No matches" : "No reports yet"}</EmptyTitle>
-                <EmptyDescription>
-                  {hasFilters
-                    ? "Try clearing the filters."
-                    : "Create a new report, or import Fleet's standard query library later."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <DataTableEmptyState
+              icon={<FileBarChart2 />}
+              title={hasFilters ? "No matches" : "No saved queries"}
+              description={
+                hasFilters
+                  ? "Try clearing the filters."
+                  : "Create a report from SQL, or import standard Fleet queries later."
+              }
+            />
           }
         />
       )}
