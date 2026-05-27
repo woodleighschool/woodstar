@@ -1,3 +1,5 @@
+import { xml } from "@codemirror/lang-xml";
+import type { Extension } from "@codemirror/state";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Check,
@@ -18,6 +20,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { DataTable } from "@/components/data-table/data-table";
+import { CodeEditor } from "@/components/editor/code-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -43,7 +46,6 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   useAgentSecrets,
   useCreateAgentSecret,
@@ -58,6 +60,8 @@ type Integration = AgentSecret["agent"];
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
 const MIN_SECRET_LENGTH = 32;
 const secretValueSchema = z.string().trim().min(MIN_SECRET_LENGTH, "Enrollment secret must be at least 32 characters.");
+const xmlExtension = xml();
+const xmlExtensions: Extension[] = [xmlExtension];
 
 export function EnrollmentsPage({ integration }: { integration: Integration }) {
   const query = useAgentSecrets();
@@ -117,6 +121,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
               description="Use this profile payload to point Santa at Woodstar."
               icon={<FileCode2 />}
               command={santaProfileTemplate(serverURL)}
+              extensions={xmlExtensions}
               copyLabel="Copy profile template"
               multiline
               notes={["Santa must send protobuf over gzip."]}
@@ -223,6 +228,7 @@ function EnrollmentInstructions({
   description,
   icon,
   command,
+  extensions,
   copyLabel,
   link,
   multiline = false,
@@ -232,6 +238,7 @@ function EnrollmentInstructions({
   description: string;
   icon: ReactNode;
   command: string;
+  extensions?: Extension[];
   copyLabel: string;
   link?: {
     href: string;
@@ -266,7 +273,7 @@ function EnrollmentInstructions({
         </div>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-4">
-        <CopyableExample value={command} label={copyLabel} multiline={multiline} />
+        <CopyableExample value={command} label={copyLabel} extensions={extensions} multiline={multiline} />
         <ul className="text-muted-foreground flex flex-col gap-1.5 text-sm">
           {notes.map((note) => (
             <li key={note}>{note}</li>
@@ -277,7 +284,17 @@ function EnrollmentInstructions({
   );
 }
 
-function CopyableExample({ value, label, multiline = false }: { value: string; label: string; multiline?: boolean }) {
+function CopyableExample({
+  value,
+  label,
+  extensions,
+  multiline = false,
+}: {
+  value: string;
+  label: string;
+  extensions?: Extension[];
+  multiline?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
@@ -287,29 +304,27 @@ function CopyableExample({ value, label, multiline = false }: { value: string; l
   }
 
   return (
-    <div className="relative min-w-0">
-      {multiline ? (
-        <Textarea
-          value={value}
-          readOnly
-          spellCheck={false}
-          aria-label="Enrollment example"
-          className="max-h-80 min-h-56 resize-y overflow-auto pr-11 font-mono text-xs leading-5"
-        />
-      ) : (
-        <Input
-          value={value}
-          readOnly
-          spellCheck={false}
-          aria-label="Enrollment example"
-          className="truncate pr-11 font-mono text-xs"
-        />
-      )}
+    <div className="relative min-w-0" aria-label="Enrollment example">
+      <CodeEditor
+        value={value}
+        onChange={() => null}
+        extensions={extensions}
+        readOnly
+        lineNumbers={false}
+        lineWrapping={multiline}
+        highlightActiveLine={false}
+        className={cn(
+          "[&_.cm-line]:pr-12",
+          multiline
+            ? "max-h-80 min-h-56 overflow-auto [&_.cm-content]:py-1.5"
+            : "min-h-9 [&_.cm-content]:py-2 [&_.cm-scroller]:overflow-x-auto [&_.cm-line]:whitespace-pre",
+        )}
+      />
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
-        className={cn("absolute right-0 top-0 rounded-l-none", multiline ? "h-9" : "h-full")}
+        className="absolute right-1 top-1"
         aria-label={label}
         onClick={copy}
       >
