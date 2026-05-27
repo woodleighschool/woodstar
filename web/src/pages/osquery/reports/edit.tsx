@@ -83,6 +83,14 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
   );
 }
 
+export function ReportCreatePage() {
+  return <ReportEditPage mode="create" />;
+}
+
+export function ReportUpdatePage() {
+  return <ReportEditPage mode="edit" />;
+}
+
 function ReportEditForm({
   mode,
   reportId,
@@ -107,7 +115,7 @@ function ReportEditForm({
   async function submit() {
     const payload = trimReport(form);
     const saved = mode === "create" ? await createReport.mutateAsync(payload) : await updateReport.mutateAsync(payload);
-    void navigate({ to: "/reports/$reportId", params: { reportId: String(saved.id) } });
+    void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
   }
 
   function insertAtCursor(snippet: string) {
@@ -216,7 +224,9 @@ function ReportEditForm({
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
-          {mode === "edit" ? <LiveRunButton to="/reports/$reportId/live" params={{ reportId: reportParam }} /> : null}
+          {mode === "edit" ? (
+            <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId: reportParam }} />
+          ) : null}
         </div>
         <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
       </form>

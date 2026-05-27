@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { EnrollmentsPage } from "@/pages/enrollments";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/enrollments/santa")({
-  component: () => <EnrollmentsPage integration="santa" />,
+  component: lazyRouteComponent(() => import("@/pages/enrollments"), "SantaEnrollmentsPage"),
 });

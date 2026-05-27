@@ -5,10 +5,10 @@ import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useCheck } from "@/hooks/use-checks";
-import { LiveRunner } from "@/pages/live-runner";
+import { LiveRunner } from "@/pages/osquery/live-runner";
 
 export function CheckLivePage() {
-  const { checkId } = useParams({ from: "/_authenticated/checks/$checkId" });
+  const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
   const check = useCheck(Number(checkId));
 
   if (check.error) {
@@ -37,7 +37,7 @@ export function CheckLivePage() {
       sql={check.data.query}
       editAction={
         <Button asChild variant="outline" size="sm">
-          <Link to="/checks/$checkId/edit" params={{ checkId }}>
+          <Link to="/osquery/checks/$checkId/edit" params={{ checkId }}>
             Edit check
           </Link>
         </Button>

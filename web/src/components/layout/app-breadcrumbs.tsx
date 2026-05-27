@@ -102,64 +102,64 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Osquery checks
-    case "/_authenticated/checks/new":
+    case "/_authenticated/osquery/checks/new":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "checks", label: "Checks", to: "/checks" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "checks", label: "Checks", to: "/osquery/checks" },
         { key: "checks-new", label: "New" },
       ];
-    case "/_authenticated/checks/$checkId/":
+    case "/_authenticated/osquery/checks/$checkId/":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "checks", label: "Checks", to: "/checks" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "checks", label: "Checks", to: "/osquery/checks" },
         { key: `check-${params.checkId}`, label: <CheckCrumb id={params.checkId} /> },
       ];
-    case "/_authenticated/checks/$checkId/edit":
+    case "/_authenticated/osquery/checks/$checkId/edit":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "checks", label: "Checks", to: "/checks" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "checks", label: "Checks", to: "/osquery/checks" },
         {
           key: `check-${params.checkId}`,
           label: <CheckCrumb id={params.checkId} />,
-          to: "/checks/$checkId",
+          to: "/osquery/checks/$checkId",
           params: { checkId: params.checkId },
         },
         { key: `check-${params.checkId}-edit`, label: "Edit" },
       ];
 
     // Osquery reports
-    case "/_authenticated/reports/new":
+    case "/_authenticated/osquery/reports/new":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "reports", label: "Reports", to: "/reports" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "reports", label: "Reports", to: "/osquery/reports" },
         { key: "reports-new", label: "New" },
       ];
-    case "/_authenticated/reports/$reportId/":
+    case "/_authenticated/osquery/reports/$reportId/":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "reports", label: "Reports", to: "/reports" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "reports", label: "Reports", to: "/osquery/reports" },
         { key: `report-${params.reportId}`, label: <ReportCrumb id={params.reportId} /> },
       ];
-    case "/_authenticated/reports/$reportId/edit":
+    case "/_authenticated/osquery/reports/$reportId/edit":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "reports", label: "Reports", to: "/reports" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "reports", label: "Reports", to: "/osquery/reports" },
         {
           key: `report-${params.reportId}`,
           label: <ReportCrumb id={params.reportId} />,
-          to: "/reports/$reportId",
+          to: "/osquery/reports/$reportId",
           params: { reportId: params.reportId },
         },
         { key: `report-${params.reportId}-edit`, label: "Edit" },
       ];
-    case "/_authenticated/reports/$reportId/live":
+    case "/_authenticated/osquery/reports/$reportId/live":
       return [
-        { key: "osquery", label: "Osquery", to: "/reports" },
-        { key: "reports", label: "Reports", to: "/reports" },
+        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
+        { key: "reports", label: "Reports", to: "/osquery/reports" },
         {
           key: `report-${params.reportId}`,
           label: <ReportCrumb id={params.reportId} />,
-          to: "/reports/$reportId",
+          to: "/osquery/reports/$reportId",
           params: { reportId: params.reportId },
         },
         { key: `report-${params.reportId}-live`, label: "Live" },
@@ -207,14 +207,14 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
 
 const sidebarRouteIDs = new Set([
   "/_authenticated/account",
-  "/_authenticated/checks/",
+  "/_authenticated/osquery/checks/",
   "/_authenticated/enrollments",
   "/_authenticated/enrollments/",
   "/_authenticated/enrollments/orbit",
   "/_authenticated/enrollments/santa",
   "/_authenticated/hosts/",
   "/_authenticated/labels/",
-  "/_authenticated/reports/",
+  "/_authenticated/osquery/reports/",
   "/_authenticated/santa/configurations",
   "/_authenticated/santa/configurations/",
   "/_authenticated/santa/events",

@@ -39,8 +39,8 @@ export const navSections: NavMenu[] = [
         label: "Osquery",
         icon: Database,
         items: [
-          { label: "Reports", to: "/reports" },
-          { label: "Checks", to: "/checks" },
+          { label: "Reports", to: "/osquery/reports" },
+          { label: "Checks", to: "/osquery/checks" },
         ],
       },
       {

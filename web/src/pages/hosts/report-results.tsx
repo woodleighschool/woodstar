@@ -71,7 +71,7 @@ export function HostReportResultsPage() {
         }
         actions={
           <Button asChild size="sm" variant="outline">
-            <Link to="/reports/$reportId" params={{ reportId }}>
+            <Link to="/osquery/reports/$reportId" params={{ reportId }}>
               View all hosts
             </Link>
           </Button>

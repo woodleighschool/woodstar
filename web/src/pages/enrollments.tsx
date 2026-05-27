@@ -219,6 +219,14 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
   );
 }
 
+export function OrbitEnrollmentsPage() {
+  return <EnrollmentsPage integration="orbit" />;
+}
+
+export function SantaEnrollmentsPage() {
+  return <EnrollmentsPage integration="santa" />;
+}
+
 function SecretTabDescription({ children }: { children: ReactNode }) {
   return <p className="text-muted-foreground max-w-3xl text-sm leading-6">{children}</p>;
 }

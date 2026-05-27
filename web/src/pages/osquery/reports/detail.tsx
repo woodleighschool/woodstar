@@ -18,7 +18,7 @@ import {
 } from "@/lib/query-results";
 
 export function ReportDetailPage() {
-  const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
+  const { reportId } = useParams({ from: "/_authenticated/osquery/reports/$reportId" });
   const reportID = Number(reportId);
   const report = useReport(reportID);
   const results = useReportResults(reportID);
@@ -63,8 +63,8 @@ export function ReportDetailPage() {
         actions={
           <>
             <ShowQueryButton sql={report.data.query} />
-            <LiveRunButton to="/reports/$reportId/live" params={{ reportId }} />
-            <EditButton to="/reports/$reportId/edit" params={{ reportId }}>
+            <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />
+            <EditButton to="/osquery/reports/$reportId/edit" params={{ reportId }}>
               Edit report
             </EditButton>
           </>

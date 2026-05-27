@@ -1,8 +1,8 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
-import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import {
   DetailSettings,
   EditButton,
@@ -17,7 +17,7 @@ import { useCheck, useCheckHosts } from "@/hooks/use-checks";
 import { formatRelative } from "@/lib/utils";
 
 export function CheckDetailPage() {
-  const { checkId } = useParams({ from: "/_authenticated/checks/$checkId" });
+  const { checkId } = useParams({ from: "/_authenticated/osquery/checks/$checkId" });
   const checkID = Number(checkId);
   const check = useCheck(checkID);
   const hosts = useCheckHosts(checkID);
@@ -52,8 +52,8 @@ export function CheckDetailPage() {
         actions={
           <>
             <ShowQueryButton sql={check.data.query} />
-            <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} />
-            <EditButton to="/checks/$checkId/edit" params={{ checkId }}>
+            <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId }} />
+            <EditButton to="/osquery/checks/$checkId/edit" params={{ checkId }}>
               Edit check
             </EditButton>
           </>

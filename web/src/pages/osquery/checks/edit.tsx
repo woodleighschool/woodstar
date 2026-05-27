@@ -64,6 +64,14 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
   return <CheckEditForm key={checkId || "new"} mode={mode} checkId={checkID} checkParam={checkId} initial={initial} />;
 }
 
+export function CheckCreatePage() {
+  return <CheckEditPage mode="create" />;
+}
+
+export function CheckUpdatePage() {
+  return <CheckEditPage mode="edit" />;
+}
+
 function CheckEditForm({
   mode,
   checkId,
@@ -87,7 +95,7 @@ function CheckEditForm({
   async function submit() {
     const payload = trimCheck(form);
     const saved = mode === "create" ? await createCheck.mutateAsync(payload) : await updateCheck.mutateAsync(payload);
-    void navigate({ to: "/checks/$checkId", params: { checkId: String(saved.id) } });
+    void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
   }
 
   function insertAtCursor(snippet: string) {
@@ -153,7 +161,9 @@ function CheckEditForm({
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
-          {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId: checkParam }} /> : null}
+          {mode === "edit" ? (
+            <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
+          ) : null}
         </div>
         <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
       </form>

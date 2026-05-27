@@ -153,6 +153,14 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
   return <LabelEditForm key={labelId || "new"} mode={mode} labelId={labelID} initial={initial} />;
 }
 
+export function LabelCreatePage() {
+  return <LabelEditPage mode="create" />;
+}
+
+export function LabelUpdatePage() {
+  return <LabelEditPage mode="edit" />;
+}
+
 function LabelEditForm({
   mode,
   labelId,

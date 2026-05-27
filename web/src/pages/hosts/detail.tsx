@@ -3,7 +3,6 @@ import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-t
 import { Loader2, Package, ShieldCheck } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
@@ -16,6 +15,7 @@ import {
 } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
 import { PageShell } from "@/components/layout/page-layout";
+import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -279,7 +279,7 @@ function HostReportsTab({ hostId, hostParam }: { hostId: number | null; hostPara
         cell: ({ row }) => (
           <div className="flex justify-end">
             <Button asChild size="sm" variant="outline">
-              <Link to="/reports/$reportId" params={{ reportId: String(row.original.report_id) }}>
+              <Link to="/osquery/reports/$reportId" params={{ reportId: String(row.original.report_id) }}>
                 All hosts
               </Link>
             </Button>
@@ -349,7 +349,7 @@ function HostChecksTab({ hostId }: { hostId: number | null }) {
             <TableRow key={`${row.check_id}-${row.host_id}`}>
               <TableCell>
                 <Link
-                  to="/checks/$checkId"
+                  to="/osquery/checks/$checkId"
                   params={{ checkId: String(row.check_id) }}
                   className="font-medium hover:underline"
                 >

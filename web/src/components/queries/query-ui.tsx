@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Download, FileCode2, Play, Settings2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
-import { SQLEditor } from "@/components/editor/sql-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +17,10 @@ import { targetScopeLabel } from "@/lib/targeting";
 import { cn, formatInterval } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
+
+const LazySQLEditor = lazy(() =>
+  import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
+);
 
 export function TargetSummary({ scope }: { scope?: LabelScope }) {
   return (
@@ -70,7 +73,9 @@ export function ShowQueryButton({ sql }: { sql: string }) {
           <DialogTitle>Query</DialogTitle>
           <DialogDescription>SQL used by this item.</DialogDescription>
         </DialogHeader>
-        <SQLEditor value={sql} onChange={() => null} readOnly className="max-h-[60vh] overflow-auto" />
+        <Suspense fallback={<div className="bg-muted h-40 rounded-md" />}>
+          <LazySQLEditor value={sql} onChange={() => null} readOnly className="max-h-[60vh] overflow-auto" />
+        </Suspense>
       </DialogContent>
     </Dialog>
   );

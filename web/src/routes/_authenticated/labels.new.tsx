@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { LabelEditPage } from "@/pages/labels/edit";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/labels/new")({
-  component: () => <LabelEditPage mode="create" />,
+  component: lazyRouteComponent(() => import("@/pages/labels/edit"), "LabelCreatePage"),
 });

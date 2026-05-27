@@ -5,10 +5,10 @@ import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useReport } from "@/hooks/use-reports";
-import { LiveRunner } from "@/pages/live-runner";
+import { LiveRunner } from "@/pages/osquery/live-runner";
 
 export function ReportLivePage() {
-  const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
+  const { reportId } = useParams({ from: "/_authenticated/osquery/reports/$reportId" });
   const report = useReport(Number(reportId));
 
   if (report.error) {
@@ -37,7 +37,7 @@ export function ReportLivePage() {
       sql={report.data.query}
       editAction={
         <Button asChild variant="outline" size="sm">
-          <Link to="/reports/$reportId/edit" params={{ reportId }}>
+          <Link to="/osquery/reports/$reportId/edit" params={{ reportId }}>
             Edit report
           </Link>
         </Button>

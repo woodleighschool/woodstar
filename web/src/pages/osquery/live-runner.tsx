@@ -4,10 +4,10 @@ import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { CheckStatusBadge } from "@/components/checks/check-status-badge";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { ShowQueryButton } from "@/components/queries/query-ui";
 import {
   AlertDialog,

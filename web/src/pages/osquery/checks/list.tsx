@@ -1,6 +1,6 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileBarChart2, Plus, Trash2 } from "lucide-react";
+import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
@@ -9,41 +9,40 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { IntervalIndicator } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useBulkDeleteChecks, useChecks, type Check } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 
-export function ReportsPage() {
+export function ChecksPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
-  const [selectedReportIds, setSelectedReportIds] = useState<string[]>([]);
+  const [selectedCheckIds, setSelectedCheckIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const bulkDelete = useBulkDeleteReports();
+  const bulkDelete = useBulkDeleteChecks();
 
-  const reports = useReports({
+  const query = useChecks({
     q: search.q,
     ...tableQueryParams(state),
   });
 
-  const data = reports.data?.items ?? [];
-  const totalCount = reports.data?.count ?? 0;
+  const data = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q;
-  const selectedIDs = selectedReportIds.map(Number);
+  const selectedIDs = selectedCheckIds.map(Number);
 
-  const deleteSelectedReports = () => {
+  const deleteSelectedChecks = () => {
     bulkDelete.mutate(selectedIDs, {
       onSuccess: () => {
-        setSelectedReportIds([]);
+        setSelectedCheckIds([]);
         setDeleteOpen(false);
       },
     });
   };
 
-  const columns: ColumnDef<Report>[] = [
+  const columns: ColumnDef<Check>[] = [
     {
       id: "name",
       accessorKey: "name",
@@ -57,32 +56,26 @@ export function ReportsPage() {
         </div>
       ),
     },
-    {
-      id: "schedule_interval",
-      accessorKey: "schedule_interval",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Interval" />,
-      cell: ({ row }) => <IntervalIndicator interval={row.original.schedule_interval} />,
-    },
   ];
 
   return (
     <PageShell>
       <PageHeader
-        title="Reports"
-        description="Gather data about your hosts."
+        title="Checks"
+        description="Detect device health issues and track which hosts need attention."
         actions={
           <Button asChild size="sm">
-            <Link to="/reports/new">
+            <Link to="/osquery/checks/new">
               <Plus data-icon="inline-start" />
               Create
             </Link>
           </Button>
         }
       />
-      {reports.error ? (
+      {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load reports</AlertTitle>
-          <AlertDescription>{reports.error.message}</AlertDescription>
+          <AlertTitle>Failed to load checks</AlertTitle>
+          <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
         <DataTable
@@ -93,30 +86,28 @@ export function ReportsPage() {
           sorting={state.sorting}
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
-          isLoading={reports.isLoading}
+          isLoading={query.isLoading}
           enableRowSelection
-          selectedRowIds={selectedReportIds}
-          onSelectedRowIdsChange={setSelectedReportIds}
+          selectedRowIds={selectedCheckIds}
+          onSelectedRowIdsChange={setSelectedCheckIds}
           bulkActions={
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
               <Trash2 data-icon="inline-start" />
               Delete
             </Button>
           }
-          rowHref={(row) => ({ to: "/reports/$reportId", params: { reportId: String(row.id) } })}
+          rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search reports" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search checks" />
             </div>
           }
           empty={
             <DataTableEmptyState
-              icon={<FileBarChart2 />}
-              title={hasFilters ? "No matches" : "No saved queries"}
+              icon={<ShieldCheck />}
+              title={hasFilters ? "No matches" : "No health checks"}
               description={
-                hasFilters
-                  ? "Try clearing the filters."
-                  : "Create a report from SQL, or import standard Fleet queries later."
+                hasFilters ? "Try clearing the filters." : "Create a check from SQL to track pass/fail host health."
               }
             />
           }
@@ -129,9 +120,9 @@ export function ReportsPage() {
           setDeleteOpen(open);
         }}
         count={selectedIDs.length}
-        noun="report"
+        noun="check"
         pending={bulkDelete.isPending}
-        onConfirm={deleteSelectedReports}
+        onConfirm={deleteSelectedChecks}
       />
     </PageShell>
   );
