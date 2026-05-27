@@ -22,7 +22,6 @@ func (s *Store) loadCheckScope(ctx context.Context, checkID int64) (scope.LabelS
 }
 
 func (s *Store) loadCheckScopes(ctx context.Context, checkIDs []int64) (map[int64]scope.LabelScope, error) {
-	checkIDs = dbutil.CleanPositiveIDs(checkIDs)
 	scopes := make(map[int64]scope.LabelScope, len(checkIDs))
 	if len(checkIDs) == 0 {
 		return scopes, nil

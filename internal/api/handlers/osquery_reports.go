@@ -24,7 +24,7 @@ type reportListInput struct {
 }
 
 type reportGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type reportCreateInput struct {
@@ -32,12 +32,12 @@ type reportCreateInput struct {
 }
 
 type reportPutInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body reports.ReportUpdate
 }
 
 type reportDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type reportBulkDeleteInput struct {
@@ -73,8 +73,8 @@ type hostReportResultsBody struct {
 }
 
 type hostReportResultsInput struct {
-	ID       string `path:"id"`
-	ReportID string `path:"report_id"`
+	ID       int64 `path:"id"`
+	ReportID int64 `path:"report_id"`
 }
 
 func RegisterReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
@@ -118,11 +118,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
 		params := input.Body
 		params.CreatedByUserID = currentUserID(ctx)
-		lscope, err := normalizeLabelScope(params.LabelScope)
-		if err != nil {
-			return nil, err
-		}
-		params.LabelScope = lscope
+		params.LabelScope = normalizeLabelScope(params.LabelScope)
 		report, err := reportStore.Create(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError(reportResource, err)
@@ -140,11 +136,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store) {
 		Summary:     "Get a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
-		id, err := parseResourceID(input.ID, reportResource)
-		if err != nil {
-			return nil, err
-		}
-		report, err := reportStore.GetByID(ctx, id)
+		report, err := reportStore.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(reportResource, err)
 		}
@@ -161,17 +153,9 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 		Summary:     "Replace a report",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
-		id, err := parseResourceID(input.ID, reportResource)
-		if err != nil {
-			return nil, err
-		}
 		params := input.Body
-		lscope, err := normalizeLabelScope(params.LabelScope)
-		if err != nil {
-			return nil, err
-		}
-		params.LabelScope = lscope
-		report, err := reportStore.Update(ctx, id, params)
+		params.LabelScope = normalizeLabelScope(params.LabelScope)
+		report, err := reportStore.Update(ctx, input.ID, params)
 		if err != nil {
 			return nil, resourceMutationError(reportResource, err)
 		}
@@ -188,11 +172,7 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 		Summary:     "Delete a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, reportResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := reportStore.Delete(ctx, id); err != nil {
+		if err := reportStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceMutationError(reportResource, err)
 		}
 		return &struct{}{}, nil
@@ -211,11 +191,7 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		ids, err := input.Body.ids("report IDs")
-		if err != nil {
-			return nil, err
-		}
-		if _, err := reportStore.DeleteMany(ctx, ids); err != nil {
+		if _, err := reportStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
@@ -231,11 +207,7 @@ func registerReportResults(api huma.API, reportStore *reports.Store) {
 		Summary:     "List latest snapshots for a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
-		id, err := parseResourceID(input.ID, reportResource)
-		if err != nil {
-			return nil, err
-		}
-		rows, err := reportStore.Results(ctx, id)
+		rows, err := reportStore.Results(ctx, input.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -252,11 +224,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostReportsOutput, error) {
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		host, err := hostStore.GetByID(ctx, id)
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
@@ -280,28 +248,20 @@ func registerHostReportResults(api huma.API, reportStore *reports.Store, hostSto
 		Summary:     "List report rows for one host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostReportResultsInput) (*hostReportResultsOutput, error) {
-		hostID, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		reportID, err := parseResourceID(input.ReportID, reportResource)
-		if err != nil {
-			return nil, err
-		}
-		host, err := hostStore.GetByID(ctx, hostID)
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		rows, lastFetched, err := reportStore.HostResults(ctx, hostID, reportID)
+		rows, lastFetched, err := reportStore.HostResults(ctx, input.ID, input.ReportID)
 		if err != nil {
 			return nil, err
 		}
 		return &hostReportResultsOutput{Body: hostReportResultsBody{
-			ReportID:    reportID,
-			HostID:      hostID,
+			ReportID:    input.ReportID,
+			HostID:      input.ID,
 			HostName:    host.DisplayName,
 			LastFetched: lastFetched,
 			Items:       rows,

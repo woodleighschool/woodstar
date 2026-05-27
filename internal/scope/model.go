@@ -3,8 +3,6 @@ package scope
 import (
 	"database/sql/driver"
 	"fmt"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 // LabelScopeMode says how to read LabelIDs.
@@ -28,9 +26,8 @@ func (s LabelScope) IsZero() bool {
 	return (s.Mode == "" || s.Mode == ScopeNone) && len(s.LabelIDs) == 0
 }
 
-// NormalizeLabelScope cleans IDs and collapses empty scopes.
+// NormalizeLabelScope validates the mode and collapses empty scopes.
 func NormalizeLabelScope(s LabelScope) LabelScope {
-	s.LabelIDs = dbutil.CleanPositiveIDs(s.LabelIDs)
 	switch s.Mode {
 	case ScopeNone, ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny:
 	default:

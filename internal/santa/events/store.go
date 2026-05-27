@@ -250,7 +250,7 @@ func eventOccurredAt(seconds float64) *time.Time {
 
 func eventListWhere(params EventListParams) (string, []any, error) {
 	var where dbutil.WhereBuilder
-	if params.HostID > 0 {
+	if params.HostID != 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
 	}
 	if params.Q != "" {

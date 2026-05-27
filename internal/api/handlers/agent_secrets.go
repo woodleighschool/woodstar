@@ -32,14 +32,14 @@ type agentSecretCreateOutput struct {
 }
 
 type agentSecretUpdateInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body struct {
 		Value string `json:"value" minLength:"32"`
 	}
 }
 
 type agentSecretDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
@@ -94,11 +94,7 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
-		id, err := parseResourceID(input.ID, "agent secret")
-		if err != nil {
-			return nil, err
-		}
-		secret, err := store.Update(ctx, id, input.Body.Value)
+		secret, err := store.Update(ctx, input.ID, input.Body.Value)
 		if errors.Is(err, agentauth.ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
@@ -119,11 +115,7 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 		Summary:     "Delete agent secret",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, "agent secret")
-		if err != nil {
-			return nil, err
-		}
-		if err := store.Delete(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
+		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		} else if err != nil {
 			return nil, err

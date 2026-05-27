@@ -39,16 +39,16 @@ export function useSoftware(params: SoftwareListParams = {}) {
   });
 }
 
-export function useSoftwareTitle(id: string) {
+export function useSoftwareTitle(id: number | null) {
   return useQuery<SoftwareTitle, ApiError>({
     queryKey: queryKeys.softwareTitle(id),
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/software/{id}", {
-          params: { path: { id } },
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
-    enabled: id !== "",
+    enabled: id !== null,
   });
 }

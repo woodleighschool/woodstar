@@ -460,7 +460,8 @@ function ReorderWarningDialog({
 export function SantaConfigurationEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const configurationId = params.configurationId ?? "";
-  const detail = useSantaConfiguration(configurationId);
+  const configurationID = mode === "edit" ? Number(configurationId) : null;
+  const detail = useSantaConfiguration(configurationID);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -485,7 +486,7 @@ export function SantaConfigurationEditPage({ mode }: { mode: "create" | "edit" }
   const initial = mode === "edit" && detail.data ? formFromConfiguration(detail.data) : emptyConfigurationForm;
 
   return (
-    <ConfigurationForm key={configurationId || "new"} mode={mode} configurationId={configurationId} initial={initial} />
+    <ConfigurationForm key={configurationId || "new"} mode={mode} configurationId={configurationID} initial={initial} />
   );
 }
 
@@ -495,7 +496,7 @@ function ConfigurationForm({
   initial,
 }: {
   mode: "create" | "edit";
-  configurationId: string;
+  configurationId: number | null;
   initial: ConfigurationFormState;
 }) {
   const navigate = useNavigate();
@@ -523,7 +524,7 @@ function ConfigurationForm({
     }
     const body = configurationBody(form);
     if (mode === "create") await create.mutateAsync(body);
-    else await update.mutateAsync({ id: Number(configurationId), body });
+    else await update.mutateAsync({ id: configurationId ?? 0, body });
     void navigate({ to: "/santa/configurations" });
   }
 

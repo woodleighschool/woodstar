@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -28,20 +27,18 @@ type TargetMetrics struct {
 
 // ResolveSelectedTargets returns active host ids for a live target selection.
 func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSelection) ([]int64, error) {
-	hostIDs := dbutil.CleanPositiveIDs(selection.HostIDs)
-	labelIDs := dbutil.CleanPositiveIDs(selection.LabelIDs)
-	directHostIDs, err := activeSelectedHostIDs(ctx, s.db, hostIDs)
+	directHostIDs, err := activeSelectedHostIDs(ctx, s.db, selection.HostIDs)
 	if err != nil {
 		return nil, err
 	}
-	if len(labelIDs) == 0 {
+	if len(selection.LabelIDs) == 0 {
 		return directHostIDs, nil
 	}
-	matches, err := resolveSelectedLabelTargets(ctx, s.db, labelIDs)
+	matches, err := resolveSelectedLabelTargets(ctx, s.db, selection.LabelIDs)
 	if err != nil {
 		return nil, err
 	}
-	return dbutil.MergePositiveIDs(directHostIDs, matches), nil
+	return mergeHostIDs(directHostIDs, matches), nil
 }
 
 // ResolveOnlineSelectedTargets returns active selected host IDs that are online
@@ -233,4 +230,19 @@ func scanHostIDs(rows pgx.Rows) ([]int64, error) {
 		hostIDs = append(hostIDs, id)
 	}
 	return hostIDs, rows.Err()
+}
+
+func mergeHostIDs(a, b []int64) []int64 {
+	seen := make(map[int64]struct{}, len(a)+len(b))
+	out := make([]int64, 0, len(a)+len(b))
+	for _, ids := range [][]int64{a, b} {
+		for _, id := range ids {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, id)
+		}
+	}
+	return out
 }

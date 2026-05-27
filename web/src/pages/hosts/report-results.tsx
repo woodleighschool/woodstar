@@ -15,8 +15,8 @@ import { formatRelative } from "@/lib/utils";
 
 export function HostReportResultsPage() {
   const { hostId, reportId } = useParams({ from: "/_authenticated/hosts/$hostId/reports/$reportId" });
-  const report = useReport(reportId);
-  const results = useHostReportResults(hostId, reportId);
+  const report = useReport(Number(reportId));
+  const results = useHostReportResults(Number(hostId), Number(reportId));
 
   if (report.error || results.error) {
     return (

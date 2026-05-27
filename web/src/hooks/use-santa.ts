@@ -35,12 +35,12 @@ export function useSantaConfigurations(params: SantaListParams = {}) {
   });
 }
 
-export function useSantaConfiguration(id: string) {
+export function useSantaConfiguration(id: number | null) {
   return useQuery<SantaConfiguration, ApiError>({
     queryKey: queryKeys.santaConfiguration(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/configurations/{id}", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+      unwrap(apiClient.GET("/api/santa/configurations/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
@@ -60,11 +60,12 @@ export function useSantaRules(params: SantaRuleListParams = {}) {
   });
 }
 
-export function useSantaRule(id: string) {
+export function useSantaRule(id: number | null) {
   return useQuery<SantaRule, ApiError>({
     queryKey: queryKeys.santaRule(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/rules/{id}", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/rules/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
@@ -100,7 +101,7 @@ export function useUpdateSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<SantaConfiguration, ApiError, { id: number; body: SantaConfigurationMutation }>({
     mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PATCH("/api/santa/configurations/{id}", { params: { path: { id: String(id) } }, body })),
+      unwrap(apiClient.PATCH("/api/santa/configurations/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
     },
@@ -110,8 +111,7 @@ export function useUpdateSantaConfiguration() {
 export function useDeleteSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/santa/configurations/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/configurations/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
     },
@@ -151,8 +151,7 @@ export function useCreateSantaRule() {
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PATCH("/api/santa/rules/{id}", { params: { path: { id: String(id) } }, body })),
+    mutationFn: ({ id, body }) => unwrap(apiClient.PATCH("/api/santa/rules/{id}", { params: { path: { id } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
     },
@@ -162,7 +161,7 @@ export function useUpdateSantaRule() {
 export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
     },
@@ -185,7 +184,7 @@ export function useReorderSantaRuleIncludes(ruleID: number | null) {
     mutationFn: (ordered_include_ids) =>
       unwrap(
         apiClient.PUT("/api/santa/rules/{id}/includes/order", {
-          params: { path: { id: String(ruleID) } },
+          params: { path: { id: ruleID ?? 0 } },
           body: { ordered_include_ids },
         }),
       ),

@@ -49,9 +49,9 @@ export function HostsListPage() {
     q: search.q,
     ...tableQueryParams(state),
     status: search.status,
-    label_id: search.label_id,
-    software_title_id: search.software_title_id,
-    software_id: search.software_id,
+    label_id: search.label_id == null ? undefined : Number(search.label_id),
+    software_title_id: search.software_title_id == null ? undefined : Number(search.software_title_id),
+    software_id: search.software_id == null ? undefined : Number(search.software_id),
   });
 
   const data = query.data?.items ?? [];

@@ -23,7 +23,7 @@ type checkListInput struct {
 }
 
 type checkGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type checkCreateInput struct {
@@ -31,12 +31,12 @@ type checkCreateInput struct {
 }
 
 type checkPutInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body checks.CheckUpdate
 }
 
 type checkDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type checkBulkDeleteInput struct {
@@ -95,11 +95,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
 		params := input.Body
 		params.CreatedByUserID = currentUserID(ctx)
-		lscope, err := normalizeLabelScope(params.LabelScope)
-		if err != nil {
-			return nil, err
-		}
-		params.LabelScope = lscope
+		params.LabelScope = normalizeLabelScope(params.LabelScope)
 		check, err := checkStore.Create(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
@@ -117,11 +113,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Get a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
-		id, err := parseResourceID(input.ID, checkResource)
-		if err != nil {
-			return nil, err
-		}
-		check, err := checkStore.GetByID(ctx, id)
+		check, err := checkStore.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -138,17 +130,9 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Replace a check",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
-		id, err := parseResourceID(input.ID, checkResource)
-		if err != nil {
-			return nil, err
-		}
 		params := input.Body
-		lscope, err := normalizeLabelScope(params.LabelScope)
-		if err != nil {
-			return nil, err
-		}
-		params.LabelScope = lscope
-		check, err := checkStore.Update(ctx, id, params)
+		params.LabelScope = normalizeLabelScope(params.LabelScope)
+		check, err := checkStore.Update(ctx, input.ID, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
@@ -165,11 +149,7 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 		Summary:     "Delete a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, checkResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := checkStore.Delete(ctx, id); err != nil {
+		if err := checkStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
 		return &struct{}{}, nil
@@ -188,11 +168,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		ids, err := input.Body.ids("check IDs")
-		if err != nil {
-			return nil, err
-		}
-		if _, err := checkStore.DeleteMany(ctx, ids); err != nil {
+		if _, err := checkStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
@@ -208,11 +184,7 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 		Summary:     "List check host status",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkHostsOutput, error) {
-		id, err := parseResourceID(input.ID, checkResource)
-		if err != nil {
-			return nil, err
-		}
-		rows, err := checkStore.HostStatuses(ctx, id)
+		rows, err := checkStore.HostStatuses(ctx, input.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -229,11 +201,7 @@ func registerHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*checkHostsOutput, error) {
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		host, err := hostStore.GetByID(ctx, id)
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}

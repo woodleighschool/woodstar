@@ -23,7 +23,8 @@ const INITIAL_USER_ID = 1;
 export function UserEditPage() {
   const params = useParams({ strict: false });
   const userId = params.userId ?? "";
-  const user = useUser(userId);
+  const userID = Number(userId);
+  const user = useUser(userID);
   const { user: currentUser } = useAuth();
 
   if (user.error) {

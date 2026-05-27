@@ -43,7 +43,8 @@ const emptyReport: ReportMutation = {
 export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const reportId = params.reportId ?? "";
-  const detail = useReport(reportId);
+  const reportID = mode === "edit" ? Number(reportId) : null;
+  const detail = useReport(reportID);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -77,16 +78,20 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
         }
       : emptyReport;
 
-  return <ReportEditForm key={reportId || "new"} mode={mode} reportId={reportId} initial={initial} />;
+  return (
+    <ReportEditForm key={reportId || "new"} mode={mode} reportId={reportID} reportParam={reportId} initial={initial} />
+  );
 }
 
 function ReportEditForm({
   mode,
   reportId,
+  reportParam,
   initial,
 }: {
   mode: "create" | "edit";
-  reportId: string;
+  reportId: number | null;
+  reportParam: string;
   initial: ReportMutation;
 }) {
   const navigate = useNavigate();
@@ -211,7 +216,7 @@ function ReportEditForm({
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
-          {mode === "edit" ? <LiveRunButton to="/reports/$reportId/live" params={{ reportId }} /> : null}
+          {mode === "edit" ? <LiveRunButton to="/reports/$reportId/live" params={{ reportId: reportParam }} /> : null}
         </div>
         <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
       </form>

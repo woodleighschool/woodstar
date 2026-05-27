@@ -22,7 +22,6 @@ func (s *Store) loadReportScope(ctx context.Context, reportID int64) (scope.Labe
 }
 
 func (s *Store) loadReportScopes(ctx context.Context, reportIDs []int64) (map[int64]scope.LabelScope, error) {
-	reportIDs = dbutil.CleanPositiveIDs(reportIDs)
 	scopes := make(map[int64]scope.LabelScope, len(reportIDs))
 	if len(reportIDs) == 0 {
 		return scopes, nil

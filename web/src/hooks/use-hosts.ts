@@ -30,9 +30,9 @@ export interface ListParams {
 
 export interface HostListParams extends ListParams {
   status?: string;
-  label_id?: string;
-  software_title_id?: string;
-  software_id?: string;
+  label_id?: number;
+  software_title_id?: number;
+  software_id?: number;
   ids?: number[];
 }
 
@@ -43,9 +43,9 @@ export function useHosts(params: HostListParams = {}) {
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),
     status: nonEmpty(params.status),
-    label_id: nonEmpty(params.label_id),
-    software_title_id: nonEmpty(params.software_title_id),
-    software_id: nonEmpty(params.software_id),
+    label_id: params.label_id,
+    software_title_id: params.software_title_id,
+    software_id: params.software_id,
     ids: params.ids && params.ids.length > 0 ? params.ids : undefined,
   };
 
@@ -62,24 +62,24 @@ export function useHosts(params: HostListParams = {}) {
   });
 }
 
-export function useHost(id: string) {
+export function useHost(id: number | null) {
   return useQuery<HostDetail, ApiError>({
     queryKey: queryKeys.host(id),
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/hosts/{id}", {
-          params: { path: { id } },
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
-    enabled: id !== "",
+    enabled: id !== null,
   });
 }
 
 export function useDeleteHost() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });
     },
@@ -100,7 +100,7 @@ export interface HostSoftwareListParams extends ListParams {
   source?: string[];
 }
 
-export function useHostSoftware(id: string, params: HostSoftwareListParams = {}) {
+export function useHostSoftware(id: number | null, params: HostSoftwareListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
     page_index: params.page_index ?? 0,
@@ -114,48 +114,48 @@ export function useHostSoftware(id: string, params: HostSoftwareListParams = {})
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/hosts/{id}/software", {
-          params: { path: { id }, query: queryParams },
+          params: { path: { id: id ?? 0 }, query: queryParams },
           signal,
         }),
       ),
-    enabled: id !== "",
+    enabled: id !== null,
     placeholderData: keepPreviousData,
   });
 }
 
-export function useHostReports(id: string) {
+export function useHostReports(id: number | null) {
   return useQuery<HostReportsResult, ApiError>({
     queryKey: queryKeys.hostReports(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/hosts/{id}/osquery/reports", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+      unwrap(apiClient.GET("/api/hosts/{id}/osquery/reports", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
-export function useHostReportResults(hostId: string, reportId: string) {
+export function useHostReportResults(hostId: number | null, reportId: number | null) {
   return useQuery<HostReportResultsResult, ApiError>({
     queryKey: queryKeys.hostReportResults(hostId, reportId),
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/hosts/{id}/osquery/reports/{report_id}", {
-          params: { path: { id: hostId, report_id: reportId } },
+          params: { path: { id: hostId ?? 0, report_id: reportId ?? 0 } },
           signal,
         }),
       ),
-    enabled: hostId !== "" && reportId !== "",
+    enabled: hostId !== null && reportId !== null,
   });
 }
 
-export function useHostChecks(id: string) {
+export function useHostChecks(id: number | null) {
   return useQuery<HostChecksResult, ApiError>({
     queryKey: queryKeys.hostChecks(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/hosts/{id}/osquery/checks", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+      unwrap(apiClient.GET("/api/hosts/{id}/osquery/checks", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
-export function useHostSantaEffectiveRules(id: string, params: HostSantaEffectiveRulesParams = {}) {
+export function useHostSantaEffectiveRules(id: number | null, params: HostSantaEffectiveRulesParams = {}) {
   const queryParams = {
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 100,
@@ -167,11 +167,11 @@ export function useHostSantaEffectiveRules(id: string, params: HostSantaEffectiv
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/hosts/{id}/santa/effective-rules", {
-          params: { path: { id }, query: queryParams },
+          params: { path: { id: id ?? 0 }, query: queryParams },
           signal,
         }),
       ),
-    enabled: id !== "",
+    enabled: id !== null,
     placeholderData: keepPreviousData,
   });
 }

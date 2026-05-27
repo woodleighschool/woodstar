@@ -28,7 +28,8 @@ const emptyCheck: CheckMutation = {
 export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const checkId = params.checkId ?? "";
-  const detail = useCheck(checkId);
+  const checkID = mode === "edit" ? Number(checkId) : null;
+  const detail = useCheck(checkID);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -60,16 +61,18 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
         }
       : emptyCheck;
 
-  return <CheckEditForm key={checkId || "new"} mode={mode} checkId={checkId} initial={initial} />;
+  return <CheckEditForm key={checkId || "new"} mode={mode} checkId={checkID} checkParam={checkId} initial={initial} />;
 }
 
 function CheckEditForm({
   mode,
   checkId,
+  checkParam,
   initial,
 }: {
   mode: "create" | "edit";
-  checkId: string;
+  checkId: number | null;
+  checkParam: string;
   initial: CheckMutation;
 }) {
   const navigate = useNavigate();
@@ -150,7 +153,7 @@ function CheckEditForm({
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
-          {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId }} /> : null}
+          {mode === "edit" ? <LiveRunButton to="/checks/$checkId/live" params={{ checkId: checkParam }} /> : null}
         </div>
         <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
       </form>

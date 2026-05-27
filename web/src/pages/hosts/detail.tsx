@@ -47,7 +47,8 @@ const HOST_REPORTS_PER_PAGE_OPTIONS = [4, 8, 25] as const;
 
 export function HostDetailPage() {
   const { hostId } = useParams({ from: "/_authenticated/hosts/$hostId" });
-  const query = useHost(hostId);
+  const hostID = Number(hostId);
+  const query = useHost(hostID);
   const host = query.data;
 
   if (query.error) {
@@ -97,20 +98,20 @@ export function HostDetailPage() {
         </TabsContent>
 
         <TabsContent value="software">
-          <SoftwareTab hostId={hostId} />
+          <SoftwareTab hostId={hostID} />
         </TabsContent>
 
         <TabsContent value="reports">
-          <HostReportsTab hostId={hostId} />
+          <HostReportsTab hostId={hostID} hostParam={hostId} />
         </TabsContent>
 
         <TabsContent value="checks">
-          <HostChecksTab hostId={hostId} />
+          <HostChecksTab hostId={hostID} />
         </TabsContent>
 
         {host.santa ? (
           <TabsContent value="santa">
-            <HostSantaTab hostId={hostId} host={host} />
+            <HostSantaTab hostId={hostID} host={host} />
           </TabsContent>
         ) : null}
       </Tabs>
@@ -118,7 +119,13 @@ export function HostDetailPage() {
   );
 }
 
-function HostSantaTab({ hostId, host }: { hostId: string; host: NonNullable<ReturnType<typeof useHost>["data"]> }) {
+function HostSantaTab({
+  hostId,
+  host,
+}: {
+  hostId: number | null;
+  host: NonNullable<ReturnType<typeof useHost>["data"]>;
+}) {
   const rules = useHostSantaEffectiveRules(hostId);
   const santa = host.santa;
   if (!santa) return null;
@@ -221,7 +228,7 @@ function SantaSummaryCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HostReportsTab({ hostId }: { hostId: string }) {
+function HostReportsTab({ hostId, hostParam }: { hostId: number | null; hostParam: string }) {
   const reports = useHostReports(hostId);
   const reportItems = reports.data?.items;
   const rows = useMemo(() => reportItems ?? [], [reportItems]);
@@ -239,7 +246,7 @@ function HostReportsTab({ hostId }: { hostId: string }) {
         cell: ({ row }) => (
           <Link
             to="/hosts/$hostId/reports/$reportId"
-            params={{ hostId, reportId: String(row.original.report_id) }}
+            params={{ hostId: hostParam, reportId: String(row.original.report_id) }}
             className="font-medium hover:underline"
           >
             {row.original.name}
@@ -284,7 +291,7 @@ function HostReportsTab({ hostId }: { hostId: string }) {
         },
       },
     ],
-    [hostId],
+    [hostParam],
   );
 
   if (reports.error) {
@@ -309,7 +316,7 @@ function HostReportsTab({ hostId }: { hostId: string }) {
       getRowId={(row) => String(row.report_id)}
       rowHref={(row) => ({
         to: "/hosts/$hostId/reports/$reportId",
-        params: { hostId, reportId: String(row.report_id) },
+        params: { hostId: hostParam, reportId: String(row.report_id) },
       })}
       empty={
         <Empty>
@@ -324,7 +331,7 @@ function HostReportsTab({ hostId }: { hostId: string }) {
   );
 }
 
-function HostChecksTab({ hostId }: { hostId: string }) {
+function HostChecksTab({ hostId }: { hostId: number | null }) {
   const query = useHostChecks(hostId);
   const rows = query.data?.items ?? [];
   return (
@@ -363,7 +370,7 @@ function HostChecksTab({ hostId }: { hostId: string }) {
   );
 }
 
-function SoftwareTab({ hostId }: { hostId: string }) {
+function SoftwareTab({ hostId }: { hostId: number | null }) {
   const [draft, setDraft] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [sources, setSources] = useState<string[]>([]);

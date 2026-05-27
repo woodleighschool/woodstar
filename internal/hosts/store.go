@@ -394,7 +394,7 @@ func hostListWhere(params ListParams) (string, []any, error) {
 		)`)
 	}
 	if len(params.IDs) > 0 {
-		ids := where.Arg(dbutil.CleanPositiveIDs(params.IDs))
+		ids := where.Arg(params.IDs)
 		where.Add("id = ANY(" + ids + "::bigint[])")
 	}
 	switch params.Status {
@@ -406,21 +406,21 @@ func hostListWhere(params ListParams) (string, []any, error) {
 	default:
 		return "", nil, fmt.Errorf("%w: unknown status %q", dbutil.ErrInvalidInput, params.Status)
 	}
-	if params.LabelID > 0 {
+	if params.LabelID != 0 {
 		labelID := where.Arg(params.LabelID)
 		where.Add(`EXISTS (
 			SELECT 1 FROM label_membership lm
 			WHERE lm.host_id = hosts.id AND lm.label_id = ` + labelID + `::bigint
 		)`)
 	}
-	if params.SoftwareID > 0 {
+	if params.SoftwareID != 0 {
 		softwareID := where.Arg(params.SoftwareID)
 		where.Add(`EXISTS (
 			SELECT 1 FROM host_software hs
 			WHERE hs.host_id = hosts.id AND hs.software_id = ` + softwareID + `::bigint
 		)`)
 	}
-	if params.SoftwareTitleID > 0 {
+	if params.SoftwareTitleID != 0 {
 		softwareTitleID := where.Arg(params.SoftwareTitleID)
 		where.Add(`EXISTS (
 			SELECT 1

@@ -35,7 +35,7 @@ type userCreateInput struct {
 }
 
 type userGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type userPutBody struct {
@@ -45,12 +45,12 @@ type userPutBody struct {
 }
 
 type userPutInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body userPutBody
 }
 
 type userDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 func RegisterUsers(api huma.API, userService *users.Service) {
@@ -124,11 +124,7 @@ func registerGetUser(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		id, err := parseUserID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		user, err := userService.Get(ctx, id)
+		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
 			return nil, userMutationError(err)
 		}
@@ -154,11 +150,7 @@ func registerPutUser(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		targetID, err := parseUserID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		user, err := userService.Update(ctx, targetID, users.UpdateParams{
+		user, err := userService.Update(ctx, input.ID, users.UpdateParams{
 			Name:     input.Body.Name,
 			Role:     input.Body.Role,
 			Password: input.Body.Password,
@@ -187,19 +179,11 @@ func registerDeleteUser(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		targetID, err := parseUserID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		if err := userService.Delete(ctx, targetID); err != nil {
+		if err := userService.Delete(ctx, input.ID); err != nil {
 			return nil, userMutationError(err)
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func parseUserID(id string) (int64, error) {
-	return parseResourceID(id, userResource)
 }
 
 // userMutationError extends resourceMutationError with user-owned mutation

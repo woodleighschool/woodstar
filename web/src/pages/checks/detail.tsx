@@ -18,8 +18,9 @@ import { formatRelative } from "@/lib/utils";
 
 export function CheckDetailPage() {
   const { checkId } = useParams({ from: "/_authenticated/checks/$checkId" });
-  const check = useCheck(checkId);
-  const hosts = useCheckHosts(checkId);
+  const checkID = Number(checkId);
+  const check = useCheck(checkID);
+  const hosts = useCheckHosts(checkID);
 
   if (check.error) {
     return (

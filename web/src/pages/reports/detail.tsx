@@ -19,8 +19,9 @@ import {
 
 export function ReportDetailPage() {
   const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
-  const report = useReport(reportId);
-  const results = useReportResults(reportId);
+  const reportID = Number(reportId);
+  const report = useReport(reportID);
+  const results = useReportResults(reportID);
 
   if (report.error) {
     return (

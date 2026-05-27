@@ -53,7 +53,7 @@ export function LiveRunner({
   editAction,
 }: {
   kind: LiveRunKind;
-  itemId: string;
+  itemId: number;
   name: string;
   sql: string;
   editAction: ReactNode;
@@ -63,7 +63,7 @@ export function LiveRunner({
   const [step, setStep] = useState<LiveRunStep>("targets");
   const [selectedLabels, setSelectedLabels] = useState<Label[]>([]);
   const [selectedHosts, setSelectedHosts] = useState<Host[]>([]);
-  const [liveQueryId, setLiveQueryId] = useState("");
+  const [liveQueryId, setLiveQueryId] = useState<number | null>(null);
   const [runTargetCount, setRunTargetCount] = useState(0);
   const [stopRequested, setStopRequested] = useState(false);
   const stream = useLiveQueryStream(liveQueryId);
@@ -73,7 +73,7 @@ export function LiveRunner({
   const hasTargets = targetCount > 0;
   const targetSelection = useMemo<LiveQueryTargetCountBody>(
     () => ({
-      report_id: kind === "report" ? Number(itemId) : undefined,
+      report_id: kind === "report" ? itemId : undefined,
       selected: {
         hosts: selectedHostIDs,
         labels: selectedLabelIDs,
@@ -105,22 +105,22 @@ export function LiveRunner({
     };
     const handle = await create.mutateAsync(body);
     setRunTargetCount(handle.resolved_host_count);
-    setLiveQueryId(String(handle.id));
+    setLiveQueryId(handle.id);
     setStep("run");
   }
 
   async function stopRun() {
-    if (!liveQueryId) return;
+    if (liveQueryId === null) return;
     setStopRequested(true);
-    await stop.mutateAsync(Number(liveQueryId));
+    await stop.mutateAsync(liveQueryId);
   }
 
   function backToTargets() {
-    if (liveQueryId && stream.status === "running") {
-      void stop.mutateAsync(Number(liveQueryId)).catch(() => undefined);
+    if (liveQueryId !== null && stream.status === "running") {
+      void stop.mutateAsync(liveQueryId).catch(() => undefined);
     }
     setStep("targets");
-    setLiveQueryId("");
+    setLiveQueryId(null);
     setRunTargetCount(0);
     setStopRequested(false);
     create.reset();

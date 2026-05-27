@@ -30,7 +30,7 @@ type labelListInput struct {
 }
 
 type labelGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type labelCreateInput struct {
@@ -38,12 +38,12 @@ type labelCreateInput struct {
 }
 
 type labelPutInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body labelMutationBody
 }
 
 type labelDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type labelCreateBody struct {
@@ -133,11 +133,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 		Summary:     "Get a label",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *labelGetInput) (*labelOutput, error) {
-		id, err := parseLabelID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		label, err := labelStore.GetByID(ctx, id)
+		label, err := labelStore.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
@@ -154,11 +150,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 		Summary:     "Replace a label",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
-		id, err := parseLabelID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		label, err := labelStore.Update(ctx, id, labels.LabelUpdate{
+		label, err := labelStore.Update(ctx, input.ID, labels.LabelUpdate{
 			Name:                input.Body.Name,
 			Description:         input.Body.Description,
 			Query:               input.Body.Query,
@@ -182,17 +174,9 @@ func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
 		Summary:     "Delete a regular label",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *labelDeleteInput) (*struct{}, error) {
-		id, err := parseLabelID(input.ID)
-		if err != nil {
-			return nil, err
-		}
-		if err := labelStore.Delete(ctx, id); err != nil {
+		if err := labelStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func parseLabelID(id string) (int64, error) {
-	return parseResourceID(id, labelResource)
 }

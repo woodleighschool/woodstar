@@ -160,11 +160,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
-	cleanedIDs, err := dbutil.ParsePositiveIDs(orderedIDs, "ordered_ids")
-	if err != nil {
-		return err
-	}
-
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
 			SELECT id
@@ -178,7 +173,7 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 		if err != nil {
 			return err
 		}
-		if !dbutil.SameIDSet(cleanedIDs, currentIDs) {
+		if !dbutil.SameInt64Set(orderedIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
@@ -186,7 +181,7 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 			SET position = -ordered.position
 			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
 			WHERE c.id = ordered.id
-		`, cleanedIDs); err != nil {
+		`, orderedIDs); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `

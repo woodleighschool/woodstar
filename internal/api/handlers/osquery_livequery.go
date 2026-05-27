@@ -53,11 +53,11 @@ type liveQueryTargetCountOutput struct {
 }
 
 type liveQueryStreamInput struct {
-	ID int64 `path:"id" minimum:"1"`
+	ID int64 `path:"id"`
 }
 
 type liveQueryStopInput struct {
-	ID int64 `path:"id" minimum:"1"`
+	ID int64 `path:"id"`
 }
 
 type liveQueryStopOutput struct{}
@@ -101,11 +101,7 @@ func RegisterLiveQueries(
 		Summary:     "Count live query targets",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized},
 	}, func(ctx context.Context, input *liveQueryTargetCountInput) (*liveQueryTargetCountOutput, error) {
-		selection, err := input.Body.Selected.targetSelection()
-		if err != nil {
-			return nil, err
-		}
-		metrics, err := hostStore.CountSelectedTargets(ctx, selection, time.Now().UTC())
+		metrics, err := hostStore.CountSelectedTargets(ctx, input.Body.Selected.targetSelection(), time.Now().UTC())
 		if err != nil {
 			return nil, err
 		}
@@ -151,11 +147,7 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *h
 	if body.SQL == "" {
 		return nil, huma.Error400BadRequest("sql is required")
 	}
-	selection, err := body.Selected.targetSelection()
-	if err != nil {
-		return nil, err
-	}
-	resolved, err := hostStore.ResolveOnlineSelectedTargets(ctx, selection, time.Now().UTC())
+	resolved, err := hostStore.ResolveOnlineSelectedTargets(ctx, body.Selected.targetSelection(), time.Now().UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -165,16 +157,8 @@ func (body liveQueryCreateBody) resolveTargets(ctx context.Context, hostStore *h
 	return resolved, nil
 }
 
-func (body liveQuerySelectedBody) targetSelection() (hosts.TargetSelection, error) {
-	hostIDs, err := parseIDList(body.Hosts, "selected.hosts")
-	if err != nil {
-		return hosts.TargetSelection{}, err
-	}
-	labelIDs, err := parseIDList(body.Labels, "selected.labels")
-	if err != nil {
-		return hosts.TargetSelection{}, err
-	}
-	return hosts.TargetSelection{HostIDs: hostIDs, LabelIDs: labelIDs}, nil
+func (body liveQuerySelectedBody) targetSelection() hosts.TargetSelection {
+	return hosts.TargetSelection{HostIDs: body.Hosts, LabelIDs: body.Labels}
 }
 
 func streamLiveQuery(

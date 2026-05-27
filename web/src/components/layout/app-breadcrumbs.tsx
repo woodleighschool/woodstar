@@ -253,49 +253,49 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
 }
 
 function HostCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useHost(id);
+  const { data, isLoading } = useHost(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span title={data.hardware_uuid}>{data.display_name || id}</span>;
 }
 
 function SoftwareCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSoftwareTitle(id);
+  const { data, isLoading } = useSoftwareTitle(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.display_name || data.name || id}</span>;
 }
 
 function CheckCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useCheck(id);
+  const { data, isLoading } = useCheck(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }
 
 function ReportCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useReport(id);
+  const { data, isLoading } = useReport(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }
 
 function SantaConfigurationCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSantaConfiguration(id);
+  const { data, isLoading } = useSantaConfiguration(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }
 
 function SantaRuleCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSantaRule(id);
+  const { data, isLoading } = useSantaRule(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || data.identifier || id}</span>;
 }
 
 function LabelCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useLabel(id);
+  const { data, isLoading } = useLabel(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }
 
 function UserCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useUser(id);
+  const { data, isLoading } = useUser(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || data.email || id}</span>;
 }

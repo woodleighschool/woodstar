@@ -19,13 +19,13 @@ export function useUsers() {
   });
 }
 
-export function useUser(id: string) {
+export function useUser(id: number | null) {
   return useQuery<User, ApiError>({
     queryKey: queryKeys.user(id),
     queryFn: async ({ signal }) =>
       unwrap(
         apiClient.GET("/api/users/{id}", {
-          params: { path: { id } },
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -48,12 +48,12 @@ export function useUpdateUser() {
     mutationFn: ({ id, body }) =>
       unwrap(
         apiClient.PUT("/api/users/{id}", {
-          params: { path: { id: String(id) } },
+          params: { path: { id } },
           body,
         }),
       ),
     onSuccess: async (user, variables) => {
-      queryClient.setQueryData(queryKeys.user(String(variables.id)), user);
+      queryClient.setQueryData(queryKeys.user(variables.id), user);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.users }),
         queryClient.invalidateQueries({ queryKey: queryKeys.session }),
@@ -68,7 +68,7 @@ export function useDeleteUser() {
     mutationFn: async (id) => {
       await unwrap(
         apiClient.DELETE("/api/users/{id}", {
-          params: { path: { id: String(id) } },
+          params: { path: { id } },
         }),
       );
     },

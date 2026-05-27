@@ -294,7 +294,8 @@ export function SantaRulesPage() {
 export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const ruleId = params.ruleId ?? "";
-  const detail = useSantaRule(ruleId);
+  const ruleID = mode === "edit" ? Number(ruleId) : null;
+  const detail = useSantaRule(ruleID);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -318,10 +319,18 @@ export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
 
   const initial = mode === "edit" && detail.data ? formFromRule(detail.data) : emptyRuleForm;
 
-  return <RuleForm key={ruleId || "new"} mode={mode} ruleId={ruleId} initial={initial} />;
+  return <RuleForm key={ruleId || "new"} mode={mode} ruleId={ruleID} initial={initial} />;
 }
 
-function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: string; initial: RuleFormState }) {
+function RuleForm({
+  mode,
+  ruleId,
+  initial,
+}: {
+  mode: "create" | "edit";
+  ruleId: number | null;
+  initial: RuleFormState;
+}) {
   const navigate = useNavigate();
   const create = useCreateSantaRule();
   const update = useUpdateSantaRule();
@@ -340,7 +349,7 @@ function RuleForm({ mode, ruleId, initial }: { mode: "create" | "edit"; ruleId: 
       return;
     }
     if (mode === "create") await create.mutateAsync(ruleBody(form));
-    else await update.mutateAsync({ id: Number(ruleId), body: ruleBody(form) });
+    else await update.mutateAsync({ id: ruleId ?? 0, body: ruleBody(form) });
     void navigate({ to: "/santa/rules" });
   }
 

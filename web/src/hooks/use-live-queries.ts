@@ -74,11 +74,11 @@ export function useLiveQueryTargetCount(body: LiveQueryTargetCountBody, enabled:
 
 // useLiveQueryStream opens an EventSource against /api/live-queries/{id}/stream
 // and accumulates result events until the server publishes `completed`.
-export function useLiveQueryStream(liveQueryId: string) {
+export function useLiveQueryStream(liveQueryId: number | null) {
   const [state, dispatch] = useReducer(streamReducer, { results: [], nextSeq: 0, status: "idle" });
 
   useEffect(() => {
-    if (liveQueryId === "") return;
+    if (liveQueryId === null) return;
     dispatch({ type: "reset" });
     dispatch({ type: "running" });
 

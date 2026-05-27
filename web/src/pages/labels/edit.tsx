@@ -104,7 +104,8 @@ type LabelFormParse = ReturnType<typeof labelFormSchema.safeParse>;
 export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const labelId = params.labelId ?? "";
-  const detail = useLabel(labelId);
+  const labelID = mode === "edit" ? Number(labelId) : null;
+  const detail = useLabel(labelID);
 
   if (mode === "edit") {
     if (detail.error) {
@@ -149,13 +150,21 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
         }
       : empty;
 
-  return <LabelEditForm key={labelId || "new"} mode={mode} labelId={labelId} initial={initial} />;
+  return <LabelEditForm key={labelId || "new"} mode={mode} labelId={labelID} initial={initial} />;
 }
 
-function LabelEditForm({ mode, labelId, initial }: { mode: "create" | "edit"; labelId: string; initial: FormState }) {
+function LabelEditForm({
+  mode,
+  labelId,
+  initial,
+}: {
+  mode: "create" | "edit";
+  labelId: number | null;
+  initial: FormState;
+}) {
   const navigate = useNavigate();
   const createLabel = useCreateLabel();
-  const updateLabel = useUpdateLabel(labelId ? Number(labelId) : null);
+  const updateLabel = useUpdateLabel(labelId);
   const [form, setForm] = useState<FormState>(initial);
   const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();

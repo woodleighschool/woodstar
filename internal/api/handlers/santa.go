@@ -62,7 +62,7 @@ type santaConfigurationListInput struct {
 }
 
 type santaConfigurationGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaConfigurationCreateInput struct {
@@ -70,12 +70,12 @@ type santaConfigurationCreateInput struct {
 }
 
 type santaConfigurationPatchInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body configurations.ConfigurationMutation
 }
 
 type santaConfigurationDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaConfigurationBulkDeleteInput struct {
@@ -160,11 +160,7 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store) {
 		Summary:     "Get a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
-		id, err := parseResourceID(input.ID, santaConfigurationResource)
-		if err != nil {
-			return nil, err
-		}
-		configuration, err := store.GetConfigurationByID(ctx, id)
+		configuration, err := store.GetConfigurationByID(ctx, input.ID)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -187,11 +183,7 @@ func registerPatchSantaConfiguration(api huma.API, store *configurations.Store) 
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaConfigurationPatchInput) (*santaConfigurationOutput, error) {
-		id, err := parseResourceID(input.ID, santaConfigurationResource)
-		if err != nil {
-			return nil, err
-		}
-		configuration, err := store.UpdateConfiguration(ctx, id, input.Body)
+		configuration, err := store.UpdateConfiguration(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -208,11 +200,7 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store)
 		Summary:     "Delete a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, santaConfigurationResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := store.DeleteConfiguration(ctx, id); err != nil {
+		if err := store.DeleteConfiguration(ctx, input.ID); err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &struct{}{}, nil
@@ -228,11 +216,7 @@ func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.S
 		Summary:     "Delete Santa configurations",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaConfigurationBulkDeleteInput) (*struct{}, error) {
-		ids, err := input.Body.ids("configuration IDs")
-		if err != nil {
-			return nil, err
-		}
-		if _, err := store.DeleteMany(ctx, ids); err != nil {
+		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &struct{}{}, nil
@@ -271,7 +255,7 @@ type santaRuleListInput struct {
 }
 
 type santaRuleGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaRuleCreateInput struct {
@@ -279,12 +263,12 @@ type santaRuleCreateInput struct {
 }
 
 type santaRulePatchInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body santarules.RuleMutation
 }
 
 type santaRuleDeleteInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type santaRuleBulkDeleteInput struct {
@@ -292,7 +276,7 @@ type santaRuleBulkDeleteInput struct {
 }
 
 type santaRuleReorderIncludesInput struct {
-	ID   string `path:"id"`
+	ID   int64 `path:"id"`
 	Body santaRuleReorderIncludesBody
 }
 
@@ -369,11 +353,7 @@ func registerGetSantaRule(api huma.API, store *santarules.Store) {
 		Summary:     "Get a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
-		id, err := parseResourceID(input.ID, santaRuleResource)
-		if err != nil {
-			return nil, err
-		}
-		rule, err := store.GetRuleByID(ctx, id)
+		rule, err := store.GetRuleByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
@@ -396,11 +376,7 @@ func registerPatchSantaRule(api huma.API, store *santarules.Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaRulePatchInput) (*santaRuleOutput, error) {
-		id, err := parseResourceID(input.ID, santaRuleResource)
-		if err != nil {
-			return nil, err
-		}
-		rule, err := store.UpdateRule(ctx, id, input.Body)
+		rule, err := store.UpdateRule(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
@@ -417,11 +393,7 @@ func registerDeleteSantaRule(api huma.API, store *santarules.Store) {
 		Summary:     "Delete a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, santaRuleResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := store.DeleteRule(ctx, id); err != nil {
+		if err := store.DeleteRule(ctx, input.ID); err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil
@@ -437,11 +409,7 @@ func registerBulkDeleteSantaRules(api huma.API, store *santarules.Store) {
 		Summary:     "Delete Santa rules",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
-		ids, err := input.Body.ids("rule IDs")
-		if err != nil {
-			return nil, err
-		}
-		if _, err := store.DeleteMany(ctx, ids); err != nil {
+		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil
@@ -457,11 +425,7 @@ func registerReorderSantaRuleIncludes(api huma.API, store *santarules.Store) {
 		Summary:     "Reorder Santa rule includes",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleReorderIncludesInput) (*struct{}, error) {
-		id, err := parseResourceID(input.ID, santaRuleResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := store.ReorderRuleIncludes(ctx, id, input.Body.OrderedIncludeIDs); err != nil {
+		if err := store.ReorderRuleIncludes(ctx, input.ID, input.Body.OrderedIncludeIDs); err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil
@@ -472,7 +436,7 @@ func registerReorderSantaRuleIncludes(api huma.API, store *santarules.Store) {
 
 type santaEventListInput struct {
 	ListQueryInput
-	HostID    string    `query:"host_id,omitempty"`
+	HostID    int64     `query:"host_id,omitempty"`
 	Decisions []string  `query:"decisions,omitempty"`
 	Since     time.Time `query:"since,omitempty"`
 }
@@ -481,11 +445,7 @@ type santaEventListOutput struct {
 	Body paginatedBody[santaevents.ExecutionEvent]
 }
 
-func (input santaEventListInput) params() (santaevents.EventListParams, error) {
-	hostID, err := parseOptionalPositiveID(input.HostID, "host_id")
-	if err != nil {
-		return santaevents.EventListParams{}, err
-	}
+func (input santaEventListInput) params() santaevents.EventListParams {
 	var since *time.Time
 	if !input.Since.IsZero() {
 		since = &input.Since
@@ -496,10 +456,10 @@ func (input santaEventListInput) params() (santaevents.EventListParams, error) {
 	}
 	return santaevents.EventListParams{
 		ListParams: input.ListQueryInput.params(),
-		HostID:     hostID,
+		HostID:     input.HostID,
 		Decisions:  decisions,
 		Since:      since,
-	}, nil
+	}
 }
 
 func RegisterSantaEvents(api huma.API, store *santaevents.Store) {
@@ -511,11 +471,7 @@ func RegisterSantaEvents(api huma.API, store *santaevents.Store) {
 		Summary:     "List Santa execution events",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
-		params, err := input.params()
-		if err != nil {
-			return nil, err
-		}
-		events, count, err := store.ListEvents(ctx, params)
+		events, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError("Santa event", err)
 		}
@@ -530,7 +486,7 @@ type hostSantaEffectiveRulesOutput struct {
 }
 
 type hostSantaEffectiveRulesInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 	ListQueryInput
 }
 
@@ -544,19 +500,15 @@ func RegisterHostSantaEffectiveRules(api huma.API, hostStore *hosts.Store, santa
 		Summary:     "List effective Santa rules for a host",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSantaEffectiveRulesInput) (*hostSantaEffectiveRulesOutput, error) {
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
 		if hostStore == nil || santaRuleStore == nil {
 			return nil, huma.Error404NotFound("host not found")
 		}
-		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
 		}
-		rows, count, err := santaRuleStore.ListEffectiveRulesForHost(ctx, id, santarules.EffectiveRuleListParams{
+		rows, count, err := santaRuleStore.ListEffectiveRulesForHost(ctx, input.ID, santarules.EffectiveRuleListParams{
 			ListParams: input.ListQueryInput.params(),
 		})
 		if err != nil {

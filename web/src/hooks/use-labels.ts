@@ -42,17 +42,17 @@ export function useLabels(params: LabelListParams = {}) {
   });
 }
 
-export function useLabel(id: string) {
+export function useLabel(id: number | null) {
   return useQuery<Label, ApiError>({
     queryKey: queryKeys.label(id),
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/labels/{id}", {
-          params: { path: { id } },
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
-    enabled: id !== "",
+    enabled: id !== null,
   });
 }
 
@@ -70,7 +70,7 @@ export function useCreateLabel() {
 export function useUpdateLabel(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Label, ApiError, LabelMutation>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: String(id) } }, body })),
+    mutationFn: (body) => unwrap(apiClient.PUT("/api/labels/{id}", { params: { path: { id: id ?? 0 } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });
@@ -81,7 +81,7 @@ export function useUpdateLabel(id: number | null) {
 export function useDeleteLabel() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/labels/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/labels/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });

@@ -10,7 +10,7 @@ func TestNormalizeLabelScope(t *testing.T) {
 	if s.Mode != ScopeExcludeAny {
 		t.Fatalf("Mode = %q, want %q", s.Mode, ScopeExcludeAny)
 	}
-	assertInt64s(t, "LabelIDs", s.LabelIDs, []int64{2, 5})
+	assertInt64s(t, "LabelIDs", s.LabelIDs, []int64{5, 2, 5, 0, -1})
 
 	empty := NormalizeLabelScope(LabelScope{Mode: ScopeIncludeAll})
 	if empty.Mode != ScopeNone {

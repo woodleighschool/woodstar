@@ -38,56 +38,40 @@ type hostSoftwareOutput struct {
 }
 
 type hostGetInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 }
 
 type hostListInput struct {
 	ListQueryInput
 	Status          string  `query:"status,omitempty"`
-	LabelID         string  `query:"label_id,omitempty"`
-	SoftwareTitleID string  `query:"software_title_id,omitempty"`
-	SoftwareID      string  `query:"software_id,omitempty"`
+	LabelID         int64   `query:"label_id,omitempty"`
+	SoftwareTitleID int64   `query:"software_title_id,omitempty"`
+	SoftwareID      int64   `query:"software_id,omitempty"`
 	IDs             []int64 `query:"ids,omitempty"`
 }
 
-func (i hostListInput) params() (hosts.ListParams, error) {
-	titleID, err := parseOptionalPositiveID(i.SoftwareTitleID, "software_title_id")
-	if err != nil {
-		return hosts.ListParams{}, err
-	}
-	softwareID, err := parseOptionalPositiveID(i.SoftwareID, "software_id")
-	if err != nil {
-		return hosts.ListParams{}, err
-	}
-	labelID, err := parseOptionalPositiveID(i.LabelID, "label_id")
-	if err != nil {
-		return hosts.ListParams{}, err
-	}
+func (i hostListInput) params() hosts.ListParams {
 	return hosts.ListParams{
 		ListParams:      i.ListQueryInput.params(),
 		Status:          i.Status,
-		LabelID:         labelID,
-		SoftwareTitleID: titleID,
-		SoftwareID:      softwareID,
-		IDs:             dbutil.CleanPositiveIDs(i.IDs),
-	}, nil
+		LabelID:         i.LabelID,
+		SoftwareTitleID: i.SoftwareTitleID,
+		SoftwareID:      i.SoftwareID,
+		IDs:             i.IDs,
+	}
 }
 
 type hostSoftwareInput struct {
-	ID string `path:"id"`
+	ID int64 `path:"id"`
 	ListQueryInput
 	Source []string `          query:"source,omitempty"`
 }
 
-func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams, error) {
-	id, err := parseResourceID(i.ID, hostResource)
-	if err != nil {
-		return 0, software.HostSoftwareListParams{}, err
-	}
-	return id, software.HostSoftwareListParams{
+func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams) {
+	return i.ID, software.HostSoftwareListParams{
 		ListParams:      i.ListQueryInput.params(),
 		SoftwareSources: i.Source,
-	}, nil
+	}
 }
 
 type hostBulkDeleteInput struct {
@@ -121,11 +105,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 		Summary:     "List enrolled hosts",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *hostListInput) (*hostListOutput, error) {
-		params, err := input.params()
-		if err != nil {
-			return nil, err
-		}
-		rows, count, err := hostStore.List(ctx, params)
+		rows, count, err := hostStore.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError("host", err)
 		}
@@ -142,11 +122,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDe
 		Summary:     "Get an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		host, err := hostStore.GetByID(ctx, id)
+		host, err := hostStore.GetByID(ctx, input.ID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
@@ -162,7 +138,7 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDe
 			if contributor == nil {
 				continue
 			}
-			if err := contributor.ContributeHostDetail(ctx, id, &body); err != nil {
+			if err := contributor.ContributeHostDetail(ctx, input.ID, &body); err != nil {
 				return nil, err
 			}
 		}
@@ -182,11 +158,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		id, err := parseResourceID(input.ID, hostResource)
-		if err != nil {
-			return nil, err
-		}
-		if err := hostStore.Delete(ctx, id); err != nil {
+		if err := hostStore.Delete(ctx, input.ID); err != nil {
 			return nil, resourceMutationError("host", err)
 		}
 		return &struct{}{}, nil
@@ -205,11 +177,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		ids, err := input.Body.ids("host IDs")
-		if err != nil {
-			return nil, err
-		}
-		if _, err := hostStore.DeleteMany(ctx, ids); err != nil {
+		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
 			return nil, err
 		}
 		return &struct{}{}, nil
@@ -225,10 +193,7 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 		Summary:     "List software installed on a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostSoftwareInput) (*hostSoftwareOutput, error) {
-		id, params, err := input.params()
-		if err != nil {
-			return nil, err
-		}
+		id, params := input.params()
 		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {

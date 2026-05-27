@@ -9,7 +9,7 @@ import { LiveRunner } from "@/pages/live-runner";
 
 export function ReportLivePage() {
   const { reportId } = useParams({ from: "/_authenticated/reports/$reportId" });
-  const report = useReport(reportId);
+  const report = useReport(Number(reportId));
 
   if (report.error) {
     return (
@@ -32,7 +32,7 @@ export function ReportLivePage() {
   return (
     <LiveRunner
       kind="report"
-      itemId={reportId}
+      itemId={Number(reportId)}
       name={report.data.name}
       sql={report.data.query}
       editAction={

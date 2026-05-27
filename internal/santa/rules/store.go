@@ -167,14 +167,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 }
 
 func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIncludeIDs []int64) error {
-	if ruleID <= 0 {
-		return dbutil.ErrNotFound
-	}
-	ids, err := dbutil.ParsePositiveIDs(orderedIncludeIDs, "ordered_include_ids")
-	if err != nil {
-		return err
-	}
-
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		var exists bool
 		if err := tx.QueryRow(ctx, `
@@ -203,7 +195,7 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 		if err != nil {
 			return err
 		}
-		if !dbutil.SameIDSet(ids, currentIDs) {
+		if !dbutil.SameInt64Set(orderedIncludeIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_include_ids must exactly match existing include IDs", dbutil.ErrInvalidInput)
 		}
 		if _, err := tx.Exec(ctx, `
@@ -211,7 +203,7 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 			SET position = -ordered.position
 			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
 			WHERE i.id = ordered.id AND i.rule_id = $2
-		`, ids, ruleID); err != nil {
+		`, orderedIncludeIDs, ruleID); err != nil {
 			return err
 		}
 		_, err = tx.Exec(ctx, `

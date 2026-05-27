@@ -2743,7 +2743,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -2793,7 +2794,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -3173,17 +3175,20 @@ paths:
           in: query
           name: label_id
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: software_title_id
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: software_id
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: ids
@@ -3275,7 +3280,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -3319,7 +3325,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -3362,7 +3369,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -3406,7 +3414,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -3450,12 +3459,14 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
         - in: path
           name: report_id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -3499,7 +3510,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: q
@@ -3575,7 +3587,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: q
@@ -3771,7 +3784,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -3809,7 +3823,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -3851,7 +3866,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -3999,7 +4015,6 @@ paths:
           required: true
           schema:
             format: int64
-            minimum: 1
             type: integer
       responses:
         "204":
@@ -4040,7 +4055,6 @@ paths:
           required: true
           schema:
             format: int64
-            minimum: 1
             type: integer
       responses:
         "200":
@@ -4294,7 +4308,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -4332,7 +4347,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -4374,7 +4390,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -4435,7 +4452,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -4630,7 +4648,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -4668,7 +4687,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -4710,7 +4730,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -4771,7 +4792,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -5023,7 +5045,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -5067,7 +5090,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -5115,7 +5139,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -5209,7 +5234,8 @@ paths:
           in: query
           name: host_id
           schema:
-            type: string
+            format: int64
+            type: integer
         - explode: false
           in: query
           name: decisions
@@ -5448,7 +5474,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -5492,7 +5519,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -5540,7 +5568,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -5607,7 +5636,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:
@@ -5775,7 +5805,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -5903,7 +5934,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "204":
           description: No Content
@@ -5953,7 +5985,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       responses:
         "200":
           content:
@@ -6001,7 +6034,8 @@ paths:
           name: id
           required: true
           schema:
-            type: string
+            format: int64
+            type: integer
       requestBody:
         content:
           application/json:

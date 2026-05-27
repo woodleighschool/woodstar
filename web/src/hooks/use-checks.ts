@@ -33,20 +33,21 @@ export function useChecks(params: CheckListParams = {}) {
   });
 }
 
-export function useCheck(id: string) {
+export function useCheck(id: number | null) {
   return useQuery<Check, ApiError>({
     queryKey: queryKeys.check(id),
-    queryFn: ({ signal }) => unwrap(apiClient.GET("/api/osquery/checks/{id}", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/osquery/checks/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
-export function useCheckHosts(id: string) {
+export function useCheckHosts(id: number | null) {
   return useQuery<CheckHosts, ApiError>({
     queryKey: queryKeys.checkHosts(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/checks/{id}/hosts", { params: { path: { id } }, signal })),
-    enabled: id !== "",
+      unwrap(apiClient.GET("/api/osquery/checks/{id}/hosts", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 
@@ -60,10 +61,11 @@ export function useCreateCheck() {
   });
 }
 
-export function useUpdateCheck(id: string) {
+export function useUpdateCheck(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Check, ApiError, CheckMutation>({
-    mutationFn: (body) => unwrap(apiClient.PUT("/api/osquery/checks/{id}", { params: { path: { id } }, body })),
+    mutationFn: (body) =>
+      unwrap(apiClient.PUT("/api/osquery/checks/{id}", { params: { path: { id: id ?? 0 } }, body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checks() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.check(id) });
@@ -75,7 +77,7 @@ export function useUpdateCheck(id: string) {
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id: String(id) } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["checks"] });
     },

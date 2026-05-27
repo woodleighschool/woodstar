@@ -21,7 +21,7 @@ export function useUpdateAccount() {
     mutationFn: (body) => unwrap(apiClient.PUT("/api/account", { body })),
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
-      queryClient.setQueryData(queryKeys.user(String(account.user.id)), account.user);
+      queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
       queryClient.setQueryData(queryKeys.session, (session: Schemas["SessionBody"] | undefined) =>
         session ? { ...session, user: account.user } : session,
       );

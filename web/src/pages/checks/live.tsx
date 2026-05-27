@@ -9,7 +9,7 @@ import { LiveRunner } from "@/pages/live-runner";
 
 export function CheckLivePage() {
   const { checkId } = useParams({ from: "/_authenticated/checks/$checkId" });
-  const check = useCheck(checkId);
+  const check = useCheck(Number(checkId));
 
   if (check.error) {
     return (
@@ -32,7 +32,7 @@ export function CheckLivePage() {
   return (
     <LiveRunner
       kind="check"
-      itemId={checkId}
+      itemId={Number(checkId)}
       name={check.data.name}
       sql={check.data.query}
       editAction={

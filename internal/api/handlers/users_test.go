@@ -10,40 +10,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
-func TestParseUserID(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    int64
-		wantErr bool
-	}{
-		{name: "positive", input: "42", want: 42},
-		{name: "zero rejected", input: "0", wantErr: true},
-		{name: "negative rejected", input: "-1", wantErr: true},
-		{name: "non-numeric rejected", input: "abc", wantErr: true},
-		{name: "empty rejected", input: "", wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := parseUserID(tt.input)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Fatalf("got %d, want %d", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestUserMutationErrorMapping(t *testing.T) {
 	tests := []struct {
 		name       string
