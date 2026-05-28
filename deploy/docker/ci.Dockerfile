@@ -1,14 +1,3 @@
-FROM --platform=$BUILDPLATFORM node:24-alpine AS web
-
-WORKDIR /workspace/web
-RUN corepack enable
-COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN corepack prepare --activate
-RUN pnpm install --frozen-lockfile
-COPY web/ ./
-COPY schema/ ../schema/
-RUN pnpm build
-
 FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 
 ARG TARGETOS
@@ -18,13 +7,14 @@ ARG COMMIT=
 ARG DATE=
 
 WORKDIR /workspace
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY cmd/ cmd/
 COPY internal/ internal/
-COPY web/ web/
-COPY --from=web /workspace/web/dist web/dist
+COPY web/build.go web/build.go
+COPY web/dist/ web/dist/
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION} -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit=${COMMIT} -X github.com/woodleighschool/woodstar/internal/buildinfo.Date=${DATE}" -o woodstar ./cmd/woodstar

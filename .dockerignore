@@ -11,7 +11,5 @@ build/
 dist/
 
 web/node_modules/
-web/dist/
-
 tmp/
 *.log
