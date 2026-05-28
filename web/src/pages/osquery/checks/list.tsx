@@ -62,7 +62,10 @@ export function ChecksPage() {
       enableSorting: false,
       header: "Query",
       cell: ({ row }) => (
-        <code className="text-muted-foreground block max-w-[34rem] truncate font-mono text-xs" title={row.original.query}>
+        <code
+          className="text-muted-foreground block max-w-[34rem] truncate font-mono text-xs"
+          title={row.original.query}
+        >
           {row.original.query}
         </code>
       ),

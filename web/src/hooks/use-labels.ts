@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
-import type { paths } from "@/lib/api-schema";
+import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ export type Label = Schemas["Label"];
 export type LabelListResult = Schemas["PaginatedBodyLabel"];
 export type LabelCreate = Schemas["LabelCreateBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];
-export type LabelListParams = NonNullable<paths["/api/labels"]["get"]["parameters"]["query"]>;
+export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {

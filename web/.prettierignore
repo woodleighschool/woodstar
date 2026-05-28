@@ -1,2 +1,2 @@
-src/lib/api-schema.ts
+src/lib/api-client/**
 src/routeTree.gen.ts

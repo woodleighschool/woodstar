@@ -17,7 +17,7 @@ export default tseslint.config([
     "vite.config.ts",
     "src/components/ui/**",
     "src/routeTree.gen.ts",
-    "src/lib/api-schema.ts",
+    "src/lib/api-client/**",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

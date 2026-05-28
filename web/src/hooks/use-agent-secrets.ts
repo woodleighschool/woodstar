@@ -10,7 +10,8 @@ export type Agent = AgentSecret["agent"];
 export function useAgentSecrets() {
   return useQuery<AgentSecret[], ApiError>({
     queryKey: queryKeys.agentSecrets,
-    queryFn: async ({ signal }) => (await unwrap(apiClient.GET("/api/agent-secrets", { signal }))) ?? [],
+    queryFn: async ({ signal }) =>
+      (await unwrap(apiClient.GET<AgentSecret[] | null>("/api/agent-secrets", { signal }))) ?? [],
   });
 }
 

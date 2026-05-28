@@ -2,7 +2,12 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
-import type { paths } from "@/lib/api-schema";
+import type {
+  ListSantaConfigurationsData,
+  ListSantaEventsData,
+  ListSantaFileAccessEventsData,
+  ListSantaRulesData,
+} from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -23,12 +28,10 @@ export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 export type SantaRuleType = SantaRule["rule_type"];
 export type SantaRulePolicy = NonNullable<SantaRule["includes"]>[number]["policy"];
 
-export type SantaListParams = NonNullable<paths["/api/santa/configurations"]["get"]["parameters"]["query"]>;
-export type SantaRuleListParams = NonNullable<paths["/api/santa/rules"]["get"]["parameters"]["query"]>;
-export type SantaEventListParams = NonNullable<paths["/api/santa/events"]["get"]["parameters"]["query"]>;
-export type SantaFileAccessEventListParams = NonNullable<
-  paths["/api/santa/file-access-events"]["get"]["parameters"]["query"]
->;
+export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
+export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
+export type SantaEventListParams = NonNullable<ListSantaEventsData["query"]>;
+export type SantaFileAccessEventListParams = NonNullable<ListSantaFileAccessEventsData["query"]>;
 export type SantaEventDecisionFilter = NonNullable<NonNullable<SantaEventListParams["decisions"]>[number]>;
 
 export function useSantaConfigurations(params: SantaListParams = {}) {

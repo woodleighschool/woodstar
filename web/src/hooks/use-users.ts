@@ -13,7 +13,7 @@ export function useUsers() {
   return useQuery<User[], ApiError>({
     queryKey: queryKeys.users,
     queryFn: async ({ signal }) => {
-      const result = await unwrap(apiClient.GET("/api/users", { signal }));
+      const result = await unwrap(apiClient.GET<UserListResult>("/api/users", { signal }));
       return result.items ?? [];
     },
   });
