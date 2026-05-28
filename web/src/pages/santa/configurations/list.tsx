@@ -8,9 +8,9 @@ import { DataTable, DataTableRowDragHandle } from "@/components/data-table/data-
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
-import { LabelChips } from "@/components/labels/label-chips";
+import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useLabels } from "@/hooks/use-labels";
 import {
@@ -289,38 +288,6 @@ function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
         hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."
       }
     />
-  );
-}
-
-function TargetLabelsCell({
-  labelIDs,
-  labelsByID,
-}: {
-  labelIDs: number[];
-  labelsByID: ReadonlyMap<number, LabelChip>;
-}) {
-  const countText = `${labelIDs.length} label${labelIDs.length === 1 ? "" : "s"}`;
-
-  if (labelIDs.length === 0) {
-    return <span className="text-sm tabular-nums">{countText}</span>;
-  }
-
-  const labels = labelsFromIDs(labelIDs, labelsByID);
-
-  return (
-    <HoverCard openDelay={150} closeDelay={150}>
-      <HoverCardTrigger asChild>
-        <button
-          type="button"
-          className="rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          {countText}
-        </button>
-      </HoverCardTrigger>
-      <HoverCardContent align="start" side="top" className="w-auto max-w-80 p-2">
-        <LabelChips labels={labels} />
-      </HoverCardContent>
-    </HoverCard>
   );
 }
 

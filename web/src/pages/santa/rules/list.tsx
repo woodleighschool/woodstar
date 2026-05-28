@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
 import { DataTable } from "@/components/data-table/data-table";
@@ -9,13 +9,17 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
+import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useLabels } from "@/hooks/use-labels";
 import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { RULE_TYPES, ruleTypeLabel } from "./shared";
 
@@ -31,6 +35,10 @@ export function SantaRulesPage() {
     rule_type: ruleType,
     ...tableQueryParams(state),
   });
+  const labels = useLabels({
+    page_size: MAX_PAGE_SIZE,
+    sort: "name.asc",
+  });
   const bulkDelete = useBulkDeleteSantaRules();
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -38,6 +46,10 @@ export function SantaRulesPage() {
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!ruleType;
   const selectedIDs = selectedRuleIds.map(Number);
+  const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
+    () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
+    [labels.data?.items],
+  );
 
   function deleteSelectedRules() {
     bulkDelete.mutate(selectedIDs, {
@@ -73,9 +85,10 @@ export function SantaRulesPage() {
       enableSorting: false,
       cell: ({ row }) =>
         row.original.includes?.length ? (
-          <span className="text-sm tabular-nums">
-            {row.original.includes.length} include{row.original.includes.length === 1 ? "" : "s"}
-          </span>
+          <TargetLabelsCell
+            labelIDs={row.original.includes.map((include) => include.label_id)}
+            labelsByID={labelsByID}
+          />
         ) : (
           <Badge variant="secondary">Inactive</Badge>
         ),
