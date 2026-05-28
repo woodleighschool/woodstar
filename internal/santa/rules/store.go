@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
@@ -93,6 +94,9 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 
 	var ruleID int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+			return err
+		}
 		row, err := s.q.WithTx(tx).CreateSantaRule(ctx, sqlc.CreateSantaRuleParams{
 			RuleType:      sqlc.SantaRuleType(params.RuleType),
 			Identifier:    params.Identifier,
@@ -121,6 +125,9 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 	}
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+			return err
+		}
 		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
 			RuleType:      sqlc.SantaRuleType(params.RuleType),
 			Identifier:    params.Identifier,
@@ -311,58 +318,39 @@ func replaceRuleChildren(
 	if _, err := tx.Exec(ctx, `DELETE FROM santa_rule_includes WHERE rule_id = $1`, ruleID); err != nil {
 		return err
 	}
-	includeIDs := []int64{}
 	if len(includes) > 0 {
 		policies := make([]string, len(includes))
 		celExpressions := make([]string, len(includes))
+		labelIDs := make([]int64, len(includes))
 		for i, include := range includes {
 			policies[i] = string(include.Policy)
 			celExpressions[i] = include.CELExpression
+			labelIDs[i] = include.LabelID
 		}
-		rows, err := tx.Query(ctx, `
+		if _, err := tx.Exec(ctx, `
 			WITH input AS (
 				SELECT
 					policy,
 					cel_expression,
+					label_id,
 					position
-				FROM unnest($2::text[], $3::text[]) WITH ORDINALITY AS input(
+				FROM unnest($2::text[], $3::text[], $4::bigint[]) WITH ORDINALITY AS input(
 					policy,
 					cel_expression,
+					label_id,
 					position
 				)
 			)
-			INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression)
+			INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
 			SELECT
 				$1,
 				position - 1,
 				policy::santa_policy,
-				NULLIF(cel_expression, '')
+				NULLIF(cel_expression, ''),
+				label_id
 			FROM input
 			ORDER BY position
-			RETURNING id
-		`, ruleID, policies, celExpressions)
-		if err != nil {
-			return err
-		}
-		includeIDs, err = pgx.CollectRows(rows, pgx.RowTo[int64])
-		if err != nil {
-			return err
-		}
-	}
-	includeLabelIncludeIDs := []int64{}
-	includeLabelLabelIDs := []int64{}
-	for position, include := range includes {
-		for _, labelID := range include.LabelIDs {
-			includeLabelIncludeIDs = append(includeLabelIncludeIDs, includeIDs[position])
-			includeLabelLabelIDs = append(includeLabelLabelIDs, labelID)
-		}
-	}
-	if len(includeLabelIncludeIDs) > 0 {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_rule_include_labels (include_id, label_id)
-			SELECT include_id, label_id
-			FROM unnest($1::bigint[], $2::bigint[]) AS input(include_id, label_id)
-		`, includeLabelIncludeIDs, includeLabelLabelIDs); err != nil {
+		`, ruleID, policies, celExpressions, labelIDs); err != nil {
 			return err
 		}
 	}
@@ -416,11 +404,9 @@ func (s *Store) loadRuleIncludes(ctx context.Context, ruleIDs []int64) (map[int6
 			i.position,
 			i.policy::text,
 			COALESCE(i.cel_expression, ''),
-			COALESCE(array_agg(il.label_id ORDER BY il.label_id) FILTER (WHERE il.label_id IS NOT NULL), ARRAY[]::bigint[])
+			i.label_id
 		FROM santa_rule_includes i
-		LEFT JOIN santa_rule_include_labels il ON il.include_id = i.id
 		WHERE i.rule_id = ANY($1)
-		GROUP BY i.rule_id, i.id
 		ORDER BY i.rule_id, i.position, i.id
 	`, ruleIDs)
 	if err != nil {
@@ -438,7 +424,7 @@ func (s *Store) loadRuleIncludes(ctx context.Context, ruleIDs []int64) (map[int6
 			&include.Position,
 			&include.Policy,
 			&include.CELExpression,
-			&include.LabelIDs,
+			&include.LabelID,
 		); err != nil {
 			return nil, err
 		}
@@ -471,10 +457,8 @@ func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map
 	return out, rows.Err()
 }
 
-// Validate enforces cross-field rules that the DB and Huma DTO can't express:
-// CEL-policy includes require a cel_expression and non-CEL includes must omit
-// it, and every include must target at least one label.
 func (p RuleMutation) Validate() error {
+	labelIDs := make(map[int64]struct{}, len(p.Includes)+len(p.ExcludeLabelIDs))
 	for _, include := range p.Includes {
 		if include.Policy == PolicyCEL && include.CELExpression == "" {
 			return fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
@@ -482,9 +466,41 @@ func (p RuleMutation) Validate() error {
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
 			return fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
 		}
-		if len(include.LabelIDs) == 0 {
-			return fmt.Errorf("%w: include label_ids must not be empty", dbutil.ErrInvalidInput)
+		if include.LabelID == 0 {
+			return fmt.Errorf("%w: include label_id is required", dbutil.ErrInvalidInput)
 		}
+		if _, ok := labelIDs[include.LabelID]; ok {
+			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
+		}
+		labelIDs[include.LabelID] = struct{}{}
+	}
+	for _, labelID := range p.ExcludeLabelIDs {
+		if _, ok := labelIDs[labelID]; ok {
+			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
+		}
+		labelIDs[labelID] = struct{}{}
+	}
+	return nil
+}
+
+func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
+	if len(params.ExcludeLabelIDs) == 0 {
+		return nil
+	}
+	rows, err := tx.Query(ctx, `
+		SELECT id
+		FROM labels
+		WHERE id = ANY($1::bigint[]) AND label_type = $2
+	`, params.ExcludeLabelIDs, labels.LabelTypeBuiltin)
+	if err != nil {
+		return err
+	}
+	builtinExcludeIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	if len(builtinExcludeIDs) > 0 {
+		return fmt.Errorf("%w: builtin labels cannot be excluded from Santa rules", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
@@ -660,13 +676,8 @@ matching_includes AS (
 		row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
 	FROM santa_rules r
 	JOIN santa_rule_includes i ON i.rule_id = r.id
-	WHERE EXISTS (
-		SELECT 1
-		FROM santa_rule_include_labels il
-		JOIN host_labels hl ON hl.label_id = il.label_id
-		WHERE il.include_id = i.id
-	)
-	AND NOT EXISTS (
+	JOIN host_labels include_hl ON include_hl.label_id = i.label_id
+	WHERE NOT EXISTS (
 		SELECT 1
 		FROM santa_rule_exclude_labels el
 		JOIN host_labels hl ON hl.label_id = el.label_id

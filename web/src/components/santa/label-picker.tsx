@@ -5,6 +5,7 @@ import {
   ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
@@ -15,26 +16,39 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 interface LabelPickerProps {
   value: number[];
   onChange: (value: number[]) => void;
+  selectionMode?: "multiple" | "single";
+  includeBuiltins?: boolean;
   unavailableLabelIDs?: readonly number[];
   emptyMessage?: string;
   emptyPlaceholder?: string;
+  placeholder?: string;
+  required?: boolean;
+  invalid?: boolean;
 }
 
 export function LabelPicker({
   value,
   onChange,
+  selectionMode = "multiple",
+  includeBuiltins = false,
   unavailableLabelIDs = [],
   emptyMessage,
   emptyPlaceholder,
+  placeholder = "Add label",
+  required = false,
+  invalid = false,
 }: LabelPickerProps) {
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
-    label_type: "regular",
+    label_type: includeBuiltins ? undefined : "regular",
   });
   const rows = labels.data?.items ?? [];
   const unavailable = new Set(unavailableLabelIDs);
-  const items = rows.filter((label) => value.includes(label.id) || !unavailable.has(label.id));
+  const items = rows.filter(
+    (label) =>
+      (includeBuiltins || label.label_type === "regular") && (value.includes(label.id) || !unavailable.has(label.id)),
+  );
   const selected = rows.filter((label) => value.includes(label.id));
   const noLabelsMessage = emptyMessage ?? "No labels available.";
 
@@ -45,12 +59,36 @@ export function LabelPicker({
     return <p className="text-destructive text-sm">{labels.error.message}</p>;
   }
 
+  if (selectionMode === "single") {
+    return (
+      <Combobox
+        items={items}
+        value={selected[0] ?? null}
+        itemToStringLabel={(label) => label.name}
+        itemToStringValue={(label) => String(label.id)}
+        onValueChange={(next) => onChange(next ? [next.id] : [])}
+      >
+        <ComboboxInput
+          aria-invalid={invalid || undefined}
+          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : placeholder}
+          required={required}
+          showClear
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No labels found."}</ComboboxEmpty>
+          <ComboboxList>{labelItem}</ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    );
+  }
+
   return (
     <Combobox
       items={items}
       multiple
       value={selected}
-      itemToStringValue={(label) => label.name}
+      itemToStringLabel={(label) => label.name}
+      itemToStringValue={(label) => String(label.id)}
       onValueChange={(next) => onChange(next.map((label) => label.id))}
     >
       <ComboboxChips>
@@ -60,20 +98,24 @@ export function LabelPicker({
           ))}
         </ComboboxValue>
         <ComboboxChipsInput
-          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : "Add label"}
+          aria-invalid={invalid || undefined}
+          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : placeholder}
+          required={required && selected.length === 0}
         />
       </ComboboxChips>
       <ComboboxContent>
         <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No labels found."}</ComboboxEmpty>
-        <ComboboxList>
-          {(label: WoodstarLabel) => (
-            <ComboboxItem key={label.id} value={label}>
-              <span className="min-w-0 flex-1 truncate">{label.name}</span>
-              <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
-            </ComboboxItem>
-          )}
-        </ComboboxList>
+        <ComboboxList>{labelItem}</ComboboxList>
       </ComboboxContent>
     </Combobox>
+  );
+}
+
+function labelItem(label: WoodstarLabel) {
+  return (
+    <ComboboxItem key={label.id} value={label}>
+      <span className="min-w-0 flex-1 truncate">{label.name}</span>
+      <span className="text-muted-foreground tabular-nums">{label.hosts_count}</span>
+    </ComboboxItem>
   );
 }

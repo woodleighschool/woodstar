@@ -2164,13 +2164,9 @@ components:
         id:
           format: int64
           type: integer
-        label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
+        label_id:
+          format: int64
+          type: integer
         policy:
           enum:
             - allowlist
@@ -2186,20 +2182,16 @@ components:
         - id
         - position
         - policy
-        - label_ids
+        - label_id
       type: object
     RuleIncludeWrite:
       additionalProperties: false
       properties:
         cel_expression:
           type: string
-        label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
+        label_id:
+          format: int64
+          type: integer
         policy:
           enum:
             - allowlist
@@ -2210,7 +2202,7 @@ components:
           type: string
       required:
         - policy
-        - label_ids
+        - label_id
       type: object
     RuleMutation:
       additionalProperties: false
@@ -2527,7 +2519,7 @@ info:
   license:
     name: Apache-2.0
   title: Woodstar API
-  version: 0.0.0
+  version: 0.0.0-dev
 openapi: 3.1.0
 paths:
   /api/account:

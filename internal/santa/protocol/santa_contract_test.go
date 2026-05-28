@@ -74,8 +74,8 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		Identifier:    ruleIdentifier,
 		CustomMessage: "Blocked by contract",
 		Includes: []santarules.RuleIncludeWrite{{
-			Policy:   santarules.PolicyBlocklist,
-			LabelIDs: []int64{label.ID},
+			Policy:  santarules.PolicyBlocklist,
+			LabelID: label.ID,
 		}},
 	}); err != nil {
 		t.Fatalf("create rule: %v", err)

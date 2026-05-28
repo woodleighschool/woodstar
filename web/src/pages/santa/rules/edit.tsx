@@ -58,7 +58,11 @@ const ruleFormSchema = z
           id: z.number(),
           policy: z.enum(["allowlist", "allowlist_compiler", "blocklist", "silent_blocklist", "cel"]),
           cel_expression: z.string().trim(),
-          label_ids: z.array(z.number().int().positive()).min(1, "Pick at least one label."),
+          label_id: z.number().int().positive("Pick a label.").nullable(),
+        })
+        .refine((value) => value.label_id !== null, {
+          message: "Pick a label.",
+          path: ["label_id"],
         })
         .refine((value) => value.policy !== "cel" || value.cel_expression !== "", {
           message: "CEL policy requires an expression.",
@@ -76,13 +80,13 @@ const ruleFormSchema = z
   });
 
 type RuleFormParse = ReturnType<typeof ruleFormSchema.safeParse>;
-type RuleIncludeErrors = { cel_expression?: string; label_ids?: string };
+type RuleIncludeErrors = { cel_expression?: string; label_id?: string };
 
 interface RuleIncludeForm {
   id: number;
   policy: RulePolicy;
   cel_expression: string;
-  label_ids: number[];
+  label_id: number | null;
 }
 
 interface RuleFormState {
@@ -156,6 +160,7 @@ function RuleForm({
   const identifierError = identifierErrorFor(parsed);
   const identifierInvalid = form.identifier.trim() !== "" && identifierError !== undefined;
   const includeErrors = useMemo(() => includeErrorMap(parsed, form.includes), [parsed, form.includes]);
+  const includeLabelIDs = useMemo(() => selectedIncludeLabelIDs(form.includes), [form.includes]);
   const canSave = parsed.success && form.identifier.trim() !== "";
 
   async function submit() {
@@ -267,7 +272,7 @@ function RuleForm({
                       ...form,
                       includes: [
                         ...form.includes,
-                        { id: Date.now(), policy: "allowlist", cel_expression: "", label_ids: [] },
+                        { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
                       ],
                     })
                   }
@@ -285,6 +290,7 @@ function RuleForm({
                   includes={form.includes}
                   showErrors={showErrors}
                   includeErrors={includeErrors}
+                  excludeLabelIDs={form.exclude_label_ids}
                   onChange={(includes) => setForm({ ...form, includes })}
                   onUpdate={updateInclude}
                   onEditCEL={setCELDialogID}
@@ -297,6 +303,7 @@ function RuleForm({
               <FieldLabel>Exclude</FieldLabel>
               <LabelPicker
                 value={form.exclude_label_ids}
+                unavailableLabelIDs={includeLabelIDs}
                 onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
               />
               <FieldDescription>
@@ -307,7 +314,7 @@ function RuleForm({
         </FieldGroup>
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
-          <Button type="submit" size="sm" disabled={pending || !canSave}>
+          <Button type="submit" size="sm" disabled={pending}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
           </Button>
@@ -335,6 +342,7 @@ function IncludeTargetsTable({
   includes,
   showErrors,
   includeErrors,
+  excludeLabelIDs,
   onChange,
   onUpdate,
   onEditCEL,
@@ -343,6 +351,7 @@ function IncludeTargetsTable({
   includes: RuleIncludeForm[];
   showErrors: boolean;
   includeErrors: Partial<Record<number, RuleIncludeErrors>>;
+  excludeLabelIDs: number[];
   onChange: (includes: RuleIncludeForm[]) => void;
   onUpdate: (id: number, include: Partial<RuleIncludeForm>) => void;
   onEditCEL: (id: number) => void;
@@ -423,16 +432,24 @@ function IncludeTargetsTable({
         header: "Labels",
         enableSorting: false,
         cell: ({ row }) => {
-          const error = showErrors ? includeErrors[row.original.id]?.label_ids : undefined;
+          const error = showErrors ? includeErrors[row.original.id]?.label_id : undefined;
+          const unavailableLabelIDs = unavailableIncludeLabelIDs(includes, excludeLabelIDs, row.original.id);
 
           return (
             <Field data-invalid={error ? true : undefined} className="min-w-72 gap-1">
-              <FieldLabel className="sr-only">Labels</FieldLabel>
+              <FieldLabel className="sr-only">Label</FieldLabel>
               <LabelPicker
-                value={row.original.label_ids}
-                onChange={(label_ids) => onUpdate(row.original.id, { label_ids })}
+                value={row.original.label_id === null ? [] : [row.original.label_id]}
+                selectionMode="single"
+                includeBuiltins
+                required
+                invalid={error ? true : false}
+                unavailableLabelIDs={unavailableLabelIDs}
+                placeholder="Select label"
+                emptyMessage="No unused labels available."
+                emptyPlaceholder="No unused labels"
+                onChange={(label_ids) => onUpdate(row.original.id, { label_id: label_ids[0] ?? null })}
               />
-              {error ? <FieldError>{error}</FieldError> : null}
             </Field>
           );
         },
@@ -456,7 +473,7 @@ function IncludeTargetsTable({
         meta: { headClassName: "w-10", cellClassName: "w-10 align-top pt-3" },
       },
     ],
-    [includeErrors, onDelete, onEditCEL, onUpdate, showErrors],
+    [excludeLabelIDs, includeErrors, includes, onDelete, onEditCEL, onUpdate, showErrors],
   );
 
   return (
@@ -532,7 +549,7 @@ function formFromRule(rule: SantaRule): RuleFormState {
       id: include.id,
       policy: include.policy,
       cel_expression: include.cel_expression ?? "",
-      label_ids: include.label_ids ?? [],
+      label_id: include.label_id,
     })),
   };
 }
@@ -550,10 +567,13 @@ function ruleBody(form: RuleFormState): SantaRuleMutation {
 }
 
 function includeBody(include: RuleIncludeForm) {
+  if (include.label_id === null) {
+    throw new Error("validated include is missing a label");
+  }
   return {
     policy: include.policy,
     cel_expression: include.policy === "cel" ? optionalText(include.cel_expression) : undefined,
-    label_ids: include.label_ids,
+    label_id: include.label_id,
   };
 }
 
@@ -571,10 +591,23 @@ function includeErrorMap(
     const entry = out[include.id] ?? {};
     const field = issue.path[2];
     if (field === "cel_expression" && !entry.cel_expression) entry.cel_expression = issue.message;
-    if (field === "label_ids" && !entry.label_ids) entry.label_ids = issue.message;
+    if (field === "label_id" && !entry.label_id) entry.label_id = issue.message;
     out[include.id] = entry;
   }
   return out;
+}
+
+function selectedIncludeLabelIDs(includes: RuleIncludeForm[]) {
+  return includes.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
+}
+
+function unavailableIncludeLabelIDs(includes: RuleIncludeForm[], excludeLabelIDs: number[], currentIncludeID: number) {
+  return [
+    ...excludeLabelIDs,
+    ...includes.flatMap((include) =>
+      include.id === currentIncludeID || include.label_id === null ? [] : [include.label_id],
+    ),
+  ];
 }
 
 function optionalText(value: string) {

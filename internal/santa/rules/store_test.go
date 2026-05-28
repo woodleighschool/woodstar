@@ -17,6 +17,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
 	labelID := createSantaRuleLabel(t, db, "Santa Rule Validation")
+	allHostsLabelID := santaRuleAllHostsLabelID(t, db)
 	binaryIdentifier := strings.Repeat("a", 64)
 
 	invalidCases := []struct {
@@ -30,7 +31,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
-				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyCEL, LabelIDs: []int64{labelID}}},
+				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyCEL, LabelID: labelID}},
 			},
 		},
 		{
@@ -41,16 +42,45 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 				Includes: []rules.RuleIncludeWrite{{
 					Policy:        rules.PolicyAllowlist,
 					CELExpression: "target.path == '/Applications'",
-					LabelIDs:      []int64{labelID},
+					LabelID:       labelID,
 				}},
 			},
 		},
 		{
-			name: "include without labels",
+			name: "include without label",
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
 				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist}},
+			},
+		},
+		{
+			name: "duplicate include label",
+			params: rules.RuleMutation{
+				RuleType:   rules.RuleTypeBinary,
+				Identifier: binaryIdentifier,
+				Includes: []rules.RuleIncludeWrite{
+					{Policy: rules.PolicyAllowlist, LabelID: labelID},
+					{Policy: rules.PolicyBlocklist, LabelID: labelID},
+				},
+			},
+		},
+		{
+			name: "include and exclude overlap",
+			params: rules.RuleMutation{
+				RuleType:        rules.RuleTypeBinary,
+				Identifier:      binaryIdentifier,
+				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+				ExcludeLabelIDs: []int64{labelID},
+			},
+		},
+		{
+			name: "builtin exclude",
+			params: rules.RuleMutation{
+				RuleType:        rules.RuleTypeBinary,
+				Identifier:      binaryIdentifier,
+				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+				ExcludeLabelIDs: []int64{allHostsLabelID},
 			},
 		},
 	}
@@ -70,8 +100,8 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		CustomMessage: " Blocked ",
 		CustomURL:     " https://example.test ",
 		Includes: []rules.RuleIncludeWrite{{
-			Policy:   rules.PolicyAllowlist,
-			LabelIDs: []int64{labelID},
+			Policy:  rules.PolicyAllowlist,
+			LabelID: labelID,
 		}},
 	})
 	if err != nil {
@@ -102,7 +132,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		Includes: []rules.RuleIncludeWrite{{
 			Policy:        rules.PolicyCEL,
 			CELExpression: celExpression,
-			LabelIDs:      []int64{labelID},
+			LabelID:       labelID,
 		}},
 		ExcludeLabelIDs: []int64{labelID},
 	})
@@ -144,8 +174,8 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("1", 64),
 		Includes: []rules.RuleIncludeWrite{
-			{Policy: rules.PolicyBlocklist, LabelIDs: []int64{firstLabelID}},
-			{Policy: rules.PolicySilentBlocklist, LabelIDs: []int64{secondLabelID}},
+			{Policy: rules.PolicyBlocklist, LabelID: firstLabelID},
+			{Policy: rules.PolicySilentBlocklist, LabelID: secondLabelID},
 		},
 	})
 	if err != nil {
@@ -154,7 +184,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	excludedRule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:        rules.RuleTypeTeamID,
 		Identifier:      "TEAMID1234",
-		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelIDs: []int64{secondLabelID}}},
+		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: secondLabelID}},
 		ExcludeLabelIDs: []int64{excludeLabelID},
 	})
 	if err != nil {
@@ -179,6 +209,38 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	}
 }
 
+func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	store := rules.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "santa-rule-all-hosts",
+		OrbitNodeKey: "santa-rule-all-hosts-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	allHostsLabelID := santaRuleAllHostsLabelID(t, db)
+
+	rule, err := store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:   rules.RuleTypeTeamID,
+		Identifier: "ALLHOST123",
+		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: allHostsLabelID}},
+	})
+	if err != nil {
+		t.Fatalf("create all hosts rule: %v", err)
+	}
+
+	got, err := store.ResolveRulesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve rules: %v", err)
+	}
+	if len(got) != 1 || got[0].RuleID != rule.ID {
+		t.Fatalf("effective rules = %+v, want all hosts rule", got)
+	}
+}
+
 func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
@@ -189,8 +251,8 @@ func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
 		RuleType:   rules.RuleTypeCertificate,
 		Identifier: strings.Repeat("2", 64),
 		Includes: []rules.RuleIncludeWrite{
-			{Policy: rules.PolicyAllowlist, LabelIDs: []int64{firstLabelID}},
-			{Policy: rules.PolicyBlocklist, LabelIDs: []int64{secondLabelID}},
+			{Policy: rules.PolicyAllowlist, LabelID: firstLabelID},
+			{Policy: rules.PolicyBlocklist, LabelID: secondLabelID},
 		},
 	})
 	if err != nil {
@@ -260,4 +322,18 @@ func createSantaRuleLabel(t *testing.T, db *database.DB, name string) int64 {
 		t.Fatalf("create label %q: %v", name, err)
 	}
 	return label.ID
+}
+
+func santaRuleAllHostsLabelID(t *testing.T, db *database.DB) int64 {
+	t.Helper()
+
+	var id int64
+	err := db.Pool().QueryRow(
+		t.Context(),
+		`SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 'builtin'`,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("get All Hosts label: %v", err)
+	}
+	return id
 }

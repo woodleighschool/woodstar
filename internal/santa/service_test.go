@@ -56,8 +56,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		Identifier:    "binary-sha",
 		CustomMessage: "Blocked",
 		Includes: []santarules.RuleIncludeWrite{{
-			Policy:   santarules.PolicyBlocklist,
-			LabelIDs: []int64{labelID},
+			Policy:  santarules.PolicyBlocklist,
+			LabelID: labelID,
 		}},
 	}); err != nil {
 		t.Fatalf("create rule: %v", err)
@@ -104,8 +104,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		RuleType:   santarules.RuleTypeCertificate,
 		Identifier: "cert-sha",
 		Includes: []santarules.RuleIncludeWrite{{
-			Policy:   santarules.PolicyBlocklist,
-			LabelIDs: []int64{labelID},
+			Policy:  santarules.PolicyBlocklist,
+			LabelID: labelID,
 		}},
 	}); err != nil {
 		t.Fatalf("create post-preflight rule: %v", err)

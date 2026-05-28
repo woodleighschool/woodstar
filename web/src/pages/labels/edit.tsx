@@ -237,7 +237,7 @@ function LabelEditForm({
         />
 
         <FieldGroup className="max-w-5xl">
-          <Field data-invalid={showErrors && errors.name ? true : undefined}>
+          <Field>
             <FieldLabel htmlFor="label-name">Name</FieldLabel>
             <Input
               id="label-name"
@@ -245,7 +245,6 @@ function LabelEditForm({
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
-            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field>
@@ -347,7 +346,7 @@ function LabelEditForm({
         ) : null}
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
-          <Button type="button" size="sm" disabled={pending} onClick={() => void submit()}>
+          <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
           {mode === "edit" ? (

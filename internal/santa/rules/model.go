@@ -43,9 +43,9 @@ type RuleMutation struct {
 }
 
 type RuleIncludeWrite struct {
-	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
-	CELExpression string  `json:"cel_expression,omitempty"`
-	LabelIDs      []int64 `json:"label_ids"`
+	Policy        Policy `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	CELExpression string `json:"cel_expression,omitempty"`
+	LabelID       int64  `json:"label_id"`
 }
 
 type Rule struct {
@@ -62,11 +62,11 @@ type Rule struct {
 }
 
 type RuleInclude struct {
-	ID            int64   `json:"id"`
-	Position      int     `json:"position"`
-	Policy        Policy  `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
-	CELExpression string  `json:"cel_expression,omitempty"`
-	LabelIDs      []int64 `json:"label_ids"`
+	ID            int64  `json:"id"`
+	Position      int    `json:"position"`
+	Policy        Policy `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	CELExpression string `json:"cel_expression,omitempty"`
+	LabelID       int64  `json:"label_id"`
 }
 
 type EffectiveRule struct {

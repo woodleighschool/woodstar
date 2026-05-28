@@ -334,7 +334,7 @@ function ConfigurationForm({
         </FieldGroup>
 
         <div className="flex max-w-4xl items-center gap-2 border-t pt-4">
-          <Button type="submit" size="sm" disabled={pending || form.name.trim() === ""}>
+          <Button type="submit" size="sm" disabled={pending}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
           </Button>
@@ -410,6 +410,7 @@ function MediaActionField({
           id={`${id}-flags`}
           placeholder="remount flags"
           required
+          aria-invalid={flagsError ? true : undefined}
           value={flags}
           onChange={(event) => onFlagsChange(event.target.value)}
         />

@@ -119,23 +119,20 @@ CREATE TABLE santa_configurations (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     position INT NOT NULL UNIQUE,
-    client_mode santa_client_mode NOT NULL DEFAULT 'monitor',
-    enable_bundles BOOLEAN,
-    enable_transitive_rules BOOLEAN,
-    enable_all_event_upload BOOLEAN,
-    full_sync_interval_seconds INT CHECK (
-        full_sync_interval_seconds IS NULL
-        OR full_sync_interval_seconds >= 60
-    ),
-    batch_size INT,
-    allowed_path_regex TEXT,
-    blocked_path_regex TEXT,
+    client_mode santa_client_mode NOT NULL,
+    enable_bundles BOOLEAN NOT NULL,
+    enable_transitive_rules BOOLEAN NOT NULL,
+    enable_all_event_upload BOOLEAN NOT NULL,
+    full_sync_interval_seconds INT NOT NULL CHECK (full_sync_interval_seconds >= 60),
+    batch_size INT NOT NULL CHECK (batch_size BETWEEN 5 AND 100),
+    allowed_path_regex TEXT NOT NULL,
+    blocked_path_regex TEXT NOT NULL,
     removable_media_action santa_removable_media_action,
     removable_media_remount_flags TEXT[],
     encrypted_removable_media_action santa_removable_media_action,
     encrypted_removable_media_remount_flags TEXT[],
-    event_detail_url TEXT,
-    event_detail_text TEXT,
+    event_detail_url TEXT NOT NULL,
+    event_detail_text TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (
@@ -176,6 +173,7 @@ CREATE TABLE santa_rule_includes (
     position INT NOT NULL,
     policy santa_policy NOT NULL,
     cel_expression TEXT,
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
     UNIQUE (rule_id, position),
     CHECK (
         (policy = 'cel' AND NULLIF(btrim(COALESCE(cel_expression, '')), '') IS NOT NULL)
@@ -183,14 +181,11 @@ CREATE TABLE santa_rule_includes (
     )
 );
 
-CREATE TABLE santa_rule_include_labels (
-    include_id BIGINT NOT NULL REFERENCES santa_rule_includes (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (include_id, label_id)
-);
+CREATE UNIQUE INDEX santa_rule_includes_rule_label_idx
+    ON santa_rule_includes (rule_id, label_id);
 
-CREATE INDEX santa_rule_include_labels_label_idx
-    ON santa_rule_include_labels (label_id);
+CREATE INDEX santa_rule_includes_label_idx
+    ON santa_rule_includes (label_id);
 
 CREATE TABLE santa_rule_exclude_labels (
     rule_id BIGINT NOT NULL REFERENCES santa_rules (id) ON DELETE CASCADE,
@@ -259,7 +254,6 @@ DROP TABLE santa_executable_signing_chains;
 DROP TABLE santa_signing_chains;
 DROP TABLE santa_executables;
 DROP TABLE santa_rule_exclude_labels;
-DROP TABLE santa_rule_include_labels;
 DROP TABLE santa_rule_includes;
 DROP TABLE santa_rules;
 DROP TABLE santa_configuration_labels;

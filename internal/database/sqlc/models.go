@@ -755,11 +755,7 @@ type SantaRuleInclude struct {
 	Position      int32       `json:"position"`
 	Policy        SantaPolicy `json:"policy"`
 	CelExpression *string     `json:"cel_expression"`
-}
-
-type SantaRuleIncludeLabel struct {
-	IncludeID int64 `json:"include_id"`
-	LabelID   int64 `json:"label_id"`
+	LabelID       int64       `json:"label_id"`
 }
 
 type SantaSigningChain struct {

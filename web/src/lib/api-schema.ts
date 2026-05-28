@@ -1802,7 +1802,8 @@ export interface components {
             cel_expression?: string;
             /** Format: int64 */
             id: number;
-            label_ids: number[] | null;
+            /** Format: int64 */
+            label_id: number;
             /** @enum {string} */
             policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
             /** Format: int64 */
@@ -1810,7 +1811,8 @@ export interface components {
         };
         RuleIncludeWrite: {
             cel_expression?: string;
-            label_ids: number[] | null;
+            /** Format: int64 */
+            label_id: number;
             /** @enum {string} */
             policy: "allowlist" | "allowlist_compiler" | "blocklist" | "silent_blocklist" | "cel";
         };
