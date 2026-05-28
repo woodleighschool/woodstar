@@ -949,9 +949,13 @@ export interface components {
             created_by_user_id?: number;
             description: string;
             /** Format: int64 */
+            failing_host_count: number;
+            /** Format: int64 */
             id: number;
             label_scope?: components["schemas"]["LabelScope"];
             name: string;
+            /** Format: int64 */
+            passing_host_count: number;
             query: string;
             /** Format: date-time */
             updated_at: string;

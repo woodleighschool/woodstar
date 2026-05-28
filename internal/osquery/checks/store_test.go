@@ -11,19 +11,30 @@ import (
 )
 
 func TestListIncludesLabelScope(t *testing.T) {
-	store, labelStore, _, ctx := newIntegrationCheckStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Check A")
 	labelB := createManualLabel(t, ctx, labelStore, "Check B")
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-passing-host", "5.22.1")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host", "5.22.1")
 
-	if _, err := store.Create(ctx, CheckCreate{
+	check, err := store.Create(ctx, CheckCreate{
 		Name:  "Scoped check",
 		Query: "select 1;",
 		LabelScope: scope.LabelScope{
 			Mode:     scope.ScopeExcludeAny,
 			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("create check: %v", err)
+	}
+	passes := true
+	if err := store.UpsertMembership(ctx, check.ID, passingHost.ID, &passes); err != nil {
+		t.Fatalf("upsert passing membership: %v", err)
+	}
+	fails := false
+	if err := store.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
+		t.Fatalf("upsert failing membership: %v", err)
 	}
 
 	got, count, err := store.List(ctx, CheckListParams{})
@@ -35,6 +46,9 @@ func TestListIncludesLabelScope(t *testing.T) {
 	}
 	if got[0].LabelScope.Mode != scope.ScopeExcludeAny {
 		t.Fatalf("LabelScope.Mode = %q, want %q", got[0].LabelScope.Mode, scope.ScopeExcludeAny)
+	}
+	if got[0].PassingHostCount != 1 || got[0].FailingHostCount != 1 {
+		t.Fatalf("host counts = pass %d fail %d, want 1/1", got[0].PassingHostCount, got[0].FailingHostCount)
 	}
 	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
 }

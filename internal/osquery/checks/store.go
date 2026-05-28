@@ -27,7 +27,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	where, args := checkListWhere(params)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM checks "+where, args...).Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM checks c "+where, args...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
@@ -58,8 +58,14 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	if err != nil {
 		return nil, 0, err
 	}
+	counts, err := s.loadCheckCounts(ctx, checkIDs)
+	if err != nil {
+		return nil, 0, err
+	}
 	for i := range checks {
 		checks[i].LabelScope = scopes[checks[i].ID]
+		checks[i].PassingHostCount = counts[checks[i].ID].Passing
+		checks[i].FailingHostCount = counts[checks[i].ID].Failing
 	}
 	return checks, count, nil
 }
@@ -78,6 +84,12 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 		return nil, err
 	}
 	check.LabelScope = labelScope
+	counts, err := s.loadCheckCounts(ctx, []int64{check.ID})
+	if err != nil {
+		return nil, err
+	}
+	check.PassingHostCount = counts[check.ID].Passing
+	check.FailingHostCount = counts[check.ID].Failing
 	return check, nil
 }
 
@@ -263,11 +275,45 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 	return &status
 }
 
+type checkCounts struct {
+	Passing int
+	Failing int
+}
+
+func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int64]checkCounts, error) {
+	if len(checkIDs) == 0 {
+		return map[int64]checkCounts{}, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, `
+SELECT
+    check_id,
+    COUNT(*) FILTER (WHERE passes IS TRUE)::INT AS passing_host_count,
+    COUNT(*) FILTER (WHERE passes IS FALSE)::INT AS failing_host_count
+FROM check_membership
+WHERE check_id = ANY($1::BIGINT[])
+GROUP BY check_id`, checkIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[int64]checkCounts, len(checkIDs))
+	for rows.Next() {
+		var checkID int64
+		var count checkCounts
+		if err := rows.Scan(&checkID, &count.Passing, &count.Failing); err != nil {
+			return nil, err
+		}
+		counts[checkID] = count
+	}
+	return counts, rows.Err()
+}
+
 func checkListWhere(params CheckListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
-		where.Add("(name ILIKE " + search + " OR description ILIKE " + search + ")")
+		where.Add("(c.name ILIKE " + search + " OR c.description ILIKE " + search + " OR c.query ILIKE " + search + ")")
 	}
 	return where.Build()
 }
@@ -278,16 +324,16 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":                {SQL: "name"},
-			"created_at":          {SQL: "created_at"},
-			dbutil.OrderUpdatedAt: {SQL: dbutil.OrderUpdatedAt},
+			"name":                {SQL: "c.name"},
+			"created_at":          {SQL: "c.created_at"},
+			dbutil.OrderUpdatedAt: {SQL: "c.updated_at"},
 		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.updated_at"}, {SQL: "c.id"}},
 		Params:       params.ListParams,
 	}.Build()
 }
 
 const checkSelectSQL = `
-SELECT id, name, description, query,
-       created_by_user_id, created_at, updated_at
-FROM checks`
+SELECT c.id, c.name, c.description, c.query,
+       c.created_by_user_id, c.created_at, c.updated_at
+FROM checks c`

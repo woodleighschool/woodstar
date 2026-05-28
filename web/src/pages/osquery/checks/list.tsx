@@ -1,6 +1,6 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { CircleAlert, CircleCheck, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
@@ -55,6 +55,43 @@ export function ChecksPage() {
           ) : null}
         </div>
       ),
+    },
+    {
+      id: "query",
+      accessorKey: "query",
+      enableSorting: false,
+      header: "Query",
+      cell: ({ row }) => (
+        <code className="text-muted-foreground block max-w-[34rem] truncate font-mono text-xs" title={row.original.query}>
+          {row.original.query}
+        </code>
+      ),
+    },
+    {
+      id: "passing_host_count",
+      accessorKey: "passing_host_count",
+      enableSorting: false,
+      header: () => (
+        <span className="flex items-center justify-end gap-1.5">
+          <CircleCheck className="text-status-online size-4" />
+          Pass
+        </span>
+      ),
+      cell: ({ row }) => <HostCount value={row.original.passing_host_count} />,
+      meta: { headClassName: "text-right" },
+    },
+    {
+      id: "failing_host_count",
+      accessorKey: "failing_host_count",
+      enableSorting: false,
+      header: () => (
+        <span className="flex items-center justify-end gap-1.5">
+          <CircleAlert className="text-muted-foreground size-4" />
+          Fail
+        </span>
+      ),
+      cell: ({ row }) => <HostCount value={row.original.failing_host_count} />,
+      meta: { headClassName: "text-right" },
     },
   ];
 
@@ -123,5 +160,13 @@ export function ChecksPage() {
         onConfirm={deleteSelectedChecks}
       />
     </PageShell>
+  );
+}
+
+function HostCount({ value }: { value: number }) {
+  return (
+    <span className="block text-right tabular-nums">
+      {value} {value === 1 ? "host" : "hosts"}
+    </span>
   );
 }
