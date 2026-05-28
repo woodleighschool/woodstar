@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaFileAccessEvent } from "@/hooks/use-santa";
 
-import { fileName } from "../events/constants";
-import { DecisionBadge, HostLink, Timestamp } from "../events/event-ui";
+import { fileAccessEventLabel, fileName } from "../events/constants";
+import { FileAccessDecisionBadge, HostLink, Timestamp } from "../events/event-ui";
 
 export function SantaFileAccessEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/file-access/$eventId" });
@@ -39,11 +39,11 @@ export function SantaFileAccessEventDetailPage() {
 
   return (
     <PageShell className="gap-6">
-      <PageHeader title={fileName(event.target) || event.target} description={event.target} />
+      <PageHeader title={fileAccessEventLabel(event)} description={event.target} />
 
       <DetailSettings>
         <SettingItem label="Decision">
-          <DecisionBadge decision={event.decision} />
+          <FileAccessDecisionBadge decision={event.decision} />
         </SettingItem>
         <SettingItem label="Host">
           <HostLink host={event.host} />

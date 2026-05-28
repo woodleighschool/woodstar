@@ -38,7 +38,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 		MachineID:          "machine-uuid",
 		SerialNumber:       "C02SANTA",
 		Version:            "2026.1",
-		ClientModeReported: configurations.ClientModeMonitor,
+		ClientModeReported: configurations.ReportedClientModeMonitor,
 		PrimaryUser:        "alice",
 		PrimaryUserGroups:  []string{"staff", "admin"},
 		SIPStatus:          &sipStatus,
@@ -59,7 +59,7 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 	if detail.Version != "2026.1" {
 		t.Fatalf("version = %q, want 2026.1", detail.Version)
 	}
-	if detail.ClientModeReported != configurations.ClientModeMonitor {
+	if detail.ClientModeReported != configurations.ReportedClientModeMonitor {
 		t.Fatalf("client mode = %q, want monitor", detail.ClientModeReported)
 	}
 	if detail.LastSyncAt == nil || !detail.LastSyncAt.Equal(seenAt) {

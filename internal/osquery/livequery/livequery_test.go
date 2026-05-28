@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestRecordResultPublishesResultAndCompletion(t *testing.T) {
+func TestRecordResultPublishesResultAndCloses(t *testing.T) {
 	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4})
 
@@ -19,17 +19,14 @@ func TestRecordResultPublishesResultAndCompletion(t *testing.T) {
 	m.RecordResult(handle.ID, 4, "mac-4", StatusSuccess, json.RawMessage(`[{"answer":"1"}]`), "")
 
 	result := receiveEvent(t, events)
-	if result.HostID != 4 || result.HostName != "mac-4" || result.Status != "success" {
+	if result.HostID != 4 || result.HostName != "mac-4" || result.Status != StatusSuccess {
 		t.Fatalf("result = %#v, want host 4 success", result)
 	}
 	if string(result.Data) != `[{"answer":"1"}]` {
 		t.Fatalf("data = %s, want query rows", result.Data)
 	}
 
-	completed := receiveEvent(t, events)
-	if completed.Status != "completed" {
-		t.Fatalf("completed = %#v, want completed event", completed)
-	}
+	assertClosed(t, events)
 }
 
 func TestPendingForHostClearsAfterResult(t *testing.T) {
@@ -50,7 +47,7 @@ func TestPendingForHostClearsAfterResult(t *testing.T) {
 	}
 }
 
-func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
+func TestSubscribeCompletedQueryReceivesClosedChannel(t *testing.T) {
 	m := newManager(time.Minute)
 	handle := m.Start("select 1", nil)
 
@@ -60,10 +57,7 @@ func TestSubscribeCompletedQueryReceivesCompletedEvent(t *testing.T) {
 	}
 	defer release()
 
-	got := receiveEvent(t, events)
-	if got.Status != "completed" {
-		t.Fatalf("event = %#v, want completed", got)
-	}
+	assertClosed(t, events)
 }
 
 func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
@@ -86,7 +80,7 @@ func TestOrphanedRunStopsPendingHostsAfterStreamDisconnect(t *testing.T) {
 	}
 }
 
-func TestStopClearsPendingHostsAndPublishesCompletion(t *testing.T) {
+func TestStopClearsPendingHostsAndCloses(t *testing.T) {
 	m := newManager(time.Minute)
 	handle := m.Start("select 1", []int64{4, 5})
 
@@ -108,7 +102,7 @@ func TestStopClearsPendingHostsAndPublishesCompletion(t *testing.T) {
 
 	first := receiveEvent(t, events)
 	second := receiveEvent(t, events)
-	if first.Status != "stopped" || second.Status != "stopped" {
+	if first.Status != StatusStopped || second.Status != StatusStopped {
 		t.Fatalf("stopped events = %#v %#v, want stopped", first, second)
 	}
 	seen := map[int64]bool{first.HostID: true, second.HostID: true}
@@ -116,10 +110,7 @@ func TestStopClearsPendingHostsAndPublishesCompletion(t *testing.T) {
 		t.Fatalf("stopped hosts = %#v, want hosts 4 and 5", seen)
 	}
 
-	completed := receiveEvent(t, events)
-	if completed.Status != "completed" {
-		t.Fatalf("completed = %#v, want completed event", completed)
-	}
+	assertClosed(t, events)
 }
 
 func receiveEvent(t *testing.T, events <-chan Event) Event {

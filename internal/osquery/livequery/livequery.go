@@ -41,7 +41,7 @@ type Handle struct {
 type Event struct {
 	HostID   int64           `json:"host_id,omitempty"`
 	HostName string          `json:"host_name,omitempty"`
-	Status   string          `json:"status"`
+	Status   Status          `json:"status"`
 	Data     json.RawMessage `json:"data,omitempty"`
 	Error    string          `json:"error,omitempty"`
 }
@@ -180,12 +180,12 @@ func (m *Manager) RecordResult(
 	m.publishLocked(queryID, Event{
 		HostID:   hostID,
 		HostName: hostName,
-		Status:   string(status),
+		Status:   status,
 		Data:     data,
 		Error:    errMsg,
 	})
 	if finished {
-		m.publishLocked(queryID, Event{Status: "completed"})
+		m.closeSubscribersLocked(queryID)
 	}
 	m.mu.Unlock()
 	if finished {
@@ -194,7 +194,7 @@ func (m *Manager) RecordResult(
 }
 
 // Subscribe returns the live event channel for queryID and a release function.
-// Already-completed queries replay a terminal completed event for late subscribers.
+// Already-completed queries return a closed channel for late subscribers.
 func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -204,8 +204,7 @@ func (m *Manager) Subscribe(queryID int64) (<-chan Event, func(), error) {
 		return ch, release, nil
 	}
 	if _, ok := m.completed[queryID]; ok {
-		ch := make(chan Event, 1)
-		ch <- Event{Status: "completed"}
+		ch := make(chan Event)
 		close(ch)
 		return ch, func() {}, nil
 	}
@@ -248,10 +247,10 @@ func (m *Manager) stopLocked(q *liveQuery, status Status) {
 	for _, hostID := range stopped {
 		m.publishLocked(q.id, Event{
 			HostID: hostID,
-			Status: string(status),
+			Status: status,
 		})
 	}
-	m.publishLocked(q.id, Event{Status: "completed"})
+	m.closeSubscribersLocked(q.id)
 }
 
 func (m *Manager) scheduleCleanupLocked(queryID int64) {
@@ -318,11 +317,12 @@ func (m *Manager) publishLocked(queryID int64, event Event) {
 		default:
 		}
 	}
-	if event.Status == "completed" {
-		for id, ch := range m.subs[queryID] {
-			close(ch)
-			delete(m.subs[queryID], id)
-		}
-		delete(m.subs, queryID)
+}
+
+func (m *Manager) closeSubscribersLocked(queryID int64) {
+	for id, ch := range m.subs[queryID] {
+		close(ch)
+		delete(m.subs[queryID], id)
 	}
+	delete(m.subs, queryID)
 }

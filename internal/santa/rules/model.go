@@ -3,7 +3,10 @@ package rules
 import (
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 type RuleType string
@@ -16,6 +19,14 @@ const (
 	RuleTypeCDHash      RuleType = "cdhash"
 )
 
+var RuleTypeValues = []RuleType{
+	RuleTypeBinary,
+	RuleTypeCertificate,
+	RuleTypeTeamID,
+	RuleTypeSigningID,
+	RuleTypeCDHash,
+}
+
 type Policy string
 
 const (
@@ -26,6 +37,22 @@ const (
 	PolicyCEL               Policy = "cel"
 )
 
+var PolicyValues = []Policy{
+	PolicyAllowlist,
+	PolicyAllowlistCompiler,
+	PolicyBlocklist,
+	PolicySilentBlocklist,
+	PolicyCEL,
+}
+
+func (RuleType) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(RuleTypeValues...)
+}
+
+func (Policy) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(PolicyValues...)
+}
+
 type RuleListParams struct {
 	dbutil.ListParams
 
@@ -33,7 +60,7 @@ type RuleListParams struct {
 }
 
 type RuleMutation struct {
-	RuleType        RuleType           `json:"rule_type"                   enum:"binary,certificate,teamid,signingid,cdhash"`
+	RuleType        RuleType           `json:"rule_type"`
 	Identifier      string             `json:"identifier"`
 	Name            string             `json:"name,omitempty"`
 	CustomMessage   string             `json:"custom_message,omitempty"`
@@ -43,14 +70,14 @@ type RuleMutation struct {
 }
 
 type RuleIncludeWrite struct {
-	Policy        Policy `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	Policy        Policy `json:"policy"`
 	CELExpression string `json:"cel_expression,omitempty"`
 	LabelID       int64  `json:"label_id"`
 }
 
 type Rule struct {
 	ID              int64         `json:"id"`
-	RuleType        RuleType      `json:"rule_type"         enum:"binary,certificate,teamid,signingid,cdhash"`
+	RuleType        RuleType      `json:"rule_type"`
 	Identifier      string        `json:"identifier"`
 	Name            string        `json:"name"`
 	CustomMessage   string        `json:"custom_message"`
@@ -64,16 +91,16 @@ type Rule struct {
 type RuleInclude struct {
 	ID            int64  `json:"id"`
 	Position      int    `json:"position"`
-	Policy        Policy `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	Policy        Policy `json:"policy"`
 	CELExpression string `json:"cel_expression,omitempty"`
 	LabelID       int64  `json:"label_id"`
 }
 
 type EffectiveRule struct {
 	RuleID           int64    `json:"rule_id"`
-	RuleType         RuleType `json:"rule_type"                enum:"binary,certificate,teamid,signingid,cdhash"`
+	RuleType         RuleType `json:"rule_type"`
 	Identifier       string   `json:"identifier"`
-	Policy           Policy   `json:"policy"                   enum:"allowlist,allowlist_compiler,blocklist,silent_blocklist,cel"`
+	Policy           Policy   `json:"policy"`
 	CELExpression    string   `json:"cel_expression,omitempty"`
 	CustomMessage    string   `json:"custom_message,omitempty"`
 	CustomURL        string   `json:"custom_url,omitempty"`

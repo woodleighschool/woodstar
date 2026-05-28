@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import type { CheckHostStatus } from "@/hooks/use-checks";
 
-export function CheckStatusBadge({ response }: { response: string | null | undefined }) {
+export function CheckStatusBadge({ response }: { response: CheckHostStatus["response"] | undefined }) {
   if (response === "pass") {
     return (
       <Badge variant="outline" className="gap-1.5">

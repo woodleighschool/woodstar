@@ -80,7 +80,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		HostID:             host.ID,
 		MachineID:          "santa-events-wire-host",
 		SerialNumber:       "WIRE",
-		ClientModeReported: configurations.ClientModeMonitor,
+		ClientModeReported: configurations.ReportedClientModeMonitor,
 	}); err != nil {
 		t.Fatalf("upsert observation: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		MachineID:          "santa-enricher-host",
 		SerialNumber:       "ENRICH",
 		Version:            "2026.2",
-		ClientModeReported: configurations.ClientModeLockdown,
+		ClientModeReported: configurations.ReportedClientModeLockdown,
 		LastSeenAt:         &seenAt,
 	}); err != nil {
 		t.Fatalf("upsert santa observation: %v", err)

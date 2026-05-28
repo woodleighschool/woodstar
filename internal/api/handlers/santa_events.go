@@ -21,9 +21,9 @@ const (
 
 type santaEventListInput struct {
 	ListQueryInput
-	HostID    int64     `query:"host_id,omitempty"`
-	Decisions []string  `query:"decisions,omitempty"`
-	Since     time.Time `query:"since,omitempty"`
+	HostID    int64                        `query:"host_id,omitempty"`
+	Decisions []santaevents.DecisionFilter `query:"decisions,omitempty"`
+	Since     time.Time                    `query:"since,omitempty"`
 }
 
 type santaEventListOutput struct {
@@ -40,9 +40,9 @@ type santaEventGetOutput struct {
 
 type santaFileAccessEventListInput struct {
 	ListQueryInput
-	HostID    int64     `query:"host_id,omitempty"`
-	Decisions []string  `query:"decisions,omitempty"`
-	Since     time.Time `query:"since,omitempty"`
+	HostID    int64                            `query:"host_id,omitempty"`
+	Decisions []santaevents.FileAccessDecision `query:"decisions,omitempty"`
+	Since     time.Time                        `query:"since,omitempty"`
 }
 
 type santaFileAccessEventListOutput struct {
@@ -62,17 +62,13 @@ func (input santaEventListInput) params() santaevents.ExecutionEventListParams {
 	if !input.Since.IsZero() {
 		since = &input.Since
 	}
-	decisions := make([]santaevents.DecisionFilter, len(input.Decisions))
-	for i, decision := range input.Decisions {
-		decisions[i] = santaevents.DecisionFilter(decision)
-	}
 	return santaevents.ExecutionEventListParams{
 		EventListParams: santaevents.EventListParams{
 			ListParams: input.ListQueryInput.params(),
 			HostID:     input.HostID,
 			Since:      since,
 		},
-		Decisions: decisions,
+		Decisions: input.Decisions,
 	}
 }
 
@@ -81,17 +77,13 @@ func (input santaFileAccessEventListInput) params() santaevents.FileAccessEventL
 	if !input.Since.IsZero() {
 		since = &input.Since
 	}
-	decisions := make([]santaevents.FileAccessDecision, len(input.Decisions))
-	for i, decision := range input.Decisions {
-		decisions[i] = santaevents.FileAccessDecision(decision)
-	}
 	return santaevents.FileAccessEventListParams{
 		EventListParams: santaevents.EventListParams{
 			ListParams: input.ListQueryInput.params(),
 			HostID:     input.HostID,
 			Since:      since,
 		},
-		Decisions: decisions,
+		Decisions: input.Decisions,
 	}
 }
 

@@ -21,15 +21,14 @@ import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-import { RULE_TYPES, ruleTypeLabel } from "./shared";
+import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "./shared";
 
 export function SantaRulesPage() {
-  const search = useSearch({ strict: false });
+  const search = useSearch({ from: "/_authenticated/santa/rules/" });
   const navigate = useNavigate();
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
-  const looseSearch = search as Record<string, unknown>;
-  const ruleType = typeof looseSearch.rule_type === "string" ? looseSearch.rule_type : undefined;
+  const ruleType = search.rule_type;
   const query = useSantaRules({
     q: typeof search.q === "string" ? search.q : undefined,
     rule_type: ruleType,
@@ -141,7 +140,7 @@ export function SantaRulesPage() {
               <DataTableFacetedFilter
                 title="Rule Type"
                 selected={ruleType ? [ruleType] : []}
-                options={[...RULE_TYPES]}
+                options={RULE_TYPE_OPTIONS}
                 singleSelect
                 onChange={(next) =>
                   void navigate({

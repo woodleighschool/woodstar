@@ -5,14 +5,15 @@ import { toast } from "sonner";
 
 import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { EnumBadge } from "@/components/ui/enum-badge";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
+import { USER_ROLE_OPTIONS, USER_ROLES } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
@@ -92,7 +93,7 @@ function UserEditForm({ user }: { user: User }) {
           <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
-            <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
+            <EnumBadge value={user.role} metadata={USER_ROLES} />
           </CardDescription>
         </CardHeader>
         <form
@@ -124,8 +125,11 @@ function UserEditForm({ user }: { user: User }) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="admin">admin</SelectItem>
-                          <SelectItem value="viewer">viewer</SelectItem>
+                          {USER_ROLE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

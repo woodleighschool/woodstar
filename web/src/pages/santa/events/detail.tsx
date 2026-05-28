@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaEvent } from "@/hooks/use-santa";
 
 import { executableLabel, fileName } from "./constants";
-import { DecisionBadge, HostLink, Timestamp } from "./event-ui";
+import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
 export function SantaEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/$eventId" });
@@ -45,7 +45,7 @@ export function SantaEventDetailPage() {
 
       <DetailSettings>
         <SettingItem label="Decision">
-          <DecisionBadge decision={event.decision} />
+          <ExecutionDecisionBadge decision={event.decision} />
         </SettingItem>
         <SettingItem label="Host">
           <HostLink host={event.host} />

@@ -9,7 +9,7 @@ import (
 type PreflightRequest struct {
 	SerialNumber      string
 	Version           string
-	ClientMode        configurations.ClientMode
+	ClientMode        configurations.ReportedClientMode
 	RequestCleanSync  bool
 	RulesHash         string
 	RuleCounts        syncstate.RuleCounts

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/sse"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
@@ -62,12 +64,58 @@ type liveQueryStopInput struct {
 
 type liveQueryStopOutput struct{}
 
+type liveQueryPingStatus string
+
+const liveQueryPingStatusOK liveQueryPingStatus = "ok"
+
+var liveQueryPingStatusValues = []liveQueryPingStatus{liveQueryPingStatusOK}
+
 type liveQueryPingEvent struct {
-	Status string `json:"status"`
+	Status liveQueryPingStatus `json:"status"`
 }
 
+type liveQueryCompletedStatus string
+
+const liveQueryCompletedStatusCompleted liveQueryCompletedStatus = "completed"
+
+var liveQueryCompletedStatusValues = []liveQueryCompletedStatus{liveQueryCompletedStatusCompleted}
+
 type liveQueryCompletedEvent struct {
-	Status string `json:"status"`
+	Status liveQueryCompletedStatus `json:"status"`
+}
+
+type liveQueryResultStatus string
+
+const (
+	liveQueryResultStatusSuccess liveQueryResultStatus = "success"
+	liveQueryResultStatusError   liveQueryResultStatus = "error"
+	liveQueryResultStatusStopped liveQueryResultStatus = "stopped"
+)
+
+var liveQueryResultStatusValues = []liveQueryResultStatus{
+	liveQueryResultStatusSuccess,
+	liveQueryResultStatusError,
+	liveQueryResultStatusStopped,
+}
+
+type liveQueryResultEvent struct {
+	HostID   int64                 `json:"host_id,omitempty"`
+	HostName string                `json:"host_name,omitempty"`
+	Status   liveQueryResultStatus `json:"status"`
+	Data     json.RawMessage       `json:"data,omitempty"`
+	Error    string                `json:"error,omitempty"`
+}
+
+func (liveQueryPingStatus) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(liveQueryPingStatusValues...)
+}
+
+func (liveQueryCompletedStatus) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(liveQueryCompletedStatusValues...)
+}
+
+func (liveQueryResultStatus) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(liveQueryResultStatusValues...)
 }
 
 // RegisterLiveQueries registers the one-shot live query create endpoint. The
@@ -136,7 +184,7 @@ func RegisterLiveQueries(
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, map[string]any{
 		"ping":      liveQueryPingEvent{},
-		"result":    livequery.Event{},
+		"result":    liveQueryResultEvent{},
 		"completed": liveQueryCompletedEvent{},
 	}, func(ctx context.Context, input *liveQueryStreamInput, send sse.Sender) {
 		streamLiveQuery(ctx, manager, input.ID, send)
@@ -169,7 +217,7 @@ func streamLiveQuery(
 ) {
 	events, release, err := manager.Subscribe(id)
 	if err != nil {
-		_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
+		_ = send.Data(liveQueryCompletedEvent{Status: liveQueryCompletedStatusCompleted})
 		return
 	}
 	defer release()
@@ -182,21 +230,27 @@ func streamLiveQuery(
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := send.Data(liveQueryPingEvent{Status: "ok"}); err != nil {
+			if err := send.Data(liveQueryPingEvent{Status: liveQueryPingStatusOK}); err != nil {
 				return
 			}
 		case event, ok := <-events:
 			if !ok {
-				_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
+				_ = send.Data(liveQueryCompletedEvent{Status: liveQueryCompletedStatusCompleted})
 				return
 			}
-			if event.Status == "completed" {
-				_ = send.Data(liveQueryCompletedEvent{Status: "completed"})
-				return
-			}
-			if err := send.Data(event); err != nil {
+			if err := send.Data(liveQueryResultEventFromDomain(event)); err != nil {
 				return
 			}
 		}
+	}
+}
+
+func liveQueryResultEventFromDomain(event livequery.Event) liveQueryResultEvent {
+	return liveQueryResultEvent{
+		HostID:   event.HostID,
+		HostName: event.HostName,
+		Status:   liveQueryResultStatus(event.Status),
+		Data:     event.Data,
+		Error:    event.Error,
 	}
 }

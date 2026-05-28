@@ -17,6 +17,11 @@ export type SantaHostSummary = Schemas["HostSummary"];
 export type SantaRule = Schemas["Rule"];
 export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
+export type SantaClientMode = Schemas["HostState"]["client_mode_reported"] | SantaConfiguration["client_mode"];
+export type SantaExecutionDecision = SantaEvent["decision"];
+export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
+export type SantaRuleType = SantaRule["rule_type"];
+export type SantaRulePolicy = NonNullable<SantaRule["includes"]>[number]["policy"];
 
 export type SantaListParams = NonNullable<paths["/api/santa/configurations"]["get"]["parameters"]["query"]>;
 export type SantaRuleListParams = NonNullable<paths["/api/santa/rules"]["get"]["parameters"]["query"]>;
@@ -24,6 +29,7 @@ export type SantaEventListParams = NonNullable<paths["/api/santa/events"]["get"]
 export type SantaFileAccessEventListParams = NonNullable<
   paths["/api/santa/file-access-events"]["get"]["parameters"]["query"]
 >;
+export type SantaEventDecisionFilter = NonNullable<NonNullable<SantaEventListParams["decisions"]>[number]>;
 
 export function useSantaConfigurations(params: SantaListParams = {}) {
   const queryParams = {
@@ -53,7 +59,7 @@ export function useSantaConfiguration(id: number | null) {
 export function useSantaRules(params: SantaRuleListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    rule_type: nonEmpty(params.rule_type),
+    rule_type: params.rule_type,
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),

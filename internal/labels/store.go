@@ -119,7 +119,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 			Query:               params.Query,
 			Criteria:            criteria,
 			LabelType:           string(params.LabelType),
-			LabelMembershipType: params.LabelMembershipType,
+			LabelMembershipType: string(params.LabelMembershipType),
 		})
 		if err != nil {
 			return err
@@ -159,7 +159,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 			Description:         params.Description,
 			Query:               params.Query,
 			Criteria:            criteria,
-			LabelMembershipType: params.LabelMembershipType,
+			LabelMembershipType: string(params.LabelMembershipType),
 			ID:                  id,
 		})
 		if err != nil {
@@ -298,7 +298,12 @@ func (p LabelCreate) withDefaults() LabelCreate {
 	return p
 }
 
-func validateMembershipPairing(membershipType string, query *string, criteria *Criteria, hostIDs []int64) error {
+func validateMembershipPairing(
+	membershipType LabelMembershipType,
+	query *string,
+	criteria *Criteria,
+	hostIDs []int64,
+) error {
 	switch membershipType {
 	case LabelMembershipTypeDynamic:
 		if query == nil || strings.TrimSpace(*query) == "" {
@@ -393,7 +398,7 @@ func labelListWhere(params ListParams) (string, []any) {
 		where.Add("l.label_type = " + where.Arg(string(params.LabelType)))
 	}
 	if params.LabelMembershipType != "" {
-		where.Add("l.label_membership_type = " + where.Arg(params.LabelMembershipType))
+		where.Add("l.label_membership_type = " + where.Arg(string(params.LabelMembershipType)))
 	}
 	return where.Build()
 }
@@ -427,7 +432,7 @@ func labelFromSQLC(s sqlc.Label) (*Label, error) {
 		Query:               s.Query,
 		Criteria:            criteria,
 		LabelType:           LabelType(s.LabelType),
-		LabelMembershipType: s.LabelMembershipType,
+		LabelMembershipType: LabelMembershipType(s.LabelMembershipType),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}, nil

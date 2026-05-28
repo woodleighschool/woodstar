@@ -25,8 +25,8 @@ type labelOutput struct {
 
 type labelListInput struct {
 	ListQueryInput
-	LabelType      string `query:"label_type,omitempty"`
-	MembershipType string `query:"label_membership_type,omitempty"`
+	LabelType      labels.LabelType           `query:"label_type,omitempty"`
+	MembershipType labels.LabelMembershipType `query:"label_membership_type,omitempty"`
 }
 
 type labelGetInput struct {
@@ -47,28 +47,28 @@ type labelDeleteInput struct {
 }
 
 type labelCreateBody struct {
-	Name           string           `json:"name"`
-	Description    string           `json:"description,omitempty"`
-	Query          *string          `json:"query,omitempty"`
-	Criteria       *labels.Criteria `json:"criteria,omitempty"`
-	HostIDs        []int64          `json:"host_ids,omitempty"`
-	LabelType      string           `json:"label_type,omitempty"`
-	MembershipType string           `json:"label_membership_type,omitempty"`
+	Name           string                     `json:"name"`
+	Description    string                     `json:"description,omitempty"`
+	Query          *string                    `json:"query,omitempty"`
+	Criteria       *labels.Criteria           `json:"criteria,omitempty"`
+	HostIDs        []int64                    `json:"host_ids,omitempty"`
+	LabelType      labels.LabelType           `json:"label_type,omitempty"`
+	MembershipType labels.LabelMembershipType `json:"label_membership_type,omitempty"`
 }
 
 type labelMutationBody struct {
-	Name           string           `json:"name"`
-	Description    string           `json:"description,omitempty"`
-	Query          *string          `json:"query,omitempty"`
-	Criteria       *labels.Criteria `json:"criteria,omitempty"`
-	HostIDs        []int64          `json:"host_ids,omitempty"`
-	MembershipType string           `json:"label_membership_type,omitempty"`
+	Name           string                     `json:"name"`
+	Description    string                     `json:"description,omitempty"`
+	Query          *string                    `json:"query,omitempty"`
+	Criteria       *labels.Criteria           `json:"criteria,omitempty"`
+	HostIDs        []int64                    `json:"host_ids,omitempty"`
+	MembershipType labels.LabelMembershipType `json:"label_membership_type,omitempty"`
 }
 
 func (i labelListInput) params() labels.ListParams {
 	return labels.ListParams{
 		ListParams:          i.ListQueryInput.params(),
-		LabelType:           labels.LabelType(i.LabelType),
+		LabelType:           i.LabelType,
 		LabelMembershipType: i.MembershipType,
 	}
 }
@@ -114,7 +114,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 			Query:               input.Body.Query,
 			Criteria:            input.Body.Criteria,
 			HostIDs:             input.Body.HostIDs,
-			LabelType:           labels.LabelType(input.Body.LabelType),
+			LabelType:           input.Body.LabelType,
 			LabelMembershipType: input.Body.MembershipType,
 		})
 		if err != nil {

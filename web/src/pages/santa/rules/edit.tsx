@@ -32,21 +32,19 @@ import {
   type SantaRuleMutation,
 } from "@/hooks/use-santa";
 
-import { RULE_IDENTIFIER_RULES, RULE_TYPES, type RuleType } from "./shared";
-
-const POLICIES = [
-  { value: "allowlist", label: "Allowlist" },
-  { value: "allowlist_compiler", label: "Compiler Allowlist" },
-  { value: "blocklist", label: "Blocklist" },
-  { value: "silent_blocklist", label: "Silent Blocklist" },
-  { value: "cel", label: "CEL" },
-] as const;
-
-type RulePolicy = (typeof POLICIES)[number]["value"];
+import {
+  POLICY_OPTIONS,
+  POLICY_VALUES,
+  RULE_IDENTIFIER_RULES,
+  RULE_TYPE_OPTIONS,
+  RULE_TYPE_VALUES,
+  type RulePolicy,
+  type RuleType,
+} from "./shared";
 
 const ruleFormSchema = z
   .object({
-    rule_type: z.enum(["binary", "certificate", "teamid", "signingid", "cdhash"]),
+    rule_type: z.enum(RULE_TYPE_VALUES),
     identifier: z.string().trim(),
     name: z.string().trim(),
     custom_message: z.string().trim(),
@@ -56,7 +54,7 @@ const ruleFormSchema = z
       z
         .object({
           id: z.number(),
-          policy: z.enum(["allowlist", "allowlist_compiler", "blocklist", "silent_blocklist", "cel"]),
+          policy: z.enum(POLICY_VALUES),
           cel_expression: z.string().trim(),
           label_id: z.number().int().positive("Pick a label.").nullable(),
         })
@@ -210,7 +208,7 @@ function RuleForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {RULE_TYPES.map((type) => (
+                  {RULE_TYPE_OPTIONS.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
@@ -385,7 +383,7 @@ function IncludeTargetsTable({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {POLICIES.map((policy) => (
+                      {POLICY_OPTIONS.map((policy) => (
                         <SelectItem key={policy.value} value={policy.value}>
                           {policy.label}
                         </SelectItem>

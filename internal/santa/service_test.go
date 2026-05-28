@@ -66,7 +66,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	preflight, err := service.Preflight(ctx, "santa-sync-host", santa.PreflightRequest{
 		SerialNumber:     "SANTASYNC",
 		Version:          "2026.2",
-		ClientMode:       configurations.ClientModeMonitor,
+		ClientMode:       configurations.ReportedClientModeMonitor,
 		RequestCleanSync: true,
 		RulesHash:        "opaque-client-hash",
 	})

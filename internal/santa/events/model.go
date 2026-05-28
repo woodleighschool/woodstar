@@ -3,7 +3,11 @@ package events
 import (
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
 // ExecutionDecision is Santa's policy decision for an executed binary.
@@ -41,6 +45,65 @@ const (
 	FileAccessDecisionDeniedInvalidSignature FileAccessDecision = "denied_invalid_signature"
 	FileAccessDecisionAuditOnly              FileAccessDecision = "audit_only"
 )
+
+var ExecutionDecisionValues = []ExecutionDecision{
+	ExecutionDecisionUnknown,
+	ExecutionDecisionAllowUnknown,
+	ExecutionDecisionAllowBinary,
+	ExecutionDecisionAllowCertificate,
+	ExecutionDecisionAllowScope,
+	ExecutionDecisionAllowTeamID,
+	ExecutionDecisionAllowSigningID,
+	ExecutionDecisionAllowCDHash,
+	ExecutionDecisionBlockUnknown,
+	ExecutionDecisionBlockBinary,
+	ExecutionDecisionBlockCertificate,
+	ExecutionDecisionBlockScope,
+	ExecutionDecisionBlockTeamID,
+	ExecutionDecisionBlockSigningID,
+	ExecutionDecisionBlockCDHash,
+	ExecutionDecisionBundleBinary,
+}
+
+var DecisionFilterValues = []DecisionFilter{
+	DecisionFilterAllowed,
+	DecisionFilterBlocked,
+	DecisionFilter(ExecutionDecisionUnknown),
+	DecisionFilter(ExecutionDecisionAllowUnknown),
+	DecisionFilter(ExecutionDecisionAllowBinary),
+	DecisionFilter(ExecutionDecisionAllowCertificate),
+	DecisionFilter(ExecutionDecisionAllowScope),
+	DecisionFilter(ExecutionDecisionAllowTeamID),
+	DecisionFilter(ExecutionDecisionAllowSigningID),
+	DecisionFilter(ExecutionDecisionAllowCDHash),
+	DecisionFilter(ExecutionDecisionBlockUnknown),
+	DecisionFilter(ExecutionDecisionBlockBinary),
+	DecisionFilter(ExecutionDecisionBlockCertificate),
+	DecisionFilter(ExecutionDecisionBlockScope),
+	DecisionFilter(ExecutionDecisionBlockTeamID),
+	DecisionFilter(ExecutionDecisionBlockSigningID),
+	DecisionFilter(ExecutionDecisionBlockCDHash),
+	DecisionFilter(ExecutionDecisionBundleBinary),
+}
+
+var FileAccessDecisionValues = []FileAccessDecision{
+	FileAccessDecisionUnknown,
+	FileAccessDecisionDenied,
+	FileAccessDecisionDeniedInvalidSignature,
+	FileAccessDecisionAuditOnly,
+}
+
+func (ExecutionDecision) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(ExecutionDecisionValues...)
+}
+
+func (DecisionFilter) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(DecisionFilterValues...)
+}
+
+func (FileAccessDecision) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(FileAccessDecisionValues...)
+}
 
 // EventListParams contains filters shared by Santa event list endpoints.
 type EventListParams struct {
@@ -81,15 +144,15 @@ type ExecutionEvent struct {
 
 // HostSummary is the host identity attached to Santa event rows.
 type HostSummary struct {
-	ID              int64  `json:"id"`
-	DisplayName     string `json:"display_name"`
-	Hostname        string `json:"hostname"`
-	ComputerName    string `json:"computer_name"`
-	HardwareSerial  string `json:"hardware_serial"`
-	HardwareModel   string `json:"hardware_model"`
-	SantaMachineID  string `json:"santa_machine_id"`
-	SantaVersion    string `json:"santa_version"`
-	SantaClientMode string `json:"santa_client_mode"`
+	ID              int64                             `json:"id"`
+	DisplayName     string                            `json:"display_name"`
+	Hostname        string                            `json:"hostname"`
+	ComputerName    string                            `json:"computer_name"`
+	HardwareSerial  string                            `json:"hardware_serial"`
+	HardwareModel   string                            `json:"hardware_model"`
+	SantaMachineID  string                            `json:"santa_machine_id"`
+	SantaVersion    string                            `json:"santa_version"`
+	SantaClientMode configurations.ReportedClientMode `json:"santa_client_mode"`
 }
 
 // ExecutionEventInput is a Santa execution event ready for persistence.

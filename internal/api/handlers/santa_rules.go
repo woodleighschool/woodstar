@@ -16,7 +16,7 @@ const (
 
 type santaRuleListInput struct {
 	ListQueryInput
-	RuleType string `query:"rule_type,omitempty"`
+	RuleType santarules.RuleType `query:"rule_type,omitempty"`
 }
 
 type santaRuleGetInput struct {
@@ -60,7 +60,7 @@ type santaRuleOutput struct {
 func (input santaRuleListInput) params() santarules.RuleListParams {
 	return santarules.RuleListParams{
 		ListParams: input.ListQueryInput.params(),
-		RuleType:   santarules.RuleType(input.RuleType),
+		RuleType:   input.RuleType,
 	}
 }
 

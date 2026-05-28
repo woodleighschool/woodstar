@@ -22,7 +22,7 @@ type agentSecretListOutput struct {
 
 type agentSecretCreateInput struct {
 	Body struct {
-		Agent agentauth.Agent `json:"agent" enum:"orbit,santa"`
+		Agent agentauth.Agent `json:"agent"`
 		Value string          `json:"value" minLength:"32"`
 	}
 }

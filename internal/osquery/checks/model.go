@@ -3,7 +3,10 @@ package checks
 import (
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -49,12 +52,18 @@ const (
 	CheckStatusFail CheckStatus = "fail"
 )
 
+var CheckStatusValues = []CheckStatus{CheckStatusPass, CheckStatusFail}
+
 // CheckHostStatus is one host's check state.
 type CheckHostStatus struct {
 	CheckID   int64        `json:"check_id"`
 	CheckName string       `json:"check_name"`
 	HostID    int64        `json:"host_id"`
 	HostName  string       `json:"host_name"`
-	Response  *CheckStatus `json:"response"             enum:"pass,fail"`
+	Response  *CheckStatus `json:"response"`
 	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
+}
+
+func (CheckStatus) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(CheckStatusValues...)
 }

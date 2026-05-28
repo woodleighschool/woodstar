@@ -975,8 +975,8 @@ export interface components {
             /** Format: int64 */
             host_id: number;
             host_name: string;
-            /** @enum {string|null} */
-            response: "pass" | "fail" | null;
+            /** @enum {string} */
+            response: "pass" | "fail";
             /** Format: date-time */
             updated_at?: string;
         };
@@ -1173,14 +1173,6 @@ export interface components {
              */
             type: string;
         };
-        Event: {
-            data?: unknown;
-            error?: string;
-            /** Format: int64 */
-            host_id?: number;
-            host_name?: string;
-            status: string;
-        };
         Executable: {
             cdhash: string;
             entitlements?: {
@@ -1204,7 +1196,8 @@ export interface components {
              */
             readonly $schema?: string;
             current_sessions: string[] | null;
-            decision: string;
+            /** @enum {string} */
+            decision: "unknown" | "allow_unknown" | "allow_binary" | "allow_certificate" | "allow_scope" | "allow_teamid" | "allow_signingid" | "allow_cdhash" | "block_unknown" | "block_binary" | "block_certificate" | "block_scope" | "block_teamid" | "block_signingid" | "block_cdhash" | "bundle_binary";
             executable: components["schemas"]["Executable"];
             executing_user: string;
             file_path: string;
@@ -1226,7 +1219,8 @@ export interface components {
              * @example https://example.com/api/schemas/FileAccessEvent.json
              */
             readonly $schema?: string;
-            decision: string;
+            /** @enum {string} */
+            decision: "unknown" | "denied" | "denied_invalid_signature" | "audit_only";
             host: components["schemas"]["HostSummary"];
             /** Format: int64 */
             host_id: number;
@@ -1421,7 +1415,8 @@ export interface components {
         };
         HostDeviceMapping: {
             email: string;
-            source: string;
+            /** @enum {string} */
+            source: "orbit_profile";
         };
         HostReport: {
             description: string;
@@ -1486,7 +1481,8 @@ export interface components {
             hostname: string;
             /** Format: int64 */
             id: number;
-            santa_client_mode: string;
+            /** @enum {string} */
+            santa_client_mode: "unknown" | "monitor" | "lockdown" | "standalone";
             santa_machine_id: string;
             santa_version: string;
         };
@@ -1541,8 +1537,10 @@ export interface components {
             hosts_count: number;
             /** Format: int64 */
             id: number;
-            label_membership_type: string;
-            label_type: string;
+            /** @enum {string} */
+            label_membership_type: "dynamic" | "manual" | "derived";
+            /** @enum {string} */
+            label_type: "builtin" | "regular";
             name: string;
             query?: string;
             /** Format: date-time */
@@ -1558,8 +1556,10 @@ export interface components {
             criteria?: components["schemas"]["Criteria"];
             description?: string;
             host_ids?: number[] | null;
-            label_membership_type?: string;
-            label_type?: string;
+            /** @enum {string} */
+            label_membership_type?: "dynamic" | "manual" | "derived";
+            /** @enum {string} */
+            label_type?: "builtin" | "regular";
             name: string;
             query?: string;
         };
@@ -1578,7 +1578,8 @@ export interface components {
             criteria?: components["schemas"]["Criteria"];
             description?: string;
             host_ids?: number[] | null;
-            label_membership_type?: string;
+            /** @enum {string} */
+            label_membership_type?: "dynamic" | "manual" | "derived";
             name: string;
             query?: string;
         };
@@ -1588,7 +1589,8 @@ export interface components {
             mode?: "include_any" | "include_all" | "exclude_any";
         };
         LiveQueryCompletedEvent: {
-            status: string;
+            /** @enum {string} */
+            status: "completed";
         };
         LiveQueryCreateBody: {
             /**
@@ -1603,7 +1605,17 @@ export interface components {
             sql: string;
         };
         LiveQueryPingEvent: {
-            status: string;
+            /** @enum {string} */
+            status: "ok";
+        };
+        LiveQueryResultEvent: {
+            data?: unknown;
+            error?: string;
+            /** Format: int64 */
+            host_id?: number;
+            host_name?: string;
+            /** @enum {string} */
+            status: "success" | "error" | "stopped";
         };
         LiveQuerySelectedBody: {
             hosts?: number[] | null;
@@ -3399,8 +3411,8 @@ export interface operations {
                 page_index?: number;
                 page_size?: number;
                 sort?: string;
-                label_type?: string;
-                label_membership_type?: string;
+                label_type?: "builtin" | "regular";
+                label_membership_type?: "dynamic" | "manual" | "derived";
             };
             header?: never;
             path?: never;
@@ -3925,7 +3937,7 @@ export interface operations {
                         /** @description The retry time in milliseconds. */
                         retry?: number;
                     } | {
-                        data: components["schemas"]["Event"];
+                        data: components["schemas"]["LiveQueryResultEvent"];
                         /**
                          * @description The event name.
                          * @constant
@@ -5358,7 +5370,7 @@ export interface operations {
                 page_size?: number;
                 sort?: string;
                 host_id?: number;
-                decisions?: string[] | null;
+                decisions?: ("allowed" | "blocked" | "unknown" | "allow_unknown" | "allow_binary" | "allow_certificate" | "allow_scope" | "allow_teamid" | "allow_signingid" | "allow_cdhash" | "block_unknown" | "block_binary" | "block_certificate" | "block_scope" | "block_teamid" | "block_signingid" | "block_cdhash" | "bundle_binary")[] | null;
                 since?: string;
             };
             header?: never;
@@ -5507,7 +5519,7 @@ export interface operations {
                 page_size?: number;
                 sort?: string;
                 host_id?: number;
-                decisions?: string[] | null;
+                decisions?: ("unknown" | "denied" | "denied_invalid_signature" | "audit_only")[] | null;
                 since?: string;
             };
             header?: never;
@@ -5655,7 +5667,7 @@ export interface operations {
                 page_index?: number;
                 page_size?: number;
                 sort?: string;
-                rule_type?: string;
+                rule_type?: "binary" | "certificate" | "teamid" | "signingid" | "cdhash";
             };
             header?: never;
             path?: never;

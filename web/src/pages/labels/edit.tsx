@@ -32,27 +32,14 @@ import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
+import {
+  LABEL_MEMBERSHIP_OPTIONS,
+  LABEL_MEMBERSHIP_TYPES,
+  LABEL_MEMBERSHIP_VALUES,
+  type LabelMembershipType,
+} from "@/pages/labels/shared";
 
-type MembershipType = "dynamic" | "manual" | "derived";
 type DerivedAttribute = "directory_department" | "directory_group" | "directory_user";
-
-const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: string }[] = [
-  {
-    value: "dynamic",
-    label: "Dynamic",
-    helpText: "osquery evaluates a SQL query on each host. Hosts where the query returns rows match the label.",
-  },
-  {
-    value: "manual",
-    label: "Manual",
-    helpText: "Membership is managed by the server. Useful for ad-hoc grouping and host targeting.",
-  },
-  {
-    value: "derived",
-    label: "Derived",
-    helpText: "Membership is computed from non-osquery host attributes such as directory department or group.",
-  },
-];
 
 const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
   { value: "directory_department", label: "Directory Department" },
@@ -67,7 +54,7 @@ interface FormState {
   host_ids: number[];
   derived_attribute: DerivedAttribute;
   derived_values: string[];
-  label_membership_type: MembershipType;
+  label_membership_type: LabelMembershipType;
 }
 
 const empty: FormState = {
@@ -88,7 +75,7 @@ const labelFormSchema = z
     host_ids: z.array(z.number().int().positive()),
     derived_attribute: z.enum(["directory_department", "directory_group", "directory_user"]),
     derived_values: z.array(z.string().trim().min(1)),
-    label_membership_type: z.enum(["dynamic", "manual", "derived"]),
+    label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
   .refine((value) => value.label_membership_type !== "dynamic" || value.query !== "", {
     message: "Dynamic labels need a query.",
@@ -182,7 +169,7 @@ function LabelEditForm({
   const isDynamic = form.label_membership_type === "dynamic";
   const isManual = form.label_membership_type === "manual";
   const isDerived = form.label_membership_type === "derived";
-  const memberOption = MEMBERSHIP_OPTIONS.find((o) => o.value === form.label_membership_type);
+  const memberOption = LABEL_MEMBERSHIP_TYPES[form.label_membership_type];
   const parsed = useMemo(() => labelFormSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
@@ -261,19 +248,19 @@ function LabelEditForm({
               type="single"
               value={form.label_membership_type}
               onValueChange={(value) => {
-                if (value) setForm({ ...form, label_membership_type: value as MembershipType });
+                if (value) setForm({ ...form, label_membership_type: value as LabelMembershipType });
               }}
               variant="outline"
               size="sm"
               className="flex-wrap"
             >
-              {MEMBERSHIP_OPTIONS.map((option) => (
+              {LABEL_MEMBERSHIP_OPTIONS.map((option) => (
                 <ToggleGroupItem key={option.value} value={option.value}>
                   {option.label}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            {memberOption ? <FieldDescription>{memberOption.helpText}</FieldDescription> : null}
+            {memberOption.description ? <FieldDescription>{memberOption.description}</FieldDescription> : null}
           </Field>
 
           {isManual ? (
@@ -790,7 +777,7 @@ function fieldErrors(result: LabelFormParse): Record<string, string> {
   return out;
 }
 
-function membershipFromString(value: string | undefined): MembershipType {
+function membershipFromString(value: string | undefined): LabelMembershipType {
   switch (value) {
     case "manual":
     case "derived":

@@ -31,6 +31,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { userRoleLabel } from "@/components/users/user-role";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
 import { nonEmpty } from "@/lib/utils";
@@ -183,7 +184,9 @@ function SidebarUserMenu() {
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{label}</span>
-                {user?.role ? <span className="text-muted-foreground truncate text-xs">{user.role}</span> : null}
+                {user?.role ? (
+                  <span className="text-muted-foreground truncate text-xs">{userRoleLabel(user.role)}</span>
+                ) : null}
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>

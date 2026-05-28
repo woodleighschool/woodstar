@@ -3,6 +3,10 @@ package scope
 import (
 	"database/sql/driver"
 	"fmt"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 // LabelScopeMode says how to read LabelIDs.
@@ -15,10 +19,16 @@ const (
 	ScopeExcludeAny LabelScopeMode = "exclude_any"
 )
 
+var LabelScopeModeValues = []LabelScopeMode{ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny}
+
 // LabelScope is shared label targeting.
 type LabelScope struct {
-	Mode     LabelScopeMode `json:"mode,omitempty"      enum:"include_any,include_all,exclude_any"`
+	Mode     LabelScopeMode `json:"mode,omitempty"`
 	LabelIDs []int64        `json:"label_ids,omitempty"`
+}
+
+func (LabelScopeMode) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(LabelScopeModeValues...)
 }
 
 // IsZero lets json:omitzero drop the no-scope value.

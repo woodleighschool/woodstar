@@ -29,7 +29,7 @@ type userCreateInput struct {
 	Body struct {
 		Email    string     `json:"email"    format:"email"`
 		Name     string     `json:"name,omitempty"`
-		Role     users.Role `json:"role"     enum:"admin,viewer"`
+		Role     users.Role `json:"role"`
 		Password string     `json:"password" minLength:"12"`
 	}
 }
@@ -40,7 +40,7 @@ type userGetInput struct {
 
 type userPutBody struct {
 	Name     string     `json:"name"`
-	Role     users.Role `json:"role"               enum:"admin,viewer"`
+	Role     users.Role `json:"role"`
 	Password *string    `json:"password,omitempty"`
 }
 

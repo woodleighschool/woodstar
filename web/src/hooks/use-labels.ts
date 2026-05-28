@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { paths } from "@/lib/api-schema";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -9,15 +10,7 @@ export type Label = Schemas["Label"];
 export type LabelListResult = Schemas["PaginatedBodyLabel"];
 export type LabelCreate = Schemas["LabelCreateBody"];
 export type LabelMutation = Schemas["LabelMutationBody"];
-
-export interface LabelListParams {
-  q?: string;
-  page_index?: number;
-  page_size?: number;
-  sort?: string;
-  label_type?: string;
-  label_membership_type?: string;
-}
+export type LabelListParams = NonNullable<paths["/api/labels"]["get"]["parameters"]["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {
   const queryParams = {
@@ -25,8 +18,8 @@ export function useLabels(params: LabelListParams = {}) {
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),
-    label_type: nonEmpty(params.label_type),
-    label_membership_type: nonEmpty(params.label_membership_type),
+    label_type: params.label_type,
+    label_membership_type: params.label_membership_type,
   };
 
   return useQuery<LabelListResult, ApiError>({

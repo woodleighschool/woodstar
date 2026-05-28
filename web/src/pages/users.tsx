@@ -5,7 +5,6 @@ import { useState } from "react";
 import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,9 +13,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EnumBadge } from "@/components/ui/enum-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
+import { USER_ROLES } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsers, type User } from "@/hooks/use-users";
 import { formatRelative } from "@/lib/utils";
@@ -116,7 +117,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
                   {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={row.role === "admin" ? "default" : "secondary"}>{row.role}</Badge>
+                  <EnumBadge value={row.role} metadata={USER_ROLES} />
                 </TableCell>
                 <TableCell title={new Date(row.created_at).toLocaleString()}>
                   {formatRelative(row.created_at)}

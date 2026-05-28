@@ -8,9 +8,12 @@ import { DataTableEmptyState } from "@/components/data-table/data-table-empty-st
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EnumBadge } from "@/components/ui/enum-badge";
 import { useHostSantaEffectiveRules, type HostDetail, type HostSantaEffectiveRule } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
+import { clientModeLabel } from "@/pages/santa/configurations/shared";
+import { POLICIES, policyLabel, ruleTypeLabel } from "@/pages/santa/rules/shared";
 
 const HOST_SANTA_RULES_PAGE_SIZE = 25;
 
@@ -33,14 +36,20 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
         cell: ({ row }) => (
           <div className="grid gap-1">
             <span className="font-medium">{row.original.identifier}</span>
-            <span className="text-muted-foreground text-xs">{row.original.rule_type}</span>
+            <span className="text-muted-foreground text-xs">{ruleTypeLabel(row.original.rule_type)}</span>
           </div>
         ),
       },
       {
         accessorKey: "policy",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Policy" />,
-        cell: ({ row }) => row.original.policy,
+        cell: ({ row }) => (
+          <EnumBadge
+            value={row.original.policy}
+            metadata={POLICIES}
+            fallback={{ name: policyLabel(row.original.policy) }}
+          />
+        ),
       },
       {
         accessorKey: "applied",
@@ -69,7 +78,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
           <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
             {[
               { label: "Version", value: santa.version || "-" },
-              { label: "Reported Mode", value: santa.client_mode_reported },
+              { label: "Reported Mode", value: clientModeLabel(santa.client_mode_reported) },
               { label: "Effective Configuration", value: santa.effective_configuration?.name ?? "-" },
               { label: "Matched Label", value: santa.effective_configuration?.matched_via_label?.name ?? "-" },
               { label: "Last Sync", value: formatRelative(santa.last_sync_at) },

@@ -464,16 +464,16 @@ func protoRemovableMediaPolicy(policy configurations.RemovableMediaPolicy) *sync
 	}
 }
 
-func clientModeFromProto(mode syncv1.ClientMode) configurations.ClientMode {
+func clientModeFromProto(mode syncv1.ClientMode) configurations.ReportedClientMode {
 	switch mode {
 	case syncv1.ClientMode_MONITOR:
-		return configurations.ClientModeMonitor
+		return configurations.ReportedClientModeMonitor
 	case syncv1.ClientMode_LOCKDOWN:
-		return configurations.ClientModeLockdown
+		return configurations.ReportedClientModeLockdown
 	case syncv1.ClientMode_STANDALONE:
-		return configurations.ClientModeStandalone
+		return configurations.ReportedClientModeStandalone
 	default:
-		return configurations.ClientModeUnknown
+		return configurations.ReportedClientModeUnknown
 	}
 }
 

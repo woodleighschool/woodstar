@@ -219,9 +219,7 @@ components:
           enum:
             - pass
             - fail
-          type:
-            - string
-            - "null"
+          type: string
         updated_at:
           format: date-time
           type: string
@@ -636,22 +634,6 @@ components:
           format: uri
           type: string
       type: object
-    Event:
-      additionalProperties: false
-      properties:
-        data: {}
-        error:
-          type: string
-        host_id:
-          format: int64
-          type: integer
-        host_name:
-          type: string
-        status:
-          type: string
-      required:
-        - status
-      type: object
     Executable:
       additionalProperties: false
       properties:
@@ -708,6 +690,23 @@ components:
             - array
             - "null"
         decision:
+          enum:
+            - unknown
+            - allow_unknown
+            - allow_binary
+            - allow_certificate
+            - allow_scope
+            - allow_teamid
+            - allow_signingid
+            - allow_cdhash
+            - block_unknown
+            - block_binary
+            - block_certificate
+            - block_scope
+            - block_teamid
+            - block_signingid
+            - block_cdhash
+            - bundle_binary
           type: string
         executable:
           $ref: "#/components/schemas/Executable"
@@ -759,6 +758,11 @@ components:
           readOnly: true
           type: string
         decision:
+          enum:
+            - unknown
+            - denied
+            - denied_invalid_signature
+            - audit_only
           type: string
         host:
           $ref: "#/components/schemas/HostSummary"
@@ -1203,6 +1207,8 @@ components:
         email:
           type: string
         source:
+          enum:
+            - orbit_profile
           type: string
       required:
         - email
@@ -1364,6 +1370,11 @@ components:
           format: int64
           type: integer
         santa_client_mode:
+          enum:
+            - unknown
+            - monitor
+            - lockdown
+            - standalone
           type: string
         santa_machine_id:
           type: string
@@ -1491,8 +1502,15 @@ components:
           format: int64
           type: integer
         label_membership_type:
+          enum:
+            - dynamic
+            - manual
+            - derived
           type: string
         label_type:
+          enum:
+            - builtin
+            - regular
           type: string
         name:
           type: string
@@ -1531,8 +1549,15 @@ components:
             - array
             - "null"
         label_membership_type:
+          enum:
+            - dynamic
+            - manual
+            - derived
           type: string
         label_type:
+          enum:
+            - builtin
+            - regular
           type: string
         name:
           type: string
@@ -1575,6 +1600,10 @@ components:
             - array
             - "null"
         label_membership_type:
+          enum:
+            - dynamic
+            - manual
+            - derived
           type: string
         name:
           type: string
@@ -1604,6 +1633,8 @@ components:
       additionalProperties: false
       properties:
         status:
+          enum:
+            - completed
           type: string
       required:
         - status
@@ -1632,6 +1663,28 @@ components:
       additionalProperties: false
       properties:
         status:
+          enum:
+            - ok
+          type: string
+      required:
+        - status
+      type: object
+    LiveQueryResultEvent:
+      additionalProperties: false
+      properties:
+        data: {}
+        error:
+          type: string
+        host_id:
+          format: int64
+          type: integer
+        host_name:
+          type: string
+        status:
+          enum:
+            - success
+            - error
+            - stopped
           type: string
       required:
         - status
@@ -3867,11 +3920,18 @@ paths:
           in: query
           name: label_type
           schema:
+            enum:
+              - builtin
+              - regular
             type: string
         - explode: false
           in: query
           name: label_membership_type
           schema:
+            enum:
+              - dynamic
+              - manual
+              - derived
             type: string
       responses:
         "200":
@@ -4275,7 +4335,7 @@ paths:
                       type: object
                     - properties:
                         data:
-                          $ref: "#/components/schemas/Event"
+                          $ref: "#/components/schemas/LiveQueryResultEvent"
                         event:
                           const: result
                           description: The event name.
@@ -5414,6 +5474,25 @@ paths:
           name: decisions
           schema:
             items:
+              enum:
+                - allowed
+                - blocked
+                - unknown
+                - allow_unknown
+                - allow_binary
+                - allow_certificate
+                - allow_scope
+                - allow_teamid
+                - allow_signingid
+                - allow_cdhash
+                - block_unknown
+                - block_binary
+                - block_certificate
+                - block_scope
+                - block_teamid
+                - block_signingid
+                - block_cdhash
+                - bundle_binary
               type: string
             type:
               - array
@@ -5562,6 +5641,11 @@ paths:
           name: decisions
           schema:
             items:
+              enum:
+                - unknown
+                - denied
+                - denied_invalid_signature
+                - audit_only
               type: string
             type:
               - array
@@ -5703,6 +5787,12 @@ paths:
           in: query
           name: rule_type
           schema:
+            enum:
+              - binary
+              - certificate
+              - teamid
+              - signingid
+              - cdhash
             type: string
       responses:
         "200":

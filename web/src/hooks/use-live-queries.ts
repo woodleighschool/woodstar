@@ -6,7 +6,7 @@ import { apiClient, unwrap, type Schemas } from "@/lib/api";
 
 export type LiveQueryHandle = Schemas["Handle"];
 export type LiveQueryCreate = Schemas["LiveQueryCreateBody"];
-export type LiveQueryResult = Schemas["Event"];
+export type LiveQueryResult = Schemas["LiveQueryResultEvent"];
 export type LiveQueryTargetCount = Schemas["LiveQueryTargetCountOutputBody"];
 export type LiveQueryTargetCountBody = Schemas["LiveQueryTargetCountBody"];
 

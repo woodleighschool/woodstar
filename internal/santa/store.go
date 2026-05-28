@@ -24,7 +24,7 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObservation) error {
 	if observation.ClientModeReported == "" {
-		observation.ClientModeReported = configurations.ClientModeUnknown
+		observation.ClientModeReported = configurations.ReportedClientModeUnknown
 	}
 	if observation.PrimaryUserGroups == nil {
 		observation.PrimaryUserGroups = []string{}
@@ -89,7 +89,7 @@ func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostS
 	}
 	ruleSync.LastCleanSyncAt = detail.RuleSync.LastCleanSyncAt
 
-	detail.ClientModeReported = configurations.ClientMode(clientMode)
+	detail.ClientModeReported = configurations.ReportedClientMode(clientMode)
 	detail.RuleSync = ruleSync
 	return &detail, nil
 }

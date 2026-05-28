@@ -3,16 +3,43 @@ package configurations
 import (
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
-type ClientMode string
+type (
+	ClientMode         string
+	ReportedClientMode string
+)
+
+const ReportedClientModeUnknown ReportedClientMode = "unknown"
 
 const (
-	ClientModeUnknown    ClientMode = "unknown"
 	ClientModeMonitor    ClientMode = "monitor"
 	ClientModeLockdown   ClientMode = "lockdown"
 	ClientModeStandalone ClientMode = "standalone"
+)
+
+const (
+	ReportedClientModeMonitor    ReportedClientMode = "monitor"
+	ReportedClientModeLockdown   ReportedClientMode = "lockdown"
+	ReportedClientModeStandalone ReportedClientMode = "standalone"
+)
+
+var (
+	ClientModeValues = []ClientMode{
+		ClientModeMonitor,
+		ClientModeLockdown,
+		ClientModeStandalone,
+	}
+	ReportedClientModeValues = []ReportedClientMode{
+		ReportedClientModeUnknown,
+		ReportedClientModeMonitor,
+		ReportedClientModeLockdown,
+		ReportedClientModeStandalone,
+	}
 )
 
 type RemovableMediaAction string
@@ -23,6 +50,12 @@ const (
 	RemovableMediaActionRemount RemovableMediaAction = "remount"
 )
 
+var RemovableMediaActionValues = []RemovableMediaAction{
+	RemovableMediaActionAllow,
+	RemovableMediaActionBlock,
+	RemovableMediaActionRemount,
+}
+
 type ConfigurationListParams struct {
 	dbutil.ListParams
 }
@@ -30,8 +63,20 @@ type ConfigurationListParams struct {
 // RemovableMediaPolicy is the optional USB policy. The zero value (Action == "")
 // means "no policy"; the wire shape omits zero values via json:"omitzero".
 type RemovableMediaPolicy struct {
-	Action       RemovableMediaAction `json:"action,omitempty"        enum:"allow,block,remount"`
-	RemountFlags []string             `json:"remount_flags,omitempty"                            doc:"Mount flags required when action is remount."`
+	Action       RemovableMediaAction `json:"action,omitempty"`
+	RemountFlags []string             `json:"remount_flags,omitempty" doc:"Mount flags required when action is remount."`
+}
+
+func (ClientMode) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(ClientModeValues...)
+}
+
+func (ReportedClientMode) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(ReportedClientModeValues...)
+}
+
+func (RemovableMediaAction) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(RemovableMediaActionValues...)
 }
 
 // IsZero reports whether the policy is the no-policy zero value.
@@ -44,12 +89,12 @@ func (p RemovableMediaPolicy) IsZero() bool {
 // explicit value; the backend validates but does not substitute defaults.
 type ConfigurationMutation struct {
 	Name                          string               `json:"name"`
-	ClientMode                    ClientMode           `json:"client_mode"                               enum:"monitor,lockdown,standalone"`
+	ClientMode                    ClientMode           `json:"client_mode"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
-	FullSyncIntervalSeconds       int                  `json:"full_sync_interval_seconds"                                                   minimum:"60"`
-	BatchSize                     int                  `json:"batch_size"                                                                   minimum:"5"  maximum:"100"`
+	FullSyncIntervalSeconds       int                  `json:"full_sync_interval_seconds"                minimum:"60"`
+	BatchSize                     int                  `json:"batch_size"                                minimum:"5"  maximum:"100"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`
 	BlockedPathRegex              string               `json:"blocked_path_regex,omitempty"`
 	RemovableMediaPolicy          RemovableMediaPolicy `json:"removable_media_policy,omitzero"`
@@ -63,7 +108,7 @@ type Configuration struct {
 	ID                            int64                `json:"id"`
 	Name                          string               `json:"name"`
 	Position                      int                  `json:"position"`
-	ClientMode                    ClientMode           `json:"client_mode"                               enum:"monitor,lockdown,standalone"`
+	ClientMode                    ClientMode           `json:"client_mode"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`

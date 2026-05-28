@@ -19,7 +19,7 @@ import {
 } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./constants";
-import { DecisionBadge, HostLink, Timestamp } from "./event-ui";
+import { ExecutionDecisionBadge, FileAccessDecisionBadge, HostLink, Timestamp } from "./event-ui";
 
 type EventListKind = "execution" | "file-access";
 
@@ -87,7 +87,7 @@ function ExecutionEventsTable() {
       id: "decision",
       accessorKey: "decision",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Decision" />,
-      cell: ({ row }) => <DecisionBadge decision={row.original.decision} />,
+      cell: ({ row }) => <ExecutionDecisionBadge decision={row.original.decision} />,
     },
     {
       id: "host_id",
@@ -181,7 +181,7 @@ function FileAccessEventsTable() {
       id: "decision",
       accessorKey: "decision",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Decision" />,
-      cell: ({ row }) => <DecisionBadge decision={row.original.decision} />,
+      cell: ({ row }) => <FileAccessDecisionBadge decision={row.original.decision} />,
     },
     {
       id: "host",

@@ -152,7 +152,7 @@ func labelFromHostDetailRecord(row hostDetailLabelRecord) labels.Label {
 		Description:         row.Description,
 		Query:               row.Query,
 		LabelType:           labels.LabelType(row.LabelType),
-		LabelMembershipType: row.LabelMembershipType,
+		LabelMembershipType: labels.LabelMembershipType(row.LabelMembershipType),
 		HostsCount:          int(row.HostsCount),
 		CreatedAt:           row.CreatedAt,
 		UpdatedAt:           row.UpdatedAt,

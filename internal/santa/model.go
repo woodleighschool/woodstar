@@ -12,7 +12,7 @@ type HostObservation struct {
 	MachineID          string
 	SerialNumber       string
 	Version            string
-	ClientModeReported configurations.ClientMode
+	ClientModeReported configurations.ReportedClientMode
 	PrimaryUser        string
 	PrimaryUserGroups  []string
 	SIPStatus          *int16
@@ -24,7 +24,7 @@ type HostObservation struct {
 // HostState is the Santa sub-object attached to host detail responses.
 type HostState struct {
 	Version                string                                `json:"version"`
-	ClientModeReported     configurations.ClientMode             `json:"client_mode_reported"              enum:"unknown,monitor,lockdown,standalone"`
+	ClientModeReported     configurations.ReportedClientMode     `json:"client_mode_reported"`
 	LastSyncAt             *time.Time                            `json:"last_sync_at,omitempty"`
 	EffectiveConfiguration *configurations.ResolvedConfiguration `json:"effective_configuration,omitempty"`
 	RuleSync               RuleSyncSummary                       `json:"rule_sync"`

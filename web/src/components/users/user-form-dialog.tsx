@@ -13,9 +13,10 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { USER_ROLE_OPTIONS, type UserRole } from "@/components/users/user-role";
 import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
 
-type Role = User["role"];
+type Role = UserRole;
 
 interface BaseProps {
   open: boolean;
@@ -153,8 +154,11 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  {USER_ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>

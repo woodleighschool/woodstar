@@ -5,12 +5,13 @@ import { toast } from "sonner";
 import { APIKeyCard } from "@/components/account/api-key-card";
 import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { EnumBadge } from "@/components/ui/enum-badge";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { USER_ROLES } from "@/components/users/user-role";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
 import { formatRelative, nonEmpty } from "@/lib/utils";
 
@@ -77,7 +78,7 @@ function AccountProfileCard({ account }: { account: Account }) {
         <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <span>{user.email}</span>
-          <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
+          <EnumBadge value={user.role} metadata={USER_ROLES} />
         </CardDescription>
       </CardHeader>
       <form

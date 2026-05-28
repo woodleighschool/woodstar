@@ -32,15 +32,10 @@ import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
-
-const MEMBERSHIP_OPTIONS = [
-  { value: "dynamic", label: "Dynamic" },
-  { value: "manual", label: "Manual" },
-  { value: "derived", label: "Derived" },
-];
+import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/pages/labels/shared";
 
 export function LabelsPage() {
-  const search = useSearch({ strict: false });
+  const search = useSearch({ from: "/_authenticated/labels/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
   const [deleting, setDeleting] = useState<Label | null>(null);
@@ -74,7 +69,7 @@ export function LabelsPage() {
       id: "label_membership_type",
       accessorKey: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
-      cell: ({ row }) => membershipLabel(row.original.label_membership_type),
+      cell: ({ row }) => labelMembershipLabel(row.original.label_membership_type),
     },
     {
       id: "hosts_count",
@@ -139,7 +134,7 @@ export function LabelsPage() {
               <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
               <DataTableFacetedFilter
                 title="Membership"
-                options={MEMBERSHIP_OPTIONS}
+                options={LABEL_MEMBERSHIP_OPTIONS}
                 selected={search.label_membership_type ? [search.label_membership_type] : []}
                 onChange={(next) => setters.setFilter("label_membership_type", next[0])}
                 singleSelect
@@ -165,10 +160,6 @@ export function LabelsPage() {
       />
     </PageShell>
   );
-}
-
-function membershipLabel(value: string) {
-  return MEMBERSHIP_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 function LabelRowActions({ label, onDelete }: { label: Label; onDelete: (label: Label) => void }) {
