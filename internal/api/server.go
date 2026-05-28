@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/CAFxX/httpcompression"
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -207,6 +208,7 @@ func protocolRoutes(r chi.Router, deps Dependencies) {
 
 func browserRoutes(r chi.Router, deps Dependencies) {
 	r.Use(middleware.RequestLogger(deps.Runtime.Logger))
+	r.Use(compressionMiddleware(deps.Runtime.Logger))
 	if deps.Runtime.SessionManager != nil {
 		r.Use(deps.Runtime.SessionManager.LoadAndSave)
 	}
@@ -215,4 +217,19 @@ func browserRoutes(r chi.Router, deps Dependencies) {
 	if deps.Runtime.WebHandler != nil {
 		deps.Runtime.WebHandler.RegisterRoutes(r)
 	}
+}
+
+func compressionMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+	compressor, err := httpcompression.DefaultAdapter(
+		httpcompression.MinSize(1024),
+		httpcompression.GzipCompressionLevel(2),
+		httpcompression.Prefer(httpcompression.PreferServer),
+	)
+	if err != nil {
+		logger.Error("failed to create HTTP compression adapter", "operation", "compression_middleware", "err", err)
+		return func(next http.Handler) http.Handler {
+			return next
+		}
+	}
+	return compressor
 }

@@ -1,14 +1,17 @@
 package api
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
@@ -20,6 +23,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/web"
 )
 
 func TestProtectedAPIRoutesRequireSession(t *testing.T) {
@@ -465,6 +469,49 @@ func TestAccountReadReturnsRetrievableAPIKeyOnlyToSelf(t *testing.T) {
 	}
 	if _, ok := body.User["api_key"]; ok {
 		t.Fatalf("account user leaked api_key: %#v", body.User)
+	}
+}
+
+func TestBrowserRoutesCompressesSPA(t *testing.T) {
+	deps := testDependencies(testConfig())
+	deps.Runtime.WebHandler = web.NewHandler(web.HandlerOptions{
+		FS: fstest.MapFS{
+			"index.html": {
+				Data: []byte(
+					"<!doctype html><html><head></head><body>" +
+						strings.Repeat("content ", 400) +
+						"</body></html>",
+				),
+			},
+		},
+		Version: "test",
+		Logger:  slog.New(slog.DiscardHandler),
+	})
+	server := NewServer(deps)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/santa/events", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
+		t.Fatalf("Content-Encoding = %q, want gzip", got)
+	}
+
+	reader, err := gzip.NewReader(rec.Body)
+	if err != nil {
+		t.Fatalf("read gzip response: %v", err)
+	}
+	defer reader.Close()
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read compressed content: %v", err)
+	}
+	if !strings.Contains(string(content), "window.__WOODSTAR__={\"version\":\"test\"};") {
+		t.Fatalf("decompressed body did not include runtime config: %q", content)
 	}
 }
 

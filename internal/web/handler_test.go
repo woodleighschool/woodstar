@@ -1,59 +1,126 @@
 package web
 
 import (
-	"context"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/go-chi/chi/v5"
 )
 
-func TestInjectRuntimeIncludesVersion(t *testing.T) {
-	handler := NewHandler(HandlerOptions{
-		FS:      testFS(),
-		Version: "test",
-		Logger:  slog.New(slog.DiscardHandler),
-	})
+func TestHandlerServesKnownRootAsset(t *testing.T) {
+	t.Parallel()
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
+	recorder := requestWeb(t, "/apple-touch-icon.png")
 
-	handler.serveIndex(rec, req)
-
-	body := rec.Body.String()
-	if !strings.Contains(body, `"version":"test"`) {
-		t.Fatalf("runtime config missing version: %s", body)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if got := recorder.Body.String(); got != "png" {
+		t.Fatalf("body = %q, want root asset content", got)
+	}
+	if got := recorder.Header().Get("Content-Type"); !strings.HasPrefix(got, "image/png") {
+		t.Fatalf("content type = %q, want image/png", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=86400" {
+		t.Fatalf("cache control = %q, want root asset cache", got)
 	}
 }
 
-func TestServeAssetReturnsAsset(t *testing.T) {
-	handler := NewHandler(HandlerOptions{
-		FS:      testFS(),
-		Version: "test",
-		Logger:  slog.New(slog.DiscardHandler),
-	})
+func TestHandlerServesOtherRootPublicAsset(t *testing.T) {
+	t.Parallel()
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/assets/app.js", nil)
+	recorder := requestWeb(t, "/site.webmanifest")
 
-	handler.serveAsset(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
-	if rec.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
-		t.Fatalf("missing immutable cache header: %s", rec.Header().Get("Cache-Control"))
+	if got := recorder.Body.String(); got != `{"name":"Woodstar"}` {
+		t.Fatalf("body = %q, want public asset content", got)
 	}
 }
 
-func testFS() fs.FS {
-	return fstest.MapFS{
-		"index.html":    {Data: []byte("<html><head></head><body></body></html>")},
-		"assets/app.js": {Data: []byte("console.log('ok')")},
-		"favicon.ico":   {Data: []byte("ico")},
-		"favicon.png":   {Data: []byte("png")},
+func TestHandlerServesHashedAssetWithImmutableCache(t *testing.T) {
+	t.Parallel()
+
+	recorder := requestWeb(t, "/assets/app-abcd1234.js")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
+	if got := recorder.Body.String(); got != "console.log('ok')" {
+		t.Fatalf("body = %q, want bundled asset content", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("cache control = %q, want immutable asset cache", got)
+	}
+}
+
+func TestHandlerReturnsNotFoundForAssetLikeMiss(t *testing.T) {
+	t.Parallel()
+
+	recorder := requestWeb(t, "/missing.png")
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+	if strings.Contains(recorder.Body.String(), "__WOODSTAR__") {
+		t.Fatal("missing asset returned SPA index")
+	}
+}
+
+func TestHandlerServesSPAIndex(t *testing.T) {
+	t.Parallel()
+
+	recorder := requestWeb(t, "/santa/events")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "window.__WOODSTAR__={\"version\":\"test\"};") {
+		t.Fatalf("body did not include runtime config: %q", body)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("cache control = %q, want no-store", got)
+	}
+}
+
+func TestHandlerRedirectsIndexHTMLToRoot(t *testing.T) {
+	t.Parallel()
+
+	recorder := requestWeb(t, "/index.html?from=sso")
+
+	if recorder.Code != http.StatusMovedPermanently {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusMovedPermanently)
+	}
+	if got := recorder.Header().Get("Location"); got != "/?from=sso" {
+		t.Fatalf("location = %q, want root redirect with query", got)
+	}
+}
+
+func requestWeb(t *testing.T, path string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	router := chi.NewRouter()
+	NewHandler(HandlerOptions{
+		FS: fstest.MapFS{
+			"apple-touch-icon.png": {Data: []byte("png")},
+			"assets/app-abcd1234.js": {
+				Data: []byte("console.log('ok')"),
+			},
+			"index.html":       {Data: []byte("<!doctype html><html><head></head><body></body></html>")},
+			"site.webmanifest": {Data: []byte(`{"name":"Woodstar"}`)},
+		},
+		Version: "test",
+		Logger:  slog.New(slog.DiscardHandler),
+	}).RegisterRoutes(router)
+
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
 }
