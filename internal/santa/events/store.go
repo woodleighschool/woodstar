@@ -359,7 +359,7 @@ func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event F
 func cleanStringSlice(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
-		value = strings.TrimSpace(value)
+		value = strings.TrimSpace(strings.ReplaceAll(value, "\x00", ""))
 		if value == "" || slices.Contains(out, value) {
 			continue
 		}
