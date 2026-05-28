@@ -57,7 +57,7 @@ export function SoftwarePage() {
             : versions.length === 1
               ? versions[0].version || "-"
               : `${versions.length} versions`;
-        return <span className="text-muted-foreground tabular-nums">{label}</span>;
+        return <span className="tabular-nums">{label}</span>;
       },
     },
     {
@@ -65,9 +65,7 @@ export function SoftwarePage() {
       accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground" title={row.original.source}>
-          {softwareSourceLabel(row.original.source, row.original.extension_for)}
-        </span>
+        <span title={row.original.source}>{softwareSourceLabel(row.original.source, row.original.extension_for)}</span>
       ),
     },
     {
@@ -81,7 +79,7 @@ export function SoftwarePage() {
 
   return (
     <PageShell>
-      <PageHeader title="Software" description="Observed apps and packages reported by enrolled hosts." />
+      <PageHeader title="Software" />
 
       {query.error ? (
         <Alert variant="destructive">
@@ -115,9 +113,7 @@ export function SoftwarePage() {
               icon={<Package />}
               title={hasFilters ? "No matches" : "No observed software"}
               description={
-                hasFilters
-                  ? "No titles matched the current filters."
-                  : "Installed apps and packages appear after hosts refresh inventory."
+                hasFilters ? "No titles matched the current filters." : "Inventory appears after hosts refresh."
               }
             />
           }

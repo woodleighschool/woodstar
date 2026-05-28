@@ -135,10 +135,7 @@ function ReportEditForm({
           void submit();
         }}
       >
-        <PageHeader
-          title={mode === "create" ? "New report" : "Edit report"}
-          description="Use osquery SQL to gather data about hosts. Add an interval to collect snapshot results on a schedule."
-        />
+        <PageHeader title={mode === "create" ? "New report" : "Edit report"} />
         <FieldGroup className="max-w-3xl">
           <Field>
             <FieldLabel htmlFor="report-name">Name</FieldLabel>
@@ -155,7 +152,7 @@ function ReportEditForm({
             <Textarea
               id="report-description"
               rows={3}
-              placeholder="What information does this report reveal?"
+              placeholder="What this report reveals"
               value={form.description ?? ""}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
@@ -180,7 +177,7 @@ function ReportEditForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>How often the report collects data.</FieldDescription>
+            <FieldDescription>Snapshot collection schedule.</FieldDescription>
           </Field>
         </FieldGroup>
 

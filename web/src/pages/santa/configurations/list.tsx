@@ -22,7 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -121,24 +120,24 @@ export function SantaConfigurationsPage() {
         ] satisfies ColumnDef<SantaConfiguration>[])
       : []),
     {
-      id: "position",
-      accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.position + 1}</span>,
-      meta: { headClassName: "w-20", cellClassName: "w-20" },
-    },
-    {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
+      id: "position",
+      accessorKey: "position",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
+      cell: ({ row }) => <span className="tabular-nums">{row.original.position + 1}</span>,
+      meta: { headClassName: "w-20", cellClassName: "w-20" },
+    },
+    {
       id: "client_mode",
       accessorKey: "client_mode",
       header: "Client mode",
       enableSorting: false,
-      cell: ({ row }) => <Badge variant="secondary">{clientModeLabel(row.original.client_mode)}</Badge>,
+      cell: ({ row }) => clientModeLabel(row.original.client_mode),
     },
     {
       id: "labels",
@@ -152,7 +151,7 @@ export function SantaConfigurationsPage() {
       header: "Updated",
       enableSorting: false,
       cell: ({ row }) => (
-        <span className="text-muted-foreground" title={new Date(row.original.updated_at).toLocaleString()}>
+        <span title={new Date(row.original.updated_at).toLocaleString()}>
           {formatRelative(row.original.updated_at)}
         </span>
       ),
@@ -162,8 +161,7 @@ export function SantaConfigurationsPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Santa configurations"
-        description="Configurations are evaluated in list order; each label can belong to one configuration."
+        title="Configurations"
         actions={
           <>
             <ButtonGroup>
@@ -273,7 +271,7 @@ export function SantaConfigurationsPage() {
         }}
         count={selectedIDs.length}
         noun="configuration"
-        description="Deleted configurations stop applying to matching hosts."
+        description="Deleted configurations stop applying."
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedConfigurations}
       />
@@ -288,9 +286,7 @@ function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
       icon={<FileSliders />}
       title={hasFilters ? "No matches" : "No client configurations"}
       description={
-        hasFilters
-          ? "No Santa configurations matched the current filters."
-          : "Create a configuration to start sending Santa client settings."
+        hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."
       }
     />
   );
@@ -306,7 +302,7 @@ function TargetLabelsCell({
   const countText = `${labelIDs.length} label${labelIDs.length === 1 ? "" : "s"}`;
 
   if (labelIDs.length === 0) {
-    return <span className="text-muted-foreground text-sm tabular-nums">{countText}</span>;
+    return <span className="text-sm tabular-nums">{countText}</span>;
   }
 
   const labels = labelsFromIDs(labelIDs, labelsByID);
@@ -316,7 +312,7 @@ function TargetLabelsCell({
       <HoverCardTrigger asChild>
         <button
           type="button"
-          className="text-muted-foreground rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="rounded-sm text-sm tabular-nums underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {countText}
         </button>
@@ -341,7 +337,7 @@ function ReorderWarningDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Reorder Santa configurations?</AlertDialogTitle>
+          <AlertDialogTitle>Reorder configurations?</AlertDialogTitle>
           <AlertDialogDescription>
             Santa uses the first matching configuration for each host. Reordering can change client behavior
             immediately, so make sure you know what you&apos;re doing before continuing.

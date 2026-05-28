@@ -74,9 +74,7 @@ export function LabelsPage() {
       id: "label_membership_type",
       accessorKey: "label_membership_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Membership" />,
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">{membershipLabel(row.original.label_membership_type)}</span>
-      ),
+      cell: ({ row }) => membershipLabel(row.original.label_membership_type),
     },
     {
       id: "hosts_count",
@@ -89,10 +87,7 @@ export function LabelsPage() {
       accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
       cell: ({ row }) => (
-        <span
-          className="text-muted-foreground"
-          title={row.original.updated_at ? new Date(row.original.updated_at).toLocaleString() : ""}
-        >
+        <span title={row.original.updated_at ? new Date(row.original.updated_at).toLocaleString() : ""}>
           {row.original.updated_at ? formatRelative(row.original.updated_at) : "-"}
         </span>
       ),
@@ -110,7 +105,6 @@ export function LabelsPage() {
     <PageShell>
       <PageHeader
         title="Labels"
-        description="Group hosts for filtering, reports, checks, and future Santa/Munki targeting."
         actions={
           <Button asChild size="sm">
             <Link to="/labels/new">
@@ -155,11 +149,7 @@ export function LabelsPage() {
             <DataTableEmptyState
               icon={<Tags />}
               title={hasFilters ? "No matches" : "No host groups"}
-              description={
-                hasFilters
-                  ? "No labels matched the current filters."
-                  : "Create dynamic, manual, or derived labels for host targeting."
-              }
+              description={hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
             />
           }
         />

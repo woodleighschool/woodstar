@@ -142,7 +142,6 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
               value={name}
               disabled={isInitialUser}
               onChange={(event) => setName(event.target.value)}
-              placeholder={mode === "create" ? "Optional, defaults to email" : ""}
             />
           </Field>
 
@@ -161,15 +160,13 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
             </Select>
             {!canChangeRole ? (
               <FieldDescription>
-                {isInitialUser ? "The initial user's role is locked." : "You cannot change your own role."}
+                {isInitialUser ? "Initial user role is locked." : "Your own role is locked."}
               </FieldDescription>
             ) : null}
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="user-password">
-              Password{mode === "edit" ? " (leave blank to keep current)" : ""}
-            </FieldLabel>
+            <FieldLabel htmlFor="user-password">Password</FieldLabel>
             <Input
               id="user-password"
               type="password"

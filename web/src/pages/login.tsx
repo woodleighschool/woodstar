@@ -3,8 +3,8 @@ import { useRouter, useSearch } from "@tanstack/react-router";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/hooks/use-auth";
@@ -36,8 +36,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <WoodstarMark size="md" />
-          <CardTitle>Login to Woodstar</CardTitle>
-          <CardDescription>Enter your email below to login to your account.</CardDescription>
+          <CardTitle>Log in to Woodstar</CardTitle>
         </CardHeader>
         <CardContent>
           <form
@@ -83,8 +82,6 @@ export function LoginPage() {
                     </Button>
                   </>
                 ) : null}
-
-                <FieldDescription className="text-center">Use the account created during setup.</FieldDescription>
               </Field>
             </FieldGroup>
           </form>

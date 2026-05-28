@@ -173,10 +173,7 @@ function ConfigurationForm({
           void submit();
         }}
       >
-        <PageHeader
-          title={mode === "create" ? "New Santa configuration" : "Edit Santa configuration"}
-          description="Set Santa client behavior and assign the configuration to labels."
-        />
+        <PageHeader title={mode === "create" ? "New configuration" : "Edit configuration"} />
 
         <FieldGroup className="max-w-4xl">
           <Field>
@@ -212,7 +209,7 @@ function ConfigurationForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>Monitor observes; lockdown enforces Santa rules.</FieldDescription>
+            <FieldDescription>Monitor observes. Lockdown enforces.</FieldDescription>
           </Field>
           <BoolField
             id="santa-enable-bundles"
@@ -245,7 +242,7 @@ function ConfigurationForm({
               value={form.full_sync_interval_seconds}
               onChange={(event) => setForm({ ...form, full_sync_interval_seconds: Number(event.target.value) })}
             />
-            <FieldDescription>Seconds between clean syncs. Santa default: 600.</FieldDescription>
+            <FieldDescription>Clean sync cadence in seconds.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-batch-size">Batch size</FieldLabel>
@@ -258,7 +255,7 @@ function ConfigurationForm({
               value={form.batch_size}
               onChange={(event) => setForm({ ...form, batch_size: Number(event.target.value) })}
             />
-            <FieldDescription>Rule rows per download page. Santa default: 50.</FieldDescription>
+            <FieldDescription>Rule rows per sync page.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-allowed-path-regex">Allowed path regex</FieldLabel>
@@ -325,11 +322,11 @@ function ConfigurationForm({
                 value={form.label_ids}
                 unavailableLabelIDs={unavailableLabelIDs}
                 emptyPlaceholder="No unassigned labels"
-                emptyMessage="All labels are already assigned to Santa configurations."
+                emptyMessage="All labels are already assigned to configurations."
                 onChange={(label_ids) => setForm({ ...form, label_ids })}
               />
             )}
-            <FieldDescription>Hosts in these labels receive this Santa configuration.</FieldDescription>
+            <FieldDescription>Labels receiving this configuration.</FieldDescription>
           </Field>
         </FieldGroup>
 

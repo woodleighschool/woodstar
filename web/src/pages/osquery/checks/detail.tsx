@@ -71,7 +71,6 @@ export function CheckDetailPage() {
       <div className="grid gap-3">
         <div>
           <h2 className="text-base font-semibold">Hosts</h2>
-          <p className="text-muted-foreground text-sm">Latest check result for each host.</p>
         </div>
         <div className="rounded-md border">
           <Table>
@@ -104,9 +103,7 @@ export function CheckDetailPage() {
                     <TableCell>
                       <CheckStatusBadge response={row.response} />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {row.updated_at ? formatRelative(row.updated_at) : "-"}
-                    </TableCell>
+                    <TableCell>{row.updated_at ? formatRelative(row.updated_at) : "-"}</TableCell>
                   </TableRow>
                 ))
               )}

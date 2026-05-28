@@ -69,7 +69,6 @@ export function ReportsPage() {
     <PageShell>
       <PageHeader
         title="Reports"
-        description="Gather data about your hosts."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/reports/new">
@@ -113,11 +112,7 @@ export function ReportsPage() {
             <DataTableEmptyState
               icon={<FileBarChart2 />}
               title={hasFilters ? "No matches" : "No saved queries"}
-              description={
-                hasFilters
-                  ? "Try clearing the filters."
-                  : "Create a report from SQL, or import standard Fleet queries later."
-              }
+              description={hasFilters ? "Try clearing the filters." : "Create a report from SQL."}
             />
           }
         />

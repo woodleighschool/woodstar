@@ -34,7 +34,6 @@ export function UsersPage() {
     <PageShell>
       <PageHeader
         title="Users"
-        description="Manage local Woodstar accounts and roles."
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus data-icon="inline-start" /> Create
@@ -88,13 +87,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
 
   const data = query.data ?? [];
   if (data.length === 0) {
-    return (
-      <DataTableEmptyState
-        icon={<Users />}
-        title="No account access"
-        description="Create a local account to give another admin or viewer access to this deployment."
-      />
-    );
+    return <DataTableEmptyState icon={<Users />} title="No account access" description="Create a local account." />;
   }
 
   return (
@@ -102,8 +95,8 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Email</TableHead>
             <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12" />
@@ -115,16 +108,16 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
             const isInitial = row.id === INITIAL_USER_ID;
             return (
               <TableRow key={row.id}>
-                <TableCell className="font-medium">
+                <TableCell className="font-medium">{row.name || row.email}</TableCell>
+                <TableCell>
                   {row.email}
                   {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
                   {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{row.name || "-"}</TableCell>
                 <TableCell>
-                  <Badge variant={row.role === "admin" ? "default" : "secondary"}>{row.role}</Badge>
+                  <Badge variant={row.role === "admin" ? "info" : "secondary"}>{row.role}</Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground" title={new Date(row.created_at).toLocaleString()}>
+                <TableCell title={new Date(row.created_at).toLocaleString()}>
                   {formatRelative(row.created_at)}
                 </TableCell>
                 <TableCell className="text-right">

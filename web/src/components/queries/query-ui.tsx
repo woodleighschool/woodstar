@@ -3,14 +3,7 @@ import { Download, FileCode2, Play, Settings2 } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Schemas } from "@/lib/api";
 import { targetScopeLabel } from "@/lib/targeting";
@@ -37,7 +30,7 @@ export function IntervalIndicator({ interval }: { interval?: number | null }) {
       <TooltipTrigger asChild>
         <span className="text-muted-foreground">Off</span>
       </TooltipTrigger>
-      <TooltipContent>Assign an interval to collect report data on a schedule.</TooltipContent>
+      <TooltipContent>Runs only on demand.</TooltipContent>
     </Tooltip>
   );
 }
@@ -71,7 +64,6 @@ export function ShowQueryButton({ sql }: { sql: string }) {
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Query</DialogTitle>
-          <DialogDescription>SQL used by this item.</DialogDescription>
         </DialogHeader>
         <Suspense fallback={<div className="bg-muted h-40 rounded-md" />}>
           <LazySQLEditor value={sql} onChange={() => null} readOnly className="max-h-[60vh] overflow-auto" />

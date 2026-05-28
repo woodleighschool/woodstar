@@ -92,7 +92,7 @@ function UserEditForm({ user }: { user: User }) {
           <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
-            <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
+            <Badge variant={user.role === "admin" ? "info" : "secondary"}>{user.role}</Badge>
           </CardDescription>
         </CardHeader>
         <form
@@ -143,7 +143,7 @@ function UserEditForm({ user }: { user: User }) {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
-                <FieldDescription>Leave blank to keep the current password.</FieldDescription>
+                <FieldDescription>Set a new password.</FieldDescription>
               </Field>
             </FieldGroup>
           </CardContent>
@@ -163,7 +163,6 @@ function UserEditForm({ user }: { user: User }) {
         <Card className="gap-4 py-4">
           <CardHeader className="px-4">
             <CardTitle>Remove user</CardTitle>
-            <CardDescription>Remove this local Woodstar account.</CardDescription>
           </CardHeader>
           <CardContent className="px-4">
             <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>

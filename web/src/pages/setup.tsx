@@ -32,7 +32,7 @@ export function SetupPage() {
         <CardHeader className="items-center justify-items-center text-center">
           <WoodstarMark size="md" />
           <CardTitle>Create an account</CardTitle>
-          <CardDescription>Enter the first administrator account for this Woodstar server.</CardDescription>
+          <CardDescription>First administrator.</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -58,9 +58,7 @@ export function SetupPage() {
                   placeholder="admin@example.com"
                   required
                 />
-                <FieldDescription>
-                  Use a generic or break-glass identity so an admin can always log in.
-                </FieldDescription>
+                <FieldDescription>Break-glass identity.</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="setup-name">Display name</FieldLabel>
@@ -77,7 +75,7 @@ export function SetupPage() {
                   minLength={12}
                   required
                 />
-                <FieldDescription>This first account cannot be deleted or converted to SSO later.</FieldDescription>
+                <FieldDescription>Cannot be deleted later.</FieldDescription>
               </Field>
 
               <Field>

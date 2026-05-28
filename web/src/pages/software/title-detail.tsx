@@ -153,7 +153,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
         {versions.length === 0 ? (
           <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">
             <p className="font-medium">No versions discovered</p>
-            <p className="text-muted-foreground">Hosts have reported the title but no concrete version yet.</p>
+            <p className="text-muted-foreground">Hosts have not reported a concrete version.</p>
           </div>
         ) : (
           <div className="rounded-md border">
@@ -180,7 +180,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
 function VersionRow({ version }: { version: SoftwareVersion }) {
   return (
     <TableRow>
-      <TableCell>{version.version || "-"}</TableCell>
+      <TableCell className="font-medium">{version.version || "-"}</TableCell>
       <TableCell className="text-right tabular-nums">
         <Link
           to="/hosts"

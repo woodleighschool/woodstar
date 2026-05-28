@@ -57,7 +57,7 @@ export function SantaEventsPage() {
       cell: ({ row }) => (
         <div className="grid gap-1">
           <span className="font-medium">{row.original.executable.file_name || row.original.executable.sha256}</span>
-          <span className="text-muted-foreground max-w-[34rem] truncate text-xs">
+          <span className="max-w-[34rem] truncate text-xs">
             {row.original.file_path || row.original.executable.sha256}
           </span>
         </div>
@@ -87,7 +87,7 @@ export function SantaEventsPage() {
       id: "executing_user",
       accessorKey: "executing_user",
       header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.executing_user || "-"}</span>,
+      cell: ({ row }) => row.original.executing_user || "-",
     },
     {
       id: "occurred_at",
@@ -95,22 +95,18 @@ export function SantaEventsPage() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="When" />,
       cell: ({ row }) => {
         const timestamp = row.original.occurred_at ?? row.original.ingested_at;
-        return (
-          <span className="text-muted-foreground" title={new Date(timestamp).toLocaleString()}>
-            {formatRelative(timestamp)}
-          </span>
-        );
+        return <span title={new Date(timestamp).toLocaleString()}>{formatRelative(timestamp)}</span>;
       },
     },
   ];
 
   return (
     <PageShell>
-      <PageHeader title="Santa events" description="Recent execution events uploaded by Santa clients." />
+      <PageHeader title="Events" />
 
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load Santa events</AlertTitle>
+          <AlertTitle>Failed to load events</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -125,7 +121,7 @@ export function SantaEventsPage() {
           isLoading={query.isLoading}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search Santa events" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search events" />
               <DataTableFacetedFilter
                 title="Decision"
                 options={[...DECISION_FILTERS]}
@@ -139,9 +135,7 @@ export function SantaEventsPage() {
               icon={<Activity />}
               title={hasFilters ? "No matches" : "No execution events"}
               description={
-                hasFilters
-                  ? "No Santa execution events matched these filters."
-                  : "Client allow/block decisions appear here after Santa uploads them."
+                hasFilters ? "No events matched these filters." : "Client decisions appear after Santa syncs."
               }
             />
           }
@@ -155,6 +149,6 @@ function DecisionBadge({ decision }: { decision: string }) {
   const blocked = decision.startsWith("block_");
   const allowed = decision.startsWith("allow_");
   return (
-    <Badge variant={blocked ? "destructive" : allowed ? "secondary" : "outline"}>{decision.replaceAll("_", " ")}</Badge>
+    <Badge variant={blocked ? "destructive" : allowed ? "success" : "secondary"}>{decision.replaceAll("_", " ")}</Badge>
   );
 }

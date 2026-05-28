@@ -144,10 +144,10 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
               <TableBody>
                 {users.map((u) => (
                   <TableRow key={u.uid || u.username}>
-                    <TableCell>{u.username}</TableCell>
-                    <TableCell className="text-muted-foreground">{u.type || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{u.directory || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{u.shell || "-"}</TableCell>
+                    <TableCell className="font-medium">{u.username}</TableCell>
+                    <TableCell>{u.type || "-"}</TableCell>
+                    <TableCell>{u.directory || "-"}</TableCell>
+                    <TableCell>{u.shell || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -213,7 +213,7 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     accessorFn: (certificate) => certificate.issuer.common_name,
     header: ({ column }) => <DataTableColumnHeader column={column} title="Issuer" />,
     cell: ({ row }) => (
-      <span className="text-muted-foreground block max-w-[360px] truncate" title={row.original.issuer.common_name}>
+      <span className="block max-w-[360px] truncate" title={row.original.issuer.common_name}>
         {row.original.issuer.common_name || "-"}
       </span>
     ),
@@ -227,7 +227,7 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     accessorFn: (certificate) => certificateKeychain(certificate),
     header: ({ column }) => <DataTableColumnHeader column={column} title="Keychain" />,
     cell: ({ row }) => (
-      <span className="text-muted-foreground" title={row.original.username !== "" ? row.original.username : undefined}>
+      <span title={row.original.username !== "" ? row.original.username : undefined}>
         {certificateKeychain(row.original)}
       </span>
     ),
@@ -242,11 +242,11 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Issued" />,
     cell: ({ row }) =>
       row.original.not_valid_before ? (
-        <span className="text-muted-foreground" title={new Date(row.original.not_valid_before).toLocaleString()}>
+        <span title={new Date(row.original.not_valid_before).toLocaleString()}>
           {formatDate(row.original.not_valid_before)}
         </span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span>-</span>
       ),
     meta: {
       cellClassName: "py-1.5",
@@ -259,11 +259,11 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     header: ({ column }) => <DataTableColumnHeader column={column} title="Expires" />,
     cell: ({ row }) =>
       row.original.not_valid_after ? (
-        <span className="text-muted-foreground" title={new Date(row.original.not_valid_after).toLocaleString()}>
+        <span title={new Date(row.original.not_valid_after).toLocaleString()}>
           {formatDate(row.original.not_valid_after)}
         </span>
       ) : (
-        <span className="text-muted-foreground">-</span>
+        <span>-</span>
       ),
     meta: {
       cellClassName: "py-1.5",

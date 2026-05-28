@@ -63,7 +63,7 @@ export function DataTableBodyRow<TData>({
       {row.getVisibleCells().map((cell, i) => (
         <TableCell
           key={cell.id}
-          className={cn(cell.column.columnDef.meta?.cellClassName, i === firstDataIndex && linkProps && "font-medium")}
+          className={cn(cell.column.columnDef.meta?.cellClassName, i === firstDataIndex && "font-medium")}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </TableCell>

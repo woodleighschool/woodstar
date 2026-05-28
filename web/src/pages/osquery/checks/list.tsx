@@ -62,7 +62,6 @@ export function ChecksPage() {
     <PageShell>
       <PageHeader
         title="Checks"
-        description="Detect device health issues and track which hosts need attention."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/checks/new">
@@ -106,9 +105,7 @@ export function ChecksPage() {
             <DataTableEmptyState
               icon={<ShieldCheck />}
               title={hasFilters ? "No matches" : "No health checks"}
-              description={
-                hasFilters ? "Try clearing the filters." : "Create a check from SQL to track pass/fail host health."
-              }
+              description={hasFilters ? "Try clearing the filters." : "Create a check from SQL."}
             />
           }
         />

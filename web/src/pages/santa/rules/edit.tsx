@@ -188,12 +188,17 @@ function RuleForm({
           void submit();
         }}
       >
-        <PageHeader
-          title={mode === "create" ? "New Santa rule" : "Edit Santa rule"}
-          description="Define the Santa rule identity, policy targets, and user-facing block text."
-        />
+        <PageHeader title={mode === "create" ? "New rule" : "Edit rule"} />
 
         <FieldGroup className="max-w-5xl">
+          <Field>
+            <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
+            <Input
+              id="santa-rule-name"
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </Field>
           <Field>
             <FieldLabel htmlFor="santa-rule-type">Rule type</FieldLabel>
             <Select
@@ -226,14 +231,6 @@ function RuleForm({
             <FieldDescription>{identifierError ?? ruleIdentifierHint(form.rule_type)}</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
-            <Input
-              id="santa-rule-name"
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-          </Field>
-          <Field>
             <FieldLabel htmlFor="santa-rule-custom-url">Custom URL</FieldLabel>
             <Input
               id="santa-rule-custom-url"
@@ -253,15 +250,12 @@ function RuleForm({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-sm font-medium">Assignments</h2>
-              <p className="text-muted-foreground text-sm">
-                Include labels make this rule effective; exclude labels suppress matching assignments.
-              </p>
             </div>
             <Field>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <FieldLabel>Include</FieldLabel>
-                  <FieldDescription>Rules without include assignments are saved but not effective.</FieldDescription>
+                  <FieldDescription>Labels where this rule applies.</FieldDescription>
                 </div>
                 <Button
                   type="button"
@@ -306,9 +300,7 @@ function RuleForm({
                 unavailableLabelIDs={includeLabelIDs}
                 onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
               />
-              <FieldDescription>
-                Hosts in these labels are excluded even when an include assignment matches.
-              </FieldDescription>
+              <FieldDescription>Labels excluded from this rule.</FieldDescription>
             </Field>
           </div>
         </FieldGroup>

@@ -65,10 +65,10 @@ export function HostsListPage() {
     {
       id: "display_name",
       accessorFn: (row) => row.display_name || row.hardware_uuid,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
       cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
       enableHiding: false,
-      meta: { label: "Host" },
+      meta: { label: "Name" },
     },
     {
       id: "status",
@@ -81,21 +81,21 @@ export function HostsListPage() {
       id: "os_version",
       accessorKey: "os_version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="OS" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.os_version || "-"}</span>,
+      cell: ({ row }) => row.original.os_version || "-",
       meta: { label: "OS" },
     },
     {
       id: "hardware_model",
       accessorKey: "hardware_model",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_model || "-"}</span>,
+      cell: ({ row }) => row.original.hardware_model || "-",
       meta: { label: "Model" },
     },
     {
       id: "hardware_serial",
       accessorKey: "hardware_serial",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.hardware_serial || "-"}</span>,
+      cell: ({ row }) => row.original.hardware_serial || "-",
       meta: { label: "Serial" },
     },
     {
@@ -103,7 +103,7 @@ export function HostsListPage() {
       accessorKey: "disk_space_available_bytes",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Disk free" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground tabular-nums">
+        <span className="tabular-nums">
           {row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-"}
         </span>
       ),
@@ -116,7 +116,7 @@ export function HostsListPage() {
       cell: ({ row }) => {
         const email = row.original.device_mappings?.[0]?.email ?? "";
         return (
-          <span className="text-muted-foreground block max-w-[16rem] truncate" title={email || ""}>
+          <span className="block max-w-[16rem] truncate" title={email || ""}>
             {email || "-"}
           </span>
         );
@@ -128,10 +128,7 @@ export function HostsListPage() {
       accessorKey: "last_seen_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last seen" />,
       cell: ({ row }) => (
-        <span
-          className="text-muted-foreground"
-          title={row.original.last_seen_at ? new Date(row.original.last_seen_at).toLocaleString() : ""}
-        >
+        <span title={row.original.last_seen_at ? new Date(row.original.last_seen_at).toLocaleString() : ""}>
           {formatRelative(row.original.last_seen_at)}
         </span>
       ),
@@ -141,23 +138,21 @@ export function HostsListPage() {
       id: "hardware_uuid",
       accessorKey: "hardware_uuid",
       header: ({ column }) => <DataTableColumnHeader column={column} title="UUID" />,
-      cell: ({ row }) => (
-        <span className="text-muted-foreground font-mono text-xs">{row.original.hardware_uuid || "-"}</span>
-      ),
+      cell: ({ row }) => <span className="font-mono text-xs">{row.original.hardware_uuid || "-"}</span>,
       meta: { label: "UUID" },
     },
     {
       id: "primary_ip",
       accessorKey: "primary_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Private IP" />,
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.primary_ip ?? "-"}</span>,
+      cell: ({ row }) => <span className="tabular-nums">{row.original.primary_ip ?? "-"}</span>,
       meta: { label: "Private IP" },
     },
     {
       id: "public_ip",
       accessorKey: "public_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Public IP" />,
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.public_ip ?? "-"}</span>,
+      cell: ({ row }) => <span className="tabular-nums">{row.original.public_ip ?? "-"}</span>,
       meta: { label: "Public IP" },
     },
     {
@@ -165,7 +160,7 @@ export function HostsListPage() {
       accessorKey: "physical_memory",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Memory" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground tabular-nums">
+        <span className="tabular-nums">
           {row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"}
         </span>
       ),
@@ -175,7 +170,7 @@ export function HostsListPage() {
       id: "osquery_version",
       accessorKey: "osquery_version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="osquery" />,
-      cell: ({ row }) => <span className="text-muted-foreground">{row.original.osquery_version || "-"}</span>,
+      cell: ({ row }) => row.original.osquery_version || "-",
       meta: { label: "osquery version" },
     },
     {
@@ -183,10 +178,7 @@ export function HostsListPage() {
       accessorKey: "last_restarted_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last restarted" />,
       cell: ({ row }) => (
-        <span
-          className="text-muted-foreground"
-          title={row.original.last_restarted_at ? new Date(row.original.last_restarted_at).toLocaleString() : ""}
-        >
+        <span title={row.original.last_restarted_at ? new Date(row.original.last_restarted_at).toLocaleString() : ""}>
           {row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"}
         </span>
       ),
@@ -210,7 +202,6 @@ export function HostsListPage() {
     <PageShell>
       <PageHeader
         title="Hosts"
-        description="Inventory and status from enrolled hosts."
         actions={
           isSoftwareFiltered ? (
             <Button asChild variant="outline" size="sm">
@@ -266,10 +257,7 @@ export function HostsListPage() {
                 hasFilters ? (
                   "No hosts matched the current filters."
                 ) : (
-                  <>
-                    Create an Orbit enrollment, then point a managed host at this deployment.{" "}
-                    <Link to="/enrollments">Open enrollments</Link>.
-                  </>
+                  <>Create an Orbit enrollment, then install the package on a host.</>
                 )
               }
             />
@@ -284,7 +272,7 @@ export function HostsListPage() {
         }}
         count={selectedIDs.length}
         noun="host"
-        description="Deleted hosts will re-enroll if their agent can still use a valid Orbit enrollment."
+        description="Agents can re-enroll with a valid Orbit secret."
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedHosts}
       />
@@ -388,7 +376,7 @@ function SelectionCheck({ selected }: { selected: boolean }) {
 function HostStatusBadge({ host, now }: { host: Host; now: number }) {
   if (!host.last_seen_at) {
     return (
-      <Badge variant="outline" className="gap-1.5">
+      <Badge variant="secondary" className="gap-1.5">
         <span className="bg-status-offline size-2 rounded-full" />
         Offline
       </Badge>
@@ -397,7 +385,7 @@ function HostStatusBadge({ host, now }: { host: Host; now: number }) {
   const lastSeen = new Date(host.last_seen_at).getTime();
   const online = now - lastSeen <= 5 * 60 * 1000;
   return (
-    <Badge variant={online ? "default" : "outline"} className="gap-1.5">
+    <Badge variant={online ? "success" : "secondary"} className="gap-1.5">
       <span className={online ? "bg-status-online size-2 rounded-full" : "bg-status-offline size-2 rounded-full"} />
       {online ? "Online" : "Offline"}
     </Badge>

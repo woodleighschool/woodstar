@@ -199,13 +199,13 @@ function HostSantaTab({
                     <TableCell>
                       <div className="grid gap-1">
                         <span className="font-medium">{rule.identifier}</span>
-                        <span className="text-muted-foreground text-xs">{rule.rule_type}</span>
+                        <span className="text-xs">{rule.rule_type}</span>
                       </div>
                     </TableCell>
                     <TableCell>{rule.policy}</TableCell>
                     <TableCell>
-                      <Badge variant={!rule.applied ? "secondary" : "outline"}>
-                        {!rule.applied ? "pending" : "applied"}
+                      <Badge variant={!rule.applied ? "warning" : "success"}>
+                        {!rule.applied ? "Pending" : "Applied"}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -260,7 +260,7 @@ function HostReportsTab({ hostId, hostParam }: { hostId: number | null; hostPara
           row.original.last_fetched ? (
             <span className="tabular-nums">{formatRelative(row.original.last_fetched)}</span>
           ) : (
-            <span className="text-muted-foreground">Collecting results</span>
+            <span>Collecting results</span>
           ),
       },
       {
@@ -359,9 +359,7 @@ function HostChecksTab({ hostId }: { hostId: number | null }) {
               <TableCell>
                 <CheckStatusBadge response={row.response} />
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {row.updated_at ? formatRelative(row.updated_at) : "-"}
-              </TableCell>
+              <TableCell>{row.updated_at ? formatRelative(row.updated_at) : "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -427,7 +425,7 @@ function SoftwareTab({ hostId }: { hostId: number | null }) {
             : versions.length === 1
               ? versions[0].version || "-"
               : `${versions.length} versions`;
-        return <span className="text-muted-foreground tabular-nums">{label}</span>;
+        return <span className="tabular-nums">{label}</span>;
       },
     },
     {
@@ -435,9 +433,7 @@ function SoftwareTab({ hostId }: { hostId: number | null }) {
       accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground" title={row.original.source}>
-          {softwareSourceLabel(row.original.source, row.original.extension_for)}
-        </span>
+        <span title={row.original.source}>{softwareSourceLabel(row.original.source, row.original.extension_for)}</span>
       ),
     },
     {
@@ -447,7 +443,7 @@ function SoftwareTab({ hostId }: { hostId: number | null }) {
       cell: ({ row }) => {
         const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
         return (
-          <span className="text-muted-foreground" title={lastOpenedAt ? new Date(lastOpenedAt).toLocaleString() : ""}>
+          <span title={lastOpenedAt ? new Date(lastOpenedAt).toLocaleString() : ""}>
             {lastOpenedAt ? formatRelative(lastOpenedAt) : "-"}
           </span>
         );
@@ -478,7 +474,7 @@ function SoftwareTab({ hostId }: { hostId: number | null }) {
       cell: ({ row }) => {
         const paths = installedPathsFor(row.original.installed_versions ?? []);
         return (
-          <span className="text-muted-foreground font-mono text-xs" title={singleHash(paths)}>
+          <span className="font-mono text-xs" title={singleHash(paths)}>
             {truncateHash(singleHash(paths))}
           </span>
         );
@@ -576,11 +572,11 @@ function InstalledPathCell({
   paths: InstalledPath[];
 }) {
   if (paths.length === 0) {
-    return <span className="text-muted-foreground">-</span>;
+    return <span>-</span>;
   }
   if (paths.length === 1) {
     return (
-      <span className="text-muted-foreground block truncate" title={paths[0].path}>
+      <span className="block truncate" title={paths[0].path}>
         {paths[0].path}
       </span>
     );

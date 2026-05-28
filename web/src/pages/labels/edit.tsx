@@ -231,10 +231,7 @@ function LabelEditForm({
           void submit();
         }}
       >
-        <PageHeader
-          title={mode === "create" ? "New label" : "Edit label"}
-          description="Labels group hosts for filtering, reports, checks, and future Santa/Munki targeting."
-        />
+        <PageHeader title={mode === "create" ? "New label" : "Edit label"} />
 
         <FieldGroup className="max-w-5xl">
           <Field>
@@ -252,7 +249,7 @@ function LabelEditForm({
             <Textarea
               id="label-description"
               rows={3}
-              placeholder="Optional. Tell admins why this label exists."
+              placeholder="Why this label exists"
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
@@ -284,7 +281,6 @@ function LabelEditForm({
             <Field data-invalid={showErrors && errors.host_ids ? true : undefined}>
               <FieldLabel>Hosts</FieldLabel>
               <HostSelector value={form.host_ids} onChange={(host_ids) => setForm({ ...form, host_ids })} />
-              <FieldDescription>Leave empty to create a manual label with no hosts yet.</FieldDescription>
               {showErrors && errors.host_ids ? <FieldError>{errors.host_ids}</FieldError> : null}
             </Field>
           ) : null}
@@ -320,9 +316,7 @@ function LabelEditForm({
                   value={form.derived_values}
                   onChange={(derived_values) => setForm({ ...form, derived_values })}
                 />
-                <FieldDescription>
-                  Hosts match when their linked directory record matches any selected item.
-                </FieldDescription>
+                <FieldDescription>Matches linked directory records.</FieldDescription>
                 {showErrors && errors.derived_values ? <FieldError>{errors.derived_values}</FieldError> : null}
               </Field>
             </FieldGroup>

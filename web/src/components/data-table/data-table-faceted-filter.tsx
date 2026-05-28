@@ -49,19 +49,19 @@ export function DataTableFacetedFilter({
           {selectedSet.size > 0 ? (
             <>
               <Separator orientation="vertical" className="mx-1 h-4" />
-              <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
+              <Badge variant="secondary" className="px-1.5 font-normal lg:hidden">
                 {selectedSet.size}
               </Badge>
               <div className="hidden gap-1 lg:flex">
                 {selectedSet.size > 2 ? (
-                  <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                  <Badge variant="secondary" className="px-1.5 font-normal">
                     {selectedSet.size} selected
                   </Badge>
                 ) : (
                   options
                     .filter((o) => selectedSet.has(o.value))
                     .map((o) => (
-                      <Badge variant="secondary" key={o.value} className="rounded-sm px-1 font-normal">
+                      <Badge variant="secondary" key={o.value} className="px-1.5 font-normal">
                         {o.label}
                       </Badge>
                     ))

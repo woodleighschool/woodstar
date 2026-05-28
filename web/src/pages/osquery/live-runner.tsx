@@ -134,11 +134,7 @@ export function LiveRunner({
     <PageShell>
       <PageHeader
         title={title}
-        description={
-          step === "targets"
-            ? `Choose labels or individual hosts, then run this ${itemLabel} once against online hosts.`
-            : `Live ${itemLabel} results from this browser session.`
-        }
+        description={step === "targets" ? `Run this ${itemLabel} against online hosts.` : `Live ${itemLabel} results.`}
         actions={
           <>
             <ShowQueryButton sql={sql} />
@@ -472,7 +468,6 @@ function TargetPicker({
     <div className="grid content-start gap-5 rounded-md border p-4">
       <div>
         <h2 className="text-base font-semibold">Select targets</h2>
-        <p className="text-muted-foreground text-sm">Use system labels, custom labels, or exact hosts.</p>
       </div>
 
       <TargetSection title="" labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
@@ -505,7 +500,7 @@ function TargetPicker({
                 </button>
               ))
             ) : (
-              <div className="text-muted-foreground px-2 py-2 text-sm">No matching hosts.</div>
+              <div className="text-muted-foreground px-2 py-2 text-sm">No hosts found.</div>
             )}
           </div>
         ) : null}

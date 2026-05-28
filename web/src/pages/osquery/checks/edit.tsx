@@ -115,10 +115,7 @@ function CheckEditForm({
           void submit();
         }}
       >
-        <PageHeader
-          title={mode === "create" ? "New check" : "Edit check"}
-          description="Checks pass when their SQL returns rows and fail when it returns none."
-        />
+        <PageHeader title={mode === "create" ? "New check" : "Edit check"} />
         <FieldGroup className="max-w-3xl">
           <Field>
             <FieldLabel htmlFor="check-name">Name</FieldLabel>
@@ -135,7 +132,7 @@ function CheckEditForm({
             <Textarea
               id="check-description"
               rows={3}
-              placeholder="How does this check's failure put the organization at risk?"
+              placeholder="What failure means"
               value={form.description ?? ""}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />

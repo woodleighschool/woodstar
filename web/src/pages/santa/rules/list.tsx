@@ -59,13 +59,13 @@ export function SantaRulesPage() {
       id: "rule_type",
       accessorKey: "rule_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
-      cell: ({ row }) => <Badge variant="secondary">{ruleTypeLabel(row.original.rule_type)}</Badge>,
+      cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
     },
     {
       id: "identifier",
       accessorKey: "identifier",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.identifier}</span>,
+      cell: ({ row }) => row.original.identifier,
     },
     {
       id: "includes",
@@ -73,11 +73,11 @@ export function SantaRulesPage() {
       enableSorting: false,
       cell: ({ row }) =>
         row.original.includes?.length ? (
-          <span className="text-muted-foreground text-sm tabular-nums">
+          <span className="text-sm tabular-nums">
             {row.original.includes.length} include{row.original.includes.length === 1 ? "" : "s"}
           </span>
         ) : (
-          <Badge variant="outline">inactive</Badge>
+          <Badge variant="secondary">Inactive</Badge>
         ),
     },
   ];
@@ -85,8 +85,7 @@ export function SantaRulesPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Santa rules"
-        description="Manage execution rules and ordered include targets."
+        title="Rules"
         actions={
           <Button asChild size="sm">
             <Link to="/santa/rules/new">
@@ -147,11 +146,7 @@ export function SantaRulesPage() {
             <DataTableEmptyState
               icon={<ListChecks />}
               title={hasFilters ? "No matches" : "No execution rules"}
-              description={
-                hasFilters
-                  ? "No Santa rules matched the current filters."
-                  : "Create a Santa rule, then attach it to one or more label targets."
-              }
+              description={hasFilters ? "No rules matched these filters." : "Create a rule, then attach label targets."}
             />
           }
         />
@@ -165,7 +160,7 @@ export function SantaRulesPage() {
         }}
         count={selectedIDs.length}
         noun="rule"
-        description="Deleted rules stop syncing to Santa clients."
+        description="Deleted rules stop syncing."
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedRules}
       />

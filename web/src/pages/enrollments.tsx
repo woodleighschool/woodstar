@@ -32,6 +32,7 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useAgentSecrets,
   useCreateAgentSecret,
@@ -95,7 +96,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
             command={orbitPackageCommand(serverURL)}
             copyLabel="Copy package command"
             link={{ href: FLEETCTL_INSTALL_URL, label: "Install fleetctl" }}
-            notes={["The example builds a macOS pkg; change --type for another package format."]}
+            notes={["macOS pkg example; change --type for another format."]}
           />
         ) : (
           <EnrollmentInstructions
@@ -103,7 +104,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
             extensions={xmlExtensions}
             copyLabel="Copy profile template"
             multiline
-            notes={["Santa must send protobuf over gzip."]}
+            notes={["Requires protobuf over gzip."]}
           />
         )}
         <SecretTable
@@ -132,7 +133,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
         <SecretValueDialog
           key={`create-${creating.integration}-${creating.value}`}
           title={`New ${integrationLabel(creating.integration)} secret`}
-          description="Review the generated enrollment secret before saving it."
+          description="Generated enrollment secret."
           initialValue={creating.value}
           open
           pending={create.isPending}
@@ -155,7 +156,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
         <SecretValueDialog
           key={editing.id}
           title={`Edit ${integrationLabel(editing.agent)} secret`}
-          description="Update the shared enrollment secret accepted by this integration."
+          description="Shared enrollment secret."
           initialValue={editing.value}
           open
           pending={update.isPending}
@@ -304,9 +305,14 @@ function IconAction({
   children: ReactNode;
 }) {
   return (
-    <Button type="button" size="icon" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
-      {children}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button type="button" size="icon" variant="ghost" aria-label={label} disabled={disabled} onClick={onClick}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -353,7 +359,7 @@ function SecretTable({
     {
       id: "value",
       accessorKey: "value",
-      header: "Secrets",
+      header: "Secret",
       cell: ({ row }) => {
         const visible = Boolean(visibleSecrets[row.original.id]);
         return (

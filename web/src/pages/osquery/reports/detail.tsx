@@ -75,9 +75,6 @@ export function ReportDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">Results</h2>
-            <p className="text-muted-foreground text-sm">
-              Stored snapshot results by host, flattened into query columns.
-            </p>
           </div>
           <ExportButton disabled={!hasResults} onClick={() => exportReport(report.data.name, rows)} />
         </div>
