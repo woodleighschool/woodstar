@@ -5,6 +5,13 @@ import (
 	"runtime"
 )
 
-const Version = "0.0.0"
+var (
+	Version   = "0.0.0-dev"
+	Commit    = ""
+	Date      = ""
+	UserAgent = ""
+)
 
-var UserAgent = fmt.Sprintf("woodstar/%s (%s %s)", Version, runtime.GOOS, runtime.GOARCH)
+func init() {
+	UserAgent = fmt.Sprintf("woodstar/%s (%s %s)", Version, runtime.GOOS, runtime.GOARCH)
+}

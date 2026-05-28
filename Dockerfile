@@ -13,6 +13,9 @@ FROM golang:1.26 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
+ARG VERSION=0.0.0-dev
+ARG COMMIT=
+ARG DATE=
 
 WORKDIR /workspace
 COPY go.mod go.sum ./
@@ -24,7 +27,7 @@ COPY web/ web/
 COPY --from=web /workspace/web/dist web/dist
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags "-s -w" -o woodstar ./cmd/woodstar
+    go build -trimpath -ldflags "-s -w -X github.com/woodleighschool/woodstar/internal/buildinfo.Version=${VERSION} -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit=${COMMIT} -X github.com/woodleighschool/woodstar/internal/buildinfo.Date=${DATE}" -o woodstar ./cmd/woodstar
 
 FROM gcr.io/distroless/static:nonroot
 
