@@ -112,7 +112,7 @@ export function SantaConfigurationsPage() {
             header: () => null,
             enableSorting: false,
             enableHiding: false,
-            cell: () => <DataTableRowDragHandle label="Reorder configuration" />,
+            cell: () => <DataTableRowDragHandle />,
             meta: { headClassName: "w-10", cellClassName: "w-10" },
           },
         ] satisfies ColumnDef<SantaConfiguration>[])
@@ -133,7 +133,7 @@ export function SantaConfigurationsPage() {
     {
       id: "client_mode",
       accessorKey: "client_mode",
-      header: "Client mode",
+      header: "Client Mode",
       enableSorting: false,
       cell: ({ row }) => clientModeLabel(row.original.client_mode),
     },
@@ -171,7 +171,7 @@ export function SantaConfigurationsPage() {
                 disabled={reorderEnabled || !canEnableReorder}
                 onClick={() => setReorderWarningOpen(true)}
               >
-                Edit order
+                Edit Order
               </Button>
               {reorderEnabled ? (
                 <>
@@ -205,7 +205,7 @@ export function SantaConfigurationsPage() {
 
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load configurations</AlertTitle>
+          <AlertTitle>Failed to Load Configurations</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : reorderEnabled ? (
@@ -255,7 +255,7 @@ export function SantaConfigurationsPage() {
           })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search configurations" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
             </div>
           }
           empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
@@ -283,7 +283,7 @@ function ConfigurationsEmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <DataTableEmptyState
       icon={<FileSliders />}
-      title={hasFilters ? "No matches" : "No client configurations"}
+      title={hasFilters ? "No Matches" : "No Client Configurations"}
       description={
         hasFilters ? "No configurations matched the current filters." : "Create a configuration for Santa clients."
       }
@@ -304,7 +304,7 @@ function ReorderWarningDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Reorder configurations?</AlertDialogTitle>
+          <AlertDialogTitle>Reorder Configurations?</AlertDialogTitle>
           <AlertDialogDescription>
             Santa uses the first matching configuration for each host. Reordering can change client behavior
             immediately, so make sure you know what you&apos;re doing before continuing.

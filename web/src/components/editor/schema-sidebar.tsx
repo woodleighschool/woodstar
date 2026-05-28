@@ -30,8 +30,6 @@ export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSide
     <TooltipProvider delayDuration={150}>
       <button
         type="button"
-        aria-label={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
-        aria-expanded={open}
         title={open ? "Collapse schema sidebar" : "Expand schema sidebar"}
         onClick={() => onOpenChange(!open)}
         className={cn(
@@ -79,7 +77,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
 
       <div className="flex-1 overflow-y-auto">
         {schema.isLoading ? (
-          <div className="text-muted-foreground p-4 text-sm">Loading schema…</div>
+          <div className="text-muted-foreground p-4 text-sm">Loading Schema…</div>
         ) : schema.error ? (
           <div className="text-muted-foreground p-4 text-sm">Schema unavailable</div>
         ) : table ? (
@@ -112,9 +110,9 @@ function TableSelector({
         if (tableNames.includes(next)) onChange(next);
       }}
     >
-      <ComboboxInput placeholder="Select a table" className="w-full text-sm" />
+      <ComboboxInput placeholder="Select a Table" className="w-full text-sm" />
       <ComboboxContent>
-        <ComboboxEmpty>No tables found.</ComboboxEmpty>
+        <ComboboxEmpty>No Tables Found.</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
             <ComboboxItem key={item} value={item} className="text-sm">

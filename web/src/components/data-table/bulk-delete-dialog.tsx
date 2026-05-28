@@ -35,7 +35,7 @@ export function BulkDeleteDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Delete {count} selected {label}?
+            Delete {count} Selected {label}?
           </AlertDialogTitle>
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>

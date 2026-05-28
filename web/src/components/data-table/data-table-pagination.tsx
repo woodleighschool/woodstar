@@ -25,11 +25,11 @@ export function DataTablePagination<TData>({
   return (
     <div className="flex flex-col-reverse items-center justify-between gap-3 px-3 py-2 sm:flex-row">
       <div className="text-muted-foreground text-xs tabular-nums">
-        {totalCount === 0 ? "No results" : `${fromIndex}–${toIndex} of ${totalCount}`}
+        {totalCount === 0 ? "No Results" : `${fromIndex}–${toIndex} of ${totalCount}`}
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Rows per page</span>
+          <span className="text-muted-foreground">Rows per Page</span>
           <Select value={String(pageSize)} onValueChange={(value) => table.setPageSize(Number(value))}>
             <SelectTrigger size="sm" className="w-[76px]">
               <SelectValue />

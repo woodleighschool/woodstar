@@ -22,7 +22,7 @@ export function HostReportResultsPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load report results</AlertTitle>
+          <AlertTitle>Failed to Load Report Results</AlertTitle>
           <AlertDescription>{report.error?.message ?? results.error?.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -32,7 +32,7 @@ export function HostReportResultsPage() {
   if (!report.data || results.isLoading) {
     return (
       <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading report results...
+        <Loader2 className="size-4 animate-spin" /> Loading Report Results...
       </PageShell>
     );
   }
@@ -90,7 +90,7 @@ export function HostReportResultsPage() {
         empty={
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>{results.data?.last_fetched ? "Nothing to report" : "Collecting results"}</EmptyTitle>
+              <EmptyTitle>{results.data?.last_fetched ? "Nothing to Report" : "Collecting Results"}</EmptyTitle>
               <EmptyDescription>
                 {results.data?.last_fetched
                   ? "This report ran on the host but returned no rows."

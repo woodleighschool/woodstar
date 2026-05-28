@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-import { integrationLabel, type Integration } from "./types";
+import type { Integration } from "./types";
 
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
 const MDM_EMAIL_PLACEHOLDER = "REPLACE_WITH_MDM_USER_EMAIL";
@@ -27,7 +27,7 @@ export function DeploymentInstructions({ integration, publicURL }: { integration
 
 function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
-    <section className="grid gap-6" aria-label={`${integrationLabel("orbit")} deployment instructions`}>
+    <section className="grid gap-6">
       <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
         <p>
           Build one Orbit package and reuse it. Put the Woodstar URL, enroll secret, and MDM user value in the
@@ -36,26 +36,24 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
       </div>
 
       <DeploymentArtifact
-        title="Orbit package"
+        title="Orbit Package"
         description="fleetctl produces an Orbit package for software distribution. It does not embed the Woodstar URL or enroll secret."
         value={orbitPackageCommand()}
-        copyLabel="Copy package command"
         action={
           <Button type="button" variant="outline" size="sm" asChild>
             <a href={FLEETCTL_INSTALL_URL} target="_blank" rel="noreferrer">
               <ExternalLink data-icon="inline-start" />
-              Install fleetctl
+              Install Fleetctl
             </a>
           </Button>
         }
       />
 
       <DeploymentArtifact
-        title="Configuration profile"
+        title="Configuration Profile"
         description={`The profile points Orbit at Woodstar, supplies the enroll secret, and maps the assigned user. Replace ${MDM_EMAIL_PLACEHOLDER} with the variable your MDM expands.`}
         value={orbitProfileTemplate(publicURL)}
         extensions={xmlExtensions}
-        copyLabel="Copy profile template"
         multiline
       />
     </section>
@@ -64,17 +62,16 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 
 function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
-    <section className="grid gap-6" aria-label={`${integrationLabel("santa")} deployment instructions`}>
+    <section className="grid gap-6">
       <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
         <p>Deploy Santa with a configuration profile that points sync at Woodstar and sends a bearer enroll secret.</p>
       </div>
 
       <DeploymentArtifact
-        title="Santa configuration profile"
+        title="Santa Configuration Profile"
         description="Replace the bearer secret with an active Santa enrollment secret before deployment."
         value={santaProfileTemplate(publicURL)}
         extensions={xmlExtensions}
-        copyLabel="Copy profile template"
         multiline
       />
     </section>
@@ -85,7 +82,6 @@ function DeploymentArtifact({
   title,
   description,
   value,
-  copyLabel,
   extensions,
   multiline = false,
   action,
@@ -93,7 +89,6 @@ function DeploymentArtifact({
   title: string;
   description: string;
   value: string;
-  copyLabel: string;
   extensions?: Extension[];
   multiline?: boolean;
   action?: ReactNode;
@@ -101,7 +96,7 @@ function DeploymentArtifact({
   const titleID = deploymentArtifactTitleID(title);
 
   return (
-    <Card className="grid min-w-0 gap-3 rounded-lg p-4" aria-labelledby={titleID}>
+    <Card className="grid min-w-0 gap-3 rounded-lg p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
           <h2 id={titleID} className="text-base font-medium">
@@ -111,19 +106,17 @@ function DeploymentArtifact({
         </div>
         {action}
       </div>
-      <CopyableExample value={value} label={copyLabel} extensions={extensions} multiline={multiline} />
+      <CopyableExample value={value} extensions={extensions} multiline={multiline} />
     </Card>
   );
 }
 
 function CopyableExample({
   value,
-  label,
   extensions,
   multiline = false,
 }: {
   value: string;
-  label: string;
   extensions?: Extension[];
   multiline?: boolean;
 }) {
@@ -140,7 +133,7 @@ function CopyableExample({
   }
 
   return (
-    <div className="relative min-w-0" aria-label="Deployment example">
+    <div className="relative min-w-0">
       <CodeEditor
         value={value}
         onChange={() => null}
@@ -161,7 +154,6 @@ function CopyableExample({
         variant="ghost"
         size="icon-sm"
         className="absolute right-1 top-1"
-        aria-label={label}
         onClick={() => void copy()}
       >
         {copied ? <Check /> : <Copy />}
@@ -191,7 +183,7 @@ function orbitProfileTemplate(publicURL: string | undefined) {
       <key>FleetURL</key>
       <string>${publicURL ?? PUBLIC_URL_PLACEHOLDER}</string>
       <key>PayloadDisplayName</key>
-      <string>Fleetd configuration</string>
+      <string>Fleetd Configuration</string>
       <key>PayloadIdentifier</key>
       <string>com.fleetdm.fleetd.config</string>
       <key>PayloadType</key>
@@ -205,7 +197,7 @@ function orbitProfileTemplate(publicURL: string | undefined) {
       <key>EndUserEmail</key>
       <string>${MDM_EMAIL_PLACEHOLDER}</string>
       <key>PayloadDisplayName</key>
-      <string>MDM user mapping</string>
+      <string>MDM User Mapping</string>
       <key>PayloadIdentifier</key>
       <string>com.fleetdm.fleet.mdm.apple.mdm</string>
       <key>PayloadType</key>

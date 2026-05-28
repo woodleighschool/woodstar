@@ -45,7 +45,7 @@ interface ConfigurationFormState {
 }
 
 const MEDIA_ACTION_OPTIONS: { value: MediaAction; label: string }[] = [
-  { value: "none", label: "No policy" },
+  { value: "none", label: "No Policy" },
   { value: "allow", label: "Allow" },
   { value: "block", label: "Block" },
   { value: "remount", label: "Remount" },
@@ -98,7 +98,7 @@ export function SantaConfigurationEditPage({ mode }: { mode: "create" | "edit" }
       return (
         <PageShell>
           <Alert variant="destructive">
-            <AlertTitle>Failed to load configuration</AlertTitle>
+            <AlertTitle>Failed to Load Configuration</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
         </PageShell>
@@ -107,7 +107,7 @@ export function SantaConfigurationEditPage({ mode }: { mode: "create" | "edit" }
     if (!detail.data) {
       return (
         <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-          <Loader2 className="animate-spin" /> Loading configuration...
+          <Loader2 className="animate-spin" /> Loading Configuration...
         </PageShell>
       );
     }
@@ -173,7 +173,7 @@ function ConfigurationForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New configuration" : "Edit configuration"} />
+        <PageHeader title={mode === "create" ? "New Configuration" : "Edit Configuration"} />
 
         <FieldGroup className="max-w-4xl">
           <Field>
@@ -186,7 +186,7 @@ function ConfigurationForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-client-mode">Client mode</FieldLabel>
+            <FieldLabel htmlFor="santa-client-mode">Client Mode</FieldLabel>
             <Select
               value={form.client_mode}
               onValueChange={(client_mode) =>
@@ -220,20 +220,20 @@ function ConfigurationForm({
           />
           <BoolField
             id="santa-enable-transitive-rules"
-            label="Transitive rules"
+            label="Transitive Rules"
             description="Allow compiled binaries to inherit allowlists."
             value={form.enable_transitive_rules}
             onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
           />
           <BoolField
             id="santa-upload-all-events"
-            label="Upload all events"
+            label="Upload All Events"
             description="Include explicitly allowed executions."
             value={form.enable_all_event_upload}
             onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
           />
           <Field>
-            <FieldLabel htmlFor="santa-full-sync-interval">Full sync interval</FieldLabel>
+            <FieldLabel htmlFor="santa-full-sync-interval">Full Sync Interval</FieldLabel>
             <Input
               id="santa-full-sync-interval"
               type="number"
@@ -245,7 +245,7 @@ function ConfigurationForm({
             <FieldDescription>Clean sync cadence in seconds.</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-batch-size">Batch size</FieldLabel>
+            <FieldLabel htmlFor="santa-batch-size">Batch Size</FieldLabel>
             <Input
               id="santa-batch-size"
               type="number"
@@ -258,7 +258,7 @@ function ConfigurationForm({
             <FieldDescription>Rule rows per sync page.</FieldDescription>
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-allowed-path-regex">Allowed path regex</FieldLabel>
+            <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
             <Input
               id="santa-allowed-path-regex"
               value={form.allowed_path_regex}
@@ -266,7 +266,7 @@ function ConfigurationForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-blocked-path-regex">Blocked path regex</FieldLabel>
+            <FieldLabel htmlFor="santa-blocked-path-regex">Blocked Path Regex</FieldLabel>
             <Input
               id="santa-blocked-path-regex"
               value={form.blocked_path_regex}
@@ -274,7 +274,7 @@ function ConfigurationForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-event-detail-url">Event detail URL</FieldLabel>
+            <FieldLabel htmlFor="santa-event-detail-url">Event Detail URL</FieldLabel>
             <Input
               id="santa-event-detail-url"
               value={form.event_detail_url}
@@ -282,7 +282,7 @@ function ConfigurationForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-event-detail-text">Event detail text</FieldLabel>
+            <FieldLabel htmlFor="santa-event-detail-text">Event Detail Text</FieldLabel>
             <Input
               id="santa-event-detail-text"
               value={form.event_detail_text}
@@ -291,7 +291,7 @@ function ConfigurationForm({
           </Field>
           <MediaActionField
             id="santa-removable-media"
-            label="Removable media"
+            label="Removable Media"
             action={form.removable_media_action}
             flags={form.removable_media_remount_flags}
             flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
@@ -300,7 +300,7 @@ function ConfigurationForm({
           />
           <MediaActionField
             id="santa-encrypted-removable-media"
-            label="Encrypted removable media"
+            label="Encrypted Removable Media"
             action={form.encrypted_removable_media_action}
             flags={form.encrypted_removable_media_remount_flags}
             flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
@@ -314,7 +314,7 @@ function ConfigurationForm({
           <Field>
             <FieldLabel>Scope</FieldLabel>
             {configurations.isLoading ? (
-              <p className="text-muted-foreground text-sm">Loading configuration scope...</p>
+              <p className="text-muted-foreground text-sm">Loading Configuration Scope...</p>
             ) : configurations.error ? (
               <p className="text-destructive text-sm">{configurations.error.message}</p>
             ) : (
@@ -322,7 +322,7 @@ function ConfigurationForm({
                 value={form.label_ids}
                 includeBuiltins
                 unavailableLabelIDs={unavailableLabelIDs}
-                emptyPlaceholder="No unassigned labels"
+                emptyPlaceholder="No Unassigned Labels"
                 emptyMessage="All labels are already assigned to configurations."
                 onChange={(label_ids) => setForm({ ...form, label_ids })}
               />
@@ -408,7 +408,6 @@ function MediaActionField({
           id={`${id}-flags`}
           placeholder="remount flags"
           required
-          aria-invalid={flagsError ? true : undefined}
           value={flags}
           onChange={(event) => onFlagsChange(event.target.value)}
         />

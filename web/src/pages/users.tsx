@@ -34,6 +34,7 @@ export function UsersPage() {
     <PageShell>
       <PageHeader
         title="Users"
+        description="Manage local Woodstar accounts and access."
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus data-icon="inline-start" /> Create
@@ -68,7 +69,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
   if (query.error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load users</AlertTitle>
+        <AlertTitle>Failed to Load Users</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
         <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
           Retry
@@ -87,7 +88,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
 
   const data = query.data ?? [];
   if (data.length === 0) {
-    return <DataTableEmptyState icon={<Users />} title="No account access" description="Create a local account." />;
+    return <DataTableEmptyState icon={<Users />} title="No Account Access" description="Create a local account." />;
   }
 
   return (

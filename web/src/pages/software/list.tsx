@@ -79,11 +79,11 @@ export function SoftwarePage() {
 
   return (
     <PageShell>
-      <PageHeader title="Software" />
+      <PageHeader title="Software" description="Manage software and search for installed software and OS inventory." />
 
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load software</AlertTitle>
+          <AlertTitle>Failed to Load Software</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
@@ -111,7 +111,7 @@ export function SoftwarePage() {
           empty={
             <DataTableEmptyState
               icon={<Package />}
-              title={hasFilters ? "No matches" : "No observed software"}
+              title={hasFilters ? "No Matches" : "No Observed Software"}
               description={
                 hasFilters ? "No titles matched the current filters." : "Inventory appears after hosts refresh."
               }
@@ -133,7 +133,7 @@ interface SoftwareToolbarProps {
 function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange }: SoftwareToolbarProps) {
   return (
     <div className="flex items-center gap-2">
-      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" label="Search software" />
+      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" />
       <DataTableFacetedFilter
         title="Type"
         options={SOURCE_FILTER_OPTIONS}

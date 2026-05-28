@@ -38,7 +38,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete user</AlertDialogTitle>
+          <AlertDialogTitle>Delete User</AlertDialogTitle>
           <AlertDialogDescription>
             This permanently deletes the user. Their next request will sign them out automatically.
           </AlertDialogDescription>

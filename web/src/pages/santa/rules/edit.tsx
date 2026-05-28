@@ -36,9 +36,9 @@ import { RULE_IDENTIFIER_RULES, RULE_TYPES, type RuleType } from "./shared";
 
 const POLICIES = [
   { value: "allowlist", label: "Allowlist" },
-  { value: "allowlist_compiler", label: "Compiler allowlist" },
+  { value: "allowlist_compiler", label: "Compiler Allowlist" },
   { value: "blocklist", label: "Blocklist" },
-  { value: "silent_blocklist", label: "Silent blocklist" },
+  { value: "silent_blocklist", label: "Silent Blocklist" },
   { value: "cel", label: "CEL" },
 ] as const;
 
@@ -120,7 +120,7 @@ export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
       return (
         <PageShell>
           <Alert variant="destructive">
-            <AlertTitle>Failed to load rule</AlertTitle>
+            <AlertTitle>Failed to Load Rule</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
         </PageShell>
@@ -129,7 +129,7 @@ export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
     if (!detail.data) {
       return (
         <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-          <Loader2 className="animate-spin" /> Loading rule...
+          <Loader2 className="animate-spin" /> Loading Rule...
         </PageShell>
       );
     }
@@ -188,7 +188,7 @@ function RuleForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New rule" : "Edit rule"} />
+        <PageHeader title={mode === "create" ? "New Rule" : "Edit Rule"} />
 
         <FieldGroup className="max-w-5xl">
           <Field>
@@ -200,7 +200,7 @@ function RuleForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-rule-type">Rule type</FieldLabel>
+            <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
             <Select
               value={form.rule_type}
               onValueChange={(rule_type) => setForm({ ...form, rule_type: rule_type as RuleType })}
@@ -224,7 +224,6 @@ function RuleForm({
             <Input
               id="santa-rule-identifier"
               required
-              aria-invalid={identifierInvalid}
               value={form.identifier}
               onChange={(event) => setForm({ ...form, identifier: event.target.value })}
             />
@@ -239,7 +238,7 @@ function RuleForm({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="santa-rule-custom-message">Custom message</FieldLabel>
+            <FieldLabel htmlFor="santa-rule-custom-message">Custom Message</FieldLabel>
             <Textarea
               id="santa-rule-custom-message"
               rows={3}
@@ -272,12 +271,12 @@ function RuleForm({
                   }
                 >
                   <Plus data-icon="inline-start" />
-                  Add include
+                  Add Include
                 </Button>
               </div>
               {form.includes.length === 0 ? (
                 <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
-                  No include assignments.
+                  No Include Assignments.
                 </div>
               ) : (
                 <IncludeTargetsTable
@@ -356,7 +355,7 @@ function IncludeTargetsTable({
         header: () => null,
         enableSorting: false,
         enableHiding: false,
-        cell: () => <DataTableRowDragHandle label="Reorder include target" />,
+        cell: () => <DataTableRowDragHandle />,
         meta: { headClassName: "w-10", cellClassName: "w-10 align-top pt-3" },
       },
       {
@@ -365,14 +364,11 @@ function IncludeTargetsTable({
         enableSorting: false,
         cell: ({ row }) => {
           const hasExpression = row.original.cel_expression.trim() !== "";
-          const celLabel = hasExpression ? "Edit CEL expression" : "Add CEL expression";
+          const celLabel = hasExpression ? "Edit CEL Expression" : "Add CEL Expression";
           const celInvalid = row.original.policy === "cel" && !hasExpression;
 
           return (
             <Field className="min-w-56 gap-1">
-              <FieldLabel className="sr-only" htmlFor={`include-policy-${row.original.id}`}>
-                Policy
-              </FieldLabel>
               <div className="flex items-center gap-2">
                 <Select
                   value={row.original.policy}
@@ -404,8 +400,6 @@ function IncludeTargetsTable({
                         type="button"
                         variant={celInvalid ? "destructive" : "outline"}
                         size="icon-sm"
-                        aria-label={celLabel}
-                        aria-invalid={celInvalid}
                         onClick={() => onEditCEL(row.original.id)}
                       >
                         <Code2 />
@@ -429,17 +423,15 @@ function IncludeTargetsTable({
 
           return (
             <Field data-invalid={error ? true : undefined} className="min-w-72 gap-1">
-              <FieldLabel className="sr-only">Label</FieldLabel>
               <LabelPicker
                 value={row.original.label_id === null ? [] : [row.original.label_id]}
                 selectionMode="single"
                 includeBuiltins
                 required
-                invalid={error ? true : false}
                 unavailableLabelIDs={unavailableLabelIDs}
-                placeholder="Select label"
-                emptyMessage="No unused labels available."
-                emptyPlaceholder="No unused labels"
+                placeholder="Select Label"
+                emptyMessage="No Unused Labels Available."
+                emptyPlaceholder="No Unused Labels"
                 onChange={(label_ids) => onUpdate(row.original.id, { label_id: label_ids[0] ?? null })}
               />
             </Field>
@@ -452,13 +444,7 @@ function IncludeTargetsTable({
         enableSorting: false,
         enableHiding: false,
         cell: ({ row }) => (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Delete include assignment"
-            onClick={() => onDelete(row.original.id)}
-          >
+          <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(row.original.id)}>
             <Trash2 />
           </Button>
         ),
@@ -481,7 +467,7 @@ function IncludeTargetsTable({
       clientSort
       rowReorderDisabled={includes.length <= 1}
       onRowReorder={onChange}
-      empty={<span className="text-muted-foreground text-sm">No include targets.</span>}
+      empty={<span className="text-muted-foreground text-sm">No Include Targets.</span>}
       emptyClassName="min-h-24 items-center py-6"
     />
   );
@@ -502,7 +488,7 @@ function CELDialog({
     <Dialog open={include !== undefined} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>CEL expression</DialogTitle>
+          <DialogTitle>CEL Expression</DialogTitle>
           <DialogDescription>Edit the CEL predicate for this include assignment.</DialogDescription>
         </DialogHeader>
 

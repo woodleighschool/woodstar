@@ -30,12 +30,12 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
 
   const battery = host.batteries?.[0];
   if (battery?.health) {
-    tiles.push({ label: "Battery condition", value: battery.health });
+    tiles.push({ label: "Battery Condition", value: battery.health });
   }
 
   if (host.disk_space_available_bytes != null) {
     tiles.push({
-      label: "Disk space available",
+      label: "Disk Space Available",
       value: `${formatBytes(host.disk_space_available_bytes)}${diskPercent(host)}`,
     });
   }
@@ -49,11 +49,11 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
     ),
   });
 
-  tiles.push({ label: "Hardware model", value: host.hardware_model || "-" });
+  tiles.push({ label: "Hardware Model", value: host.hardware_model || "-" });
 
   if (host.last_restarted_at) {
     tiles.push({
-      label: "Last restarted",
+      label: "Last Restarted",
       value: (
         <span title={new Date(host.last_restarted_at).toLocaleString()}>{formatRelative(host.last_restarted_at)}</span>
       ),
@@ -61,7 +61,7 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   }
 
   tiles.push({
-    label: "MAC address",
+    label: "MAC Address",
     value: host.primary_mac || "-",
   });
 
@@ -69,17 +69,17 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
     tiles.push({ label: "Memory", value: formatBytes(host.physical_memory) });
   }
 
-  tiles.push({ label: "Operating system", value: host.os_version || "-" });
+  tiles.push({ label: "Operating System", value: host.os_version || "-" });
 
-  tiles.push({ label: "Private IP address", value: host.primary_ip ?? "-" });
+  tiles.push({ label: "Private IP Address", value: host.primary_ip ?? "-" });
 
   if (host.cpu_brand || host.cpu_type) {
-    tiles.push({ label: "Processor type", value: host.cpu_brand || host.cpu_type });
+    tiles.push({ label: "Processor Type", value: host.cpu_brand || host.cpu_type });
   }
 
-  tiles.push({ label: "Public IP address", value: host.public_ip ?? "-" });
+  tiles.push({ label: "Public IP Address", value: host.public_ip ?? "-" });
 
-  tiles.push({ label: "Serial number", value: host.hardware_serial || "-" });
+  tiles.push({ label: "Serial Number", value: host.hardware_serial || "-" });
 
   tiles.sort((a, b) => a.label.localeCompare(b.label));
 
@@ -122,12 +122,12 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Local users</CardTitle>
+        <CardTitle>Local Users</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {primary ? (
           <p className="text-sm">
-            <span className="text-muted-foreground">Primary user: </span>
+            <span className="text-muted-foreground">Primary User: </span>
             {primary.email}{" "}
             <span className="text-muted-foreground text-xs">({deviceMappingSourceLabel(primary.source)})</span>
           </p>
@@ -184,7 +184,7 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
           onSortingChange={setSorting}
           onRowClick={setSelectedCertificate}
           getRowId={(certificate) => String(certificate.id)}
-          empty={<span className="text-muted-foreground text-sm">No certificates</span>}
+          empty={<span className="text-muted-foreground text-sm">No Certificates</span>}
         />
         <CertificateDetailsDialog certificate={selectedCertificate} onOpenChange={setSelectedCertificate} />
       </CardContent>
@@ -282,7 +282,7 @@ function CertificateDetailsDialog({
     <Dialog open={certificate !== null} onOpenChange={(open) => !open && onOpenChange(null)}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Certificate details</DialogTitle>
+          <DialogTitle>Certificate Details</DialogTitle>
           <DialogDescription>{certificate ? certificateName(certificate) : ""}</DialogDescription>
         </DialogHeader>
         {certificate ? (
@@ -310,7 +310,7 @@ function CertificateDetailsDialog({
               ]}
             />
             <CertificateDetailSection
-              title="Signature and keychain"
+              title="Signature and Keychain"
               rows={[
                 ["Signing algorithm", certificate.signing_algorithm],
                 ["Keychain", certificateKeychain(certificate)],

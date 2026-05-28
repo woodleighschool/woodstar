@@ -7,19 +7,13 @@ interface DataTableSearchProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  label: string;
   className?: string;
 }
 
-export function DataTableSearch({ value, onChange, placeholder, label, className }: DataTableSearchProps) {
+export function DataTableSearch({ value, onChange, placeholder, className }: DataTableSearchProps) {
   return (
     <InputGroup className={cn("max-w-md flex-1", className)}>
-      <InputGroupInput
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        aria-label={label}
-      />
+      <InputGroupInput value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
       <InputGroupAddon align="inline-start">
         <SearchIcon />
       </InputGroupAddon>

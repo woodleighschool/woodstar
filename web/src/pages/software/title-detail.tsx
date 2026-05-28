@@ -23,7 +23,7 @@ export function SoftwareTitleDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load software title</AlertTitle>
+          <AlertTitle>Failed to Load Software Title</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
@@ -48,7 +48,7 @@ export function SoftwareTitleDetailPage() {
             <EmptyMedia variant="icon">
               <Package />
             </EmptyMedia>
-            <EmptyTitle>Software title not found</EmptyTitle>
+            <EmptyTitle>Software Title Not Found</EmptyTitle>
             <EmptyDescription>This title is no longer available.</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -112,7 +112,7 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
 
   if (title.bundle_identifier) {
     tiles.push({
-      label: "Bundle identifier",
+      label: "Bundle Identifier",
       value: title.bundle_identifier,
     });
   }
@@ -152,7 +152,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
       <CardContent>
         {versions.length === 0 ? (
           <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">
-            <p className="font-medium">No versions discovered</p>
+            <p className="font-medium">No Versions Discovered</p>
             <p className="text-muted-foreground">Hosts have not reported a concrete version.</p>
           </div>
         ) : (

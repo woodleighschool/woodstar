@@ -21,7 +21,7 @@ export function SantaEventDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load event</AlertTitle>
+          <AlertTitle>Failed to Load Event</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -70,11 +70,11 @@ export function SantaEventDetailPage() {
             <Table>
               <TableBody>
                 <DetailRow label="Path" value={event.file_path} />
-                <DetailRow label="File name" value={event.executable.file_name || fileName(event.file_path)} />
+                <DetailRow label="File Name" value={event.executable.file_name || fileName(event.file_path)} />
                 <DetailRow label="SHA-256" value={event.executable.sha256} breakAll />
                 <DetailRow label="CDHash" value={event.executable.cdhash} breakAll />
                 <DetailRow label="Bundle ID" value={event.executable.file_bundle_id} />
-                <DetailRow label="Bundle path" value={event.executable.file_bundle_path} />
+                <DetailRow label="Bundle Path" value={event.executable.file_bundle_path} />
                 <DetailRow label="Signing ID" value={event.executable.signing_id} />
                 <DetailRow label="Team ID" value={event.executable.team_id} />
               </TableBody>
@@ -90,8 +90,8 @@ export function SantaEventDetailPage() {
                   <TableHead>Certificate</TableHead>
                   <TableHead>Organization</TableHead>
                   <TableHead>SHA-256</TableHead>
-                  <TableHead>Valid from</TableHead>
-                  <TableHead>Valid until</TableHead>
+                  <TableHead>Valid From</TableHead>
+                  <TableHead>Valid Until</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -127,8 +127,8 @@ export function SantaEventDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <SessionRows label="Logged-in user" values={event.logged_in_users ?? []} />
-                <SessionRows label="Current session" values={event.current_sessions ?? []} />
+                <SessionRows label="Logged-In User" values={event.logged_in_users ?? []} />
+                <SessionRows label="Current Session" values={event.current_sessions ?? []} />
               </TableBody>
             </Table>
           </div>

@@ -20,7 +20,7 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
         actions={
           <Button size="sm" onClick={() => setSecretsOpen(true)}>
             <KeyRound data-icon="inline-start" />
-            Manage secrets
+            Manage Secrets
           </Button>
         }
       />

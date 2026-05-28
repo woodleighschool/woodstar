@@ -15,7 +15,7 @@ export function HostReportsTab({ hostId, hostParam }: { hostId: number | null; h
   if (reports.error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load reports</AlertTitle>
+        <AlertTitle>Failed to Load Reports</AlertTitle>
         <AlertDescription>{reports.error.message}</AlertDescription>
       </Alert>
     );
@@ -38,7 +38,7 @@ export function HostReportsTab({ hostId, hostParam }: { hostId: number | null; h
             <EmptyMedia variant="icon">
               <ClipboardList />
             </EmptyMedia>
-            <EmptyTitle>No reports</EmptyTitle>
+            <EmptyTitle>No Reports</EmptyTitle>
             <EmptyDescription>Add a scheduled report to view custom vitals for this host.</EmptyDescription>
           </EmptyHeader>
         </Empty>

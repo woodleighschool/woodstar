@@ -97,7 +97,7 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
     onClose();
   }
 
-  const title = mode === "create" ? "Add user" : "Edit user";
+  const title = mode === "create" ? "Add User" : "Edit User";
   const description =
     mode === "create"
       ? "Create a new Woodstar user. Roles control whether the user can manage other users and enrollments."
@@ -153,8 +153,8 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="admin">admin</SelectItem>
-                  <SelectItem value="viewer">viewer</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>

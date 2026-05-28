@@ -23,7 +23,6 @@ interface LabelPickerProps {
   emptyPlaceholder?: string;
   placeholder?: string;
   required?: boolean;
-  invalid?: boolean;
 }
 
 export function LabelPicker({
@@ -34,9 +33,8 @@ export function LabelPicker({
   unavailableLabelIDs = [],
   emptyMessage,
   emptyPlaceholder,
-  placeholder = "Add label",
+  placeholder = "Add Label",
   required = false,
-  invalid = false,
 }: LabelPickerProps) {
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
@@ -50,10 +48,10 @@ export function LabelPicker({
       (includeBuiltins || label.label_type === "regular") && (value.includes(label.id) || !unavailable.has(label.id)),
   );
   const selected = rows.filter((label) => value.includes(label.id));
-  const noLabelsMessage = emptyMessage ?? "No labels available.";
+  const noLabelsMessage = emptyMessage ?? "No Labels Available.";
 
   if (labels.isLoading) {
-    return <p className="text-muted-foreground text-sm">Loading labels...</p>;
+    return <p className="text-muted-foreground text-sm">Loading Labels...</p>;
   }
   if (labels.error) {
     return <p className="text-destructive text-sm">{labels.error.message}</p>;
@@ -69,13 +67,12 @@ export function LabelPicker({
         onValueChange={(next) => onChange(next ? [next.id] : [])}
       >
         <ComboboxInput
-          aria-invalid={invalid || undefined}
-          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : placeholder}
+          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
           required={required}
           showClear
         />
         <ComboboxContent>
-          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No labels found."}</ComboboxEmpty>
+          <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
           <ComboboxList>{labelItem}</ComboboxList>
         </ComboboxContent>
       </Combobox>
@@ -98,13 +95,12 @@ export function LabelPicker({
           ))}
         </ComboboxValue>
         <ComboboxChipsInput
-          aria-invalid={invalid || undefined}
-          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : placeholder}
+          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
           required={required && selected.length === 0}
         />
       </ComboboxChips>
       <ComboboxContent>
-        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No labels found."}</ComboboxEmpty>
+        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No Labels Found."}</ComboboxEmpty>
         <ComboboxList>{labelItem}</ComboboxList>
       </ComboboxContent>
     </Combobox>

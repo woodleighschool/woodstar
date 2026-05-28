@@ -70,7 +70,7 @@ export function SantaRulesPage() {
     {
       id: "rule_type",
       accessorKey: "rule_type",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Rule Type" />,
       cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
     },
     {
@@ -99,6 +99,7 @@ export function SantaRulesPage() {
     <PageShell>
       <PageHeader
         title="Rules"
+        description="Control which Santa decisions apply to labeled hosts."
         actions={
           <Button asChild size="sm">
             <Link to="/santa/rules/new">
@@ -111,7 +112,7 @@ export function SantaRulesPage() {
 
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load rules</AlertTitle>
+          <AlertTitle>Failed to Load Rules</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -136,9 +137,9 @@ export function SantaRulesPage() {
           rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search rules" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
               <DataTableFacetedFilter
-                title="Rule type"
+                title="Rule Type"
                 selected={ruleType ? [ruleType] : []}
                 options={[...RULE_TYPES]}
                 singleSelect
@@ -158,7 +159,7 @@ export function SantaRulesPage() {
           empty={
             <DataTableEmptyState
               icon={<ListChecks />}
-              title={hasFilters ? "No matches" : "No execution rules"}
+              title={hasFilters ? "No Matches" : "No Execution Rules"}
               description={hasFilters ? "No rules matched these filters." : "Create a rule, then attach label targets."}
             />
           }

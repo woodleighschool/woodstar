@@ -96,7 +96,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       {
         id: "last_opened_at",
         accessorFn: (row) => pickLatestLastOpened(row.installed_versions ?? []) ?? "",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Last opened" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Last Opened" />,
         cell: ({ row }) => {
           const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
           return (
@@ -146,7 +146,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
   if (query.error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load software</AlertTitle>
+        <AlertTitle>Failed to Load Software</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
         <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
           Retry
@@ -182,8 +182,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
               }
               setDraftDebounced(next);
             }}
-            placeholder="Search software"
-            label="Search host software"
+            placeholder="Search Software"
           />
           <DataTableFacetedFilter
             title="Type"
@@ -199,7 +198,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       empty={
         <DataTableEmptyState
           icon={<Package />}
-          title={hasFilters ? "No matches" : "No software inventory yet"}
+          title={hasFilters ? "No Matches" : "No Software Inventory Yet"}
           description={
             hasFilters
               ? "No software matched the current filters."

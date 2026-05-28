@@ -59,7 +59,7 @@ export function reportTableColumns(options: { linkHosts?: boolean } = {}): Colum
     {
       id: "lastFetched",
       accessorKey: "lastFetched",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Last fetched" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last Fetched" />,
       cell: ({ row }) => (
         <span
           className="text-muted-foreground"

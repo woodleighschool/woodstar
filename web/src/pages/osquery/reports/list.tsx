@@ -69,6 +69,7 @@ export function ReportsPage() {
     <PageShell>
       <PageHeader
         title="Reports"
+        description="Gather data about your hosts."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/reports/new">
@@ -80,7 +81,7 @@ export function ReportsPage() {
       />
       {reports.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load reports</AlertTitle>
+          <AlertTitle>Failed to Load Reports</AlertTitle>
           <AlertDescription>{reports.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -105,13 +106,13 @@ export function ReportsPage() {
           rowHref={(row) => ({ to: "/osquery/reports/$reportId", params: { reportId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search reports" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
             </div>
           }
           empty={
             <DataTableEmptyState
               icon={<FileBarChart2 />}
-              title={hasFilters ? "No matches" : "No saved queries"}
+              title={hasFilters ? "No Matches" : "No Saved Queries"}
               description={hasFilters ? "Try clearing the filters." : "Create a report from SQL."}
             />
           }

@@ -47,7 +47,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
       },
       {
         accessorKey: "updated_at",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Last evaluated" />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Last Evaluated" />,
         cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
       },
     ],
@@ -57,7 +57,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
   if (query.error) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load checks</AlertTitle>
+        <AlertTitle>Failed to Load Checks</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
       </Alert>
     );
@@ -78,7 +78,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
       empty={
         <DataTableEmptyState
           icon={<ShieldCheck />}
-          title="No checks"
+          title="No Checks"
           description="Add an osquery check to view pass/fail status for this host."
         />
       }

@@ -31,7 +31,7 @@ export function SetupPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="items-center justify-items-center text-center">
           <WoodstarMark size="md" />
-          <CardTitle>Create an account</CardTitle>
+          <CardTitle>Create an Account</CardTitle>
           <CardDescription>First administrator.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -61,7 +61,7 @@ export function SetupPage() {
                 <FieldDescription>Break-glass identity.</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="setup-name">Display name</FieldLabel>
+                <FieldLabel htmlFor="setup-name">Display Name</FieldLabel>
                 <Input id="setup-name" name="name" autoComplete="name" placeholder="Site administrator" required />
               </Field>
               <Field>
@@ -80,7 +80,7 @@ export function SetupPage() {
 
               <Field>
                 <Button type="submit" disabled={setup.isPending}>
-                  {setup.isPending ? "Creating account..." : "Create account"}
+                  {setup.isPending ? "Creating Account..." : "Create Account"}
                 </Button>
               </Field>
             </FieldGroup>

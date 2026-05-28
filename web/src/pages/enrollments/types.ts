@@ -5,11 +5,11 @@ export type Integration = Agent;
 export function integrationLabel(integration?: Integration) {
   if (integration === "santa") return "Santa";
   if (integration === "orbit") return "Orbit";
-  return "integration";
+  return "Integration";
 }
 
 export function enrollmentTitle(integration: Integration) {
-  return `${integrationLabel(integration)} enrollment`;
+  return `${integrationLabel(integration)} Enrollment`;
 }
 
 export function enrollmentDescription(integration: Integration) {

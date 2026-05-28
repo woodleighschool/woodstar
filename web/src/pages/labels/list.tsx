@@ -105,6 +105,7 @@ export function LabelsPage() {
     <PageShell>
       <PageHeader
         title="Labels"
+        description="Group hosts for targeting, reporting, and Santa scope."
         actions={
           <Button asChild size="sm">
             <Link to="/labels/new">
@@ -116,7 +117,7 @@ export function LabelsPage() {
       />
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load labels</AlertTitle>
+          <AlertTitle>Failed to Load Labels</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
@@ -135,7 +136,7 @@ export function LabelsPage() {
           rowHref={(row) => ({ to: "/labels/$labelId/edit", params: { labelId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search labels" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
               <DataTableFacetedFilter
                 title="Membership"
                 options={MEMBERSHIP_OPTIONS}
@@ -148,7 +149,7 @@ export function LabelsPage() {
           empty={
             <DataTableEmptyState
               icon={<Tags />}
-              title={hasFilters ? "No matches" : "No host groups"}
+              title={hasFilters ? "No Matches" : "No Host Groups"}
               description={hasFilters ? "No labels matched the current filters." : "Create labels for host targeting."}
             />
           }
@@ -215,7 +216,7 @@ function LabelDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete label</AlertDialogTitle>
+          <AlertDialogTitle>Delete Label</AlertDialogTitle>
           <AlertDialogDescription>
             {label ? `${label.name} will be removed from hosts and filters.` : "This label will be removed."}
           </AlertDialogDescription>
@@ -233,7 +234,7 @@ function LabelDeleteDialog({
               void handleDelete();
             }}
           >
-            Delete label
+            Delete Label
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

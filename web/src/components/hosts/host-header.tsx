@@ -13,7 +13,6 @@ export function HostHeader({ host }: { host: Host }) {
         <HostImage hardwareModel={host.hardware_model} />
         {isOnline ? (
           <span
-            aria-label="Online"
             title="Online"
             className="bg-status-online ring-background absolute top-2 right-2 size-2.5 rounded-full ring-2"
           />

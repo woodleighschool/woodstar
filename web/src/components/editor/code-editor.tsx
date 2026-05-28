@@ -54,10 +54,6 @@ const surfaceTheme = EditorView.theme({
     border: "1px solid var(--border)",
     borderRadius: "0.375rem",
   },
-  ".cm-tooltip-autocomplete > ul > li[aria-selected]": {
-    backgroundColor: "var(--accent)",
-    color: "var(--accent-foreground)",
-  },
 });
 
 const lightHighlight = HighlightStyle.define([

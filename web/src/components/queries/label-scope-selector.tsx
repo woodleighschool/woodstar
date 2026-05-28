@@ -54,7 +54,7 @@ export function LabelScopeSelector({
         <div className="flex items-center gap-2">
           <RadioGroupItem id={`${entity}-target-all`} value={targetAll} />
           <Label htmlFor={`${entity}-target-all`} className="font-normal">
-            All hosts
+            All Hosts
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -89,8 +89,8 @@ export function LabelScopeSelector({
             value={selectedLabelIDs}
             onChange={(label_ids) => onChange({ mode: selectedMode, label_ids })}
             emptyMessage="Create a label before using a custom target."
-            emptyPlaceholder="No labels available"
-            placeholder="Add label"
+            emptyPlaceholder="No Labels Available"
+            placeholder="Add Label"
           />
         </div>
       ) : null}
@@ -101,13 +101,13 @@ export function LabelScopeSelector({
 function targetModeOptions(entity: "report" | "check") {
   const noun = entity === "check" ? "Check" : "Report";
   const options = [
-    { value: includeAny, label: "Include any", helpText: `${noun} will target hosts that have any of these labels.` },
-    { value: includeAll, label: "Include all", helpText: `${noun} will target hosts that have all of these labels.` },
+    { value: includeAny, label: "Include Any", helpText: `${noun} will target hosts that have any of these labels.` },
+    { value: includeAll, label: "Include All", helpText: `${noun} will target hosts that have all of these labels.` },
   ];
   if (entity === "check") {
     options.push({
       value: excludeAny,
-      label: "Exclude any",
+      label: "Exclude Any",
       helpText: `${noun} will target hosts that don't have any of these labels.`,
     });
   }

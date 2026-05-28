@@ -31,7 +31,7 @@ export function UserEditPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load user</AlertTitle>
+          <AlertTitle>Failed to Load User</AlertTitle>
           <AlertDescription>{user.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void user.refetch()} className="mt-2 w-fit">
             Retry
@@ -106,7 +106,7 @@ function UserEditForm({ user }: { user: User }) {
               {!isInitialUser ? (
                 <>
                   <Field>
-                    <FieldLabel htmlFor="user-name">Display name</FieldLabel>
+                    <FieldLabel htmlFor="user-name">Display Name</FieldLabel>
                     <Input
                       id="user-name"
                       type="text"
@@ -162,12 +162,12 @@ function UserEditForm({ user }: { user: User }) {
       {canDelete ? (
         <Card className="gap-4 py-4">
           <CardHeader className="px-4">
-            <CardTitle>Remove user</CardTitle>
+            <CardTitle>Remove User</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
             <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
               <Trash2 data-icon="inline-start" />
-              Delete user
+              Delete User
             </Button>
           </CardContent>
         </Card>

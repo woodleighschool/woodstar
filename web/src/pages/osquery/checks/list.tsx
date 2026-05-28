@@ -62,6 +62,7 @@ export function ChecksPage() {
     <PageShell>
       <PageHeader
         title="Checks"
+        description="Detect device health issues."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/checks/new">
@@ -73,7 +74,7 @@ export function ChecksPage() {
       />
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load checks</AlertTitle>
+          <AlertTitle>Failed to Load Checks</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -98,13 +99,13 @@ export function ChecksPage() {
           rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.id) } })}
           toolbar={
             <div className="flex items-center gap-2">
-              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" label="Search checks" />
+              <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />
             </div>
           }
           empty={
             <DataTableEmptyState
               icon={<ShieldCheck />}
-              title={hasFilters ? "No matches" : "No health checks"}
+              title={hasFilters ? "No Matches" : "No Health Checks"}
               description={hasFilters ? "Try clearing the filters." : "Create a check from SQL."}
             />
           }

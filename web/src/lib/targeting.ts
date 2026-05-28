@@ -8,7 +8,7 @@ export function targetSummary(scope: LabelScope | undefined) {
 
 export function targetScopeLabel(scope: LabelScope | undefined) {
   const labels = scope?.label_ids?.length ?? 0;
-  if (!scope?.mode || labels === 0) return "All hosts";
+  if (!scope?.mode || labels === 0) return "All Hosts";
   const labelText = `${labels} label${labels === 1 ? "" : "s"}`;
   switch (scope.mode) {
     case "include_any":
@@ -18,6 +18,6 @@ export function targetScopeLabel(scope: LabelScope | undefined) {
     case "exclude_any":
       return `Excluding ${labelText}`;
     default:
-      return "All hosts";
+      return "All Hosts";
   }
 }

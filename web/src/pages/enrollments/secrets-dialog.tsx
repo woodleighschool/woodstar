@@ -79,7 +79,7 @@ export function AgentSecretsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{`Manage ${integrationLabel(integration)} enrollment secrets`}</DialogTitle>
+            <DialogTitle>{`Manage ${integrationLabel(integration)} Enrollment Secrets`}</DialogTitle>
             <DialogDescription>{secretUsageDescription(integration)}</DialogDescription>
           </DialogHeader>
 
@@ -97,7 +97,7 @@ export function AgentSecretsDialog({
               }}
             >
               <Plus data-icon="inline-start" />
-              Add secret
+              Add Secret
             </Button>
           </div>
 
@@ -114,7 +114,7 @@ export function AgentSecretsDialog({
             onCopy={(secret) => void copySecret(secret)}
             onEdit={setEditing}
             onDelete={setDeleting}
-            emptyTitle={`No ${integrationLabel(integration)} secrets`}
+            emptyTitle={`No ${integrationLabel(integration)} Secrets`}
             emptyDescription={`Add a ${integrationLabel(integration)} enrollment secret before deploying new clients.`}
           />
 
@@ -129,7 +129,7 @@ export function AgentSecretsDialog({
       {creatingValue ? (
         <SecretValueDialog
           key={`create-${integration}-${creatingValue}`}
-          title={`New ${integrationLabel(integration)} secret`}
+          title={`New ${integrationLabel(integration)} Secret`}
           description="Use this value in the matching deployment profile. Hosts that have already enrolled keep their issued node keys."
           initialValue={creatingValue}
           open
@@ -153,7 +153,7 @@ export function AgentSecretsDialog({
       {editing ? (
         <SecretValueDialog
           key={editing.id}
-          title={`Edit ${integrationLabel(editing.agent)} secret`}
+          title={`Edit ${integrationLabel(editing.agent)} Secret`}
           description="Changing this value affects future enrollments that use this secret. Existing enrolled hosts keep their issued node keys."
           initialValue={editing.value}
           open
@@ -225,7 +225,7 @@ function SecretList({
   if (errorMessage) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load enrollment secrets</AlertTitle>
+        <AlertTitle>Failed to Load Enrollment Secrets</AlertTitle>
         <AlertDescription>{errorMessage}</AlertDescription>
         <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 w-fit">
           Retry
@@ -238,7 +238,7 @@ function SecretList({
     return (
       <div className="text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-8 text-sm">
         <Loader2 className="animate-spin" />
-        Loading enrollment secrets...
+        Loading Enrollment Secrets...
       </div>
     );
   }
@@ -303,20 +303,20 @@ function SecretRow({
         title={visible ? secret.value : undefined}
       />
       <InputGroupAddon align="inline-end">
-        <SecretAction label="Copy enrollment secret" disabled={disabled} onClick={onCopy}>
+        <SecretAction label="Copy Enrollment Secret" disabled={disabled} onClick={onCopy}>
           <Copy />
         </SecretAction>
         <SecretAction
-          label={visible ? "Hide enrollment secret" : "Show enrollment secret"}
+          label={visible ? "Hide Enrollment Secret" : "Show Enrollment Secret"}
           disabled={disabled}
           onClick={onToggleVisible}
         >
           {visible ? <EyeOff /> : <Eye />}
         </SecretAction>
-        <SecretAction label="Edit enrollment secret" disabled={disabled} onClick={onEdit}>
+        <SecretAction label="Edit Enrollment Secret" disabled={disabled} onClick={onEdit}>
           <Pencil />
         </SecretAction>
-        <SecretAction label="Delete enrollment secret" disabled={disabled} onClick={onDelete}>
+        <SecretAction label="Delete Enrollment Secret" disabled={disabled} onClick={onDelete}>
           {disabled ? <Loader2 className="animate-spin" /> : <Trash2 />}
         </SecretAction>
       </InputGroupAddon>
@@ -338,7 +338,7 @@ function SecretAction({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <InputGroupButton size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick}>
+        <InputGroupButton size="icon-sm" disabled={disabled} onClick={onClick}>
           {children}
         </InputGroupButton>
       </TooltipTrigger>
@@ -380,14 +380,13 @@ function SecretValueDialog({
 
         <FieldGroup>
           <Field data-invalid={Boolean(message)}>
-            <FieldLabel htmlFor="agent-secret-value">Enrollment secret</FieldLabel>
+            <FieldLabel htmlFor="agent-secret-value">Enrollment Secret</FieldLabel>
             <Input
               id="agent-secret-value"
               value={value}
               className="font-mono"
               autoComplete="off"
               spellCheck={false}
-              aria-invalid={Boolean(message)}
               onChange={(event) => setValue(event.target.value)}
             />
             <FieldDescription>Use a shared secret of at least {MIN_SECRET_LENGTH} characters.</FieldDescription>
@@ -434,7 +433,7 @@ function SecretDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {integrationLabel(secret?.agent)} secret?</AlertDialogTitle>
+          <AlertDialogTitle>Delete {integrationLabel(secret?.agent)} Secret?</AlertDialogTitle>
           <AlertDialogDescription>
             {secret
               ? deleteDescription(secret.agent)

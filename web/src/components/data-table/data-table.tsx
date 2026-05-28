@@ -241,14 +241,11 @@ export function DataTable<TData, TValue>({
   );
 }
 
-type RowDragHandleContextValue = Pick<
-  ReturnType<typeof useSortable>,
-  "attributes" | "listeners" | "setActivatorNodeRef"
-> | null;
+type RowDragHandleContextValue = Pick<ReturnType<typeof useSortable>, "listeners" | "setActivatorNodeRef"> | null;
 
 const RowDragHandleContext = createContext<RowDragHandleContextValue>(null);
 
-export function DataTableRowDragHandle({ label = "Reorder row" }: { label?: string }) {
+export function DataTableRowDragHandle() {
   const drag = useContext(RowDragHandleContext);
 
   return (
@@ -257,11 +254,8 @@ export function DataTableRowDragHandle({ label = "Reorder row" }: { label?: stri
       variant="ghost"
       size="icon-sm"
       className={cn("cursor-grab active:cursor-grabbing", !drag && "cursor-default opacity-50")}
-      aria-label={label}
-      aria-disabled={!drag}
       disabled={!drag}
       ref={drag?.setActivatorNodeRef}
-      {...drag?.attributes}
       {...drag?.listeners}
     >
       <GripVertical />
@@ -270,7 +264,7 @@ export function DataTableRowDragHandle({ label = "Reorder row" }: { label?: stri
 }
 
 function SortableDataTableRow<TData>({ row, enableRowSelection, rowHref, onRowClick }: DataTableBodyRowProps<TData>) {
-  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
   });
   const style: CSSProperties = {
@@ -282,7 +276,7 @@ function SortableDataTableRow<TData>({ row, enableRowSelection, rowHref, onRowCl
   };
 
   return (
-    <RowDragHandleContext.Provider value={{ attributes, listeners, setActivatorNodeRef }}>
+    <RowDragHandleContext.Provider value={{ listeners, setActivatorNodeRef }}>
       <DataTableBodyRow
         row={row}
         enableRowSelection={enableRowSelection}

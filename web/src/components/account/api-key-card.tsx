@@ -56,7 +56,7 @@ export function APIKeyCard() {
       <CardHeader className="px-4">
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="size-4" />
-          API key
+          API Key
         </CardTitle>
         <CardDescription>For CLI and automation access.</CardDescription>
         {!isLoading && !apiKey ? (
@@ -70,7 +70,7 @@ export function APIKeyCard() {
       <CardContent className="flex flex-col gap-3 px-4">
         {error ? (
           <Alert variant="destructive">
-            <AlertTitle>Failed to load</AlertTitle>
+            <AlertTitle>Failed to Load</AlertTitle>
             <AlertDescription>{error.message}</AlertDescription>
             <Button variant="outline" size="sm" onClick={() => void refetch()} className="mt-2 w-fit">
               Retry
@@ -127,7 +127,7 @@ export function APIKeyCard() {
       <AlertDialog open={confirmRotate} onOpenChange={setConfirmRotate}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Rotate API key?</AlertDialogTitle>
+            <AlertDialogTitle>Rotate API Key?</AlertDialogTitle>
             <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -151,7 +151,7 @@ export function APIKeyCard() {
       <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke API key?</AlertDialogTitle>
+            <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
             <AlertDialogDescription>The current key stops working immediately.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

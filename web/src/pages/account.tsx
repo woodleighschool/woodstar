@@ -23,7 +23,7 @@ export function AccountPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load account</AlertTitle>
+          <AlertTitle>Failed to Load Account</AlertTitle>
           <AlertDescription>{account.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void account.refetch()} className="mt-2 w-fit">
             Retry
@@ -90,7 +90,7 @@ function AccountProfileCard({ account }: { account: Account }) {
           <FieldGroup className="gap-4">
             {!isInitialUser ? (
               <Field>
-                <FieldLabel htmlFor="account-name">Display name</FieldLabel>
+                <FieldLabel htmlFor="account-name">Display Name</FieldLabel>
                 <Input
                   id="account-name"
                   type="text"

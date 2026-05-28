@@ -12,11 +12,6 @@ const INTERACTIVE_SELECTOR = [
   "label",
   "select",
   "textarea",
-  "[role=checkbox]",
-  "[role=menu]",
-  "[role=menuitem]",
-  "[role=button]",
-  "[role=dialog]",
   "[data-slot=dropdown-menu-content]",
 ].join(", ");
 

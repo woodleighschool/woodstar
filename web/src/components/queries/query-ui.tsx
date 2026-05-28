@@ -58,7 +58,7 @@ export function ShowQueryButton({ sql }: { sql: string }) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <FileCode2 data-icon="inline-start" />
-          Show query
+          Show Query
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
@@ -86,7 +86,7 @@ export function LiveRunButton({
     <Button asChild variant="outline" size="sm">
       <Link to={to} params={params} search={search}>
         <Play data-icon="inline-start" />
-        Run live
+        Run Live
       </Link>
     </Button>
   );
@@ -115,7 +115,7 @@ export function ExportButton({ disabled, onClick }: { disabled?: boolean; onClic
   return (
     <Button variant="outline" size="sm" disabled={disabled} onClick={onClick}>
       <Download data-icon="inline-start" />
-      Export results
+      Export Results
     </Button>
   );
 }

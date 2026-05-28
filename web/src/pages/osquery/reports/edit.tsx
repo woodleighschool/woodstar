@@ -21,15 +21,15 @@ import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Never" },
-  { value: 300, label: "Every 5 minutes" },
-  { value: 600, label: "Every 10 minutes" },
-  { value: 900, label: "Every 15 minutes" },
-  { value: 1800, label: "Every 30 minutes" },
-  { value: 3600, label: "Every hour" },
-  { value: 21600, label: "Every 6 hours" },
-  { value: 43200, label: "Every 12 hours" },
-  { value: 86400, label: "Every day" },
-  { value: 604800, label: "Every week" },
+  { value: 300, label: "Every 5 Minutes" },
+  { value: 600, label: "Every 10 Minutes" },
+  { value: 900, label: "Every 15 Minutes" },
+  { value: 1800, label: "Every 30 Minutes" },
+  { value: 3600, label: "Every Hour" },
+  { value: 21600, label: "Every 6 Hours" },
+  { value: 43200, label: "Every 12 Hours" },
+  { value: 86400, label: "Every Day" },
+  { value: 604800, label: "Every Week" },
 ];
 
 const emptyReport: ReportMutation = {
@@ -51,7 +51,7 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
       return (
         <PageShell>
           <Alert variant="destructive">
-            <AlertTitle>Failed to load report</AlertTitle>
+            <AlertTitle>Failed to Load Report</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
         </PageShell>
@@ -135,7 +135,7 @@ function ReportEditForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New report" : "Edit report"} />
+        <PageHeader title={mode === "create" ? "New Report" : "Edit Report"} />
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="report-name">Name</FieldLabel>
@@ -202,11 +202,11 @@ function ReportEditForm({
             onClick={() => setAdvancedOpen((open) => !open)}
           >
             {advancedOpen ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
-            Advanced options
+            Advanced Options
           </Button>
           {advancedOpen ? (
             <Field>
-              <FieldLabel htmlFor="report-min-version">Minimum osquery version</FieldLabel>
+              <FieldLabel htmlFor="report-min-version">Minimum Osquery Version</FieldLabel>
               <Input
                 id="report-min-version"
                 value={form.min_osquery_version ?? ""}

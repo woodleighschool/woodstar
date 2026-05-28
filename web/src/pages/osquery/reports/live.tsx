@@ -15,7 +15,7 @@ export function ReportLivePage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load report</AlertTitle>
+          <AlertTitle>Failed to Load Report</AlertTitle>
           <AlertDescription>{report.error.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -24,7 +24,7 @@ export function ReportLivePage() {
   if (!report.data) {
     return (
       <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading report...
+        <Loader2 className="size-4 animate-spin" /> Loading Report...
       </PageShell>
     );
   }
@@ -38,7 +38,7 @@ export function ReportLivePage() {
       editAction={
         <Button asChild variant="outline" size="sm">
           <Link to="/osquery/reports/$reportId/edit" params={{ reportId }}>
-            Edit report
+            Edit Report
           </Link>
         </Button>
       }

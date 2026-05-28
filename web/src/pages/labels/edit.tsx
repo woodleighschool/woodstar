@@ -55,9 +55,9 @@ const MEMBERSHIP_OPTIONS: { value: MembershipType; label: string; helpText: stri
 ];
 
 const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
-  { value: "directory_department", label: "Directory department" },
-  { value: "directory_group", label: "Directory group" },
-  { value: "directory_user", label: "Directory user" },
+  { value: "directory_department", label: "Directory Department" },
+  { value: "directory_group", label: "Directory Group" },
+  { value: "directory_user", label: "Directory User" },
 ];
 
 interface FormState {
@@ -112,7 +112,7 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
       return (
         <PageShell>
           <Alert variant="destructive">
-            <AlertTitle>Failed to load label</AlertTitle>
+            <AlertTitle>Failed to Load Label</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
         </PageShell>
@@ -121,7 +121,7 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
     if (!detail.data) {
       return (
         <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading label...
+          <Loader2 className="size-4 animate-spin" /> Loading Label...
         </PageShell>
       );
     }
@@ -129,7 +129,7 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
       return (
         <PageShell>
           <Alert>
-            <AlertTitle>Built-in label</AlertTitle>
+            <AlertTitle>Built-In Label</AlertTitle>
             <AlertDescription>Built-in labels are managed by Woodstar and cannot be edited.</AlertDescription>
           </Alert>
         </PageShell>
@@ -231,7 +231,7 @@ function LabelEditForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New label" : "Edit label"} />
+        <PageHeader title={mode === "create" ? "New Label" : "Edit Label"} />
 
         <FieldGroup className="max-w-5xl">
           <Field>
@@ -265,11 +265,10 @@ function LabelEditForm({
               }}
               variant="outline"
               size="sm"
-              aria-label="Label type"
               className="flex-wrap"
             >
               {MEMBERSHIP_OPTIONS.map((option) => (
-                <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
+                <ToggleGroupItem key={option.value} value={option.value}>
                   {option.label}
                 </ToggleGroupItem>
               ))}
@@ -378,7 +377,7 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="truncate font-medium">{hostName(row.original)}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.hostname || "No hostname"}</div>
+            <div className="text-muted-foreground truncate text-xs">{row.original.hostname || "No Hostname"}</div>
           </div>
         ),
       },
@@ -412,8 +411,7 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
       onPaginationChange={controls.setPagination}
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
-      searchPlaceholder="Search hosts"
-      searchLabel="Search hosts"
+      searchPlaceholder="Search Hosts"
       scope={controls.scope}
       selectedCount={value.length}
       isLoading={hosts.isLoading}
@@ -423,7 +421,7 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
       onScopeChange={controls.setScopeFilter}
       onSelectedRowIdsChange={(ids) => onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))}
       getRowId={(host) => String(host.id)}
-      emptyTitle={showSelected ? "No selected hosts" : "No hosts found"}
+      emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts Found"}
       emptyDescription={
         showSelected ? "Selected hosts will appear here." : "Try another search term or enroll hosts first."
       }
@@ -484,8 +482,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       onPaginationChange={controls.setPagination}
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
-      searchPlaceholder="Search departments"
-      searchLabel="Search departments"
+      searchPlaceholder="Search Departments"
       scope={controls.scope}
       selectedCount={value.length}
       isLoading={departments.isLoading}
@@ -495,7 +492,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       onScopeChange={controls.setScopeFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
-      emptyTitle={showSelected ? "No selected departments" : "No departments found"}
+      emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
       emptyDescription={
         showSelected
           ? "Selected departments will appear here."
@@ -551,8 +548,7 @@ function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange
       onPaginationChange={controls.setPagination}
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
-      searchPlaceholder="Search groups"
-      searchLabel="Search groups"
+      searchPlaceholder="Search Groups"
       scope={controls.scope}
       selectedCount={value.length}
       isLoading={groups.isLoading}
@@ -562,7 +558,7 @@ function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange
       onScopeChange={controls.setScopeFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
-      emptyTitle={showSelected ? "No selected groups" : "No groups found"}
+      emptyTitle={showSelected ? "No Selected Groups" : "No Groups Found"}
       emptyDescription={
         showSelected ? "Selected groups will appear here." : "Try another search term or sync groups first."
       }
@@ -614,8 +610,7 @@ function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange:
       onPaginationChange={controls.setPagination}
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
-      searchPlaceholder="Search users"
-      searchLabel="Search users"
+      searchPlaceholder="Search Users"
       scope={controls.scope}
       selectedCount={value.length}
       isLoading={users.isLoading}
@@ -625,7 +620,7 @@ function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange:
       onScopeChange={controls.setScopeFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => user.external_id}
-      emptyTitle={showSelected ? "No selected users" : "No users found"}
+      emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
       emptyDescription={
         showSelected ? "Selected users will appear here." : "Try another search term or sync users first."
       }
@@ -677,7 +672,6 @@ interface SelectorTableProps<TData> {
   onSortingChange: (sorting: SortingState | ((sorting: SortingState) => SortingState)) => void;
   searchValue: string;
   searchPlaceholder: string;
-  searchLabel: string;
   scope: SelectionScope;
   selectedCount: number;
   isLoading: boolean;
@@ -702,7 +696,6 @@ function SelectorTable<TData>({
   onSortingChange,
   searchValue,
   searchPlaceholder,
-  searchLabel,
   scope,
   selectedCount,
   isLoading,
@@ -741,7 +734,6 @@ function SelectorTable<TData>({
             value={searchValue}
             onChange={onSearchChange}
             placeholder={searchPlaceholder}
-            label={searchLabel}
             className="min-w-64"
           />
           <ToggleGroup
@@ -752,14 +744,9 @@ function SelectorTable<TData>({
             }}
             variant="outline"
             size="sm"
-            aria-label="Selection filter"
           >
-            <ToggleGroupItem value="all" aria-label="Show all">
-              Show all
-            </ToggleGroupItem>
-            <ToggleGroupItem value="selected" aria-label="Show selected">
-              Selected {selectedCount}
-            </ToggleGroupItem>
+            <ToggleGroupItem value="all">Show All</ToggleGroupItem>
+            <ToggleGroupItem value="selected">Selected {selectedCount}</ToggleGroupItem>
           </ToggleGroup>
         </div>
       }

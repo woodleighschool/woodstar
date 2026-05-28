@@ -12,12 +12,12 @@ export function NotFoundPage() {
           <EmptyMedia variant="icon">
             <Compass />
           </EmptyMedia>
-          <EmptyTitle>Page not found</EmptyTitle>
+          <EmptyTitle>Page Not Found</EmptyTitle>
           <EmptyDescription>That route doesn't exist in this Woodstar build.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <Button asChild size="sm">
-            <Link to="/hosts">Back to hosts</Link>
+            <Link to="/hosts">Back to Hosts</Link>
           </Button>
         </EmptyContent>
       </Empty>

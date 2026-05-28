@@ -36,7 +36,7 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
       return (
         <PageShell>
           <Alert variant="destructive">
-            <AlertTitle>Failed to load check</AlertTitle>
+            <AlertTitle>Failed to Load Check</AlertTitle>
             <AlertDescription>{detail.error.message}</AlertDescription>
           </Alert>
         </PageShell>
@@ -45,7 +45,7 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
     if (!detail.data) {
       return (
         <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading check...
+          <Loader2 className="size-4 animate-spin" /> Loading Check...
         </PageShell>
       );
     }
@@ -115,7 +115,7 @@ function CheckEditForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New check" : "Edit check"} />
+        <PageHeader title={mode === "create" ? "New Check" : "Edit Check"} />
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="check-name">Name</FieldLabel>

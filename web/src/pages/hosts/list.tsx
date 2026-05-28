@@ -101,17 +101,17 @@ export function HostsListPage() {
     {
       id: "disk_space_available_bytes",
       accessorKey: "disk_space_available_bytes",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Disk free" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Disk Free" />,
       cell: ({ row }) => (
         <span className="tabular-nums">
           {row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-"}
         </span>
       ),
-      meta: { label: "Disk free" },
+      meta: { label: "Disk Free" },
     },
     {
       id: "primary_user",
-      header: () => "Primary user",
+      header: () => "Primary User",
       enableSorting: false,
       cell: ({ row }) => {
         const email = row.original.device_mappings?.[0]?.email ?? "";
@@ -121,18 +121,18 @@ export function HostsListPage() {
           </span>
         );
       },
-      meta: { label: "Primary user" },
+      meta: { label: "Primary User" },
     },
     {
       id: "last_seen_at",
       accessorKey: "last_seen_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Last seen" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last Seen" />,
       cell: ({ row }) => (
         <span title={row.original.last_seen_at ? new Date(row.original.last_seen_at).toLocaleString() : ""}>
           {formatRelative(row.original.last_seen_at)}
         </span>
       ),
-      meta: { label: "Last seen" },
+      meta: { label: "Last Seen" },
     },
     {
       id: "hardware_uuid",
@@ -169,20 +169,20 @@ export function HostsListPage() {
     {
       id: "osquery_version",
       accessorKey: "osquery_version",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="osquery" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Osquery" />,
       cell: ({ row }) => row.original.osquery_version || "-",
-      meta: { label: "osquery version" },
+      meta: { label: "Osquery Version" },
     },
     {
       id: "last_restarted_at",
       accessorKey: "last_restarted_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Last restarted" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Last Restarted" />,
       cell: ({ row }) => (
         <span title={row.original.last_restarted_at ? new Date(row.original.last_restarted_at).toLocaleString() : ""}>
           {row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"}
         </span>
       ),
-      meta: { label: "Last restarted" },
+      meta: { label: "Last Restarted" },
     },
   ];
 
@@ -202,10 +202,11 @@ export function HostsListPage() {
     <PageShell>
       <PageHeader
         title="Hosts"
+        description="Track enrolled hosts, inventory, checks, reports, and Santa state."
         actions={
           isSoftwareFiltered ? (
             <Button asChild variant="outline" size="sm">
-              <Link to="/hosts">Clear filter</Link>
+              <Link to="/hosts">Clear Filter</Link>
             </Button>
           ) : null
         }
@@ -213,7 +214,7 @@ export function HostsListPage() {
 
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load hosts</AlertTitle>
+          <AlertTitle>Failed to Load Hosts</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry
@@ -252,7 +253,7 @@ export function HostsListPage() {
           empty={
             <DataTableEmptyState
               icon={<ServerCog />}
-              title={hasFilters ? "No matches" : "No enrolled devices"}
+              title={hasFilters ? "No Matches" : "No Enrolled Devices"}
               description={
                 hasFilters ? (
                   "No hosts matched the current filters."
@@ -292,13 +293,7 @@ interface HostsToolbarProps {
 function HostsToolbar({ draft, onDraftChange, labelId, onLabelChange, labelOptions, table }: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DataTableSearch
-        value={draft}
-        onChange={onDraftChange}
-        placeholder="Search"
-        label="Search hosts"
-        className="basis-full sm:basis-64"
-      />
+      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" className="basis-full sm:basis-64" />
       <DataTableColumnToggle table={table} variant="ghost" />
       <HostFilterDropdown labelId={labelId} onLabelChange={onLabelChange} labelOptions={labelOptions} />
     </div>
@@ -323,14 +318,14 @@ function HostFilterDropdown({ labelId, onLabelChange, labelOptions }: HostFilter
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 border-dashed">
           <ListFilter data-icon="inline-start" />
-          Filter by label
+          Filter by Label
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="end">
         <Command>
-          <CommandInput placeholder="Search labels" />
+          <CommandInput placeholder="Search Labels" />
           <CommandList>
-            <CommandEmpty>No labels found.</CommandEmpty>
+            <CommandEmpty>No Labels Found.</CommandEmpty>
             <CommandGroup heading="Labels">
               {labelOptions.map((option) => (
                 <CommandItem
@@ -348,7 +343,7 @@ function HostFilterDropdown({ labelId, onLabelChange, labelOptions }: HostFilter
                 <CommandSeparator />
                 <CommandGroup>
                   <CommandItem onSelect={clearFilters} className="justify-center text-center">
-                    Clear filters
+                    Clear Filters
                   </CommandItem>
                 </CommandGroup>
               </>

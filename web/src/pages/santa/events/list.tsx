@@ -26,7 +26,7 @@ type EventListKind = "execution" | "file-access";
 export function SantaEventsPage() {
   return (
     <PageShell>
-      <PageHeader title="Events" />
+      <PageHeader title="Events" description="Review Santa execution and file access activity." />
       <EventListNav active="execution" />
       <ExecutionEventsTable />
     </PageShell>
@@ -36,7 +36,7 @@ export function SantaEventsPage() {
 export function SantaFileAccessEventsPage() {
   return (
     <PageShell>
-      <PageHeader title="Events" />
+      <PageHeader title="Events" description="Review Santa execution and file access activity." />
       <EventListNav active="file-access" />
       <FileAccessEventsTable />
     </PageShell>
@@ -50,7 +50,7 @@ function EventListNav({ active }: { active: EventListKind }) {
         <Link to="/santa/events">Execution</Link>
       </Button>
       <Button asChild size="sm" variant={active === "file-access" ? "secondary" : "ghost"}>
-        <Link to="/santa/events/file-access">File access</Link>
+        <Link to="/santa/events/file-access">File Access</Link>
       </Button>
     </div>
   );
@@ -113,7 +113,7 @@ function ExecutionEventsTable() {
     <>
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load execution events</AlertTitle>
+          <AlertTitle>Failed to Load Execution Events</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -134,14 +134,13 @@ function ExecutionEventsTable() {
               decisions={decisions}
               decisionOptions={[...DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              searchLabel="Search execution events"
               searchPlaceholder="Search"
             />
           }
           empty={
             <DataTableEmptyState
               icon={<Activity />}
-              title={hasFilters ? "No matches" : "No execution events"}
+              title={hasFilters ? "No Matches" : "No Execution Events"}
               description={
                 hasFilters ? "No events matched these filters." : "Client decisions appear after Santa syncs."
               }
@@ -218,7 +217,7 @@ function FileAccessEventsTable() {
     <>
       {query.error ? (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load file access events</AlertTitle>
+          <AlertTitle>Failed to Load File Access Events</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
@@ -239,14 +238,13 @@ function FileAccessEventsTable() {
               decisions={decisions}
               decisionOptions={[...FILE_ACCESS_DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              searchLabel="Search file access events"
-              searchPlaceholder="Search target, process, host, signer"
+              searchPlaceholder="Search Target, Process, Host, Signer"
             />
           }
           empty={
             <DataTableEmptyState
               icon={<Activity />}
-              title={hasFilters ? "No matches" : "No file access events"}
+              title={hasFilters ? "No Matches" : "No File Access Events"}
               description={
                 hasFilters
                   ? "No file access events matched these filters."
@@ -266,7 +264,6 @@ function EventTableToolbar({
   decisions,
   decisionOptions,
   onDecisionsChange,
-  searchLabel,
   searchPlaceholder,
 }: {
   draft: string;
@@ -274,12 +271,11 @@ function EventTableToolbar({
   decisions: string[];
   decisionOptions: Array<{ value: string; label: string }>;
   onDecisionsChange: (next: string[]) => void;
-  searchLabel: string;
   searchPlaceholder: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DataTableSearch value={draft} onChange={setDraft} placeholder={searchPlaceholder} label={searchLabel} />
+      <DataTableSearch value={draft} onChange={setDraft} placeholder={searchPlaceholder} />
       <DataTableFacetedFilter
         title="Decision"
         options={decisionOptions}

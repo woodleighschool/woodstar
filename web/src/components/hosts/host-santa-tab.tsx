@@ -69,15 +69,15 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
           <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
             {[
               { label: "Version", value: santa.version || "-" },
-              { label: "Reported mode", value: santa.client_mode_reported },
-              { label: "Effective configuration", value: santa.effective_configuration?.name ?? "-" },
-              { label: "Matched label", value: santa.effective_configuration?.matched_via_label?.name ?? "-" },
-              { label: "Last sync", value: formatRelative(santa.last_sync_at) },
+              { label: "Reported Mode", value: santa.client_mode_reported },
+              { label: "Effective Configuration", value: santa.effective_configuration?.name ?? "-" },
+              { label: "Matched Label", value: santa.effective_configuration?.matched_via_label?.name ?? "-" },
+              { label: "Last Sync", value: formatRelative(santa.last_sync_at) },
               {
-                label: "Rule sync",
+                label: "Rule Sync",
                 value: `${santa.rule_sync.applied_count} applied / ${santa.rule_sync.desired_count} desired`,
               },
-              { label: "Pending rules", value: String(santa.rule_sync.pending_count) },
+              { label: "Pending Rules", value: String(santa.rule_sync.pending_count) },
             ].map((tile) => (
               <div key={tile.label} className="flex min-w-0 flex-col gap-1">
                 <dt className="text-muted-foreground text-xs font-semibold">{tile.label}</dt>
@@ -90,7 +90,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
 
       <Card className="gap-4 py-4">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Effective rules</CardTitle>
+          <CardTitle>Effective Rules</CardTitle>
           {items.length > 0 ? (
             <span className="text-muted-foreground text-xs tabular-nums">
               {items.length} {items.length === 1 ? "rule" : "rules"}
@@ -100,7 +100,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
         <CardContent>
           {rules.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Failed to load effective rules</AlertTitle>
+              <AlertTitle>Failed to Load Effective Rules</AlertTitle>
               <AlertDescription>{rules.error.message}</AlertDescription>
             </Alert>
           ) : (
@@ -117,7 +117,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               empty={
                 <DataTableEmptyState
                   icon={<ShieldCheck />}
-                  title="No effective rules"
+                  title="No Effective Rules"
                   description="No Santa rules match this host."
                 />
               }

@@ -10,5 +10,5 @@ export function CheckStatusBadge({ response }: { response: string | null | undef
     );
   }
   if (response === "fail") return <Badge variant="destructive">Failing</Badge>;
-  return <Badge variant="secondary">Not run</Badge>;
+  return <Badge variant="secondary">Not Run</Badge>;
 }

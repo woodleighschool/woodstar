@@ -28,7 +28,7 @@ export function HostDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load host</AlertTitle>
+          <AlertTitle>Failed to Load Host</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
           <Button variant="outline" size="sm" onClick={() => void query.refetch()} className="mt-2 w-fit">
             Retry

@@ -27,7 +27,7 @@ export function ReportDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load report</AlertTitle>
+          <AlertTitle>Failed to Load Report</AlertTitle>
           <AlertDescription>{report.error.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -65,7 +65,7 @@ export function ReportDetailPage() {
             <ShowQueryButton sql={report.data.query} />
             <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId }} />
             <EditButton to="/osquery/reports/$reportId/edit" params={{ reportId }}>
-              Edit report
+              Edit Report
             </EditButton>
           </>
         }
@@ -91,7 +91,7 @@ export function ReportDetailPage() {
           empty={
             <Empty>
               <EmptyHeader>
-                <EmptyTitle>Nothing to report yet</EmptyTitle>
+                <EmptyTitle>Nothing to Report Yet</EmptyTitle>
                 <EmptyDescription>This report has not stored any result rows.</EmptyDescription>
               </EmptyHeader>
             </Empty>

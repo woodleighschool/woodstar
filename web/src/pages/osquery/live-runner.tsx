@@ -128,7 +128,7 @@ export function LiveRunner({
   }
 
   const itemLabel = kind === "report" ? "report" : "check";
-  const title = step === "targets" ? `Run ${name}` : `${name} live run`;
+  const title = step === "targets" ? `Run ${name}` : `${name} Live Run`;
 
   return (
     <PageShell>
@@ -202,7 +202,7 @@ function TargetRunPanel({
   return (
     <div className="grid content-start gap-4">
       <div>
-        <h2 className="text-base font-semibold">Ready to run</h2>
+        <h2 className="text-base font-semibold">Ready to Run</h2>
         <TargetSummary
           selectedCount={selectedCount}
           hasTargets={hasTargets}
@@ -316,19 +316,19 @@ function RunResults({
           ) : (
             <Button size="sm" onClick={onRunAgain}>
               <Play data-icon="inline-start" />
-              {finished ? "Run again" : "Run"}
+              {finished ? "Run Again" : "Run"}
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={onChangeTargets}>
             <X data-icon="inline-start" />
-            Change targets
+            Change Targets
           </Button>
         </div>
       </div>
       <AlertDialog open={stopOpen} onOpenChange={setStopOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Stop live run?</AlertDialogTitle>
+            <AlertDialogTitle>Stop Live Run?</AlertDialogTitle>
             <AlertDialogDescription>
               Hosts that have not responded yet will be marked stopped for this live run.
             </AlertDialogDescription>
@@ -364,7 +364,7 @@ function runHeading(status: string, stopped: boolean) {
   if (status === "running") return "Running";
   if (stopped) return "Stopped";
   if (status === "completed") return "Finished";
-  if (status === "error") return "Stream interrupted";
+  if (status === "error") return "Stream Interrupted";
   return "Starting";
 }
 
@@ -467,7 +467,7 @@ function TargetPicker({
   return (
     <div className="grid content-start gap-5 rounded-md border p-4">
       <div>
-        <h2 className="text-base font-semibold">Select targets</h2>
+        <h2 className="text-base font-semibold">Select Targets</h2>
       </div>
 
       <TargetSection title="" labels={grouped.allHosts} selected={selectedLabels} onToggle={toggleLabel} />
@@ -478,15 +478,14 @@ function TargetPicker({
         <DataTableSearch
           value={hostSearch}
           onChange={setHostSearch}
-          placeholder="Search hosts"
-          label="Search hosts"
+          placeholder="Search Hosts"
           className="max-w-none"
         />
         {hostSearch ? (
           <div className="grid gap-1 rounded-md border p-2">
             {hosts.isFetching ? (
               <div className="text-muted-foreground flex items-center gap-2 px-2 py-2 text-sm">
-                <Loader2 className="size-3.5 animate-spin" /> Searching hosts...
+                <Loader2 className="size-3.5 animate-spin" /> Searching Hosts...
               </div>
             ) : hostRows.length ? (
               hostRows.map((host) => (
@@ -500,7 +499,7 @@ function TargetPicker({
                 </button>
               ))
             ) : (
-              <div className="text-muted-foreground px-2 py-2 text-sm">No hosts found.</div>
+              <div className="text-muted-foreground px-2 py-2 text-sm">No Hosts Found.</div>
             )}
           </div>
         ) : null}
@@ -604,7 +603,7 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       clientSort
       empty={
         <RunEmptyState
-          title={running ? "Waiting for results" : "No rows returned"}
+          title={running ? "Waiting for Results" : "No Rows Returned"}
           description={
             running
               ? "Results will appear as online hosts respond."
@@ -650,7 +649,7 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       clientSort
       empty={
         <RunEmptyState
-          title={running ? "Waiting for hosts" : "No host results"}
+          title={running ? "Waiting for Hosts" : "No Host Results"}
           description={
             running
               ? "Check results will appear as online hosts respond."
@@ -686,7 +685,7 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       onSortingChange={() => undefined}
       getRowId={(row) => String(row._seq)}
       clientSort
-      empty={<RunEmptyState title="No errors" description="No host errors have been reported for this run." />}
+      empty={<RunEmptyState title="No Errors" description="No host errors have been reported for this run." />}
     />
   );
 }

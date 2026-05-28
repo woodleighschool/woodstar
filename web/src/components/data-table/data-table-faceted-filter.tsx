@@ -55,7 +55,7 @@ export function DataTableFacetedFilter({
               <div className="hidden gap-1 lg:flex">
                 {selectedSet.size > 2 ? (
                   <Badge variant="secondary" className="px-1.5 font-normal">
-                    {selectedSet.size} selected
+                    {selectedSet.size} Selected
                   </Badge>
                 ) : (
                   options
@@ -75,7 +75,7 @@ export function DataTableFacetedFilter({
         <Command>
           <CommandInput placeholder={title} />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandEmpty>No Results Found.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedSet.has(option.value);
@@ -112,7 +112,7 @@ export function DataTableFacetedFilter({
                 <CommandSeparator />
                 <CommandGroup>
                   <CommandItem onSelect={() => onChange([])} className="justify-center text-center">
-                    Clear filters
+                    Clear Filters
                   </CommandItem>
                 </CommandGroup>
               </>

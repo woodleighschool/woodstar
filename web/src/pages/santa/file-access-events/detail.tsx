@@ -20,7 +20,7 @@ export function SantaFileAccessEventDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load file access event</AlertTitle>
+          <AlertTitle>Failed to Load File Access Event</AlertTitle>
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -58,7 +58,7 @@ export function SantaFileAccessEventDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="process">Process chain</TabsTrigger>
+          <TabsTrigger value="process">Process Chain</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -66,10 +66,10 @@ export function SantaFileAccessEventDetailPage() {
             <Table>
               <TableBody>
                 <DetailRow label="Target" value={event.target} />
-                <DetailRow label="Rule name" value={event.rule_name} />
-                <DetailRow label="Rule version" value={event.rule_version} />
+                <DetailRow label="Rule Name" value={event.rule_name} />
+                <DetailRow label="Rule Version" value={event.rule_version} />
                 <DetailRow
-                  label="Primary process"
+                  label="Primary Process"
                   value={event.primary_process.file_name || fileName(event.primary_process.file_path)}
                 />
               </TableBody>

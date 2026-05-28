@@ -26,7 +26,7 @@ export function CheckDetailPage() {
     return (
       <PageShell>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load check</AlertTitle>
+          <AlertTitle>Failed to Load Check</AlertTitle>
           <AlertDescription>{check.error.message}</AlertDescription>
         </Alert>
       </PageShell>
@@ -35,7 +35,7 @@ export function CheckDetailPage() {
   if (!check.data) {
     return (
       <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading check...
+        <Loader2 className="size-4 animate-spin" /> Loading Check...
       </PageShell>
     );
   }
@@ -54,15 +54,15 @@ export function CheckDetailPage() {
             <ShowQueryButton sql={check.data.query} />
             <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId }} />
             <EditButton to="/osquery/checks/$checkId/edit" params={{ checkId }}>
-              Edit check
+              Edit Check
             </EditButton>
           </>
         }
       />
 
       <DetailSettings>
-        <SettingItem label="Hosts failing">{failing}</SettingItem>
-        <SettingItem label="Hosts passing">{passing}</SettingItem>
+        <SettingItem label="Hosts Failing">{failing}</SettingItem>
+        <SettingItem label="Hosts Passing">{passing}</SettingItem>
         <SettingItem label="Targets">
           <TargetSummary scope={check.data.label_scope} />
         </SettingItem>
