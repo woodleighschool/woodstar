@@ -70,17 +70,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "hosts", label: "Hosts", to: "/hosts" },
         { key: `host-${params.hostId}`, label: <HostCrumb id={params.hostId} /> },
       ];
-    case "/_authenticated/hosts/$hostId/reports/$reportId":
-      return [
-        { key: "hosts", label: "Hosts", to: "/hosts" },
-        {
-          key: `host-${params.hostId}`,
-          label: <HostCrumb id={params.hostId} />,
-          to: "/hosts/$hostId",
-          params: { hostId: params.hostId },
-        },
-        { key: `report-${params.reportId}`, label: <ReportCrumb id={params.reportId} /> },
-      ];
 
     // Software
     case "/_authenticated/software/titles/$softwareId":

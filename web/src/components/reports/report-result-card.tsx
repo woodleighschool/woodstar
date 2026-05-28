@@ -8,10 +8,9 @@ import { formatRelative } from "@/lib/utils";
 
 interface ReportResultCardProps {
   report: HostReport;
-  hostParam: string;
 }
 
-export function ReportResultCard({ report, hostParam }: ReportResultCardProps) {
+export function ReportResultCard({ report }: ReportResultCardProps) {
   const values = reportResultValues(report.first_result);
   const subtitle = report.last_fetched ? `Last updated ${formatRelative(report.last_fetched)}` : "Collecting results";
 
@@ -19,19 +18,13 @@ export function ReportResultCard({ report, hostParam }: ReportResultCardProps) {
     <Card>
       <CardHeader>
         <CardTitle className="min-w-0 truncate" title={report.name}>
-          <Link
-            to="/hosts/$hostId/reports/$reportId"
-            params={{ hostId: hostParam, reportId: String(report.report_id) }}
-            className="hover:underline"
-          >
-            {report.name}
-          </Link>
+          {report.name}
         </CardTitle>
         <CardDescription>{subtitle}</CardDescription>
         <CardAction>
           <Button asChild size="sm" variant="outline">
             <Link to="/osquery/reports/$reportId" params={{ reportId: String(report.report_id) }}>
-              All hosts
+              View Report
             </Link>
           </Button>
         </CardAction>

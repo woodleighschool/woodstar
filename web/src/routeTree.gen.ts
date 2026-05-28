@@ -63,7 +63,6 @@ import { Route as AuthenticatedOsqueryReportsReportIdLiveRouteImport } from './r
 import { Route as AuthenticatedOsqueryReportsReportIdEditRouteImport } from './routes/_authenticated/osquery.reports.$reportId.edit'
 import { Route as AuthenticatedOsqueryChecksCheckIdLiveRouteImport } from './routes/_authenticated/osquery.checks.$checkId.live'
 import { Route as AuthenticatedOsqueryChecksCheckIdEditRouteImport } from './routes/_authenticated/osquery.checks.$checkId.edit'
-import { Route as AuthenticatedHostsHostIdReportsReportIdRouteImport } from './routes/_authenticated/hosts.$hostId.reports.$reportId'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -372,12 +371,6 @@ const AuthenticatedOsqueryChecksCheckIdEditRoute =
     path: '/edit',
     getParentRoute: () => AuthenticatedOsqueryChecksCheckIdRoute,
   } as any)
-const AuthenticatedHostsHostIdReportsReportIdRoute =
-  AuthenticatedHostsHostIdReportsReportIdRouteImport.update({
-    id: '/reports/$reportId',
-    path: '/reports/$reportId',
-    getParentRoute: () => AuthenticatedHostsHostIdRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -393,7 +386,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRouteWithChildren
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/osquery/checks': typeof AuthenticatedOsqueryChecksRouteWithChildren
   '/osquery/reports': typeof AuthenticatedOsqueryReportsRouteWithChildren
@@ -423,7 +416,6 @@ export interface FileRoutesByFullPath {
   '/santa/configurations/': typeof AuthenticatedSantaConfigurationsIndexRoute
   '/santa/events/': typeof AuthenticatedSantaEventsIndexRoute
   '/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
-  '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
   '/osquery/checks/$checkId/edit': typeof AuthenticatedOsqueryChecksCheckIdEditRoute
   '/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/osquery/reports/$reportId/edit': typeof AuthenticatedOsqueryReportsReportIdEditRoute
@@ -442,7 +434,7 @@ export interface FileRoutesByTo {
   '/account': typeof AuthenticatedAccountRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/labels/new': typeof AuthenticatedLabelsNewRoute
   '/enrollments': typeof AuthenticatedEnrollmentsIndexRoute
   '/hosts': typeof AuthenticatedHostsIndexRoute
@@ -464,7 +456,6 @@ export interface FileRoutesByTo {
   '/santa/configurations': typeof AuthenticatedSantaConfigurationsIndexRoute
   '/santa/events': typeof AuthenticatedSantaEventsIndexRoute
   '/santa/rules': typeof AuthenticatedSantaRulesIndexRoute
-  '/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
   '/osquery/checks/$checkId/edit': typeof AuthenticatedOsqueryChecksCheckIdEditRoute
   '/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/osquery/reports/$reportId/edit': typeof AuthenticatedOsqueryReportsReportIdEditRoute
@@ -492,7 +483,7 @@ export interface FileRoutesById {
   '/_authenticated/users': typeof AuthenticatedUsersRouteWithChildren
   '/_authenticated/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
-  '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRouteWithChildren
+  '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
   '/_authenticated/labels/new': typeof AuthenticatedLabelsNewRoute
   '/_authenticated/osquery/checks': typeof AuthenticatedOsqueryChecksRouteWithChildren
   '/_authenticated/osquery/reports': typeof AuthenticatedOsqueryReportsRouteWithChildren
@@ -522,7 +513,6 @@ export interface FileRoutesById {
   '/_authenticated/santa/configurations/': typeof AuthenticatedSantaConfigurationsIndexRoute
   '/_authenticated/santa/events/': typeof AuthenticatedSantaEventsIndexRoute
   '/_authenticated/santa/rules/': typeof AuthenticatedSantaRulesIndexRoute
-  '/_authenticated/hosts/$hostId/reports/$reportId': typeof AuthenticatedHostsHostIdReportsReportIdRoute
   '/_authenticated/osquery/checks/$checkId/edit': typeof AuthenticatedOsqueryChecksCheckIdEditRoute
   '/_authenticated/osquery/checks/$checkId/live': typeof AuthenticatedOsqueryChecksCheckIdLiveRoute
   '/_authenticated/osquery/reports/$reportId/edit': typeof AuthenticatedOsqueryReportsReportIdEditRoute
@@ -580,7 +570,6 @@ export interface FileRouteTypes {
     | '/santa/configurations/'
     | '/santa/events/'
     | '/santa/rules/'
-    | '/hosts/$hostId/reports/$reportId'
     | '/osquery/checks/$checkId/edit'
     | '/osquery/checks/$checkId/live'
     | '/osquery/reports/$reportId/edit'
@@ -621,7 +610,6 @@ export interface FileRouteTypes {
     | '/santa/configurations'
     | '/santa/events'
     | '/santa/rules'
-    | '/hosts/$hostId/reports/$reportId'
     | '/osquery/checks/$checkId/edit'
     | '/osquery/checks/$checkId/live'
     | '/osquery/reports/$reportId/edit'
@@ -678,7 +666,6 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/configurations/'
     | '/_authenticated/santa/events/'
     | '/_authenticated/santa/rules/'
-    | '/_authenticated/hosts/$hostId/reports/$reportId'
     | '/_authenticated/osquery/checks/$checkId/edit'
     | '/_authenticated/osquery/checks/$checkId/live'
     | '/_authenticated/osquery/reports/$reportId/edit'
@@ -1078,13 +1065,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOsqueryChecksCheckIdEditRouteImport
       parentRoute: typeof AuthenticatedOsqueryChecksCheckIdRoute
     }
-    '/_authenticated/hosts/$hostId/reports/$reportId': {
-      id: '/_authenticated/hosts/$hostId/reports/$reportId'
-      path: '/reports/$reportId'
-      fullPath: '/hosts/$hostId/reports/$reportId'
-      preLoaderRoute: typeof AuthenticatedHostsHostIdReportsReportIdRouteImport
-      parentRoute: typeof AuthenticatedHostsHostIdRoute
-    }
   }
 }
 
@@ -1106,28 +1086,13 @@ const AuthenticatedEnrollmentsRouteWithChildren =
     AuthenticatedEnrollmentsRouteChildren,
   )
 
-interface AuthenticatedHostsHostIdRouteChildren {
-  AuthenticatedHostsHostIdReportsReportIdRoute: typeof AuthenticatedHostsHostIdReportsReportIdRoute
-}
-
-const AuthenticatedHostsHostIdRouteChildren: AuthenticatedHostsHostIdRouteChildren =
-  {
-    AuthenticatedHostsHostIdReportsReportIdRoute:
-      AuthenticatedHostsHostIdReportsReportIdRoute,
-  }
-
-const AuthenticatedHostsHostIdRouteWithChildren =
-  AuthenticatedHostsHostIdRoute._addFileChildren(
-    AuthenticatedHostsHostIdRouteChildren,
-  )
-
 interface AuthenticatedHostsRouteChildren {
-  AuthenticatedHostsHostIdRoute: typeof AuthenticatedHostsHostIdRouteWithChildren
+  AuthenticatedHostsHostIdRoute: typeof AuthenticatedHostsHostIdRoute
   AuthenticatedHostsIndexRoute: typeof AuthenticatedHostsIndexRoute
 }
 
 const AuthenticatedHostsRouteChildren: AuthenticatedHostsRouteChildren = {
-  AuthenticatedHostsHostIdRoute: AuthenticatedHostsHostIdRouteWithChildren,
+  AuthenticatedHostsHostIdRoute: AuthenticatedHostsHostIdRoute,
   AuthenticatedHostsIndexRoute: AuthenticatedHostsIndexRoute,
 }
 

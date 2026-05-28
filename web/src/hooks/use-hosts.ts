@@ -13,7 +13,6 @@ export type HostListResult = Schemas["PaginatedBodyHost"];
 export type HostSoftwareListResult = Schemas["PaginatedBodyHostSoftwareRow"];
 export type HostReportsResult = Schemas["ItemsBodyHostReport"];
 export type HostReport = Schemas["HostReport"];
-export type HostReportResultsResult = Schemas["HostReportResultsBody"];
 export type HostChecksResult = Schemas["ItemsBodyCheckHostStatus"];
 export type HostSantaEffectiveRulesResult = Schemas["PaginatedBodyEffectiveRuleStatus"];
 export type HostSantaEffectiveRule = Schemas["EffectiveRuleStatus"];
@@ -129,20 +128,6 @@ export function useHostReports(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(apiClient.GET("/api/hosts/{id}/osquery/reports", { params: { path: { id: id ?? 0 } }, signal })),
     enabled: id !== null,
-  });
-}
-
-export function useHostReportResults(hostId: number | null, reportId: number | null) {
-  return useQuery<HostReportResultsResult, ApiError>({
-    queryKey: queryKeys.hostReportResults(hostId, reportId),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/hosts/{id}/osquery/reports/{report_id}", {
-          params: { path: { id: hostId ?? 0, report_id: reportId ?? 0 } },
-          signal,
-        }),
-      ),
-    enabled: hostId !== null && reportId !== null,
   });
 }
 

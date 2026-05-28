@@ -75,7 +75,7 @@ export function HostDetailPage() {
         </TabsContent>
 
         <TabsContent value="reports">
-          <HostReportsTab hostId={hostID} hostParam={hostId} />
+          <HostReportsTab hostId={hostID} />
         </TabsContent>
 
         <TabsContent value="checks">

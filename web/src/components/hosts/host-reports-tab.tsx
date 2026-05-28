@@ -7,7 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHostReports } from "@/hooks/use-hosts";
 
-export function HostReportsTab({ hostId, hostParam }: { hostId: number | null; hostParam: string }) {
+export function HostReportsTab({ hostId }: { hostId: number | null }) {
   const reports = useHostReports(hostId);
   const reportItems = reports.data?.items;
   const rows = useMemo(() => reportItems ?? [], [reportItems]);
@@ -49,7 +49,7 @@ export function HostReportsTab({ hostId, hostParam }: { hostId: number | null; h
   return (
     <div className="flex flex-col gap-4">
       {rows.map((report) => (
-        <ReportResultCard key={report.report_id} report={report} hostParam={hostParam} />
+        <ReportResultCard key={report.report_id} report={report} />
       ))}
     </div>
   );
