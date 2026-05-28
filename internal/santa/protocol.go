@@ -26,7 +26,8 @@ type PreflightResponse struct {
 }
 
 type EventUploadRequest struct {
-	Events []events.ExecutionEventInput
+	Events           []events.ExecutionEventInput
+	FileAccessEvents []events.FileAccessEventInput
 }
 
 type EventUploadResponse struct{}

@@ -657,6 +657,9 @@ components:
       properties:
         cdhash:
           type: string
+        entitlements:
+          additionalProperties: {}
+          type: object
         file_bundle_id:
           type: string
         file_bundle_path:
@@ -668,6 +671,12 @@ components:
           type: integer
         sha256:
           type: string
+        signing_chain:
+          items:
+            $ref: "#/components/schemas/SigningChainEntry"
+          type:
+            - array
+            - "null"
         signing_id:
           type: string
         team_id:
@@ -685,6 +694,13 @@ components:
     ExecutionEvent:
       additionalProperties: false
       properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/ExecutionEvent.json
+          format: uri
+          readOnly: true
+          type: string
         current_sessions:
           items:
             type: string
@@ -699,6 +715,8 @@ components:
           type: string
         file_path:
           type: string
+        host:
+          $ref: "#/components/schemas/HostSummary"
         host_id:
           format: int64
           type: integer
@@ -720,12 +738,66 @@ components:
       required:
         - id
         - host_id
+        - host
         - executable
         - file_path
         - executing_user
         - logged_in_users
         - current_sessions
         - decision
+        - occurred_at
+        - ingested_at
+      type: object
+    FileAccessEvent:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/FileAccessEvent.json
+          format: uri
+          readOnly: true
+          type: string
+        decision:
+          type: string
+        host:
+          $ref: "#/components/schemas/HostSummary"
+        host_id:
+          format: int64
+          type: integer
+        id:
+          format: int64
+          type: integer
+        ingested_at:
+          format: date-time
+          type: string
+        occurred_at:
+          format: date-time
+          type: string
+        primary_process:
+          $ref: "#/components/schemas/Process"
+        process_chain:
+          items:
+            $ref: "#/components/schemas/Process"
+          type:
+            - array
+            - "null"
+        rule_name:
+          type: string
+        rule_version:
+          type: string
+        target:
+          type: string
+      required:
+        - id
+        - host_id
+        - host
+        - rule_version
+        - rule_name
+        - target
+        - decision
+        - primary_process
+        - occurred_at
         - ingested_at
       type: object
     Handle:
@@ -1275,6 +1347,39 @@ components:
         - client_mode_reported
         - rule_sync
       type: object
+    HostSummary:
+      additionalProperties: false
+      properties:
+        computer_name:
+          type: string
+        display_name:
+          type: string
+        hardware_model:
+          type: string
+        hardware_serial:
+          type: string
+        hostname:
+          type: string
+        id:
+          format: int64
+          type: integer
+        santa_client_mode:
+          type: string
+        santa_machine_id:
+          type: string
+        santa_version:
+          type: string
+      required:
+        - id
+        - display_name
+        - hostname
+        - computer_name
+        - hardware_serial
+        - hardware_model
+        - santa_machine_id
+        - santa_version
+        - santa_client_mode
+      type: object
     HostUser:
       additionalProperties: false
       properties:
@@ -1701,6 +1806,29 @@ components:
         - items
         - count
       type: object
+    PaginatedBodyFileAccessEvent:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyFileAccessEvent.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/FileAccessEvent"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     PaginatedBodyHost:
       additionalProperties: false
       properties:
@@ -1881,6 +2009,39 @@ components:
         - hash_sha256
         - executable_sha256
         - executable_path
+      type: object
+    Process:
+      additionalProperties: false
+      properties:
+        cdhash:
+          type: string
+        file_name:
+          type: string
+        file_path:
+          type: string
+        file_sha256:
+          type: string
+        pid:
+          format: int32
+          type: integer
+        signing_chain:
+          items:
+            $ref: "#/components/schemas/SigningChainEntry"
+          type:
+            - array
+            - "null"
+        signing_id:
+          type: string
+        team_id:
+          type: string
+      required:
+        - pid
+        - file_path
+        - file_name
+        - file_sha256
+        - signing_id
+        - team_id
+        - cdhash
       type: object
     RemovableMediaPolicy:
       additionalProperties: false
@@ -2348,6 +2509,26 @@ components:
       required:
         - email
         - password
+      type: object
+    SigningChainEntry:
+      additionalProperties: false
+      properties:
+        common_name:
+          type: string
+        organization:
+          type: string
+        organizational_unit:
+          type: string
+        sha256:
+          type: string
+        valid_from:
+          format: date-time
+          type: string
+        valid_until:
+          format: date-time
+          type: string
+      required:
+        - sha256
       type: object
     SoftwareTitle:
       additionalProperties: false
@@ -5281,6 +5462,210 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: List Santa execution events
+      tags:
+        - Santa
+  /api/santa/events/{id}:
+    get:
+      operationId: get-santa-event
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionEvent"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get a Santa execution event
+      tags:
+        - Santa
+  /api/santa/file-access-events:
+    get:
+      operationId: list-santa-file-access-events
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: host_id
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: decisions
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
+        - explode: false
+          in: query
+          name: since
+          schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedBodyFileAccessEvent"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List Santa file access events
+      tags:
+        - Santa
+  /api/santa/file-access-events/{id}:
+    get:
+      operationId: get-santa-file-access-event
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileAccessEvent"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get a Santa file access event
       tags:
         - Santa
   /api/santa/rules:

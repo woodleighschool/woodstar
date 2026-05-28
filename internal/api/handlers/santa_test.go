@@ -85,24 +85,44 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		t.Fatalf("upsert observation: %v", err)
 	}
 	occurredAt := time.Date(2026, 5, 23, 14, 0, 0, 0, time.UTC)
-	if err := eventsStore.IngestExecutionEvents(ctx, host.ID, []santaevents.ExecutionEventInput{
+	if err := eventsStore.IngestEvents(ctx, host.ID, []santaevents.ExecutionEventInput{
 		{
-			FileSHA256:           "wire-blocked-1",
-			FileName:             "Blocked One",
-			ExecutionTimeSeconds: float64(occurredAt.Unix()),
-			Decision:             santaevents.ExecutionDecisionBlockBinary,
+			FileSHA256: "wire-blocked-1",
+			FileName:   "Blocked One",
+			OccurredAt: occurredAt,
+			Decision:   santaevents.ExecutionDecisionBlockBinary,
 		},
 		{
-			FileSHA256:           "wire-blocked-2",
-			FileName:             "Blocked Two",
-			ExecutionTimeSeconds: float64(occurredAt.Add(time.Second).Unix()),
-			Decision:             santaevents.ExecutionDecisionBlockCertificate,
+			FileSHA256: "wire-blocked-2",
+			FileName:   "Blocked Two",
+			OccurredAt: occurredAt.Add(time.Second),
+			Decision:   santaevents.ExecutionDecisionBlockCertificate,
 		},
 		{
-			FileSHA256:           "wire-allowed",
-			FileName:             "Allowed",
-			ExecutionTimeSeconds: float64(occurredAt.Add(2 * time.Second).Unix()),
-			Decision:             santaevents.ExecutionDecisionAllowBinary,
+			FileSHA256: "wire-allowed",
+			FileName:   "Allowed",
+			OccurredAt: occurredAt.Add(2 * time.Second),
+			Decision:   santaevents.ExecutionDecisionAllowBinary,
+		},
+	}, []santaevents.FileAccessEventInput{
+		{
+			RuleVersion: "wire-v1",
+			RuleName:    "Protect Wire Payroll",
+			Target:      "/Users/alice/WirePayroll.csv",
+			Decision:    santaevents.FileAccessDecisionDenied,
+			OccurredAt:  occurredAt.Add(3 * time.Second),
+			ProcessChain: []santaevents.ProcessInput{{
+				PID:        42,
+				FilePath:   "/Applications/Wire.app/Contents/MacOS/Wire",
+				FileSHA256: "wire-process",
+			}},
+		},
+		{
+			RuleVersion: "wire-v1",
+			RuleName:    "Audit Downloads",
+			Target:      "/Users/alice/Downloads/audit.txt",
+			Decision:    santaevents.FileAccessDecisionAuditOnly,
+			OccurredAt:  occurredAt.Add(4 * time.Second),
 		},
 	}); err != nil {
 		t.Fatalf("ingest events: %v", err)
@@ -138,6 +158,40 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Allowed") || strings.Contains(rec.Body.String(), "Blocked") {
 		t.Fatalf("search response = %q, want only allowed event", rec.Body.String())
+	}
+
+	rec = santaAdminRequest(t, router, cookie, http.MethodGet, "/api/santa/file-access-events?decisions=denied", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("file access status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var fileAccessList paginatedBody[santaevents.FileAccessEvent]
+	if err := json.Unmarshal(rec.Body.Bytes(), &fileAccessList); err != nil {
+		t.Fatalf("decode file access list: %v", err)
+	}
+	if fileAccessList.Count != 1 ||
+		len(fileAccessList.Items) != 1 ||
+		fileAccessList.Items[0].Decision != santaevents.FileAccessDecisionDenied ||
+		fileAccessList.Items[0].Target != "/Users/alice/WirePayroll.csv" {
+		t.Fatalf("file access list = %+v, want one denied payroll event", fileAccessList)
+	}
+
+	rec = santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodGet,
+		fmt.Sprintf("/api/santa/file-access-events/%d", fileAccessList.Items[0].ID),
+		"",
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("file access detail status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var fileAccessDetail santaevents.FileAccessEvent
+	if err := json.Unmarshal(rec.Body.Bytes(), &fileAccessDetail); err != nil {
+		t.Fatalf("decode file access detail: %v", err)
+	}
+	if len(fileAccessDetail.ProcessChain) != 1 || fileAccessDetail.ProcessChain[0].FileName != "Wire" {
+		t.Fatalf("file access detail = %+v, want persisted process chain", fileAccessDetail)
 	}
 }
 

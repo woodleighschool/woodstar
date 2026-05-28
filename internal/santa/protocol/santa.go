@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	syncv1 "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	"github.com/go-chi/chi/v5"
@@ -209,7 +211,18 @@ func eventUploadRequestFromProto(req *syncv1.EventUploadRequest) (santa.EventUpl
 		}
 		events = append(events, converted)
 	}
-	return santa.EventUploadRequest{Events: events}, nil
+	fileAccessEvents := make([]santaevents.FileAccessEventInput, 0, len(req.GetFileAccessEvents()))
+	for _, event := range req.GetFileAccessEvents() {
+		if event == nil {
+			continue
+		}
+		converted, err := fileAccessEventFromProto(event)
+		if err != nil {
+			return santa.EventUploadRequest{}, err
+		}
+		fileAccessEvents = append(fileAccessEvents, converted)
+	}
+	return santa.EventUploadRequest{Events: events, FileAccessEvents: fileAccessEvents}, nil
 }
 
 func eventUploadResponseToProto(santa.EventUploadResponse) (*syncv1.EventUploadResponse, error) {
@@ -244,29 +257,33 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 	if err != nil {
 		return santaevents.ExecutionEventInput{}, err
 	}
+	occurredAt, err := eventTime(event.GetExecutionTime(), "execution_time")
+	if err != nil {
+		return santaevents.ExecutionEventInput{}, err
+	}
 	return santaevents.ExecutionEventInput{
-		FileSHA256:           event.GetFileSha256(),
-		FilePath:             event.GetFilePath(),
-		FileName:             event.GetFileName(),
-		ExecutingUser:        event.GetExecutingUser(),
-		ExecutionTimeSeconds: event.GetExecutionTime(),
-		LoggedInUsers:        event.GetLoggedInUsers(),
-		CurrentSessions:      event.GetCurrentSessions(),
-		Decision:             decisionFromProto(event.GetDecision()),
-		BundleID:             event.GetFileBundleId(),
-		BundlePath:           event.GetFileBundlePath(),
-		SigningID:            event.GetSigningId(),
-		TeamID:               event.GetTeamId(),
-		CDHash:               event.GetCdhash(),
-		Entitlements:         entitlements,
-		SigningChain:         signingChainFromProto(event.GetSigningChain()),
+		FileSHA256:      event.GetFileSha256(),
+		FilePath:        event.GetFilePath(),
+		FileName:        event.GetFileName(),
+		ExecutingUser:   event.GetExecutingUser(),
+		OccurredAt:      occurredAt,
+		LoggedInUsers:   event.GetLoggedInUsers(),
+		CurrentSessions: event.GetCurrentSessions(),
+		Decision:        decisionFromProto(event.GetDecision()),
+		BundleID:        event.GetFileBundleId(),
+		BundlePath:      event.GetFileBundlePath(),
+		SigningID:       event.GetSigningId(),
+		TeamID:          event.GetTeamId(),
+		CDHash:          event.GetCdhash(),
+		Entitlements:    entitlements,
+		SigningChain:    signingChainFromProto(event.GetSigningChain()),
 	}, nil
 }
 
 func entitlementJSON(event *syncv1.Event) ([]byte, error) {
 	entitlements := event.GetEntitlementInfo()
 	if entitlements == nil {
-		return nil, nil
+		return []byte{}, nil
 	}
 	return protojson.Marshal(entitlements)
 }
@@ -284,6 +301,48 @@ func signingChainFromProto(chain []*syncv1.Certificate) []santaevents.Certificat
 			OU:         cert.GetOu(),
 			ValidFrom:  cert.GetValidFrom(),
 			ValidUntil: cert.GetValidUntil(),
+		})
+	}
+	return out
+}
+
+func fileAccessEventFromProto(event *syncv1.FileAccessEvent) (santaevents.FileAccessEventInput, error) {
+	occurredAt, err := eventTime(event.GetAccessTime(), "access_time")
+	if err != nil {
+		return santaevents.FileAccessEventInput{}, err
+	}
+	return santaevents.FileAccessEventInput{
+		RuleVersion:  event.GetRuleVersion(),
+		RuleName:     event.GetRuleName(),
+		Target:       event.GetTarget(),
+		Decision:     fileAccessDecisionFromProto(event.GetDecision()),
+		OccurredAt:   occurredAt,
+		ProcessChain: processChainFromProto(event.GetProcessChain()),
+	}, nil
+}
+
+func eventTime(seconds float64, field string) (time.Time, error) {
+	if seconds <= 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
+		return time.Time{}, fmt.Errorf("%w: %s is required", dbutil.ErrInvalidInput, field)
+	}
+	whole, fraction := math.Modf(seconds)
+	return time.Unix(int64(whole), int64(fraction*1e9)).UTC(), nil
+}
+
+func processChainFromProto(processes []*syncv1.Process) []santaevents.ProcessInput {
+	out := make([]santaevents.ProcessInput, 0, len(processes))
+	for _, process := range processes {
+		if process == nil {
+			continue
+		}
+		out = append(out, santaevents.ProcessInput{
+			PID:          process.GetPid(),
+			FilePath:     process.GetFilePath(),
+			FileSHA256:   process.GetFileSha256(),
+			SigningID:    process.GetSigningId(),
+			TeamID:       process.GetTeamId(),
+			CDHash:       process.GetCdhash(),
+			SigningChain: signingChainFromProto(process.GetSigningChain()),
 		})
 	}
 	return out
@@ -526,6 +585,19 @@ func decisionFromProto(decision syncv1.Decision) santaevents.ExecutionDecision {
 		return santaevents.ExecutionDecisionBundleBinary
 	default:
 		return santaevents.ExecutionDecisionUnknown
+	}
+}
+
+func fileAccessDecisionFromProto(decision syncv1.FileAccessDecision) santaevents.FileAccessDecision {
+	switch decision {
+	case syncv1.FileAccessDecision_FILE_ACCESS_DECISION_DENIED:
+		return santaevents.FileAccessDecisionDenied
+	case syncv1.FileAccessDecision_FILE_ACCESS_DECISION_DENIED_INVALID_SIGNATURE:
+		return santaevents.FileAccessDecisionDeniedInvalidSignature
+	case syncv1.FileAccessDecision_FILE_ACCESS_DECISION_AUDIT_ONLY:
+		return santaevents.FileAccessDecisionAuditOnly
+	default:
+		return santaevents.FileAccessDecisionUnknown
 	}
 }
 

@@ -38,7 +38,7 @@ type configurationResolver interface {
 }
 
 type eventStore interface {
-	IngestExecutionEvents(context.Context, int64, []santaevents.ExecutionEventInput) error
+	IngestEvents(context.Context, int64, []santaevents.ExecutionEventInput, []santaevents.FileAccessEventInput) error
 }
 
 type ruleStore interface {
@@ -118,7 +118,7 @@ func (s *Service) EventUpload(
 	if err != nil {
 		return EventUploadResponse{}, err
 	}
-	if err := s.events.IngestExecutionEvents(ctx, hostID, req.Events); err != nil {
+	if err := s.events.IngestEvents(ctx, hostID, req.Events, req.FileAccessEvents); err != nil {
 		return EventUploadResponse{}, err
 	}
 	return EventUploadResponse{}, nil

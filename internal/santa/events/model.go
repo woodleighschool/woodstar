@@ -6,9 +6,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
+// ExecutionDecision is Santa's policy decision for an executed binary.
 type ExecutionDecision string
 
+// DecisionFilter is an execution-event filter value accepted by the admin API.
 type DecisionFilter string
+
+// FileAccessDecision is Santa's policy decision for a file-access event.
+type FileAccessDecision string
 
 const (
 	ExecutionDecisionUnknown          ExecutionDecision = "unknown"
@@ -30,47 +35,83 @@ const (
 
 	DecisionFilterAllowed DecisionFilter = "allowed"
 	DecisionFilterBlocked DecisionFilter = "blocked"
+
+	FileAccessDecisionUnknown                FileAccessDecision = "unknown"
+	FileAccessDecisionDenied                 FileAccessDecision = "denied"
+	FileAccessDecisionDeniedInvalidSignature FileAccessDecision = "denied_invalid_signature"
+	FileAccessDecisionAuditOnly              FileAccessDecision = "audit_only"
 )
 
+// EventListParams contains filters shared by Santa event list endpoints.
 type EventListParams struct {
 	dbutil.ListParams
 
-	HostID    int64
-	Decisions []DecisionFilter
-	Since     *time.Time
+	HostID int64
+	Since  *time.Time
 }
 
+// ExecutionEventListParams contains filters for execution-event lists.
+type ExecutionEventListParams struct {
+	EventListParams
+
+	Decisions []DecisionFilter
+}
+
+// FileAccessEventListParams contains filters for file-access event lists.
+type FileAccessEventListParams struct {
+	EventListParams
+
+	Decisions []FileAccessDecision
+}
+
+// ExecutionEvent is an observed Santa execution decision.
 type ExecutionEvent struct {
 	ID              int64             `json:"id"`
 	HostID          int64             `json:"host_id"`
+	Host            HostSummary       `json:"host"`
 	Executable      Executable        `json:"executable"`
 	FilePath        string            `json:"file_path"`
 	ExecutingUser   string            `json:"executing_user"`
 	LoggedInUsers   []string          `json:"logged_in_users"`
 	CurrentSessions []string          `json:"current_sessions"`
 	Decision        ExecutionDecision `json:"decision"`
-	OccurredAt      *time.Time        `json:"occurred_at,omitempty"`
+	OccurredAt      time.Time         `json:"occurred_at"`
 	IngestedAt      time.Time         `json:"ingested_at"`
 }
 
-type ExecutionEventInput struct {
-	FileSHA256           string
-	FilePath             string
-	FileName             string
-	ExecutingUser        string
-	ExecutionTimeSeconds float64
-	LoggedInUsers        []string
-	CurrentSessions      []string
-	Decision             ExecutionDecision
-	BundleID             string
-	BundlePath           string
-	SigningID            string
-	TeamID               string
-	CDHash               string
-	Entitlements         []byte
-	SigningChain         []CertificateInput
+// HostSummary is the host identity attached to Santa event rows.
+type HostSummary struct {
+	ID              int64  `json:"id"`
+	DisplayName     string `json:"display_name"`
+	Hostname        string `json:"hostname"`
+	ComputerName    string `json:"computer_name"`
+	HardwareSerial  string `json:"hardware_serial"`
+	HardwareModel   string `json:"hardware_model"`
+	SantaMachineID  string `json:"santa_machine_id"`
+	SantaVersion    string `json:"santa_version"`
+	SantaClientMode string `json:"santa_client_mode"`
 }
 
+// ExecutionEventInput is a Santa execution event ready for persistence.
+type ExecutionEventInput struct {
+	FileSHA256      string
+	FilePath        string
+	FileName        string
+	ExecutingUser   string
+	OccurredAt      time.Time
+	LoggedInUsers   []string
+	CurrentSessions []string
+	Decision        ExecutionDecision
+	BundleID        string
+	BundlePath      string
+	SigningID       string
+	TeamID          string
+	CDHash          string
+	Entitlements    []byte
+	SigningChain    []CertificateInput
+}
+
+// CertificateInput is a certificate entry reported by Santa sync.
 type CertificateInput struct {
 	SHA256     string
 	CommonName string
@@ -80,13 +121,74 @@ type CertificateInput struct {
 	ValidUntil uint32
 }
 
+// Executable is metadata for the binary involved in an execution event.
 type Executable struct {
-	ID         int64  `json:"id"`
-	SHA256     string `json:"sha256"`
-	FileName   string `json:"file_name"`
-	BundleID   string `json:"file_bundle_id"`
-	BundlePath string `json:"file_bundle_path"`
-	SigningID  string `json:"signing_id"`
-	TeamID     string `json:"team_id"`
-	CDHash     string `json:"cdhash"`
+	ID           int64               `json:"id"`
+	SHA256       string              `json:"sha256"`
+	FileName     string              `json:"file_name"`
+	BundleID     string              `json:"file_bundle_id"`
+	BundlePath   string              `json:"file_bundle_path"`
+	SigningID    string              `json:"signing_id"`
+	TeamID       string              `json:"team_id"`
+	CDHash       string              `json:"cdhash"`
+	Entitlements map[string]any      `json:"entitlements,omitempty"`
+	SigningChain []SigningChainEntry `json:"signing_chain,omitempty"`
+}
+
+// SigningChainEntry is a certificate entry exposed through the admin API.
+type SigningChainEntry struct {
+	SHA256             string     `json:"sha256"`
+	CommonName         string     `json:"common_name,omitempty"`
+	Organization       string     `json:"organization,omitempty"`
+	OrganizationalUnit string     `json:"organizational_unit,omitempty"`
+	ValidFrom          *time.Time `json:"valid_from,omitempty"`
+	ValidUntil         *time.Time `json:"valid_until,omitempty"`
+}
+
+// ProcessInput is a process-chain entry from Santa sync.
+type ProcessInput struct {
+	PID          int32
+	FilePath     string
+	FileSHA256   string
+	SigningID    string
+	TeamID       string
+	CDHash       string
+	SigningChain []CertificateInput
+}
+
+// FileAccessEventInput is a Santa file-access event ready for persistence.
+type FileAccessEventInput struct {
+	RuleVersion  string
+	RuleName     string
+	Target       string
+	Decision     FileAccessDecision
+	OccurredAt   time.Time
+	ProcessChain []ProcessInput
+}
+
+// Process is a process-chain entry exposed through the admin API.
+type Process struct {
+	PID          int32               `json:"pid"`
+	FilePath     string              `json:"file_path"`
+	FileName     string              `json:"file_name"`
+	FileSHA256   string              `json:"file_sha256"`
+	SigningID    string              `json:"signing_id"`
+	TeamID       string              `json:"team_id"`
+	CDHash       string              `json:"cdhash"`
+	SigningChain []SigningChainEntry `json:"signing_chain,omitempty"`
+}
+
+// FileAccessEvent is an observed Santa file-access policy decision.
+type FileAccessEvent struct {
+	ID             int64              `json:"id"`
+	HostID         int64              `json:"host_id"`
+	Host           HostSummary        `json:"host"`
+	RuleVersion    string             `json:"rule_version"`
+	RuleName       string             `json:"rule_name"`
+	Target         string             `json:"target"`
+	Decision       FileAccessDecision `json:"decision"`
+	PrimaryProcess Process            `json:"primary_process"`
+	ProcessChain   []Process          `json:"process_chain,omitempty"`
+	OccurredAt     time.Time          `json:"occurred_at"`
+	IngestedAt     time.Time          `json:"ingested_at"`
 }

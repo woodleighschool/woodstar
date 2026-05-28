@@ -1,11 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+/* eslint-disable @typescript-eslint/only-throw-error -- tanstack/react-router uses thrown redirect() as control-flow */
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { SantaEventsPage } from "@/pages/santa/events/list";
 
 const searchSchema = z.object({
-  event_type: z.enum(["execution", "file_access"]).optional(),
   q: z.string().optional(),
   decisions: z
     .preprocess((value) => (typeof value === "string" ? value.split(",").filter(Boolean) : value), z.array(z.string()))
@@ -15,7 +14,9 @@ const searchSchema = z.object({
   sort: z.string().optional(),
 });
 
-export const Route = createFileRoute("/_authenticated/santa/events")({
+export const Route = createFileRoute("/_authenticated/santa/file-access-events")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: SantaEventsPage,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/santa/events", search: { ...search, event_type: "file_access" } });
+  },
 });

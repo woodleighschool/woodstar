@@ -131,15 +131,46 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 			FileName:      "Contract",
 			ExecutingUser: "alice",
 			Decision:      syncv1.Decision_BLOCK_BINARY,
+			ExecutionTime: float64(time.Date(2026, 5, 24, 10, 0, 0, 0, time.UTC).Unix()),
+		}},
+		FileAccessEvents: []*syncv1.FileAccessEvent{{
+			RuleVersion: "policy-v1",
+			RuleName:    "Protect Payroll",
+			Target:      "/Users/alice/Payroll.csv",
+			Decision:    syncv1.FileAccessDecision_FILE_ACCESS_DECISION_DENIED,
+			AccessTime:  float64(time.Date(2026, 5, 24, 10, 5, 0, 0, time.UTC).Unix()),
+			ProcessChain: []*syncv1.Process{{
+				Pid:        123,
+				FilePath:   "/Applications/Contract.app/Contents/MacOS/Contract",
+				FileSha256: "process-sha-contract-" + suffix,
+				SigningId:  "TEAMID:contract",
+				TeamId:     "TEAMID",
+				Cdhash:     "process-cdhash",
+			}},
 		}},
 	}, http.StatusOK, &syncv1.EventUploadResponse{})
 
-	events, _, err := stores.events.ListEvents(ctx, santaevents.EventListParams{HostID: host.ID})
+	events, _, err := stores.events.ListEvents(ctx, santaevents.ExecutionEventListParams{
+		EventListParams: santaevents.EventListParams{HostID: host.ID},
+	})
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
 	if len(events) != 1 || events[0].Decision != santaevents.ExecutionDecisionBlockBinary {
 		t.Fatalf("stored events = %+v, want one block_binary event", events)
+	}
+
+	fileAccessEvents, _, err := stores.events.ListFileAccessEvents(ctx, santaevents.FileAccessEventListParams{
+		EventListParams: santaevents.EventListParams{HostID: host.ID},
+	})
+	if err != nil {
+		t.Fatalf("list file access events: %v", err)
+	}
+	if len(fileAccessEvents) != 1 ||
+		fileAccessEvents[0].Decision != santaevents.FileAccessDecisionDenied ||
+		fileAccessEvents[0].Target != "/Users/alice/Payroll.csv" ||
+		fileAccessEvents[0].PrimaryProcess.FileSHA256 != "process-sha-contract-"+suffix {
+		t.Fatalf("stored file access events = %+v, want one denied payroll event", fileAccessEvents)
 	}
 }
 

@@ -11,6 +11,9 @@ export type SantaConfigurationMutation = Schemas["ConfigurationMutation"];
 export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"];
 export type SantaEvent = Schemas["ExecutionEvent"];
 export type SantaEventListResult = Schemas["PaginatedBodyExecutionEvent"];
+export type SantaFileAccessEvent = Schemas["FileAccessEvent"];
+export type SantaFileAccessEventListResult = Schemas["PaginatedBodyFileAccessEvent"];
+export type SantaHostSummary = Schemas["HostSummary"];
 export type SantaRule = Schemas["Rule"];
 export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
@@ -18,6 +21,9 @@ export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
 export type SantaListParams = NonNullable<paths["/api/santa/configurations"]["get"]["parameters"]["query"]>;
 export type SantaRuleListParams = NonNullable<paths["/api/santa/rules"]["get"]["parameters"]["query"]>;
 export type SantaEventListParams = NonNullable<paths["/api/santa/events"]["get"]["parameters"]["query"]>;
+export type SantaFileAccessEventListParams = NonNullable<
+  paths["/api/santa/file-access-events"]["get"]["parameters"]["query"]
+>;
 
 export function useSantaConfigurations(params: SantaListParams = {}) {
   const queryParams = {
@@ -84,6 +90,43 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     queryKey: queryKeys.santaEvents(queryParams),
     queryFn: ({ signal }) => unwrap(apiClient.GET("/api/santa/events", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useSantaEvent(id: number | null) {
+  return useQuery<SantaEvent, ApiError>({
+    queryKey: queryKeys.santaEvent(id),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/events/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
+  });
+}
+
+export function useSantaFileAccessEvents(params: SantaFileAccessEventListParams = {}) {
+  const queryParams = {
+    q: nonEmpty(params.q),
+    host_id: params.host_id,
+    decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
+    since: nonEmpty(params.since),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
+  };
+
+  return useQuery<SantaFileAccessEventListResult, ApiError>({
+    queryKey: queryKeys.santaFileAccessEvents(queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/file-access-events", { params: { query: queryParams }, signal })),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useSantaFileAccessEvent(id: number | null) {
+  return useQuery<SantaFileAccessEvent, ApiError>({
+    queryKey: queryKeys.santaFileAccessEvent(id),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/file-access-events/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+    enabled: id !== null,
   });
 }
 

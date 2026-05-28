@@ -30,6 +30,9 @@ export const queryKeys = {
   santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
   santaConfiguration: (id: number | null) => ["santa", "configurations", id] as const,
   santaEvents: (params?: unknown) => ["santa", "events", params ?? {}] as const,
+  santaEvent: (id: number | null) => ["santa", "events", id] as const,
+  santaFileAccessEvents: (params?: unknown) => ["santa", "file-access-events", params ?? {}] as const,
+  santaFileAccessEvent: (id: number | null) => ["santa", "file-access-events", id] as const,
   santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
   santaRule: (id: number | null) => ["santa", "rules", id] as const,
 };

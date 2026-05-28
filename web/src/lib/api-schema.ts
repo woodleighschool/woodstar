@@ -650,6 +650,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/santa/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a Santa execution event */
+        get: operations["get-santa-event"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/santa/file-access-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Santa file access events */
+        get: operations["list-santa-file-access-events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/santa/file-access-events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a Santa file access event */
+        get: operations["get-santa-file-access-event"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/santa/rules": {
         parameters: {
             query?: never;
@@ -1132,21 +1183,32 @@ export interface components {
         };
         Executable: {
             cdhash: string;
+            entitlements?: {
+                [key: string]: unknown;
+            };
             file_bundle_id: string;
             file_bundle_path: string;
             file_name: string;
             /** Format: int64 */
             id: number;
             sha256: string;
+            signing_chain?: components["schemas"]["SigningChainEntry"][] | null;
             signing_id: string;
             team_id: string;
         };
         ExecutionEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/ExecutionEvent.json
+             */
+            readonly $schema?: string;
             current_sessions: string[] | null;
             decision: string;
             executable: components["schemas"]["Executable"];
             executing_user: string;
             file_path: string;
+            host: components["schemas"]["HostSummary"];
             /** Format: int64 */
             host_id: number;
             /** Format: int64 */
@@ -1155,7 +1217,30 @@ export interface components {
             ingested_at: string;
             logged_in_users: string[] | null;
             /** Format: date-time */
-            occurred_at?: string;
+            occurred_at: string;
+        };
+        FileAccessEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/FileAccessEvent.json
+             */
+            readonly $schema?: string;
+            decision: string;
+            host: components["schemas"]["HostSummary"];
+            /** Format: int64 */
+            host_id: number;
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            ingested_at: string;
+            /** Format: date-time */
+            occurred_at: string;
+            primary_process: components["schemas"]["Process"];
+            process_chain?: components["schemas"]["Process"][] | null;
+            rule_name: string;
+            rule_version: string;
+            target: string;
         };
         Handle: {
             /**
@@ -1393,6 +1478,18 @@ export interface components {
             rule_sync: components["schemas"]["RuleSyncSummary"];
             version: string;
         };
+        HostSummary: {
+            computer_name: string;
+            display_name: string;
+            hardware_model: string;
+            hardware_serial: string;
+            hostname: string;
+            /** Format: int64 */
+            id: number;
+            santa_client_mode: string;
+            santa_machine_id: string;
+            santa_version: string;
+        };
         HostUser: {
             description: string;
             directory: string;
@@ -1592,6 +1689,17 @@ export interface components {
             count: number;
             items: components["schemas"]["ExecutionEvent"][] | null;
         };
+        PaginatedBodyFileAccessEvent: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/PaginatedBodyFileAccessEvent.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            count: number;
+            items: components["schemas"]["FileAccessEvent"][] | null;
+        };
         PaginatedBodyHost: {
             /**
              * Format: uri
@@ -1675,6 +1783,17 @@ export interface components {
             hash_sha256: string;
             installed_path: string;
             team_identifier: string;
+        };
+        Process: {
+            cdhash: string;
+            file_name: string;
+            file_path: string;
+            file_sha256: string;
+            /** Format: int32 */
+            pid: number;
+            signing_chain?: components["schemas"]["SigningChainEntry"][] | null;
+            signing_id: string;
+            team_id: string;
         };
         RemovableMediaPolicy: {
             /** @enum {string} */
@@ -1882,6 +2001,16 @@ export interface components {
             email: string;
             name?: string;
             password: string;
+        };
+        SigningChainEntry: {
+            common_name?: string;
+            organization?: string;
+            organizational_unit?: string;
+            sha256: string;
+            /** Format: date-time */
+            valid_from?: string;
+            /** Format: date-time */
+            valid_until?: string;
         };
         SoftwareTitle: {
             /**
@@ -5267,6 +5396,231 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-santa-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionEvent"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-santa-file-access-events": {
+        parameters: {
+            query?: {
+                q?: string;
+                page_index?: number;
+                page_size?: number;
+                sort?: string;
+                host_id?: number;
+                decisions?: string[] | null;
+                since?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedBodyFileAccessEvent"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-santa-file-access-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileAccessEvent"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
