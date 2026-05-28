@@ -113,6 +113,12 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	if allowEvent.OccurredAt != nil {
 		t.Fatalf("zero execution time stored occurred_at = %v, want nil", allowEvent.OccurredAt)
 	}
+	if len(allowEvent.LoggedInUsers) != 0 {
+		t.Fatalf("omitted logged_in_users = %v, want empty array", allowEvent.LoggedInUsers)
+	}
+	if len(allowEvent.CurrentSessions) != 0 {
+		t.Fatalf("omitted current_sessions = %v, want empty array", allowEvent.CurrentSessions)
+	}
 
 	var chainCount int
 	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_signing_chains`).Scan(&chainCount); err != nil {

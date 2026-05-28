@@ -208,12 +208,19 @@ func insertExecutionEvent(
 		executableID,
 		event.FilePath,
 		event.ExecutingUser,
-		event.LoggedInUsers,
-		event.CurrentSessions,
+		emptyStringSlice(event.LoggedInUsers),
+		emptyStringSlice(event.CurrentSessions),
 		event.Decision,
 		eventOccurredAt(event.ExecutionTimeSeconds),
 	)
 	return err
+}
+
+func emptyStringSlice(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }
 
 func entitlementJSON(event ExecutionEventInput) ([]byte, error) {
