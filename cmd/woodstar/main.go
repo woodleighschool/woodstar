@@ -155,9 +155,11 @@ func newServer(
 			AuthService: authService,
 			UserService: userService,
 		},
-		Hosts:     api.HostsDependencies{Store: stores.hosts},
-		Software:  api.SoftwareDependencies{Store: stores.software},
-		Labels:    api.LabelsDependencies{Store: stores.labels},
+		Inventory: api.InventoryDependencies{
+			Hosts:    stores.hosts,
+			Software: stores.software,
+			Labels:   stores.labels,
+		},
 		Directory: api.DirectoryDependencies{Store: stores.directory},
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
 		Orbit:     orbitDeps,
@@ -240,7 +242,7 @@ func newAuthService(
 // background lifecycle of its own, so there's no stop func.
 func newOrbit(stores appStores) api.OrbitDependencies {
 	return api.OrbitDependencies{
-		Service: orbit.NewService(stores.hosts, stores.agentSecrets, stores.deviceMappings),
+		Agent: orbit.NewService(stores.hosts, stores.agentSecrets, stores.deviceMappings),
 	}
 }
 
@@ -267,7 +269,7 @@ func newOsquery(
 		Logger:             logger.With("component", "osquery"),
 	})
 	return api.OsqueryDependencies{
-		Service:     osqueryService,
+		Agent:       osqueryService,
 		LiveQueries: liveQueries,
 		Reports:     stores.reports,
 		Checks:      stores.checks,
@@ -295,12 +297,11 @@ func newSanta(
 		SweepInterval: cfg.SantaEventSweepInterval,
 	}, logger.With("component", "santa"))
 	return api.SantaDependencies{
-		Service:        santaService,
+		Sync:           santaService,
 		HostState:      santaHostState,
 		Configurations: stores.santaConfigurations,
 		Rules:          stores.santaRules,
 		Events:         stores.santaEvents,
-		Sync:           stores.santaSync,
 	}, eventCleanup.Stop
 }
 

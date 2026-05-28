@@ -26,19 +26,21 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterUsers(protected, deps.Auth.UserService)
 	handlers.RegisterHosts(
 		protected,
-		deps.Hosts.Store,
-		deps.Software.Store,
+		deps.Inventory.Hosts,
+		deps.Inventory.Software,
 		handlers.SantaHostDetailContributor(deps.Santa.HostState),
 	)
-	handlers.RegisterSoftware(protected, deps.Software.Store)
-	handlers.RegisterLabels(protected, deps.Labels.Store)
+	handlers.RegisterSoftware(protected, deps.Inventory.Software)
+	handlers.RegisterLabels(protected, deps.Inventory.Labels)
 	handlers.RegisterDirectory(protected, deps.Directory.Store)
 	handlers.RegisterAgentSecrets(admin, deps.AgentAuth.Store)
-	handlers.RegisterReports(protected, deps.Osquery.Reports, deps.Hosts.Store)
-	handlers.RegisterChecks(protected, deps.Osquery.Checks, deps.Hosts.Store)
-	handlers.RegisterLiveQueries(protected, deps.Osquery.LiveQueries, deps.Hosts.Store)
+	handlers.RegisterReports(protected, deps.Osquery.Reports)
+	handlers.RegisterHostReports(protected, deps.Osquery.Reports, deps.Inventory.Hosts)
+	handlers.RegisterChecks(protected, deps.Osquery.Checks)
+	handlers.RegisterHostChecks(protected, deps.Osquery.Checks, deps.Inventory.Hosts)
+	handlers.RegisterLiveQueries(protected, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
 	handlers.RegisterSantaConfigurations(admin, deps.Santa.Configurations)
 	handlers.RegisterSantaRules(admin, deps.Santa.Rules)
 	handlers.RegisterSantaEvents(admin, deps.Santa.Events)
-	handlers.RegisterHostSantaEffectiveRules(protected, deps.Hosts.Store, deps.Santa.Rules)
+	handlers.RegisterHostSantaEffectiveRules(protected, deps.Inventory.Hosts, deps.Santa.Rules)
 }

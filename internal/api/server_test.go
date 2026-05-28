@@ -330,7 +330,7 @@ func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Hosts.Store = hosts.NewStore(database)
+	deps.Inventory.Hosts = hosts.NewStore(database)
 	server := NewServer(deps)
 	sessionCookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
