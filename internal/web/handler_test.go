@@ -81,7 +81,10 @@ func TestHandlerServesSPAIndex(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, "window.__WOODSTAR__={\"version\":\"test\"};") {
+	if !strings.Contains(
+		body,
+		"window.__WOODSTAR__={\"version\":\"test\",\"public_url\":\"https://woodstar.example\"};",
+	) {
 		t.Fatalf("body did not include runtime config: %q", body)
 	}
 	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
@@ -115,8 +118,9 @@ func requestWeb(t *testing.T, path string) *httptest.ResponseRecorder {
 			"index.html":       {Data: []byte("<!doctype html><html><head></head><body></body></html>")},
 			"site.webmanifest": {Data: []byte(`{"name":"Woodstar"}`)},
 		},
-		Version: "test",
-		Logger:  slog.New(slog.DiscardHandler),
+		Version:   "test",
+		PublicURL: "https://woodstar.example",
+		Logger:    slog.New(slog.DiscardHandler),
 	}).RegisterRoutes(router)
 
 	req := httptest.NewRequest(http.MethodGet, path, nil)

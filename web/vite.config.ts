@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig(() => ({
+export default defineConfig({
   plugins: [
     react({
       jsxRuntime: "automatic",
@@ -69,4 +69,4 @@ export default defineConfig(() => ({
       allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
     },
   },
-}));
+});

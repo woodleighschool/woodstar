@@ -146,9 +146,10 @@ func newServer(
 			Logger:         logger,
 			SessionManager: sessionManager,
 			WebHandler: web.NewHandler(web.HandlerOptions{
-				FS:      webdist.DistDirFS,
-				Version: buildinfo.Version,
-				Logger:  logger.With("component", "web"),
+				FS:        webdist.DistDirFS,
+				Version:   buildinfo.Version,
+				PublicURL: cfg.PublicURL,
+				Logger:    logger.With("component", "web"),
 			}),
 		},
 		Auth: api.AuthDependencies{

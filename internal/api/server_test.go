@@ -484,8 +484,9 @@ func TestBrowserRoutesCompressesSPA(t *testing.T) {
 				),
 			},
 		},
-		Version: "test",
-		Logger:  slog.New(slog.DiscardHandler),
+		Version:   "test",
+		PublicURL: deps.Runtime.Config.PublicURL,
+		Logger:    slog.New(slog.DiscardHandler),
 	})
 	server := NewServer(deps)
 
@@ -510,7 +511,10 @@ func TestBrowserRoutesCompressesSPA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read compressed content: %v", err)
 	}
-	if !strings.Contains(string(content), "window.__WOODSTAR__={\"version\":\"test\"};") {
+	if !strings.Contains(
+		string(content),
+		"window.__WOODSTAR__={\"version\":\"test\",\"public_url\":\"http://localhost:8080\"};",
+	) {
 		t.Fatalf("decompressed body did not include runtime config: %q", content)
 	}
 }
