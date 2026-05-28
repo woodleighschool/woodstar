@@ -35,9 +35,19 @@ export default defineConfig(() => ({
               priority: 20,
             },
             {
+              name: "editor",
+              test: /node_modules[\\/](@codemirror|@uiw|@lezer)[\\/]/,
+              priority: 15,
+            },
+            {
               name: "ui-vendor",
-              test: /node_modules[\\/](@radix-ui|lucide-react)([\\/]|$)/,
+              test: /node_modules[\\/](@base-ui|radix-ui|lucide-react|cmdk|motion)([\\/]|$)/,
               priority: 10,
+            },
+            {
+              name: "content-vendor",
+              test: /node_modules[\\/](react-markdown|zod|date-fns)([\\/]|$)/,
+              priority: 5,
             },
           ],
         },

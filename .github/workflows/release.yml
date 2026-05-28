@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           package_json_file: web/package.json
 
@@ -48,7 +48,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: v2.15.4
+          version: v2.16.0
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,7 +78,6 @@ jobs:
           images: ghcr.io/woodleighschool/woodstar
           tags: |
             type=semver,pattern={{version}}
-            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v7

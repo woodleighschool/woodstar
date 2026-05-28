@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = ["serve"]
-  bin = "./tmp/woodstar"
   cmd = "go build -ldflags \"-X github.com/woodleighschool/woodstar/internal/buildinfo.Version=0.0.0-dev -X github.com/woodleighschool/woodstar/internal/buildinfo.Commit=$(git rev-parse HEAD 2>/dev/null || echo) -X github.com/woodleighschool/woodstar/internal/buildinfo.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)\" -o ./tmp/woodstar ./cmd/woodstar"
+  entrypoint = "./tmp/woodstar"
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "web", "internal/web/dist", "node_modules", "docs", "schema"]
   exclude_file = []
