@@ -53,18 +53,19 @@ export function SantaRulesPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="grid gap-1">
-          <span className="font-medium">{row.original.name || row.original.identifier}</span>
-          <span className="text-muted-foreground truncate font-mono text-xs">{row.original.identifier}</span>
-        </div>
-      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
       id: "rule_type",
       accessorKey: "rule_type",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Rule type" />,
       cell: ({ row }) => <Badge variant="secondary">{ruleTypeLabel(row.original.rule_type)}</Badge>,
+    },
+    {
+      id: "identifier",
+      accessorKey: "identifier",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.identifier}</span>,
     },
     {
       id: "includes",

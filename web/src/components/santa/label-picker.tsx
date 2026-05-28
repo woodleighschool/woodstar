@@ -12,14 +12,31 @@ import {
 import { useLabels, type Label as WoodstarLabel } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-export function LabelPicker({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
+interface LabelPickerProps {
+  value: number[];
+  onChange: (value: number[]) => void;
+  unavailableLabelIDs?: readonly number[];
+  emptyMessage?: string;
+  emptyPlaceholder?: string;
+}
+
+export function LabelPicker({
+  value,
+  onChange,
+  unavailableLabelIDs = [],
+  emptyMessage,
+  emptyPlaceholder,
+}: LabelPickerProps) {
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
     label_type: "regular",
   });
   const rows = labels.data?.items ?? [];
+  const unavailable = new Set(unavailableLabelIDs);
+  const items = rows.filter((label) => value.includes(label.id) || !unavailable.has(label.id));
   const selected = rows.filter((label) => value.includes(label.id));
+  const noLabelsMessage = emptyMessage ?? "No labels available.";
 
   if (labels.isLoading) {
     return <p className="text-muted-foreground text-sm">Loading labels...</p>;
@@ -30,7 +47,7 @@ export function LabelPicker({ value, onChange }: { value: number[]; onChange: (v
 
   return (
     <Combobox
-      items={rows}
+      items={items}
       multiple
       value={selected}
       itemToStringValue={(label) => label.name}
@@ -42,10 +59,12 @@ export function LabelPicker({ value, onChange }: { value: number[]; onChange: (v
             <ComboboxChip key={label.id}>{label.name}</ComboboxChip>
           ))}
         </ComboboxValue>
-        <ComboboxChipsInput placeholder={rows.length === 0 ? "No labels available" : "Add label"} />
+        <ComboboxChipsInput
+          placeholder={items.length === 0 ? (emptyPlaceholder ?? "No labels available") : "Add label"}
+        />
       </ComboboxChips>
       <ComboboxContent>
-        <ComboboxEmpty>{rows.length === 0 ? "No labels available." : "No labels found."}</ComboboxEmpty>
+        <ComboboxEmpty>{items.length === 0 ? noLabelsMessage : "No labels found."}</ComboboxEmpty>
         <ComboboxList>
           {(label: WoodstarLabel) => (
             <ComboboxItem key={label.id} value={label}>

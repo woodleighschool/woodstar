@@ -1,7 +1,9 @@
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
@@ -13,10 +15,12 @@ import {
   type Updater,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { useMemo, useState, type ReactNode } from "react";
+import { GripVertical } from "lucide-react";
+import { createContext, useContext, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { DataTableBodyRow } from "@/components/data-table/data-table-row";
+import { DataTableBodyRow, type DataTableBodyRowProps } from "@/components/data-table/data-table-row";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,13 +51,16 @@ interface DataTableProps<TData, TValue> {
   toolbar?: ReactNode | ((table: TanStackTable<TData>) => ReactNode);
   /** Rendered when totalCount === 0. */
   empty: ReactNode;
+  emptyClassName?: string;
+  footer?: ReactNode;
   /** Skeleton row count during initial load. */
   skeletonRows?: number;
   perPageOptions?: readonly number[];
+  onRowReorder?: (rows: TData[]) => void;
+  rowReorderDisabled?: boolean;
   /**
    * Use TanStack's internal sorting instead of the server. Pass when the table
    * data is a fixed snapshot (e.g. query results) rather than a paginated list.
-   * pagination/onPaginationChange become local table details in this mode.
    */
   clientSort?: boolean;
 }
@@ -78,15 +85,18 @@ export function DataTable<TData, TValue>({
   getRowId,
   toolbar,
   empty,
+  emptyClassName,
+  footer,
   skeletonRows = 8,
   perPageOptions,
+  onRowReorder,
+  rowReorderDisabled = false,
   clientSort = false,
 }: DataTableProps<TData, TValue>) {
-  const [localPagination, setLocalPagination] = useState<PaginationState>(pagination);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [localSorting, setLocalSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
-  const paginationState = clientSort ? localPagination : pagination;
   const sortingState = clientSort ? localSorting : sorting;
 
   const rowSelection: RowSelectionState = useMemo(
@@ -115,14 +125,13 @@ export function DataTable<TData, TValue>({
     data,
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: clientSort ? getPaginationRowModel() : undefined,
     getSortedRowModel: clientSort ? getSortedRowModel() : undefined,
     manualPagination: !clientSort,
     manualSorting: !clientSort,
     enableRowSelection,
     rowCount: totalCount,
-    state: { pagination: paginationState, sorting: sortingState, columnVisibility, rowSelection },
-    onPaginationChange: clientSort ? setLocalPagination : onPaginationChange,
+    state: { pagination, sorting: sortingState, columnVisibility, rowSelection },
+    onPaginationChange,
     onSortingChange: clientSort ? handleSortingChange : onSortingChange,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: handleRowSelectionChange,
@@ -132,7 +141,81 @@ export function DataTable<TData, TValue>({
   const showSkeleton = isLoading && data.length === 0;
   const showEmpty = !showSkeleton && data.length === 0;
   const visibleRows = table.getRowModel().rows;
+  const rowIds = visibleRows.map((row) => row.id);
   const skeletonRowIds = Array.from({ length: skeletonRows }, (_, row) => `skeleton-row-${row}`);
+  const canReorderRows =
+    onRowReorder !== undefined && !rowReorderDisabled && visibleRows.length > 1 && !showSkeleton && !showEmpty;
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = visibleRows.findIndex((row) => row.id === active.id);
+    const newIndex = visibleRows.findIndex((row) => row.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    onRowReorder?.(
+      arrayMove(
+        visibleRows.map((row) => row.original),
+        oldIndex,
+        newIndex,
+      ),
+    );
+  };
+
+  const tableContent = (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((group) => (
+            <TableRow key={group.id}>
+              {group.headers.map((header) => (
+                <TableHead key={header.id} className={cn(header.column.columnDef.meta?.headClassName)}>
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {showSkeleton ? (
+            skeletonRowIds.map((rowId) => (
+              <TableRow key={rowId}>
+                {table.getVisibleLeafColumns().map((col) => (
+                  <TableCell key={col.id}>
+                    <Skeleton className="h-4 w-3/4" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : showEmpty ? null : canReorderRows ? (
+            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+              {visibleRows.map((row) => (
+                <SortableDataTableRow
+                  key={row.id}
+                  row={row}
+                  enableRowSelection={enableRowSelection}
+                  rowHref={rowHref}
+                  onRowClick={onRowClick}
+                />
+              ))}
+            </SortableContext>
+          ) : (
+            visibleRows.map((row) => (
+              <DataTableBodyRow
+                key={row.id}
+                row={row}
+                enableRowSelection={enableRowSelection}
+                rowHref={rowHref}
+                onRowClick={onRowClick}
+              />
+            ))
+          )}
+        </TableBody>
+      </Table>
+      {showEmpty ? <div className={cn("flex min-h-72 justify-center px-4 py-12", emptyClassName)}>{empty}</div> : null}
+    </div>
+  );
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -143,49 +226,72 @@ export function DataTable<TData, TValue>({
           <div className="flex items-center gap-2">{bulkActions}</div>
         </div>
       ) : null}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
-                {group.headers.map((header) => (
-                  <TableHead key={header.id} className={cn(header.column.columnDef.meta?.headClassName)}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {showSkeleton
-              ? skeletonRowIds.map((rowId) => (
-                  <TableRow key={rowId}>
-                    {table.getVisibleLeafColumns().map((col) => (
-                      <TableCell key={col.id}>
-                        <Skeleton className="h-4 w-3/4" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              : showEmpty
-                ? null
-                : visibleRows.map((row) => (
-                    <DataTableBodyRow
-                      key={row.id}
-                      row={row}
-                      enableRowSelection={enableRowSelection}
-                      rowHref={rowHref}
-                      onRowClick={onRowClick}
-                    />
-                  ))}
-          </TableBody>
-        </Table>
-        {showEmpty ? <div className="flex min-h-72 justify-center px-4 py-12">{empty}</div> : null}
-      </div>
+      {canReorderRows ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          {tableContent}
+        </DndContext>
+      ) : (
+        tableContent
+      )}
       {clientSort ? null : (
         <DataTablePagination table={table} totalCount={totalCount} perPageOptions={perPageOptions} />
       )}
+      {footer}
     </div>
+  );
+}
+
+type RowDragHandleContextValue = Pick<
+  ReturnType<typeof useSortable>,
+  "attributes" | "listeners" | "setActivatorNodeRef"
+> | null;
+
+const RowDragHandleContext = createContext<RowDragHandleContextValue>(null);
+
+export function DataTableRowDragHandle({ label = "Reorder row" }: { label?: string }) {
+  const drag = useContext(RowDragHandleContext);
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className={cn("cursor-grab active:cursor-grabbing", !drag && "cursor-default opacity-50")}
+      aria-label={label}
+      aria-disabled={!drag}
+      disabled={!drag}
+      ref={drag?.setActivatorNodeRef}
+      {...drag?.attributes}
+      {...drag?.listeners}
+    >
+      <GripVertical />
+    </Button>
+  );
+}
+
+function SortableDataTableRow<TData>({ row, enableRowSelection, rowHref, onRowClick }: DataTableBodyRowProps<TData>) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.id,
+  });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.65 : 1,
+    position: isDragging ? "relative" : undefined,
+    zIndex: isDragging ? 1 : undefined,
+  };
+
+  return (
+    <RowDragHandleContext.Provider value={{ attributes, listeners, setActivatorNodeRef }}>
+      <DataTableBodyRow
+        row={row}
+        enableRowSelection={enableRowSelection}
+        rowHref={rowHref}
+        onRowClick={onRowClick}
+        ref={setNodeRef}
+        style={style}
+      />
+    </RowDragHandleContext.Provider>
   );
 }
 

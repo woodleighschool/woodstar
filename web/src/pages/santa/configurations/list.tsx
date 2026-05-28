@@ -4,11 +4,10 @@ import { FileSliders, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, DataTableRowDragHandle } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
 import { DataTableSearch } from "@/components/data-table/data-table-search";
-import { DraggableDataTable, DraggableDataTableRowDragHandle } from "@/components/data-table/draggable-data-table";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
 import { LabelChips } from "@/components/labels/label-chips";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -116,7 +115,7 @@ export function SantaConfigurationsPage() {
             header: () => null,
             enableSorting: false,
             enableHiding: false,
-            cell: () => <DraggableDataTableRowDragHandle label="Reorder configuration" />,
+            cell: () => <DataTableRowDragHandle label="Reorder configuration" />,
             meta: { headClassName: "w-10", cellClassName: "w-10" },
           },
         ] satisfies ColumnDef<SantaConfiguration>[])
@@ -213,11 +212,17 @@ export function SantaConfigurationsPage() {
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : reorderEnabled ? (
-        <DraggableDataTable
+        <DataTable
           columns={columns}
           data={orderedRows}
+          totalCount={orderedRows.length}
+          pagination={{ pageIndex: 0, pageSize: Math.max(orderedRows.length, 1) }}
+          sorting={[]}
+          onPaginationChange={() => undefined}
+          onSortingChange={() => undefined}
           isLoading={query.isLoading}
-          disabled={reorder.isPending || reorderTruncated || orderedRows.length <= 1}
+          clientSort
+          rowReorderDisabled={reorder.isPending || reorderTruncated || orderedRows.length <= 1}
           onRowReorder={moveOrder}
           empty={<ConfigurationsEmptyState hasFilters={hasFilters} />}
           footer={

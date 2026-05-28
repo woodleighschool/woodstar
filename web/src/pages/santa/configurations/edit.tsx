@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
@@ -8,25 +8,18 @@ import { LabelPicker } from "@/components/santa/label-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useCreateSantaConfiguration,
   useSantaConfiguration,
+  useSantaConfigurations,
   useUpdateSantaConfiguration,
   type SantaConfiguration,
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { CLIENT_MODE_OPTIONS } from "./shared";
 
@@ -139,9 +132,16 @@ function ConfigurationForm({
   const navigate = useNavigate();
   const create = useCreateSantaConfiguration();
   const update = useUpdateSantaConfiguration();
+  const configurations = useSantaConfigurations({ page_size: MAX_PAGE_SIZE, sort: "position.asc" });
   const [form, setForm] = useState<ConfigurationFormState>(initial);
   const [showErrors, setShowErrors] = useState(false);
   const pending = create.isPending || update.isPending;
+  const unavailableLabelIDs = useMemo(() => {
+    const rows = configurations.data?.items ?? [];
+    return rows.flatMap((configuration) =>
+      configuration.id === configurationId ? [] : (configuration.label_ids ?? []),
+    );
+  }, [configurationId, configurations.data?.items]);
   const parsed = configurationFormSchema.safeParse({
     removable_media: {
       action: form.removable_media_action,
@@ -178,176 +178,160 @@ function ConfigurationForm({
           description="Set Santa client behavior and assign the configuration to labels."
         />
 
-        <Tabs defaultValue="settings" className="max-w-4xl">
-          <TabsList>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="targets">Targets</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="settings">
-            <FieldGroup>
-              <FieldSet>
-                <FieldLegend>Basics</FieldLegend>
-                <Field>
-                  <FieldLabel htmlFor="santa-configuration-name">Name</FieldLabel>
-                  <Input
-                    id="santa-configuration-name"
-                    required
-                    value={form.name}
-                    onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="santa-client-mode">Client mode</FieldLabel>
-                  <Select
-                    value={form.client_mode}
-                    onValueChange={(client_mode) =>
-                      setForm({
-                        ...form,
-                        client_mode: client_mode as SantaConfigurationMutation["client_mode"],
-                      })
-                    }
-                  >
-                    <SelectTrigger id="santa-client-mode" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {CLIENT_MODE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>Monitor observes; lockdown enforces Santa rules.</FieldDescription>
-                </Field>
-              </FieldSet>
-
-              <FieldSet>
-                <FieldLegend>Sync</FieldLegend>
-                <BoolField
-                  id="santa-enable-bundles"
-                  label="Bundles"
-                  description="Scan bundled applications."
-                  value={form.enable_bundles}
-                  onChange={(enable_bundles) => setForm({ ...form, enable_bundles })}
-                />
-                <BoolField
-                  id="santa-enable-transitive-rules"
-                  label="Transitive rules"
-                  description="Allow compiled binaries to inherit allowlists."
-                  value={form.enable_transitive_rules}
-                  onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
-                />
-                <BoolField
-                  id="santa-upload-all-events"
-                  label="Upload all events"
-                  description="Include explicitly allowed executions."
-                  value={form.enable_all_event_upload}
-                  onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
-                />
-                <Field>
-                  <FieldLabel htmlFor="santa-full-sync-interval">Full sync interval</FieldLabel>
-                  <Input
-                    id="santa-full-sync-interval"
-                    type="number"
-                    min={60}
-                    inputMode="numeric"
-                    value={form.full_sync_interval_seconds}
-                    onChange={(event) => setForm({ ...form, full_sync_interval_seconds: Number(event.target.value) })}
-                  />
-                  <FieldDescription>Seconds between clean syncs. Santa default: 600.</FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="santa-batch-size">Batch size</FieldLabel>
-                  <Input
-                    id="santa-batch-size"
-                    type="number"
-                    min={5}
-                    max={100}
-                    inputMode="numeric"
-                    value={form.batch_size}
-                    onChange={(event) => setForm({ ...form, batch_size: Number(event.target.value) })}
-                  />
-                  <FieldDescription>Rule rows per download page. Santa default: 50.</FieldDescription>
-                </Field>
-              </FieldSet>
-
-              <FieldSet>
-                <FieldLegend>Execution</FieldLegend>
-                <Field>
-                  <FieldLabel htmlFor="santa-allowed-path-regex">Allowed path regex</FieldLabel>
-                  <Input
-                    id="santa-allowed-path-regex"
-                    value={form.allowed_path_regex}
-                    onChange={(event) => setForm({ ...form, allowed_path_regex: event.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="santa-blocked-path-regex">Blocked path regex</FieldLabel>
-                  <Input
-                    id="santa-blocked-path-regex"
-                    value={form.blocked_path_regex}
-                    onChange={(event) => setForm({ ...form, blocked_path_regex: event.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="santa-event-detail-url">Event detail URL</FieldLabel>
-                  <Input
-                    id="santa-event-detail-url"
-                    value={form.event_detail_url}
-                    onChange={(event) => setForm({ ...form, event_detail_url: event.target.value })}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="santa-event-detail-text">Event detail text</FieldLabel>
-                  <Input
-                    id="santa-event-detail-text"
-                    value={form.event_detail_text}
-                    onChange={(event) => setForm({ ...form, event_detail_text: event.target.value })}
-                  />
-                </Field>
-              </FieldSet>
-
-              <FieldSet>
-                <FieldLegend>Removable Media</FieldLegend>
-                <MediaActionField
-                  id="santa-removable-media"
-                  label="Removable media"
-                  action={form.removable_media_action}
-                  flags={form.removable_media_remount_flags}
-                  flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
-                  onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
-                  onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
-                />
-                <MediaActionField
-                  id="santa-encrypted-removable-media"
-                  label="Encrypted removable media"
-                  action={form.encrypted_removable_media_action}
-                  flags={form.encrypted_removable_media_remount_flags}
-                  flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
-                  onActionChange={(encrypted_removable_media_action) =>
-                    setForm({ ...form, encrypted_removable_media_action })
-                  }
-                  onFlagsChange={(encrypted_removable_media_remount_flags) =>
-                    setForm({ ...form, encrypted_removable_media_remount_flags })
-                  }
-                />
-              </FieldSet>
-            </FieldGroup>
-          </TabsContent>
-
-          <TabsContent value="targets">
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Labels</FieldLabel>
-                <LabelPicker value={form.label_ids} onChange={(label_ids) => setForm({ ...form, label_ids })} />
-              </Field>
-            </FieldGroup>
-          </TabsContent>
-        </Tabs>
+        <FieldGroup className="max-w-4xl">
+          <Field>
+            <FieldLabel htmlFor="santa-configuration-name">Name</FieldLabel>
+            <Input
+              id="santa-configuration-name"
+              required
+              value={form.name}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-client-mode">Client mode</FieldLabel>
+            <Select
+              value={form.client_mode}
+              onValueChange={(client_mode) =>
+                setForm({
+                  ...form,
+                  client_mode: client_mode as SantaConfigurationMutation["client_mode"],
+                })
+              }
+            >
+              <SelectTrigger id="santa-client-mode" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {CLIENT_MODE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription>Monitor observes; lockdown enforces Santa rules.</FieldDescription>
+          </Field>
+          <BoolField
+            id="santa-enable-bundles"
+            label="Bundles"
+            description="Scan bundled applications."
+            value={form.enable_bundles}
+            onChange={(enable_bundles) => setForm({ ...form, enable_bundles })}
+          />
+          <BoolField
+            id="santa-enable-transitive-rules"
+            label="Transitive rules"
+            description="Allow compiled binaries to inherit allowlists."
+            value={form.enable_transitive_rules}
+            onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
+          />
+          <BoolField
+            id="santa-upload-all-events"
+            label="Upload all events"
+            description="Include explicitly allowed executions."
+            value={form.enable_all_event_upload}
+            onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
+          />
+          <Field>
+            <FieldLabel htmlFor="santa-full-sync-interval">Full sync interval</FieldLabel>
+            <Input
+              id="santa-full-sync-interval"
+              type="number"
+              min={60}
+              inputMode="numeric"
+              value={form.full_sync_interval_seconds}
+              onChange={(event) => setForm({ ...form, full_sync_interval_seconds: Number(event.target.value) })}
+            />
+            <FieldDescription>Seconds between clean syncs. Santa default: 600.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-batch-size">Batch size</FieldLabel>
+            <Input
+              id="santa-batch-size"
+              type="number"
+              min={5}
+              max={100}
+              inputMode="numeric"
+              value={form.batch_size}
+              onChange={(event) => setForm({ ...form, batch_size: Number(event.target.value) })}
+            />
+            <FieldDescription>Rule rows per download page. Santa default: 50.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-allowed-path-regex">Allowed path regex</FieldLabel>
+            <Input
+              id="santa-allowed-path-regex"
+              value={form.allowed_path_regex}
+              onChange={(event) => setForm({ ...form, allowed_path_regex: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-blocked-path-regex">Blocked path regex</FieldLabel>
+            <Input
+              id="santa-blocked-path-regex"
+              value={form.blocked_path_regex}
+              onChange={(event) => setForm({ ...form, blocked_path_regex: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-event-detail-url">Event detail URL</FieldLabel>
+            <Input
+              id="santa-event-detail-url"
+              value={form.event_detail_url}
+              onChange={(event) => setForm({ ...form, event_detail_url: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-event-detail-text">Event detail text</FieldLabel>
+            <Input
+              id="santa-event-detail-text"
+              value={form.event_detail_text}
+              onChange={(event) => setForm({ ...form, event_detail_text: event.target.value })}
+            />
+          </Field>
+          <MediaActionField
+            id="santa-removable-media"
+            label="Removable media"
+            action={form.removable_media_action}
+            flags={form.removable_media_remount_flags}
+            flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
+            onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
+            onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
+          />
+          <MediaActionField
+            id="santa-encrypted-removable-media"
+            label="Encrypted removable media"
+            action={form.encrypted_removable_media_action}
+            flags={form.encrypted_removable_media_remount_flags}
+            flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
+            onActionChange={(encrypted_removable_media_action) =>
+              setForm({ ...form, encrypted_removable_media_action })
+            }
+            onFlagsChange={(encrypted_removable_media_remount_flags) =>
+              setForm({ ...form, encrypted_removable_media_remount_flags })
+            }
+          />
+          <Field>
+            <FieldLabel>Scope</FieldLabel>
+            {configurations.isLoading ? (
+              <p className="text-muted-foreground text-sm">Loading configuration scope...</p>
+            ) : configurations.error ? (
+              <p className="text-destructive text-sm">{configurations.error.message}</p>
+            ) : (
+              <LabelPicker
+                value={form.label_ids}
+                unavailableLabelIDs={unavailableLabelIDs}
+                emptyPlaceholder="No unassigned labels"
+                emptyMessage="All labels are already assigned to Santa configurations."
+                onChange={(label_ids) => setForm({ ...form, label_ids })}
+              />
+            )}
+            <FieldDescription>Hosts in these labels receive this Santa configuration.</FieldDescription>
+          </Field>
+        </FieldGroup>
 
         <div className="flex max-w-4xl items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending || form.name.trim() === ""}>

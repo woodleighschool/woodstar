@@ -1,20 +1,7 @@
 import { xml } from "@codemirror/lang-xml";
 import type { Extension } from "@codemirror/state";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  FileCode2,
-  KeyRound,
-  Loader2,
-  Pencil,
-  Plus,
-  Terminal,
-  Trash2,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -34,7 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -87,8 +73,8 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
   return (
     <PageShell className="gap-6">
       <PageHeader
-        title="Enrollments"
-        description="Enrollment secrets and install snippets for Orbit and Santa."
+        title={enrollmentTitle(integration)}
+        description={enrollmentDescription(integration)}
         actions={
           <Button
             size="sm"
@@ -106,30 +92,19 @@ export function EnrollmentsPage({ integration }: { integration: Integration }) {
       <div className="grid gap-4">
         {integration === "orbit" ? (
           <EnrollmentInstructions
-            title="Orbit package"
-            description="Use fleetctl to build an Orbit package for osquery enrollment."
-            icon={<Terminal />}
             command={orbitPackageCommand(serverURL)}
             copyLabel="Copy package command"
             link={{ href: FLEETCTL_INSTALL_URL, label: "Install fleetctl" }}
             notes={["The example builds a macOS pkg; change --type for another package format."]}
           />
         ) : (
-          <>
-            <EnrollmentInstructions
-              title="Santa"
-              description="Use this profile payload to point Santa at Woodstar."
-              icon={<FileCode2 />}
-              command={santaProfileTemplate(serverURL)}
-              extensions={xmlExtensions}
-              copyLabel="Copy profile template"
-              multiline
-              notes={["Santa must send protobuf over gzip."]}
-            />
-            <SecretTabDescription>
-              Bearer credentials for Santa. Delete one to reject clients using that value.
-            </SecretTabDescription>
-          </>
+          <EnrollmentInstructions
+            command={santaProfileTemplate(serverURL)}
+            extensions={xmlExtensions}
+            copyLabel="Copy profile template"
+            multiline
+            notes={["Santa must send protobuf over gzip."]}
+          />
         )}
         <SecretTable
           rows={activeSecrets}
@@ -227,14 +202,7 @@ export function SantaEnrollmentsPage() {
   return <EnrollmentsPage integration="santa" />;
 }
 
-function SecretTabDescription({ children }: { children: ReactNode }) {
-  return <p className="text-muted-foreground max-w-3xl text-sm leading-6">{children}</p>;
-}
-
 function EnrollmentInstructions({
-  title,
-  description,
-  icon,
   command,
   extensions,
   copyLabel,
@@ -242,9 +210,6 @@ function EnrollmentInstructions({
   multiline = false,
   notes,
 }: {
-  title: string;
-  description: string;
-  icon: ReactNode;
   command: string;
   extensions?: Extension[];
   copyLabel: string;
@@ -256,39 +221,24 @@ function EnrollmentInstructions({
   notes: string[];
 }) {
   return (
-    <Card className="max-w-full overflow-hidden">
-      <CardHeader>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md [&_svg]:size-4">
-              {icon}
-            </div>
-            <div className="min-w-0">
-              <CardTitle>{title}</CardTitle>
-              <CardDescription className="mt-1">{description}</CardDescription>
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {link ? (
-              <Button type="button" variant="outline" size="sm" asChild>
-                <a href={link.href} target="_blank" rel="noreferrer">
-                  <ExternalLink data-icon="inline-start" />
-                  {link.label}
-                </a>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="flex min-w-0 flex-col gap-4">
-        <CopyableExample value={command} label={copyLabel} extensions={extensions} multiline={multiline} />
+    <section className="bg-muted/20 flex min-w-0 flex-col gap-3 rounded-md border p-3">
+      <CopyableExample value={command} label={copyLabel} extensions={extensions} multiline={multiline} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <ul className="text-muted-foreground flex flex-col gap-1.5 text-sm">
           {notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>
-      </CardContent>
-    </Card>
+        {link ? (
+          <Button type="button" variant="outline" size="sm" asChild>
+            <a href={link.href} target="_blank" rel="noreferrer">
+              <ExternalLink data-icon="inline-start" />
+              {link.label}
+            </a>
+          </Button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -403,7 +353,7 @@ function SecretTable({
     {
       id: "value",
       accessorKey: "value",
-      header: "Enrollment secret",
+      header: "Secrets",
       cell: ({ row }) => {
         const visible = Boolean(visibleSecrets[row.original.id]);
         return (
@@ -598,6 +548,17 @@ function integrationLabel(integration?: Integration) {
   return "integration";
 }
 
+function enrollmentTitle(integration: Integration) {
+  return `${integrationLabel(integration)} enrollment`;
+}
+
+function enrollmentDescription(integration: Integration) {
+  if (integration === "orbit") {
+    return "Secrets and package command for Orbit hosts.";
+  }
+  return "Secrets and profile payload for Santa clients.";
+}
+
 function deleteDescription(integration: Integration) {
   if (integration === "orbit") {
     return "Future Orbit and osquery enrollment stops for this secret. Existing hosts keep their issued osquery node keys.";
@@ -623,29 +584,48 @@ function santaProfileTemplate(serverURL: string) {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>PayloadType</key>
-  <string>com.northpolesec.santa</string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-  <key>PayloadIdentifier</key>
-  <string>au.edu.vic.woodleigh.woodstar.santa</string>
-  <key>PayloadUUID</key>
-  <string>896c4448-0b5a-4e0f-9020-51035e9d112a</string>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>Santa (North Pole Security)</string>
+      <key>PayloadIdentifier</key>
+      <string>com.northpolesec.santa.4BB570FE-55D7-46C1-BFE9-BAD4BC2763CA</string>
+      <key>PayloadType</key>
+      <string>com.northpolesec.santa</string>
+      <key>PayloadUUID</key>
+      <string>4BB570FE-55D7-46C1-BFE9-BAD4BC2763CA</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>ClientMode</key>
+      <integer>1</integer>
+      <key>SyncBaseURL</key>
+      <string>${serverURL}/santa/sync</string>
+      <key>SyncClientContentEncoding</key>
+      <string>gzip</string>
+      <key>SyncEnableProtoTransfer</key>
+      <true/>
+      <key>SyncExtraHeaders</key>
+      <dict>
+        <key>Authorization</key>
+        <string>Bearer REPLACE_WITH_SECRET</string>
+      </dict>
+    </dict>
+  </array>
   <key>PayloadDisplayName</key>
   <string>Woodstar - Santa</string>
-  <key>ClientMode</key>
+  <key>PayloadIdentifier</key>
+  <string>au.vic.edu.woodleigh.7CE340DE-AAB6-448B-A558-EB3C49A3A687</string>
+  <key>PayloadOrganization</key>
+  <string>Woodleigh School</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>7CE340DE-AAB6-448B-A558-EB3C49A3A687</string>
+  <key>PayloadVersion</key>
   <integer>1</integer>
-  <key>SyncBaseURL</key>
-  <string>${serverURL}/santa/sync</string>
-  <key>SyncClientContentEncoding</key>
-  <string>gzip</string>
-  <key>SyncEnableProtoTransfer</key>
-  <true/>
-  <key>SyncExtraHeaders</key>
-  <dict>
-    <key>Authorization</key>
-    <string>Bearer REPLACE_WITH_SECRET</string>
-  </dict>
 </dict>
 </plist>`;
 }
