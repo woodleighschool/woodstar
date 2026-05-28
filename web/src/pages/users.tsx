@@ -115,7 +115,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
                   {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={row.role === "admin" ? "info" : "secondary"}>{row.role}</Badge>
+                  <Badge variant={row.role === "admin" ? "default" : "secondary"}>{row.role}</Badge>
                 </TableCell>
                 <TableCell title={new Date(row.created_at).toLocaleString()}>
                   {formatRelative(row.created_at)}

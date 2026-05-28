@@ -8,7 +8,10 @@ export function DecisionBadge({ decision }: { decision: string }) {
   const blocked = decision.startsWith("block_");
   const allowed = decision.startsWith("allow_") || decision === "audit_only";
   return (
-    <Badge variant={blocked ? "destructive" : allowed ? "success" : "secondary"}>{decision.replaceAll("_", " ")}</Badge>
+    <Badge variant={blocked ? "destructive" : allowed ? "outline" : "secondary"} className="gap-1.5">
+      {allowed ? <span className="bg-status-online size-1.5 rounded-full" /> : null}
+      {decision.replaceAll("_", " ")}
+    </Badge>
   );
 }
 

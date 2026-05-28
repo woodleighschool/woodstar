@@ -85,13 +85,15 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
 
   return (
     <Card>
-      <CardContent className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
-        {tiles.map((t) => (
-          <div key={t.label} className="flex min-w-0 flex-col gap-1">
-            <dt className="text-muted-foreground text-xs font-semibold">{t.label}</dt>
-            <dd className="text-foreground truncate text-sm">{t.value}</dd>
-          </div>
-        ))}
+      <CardContent>
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
+          {tiles.map((t) => (
+            <div key={t.label} className="flex min-w-0 flex-col gap-1">
+              <dt className="text-muted-foreground text-xs font-semibold">{t.label}</dt>
+              <dd className="text-foreground truncate text-sm">{t.value}</dd>
+            </div>
+          ))}
+        </dl>
       </CardContent>
     </Card>
   );
@@ -168,11 +170,8 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
 
   return (
     <Card className="gap-4 py-4">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
+      <CardHeader>
         <CardTitle>Certificates</CardTitle>
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {certificates.length} {certificates.length === 1 ? "certificate" : "certificates"}
-        </span>
       </CardHeader>
       <CardContent>
         <DataTable

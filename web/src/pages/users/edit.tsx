@@ -92,7 +92,7 @@ function UserEditForm({ user }: { user: User }) {
           <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
-            <Badge variant={user.role === "admin" ? "info" : "secondary"}>{user.role}</Badge>
+            <Badge variant={user.role === "admin" ? "default" : "secondary"}>{user.role}</Badge>
           </CardDescription>
         </CardHeader>
         <form

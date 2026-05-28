@@ -66,7 +66,7 @@ export function SantaConfigurationsPage() {
   );
   const [orderedRows, setOrderedRows] = useState<SantaConfiguration[]>([]);
   const hasFilters = !!search.q;
-  const canEnableReorder = !hasFilters && orderedRows.length > 0 && !query.isLoading;
+  const canEnableReorder = !hasFilters && totalCount > 1 && orderedRows.length > 1 && !query.isLoading;
   const selectedIDs = selectedConfigurationIds.map(Number);
 
   useEffect(() => {
@@ -119,17 +119,17 @@ export function SantaConfigurationsPage() {
         ] satisfies ColumnDef<SantaConfiguration>[])
       : []),
     {
-      id: "name",
-      accessorKey: "name",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-    },
-    {
       id: "position",
       accessorKey: "position",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
       cell: ({ row }) => <span className="tabular-nums">{row.original.position + 1}</span>,
       meta: { headClassName: "w-20", cellClassName: "w-20" },
+    },
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
       id: "client_mode",
@@ -161,6 +161,7 @@ export function SantaConfigurationsPage() {
     <PageShell>
       <PageHeader
         title="Configurations"
+        description="Configuration order runs top to bottom. The first configuration whose labels match a host is applied."
         actions={
           <>
             <ButtonGroup>
