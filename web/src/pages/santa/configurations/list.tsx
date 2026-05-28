@@ -53,7 +53,6 @@ export function SantaConfigurationsPage() {
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
     sort: "name.asc",
-    label_type: "regular",
   });
   const bulkDelete = useBulkDeleteSantaConfigurations();
   const reorder = useReorderSantaConfigurations();

@@ -116,7 +116,7 @@ function CheckEditForm({
         }}
       >
         <PageHeader title={mode === "create" ? "New check" : "Edit check"} />
-        <FieldGroup className="max-w-3xl">
+        <FieldGroup>
           <Field>
             <FieldLabel htmlFor="check-name">Name</FieldLabel>
             <Input
@@ -145,7 +145,7 @@ function CheckEditForm({
           onChange={(label_scope) => setForm({ ...form, label_scope })}
         />
 
-        <div className="grid max-w-3xl gap-2">
+        <div className="grid gap-2">
           <Label>Query</Label>
           <SQLEditor
             ref={editorRef}
@@ -154,7 +154,7 @@ function CheckEditForm({
             placeholder="SELECT ..."
           />
         </div>
-        <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+        <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>

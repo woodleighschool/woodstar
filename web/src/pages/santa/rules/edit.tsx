@@ -6,8 +6,8 @@ import { z } from "zod";
 
 import { DataTable, DataTableRowDragHandle } from "@/components/data-table/data-table";
 import { CodeEditor } from "@/components/editor/code-editor";
+import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LabelPicker } from "@/components/santa/label-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

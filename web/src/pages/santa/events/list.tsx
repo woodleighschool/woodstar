@@ -1,4 +1,4 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
 
@@ -9,7 +9,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableSearch } from "@/components/data-table/data-table-search";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import {
   useSantaEvents,
@@ -21,49 +21,43 @@ import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pa
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./constants";
 import { DecisionBadge, HostLink, Timestamp } from "./event-ui";
 
-const EVENT_TYPE_EXECUTION = "execution";
-const EVENT_TYPE_FILE_ACCESS = "file_access";
-
-type EventType = typeof EVENT_TYPE_EXECUTION | typeof EVENT_TYPE_FILE_ACCESS;
+type EventListKind = "execution" | "file-access";
 
 export function SantaEventsPage() {
-  const search = useSearch({ strict: false });
-  const navigate = useNavigate();
-  const eventType = search.event_type === EVENT_TYPE_FILE_ACCESS ? EVENT_TYPE_FILE_ACCESS : EVENT_TYPE_EXECUTION;
-
-  const setEventType = (next: string) => {
-    void navigate({
-      search: ((prev: Record<string, unknown>) => ({
-        q: prev.q,
-        event_type: next === EVENT_TYPE_FILE_ACCESS ? EVENT_TYPE_FILE_ACCESS : undefined,
-      })) as never,
-      replace: true,
-    });
-  };
-
   return (
     <PageShell>
       <PageHeader title="Events" />
-
-      <Tabs value={eventType} onValueChange={setEventType}>
-        <TabsList>
-          <TabsTrigger value={EVENT_TYPE_EXECUTION}>Execution</TabsTrigger>
-          <TabsTrigger value={EVENT_TYPE_FILE_ACCESS}>File access</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={EVENT_TYPE_EXECUTION}>
-          {eventType === EVENT_TYPE_EXECUTION ? <ExecutionEventsTable eventType={eventType} /> : null}
-        </TabsContent>
-        <TabsContent value={EVENT_TYPE_FILE_ACCESS}>
-          {eventType === EVENT_TYPE_FILE_ACCESS ? <FileAccessEventsTable eventType={eventType} /> : null}
-        </TabsContent>
-      </Tabs>
+      <EventListNav active="execution" />
+      <ExecutionEventsTable />
     </PageShell>
   );
 }
 
-function ExecutionEventsTable({ eventType }: { eventType: EventType }) {
-  const search = useSearch({ strict: false });
+export function SantaFileAccessEventsPage() {
+  return (
+    <PageShell>
+      <PageHeader title="Events" />
+      <EventListNav active="file-access" />
+      <FileAccessEventsTable />
+    </PageShell>
+  );
+}
+
+function EventListNav({ active }: { active: EventListKind }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Button asChild size="sm" variant={active === "execution" ? "secondary" : "ghost"}>
+        <Link to="/santa/events">Execution</Link>
+      </Button>
+      <Button asChild size="sm" variant={active === "file-access" ? "secondary" : "ghost"}>
+        <Link to="/santa/events/file-access">File access</Link>
+      </Button>
+    </div>
+  );
+}
+
+function ExecutionEventsTable() {
+  const search = useSearch({ from: "/_authenticated/santa/events/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q", { resetKeys: ["page_index"] });
   const decisions = search.decisions ?? [];
@@ -140,7 +134,8 @@ function ExecutionEventsTable({ eventType }: { eventType: EventType }) {
               decisions={decisions}
               decisionOptions={[...DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              eventType={eventType}
+              searchLabel="Search execution events"
+              searchPlaceholder="Search"
             />
           }
           empty={
@@ -158,8 +153,8 @@ function ExecutionEventsTable({ eventType }: { eventType: EventType }) {
   );
 }
 
-function FileAccessEventsTable({ eventType }: { eventType: EventType }) {
-  const search = useSearch({ strict: false });
+function FileAccessEventsTable() {
+  const search = useSearch({ from: "/_authenticated/santa/events/file-access/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q", { resetKeys: ["page_index"] });
   const decisions = search.decisions ?? [];
@@ -236,7 +231,7 @@ function FileAccessEventsTable({ eventType }: { eventType: EventType }) {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/santa/file-access-events/$eventId", params: { eventId: String(row.id) } })}
+          rowHref={(row) => ({ to: "/santa/events/file-access/$eventId", params: { eventId: String(row.id) } })}
           toolbar={
             <EventTableToolbar
               draft={draft}
@@ -244,7 +239,8 @@ function FileAccessEventsTable({ eventType }: { eventType: EventType }) {
               decisions={decisions}
               decisionOptions={[...FILE_ACCESS_DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              eventType={eventType}
+              searchLabel="Search file access events"
+              searchPlaceholder="Search target, process, host, signer"
             />
           }
           empty={
@@ -270,23 +266,20 @@ function EventTableToolbar({
   decisions,
   decisionOptions,
   onDecisionsChange,
-  eventType,
+  searchLabel,
+  searchPlaceholder,
 }: {
   draft: string;
   setDraft: (next: string) => void;
   decisions: string[];
   decisionOptions: Array<{ value: string; label: string }>;
   onDecisionsChange: (next: string[]) => void;
-  eventType: EventType;
+  searchLabel: string;
+  searchPlaceholder: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DataTableSearch
-        value={draft}
-        onChange={setDraft}
-        placeholder={eventType === EVENT_TYPE_FILE_ACCESS ? "Search target, process, host, signer" : "Search"}
-        label={eventType === EVENT_TYPE_FILE_ACCESS ? "Search file access events" : "Search execution events"}
-      />
+      <DataTableSearch value={draft} onChange={setDraft} placeholder={searchPlaceholder} label={searchLabel} />
       <DataTableFacetedFilter
         title="Decision"
         options={decisionOptions}

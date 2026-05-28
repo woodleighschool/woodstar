@@ -1,14 +1,10 @@
-import { Check, CircleSlash } from "lucide-react";
 import { useMemo } from "react";
 
-import { Checkbox } from "@/components/ui/checkbox";
+import { LabelPicker } from "@/components/labels/label-picker";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLabels } from "@/hooks/use-labels";
 import type { Schemas } from "@/lib/api";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { cn } from "@/lib/utils";
 
 type LabelScope = Schemas["LabelScope"];
 type LabelScopeMode = NonNullable<LabelScope["mode"]>;
@@ -16,6 +12,8 @@ type LabelScopeMode = NonNullable<LabelScope["mode"]>;
 const includeAny: LabelScopeMode = "include_any";
 const includeAll: LabelScopeMode = "include_all";
 const excludeAny: LabelScopeMode = "exclude_any";
+const targetAll = "all";
+const targetCustom = "custom";
 
 export function LabelScopeSelector({
   value,
@@ -26,15 +24,13 @@ export function LabelScopeSelector({
   onChange: (next: LabelScope) => void;
   entity?: "report" | "check";
 }) {
-  const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc", label_type: "regular" });
-  const selectedTarget = value?.mode ? "Custom" : "All hosts";
+  const selectedTarget = value?.mode ? targetCustom : targetAll;
   const selectedMode = value?.mode ?? includeAny;
-  const selected = new Set(value?.label_ids ?? []);
-  const labelRows = labels.data?.items ?? [];
+  const selectedLabelIDs = value?.label_ids ?? [];
   const modeOptions = useMemo(() => targetModeOptions(entity), [entity]);
 
   function setTarget(next: string) {
-    if (next === "All hosts") {
+    if (next === targetAll) {
       onChange({});
       return;
     }
@@ -45,15 +41,8 @@ export function LabelScopeSelector({
     onChange({ mode: next as LabelScopeMode, label_ids: value?.label_ids ?? [] });
   }
 
-  function toggleLabel(id: number) {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onChange({ mode: selectedMode, label_ids: [...next] });
-  }
-
   return (
-    <div className="grid max-w-3xl gap-3 rounded-md border p-4">
+    <div className="grid gap-3 rounded-md border p-4">
       <div className="grid gap-1">
         <Label>Target</Label>
         <p className="text-muted-foreground text-xs">
@@ -63,20 +52,20 @@ export function LabelScopeSelector({
 
       <RadioGroup value={selectedTarget} onValueChange={setTarget} className="gap-2">
         <div className="flex items-center gap-2">
-          <RadioGroupItem id={`${entity}-target-all`} value="All hosts" />
+          <RadioGroupItem id={`${entity}-target-all`} value={targetAll} />
           <Label htmlFor={`${entity}-target-all`} className="font-normal">
             All hosts
           </Label>
         </div>
         <div className="flex items-center gap-2">
-          <RadioGroupItem id={`${entity}-target-custom`} value="Custom" />
+          <RadioGroupItem id={`${entity}-target-custom`} value={targetCustom} />
           <Label htmlFor={`${entity}-target-custom`} className="font-normal">
             Custom
           </Label>
         </div>
       </RadioGroup>
 
-      {selectedTarget === "Custom" ? (
+      {selectedTarget === targetCustom ? (
         <div className="grid gap-3 pl-5">
           <Select value={selectedMode} onValueChange={setMode}>
             <SelectTrigger className="w-52">
@@ -96,32 +85,13 @@ export function LabelScopeSelector({
             {modeOptions.find((option) => option.value === selectedMode)?.helpText}
           </p>
 
-          <div className="grid max-h-56 gap-1 overflow-auto rounded-md border p-2">
-            {labelRows.length === 0 ? (
-              <div className="text-muted-foreground flex items-center gap-2 px-2 py-3 text-sm">
-                <CircleSlash className="size-4" /> Add a custom label to target specific hosts.
-              </div>
-            ) : (
-              labelRows.map((label) => {
-                const checked = selected.has(label.id);
-                return (
-                  <button
-                    key={label.id}
-                    type="button"
-                    className={cn(
-                      "hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-left text-sm",
-                      checked && "bg-muted",
-                    )}
-                    onClick={() => toggleLabel(label.id)}
-                  >
-                    <Checkbox checked={checked} tabIndex={-1} />
-                    <span className="min-w-0 flex-1 truncate">{label.name}</span>
-                    {checked ? <Check className="text-primary size-4" /> : null}
-                  </button>
-                );
-              })
-            )}
-          </div>
+          <LabelPicker
+            value={selectedLabelIDs}
+            onChange={(label_ids) => onChange({ mode: selectedMode, label_ids })}
+            emptyMessage="Create a label before using a custom target."
+            emptyPlaceholder="No labels available"
+            placeholder="Add label"
+          />
         </div>
       ) : null}
     </div>

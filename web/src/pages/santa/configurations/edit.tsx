@@ -3,8 +3,8 @@ import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
+import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LabelPicker } from "@/components/santa/label-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -320,6 +320,7 @@ function ConfigurationForm({
             ) : (
               <LabelPicker
                 value={form.label_ids}
+                includeBuiltins
                 unavailableLabelIDs={unavailableLabelIDs}
                 emptyPlaceholder="No unassigned labels"
                 emptyMessage="All labels are already assigned to configurations."

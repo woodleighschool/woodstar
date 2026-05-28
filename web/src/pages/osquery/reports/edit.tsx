@@ -136,7 +136,7 @@ function ReportEditForm({
         }}
       >
         <PageHeader title={mode === "create" ? "New report" : "Edit report"} />
-        <FieldGroup className="max-w-3xl">
+        <FieldGroup>
           <Field>
             <FieldLabel htmlFor="report-name">Name</FieldLabel>
             <Input
@@ -183,7 +183,7 @@ function ReportEditForm({
 
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
 
-        <div className="grid max-w-3xl gap-2">
+        <div className="grid gap-2">
           <Label>Query</Label>
           <SQLEditor
             ref={editorRef}
@@ -193,7 +193,7 @@ function ReportEditForm({
           />
         </div>
 
-        <FieldGroup className="max-w-3xl">
+        <FieldGroup>
           <Button
             type="button"
             variant="ghost"
@@ -217,7 +217,7 @@ function ReportEditForm({
           ) : null}
         </FieldGroup>
 
-        <div className="flex max-w-3xl items-center gap-2 border-t pt-4">
+        <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
