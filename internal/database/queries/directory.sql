@@ -64,12 +64,11 @@ WHERE external_id <> ALL(@external_ids::text[]);
 DELETE FROM directory_groups
 WHERE external_id <> ALL(@external_ids::text[]);
 
--- name: ReplaceDirectoryUserGroups :exec
-WITH cleared AS (
-    DELETE FROM directory_user_groups
-    WHERE directory_user_id = @directory_user_id
-    RETURNING 1
-)
+-- name: DeleteDirectoryUserGroups :exec
+DELETE FROM directory_user_groups
+WHERE directory_user_id = @directory_user_id;
+
+-- name: InsertDirectoryUserGroups :exec
 INSERT INTO directory_user_groups (directory_user_id, directory_group_id)
 SELECT @directory_user_id, g.id
 FROM directory_groups g

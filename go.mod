@@ -2,7 +2,10 @@ module github.com/woodleighschool/woodstar
 
 go 1.26.0
 
-tool github.com/sqlc-dev/sqlc/cmd/sqlc
+tool (
+	github.com/sqlc-dev/sqlc/cmd/sqlc
+	golang.org/x/tools/cmd/deadcode
+)
 
 require (
 	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260527183946-14f63aa75ed2.1
@@ -64,9 +67,12 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
+	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
 	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68 // indirect
 	google.golang.org/grpc v1.80.0 // indirect

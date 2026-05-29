@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 
@@ -94,13 +95,13 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMut
 		}
 		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(params))
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
-			return err
+			return mapConfigurationMutationError(err)
 		}
 		configurationID = row.ID
-		return replaceConfigurationLabels(ctx, tx, configurationID, params.LabelIDs)
+		if err := replaceConfigurationLabels(ctx, tx, configurationID, params.LabelIDs); err != nil {
+			return mapConfigurationMutationError(err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -126,12 +127,12 @@ func (s *Store) UpdateConfiguration(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		} else if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
-			return err
+			return mapConfigurationMutationError(err)
 		}
-		return replaceConfigurationLabels(ctx, tx, row.ID, params.LabelIDs)
+		if err := replaceConfigurationLabels(ctx, tx, row.ID, params.LabelIDs); err != nil {
+			return mapConfigurationMutationError(err)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -272,10 +273,20 @@ func (s *Store) attachConfigurationLabels(
 	return nil
 }
 
-// Validate enforces cross-field rules that the DB and Huma DTO can't express:
-// the removable-media action must pair with non-empty remount flags when set
-// to "remount".
+// Validate enforces caller-facing rules before storage.
 func (p ConfigurationMutation) Validate() error {
+	if p.Name == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	if !slices.Contains(ClientModeValues, p.ClientMode) {
+		return fmt.Errorf("%w: client_mode is required", dbutil.ErrInvalidInput)
+	}
+	if p.FullSyncIntervalSeconds < 60 {
+		return fmt.Errorf("%w: full_sync_interval_seconds must be at least 60", dbutil.ErrInvalidInput)
+	}
+	if p.BatchSize < 5 || p.BatchSize > 100 {
+		return fmt.Errorf("%w: batch_size must be between 5 and 100", dbutil.ErrInvalidInput)
+	}
 	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
 		return err
 	}
@@ -286,6 +297,9 @@ func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) erro
 	if policy.Action == "" {
 		return nil
 	}
+	if !slices.Contains(RemovableMediaActionValues, policy.Action) {
+		return fmt.Errorf("%w: %s.action is invalid", dbutil.ErrInvalidInput, name)
+	}
 	if policy.Action == RemovableMediaActionRemount && len(policy.RemountFlags) == 0 {
 		return fmt.Errorf(
 			"%w: %s.remount_flags are required when action is remount",
@@ -294,6 +308,16 @@ func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) erro
 		)
 	}
 	return nil
+}
+
+func mapConfigurationMutationError(err error) error {
+	if dbutil.IsUniqueViolation(err) {
+		return dbutil.ErrAlreadyExists
+	}
+	if dbutil.IsInvalidInputViolation(err) {
+		return dbutil.ErrInvalidInput
+	}
+	return err
 }
 
 func configurationListWhere(params ConfigurationListParams) (string, []any) {

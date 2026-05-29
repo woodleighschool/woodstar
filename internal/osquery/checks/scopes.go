@@ -52,7 +52,7 @@ func (s *Store) loadCheckScopes(ctx context.Context, checkIDs []int64) (map[int6
 }
 
 func replaceCheckScope(ctx context.Context, tx pgx.Tx, checkID int64, lscope scope.LabelScope) error {
-	lscope = scope.NormalizeLabelScope(lscope)
+	lscope = storedLabelScope(lscope)
 	q := sqlc.New(tx)
 	if err := q.SetCheckScopeMode(ctx, sqlc.SetCheckScopeModeParams{
 		ID:             checkID,
@@ -70,4 +70,23 @@ func replaceCheckScope(ctx context.Context, tx pgx.Tx, checkID int64, lscope sco
 		CheckID:  checkID,
 		LabelIds: lscope.LabelIDs,
 	})
+}
+
+func storedLabelScope(lscope scope.LabelScope) scope.LabelScope {
+	lscope = scope.NormalizeLabelScope(lscope)
+	lscope.LabelIDs = uniqueInt64s(lscope.LabelIDs)
+	return lscope
+}
+
+func uniqueInt64s(values []int64) []int64 {
+	out := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }

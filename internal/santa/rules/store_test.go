@@ -17,6 +17,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
 	labelID := createSantaRuleLabel(t, db, "Santa Rule Validation")
+	excludeLabelID := createSantaRuleLabel(t, db, "Santa Rule Exclude")
 	allHostsLabelID := santaRuleAllHostsLabelID(t, db)
 	binaryIdentifier := strings.Repeat("a", 64)
 
@@ -95,10 +96,10 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 
 	rule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:      rules.RuleTypeBinary,
-		Identifier:    " " + binaryIdentifier + " ",
-		Name:          " Example ",
-		CustomMessage: " Blocked ",
-		CustomURL:     " https://example.test ",
+		Identifier:    binaryIdentifier,
+		Name:          "Example",
+		CustomMessage: "Blocked",
+		CustomURL:     "https://example.test",
 		Includes: []rules.RuleIncludeWrite{{
 			Policy:  rules.PolicyAllowlist,
 			LabelID: labelID,
@@ -109,7 +110,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 	if rule.Identifier != binaryIdentifier || rule.Name != "Example" || rule.CustomMessage != "Blocked" ||
 		rule.CustomURL != "https://example.test" {
-		t.Fatalf("rule was not cleaned: %+v", rule)
+		t.Fatalf("rule = %+v, want persisted binary rule metadata", rule)
 	}
 	if len(rule.Includes) != 1 || rule.Includes[0].Position != 0 || rule.Includes[0].Policy != rules.PolicyAllowlist {
 		t.Fatalf("includes = %+v, want one allowlist include at position 0", rule.Includes)
@@ -134,7 +135,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			CELExpression: celExpression,
 			LabelID:       labelID,
 		}},
-		ExcludeLabelIDs: []int64{labelID},
+		ExcludeLabelIDs: []int64{excludeLabelID},
 	})
 	if err != nil {
 		t.Fatalf("update rule: %v", err)
@@ -145,8 +146,8 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	if len(updated.Includes) != 1 || updated.Includes[0].CELExpression != celExpression {
 		t.Fatalf("updated include = %+v, want CEL expression", updated.Includes)
 	}
-	if len(updated.ExcludeLabelIDs) != 1 || updated.ExcludeLabelIDs[0] != labelID {
-		t.Fatalf("exclude labels = %v, want [%d]", updated.ExcludeLabelIDs, labelID)
+	if len(updated.ExcludeLabelIDs) != 1 || updated.ExcludeLabelIDs[0] != excludeLabelID {
+		t.Fatalf("exclude labels = %v, want [%d]", updated.ExcludeLabelIDs, excludeLabelID)
 	}
 }
 

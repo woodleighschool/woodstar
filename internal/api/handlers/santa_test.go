@@ -44,7 +44,7 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 		t.Fatalf("create label: %v", err)
 	}
 
-	body := fmt.Sprintf(`{"name":"Owner","label_ids":[%d]}`, label.ID)
+	body := santaConfigurationBody("Owner", label.ID)
 	if rec := santaAdminRequest(
 		t,
 		router,
@@ -56,7 +56,7 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 		t.Fatalf("seed configuration status = %d; body = %q", rec.Code, rec.Body.String())
 	}
 
-	conflictBody := fmt.Sprintf(`{"name":"Stealer","label_ids":[%d]}`, label.ID)
+	conflictBody := santaConfigurationBody("Stealer", label.ID)
 	rec := santaAdminRequest(t, router, cookie, http.MethodPost, "/api/santa/configurations", conflictBody)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("conflict status = %d, want %d; body = %q", rec.Code, http.StatusConflict, rec.Body.String())
@@ -301,8 +301,11 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		t.Fatalf("set label membership: %v", err)
 	}
 	configuration, err := configurations.NewStore(db).CreateConfiguration(ctx, configurations.ConfigurationMutation{
-		Name:     "Enricher Config",
-		LabelIDs: []int64{label.ID},
+		Name:                    "Enricher Config",
+		ClientMode:              configurations.ClientModeMonitor,
+		FullSyncIntervalSeconds: 600,
+		BatchSize:               50,
+		LabelIDs:                []int64{label.ID},
 	})
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
@@ -350,6 +353,19 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 func santaAdminTestAPI(t *testing.T, db *database.DB, email string) (*chi.Mux, huma.API, *http.Cookie) {
 	t.Helper()
 	return santaTestAPIWith(t, db, email, true)
+}
+
+func santaConfigurationBody(name string, labelID int64) string {
+	return fmt.Sprintf(`{
+		"name": %q,
+		"client_mode": "monitor",
+		"enable_bundles": false,
+		"enable_transitive_rules": false,
+		"enable_all_event_upload": false,
+		"full_sync_interval_seconds": 600,
+		"batch_size": 50,
+		"label_ids": [%d]
+	}`, name, labelID)
 }
 
 func santaAuthedRouter(t *testing.T, db *database.DB, email string, register func(huma.API)) (*chi.Mux, *http.Cookie) {

@@ -153,8 +153,13 @@ func TestAgentSecretsAdminAPI(t *testing.T) {
 	deleteReq.Header.Set("Sec-Fetch-Site", "same-origin")
 	deleteReq.AddCookie(cookie)
 	server.httpServer.Handler.ServeHTTP(deleteRec, deleteReq)
-	if deleteRec.Code != http.StatusOK {
-		t.Fatalf("delete status = %d, want %d; body = %q", deleteRec.Code, http.StatusOK, deleteRec.Body.String())
+	if deleteRec.Code != http.StatusNoContent {
+		t.Fatalf(
+			"delete status = %d, want %d; body = %q",
+			deleteRec.Code,
+			http.StatusNoContent,
+			deleteRec.Body.String(),
+		)
 	}
 
 	ok, err = deps.AgentAuth.Store.Verify(ctx, agentauth.AgentSanta, created.Value)
@@ -191,15 +196,15 @@ func TestAgentSecretsRejectBadAgent(t *testing.T) {
 		context.Background(),
 		http.MethodPost,
 		"/api/agent-secrets",
-		strings.NewReader(`{"agent":"munki"}`),
+		strings.NewReader(`{"agent":"munki","value":"invalid-agent-secret-value-long-32"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	req.AddCookie(cookie)
 	server.httpServer.Handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusBadRequest, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusUnprocessableEntity, rec.Body.String())
 	}
 }
 
@@ -221,7 +226,7 @@ func TestAgentSecretsRequireAdmin(t *testing.T) {
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
 	deps.AgentAuth.Store = agentauth.NewStore(database)
 	server := NewServer(deps)
-	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "viewer@example.test")
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/agent-secrets", nil)
@@ -268,7 +273,8 @@ func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 	}
 
 	manager := livequery.NewManager()
-	handle := manager.Start("select 1", []int64{4})
+	streamHandle := manager.Start("select 1", nil)
+	stopHandle := manager.Start("select 1", []int64{4})
 
 	deps := testDependencies(testConfig())
 	deps.Runtime.DB = database
@@ -282,7 +288,7 @@ func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 	streamReq := httptest.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		fmt.Sprintf("/api/live-queries/%d/stream", handle.ID),
+		fmt.Sprintf("/api/live-queries/%d/stream", streamHandle.ID),
 		nil,
 	)
 	streamReq.AddCookie(cookie)
@@ -299,7 +305,7 @@ func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 	stopReq := httptest.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,
-		fmt.Sprintf("/api/live-queries/%d/stop", handle.ID),
+		fmt.Sprintf("/api/live-queries/%d/stop", stopHandle.ID),
 		nil,
 	)
 	stopReq.Header.Set("Sec-Fetch-Site", "same-origin")
@@ -523,12 +529,21 @@ const testUserPassword = "test-user-password"
 
 func loginTestUser(t *testing.T, authService *auth.Service, sessionManager *scs.SessionManager) *http.Cookie {
 	t.Helper()
+	return loginTestUserWithEmail(t, authService, sessionManager, "admin@example.test")
+}
 
+func loginTestUserWithEmail(
+	t *testing.T,
+	authService *auth.Service,
+	sessionManager *scs.SessionManager,
+	email string,
+) *http.Cookie {
+	t.Helper()
 	ctx, err := sessionManager.Load(context.Background(), "")
 	if err != nil {
 		t.Fatalf("load session: %v", err)
 	}
-	if _, err := authService.Login(ctx, "admin@example.test", testUserPassword); err != nil {
+	if _, err := authService.Login(ctx, email, testUserPassword); err != nil {
 		t.Fatalf("login test user: %v", err)
 	}
 	token, _, err := sessionManager.Commit(ctx)

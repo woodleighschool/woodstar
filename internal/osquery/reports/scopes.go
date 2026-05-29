@@ -52,7 +52,7 @@ func (s *Store) loadReportScopes(ctx context.Context, reportIDs []int64) (map[in
 }
 
 func replaceReportScope(ctx context.Context, tx pgx.Tx, reportID int64, lscope scope.LabelScope) error {
-	lscope = scope.NormalizeLabelScope(lscope)
+	lscope = storedLabelScope(lscope)
 	q := sqlc.New(tx)
 	if err := q.SetReportScopeMode(ctx, sqlc.SetReportScopeModeParams{
 		ID:             reportID,
@@ -70,4 +70,23 @@ func replaceReportScope(ctx context.Context, tx pgx.Tx, reportID int64, lscope s
 		ReportID: reportID,
 		LabelIds: lscope.LabelIDs,
 	})
+}
+
+func storedLabelScope(lscope scope.LabelScope) scope.LabelScope {
+	lscope = scope.NormalizeLabelScope(lscope)
+	lscope.LabelIDs = uniqueInt64s(lscope.LabelIDs)
+	return lscope
+}
+
+func uniqueInt64s(values []int64) []int64 {
+	out := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }

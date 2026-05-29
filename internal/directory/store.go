@@ -168,7 +168,13 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			if err != nil {
 				return err
 			}
-			if err := q.ReplaceDirectoryUserGroups(ctx, sqlc.ReplaceDirectoryUserGroupsParams{
+			if err := q.DeleteDirectoryUserGroups(
+				ctx,
+				sqlc.DeleteDirectoryUserGroupsParams{DirectoryUserID: row.ID},
+			); err != nil {
+				return err
+			}
+			if err := q.InsertDirectoryUserGroups(ctx, sqlc.InsertDirectoryUserGroupsParams{
 				DirectoryUserID:  row.ID,
 				GroupExternalIds: u.GroupExternalIDs,
 			}); err != nil {

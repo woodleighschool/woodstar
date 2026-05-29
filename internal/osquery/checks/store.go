@@ -94,6 +94,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) {
+	labelScope := storedLabelScope(params.LabelScope)
 	var created *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
@@ -109,10 +110,10 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := replaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
+		if err := replaceCheckScope(ctx, tx, check.ID, labelScope); err != nil {
 			return err
 		}
-		check.LabelScope = params.LabelScope
+		check.LabelScope = labelScope
 		created = check
 		return nil
 	})
@@ -120,6 +121,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
+	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
@@ -138,10 +140,10 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Chec
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := replaceCheckScope(ctx, tx, check.ID, params.LabelScope); err != nil {
+		if err := replaceCheckScope(ctx, tx, check.ID, labelScope); err != nil {
 			return err
 		}
-		check.LabelScope = params.LabelScope
+		check.LabelScope = labelScope
 		updated = check
 		return nil
 	})

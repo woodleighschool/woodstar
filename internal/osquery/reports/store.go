@@ -88,6 +88,7 @@ func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error) {
+	labelScope := storedLabelScope(params.LabelScope)
 	var created *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateReport(ctx, sqlc.CreateReportParams{
@@ -105,10 +106,10 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := replaceReportScope(ctx, tx, report.ID, params.LabelScope); err != nil {
+		if err := replaceReportScope(ctx, tx, report.ID, labelScope); err != nil {
 			return err
 		}
-		report.LabelScope = params.LabelScope
+		report.LabelScope = labelScope
 		created = report
 		return nil
 	})
@@ -116,6 +117,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Report, error) {
+	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateReport(ctx, sqlc.UpdateReportParams{
@@ -136,10 +138,10 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := replaceReportScope(ctx, tx, report.ID, params.LabelScope); err != nil {
+		if err := replaceReportScope(ctx, tx, report.ID, labelScope); err != nil {
 			return err
 		}
-		report.LabelScope = params.LabelScope
+		report.LabelScope = labelScope
 		updated = report
 		return nil
 	})

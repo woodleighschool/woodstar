@@ -301,7 +301,7 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 func entitlementJSON(event *syncv1.Event) ([]byte, error) {
 	entitlements := event.GetEntitlementInfo()
 	if entitlements == nil {
-		return []byte{}, nil
+		return nil, nil
 	}
 	return protojson.Marshal(entitlements)
 }

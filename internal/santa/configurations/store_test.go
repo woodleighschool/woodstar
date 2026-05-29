@@ -54,13 +54,13 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("remount without flags error = %v, want ErrInvalidInput", err)
 	}
 
-	create := baseline(" Baseline ")
+	create := baseline("Baseline")
 	create.ClientMode = configurations.ClientModeLockdown
 	create.EnableBundles = true
 	create.FullSyncIntervalSeconds = 120
 	create.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
 		Action:       configurations.RemovableMediaActionRemount,
-		RemountFlags: []string{" rw ", "nosuid"},
+		RemountFlags: []string{"rw", "nosuid"},
 	}
 	create.LabelIDs = []int64{firstLabelID}
 
@@ -69,7 +69,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("create configuration: %v", err)
 	}
 	if config.Name != "Baseline" || config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
-		t.Fatalf("configuration was not cleaned: %+v", config)
+		t.Fatalf("configuration = %+v, want baseline lockdown policy", config)
 	}
 	if !config.EnableBundles || len(config.RemovableMediaPolicy.RemountFlags) != 2 {
 		t.Fatalf("settings were not preserved: %+v", config)
@@ -90,7 +90,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("conflict = %+v, want existing configuration details", conflict)
 	}
 
-	update := baseline(" Updated ")
+	update := baseline("Updated")
 	update.LabelIDs = []int64{secondLabelID}
 	updated, err := store.UpdateConfiguration(ctx, config.ID, update)
 	if err != nil {

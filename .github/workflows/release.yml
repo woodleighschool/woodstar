@@ -22,6 +22,20 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: woodstar
+          POSTGRES_PASSWORD: woodstar
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U woodstar -d postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -33,7 +47,7 @@ jobs:
           cache: true
 
       - name: Test
-        run: go test -race -count=1 ./...
+        run: make full-test
 
       - name: OpenAPI up to date
         run: make test-openapi

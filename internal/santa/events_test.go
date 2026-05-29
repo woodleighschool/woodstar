@@ -41,6 +41,9 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	}
 
 	occurredAt := time.Date(2026, 5, 23, 12, 30, 0, 0, time.UTC)
+	signingTime := time.Date(2026, 5, 22, 8, 15, 0, 0, time.UTC)
+	secureSigningTime := time.Date(2026, 5, 22, 8, 16, 0, 0, time.UTC)
+	bundleHash := strings.Repeat("c", 64)
 	_, err = service.EventUpload(ctx, "santa-events-host", santa.EventUploadRequest{
 		Events: []santaevents.ExecutionEventInput{
 			{
@@ -60,17 +63,31 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 				SigningChain:    santaTestSigningChain(),
 			},
 			{
-				FileSHA256:    "sha256-a",
-				FilePath:      "/Applications/Example.app/Contents/MacOS/Example",
-				FileName:      "Example Renamed",
-				ExecutingUser: "bob",
-				OccurredAt:    occurredAt.Add(time.Second),
-				Decision:      santaevents.ExecutionDecisionAllowBinary,
-				BundleID:      "com.example.new",
-				BundlePath:    "/Applications/Example.app",
-				SigningID:     "TEAMID:com.example.new",
-				TeamID:        "TEAMID",
-				CDHash:        "new-cdhash",
+				FileSHA256:              "sha256-a",
+				FilePath:                "/Applications/Example.app/Contents/MacOS/Example",
+				FileName:                "Example Renamed",
+				ExecutingUser:           "bob",
+				OccurredAt:              occurredAt.Add(time.Second),
+				Decision:                santaevents.ExecutionDecisionAllowBinary,
+				BundleID:                "com.example.new",
+				BundlePath:              "/Applications/Example.app",
+				BundleExecutableRelPath: "Contents/MacOS/Example",
+				BundleName:              "Example",
+				BundleVersion:           "2.0.0",
+				BundleVersionString:     "2.0.0 (42)",
+				BundleHash:              bundleHash,
+				BundleHashMillis:        23,
+				BundleBinaryCount:       1,
+				SigningID:               "TEAMID:com.example.new",
+				TeamID:                  "TEAMID",
+				CDHash:                  "new-cdhash",
+				CodesigningFlags:        570425345,
+				SigningStatus:           santaevents.SigningStatusProduction,
+				SecureSigningTime:       secureSigningTime,
+				SigningTime:             signingTime,
+				Entitlements: []byte(
+					`{"application-identifier":"TEAMID.com.example.new","com.apple.security.cs.allow-jit":true}`,
+				),
 			},
 		},
 	})
@@ -102,9 +119,31 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	}
 	if allowEvent.Executable.FileName != "Example Renamed" ||
 		allowEvent.Executable.BundleID != "com.example.new" ||
+		allowEvent.Executable.BundleExecutableRelPath != "Contents/MacOS/Example" ||
+		allowEvent.Executable.BundleName != "Example" ||
+		allowEvent.Executable.BundleVersion != "2.0.0" ||
+		allowEvent.Executable.BundleVersionString != "2.0.0 (42)" ||
+		allowEvent.Executable.BundleHash != bundleHash ||
+		allowEvent.Executable.BundleHashMillis != 23 ||
+		allowEvent.Executable.BundleBinaryCount != 1 ||
 		allowEvent.Executable.SigningID != "TEAMID:com.example.new" ||
-		allowEvent.Executable.CDHash != "new-cdhash" {
+		allowEvent.Executable.CDHash != "new-cdhash" ||
+		allowEvent.Executable.CodesigningFlags != 570425345 ||
+		allowEvent.Executable.SigningStatus != santaevents.SigningStatusProduction {
 		t.Fatalf("executable metadata was not updated: %+v", allowEvent.Executable)
+	}
+	if allowEvent.Executable.SecureSigningTime == nil ||
+		!allowEvent.Executable.SecureSigningTime.Equal(secureSigningTime) {
+		t.Fatalf("secure signing time = %v, want %v", allowEvent.Executable.SecureSigningTime, secureSigningTime)
+	}
+	if allowEvent.Executable.SigningTime == nil || !allowEvent.Executable.SigningTime.Equal(signingTime) {
+		t.Fatalf("signing time = %v, want %v", allowEvent.Executable.SigningTime, signingTime)
+	}
+	if got := allowEvent.Executable.Entitlements["application-identifier"]; got != "TEAMID.com.example.new" {
+		t.Fatalf("application identifier entitlement = %v, want TEAMID.com.example.new", got)
+	}
+	if got := allowEvent.Executable.Entitlements["com.apple.security.cs.allow-jit"]; got != true {
+		t.Fatalf("allow-jit entitlement = %v, want true", got)
 	}
 	if !blockEvent.OccurredAt.Equal(occurredAt) {
 		t.Fatalf("occurred_at = %v, want %v", blockEvent.OccurredAt, occurredAt)

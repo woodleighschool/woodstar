@@ -24,6 +24,20 @@ func (q *Queries) DeleteDirectoryGroupsNotIn(ctx context.Context, arg DeleteDire
 	return err
 }
 
+const deleteDirectoryUserGroups = `-- name: DeleteDirectoryUserGroups :exec
+DELETE FROM directory_user_groups
+WHERE directory_user_id = $1
+`
+
+type DeleteDirectoryUserGroupsParams struct {
+	DirectoryUserID int64 `json:"directory_user_id"`
+}
+
+func (q *Queries) DeleteDirectoryUserGroups(ctx context.Context, arg DeleteDirectoryUserGroupsParams) error {
+	_, err := q.db.Exec(ctx, deleteDirectoryUserGroups, arg.DirectoryUserID)
+	return err
+}
+
 const deleteDirectoryUsersNotIn = `-- name: DeleteDirectoryUsersNotIn :exec
 DELETE FROM directory_users
 WHERE external_id <> ALL($1::text[])
@@ -35,6 +49,24 @@ type DeleteDirectoryUsersNotInParams struct {
 
 func (q *Queries) DeleteDirectoryUsersNotIn(ctx context.Context, arg DeleteDirectoryUsersNotInParams) error {
 	_, err := q.db.Exec(ctx, deleteDirectoryUsersNotIn, arg.ExternalIds)
+	return err
+}
+
+const insertDirectoryUserGroups = `-- name: InsertDirectoryUserGroups :exec
+INSERT INTO directory_user_groups (directory_user_id, directory_group_id)
+SELECT $1, g.id
+FROM directory_groups g
+WHERE g.external_id = ANY($2::text[])
+ON CONFLICT DO NOTHING
+`
+
+type InsertDirectoryUserGroupsParams struct {
+	DirectoryUserID  int64    `json:"directory_user_id"`
+	GroupExternalIds []string `json:"group_external_ids"`
+}
+
+func (q *Queries) InsertDirectoryUserGroups(ctx context.Context, arg InsertDirectoryUserGroupsParams) error {
+	_, err := q.db.Exec(ctx, insertDirectoryUserGroups, arg.DirectoryUserID, arg.GroupExternalIds)
 	return err
 }
 
@@ -94,29 +126,6 @@ func (q *Queries) LoadHostUserAffinity(ctx context.Context, arg LoadHostUserAffi
 		&i.Groups,
 	)
 	return i, err
-}
-
-const replaceDirectoryUserGroups = `-- name: ReplaceDirectoryUserGroups :exec
-WITH cleared AS (
-    DELETE FROM directory_user_groups
-    WHERE directory_user_id = $1
-    RETURNING 1
-)
-INSERT INTO directory_user_groups (directory_user_id, directory_group_id)
-SELECT $1, g.id
-FROM directory_groups g
-WHERE g.external_id = ANY($2::text[])
-ON CONFLICT DO NOTHING
-`
-
-type ReplaceDirectoryUserGroupsParams struct {
-	DirectoryUserID  int64    `json:"directory_user_id"`
-	GroupExternalIds []string `json:"group_external_ids"`
-}
-
-func (q *Queries) ReplaceDirectoryUserGroups(ctx context.Context, arg ReplaceDirectoryUserGroupsParams) error {
-	_, err := q.db.Exec(ctx, replaceDirectoryUserGroups, arg.DirectoryUserID, arg.GroupExternalIds)
-	return err
 }
 
 const upsertDirectoryGroup = `-- name: UpsertDirectoryGroup :one

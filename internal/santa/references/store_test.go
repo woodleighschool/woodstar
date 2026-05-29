@@ -136,10 +136,14 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 	}
 	if _, err := db.Pool().Exec(ctx, `
 		INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
-		VALUES ($1, 0, $2);
+		VALUES ($1, 0, $2)
+	`, chainID, certificateID); err != nil {
+		t.Fatalf("insert signing chain entry: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
 		INSERT INTO santa_executable_signing_chains (executable_id, signing_chain_id)
-		VALUES ($3, $1)
-	`, chainID, certificateID, executableID); err != nil {
+		VALUES ($1, $2)
+	`, executableID, chainID); err != nil {
 		t.Fatalf("link signing chain: %v", err)
 	}
 	if _, err := db.Pool().Exec(ctx, `

@@ -80,13 +80,13 @@ func TestSantaMigrationEnforcesConfigurationAndRuleInvariants(t *testing.T) {
 		VALUES ('binary', 'abc123')
 	`)
 	expectPgError(t, tx, "empty_cel_expression", "23514", `
-		INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression)
-		VALUES ($1, 0, 'cel', '')
-	`, ruleID)
+		INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
+		VALUES ($1, 0, 'cel', '', $2)
+	`, ruleID, allHostsLabelID)
 	expectPgError(t, tx, "non_cel_expression", "23514", `
-		INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression)
-		VALUES ($1, 0, 'allowlist', 'target.path == "/Applications"')
-	`, ruleID)
+		INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
+		VALUES ($1, 0, 'allowlist', 'target.path == "/Applications"', $2)
+	`, ruleID, allHostsLabelID)
 }
 
 func expectPgError(t *testing.T, tx pgx.Tx, name string, code string, query string, args ...any) {

@@ -476,6 +476,9 @@ func cleanStringSlice(values []string) []string {
 }
 
 func executableEntitlements(event ExecutionEventInput) []byte {
+	if len(event.Entitlements) == 0 {
+		return nil
+	}
 	return event.Entitlements
 }
 
