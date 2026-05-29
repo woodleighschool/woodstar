@@ -568,6 +568,9 @@ func executionEventWhere(params ExecutionEventListParams) (string, []any, error)
 	if params.HostID != 0 {
 		where.Add("ee.host_id = " + where.Arg(params.HostID))
 	}
+	if params.User != "" {
+		where.Add("ee.executing_user = " + where.Arg(params.User))
+	}
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(

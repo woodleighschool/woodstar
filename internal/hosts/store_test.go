@@ -2,10 +2,13 @@ package hosts
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -42,6 +45,74 @@ func TestDisplayNamePriority(t *testing.T) {
 			t.Parallel()
 			if got := displayName(tt.in.HardwareUUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
 				t.Fatalf("displayName = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHostListWhereCheckFilter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		params      ListParams
+		wantSQL     string
+		wantErr     bool
+		wantArgLen  int
+		wantCheckID int64
+	}{
+		{
+			name:        "pass",
+			params:      ListParams{CheckID: 42, CheckResponse: CheckResponsePass},
+			wantSQL:     "cm.passes IS TRUE",
+			wantArgLen:  1,
+			wantCheckID: 42,
+		},
+		{
+			name:        "fail",
+			params:      ListParams{CheckID: 42, CheckResponse: CheckResponseFail},
+			wantSQL:     "cm.passes IS FALSE",
+			wantArgLen:  1,
+			wantCheckID: 42,
+		},
+		{
+			name:    "missing response",
+			params:  ListParams{CheckID: 42},
+			wantErr: true,
+		},
+		{
+			name:    "missing check",
+			params:  ListParams{CheckResponse: CheckResponsePass},
+			wantErr: true,
+		},
+		{
+			name:    "unknown response",
+			params:  ListParams{CheckID: 42, CheckResponse: CheckResponse("passing")},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			whereSQL, args, err := hostListWhere(tt.params)
+			if tt.wantErr {
+				if !errors.Is(err, dbutil.ErrInvalidInput) {
+					t.Fatalf("hostListWhere error = %v, want invalid input", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("hostListWhere: %v", err)
+			}
+			if !strings.Contains(whereSQL, tt.wantSQL) {
+				t.Fatalf("where SQL = %q, want %q", whereSQL, tt.wantSQL)
+			}
+			if len(args) != tt.wantArgLen {
+				t.Fatalf("args length = %d, want %d", len(args), tt.wantArgLen)
+			}
+			if got := args[0]; got != tt.wantCheckID {
+				t.Fatalf("check arg = %v, want %d", got, tt.wantCheckID)
 			}
 		})
 	}

@@ -109,6 +109,7 @@ export function useSantaEvents(params: SantaEventListParams = {}) {
     host_id: params.host_id,
     decisions: params.decisions && params.decisions.length > 0 ? params.decisions : undefined,
     since: nonEmpty(params.since),
+    user: nonEmpty(params.user),
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),

@@ -24,6 +24,7 @@ type santaEventListInput struct {
 	HostID    int64                        `query:"host_id,omitempty"`
 	Decisions []santaevents.DecisionFilter `query:"decisions,omitempty"`
 	Since     time.Time                    `query:"since,omitempty"`
+	User      string                       `query:"user,omitempty"`
 }
 
 type santaEventListOutput struct {
@@ -69,6 +70,7 @@ func (input santaEventListInput) params() santaevents.ExecutionEventListParams {
 			Since:      since,
 		},
 		Decisions: input.Decisions,
+		User:      input.User,
 	}
 }
 

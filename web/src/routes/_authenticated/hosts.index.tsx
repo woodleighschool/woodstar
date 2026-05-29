@@ -13,6 +13,8 @@ const searchSchema = z.object({
   label_id: z.string().optional(),
   software_title_id: z.string().optional(),
   software_id: z.string().optional(),
+  check_id: z.coerce.number().int().positive().optional(),
+  check_response: z.enum(["pass", "fail"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/hosts/")({

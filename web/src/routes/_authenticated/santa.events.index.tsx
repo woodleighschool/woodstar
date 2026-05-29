@@ -7,6 +7,8 @@ import { SantaEventsPage } from "@/pages/santa/events/list";
 
 const searchSchema = z.object({
   q: z.string().optional(),
+  host_id: z.coerce.number().int().positive().optional(),
+  user: z.string().optional(),
   decisions: z
     .preprocess(
       (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : value),

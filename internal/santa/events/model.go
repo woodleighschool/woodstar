@@ -141,6 +141,7 @@ type ExecutionEventListParams struct {
 	EventListParams
 
 	Decisions []DecisionFilter
+	User      string
 }
 
 // FileAccessEventListParams contains filters for file-access event lists.

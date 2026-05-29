@@ -157,22 +157,25 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	occurredAt := time.Date(2026, 5, 23, 14, 0, 0, 0, time.UTC)
 	if _, err := eventsStore.IngestEvents(ctx, host.ID, []santaevents.ExecutionEventInput{
 		{
-			FileSHA256: "wire-blocked-1",
-			FileName:   "Blocked One",
-			OccurredAt: occurredAt,
-			Decision:   santaevents.ExecutionDecisionBlockBinary,
+			FileSHA256:    "wire-blocked-1",
+			FileName:      "Blocked One",
+			ExecutingUser: "alice",
+			OccurredAt:    occurredAt,
+			Decision:      santaevents.ExecutionDecisionBlockBinary,
 		},
 		{
-			FileSHA256: "wire-blocked-2",
-			FileName:   "Blocked Two",
-			OccurredAt: occurredAt.Add(time.Second),
-			Decision:   santaevents.ExecutionDecisionBlockCertificate,
+			FileSHA256:    "wire-blocked-2",
+			FileName:      "Blocked Two",
+			ExecutingUser: "root",
+			OccurredAt:    occurredAt.Add(time.Second),
+			Decision:      santaevents.ExecutionDecisionBlockCertificate,
 		},
 		{
-			FileSHA256: "wire-allowed",
-			FileName:   "Allowed",
-			OccurredAt: occurredAt.Add(2 * time.Second),
-			Decision:   santaevents.ExecutionDecisionAllowBinary,
+			FileSHA256:    "wire-allowed",
+			FileName:      "Allowed",
+			ExecutingUser: "alice",
+			OccurredAt:    occurredAt.Add(2 * time.Second),
+			Decision:      santaevents.ExecutionDecisionAllowBinary,
 		},
 	}, []santaevents.FileAccessEventInput{
 		{
@@ -228,6 +231,23 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Allowed") || strings.Contains(rec.Body.String(), "Blocked") {
 		t.Fatalf("search response = %q, want only allowed event", rec.Body.String())
+	}
+
+	rec = santaAdminRequest(t, router, cookie, http.MethodGet, "/api/santa/events?user=alice", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var executionList paginatedBody[santaevents.ExecutionEvent]
+	if err := json.Unmarshal(rec.Body.Bytes(), &executionList); err != nil {
+		t.Fatalf("decode execution list: %v", err)
+	}
+	if executionList.Count != 2 || len(executionList.Items) != 2 {
+		t.Fatalf("execution list = %+v count=%d, want two alice events", executionList.Items, executionList.Count)
+	}
+	for _, event := range executionList.Items {
+		if event.ExecutingUser != "alice" {
+			t.Fatalf("execution event user = %q, want alice", event.ExecutingUser)
+		}
 	}
 
 	rec = santaAdminRequest(t, router, cookie, http.MethodGet, "/api/santa/file-access-events?decisions=denied", "")

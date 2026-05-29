@@ -3837,6 +3837,21 @@ paths:
             type:
               - array
               - "null"
+        - explode: false
+          in: query
+          name: check_id
+          schema:
+            format: int64
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: check_response
+          schema:
+            enum:
+              - pass
+              - fail
+            type: string
       responses:
         "200":
           content:
@@ -6025,6 +6040,11 @@ paths:
           name: since
           schema:
             format: date-time
+            type: string
+        - explode: false
+          in: query
+          name: user
+          schema:
             type: string
       responses:
         "200":

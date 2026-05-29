@@ -1,10 +1,12 @@
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { ShieldCheck } from "lucide-react";
+import { Activity, FolderLock, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHostSantaRules, type HostDetail, type HostSantaRule } from "@/hooks/use-hosts";
@@ -90,6 +92,20 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent>
+          <div className="mb-5 flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/santa/events" search={{ host_id: host.id }}>
+                <Activity data-icon="inline-start" />
+                View Execution Events
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/santa/events/file-access" search={{ host_id: host.id }}>
+                <FolderLock data-icon="inline-start" />
+                View File Access Events
+              </Link>
+            </Button>
+          </div>
           <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
             {[
               { label: "Version", value: santa.version || "-" },

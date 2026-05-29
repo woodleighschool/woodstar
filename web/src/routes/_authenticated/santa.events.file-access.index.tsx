@@ -7,6 +7,7 @@ import { SantaFileAccessEventsPage } from "@/pages/santa/events/list";
 
 const searchSchema = z.object({
   q: z.string().optional(),
+  host_id: z.coerce.number().int().positive().optional(),
   decisions: z
     .preprocess(
       (value) => (typeof value === "string" ? value.split(",").filter(Boolean) : value),

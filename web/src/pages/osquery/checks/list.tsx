@@ -61,7 +61,9 @@ export function ChecksPage() {
           Pass
         </span>
       ),
-      cell: ({ row }) => <HostCount value={row.original.passing_host_count} />,
+      cell: ({ row }) => (
+        <HostCount checkId={row.original.id} response="pass" value={row.original.passing_host_count} />
+      ),
       meta: { headClassName: "text-right" },
     },
     {
@@ -74,7 +76,9 @@ export function ChecksPage() {
           Fail
         </span>
       ),
-      cell: ({ row }) => <HostCount value={row.original.failing_host_count} />,
+      cell: ({ row }) => (
+        <HostCount checkId={row.original.id} response="fail" value={row.original.failing_host_count} />
+      ),
       meta: { headClassName: "text-right" },
     },
   ];
@@ -147,10 +151,15 @@ export function ChecksPage() {
   );
 }
 
-function HostCount({ value }: { value: number }) {
+function HostCount({ checkId, response, value }: { checkId: number; response: "pass" | "fail"; value: number }) {
   return (
-    <span className="block text-right tabular-nums">
+    <Link
+      to="/hosts"
+      search={{ check_id: checkId, check_response: response }}
+      className="block text-right tabular-nums hover:underline"
+      onClick={(event) => event.stopPropagation()}
+    >
       {value} {value === 1 ? "host" : "hosts"}
-    </span>
+    </Link>
   );
 }

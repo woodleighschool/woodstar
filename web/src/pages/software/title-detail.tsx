@@ -446,7 +446,7 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
               </TableHeader>
               <TableBody>
                 {versions.map((v) => (
-                  <VersionRow key={v.id} version={v} />
+                  <VersionRow key={v.id} title={title} version={v} />
                 ))}
               </TableBody>
             </Table>
@@ -457,14 +457,14 @@ function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {
   );
 }
 
-function VersionRow({ version }: { version: SoftwareVersion }) {
+function VersionRow({ title, version }: { title: SoftwareTitle; version: SoftwareVersion }) {
   return (
     <TableRow>
       <TableCell className="font-medium">{version.version || "-"}</TableCell>
       <TableCell className="text-right tabular-nums">
         <Link
           to="/hosts"
-          search={{ software_id: version.id.toString() }}
+          search={{ software_title_id: title.id.toString(), software_id: version.id.toString() }}
           className="hover:text-primary hover:underline"
         >
           {version.hosts_count}

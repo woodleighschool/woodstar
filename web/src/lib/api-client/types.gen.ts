@@ -2170,6 +2170,8 @@ export type ListHostsData = {
         software_title_id?: number;
         software_id?: number;
         ids?: Array<number> | null;
+        check_id?: number;
+        check_response?: 'pass' | 'fail';
     };
     url: '/api/hosts';
 };
@@ -3911,6 +3913,7 @@ export type ListSantaEventsData = {
         host_id?: number;
         decisions?: Array<'allowed' | 'blocked' | 'unknown' | 'allow_unknown' | 'allow_binary' | 'allow_certificate' | 'allow_scope' | 'allow_teamid' | 'allow_signingid' | 'allow_cdhash' | 'block_unknown' | 'block_binary' | 'block_certificate' | 'block_scope' | 'block_teamid' | 'block_signingid' | 'block_cdhash' | 'bundle_binary'> | null;
         since?: string;
+        user?: string;
     };
     url: '/api/santa/events';
 };

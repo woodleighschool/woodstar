@@ -1,6 +1,6 @@
-import { Link, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
-import { Check, ListFilter, ServerCog, Trash2 } from "lucide-react";
+import { CircleAlert, CircleCheck, ServerCog, Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -9,34 +9,38 @@ import {
   DataTableColumnHeader,
   DataTableColumnToggle,
   DataTableEmptyState,
+  DataTableFacetedFilter,
   DataTableSearch,
 } from "@/components/data-table";
+import { FilterChip, FilterSelect } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCheck } from "@/hooks/use-checks";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
+import { useSoftwareTitle, type SoftwareTitle } from "@/hooks/use-software";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { primaryDeviceMapping } from "@/lib/host-device-mappings";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { cn, formatBytes, formatRelative } from "@/lib/utils";
+import { formatBytes, formatRelative } from "@/lib/utils";
+
+const HOST_STATUS_FILTERS = [
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+];
+
+const CHECK_RESPONSE_FILTERS = [
+  { value: "pass", label: "Pass", icon: CircleCheck },
+  { value: "fail", label: "Fail", icon: CircleAlert },
+];
 
 export function HostsListPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
-  const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [draft, setDraft] = useDebouncedSearchParam("q", { resetKeys: ["page_index"] });
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const labelsQuery = useLabels({
@@ -46,15 +50,28 @@ export function HostsListPage() {
   });
   const bulkDelete = useBulkDeleteHosts();
 
-  const isSoftwareFiltered = !!search.software_title_id || !!search.software_id;
+  const checkID = typeof search.check_id === "number" ? search.check_id : undefined;
+  const checkResponse =
+    search.check_response === "pass" || search.check_response === "fail" ? search.check_response : undefined;
+  const checkQuery = useCheck(checkID && checkResponse ? checkID : null);
+  const softwareIDParam = typeof search.software_id === "string" ? search.software_id : undefined;
+  const softwareTitleIDParam = typeof search.software_title_id === "string" ? search.software_title_id : undefined;
+  const softwareTitleID = softwareTitleIDParam === undefined ? undefined : Number(softwareTitleIDParam);
+  const softwareTitle = useSoftwareTitle(
+    softwareTitleID !== undefined && Number.isFinite(softwareTitleID) ? softwareTitleID : null,
+  );
+  const isSoftwareFiltered = !!softwareTitleIDParam || !!softwareIDParam;
+  const isCheckFiltered = checkID !== undefined || checkResponse !== undefined;
 
   const query = useHosts({
     q: search.q,
     ...tableQueryParams(state),
     status: search.status,
     label_id: search.label_id == null ? undefined : Number(search.label_id),
-    software_title_id: search.software_title_id == null ? undefined : Number(search.software_title_id),
-    software_id: search.software_id == null ? undefined : Number(search.software_id),
+    software_title_id: softwareTitleID,
+    software_id: softwareIDParam == null ? undefined : Number(softwareIDParam),
+    check_id: checkID,
+    check_response: checkResponse,
   });
 
   const data = query.data?.items ?? [];
@@ -62,7 +79,7 @@ export function HostsListPage() {
   // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
   const [now] = useState(() => Date.now());
 
-  const hasFilters = !!search.q || !!search.status || !!search.label_id || isSoftwareFiltered;
+  const hasFilters = !!search.q || !!search.status || !!search.label_id || isSoftwareFiltered || isCheckFiltered;
 
   const allColumns: ColumnDef<Host>[] = [
     {
@@ -203,17 +220,7 @@ export function HostsListPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Hosts"
-        description="Track enrolled hosts, inventory, checks, reports, and Santa state."
-        actions={
-          isSoftwareFiltered ? (
-            <Button asChild variant="outline" size="sm">
-              <Link to="/hosts">Clear Filter</Link>
-            </Button>
-          ) : null
-        }
-      />
+      <PageHeader title="Hosts" description="Track enrolled hosts, inventory, checks, reports, and Santa state." />
 
       {query.error ? (
         <Alert variant="destructive">
@@ -249,9 +256,22 @@ export function HostsListPage() {
             <HostsToolbar
               draft={draft}
               onDraftChange={setDraft}
+              status={search.status}
+              onStatusChange={(v) => setters.setFilter("status", v)}
               labelId={search.label_id}
               onLabelChange={(v) => setters.setFilter("label_id", v)}
               labelOptions={labelOptions}
+              checkId={checkID}
+              checkName={checkQuery.data?.name}
+              checkResponse={checkResponse}
+              onCheckResponseChange={(v) => setters.setFilter("check_response", v)}
+              onClearCheck={() => setters.setFilters({ check_id: undefined, check_response: undefined })}
+              softwareLabel={softwareFilterLabel({
+                title: softwareTitle.data,
+                softwareID: softwareIDParam,
+                softwareTitleID: softwareTitleIDParam,
+              })}
+              onClearSoftware={() => setters.setFilters({ software_id: undefined, software_title_id: undefined })}
               table={table}
               actions={exportButton}
             />
@@ -290,9 +310,18 @@ export function HostsListPage() {
 interface HostsToolbarProps {
   draft: string;
   onDraftChange: (next: string) => void;
+  status: string | undefined;
+  onStatusChange: (next: string | undefined) => void;
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
+  checkId: number | undefined;
+  checkName: string | undefined;
+  checkResponse: "pass" | "fail" | undefined;
+  onCheckResponseChange: (next: string) => void;
+  onClearCheck: () => void;
+  softwareLabel: string | undefined;
+  onClearSoftware: () => void;
   table: TanStackTable<Host>;
   actions?: ReactNode;
 }
@@ -300,9 +329,18 @@ interface HostsToolbarProps {
 function HostsToolbar({
   draft,
   onDraftChange,
+  status,
+  onStatusChange,
   labelId,
   onLabelChange,
   labelOptions,
+  checkId,
+  checkName,
+  checkResponse,
+  onCheckResponseChange,
+  onClearCheck,
+  softwareLabel,
+  onClearSoftware,
   table,
   actions,
 }: HostsToolbarProps) {
@@ -310,78 +348,52 @@ function HostsToolbar({
     <div className="flex flex-wrap items-center gap-2">
       <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" className="basis-full sm:basis-64" />
       <DataTableColumnToggle table={table} variant="ghost" />
-      <HostFilterDropdown labelId={labelId} onLabelChange={onLabelChange} labelOptions={labelOptions} />
+      <DataTableFacetedFilter
+        title="Status"
+        options={HOST_STATUS_FILTERS}
+        selected={status ? [status] : []}
+        onChange={(next) => onStatusChange(next.at(0))}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Label"
+        options={labelOptions}
+        selected={labelId ? [labelId] : []}
+        onChange={(next) => onLabelChange(next.at(0))}
+        singleSelect
+      />
+      {checkId !== undefined ? (
+        <FilterChip label="Check" value={checkName ?? `#${checkId}`} onRemove={onClearCheck} />
+      ) : null}
+      {checkId !== undefined && checkResponse ? (
+        <FilterSelect
+          label="Result"
+          value={checkResponse}
+          options={CHECK_RESPONSE_FILTERS}
+          onChange={onCheckResponseChange}
+        />
+      ) : null}
+      {softwareLabel ? <FilterChip label="Software" value={softwareLabel} onRemove={onClearSoftware} /> : null}
       {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
 }
 
-interface HostFilterDropdownProps {
-  labelId: string | undefined;
-  onLabelChange: (next: string | undefined) => void;
-  labelOptions: { value: string; label: string }[];
-}
-
-function HostFilterDropdown({ labelId, onLabelChange, labelOptions }: HostFilterDropdownProps) {
-  const hasFilters = !!labelId;
-
-  const clearFilters = () => {
-    onLabelChange(undefined);
-  };
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border-dashed">
-          <ListFilter data-icon="inline-start" />
-          Filter by Label
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="end">
-        <Command>
-          <CommandInput placeholder="Search Labels" />
-          <CommandList>
-            <CommandEmpty>No Labels Found.</CommandEmpty>
-            <CommandGroup heading="Labels">
-              {labelOptions.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={`label ${option.label}`}
-                  onSelect={() => onLabelChange(labelId === option.value ? undefined : option.value)}
-                >
-                  <SelectionCheck selected={labelId === option.value} />
-                  <span>{option.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            {hasFilters ? (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem onSelect={clearFilters} className="justify-center text-center">
-                    Clear Filters
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            ) : null}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function SelectionCheck({ selected }: { selected: boolean }) {
-  return (
-    <div
-      className={cn(
-        "border-primary flex size-4 items-center justify-center rounded-sm border",
-        selected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible",
-      )}
-    >
-      <Check />
-    </div>
-  );
+function softwareFilterLabel({
+  title,
+  softwareID,
+  softwareTitleID,
+}: {
+  title: SoftwareTitle | undefined;
+  softwareID: string | undefined;
+  softwareTitleID: string | undefined;
+}) {
+  if (!softwareID && !softwareTitleID) return undefined;
+  const titleName = title?.display_name ?? title?.name;
+  if (softwareID && titleName) return `${titleName} version`;
+  if (titleName) return titleName;
+  if (softwareID) return `Version #${softwareID}`;
+  return `Title #${softwareTitleID}`;
 }
 
 function HostStatusBadge({ host, now }: { host: Host; now: number }) {

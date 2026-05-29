@@ -22,6 +22,7 @@ export interface TableURLSetters {
   setPagination: OnChangeFn<PaginationState>;
   setSorting: OnChangeFn<SortingState>;
   setFilter: (key: string, value: string | undefined) => void;
+  setFilters: (values: Record<string, string | number | undefined>) => void;
 }
 
 export function tableQueryParams(state: TableURLState): Pick<TableSearchParams, "page_index" | "page_size" | "sort"> {
@@ -83,13 +84,15 @@ export function useTablePaginationParams(defaults?: { pageSize?: number }): {
     [navigate, state.sorting],
   );
 
-  const setFilter = useCallback(
-    (key: string, value: string | undefined) => {
+  const setFilters = useCallback(
+    (values: Record<string, string | number | undefined>) => {
       void navigate({
         search: ((prev: TableSearchParams) => {
           const next: TableSearchParams = { ...prev, page_index: undefined };
-          if (value === undefined || value === "") delete next[key];
-          else next[key] = value;
+          for (const [key, value] of Object.entries(values)) {
+            if (value === undefined || value === "") delete next[key];
+            else next[key] = value;
+          }
           return next;
         }) as never,
         replace: true,
@@ -98,7 +101,14 @@ export function useTablePaginationParams(defaults?: { pageSize?: number }): {
     [navigate],
   );
 
-  return { state, setters: { setPagination, setSorting, setFilter } };
+  const setFilter = useCallback(
+    (key: string, value: string | undefined) => {
+      setFilters({ [key]: value });
+    },
+    [setFilters],
+  );
+
+  return { state, setters: { setPagination, setSorting, setFilter, setFilters } };
 }
 
 function parseSorting(sort: unknown): SortingState {
