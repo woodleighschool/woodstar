@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa";
 import { cn } from "@/lib/utils";
 
@@ -55,14 +56,33 @@ export function SantaEventDetailPage() {
   return (
     <PageShell className="gap-6">
       <EventHeader event={event} />
-      <ExecutionCard event={event} />
-      <div className="grid gap-5 xl:grid-cols-2">
-        <BinaryCard event={event} />
-        {hasBundle ? <BundleCard event={event} /> : null}
-        <SessionsCard event={event} />
-      </div>
-      <SigningChainCard signingChain={signingChain} />
-      <EntitlementsCard entitlements={entitlements} />
+
+      <Tabs defaultValue="details">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger>
+          <TabsTrigger value="entitlements">Entitlements</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details">
+          <div className="flex flex-col gap-5">
+            <ExecutionCard event={event} />
+            <div className="grid gap-5 xl:grid-cols-2">
+              <BinaryCard event={event} />
+              {hasBundle ? <BundleCard event={event} /> : null}
+              <SessionsCard event={event} />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="signing-chain">
+          <SigningChainCard signingChain={signingChain} />
+        </TabsContent>
+
+        <TabsContent value="entitlements">
+          <EntitlementsCard entitlements={entitlements} />
+        </TabsContent>
+      </Tabs>
     </PageShell>
   );
 }
