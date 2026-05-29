@@ -1,10 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import gravatarUrl from "gravatar-url";
 import { ChevronRight, ChevronsUpDown, LogOut, Monitor, Moon, Sun, User as UserIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { WoodstarMark } from "@/components/brand/woodstar-mark";
 import { navSections, type NavItem, type NavMenu } from "@/components/layout/nav-config";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -163,12 +164,6 @@ function SidebarUserMenu() {
   const { user } = useAuth();
   const logout = useLogout();
   const label = nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? "Signed out";
-  const initials = label
-    .split(/[\s@]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0].toUpperCase())
-    .join("");
 
   return (
     <SidebarMenu>
@@ -179,9 +174,7 @@ function SidebarUserMenu() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="rounded-lg">
-                <AvatarFallback className="rounded-lg">{initials || "?"}</AvatarFallback>
-              </Avatar>
+              <SidebarUserAvatar email={user?.email} />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{label}</span>
                 {user?.role ? (
@@ -199,9 +192,7 @@ function SidebarUserMenu() {
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="rounded-lg">
-                  <AvatarFallback className="rounded-lg">{initials || "?"}</AvatarFallback>
-                </Avatar>
+                <SidebarUserAvatar email={user?.email} />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{label}</span>
                   <span className="text-muted-foreground truncate text-xs">{user?.email ?? "Not signed in"}</span>
@@ -241,6 +232,19 @@ function SidebarUserMenu() {
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
+  );
+}
+
+function SidebarUserAvatar({ email }: { email?: string }) {
+  const src = email ? gravatarUrl(email, { size: 80, default: "404" }) : undefined;
+
+  return (
+    <Avatar className="rounded-lg">
+      {src ? <AvatarImage src={src} className="rounded-lg" /> : null}
+      <AvatarFallback className="rounded-lg">
+        <UserIcon className="size-4" />
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
