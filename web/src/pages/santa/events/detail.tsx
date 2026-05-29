@@ -1,5 +1,5 @@
 import { useParams } from "@tanstack/react-router";
-import { FileCode2, Loader2 } from "lucide-react";
+import { Check, FileCode2, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageShell } from "@/components/layout/page-layout";
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa";
-import { cn } from "@/lib/utils";
 
 import { executableLabel, fileName } from "./constants";
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
@@ -46,43 +45,55 @@ export function SantaEventDetailPage() {
   const executable = event.executable;
   const entitlements = entitlementEntries(executable.entitlements ?? {});
   const signingChain = executable.signing_chain ?? [];
+  const hasSigningChain = signingChain.length > 0;
+  const hasEntitlements = entitlements.length > 0;
+  const hasTabs = hasSigningChain || hasEntitlements;
   const hasBundle = Boolean(
     executable.file_bundle_hash ||
     executable.file_bundle_id ||
     executable.file_bundle_name ||
     executable.file_bundle_path,
   );
+  const detailsContent = (
+    <div className="flex flex-col gap-5">
+      <ExecutionCard event={event} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <BinaryCard event={event} />
+        {hasBundle ? <BundleCard event={event} /> : null}
+        <SessionsCard event={event} />
+      </div>
+    </div>
+  );
 
   return (
     <PageShell className="gap-6">
       <EventHeader event={event} />
 
-      <Tabs defaultValue="details">
-        <TabsList>
-          <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger>
-          <TabsTrigger value="entitlements">Entitlements</TabsTrigger>
-        </TabsList>
+      {hasTabs ? (
+        <Tabs defaultValue="details">
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            {hasSigningChain ? <TabsTrigger value="signing-chain">Signing Chain</TabsTrigger> : null}
+            {hasEntitlements ? <TabsTrigger value="entitlements">Entitlements</TabsTrigger> : null}
+          </TabsList>
 
-        <TabsContent value="details">
-          <div className="flex flex-col gap-5">
-            <ExecutionCard event={event} />
-            <div className="grid gap-5 xl:grid-cols-2">
-              <BinaryCard event={event} />
-              {hasBundle ? <BundleCard event={event} /> : null}
-              <SessionsCard event={event} />
-            </div>
-          </div>
-        </TabsContent>
+          <TabsContent value="details">{detailsContent}</TabsContent>
 
-        <TabsContent value="signing-chain">
-          <SigningChainCard signingChain={signingChain} />
-        </TabsContent>
+          {hasSigningChain ? (
+            <TabsContent value="signing-chain">
+              <SigningChainTable signingChain={signingChain} />
+            </TabsContent>
+          ) : null}
 
-        <TabsContent value="entitlements">
-          <EntitlementsCard entitlements={entitlements} />
-        </TabsContent>
-      </Tabs>
+          {hasEntitlements ? (
+            <TabsContent value="entitlements">
+              <EntitlementsTable entitlements={entitlements} />
+            </TabsContent>
+          ) : null}
+        </Tabs>
+      ) : (
+        detailsContent
+      )}
     </PageShell>
   );
 }
@@ -101,9 +112,7 @@ function EventHeader({ event }: { event: SantaEvent }) {
             </h1>
             <ExecutionDecisionBadge decision={event.decision} />
           </div>
-          <p className="text-muted-foreground truncate font-mono text-xs">
-            {event.file_path || event.executable.sha256}
-          </p>
+          <p className="text-muted-foreground truncate text-sm">{event.file_path || event.executable.sha256}</p>
         </div>
       </div>
     </div>
@@ -140,11 +149,11 @@ function BinaryCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
   const tiles: Tile[] = [
     { label: "File Name", value: <ValueText value={executable.file_name || fileName(event.file_path)} /> },
-    { label: "Path", value: <CodeText value={event.file_path} /> },
-    { label: "SHA-256", value: <CodeText value={executable.sha256} breakAll /> },
-    { label: "CDHash", value: <CodeText value={executable.cdhash} breakAll /> },
-    { label: "Signing ID", value: <CodeText value={executable.signing_id} breakAll /> },
-    { label: "Team ID", value: <CodeText value={executable.team_id} /> },
+    { label: "Path", value: <ValueText value={event.file_path} /> },
+    { label: "SHA-256", value: <ValueText value={executable.sha256} /> },
+    { label: "CDHash", value: <ValueText value={executable.cdhash} /> },
+    { label: "Signing ID", value: <ValueText value={executable.signing_id} /> },
+    { label: "Team ID", value: <ValueText value={executable.team_id} /> },
     { label: "Signing Status", value: <ValueText value={formatEnumValue(executable.signing_status)} /> },
     { label: "CS Flags", value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} /> },
     { label: "Secure Signing Time", value: <ValueText value={formatDate(executable.secure_signing_time)} /> },
@@ -166,13 +175,13 @@ function BinaryCard({ event }: { event: SantaEvent }) {
 function BundleCard({ event }: { event: SantaEvent }) {
   const executable = event.executable;
   const tiles: Tile[] = [
-    { label: "Bundle ID", value: <CodeText value={executable.file_bundle_id} /> },
+    { label: "Bundle ID", value: <ValueText value={executable.file_bundle_id} /> },
     { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
-    { label: "Path", value: <CodeText value={executable.file_bundle_path} /> },
-    { label: "Executable Rel Path", value: <CodeText value={executable.file_bundle_executable_rel_path} /> },
+    { label: "Path", value: <ValueText value={executable.file_bundle_path} /> },
+    { label: "Executable Rel Path", value: <ValueText value={executable.file_bundle_executable_rel_path} /> },
     { label: "Version", value: <ValueText value={executable.file_bundle_version} /> },
     { label: "Version String", value: <ValueText value={executable.file_bundle_version_string} /> },
-    { label: "Bundle Hash", value: <CodeText value={executable.file_bundle_hash} breakAll /> },
+    { label: "Bundle Hash", value: <ValueText value={executable.file_bundle_hash} /> },
     { label: "Binary Count", value: <ValueText value={formatNumber(executable.file_bundle_binary_count)} /> },
     { label: "Hash Time", value: <ValueText value={formatMillis(executable.file_bundle_hash_millis)} /> },
   ];
@@ -203,87 +212,63 @@ function SessionsCard({ event }: { event: SantaEvent }) {
   );
 }
 
-function SigningChainCard({ signingChain }: { signingChain: NonNullable<SantaEvent["executable"]["signing_chain"]> }) {
+function SigningChainTable({ signingChain }: { signingChain: NonNullable<SantaEvent["executable"]["signing_chain"]> }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Signing Chain</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {signingChain.length === 0 ? (
-          <EmptyBlock>No signing chain.</EmptyBlock>
-        ) : (
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted">
-                <TableRow>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Certificate</TableHead>
-                  <TableHead>Organization</TableHead>
-                  <TableHead>SHA-256</TableHead>
-                  <TableHead>Valid From</TableHead>
-                  <TableHead>Valid Until</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {signingChain.map((cert, index) => (
-                  <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
-                    <TableCell>{index === 0 ? "Leaf" : `CA ${index}`}</TableCell>
-                    <TableCell className="min-w-64 whitespace-normal">{cert.common_name ?? "-"}</TableCell>
-                    <TableCell className="min-w-40 whitespace-normal">
-                      {cert.organization ?? cert.organizational_unit ?? "-"}
-                    </TableCell>
-                    <TableCell className="min-w-64 whitespace-normal">
-                      <CodeText value={cert.sha256} breakAll />
-                    </TableCell>
-                    <TableCell>{formatDate(cert.valid_from)}</TableCell>
-                    <TableCell>{formatDate(cert.valid_until)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="overflow-hidden rounded-lg border">
+      <Table>
+        <TableHeader className="bg-muted">
+          <TableRow>
+            <TableHead>Certificate</TableHead>
+            <TableHead>Organization</TableHead>
+            <TableHead>SHA-256</TableHead>
+            <TableHead>Valid From</TableHead>
+            <TableHead>Valid Until</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {signingChain.map((cert) => (
+            <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
+              <TableCell className="min-w-64 whitespace-normal">{cert.common_name ?? "-"}</TableCell>
+              <TableCell className="min-w-40 whitespace-normal">
+                {cert.organization ?? cert.organizational_unit ?? "-"}
+              </TableCell>
+              <TableCell className="min-w-64 whitespace-normal">
+                <ValueText value={cert.sha256} />
+              </TableCell>
+              <TableCell>{formatDate(cert.valid_from)}</TableCell>
+              <TableCell>{formatDate(cert.valid_until)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
-function EntitlementsCard({ entitlements }: { entitlements: EntitlementEntry[] }) {
+function EntitlementsTable({ entitlements }: { entitlements: EntitlementEntry[] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Entitlements</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {entitlements.length === 0 ? (
-          <EmptyBlock>No entitlements.</EmptyBlock>
-        ) : (
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader className="bg-muted">
-                <TableRow>
-                  <TableHead>Entitlement</TableHead>
-                  <TableHead>Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entitlements.map((entitlement) => (
-                  <TableRow key={entitlement.key}>
-                    <TableCell className="min-w-72 whitespace-normal">
-                      <CodeText value={entitlement.key} />
-                    </TableCell>
-                    <TableCell className="whitespace-normal">
-                      <CodeText value={entitlement.value} breakAll />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="overflow-hidden rounded-lg border">
+      <Table>
+        <TableHeader className="bg-muted">
+          <TableRow>
+            <TableHead>Entitlement</TableHead>
+            <TableHead>Value</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {entitlements.map((entitlement) => (
+            <TableRow key={entitlement.key}>
+              <TableCell className="min-w-72 whitespace-normal">
+                <ValueText value={entitlement.key} />
+              </TableCell>
+              <TableCell className="whitespace-normal">
+                <EntitlementValue value={entitlement.value} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -309,18 +294,13 @@ function SessionGroup({ label, values }: { label: string; values: string[] }) {
   );
 }
 
-function CodeText({ value, breakAll = false }: { value?: string; breakAll?: boolean }) {
+function ValueText({ value }: { value?: string }) {
   if (!value) return <span className="text-muted-foreground">-</span>;
   return (
-    <span className={cn("font-mono text-xs", breakAll ? "break-all" : "block truncate")} title={value}>
+    <span className="break-words" title={value}>
       {value}
     </span>
   );
-}
-
-function ValueText({ value }: { value?: string }) {
-  if (!value) return <span className="text-muted-foreground">-</span>;
-  return value;
 }
 
 function ValueBadges({ values }: { values: string[] }) {
@@ -329,16 +309,12 @@ function ValueBadges({ values }: { values: string[] }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {cleaned.map((value) => (
-        <Badge key={value} variant="outline" className="font-mono text-xs font-normal">
+        <Badge key={value} variant="outline" className="font-normal">
           {value}
         </Badge>
       ))}
     </div>
   );
-}
-
-function EmptyBlock({ children }: { children: ReactNode }) {
-  return <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">{children}</div>;
 }
 
 function formatDate(value?: string) {
@@ -368,8 +344,40 @@ function formatEnumValue(value?: string) {
 
 type EntitlementEntry = {
   key: string;
-  value: string;
+  value: unknown;
 };
+
+function EntitlementValue({ value }: { value: unknown }) {
+  const normalized = normalizeEntitlementValue(value);
+
+  if (normalized === null || normalized === undefined || normalized === "") {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  if (typeof normalized === "boolean") {
+    const label = normalized ? "True" : "False";
+    const Icon = normalized ? Check : X;
+    return <Icon aria-label={label} className="size-4" />;
+  }
+
+  if (Array.isArray(normalized)) {
+    return <ValueBadges values={normalized.map(formatEntitlementChip)} />;
+  }
+
+  if (typeof normalized === "string" || typeof normalized === "number") {
+    return <ValueText value={String(normalized)} />;
+  }
+
+  if (isRecord(normalized)) {
+    return (
+      <ValueBadges
+        values={Object.entries(normalized).map(([key, entryValue]) => `${key}: ${formatEntitlementChip(entryValue)}`)}
+      />
+    );
+  }
+
+  return <ValueText value={JSON.stringify(normalized)} />;
+}
 
 function entitlementEntries(raw: Record<string, unknown>): EntitlementEntry[] {
   const santaEntries = raw.entitlements;
@@ -378,19 +386,52 @@ function entitlementEntries(raw: Record<string, unknown>): EntitlementEntry[] {
       if (!entry || typeof entry !== "object") return [];
       const record = entry as Record<string, unknown>;
       if (typeof record.key !== "string" || record.key === "") return [];
-      return [{ key: record.key, value: formatEntitlementValue(record.value) }];
+      return [{ key: record.key, value: record.value }];
     });
     if (entries.length > 0) return entries;
   }
 
   return Object.entries(raw)
     .filter(([key]) => key !== "entitlementsFiltered")
-    .map(([key, value]) => ({ key, value: formatEntitlementValue(value) }));
+    .map(([key, value]) => ({ key, value }));
 }
 
-function formatEntitlementValue(value: unknown) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  return JSON.stringify(value);
+function normalizeEntitlementValue(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  const looksEncoded =
+    trimmed.startsWith("[") ||
+    trimmed.startsWith("{") ||
+    trimmed.startsWith('"') ||
+    trimmed === "true" ||
+    trimmed === "false" ||
+    trimmed === "null" ||
+    /^-?\d+(\.\d+)?$/.test(trimmed);
+
+  if (!looksEncoded) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function formatEntitlementChip(value: unknown): string {
+  const normalized = normalizeEntitlementValue(value);
+  if (normalized === null || normalized === undefined) return "";
+  if (Array.isArray(normalized)) return normalized.map(formatEntitlementChip).filter(Boolean).join(", ");
+  if (typeof normalized === "string" || typeof normalized === "number" || typeof normalized === "boolean") {
+    return String(normalized);
+  }
+  if (isRecord(normalized) && "identifier" in normalized) {
+    const identifier = normalized.identifier;
+    if (typeof identifier === "string") return identifier;
+  }
+  return JSON.stringify(normalized);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
