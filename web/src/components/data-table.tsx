@@ -585,6 +585,7 @@ function DataTablePagination<TData>({
         </div>
         <div className="ml-auto flex items-center gap-2 sm:ml-0">
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"
@@ -594,6 +595,7 @@ function DataTablePagination<TData>({
             <ChevronsLeft />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="size-8"
@@ -603,6 +605,7 @@ function DataTablePagination<TData>({
             <ChevronLeft />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="size-8"
@@ -612,6 +615,7 @@ function DataTablePagination<TData>({
             <ChevronRight />
           </Button>
           <Button
+            type="button"
             variant="outline"
             size="icon"
             className="hidden size-8 lg:flex"
@@ -668,7 +672,7 @@ export function DataTableColumnToggle<TData>({ table, variant = "outline" }: Dat
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size="sm">
+        <Button type="button" variant={variant} size="sm">
           <Columns3 data-icon="inline-start" />
           Columns
           <ChevronDown data-icon="inline-end" />
@@ -723,7 +727,7 @@ export function DataTableFacetedFilter({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="border-dashed">
+        <Button type="button" variant="outline" size="sm" className="border-dashed">
           <PlusCircle data-icon="inline-start" />
           {title}
           {selectedSet.size > 0 ? (
