@@ -5,6 +5,8 @@ export type Schemas = {
   AccountBody: API.AccountBody;
   AccountPutBody: API.AccountPutBody;
   AgentSecret: API.AgentSecret;
+  BundleReference: API.BundleReference;
+  CertificateReference: API.CertificateReference;
   Check: API.Check;
   CheckCreate: API.CheckCreate;
   CheckHostStatus: API.CheckHostStatus;
@@ -30,6 +32,7 @@ export type Schemas = {
   ItemsBodyCheckHostStatus: API.ItemsBodyCheckHostStatus;
   ItemsBodyHostReport: API.ItemsBodyHostReport;
   ItemsBodyReportResult: API.ItemsBodyReportResult;
+  ItemsBodyRuleTarget: API.ItemsBodyRuleTarget;
   Label: API.Label;
   LabelCreateBody: API.LabelCreateBody;
   LabelMutationBody: API.LabelMutationBody;
@@ -57,8 +60,12 @@ export type Schemas = {
   ReportResult: API.ReportResult;
   Rule: API.Rule;
   RuleMutation: API.RuleMutation;
+  RuleReference: API.RuleReference;
+  RuleTarget: API.RuleTarget;
   SessionBody: API.SessionBody;
   SetupInputBody: API.SetupInputBody;
+  SigningIdentityReference: API.SigningIdentityReference;
+  SoftwareReference: API.SoftwareReference;
   SoftwareTitle: API.SoftwareTitle;
   SoftwareVersion: API.SoftwareVersion;
   User: API.User;

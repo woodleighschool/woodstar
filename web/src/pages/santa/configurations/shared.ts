@@ -14,8 +14,7 @@ export const CLIENT_MODES = {
   monitor: {
     name: "Monitor",
     description: "Santa records decisions but does not block unknown executions.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   lockdown: {
     name: "Lockdown",

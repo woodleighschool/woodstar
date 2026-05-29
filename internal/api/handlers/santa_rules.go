@@ -19,6 +19,12 @@ type santaRuleListInput struct {
 	RuleType santarules.RuleType `query:"rule_type,omitempty"`
 }
 
+type santaRuleTargetListInput struct {
+	Q          string              `query:"q,omitempty"`
+	TargetType santarules.RuleType `query:"target_type,omitempty"`
+	Limit      int                 `query:"limit,omitempty"       minimum:"1" maximum:"50"`
+}
+
 type santaRuleGetInput struct {
 	ID int64 `path:"id"`
 }
@@ -57,6 +63,10 @@ type santaRuleOutput struct {
 	Body santarules.Rule
 }
 
+type santaRuleTargetListOutput struct {
+	Body itemsBody[santarules.RuleTarget]
+}
+
 func (input santaRuleListInput) params() santarules.RuleListParams {
 	return santarules.RuleListParams{
 		ListParams: input.ListQueryInput.params(),
@@ -64,8 +74,17 @@ func (input santaRuleListInput) params() santarules.RuleListParams {
 	}
 }
 
+func (input santaRuleTargetListInput) params() santarules.RuleTargetListParams {
+	return santarules.RuleTargetListParams{
+		Q:          input.Q,
+		TargetType: input.TargetType,
+		Limit:      input.Limit,
+	}
+}
+
 func RegisterSantaRules(api huma.API, store *santarules.Store) {
 	registerListSantaRules(api, store)
+	registerListSantaRuleTargets(api, store)
 	registerCreateSantaRule(api, store)
 	registerGetSantaRule(api, store)
 	registerPatchSantaRule(api, store)
@@ -88,6 +107,23 @@ func registerListSantaRules(api huma.API, store *santarules.Store) {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &santaRuleListOutput{Body: paginatedBody[santarules.Rule]{Items: rules, Count: count}}, nil
+	})
+}
+
+func registerListSantaRuleTargets(api huma.API, store *santarules.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-santa-rule-targets",
+		Method:      http.MethodGet,
+		Path:        "/api/santa/rule-targets",
+		Tags:        []string{santaTag},
+		Summary:     "List Santa rule targets",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *santaRuleTargetListInput) (*santaRuleTargetListOutput, error) {
+		targets, err := store.ListRuleTargets(ctx, input.params())
+		if err != nil {
+			return nil, resourceMutationError(santaRuleResource, err)
+		}
+		return &santaRuleTargetListOutput{Body: itemsBody[santarules.RuleTarget]{Items: targets}}, nil
 	})
 }
 

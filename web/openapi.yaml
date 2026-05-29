@@ -124,6 +124,47 @@ components:
       required:
         - ids
       type: object
+    BundleReference:
+      additionalProperties: false
+      properties:
+        binary_count:
+          format: int64
+          type: integer
+        bundle_id:
+          type: string
+        collected_binary_count:
+          format: int64
+          type: integer
+        complete:
+          type: boolean
+        hash_millis:
+          format: int64
+          type: integer
+        name:
+          type: string
+        path:
+          type: string
+        sha256:
+          type: string
+        uploaded_at:
+          format: date-time
+          type: string
+        version:
+          type: string
+        version_string:
+          type: string
+      required:
+        - sha256
+        - bundle_id
+        - name
+        - path
+        - version
+        - version_string
+        - binary_count
+        - collected_binary_count
+        - hash_millis
+        - complete
+      type: object
     CertificateName:
       additionalProperties: false
       properties:
@@ -140,6 +181,33 @@ components:
         - organization
         - organizational_unit
         - common_name
+      type: object
+    CertificateReference:
+      additionalProperties: false
+      properties:
+        common_name:
+          type: string
+        organization:
+          type: string
+        organizational_unit:
+          type: string
+        rule_count:
+          format: int64
+          type: integer
+        sha256:
+          type: string
+        valid_from:
+          format: date-time
+          type: string
+        valid_until:
+          format: date-time
+          type: string
+      required:
+        - sha256
+        - common_name
+        - organization
+        - organizational_unit
+        - rule_count
       type: object
     Check:
       additionalProperties: false
@@ -553,6 +621,8 @@ components:
         matched_include_id:
           format: int64
           type: integer
+        notification_app_name:
+          type: string
         payload_hash:
           type: string
         policy:
@@ -573,6 +643,7 @@ components:
             - teamid
             - signingid
             - cdhash
+            - bundle
           type: string
       required:
         - applied
@@ -647,18 +718,41 @@ components:
       properties:
         cdhash:
           type: string
+        codesigning_flags:
+          format: int32
+          minimum: 0
+          type: integer
         entitlements:
           additionalProperties: {}
           type: object
+        file_bundle_binary_count:
+          format: int64
+          type: integer
+        file_bundle_executable_rel_path:
+          type: string
+        file_bundle_hash:
+          type: string
+        file_bundle_hash_millis:
+          format: int64
+          type: integer
         file_bundle_id:
           type: string
+        file_bundle_name:
+          type: string
         file_bundle_path:
+          type: string
+        file_bundle_version:
+          type: string
+        file_bundle_version_string:
           type: string
         file_name:
           type: string
         id:
           format: int64
           type: integer
+        secure_signing_time:
+          format: date-time
+          type: string
         sha256:
           type: string
         signing_chain:
@@ -669,6 +763,18 @@ components:
             - "null"
         signing_id:
           type: string
+        signing_status:
+          enum:
+            - unspecified
+            - unsigned
+            - invalid
+            - adhoc
+            - development
+            - production
+          type: string
+        signing_time:
+          format: date-time
+          type: string
         team_id:
           type: string
       required:
@@ -677,9 +783,49 @@ components:
         - file_name
         - file_bundle_id
         - file_bundle_path
+        - file_bundle_executable_rel_path
+        - file_bundle_name
+        - file_bundle_version
+        - file_bundle_version_string
+        - file_bundle_hash
+        - file_bundle_hash_millis
+        - file_bundle_binary_count
         - signing_id
         - team_id
         - cdhash
+        - codesigning_flags
+        - signing_status
+      type: object
+    ExecutableReference:
+      additionalProperties: false
+      properties:
+        block_count:
+          format: int64
+          type: integer
+        cdhash:
+          type: string
+        execution_count:
+          format: int64
+          type: integer
+        file_bundle_id:
+          type: string
+        file_bundle_name:
+          type: string
+        file_bundle_version:
+          type: string
+        file_name:
+          type: string
+        sha256:
+          type: string
+        signing_id:
+          type: string
+        team_id:
+          type: string
+      required:
+        - sha256
+        - file_name
+        - execution_count
+        - block_count
       type: object
     ExecutionEvent:
       additionalProperties: false
@@ -742,6 +888,14 @@ components:
         occurred_at:
           format: date-time
           type: string
+        parent_name:
+          type: string
+        pid:
+          format: int32
+          type: integer
+        ppid:
+          format: int32
+          type: integer
       required:
         - id
         - host_id
@@ -749,6 +903,9 @@ components:
         - executable
         - file_path
         - executing_user
+        - pid
+        - ppid
+        - parent_name
         - logged_in_users
         - current_sessions
         - decision
@@ -1473,6 +1630,25 @@ components:
         items:
           items:
             $ref: "#/components/schemas/ReportResult"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+      type: object
+    ItemsBodyRuleTarget:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/ItemsBodyRuleTarget.json
+          format: uri
+          readOnly: true
+          type: string
+        items:
+          items:
+            $ref: "#/components/schemas/RuleTarget"
           type:
             - array
             - "null"
@@ -2362,6 +2538,7 @@ components:
             - teamid
             - signingid
             - cdhash
+            - bundle
           type: string
         updated_at:
           format: date-time
@@ -2464,10 +2641,42 @@ components:
             - teamid
             - signingid
             - cdhash
+            - bundle
           type: string
       required:
         - rule_type
         - identifier
+      type: object
+    RuleReference:
+      additionalProperties: false
+      properties:
+        custom_message:
+          type: string
+        custom_url:
+          type: string
+        id:
+          format: int64
+          type: integer
+        identifier:
+          type: string
+        name:
+          type: string
+        rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
+            - bundle
+          type: string
+      required:
+        - id
+        - rule_type
+        - identifier
+        - name
+        - custom_message
+        - custom_url
       type: object
     RuleSyncSummary:
       additionalProperties: false
@@ -2488,6 +2697,46 @@ components:
         - desired_count
         - applied_count
         - pending_count
+      type: object
+    RuleTarget:
+      additionalProperties: false
+      properties:
+        binary_count:
+          format: int64
+          type: integer
+        bundle_id:
+          type: string
+        collected_binary_count:
+          format: int64
+          type: integer
+        complete:
+          type: boolean
+        detail:
+          type: string
+        identifier:
+          type: string
+        name:
+          type: string
+        rule_count:
+          format: int64
+          type: integer
+        target_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
+            - bundle
+          type: string
+        version:
+          type: string
+      required:
+        - target_type
+        - identifier
+        - name
+        - rule_count
+        - complete
       type: object
     SantaConfigurationReorderBody:
       additionalProperties: false
@@ -2590,6 +2839,90 @@ components:
           type: string
       required:
         - sha256
+      type: object
+    SigningIdentityReference:
+      additionalProperties: false
+      properties:
+        executable_count:
+          format: int64
+          type: integer
+        identifier:
+          type: string
+        name:
+          type: string
+        rule_count:
+          format: int64
+          type: integer
+        target_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
+            - bundle
+          type: string
+      required:
+        - target_type
+        - identifier
+        - name
+        - executable_count
+        - rule_count
+      type: object
+    SoftwareReference:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/SoftwareReference.json
+          format: uri
+          readOnly: true
+          type: string
+        block_count:
+          format: int64
+          type: integer
+        bundles:
+          items:
+            $ref: "#/components/schemas/BundleReference"
+          type:
+            - array
+            - "null"
+        certificates:
+          items:
+            $ref: "#/components/schemas/CertificateReference"
+          type:
+            - array
+            - "null"
+        executables:
+          items:
+            $ref: "#/components/schemas/ExecutableReference"
+          type:
+            - array
+            - "null"
+        execution_count:
+          format: int64
+          type: integer
+        rules:
+          items:
+            $ref: "#/components/schemas/RuleReference"
+          type:
+            - array
+            - "null"
+        signing_identities:
+          items:
+            $ref: "#/components/schemas/SigningIdentityReference"
+          type:
+            - array
+            - "null"
+      required:
+        - execution_count
+        - block_count
+        - bundles
+        - executables
+        - signing_identities
+        - certificates
+        - rules
       type: object
     SoftwareTitle:
       additionalProperties: false
@@ -5760,6 +6093,75 @@ paths:
       summary: Get a Santa file access event
       tags:
         - Santa
+  /api/santa/rule-targets:
+    get:
+      operationId: list-santa-rule-targets
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: target_type
+          schema:
+            enum:
+              - binary
+              - certificate
+              - teamid
+              - signingid
+              - cdhash
+              - bundle
+            type: string
+        - explode: false
+          in: query
+          name: limit
+          schema:
+            format: int64
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemsBodyRuleTarget"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List Santa rule targets
+      tags:
+        - Santa
   /api/santa/rules:
     get:
       operationId: list-santa-rules
@@ -5801,6 +6203,7 @@ paths:
               - teamid
               - signingid
               - cdhash
+              - bundle
             type: string
       responses:
         "200":
@@ -6314,6 +6717,50 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Get a software title
+      tags:
+        - Software
+  /api/software/{id}/santa:
+    get:
+      operationId: get-software-santa-reference
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoftwareReference"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get Santa reference data for a software title
       tags:
         - Software
   /api/users:

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -75,6 +77,22 @@ func (s *Store) GetRuleByID(ctx context.Context, id int64) (*Rule, error) {
 	return &rules[0], nil
 }
 
+func (s *Store) ListRuleTargets(ctx context.Context, params RuleTargetListParams) ([]RuleTarget, error) {
+	params.Q = strings.TrimSpace(params.Q)
+	if params.TargetType != "" && !validRuleType(params.TargetType) {
+		return nil, fmt.Errorf("%w: unknown target_type", dbutil.ErrInvalidInput)
+	}
+	if params.Limit <= 0 || params.Limit > 50 {
+		params.Limit = 20
+	}
+	rows, err := s.db.Pool().Query(ctx, ruleTargetSearchSQL, params.Q, string(params.TargetType), params.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, scanRuleTarget)
+}
+
 func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 	row, err := s.q.GetSantaRuleByID(ctx, sqlc.GetSantaRuleByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -88,6 +106,7 @@ func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, error) {
+	params = params.Clean()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -95,6 +114,9 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 	var ruleID int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+			return err
+		}
+		if err := validateRuleTarget(ctx, tx, params); err != nil {
 			return err
 		}
 		row, err := s.q.WithTx(tx).CreateSantaRule(ctx, sqlc.CreateSantaRuleParams{
@@ -120,12 +142,16 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 }
 
 func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (*Rule, error) {
+	params = params.Clean()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+			return err
+		}
+		if err := validateRuleTarget(ctx, tx, params); err != nil {
 			return err
 		}
 		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
@@ -290,6 +316,7 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 			cel_expression,
 			custom_message,
 			custom_url,
+			notification_app_name,
 			payload_hash
 		FROM santa_sync_targets
 		WHERE host_id = $1 AND phase = 'applied'
@@ -458,8 +485,17 @@ func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map
 }
 
 func (p RuleMutation) Validate() error {
+	if !validRuleType(p.RuleType) {
+		return fmt.Errorf("%w: rule_type is required", dbutil.ErrInvalidInput)
+	}
+	if p.Identifier == "" {
+		return fmt.Errorf("%w: identifier is required", dbutil.ErrInvalidInput)
+	}
 	labelIDs := make(map[int64]struct{}, len(p.Includes)+len(p.ExcludeLabelIDs))
 	for _, include := range p.Includes {
+		if !validPolicy(include.Policy) {
+			return fmt.Errorf("%w: include policy is required", dbutil.ErrInvalidInput)
+		}
 		if include.Policy == PolicyCEL && include.CELExpression == "" {
 			return fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
 		}
@@ -483,6 +519,25 @@ func (p RuleMutation) Validate() error {
 	return nil
 }
 
+func (p RuleMutation) Clean() RuleMutation {
+	p.Identifier = strings.TrimSpace(p.Identifier)
+	p.Name = strings.TrimSpace(p.Name)
+	p.CustomMessage = strings.TrimSpace(p.CustomMessage)
+	p.CustomURL = strings.TrimSpace(p.CustomURL)
+	for i := range p.Includes {
+		p.Includes[i].CELExpression = strings.TrimSpace(p.Includes[i].CELExpression)
+	}
+	return p
+}
+
+func validRuleType(ruleType RuleType) bool {
+	return slices.Contains(RuleTypeValues, ruleType)
+}
+
+func validPolicy(policy Policy) bool {
+	return slices.Contains(PolicyValues, policy)
+}
+
 func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
 	if len(params.ExcludeLabelIDs) == 0 {
 		return nil
@@ -501,6 +556,28 @@ func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutatio
 	}
 	if len(builtinExcludeIDs) > 0 {
 		return fmt.Errorf("%w: builtin labels cannot be excluded from Santa rules", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
+func validateRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
+	if params.RuleType != RuleTypeBundle {
+		return nil
+	}
+	var complete bool
+	err := tx.QueryRow(ctx, `
+		SELECT uploaded_at IS NOT NULL
+		FROM santa_bundles
+		WHERE sha256 = $1
+	`, params.Identifier).Scan(&complete)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("%w: bundle target is not collected", dbutil.ErrInvalidInput)
+	}
+	if err != nil {
+		return err
+	}
+	if !complete {
+		return fmt.Errorf("%w: bundle target is incomplete", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
@@ -553,6 +630,23 @@ func scanRule(row pgx.Row) (Rule, error) {
 	return rule, err
 }
 
+func scanRuleTarget(row pgx.CollectableRow) (RuleTarget, error) {
+	var target RuleTarget
+	err := row.Scan(
+		&target.TargetType,
+		&target.Identifier,
+		&target.Name,
+		&target.Detail,
+		&target.BundleID,
+		&target.Version,
+		&target.BinaryCount,
+		&target.CollectedBinaryCount,
+		&target.RuleCount,
+		&target.Complete,
+	)
+	return target, err
+}
+
 func ruleFromSQLC(row sqlc.SantaRule) Rule {
 	return Rule{
 		ID:            row.ID,
@@ -577,6 +671,7 @@ func scanEffectiveRule(row pgx.CollectableRow) (EffectiveRule, error) {
 		&rule.CELExpression,
 		&rule.CustomMessage,
 		&rule.CustomURL,
+		&rule.AppName,
 		&rule.MatchedIncludeID,
 		&ignoredSort,
 	)
@@ -594,6 +689,7 @@ func SyncTargetsFromRules(rules []EffectiveRule) []syncstate.Target {
 			CELExpression: rule.CELExpression,
 			CustomMessage: rule.CustomMessage,
 			CustomURL:     rule.CustomURL,
+			AppName:       rule.AppName,
 		}
 		target.PayloadHash = syncTargetPayloadHash(target)
 		targets = append(targets, target)
@@ -609,6 +705,7 @@ func syncTargetPayloadHash(target syncstate.Target) string {
 		target.CELExpression,
 		target.CustomMessage,
 		target.CustomURL,
+		target.AppName,
 	)
 }
 
@@ -625,6 +722,7 @@ func scanSyncTarget(row pgx.CollectableRow) (syncstate.Target, error) {
 		&target.CELExpression,
 		&target.CustomMessage,
 		&target.CustomURL,
+		&target.AppName,
 		&target.PayloadHash,
 	)
 	return target, err
@@ -636,7 +734,8 @@ const ruleTypeSortSQL = `CASE r.rule_type
 	WHEN 'signingid' THEN 3
 	WHEN 'certificate' THEN 4
 	WHEN 'teamid' THEN 5
-	ELSE 6
+	WHEN 'bundle' THEN 6
+	ELSE 7
 END`
 
 const ruleSelectSQL = `
@@ -683,6 +782,44 @@ matching_includes AS (
 		JOIN host_labels hl ON hl.label_id = el.label_id
 		WHERE el.rule_id = r.id
 	)
+),
+selected_includes AS (
+	SELECT *
+	FROM matching_includes
+	WHERE include_rank = 1
+),
+expanded_rules AS (
+	SELECT
+		rule_id,
+		rule_type,
+		identifier,
+		policy,
+		cel_expression,
+		custom_message,
+		custom_url,
+		''::text AS notification_app_name,
+		matched_include_id,
+		rule_type_sort
+	FROM selected_includes
+	WHERE rule_type <> 'bundle'
+	UNION ALL
+	SELECT
+		si.rule_id,
+		'binary'::santa_rule_type AS rule_type,
+		e.sha256 AS identifier,
+		si.policy,
+		si.cel_expression,
+		si.custom_message,
+		si.custom_url,
+		COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
+		si.matched_include_id,
+		2 AS rule_type_sort
+	FROM selected_includes si
+	JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
+	JOIN santa_bundle_executables be ON be.bundle_id = b.id
+	JOIN santa_executables e ON e.id = be.executable_id
+	WHERE si.rule_type = 'bundle'
+		AND e.sha256 <> ''
 )
 SELECT
 	rule_id,
@@ -692,7 +829,206 @@ SELECT
 	cel_expression,
 	custom_message,
 	custom_url,
+	notification_app_name,
 	matched_include_id,
 	rule_type_sort
-FROM matching_includes
-WHERE include_rank = 1`
+FROM expanded_rules`
+
+const ruleTargetSearchSQL = `
+WITH candidate_sources AS (
+	SELECT
+		'binary'::text AS target_type,
+		e.sha256 AS identifier,
+		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.sha256) AS name,
+		NULLIF(e.file_name, '') AS detail,
+		e.file_bundle_id AS bundle_id,
+		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version) AS version,
+		0::integer AS binary_count,
+		0::integer AS collected_binary_count,
+		true AS complete
+	FROM santa_executables e
+	WHERE e.sha256 <> ''
+	UNION ALL
+	SELECT
+		'binary'::text,
+		p.executable_sha256,
+		COALESCE(NULLIF(st.display_name, ''), st.name, p.executable_sha256),
+		COALESCE(NULLIF(p.executable_path, ''), p.installed_path),
+		s.bundle_identifier,
+		s.version,
+		0::integer,
+		0::integer,
+		true
+	FROM host_software_installed_paths p
+	JOIN software s ON s.id = p.software_id
+	JOIN software_titles st ON st.id = s.title_id
+	WHERE p.executable_sha256 IS NOT NULL AND p.executable_sha256 <> ''
+	UNION ALL
+	SELECT
+		'certificate'::text,
+		c.sha256,
+		COALESCE(NULLIF(c.common_name, ''), c.sha256),
+		c.organizational_unit,
+		''::text,
+		''::text,
+		0::integer,
+		0::integer,
+		true
+	FROM santa_certificates c
+	WHERE c.sha256 <> ''
+	UNION ALL
+	SELECT
+		'teamid'::text,
+		e.team_id,
+		e.team_id,
+		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+		e.file_bundle_id,
+		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+		0::integer,
+		0::integer,
+		true
+	FROM santa_executables e
+	WHERE e.team_id <> ''
+	UNION ALL
+	SELECT
+		'teamid'::text,
+		p.team_identifier,
+		p.team_identifier,
+		COALESCE(NULLIF(st.display_name, ''), st.name),
+		s.bundle_identifier,
+		s.version,
+		0::integer,
+		0::integer,
+		true
+	FROM host_software_installed_paths p
+	JOIN software s ON s.id = p.software_id
+	JOIN software_titles st ON st.id = s.title_id
+	WHERE p.team_identifier <> ''
+	UNION ALL
+	SELECT
+		'signingid'::text,
+		e.signing_id,
+		e.signing_id,
+		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+		e.file_bundle_id,
+		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+		0::integer,
+		0::integer,
+		true
+	FROM santa_executables e
+	WHERE e.signing_id <> ''
+	UNION ALL
+	SELECT
+		'signingid'::text,
+		p.team_identifier || ':' || s.bundle_identifier,
+		p.team_identifier || ':' || s.bundle_identifier,
+		COALESCE(NULLIF(st.display_name, ''), st.name),
+		s.bundle_identifier,
+		s.version,
+		0::integer,
+		0::integer,
+		true
+	FROM host_software_installed_paths p
+	JOIN software s ON s.id = p.software_id
+	JOIN software_titles st ON st.id = s.title_id
+	WHERE p.team_identifier <> '' AND s.bundle_identifier <> ''
+	UNION ALL
+	SELECT
+		'cdhash'::text,
+		e.cdhash,
+		e.cdhash,
+		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+		e.file_bundle_id,
+		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+		0::integer,
+		0::integer,
+		true
+	FROM santa_executables e
+	WHERE e.cdhash <> ''
+	UNION ALL
+	SELECT
+		'cdhash'::text,
+		p.cdhash_sha256,
+		p.cdhash_sha256,
+		COALESCE(NULLIF(st.display_name, ''), st.name),
+		s.bundle_identifier,
+		s.version,
+		0::integer,
+		0::integer,
+		true
+	FROM host_software_installed_paths p
+	JOIN software s ON s.id = p.software_id
+	JOIN software_titles st ON st.id = s.title_id
+	WHERE p.cdhash_sha256 IS NOT NULL AND p.cdhash_sha256 <> ''
+	UNION ALL
+	SELECT
+		'bundle'::text,
+		b.sha256,
+		COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256),
+		b.path,
+		b.bundle_id,
+		COALESCE(NULLIF(b.version_string, ''), b.version),
+		b.binary_count,
+		COUNT(be.executable_id)::integer,
+		b.uploaded_at IS NOT NULL
+	FROM santa_bundles b
+	LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
+	WHERE b.sha256 <> ''
+	GROUP BY b.id
+),
+targets AS (
+	SELECT
+		target_type,
+		identifier,
+		COALESCE(NULLIF(max(name), ''), identifier) AS name,
+		COALESCE(max(detail), '') AS detail,
+		COALESCE(max(bundle_id), '') AS bundle_id,
+		COALESCE(max(version), '') AS version,
+		max(binary_count)::integer AS binary_count,
+		max(collected_binary_count)::integer AS collected_binary_count,
+		bool_or(complete) AS complete
+	FROM candidate_sources
+	WHERE identifier <> ''
+	GROUP BY target_type, identifier
+)
+SELECT
+	t.target_type,
+	t.identifier,
+	t.name,
+	t.detail,
+	t.bundle_id,
+	t.version,
+	t.binary_count,
+	t.collected_binary_count,
+	COUNT(r.id)::integer AS rule_count,
+	t.complete
+FROM targets t
+LEFT JOIN santa_rules r
+	ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
+WHERE
+	($1 = '' OR t.identifier ILIKE '%' || $1 || '%' OR t.name ILIKE '%' || $1 || '%'
+		OR t.detail ILIKE '%' || $1 || '%' OR t.bundle_id ILIKE '%' || $1 || '%')
+	AND ($2 = '' OR t.target_type = $2)
+GROUP BY
+	t.target_type,
+	t.identifier,
+	t.name,
+	t.detail,
+	t.bundle_id,
+	t.version,
+	t.binary_count,
+	t.collected_binary_count,
+	t.complete
+ORDER BY
+	CASE t.target_type
+		WHEN 'bundle' THEN 1
+		WHEN 'signingid' THEN 2
+		WHEN 'teamid' THEN 3
+		WHEN 'certificate' THEN 4
+		WHEN 'binary' THEN 5
+		WHEN 'cdhash' THEN 6
+		ELSE 7
+	END,
+	lower(t.name),
+	t.identifier
+LIMIT $3`

@@ -1,16 +1,22 @@
 import { useParams } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { FileCode2, Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { DetailSettings, SettingItem } from "@/components/queries/query-ui";
+import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSantaEvent } from "@/hooks/use-santa";
+import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa";
+import { cn } from "@/lib/utils";
 
 import { executableLabel, fileName } from "./constants";
 import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
+
+interface Tile {
+  label: string;
+  value: ReactNode;
+}
 
 export function SantaEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/$eventId" });
@@ -36,57 +42,162 @@ export function SantaEventDetailPage() {
   }
 
   const event = query.data;
-  const entitlements = Object.entries(event.executable.entitlements ?? {});
-  const signingChain = event.executable.signing_chain ?? [];
+  const executable = event.executable;
+  const entitlements = entitlementEntries(executable.entitlements ?? {});
+  const signingChain = executable.signing_chain ?? [];
+  const hasBundle = Boolean(
+    executable.file_bundle_hash ||
+    executable.file_bundle_id ||
+    executable.file_bundle_name ||
+    executable.file_bundle_path,
+  );
 
   return (
     <PageShell className="gap-6">
-      <PageHeader title={executableLabel(event)} description={event.file_path || event.executable.sha256} />
+      <EventHeader event={event} />
+      <ExecutionCard event={event} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <BinaryCard event={event} />
+        {hasBundle ? <BundleCard event={event} /> : null}
+        <SessionsCard event={event} />
+      </div>
+      <SigningChainCard signingChain={signingChain} />
+      <EntitlementsCard entitlements={entitlements} />
+    </PageShell>
+  );
+}
 
-      <DetailSettings>
-        <SettingItem label="Decision">
-          <ExecutionDecisionBadge decision={event.decision} />
-        </SettingItem>
-        <SettingItem label="Host">
-          <HostLink host={event.host} />
-        </SettingItem>
-        <SettingItem label="User">{event.executing_user || "-"}</SettingItem>
-        <SettingItem label="Occurred">
-          <Timestamp value={event.occurred_at} />
-        </SettingItem>
-        <SettingItem label="Ingested">{formatDate(event.ingested_at)}</SettingItem>
-      </DetailSettings>
-
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="signing">Signing</TabsTrigger>
-          <TabsTrigger value="sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="entitlements">Entitlements</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <div className="rounded-md border">
-            <Table>
-              <TableBody>
-                <DetailRow label="Path" value={event.file_path} />
-                <DetailRow label="File Name" value={event.executable.file_name || fileName(event.file_path)} />
-                <DetailRow label="SHA-256" value={event.executable.sha256} breakAll />
-                <DetailRow label="CDHash" value={event.executable.cdhash} breakAll />
-                <DetailRow label="Bundle ID" value={event.executable.file_bundle_id} />
-                <DetailRow label="Bundle Path" value={event.executable.file_bundle_path} />
-                <DetailRow label="Signing ID" value={event.executable.signing_id} />
-                <DetailRow label="Team ID" value={event.executable.team_id} />
-              </TableBody>
-            </Table>
+function EventHeader({ event }: { event: SantaEvent }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-4">
+        <div className="bg-muted/40 flex size-12 shrink-0 items-center justify-center rounded-md border">
+          <FileCode2 className="text-muted-foreground size-6" />
+        </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1 className="text-foreground truncate text-xl font-semibold" title={executableLabel(event)}>
+              {executableLabel(event)}
+            </h1>
+            <ExecutionDecisionBadge decision={event.decision} />
           </div>
-        </TabsContent>
+          <p className="text-muted-foreground truncate font-mono text-xs">
+            {event.file_path || event.executable.sha256}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        <TabsContent value="signing">
-          <div className="rounded-md border">
+function ExecutionCard({ event }: { event: SantaEvent }) {
+  const tiles: Tile[] = [
+    { label: "Host", value: <HostLink host={event.host} /> },
+    { label: "Executing User", value: <ValueText value={event.executing_user} /> },
+    { label: "PID", value: <ValueText value={formatNumber(event.pid)} /> },
+    { label: "Parent PID", value: <ValueText value={formatNumber(event.ppid)} /> },
+    { label: "Parent Process", value: <ValueText value={event.parent_name} /> },
+    {
+      label: "Occurred",
+      value: <Timestamp value={event.occurred_at} />,
+    },
+    { label: "Ingested", value: <ValueText value={formatDate(event.ingested_at)} /> },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Execution</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <TileGrid tiles={tiles} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BinaryCard({ event }: { event: SantaEvent }) {
+  const executable = event.executable;
+  const tiles: Tile[] = [
+    { label: "File Name", value: <ValueText value={executable.file_name || fileName(event.file_path)} /> },
+    { label: "Path", value: <CodeText value={event.file_path} /> },
+    { label: "SHA-256", value: <CodeText value={executable.sha256} breakAll /> },
+    { label: "CDHash", value: <CodeText value={executable.cdhash} breakAll /> },
+    { label: "Signing ID", value: <CodeText value={executable.signing_id} breakAll /> },
+    { label: "Team ID", value: <CodeText value={executable.team_id} /> },
+    { label: "Signing Status", value: <ValueText value={formatEnumValue(executable.signing_status)} /> },
+    { label: "CS Flags", value: <ValueText value={formatCodeSigningFlags(executable.codesigning_flags)} /> },
+    { label: "Secure Signing Time", value: <ValueText value={formatDate(executable.secure_signing_time)} /> },
+    { label: "Signing Time", value: <ValueText value={formatDate(executable.signing_time)} /> },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Binary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <TileGrid tiles={tiles} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BundleCard({ event }: { event: SantaEvent }) {
+  const executable = event.executable;
+  const tiles: Tile[] = [
+    { label: "Bundle ID", value: <CodeText value={executable.file_bundle_id} /> },
+    { label: "Name", value: <ValueText value={executable.file_bundle_name} /> },
+    { label: "Path", value: <CodeText value={executable.file_bundle_path} /> },
+    { label: "Executable Rel Path", value: <CodeText value={executable.file_bundle_executable_rel_path} /> },
+    { label: "Version", value: <ValueText value={executable.file_bundle_version} /> },
+    { label: "Version String", value: <ValueText value={executable.file_bundle_version_string} /> },
+    { label: "Bundle Hash", value: <CodeText value={executable.file_bundle_hash} breakAll /> },
+    { label: "Binary Count", value: <ValueText value={formatNumber(executable.file_bundle_binary_count)} /> },
+    { label: "Hash Time", value: <ValueText value={formatMillis(executable.file_bundle_hash_millis)} /> },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Bundle</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <TileGrid tiles={tiles} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SessionsCard({ event }: { event: SantaEvent }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Sessions</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <SessionGroup label="Logged-In Users" values={event.logged_in_users ?? []} />
+        <SessionGroup label="Current Sessions" values={event.current_sessions ?? []} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function SigningChainCard({ signingChain }: { signingChain: NonNullable<SantaEvent["executable"]["signing_chain"]> }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Signing Chain</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {signingChain.length === 0 ? (
+          <EmptyBlock>No signing chain.</EmptyBlock>
+        ) : (
+          <div className="overflow-hidden rounded-lg border">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted">
                 <TableRow>
+                  <TableHead>Position</TableHead>
                   <TableHead>Certificate</TableHead>
                   <TableHead>Organization</TableHead>
                   <TableHead>SHA-256</TableHead>
@@ -95,107 +206,171 @@ export function SantaEventDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {signingChain.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No signing chain was reported.
+                {signingChain.map((cert, index) => (
+                  <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
+                    <TableCell>{index === 0 ? "Leaf" : `CA ${index}`}</TableCell>
+                    <TableCell className="min-w-64 whitespace-normal">{cert.common_name ?? "-"}</TableCell>
+                    <TableCell className="min-w-40 whitespace-normal">
+                      {cert.organization ?? cert.organizational_unit ?? "-"}
                     </TableCell>
+                    <TableCell className="min-w-64 whitespace-normal">
+                      <CodeText value={cert.sha256} breakAll />
+                    </TableCell>
+                    <TableCell>{formatDate(cert.valid_from)}</TableCell>
+                    <TableCell>{formatDate(cert.valid_until)}</TableCell>
                   </TableRow>
-                ) : (
-                  signingChain.map((cert, index) => (
-                    <TableRow key={`${cert.sha256}:${cert.common_name ?? ""}:${cert.valid_from ?? ""}`}>
-                      <TableCell>{cert.common_name ?? (index === 0 ? "Leaf" : `Certificate ${index + 1}`)}</TableCell>
-                      <TableCell>{cert.organization ?? cert.organizational_unit ?? "-"}</TableCell>
-                      <TableCell className="break-all">{cert.sha256}</TableCell>
-                      <TableCell>{formatDate(cert.valid_from)}</TableCell>
-                      <TableCell>{formatDate(cert.valid_until)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
-        <TabsContent value="sessions">
-          <div className="rounded-md border">
+function EntitlementsCard({ entitlements }: { entitlements: EntitlementEntry[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Entitlements</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {entitlements.length === 0 ? (
+          <EmptyBlock>No entitlements.</EmptyBlock>
+        ) : (
+          <div className="overflow-hidden rounded-lg border">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Session</TableHead>
-                  <TableHead>Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <SessionRows label="Logged-In User" values={event.logged_in_users ?? []} />
-                <SessionRows label="Current Session" values={event.current_sessions ?? []} />
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="entitlements">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted">
                 <TableRow>
                   <TableHead>Entitlement</TableHead>
                   <TableHead>Value</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entitlements.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center">
-                      No entitlements were reported.
+                {entitlements.map((entitlement) => (
+                  <TableRow key={entitlement.key}>
+                    <TableCell className="min-w-72 whitespace-normal">
+                      <CodeText value={entitlement.key} />
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <CodeText value={entitlement.value} breakAll />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  entitlements.map(([key, value]) => (
-                    <TableRow key={key}>
-                      <TableCell>{key}</TableCell>
-                      <TableCell className="break-all">{JSON.stringify(value)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
-      </Tabs>
-    </PageShell>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-function DetailRow({ label, value, breakAll = false }: { label: string; value?: string; breakAll?: boolean }) {
+function TileGrid({ tiles }: { tiles: Tile[] }) {
   return (
-    <TableRow>
-      <TableCell className="w-48">{label}</TableCell>
-      <TableCell className={breakAll ? "break-all" : undefined}>{value ?? "-"}</TableCell>
-    </TableRow>
+    <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
+      {tiles.map((tile) => (
+        <div key={tile.label} className="flex min-w-0 flex-col gap-1">
+          <dt className="text-muted-foreground text-xs font-semibold">{tile.label}</dt>
+          <dd className="text-foreground min-w-0 text-sm">{tile.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-function SessionRows({ label, values }: { label: string; values: string[] }) {
-  if (values.length === 0) {
-    return (
-      <TableRow>
-        <TableCell>{label}</TableCell>
-        <TableCell>-</TableCell>
-      </TableRow>
-    );
-  }
+function SessionGroup({ label, values }: { label: string; values: string[] }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="text-muted-foreground text-xs font-semibold">{label}</div>
+      <ValueBadges values={values} />
+    </div>
+  );
+}
 
-  return values.map((value) => (
-    <TableRow key={`${label}-${value}`}>
-      <TableCell>{label}</TableCell>
-      <TableCell>
-        <Badge variant="outline">{value}</Badge>
-      </TableCell>
-    </TableRow>
-  ));
+function CodeText({ value, breakAll = false }: { value?: string; breakAll?: boolean }) {
+  if (!value) return <span className="text-muted-foreground">-</span>;
+  return (
+    <span className={cn("font-mono text-xs", breakAll ? "break-all" : "block truncate")} title={value}>
+      {value}
+    </span>
+  );
+}
+
+function ValueText({ value }: { value?: string }) {
+  if (!value) return <span className="text-muted-foreground">-</span>;
+  return value;
+}
+
+function ValueBadges({ values }: { values: string[] }) {
+  const cleaned = values.filter(Boolean);
+  if (cleaned.length === 0) return <span className="text-muted-foreground text-sm">-</span>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {cleaned.map((value) => (
+        <Badge key={value} variant="outline" className="font-mono text-xs font-normal">
+          {value}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function EmptyBlock({ children }: { children: ReactNode }) {
+  return <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">{children}</div>;
 }
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString() : "-";
+}
+
+function formatNumber(value?: number) {
+  return value ? String(value) : "";
+}
+
+function formatMillis(value?: number) {
+  return value ? `${value} ms` : "";
+}
+
+function formatCodeSigningFlags(value?: number) {
+  if (!value) return "";
+  return `0x${value.toString(16).toUpperCase()} (${value})`;
+}
+
+function formatEnumValue(value?: string) {
+  if (!value || value === "unspecified") return "";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+type EntitlementEntry = {
+  key: string;
+  value: string;
+};
+
+function entitlementEntries(raw: Record<string, unknown>): EntitlementEntry[] {
+  const santaEntries = raw.entitlements;
+  if (Array.isArray(santaEntries)) {
+    const entries = santaEntries.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const record = entry as Record<string, unknown>;
+      if (typeof record.key !== "string" || record.key === "") return [];
+      return [{ key: record.key, value: formatEntitlementValue(record.value) }];
+    });
+    if (entries.length > 0) return entries;
+  }
+
+  return Object.entries(raw)
+    .filter(([key]) => key !== "entitlementsFiltered")
+    .map(([key, value]) => ({ key, value: formatEntitlementValue(value) }));
+}
+
+function formatEntitlementValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
 }

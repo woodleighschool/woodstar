@@ -59,11 +59,35 @@ export type BulkIdsBody = {
     ids: Array<number> | null;
 };
 
+export type BundleReference = {
+    binary_count: number;
+    bundle_id: string;
+    collected_binary_count: number;
+    complete: boolean;
+    hash_millis: number;
+    name: string;
+    path: string;
+    sha256: string;
+    uploaded_at?: string;
+    version: string;
+    version_string: string;
+};
+
 export type CertificateName = {
     common_name: string;
     country: string;
     organization: string;
     organizational_unit: string;
+};
+
+export type CertificateReference = {
+    common_name: string;
+    organization: string;
+    organizational_unit: string;
+    rule_count: number;
+    sha256: string;
+    valid_from?: string;
+    valid_until?: string;
 };
 
 export type Check = {
@@ -223,10 +247,11 @@ export type EffectiveRuleStatus = {
     custom_url?: string;
     identifier: string;
     matched_include_id: number;
+    notification_app_name?: string;
     payload_hash: string;
     policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
     rule_id: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
 export type ErrorDetail = {
@@ -277,17 +302,41 @@ export type ErrorModel = {
 
 export type Executable = {
     cdhash: string;
+    codesigning_flags: number;
     entitlements?: {
         [key: string]: unknown;
     };
+    file_bundle_binary_count: number;
+    file_bundle_executable_rel_path: string;
+    file_bundle_hash: string;
+    file_bundle_hash_millis: number;
     file_bundle_id: string;
+    file_bundle_name: string;
     file_bundle_path: string;
+    file_bundle_version: string;
+    file_bundle_version_string: string;
     file_name: string;
     id: number;
+    secure_signing_time?: string;
     sha256: string;
     signing_chain?: Array<SigningChainEntry> | null;
     signing_id: string;
+    signing_status: 'unspecified' | 'unsigned' | 'invalid' | 'adhoc' | 'development' | 'production';
+    signing_time?: string;
     team_id: string;
+};
+
+export type ExecutableReference = {
+    block_count: number;
+    cdhash?: string;
+    execution_count: number;
+    file_bundle_id?: string;
+    file_bundle_name?: string;
+    file_bundle_version?: string;
+    file_name: string;
+    sha256: string;
+    signing_id?: string;
+    team_id?: string;
 };
 
 export type ExecutionEvent = {
@@ -306,6 +355,9 @@ export type ExecutionEvent = {
     ingested_at: string;
     logged_in_users: Array<string> | null;
     occurred_at: string;
+    parent_name: string;
+    pid: number;
+    ppid: number;
 };
 
 export type FileAccessEvent = {
@@ -552,6 +604,14 @@ export type ItemsBodyReportResult = {
      */
     readonly $schema?: string;
     items: Array<ReportResult> | null;
+};
+
+export type ItemsBodyRuleTarget = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    items: Array<RuleTarget> | null;
 };
 
 export type Label = {
@@ -892,7 +952,7 @@ export type Rule = {
     identifier: string;
     includes: Array<RuleInclude> | null;
     name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     updated_at: string;
 };
 
@@ -921,7 +981,16 @@ export type RuleMutation = {
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
     name?: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type RuleReference = {
+    custom_message: string;
+    custom_url: string;
+    id: number;
+    identifier: string;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
 export type RuleSyncSummary = {
@@ -929,6 +998,19 @@ export type RuleSyncSummary = {
     desired_count: number;
     last_clean_sync_at?: string;
     pending_count: number;
+};
+
+export type RuleTarget = {
+    binary_count?: number;
+    bundle_id?: string;
+    collected_binary_count?: number;
+    complete: boolean;
+    detail?: string;
+    identifier: string;
+    name: string;
+    rule_count: number;
+    target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    version?: string;
 };
 
 export type SantaConfigurationReorderBody = {
@@ -974,6 +1056,28 @@ export type SigningChainEntry = {
     sha256: string;
     valid_from?: string;
     valid_until?: string;
+};
+
+export type SigningIdentityReference = {
+    executable_count: number;
+    identifier: string;
+    name: string;
+    rule_count: number;
+    target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type SoftwareReference = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    block_count: number;
+    bundles: Array<BundleReference> | null;
+    certificates: Array<CertificateReference> | null;
+    executables: Array<ExecutableReference> | null;
+    execution_count: number;
+    rules: Array<RuleReference> | null;
+    signing_identities: Array<SigningIdentityReference> | null;
 };
 
 export type SoftwareTitle = {
@@ -1185,6 +1289,9 @@ export type ExecutionEventWritable = {
     ingested_at: string;
     logged_in_users: Array<string> | null;
     occurred_at: string;
+    parent_name: string;
+    pid: number;
+    ppid: number;
 };
 
 export type FileAccessEventWritable = {
@@ -1271,6 +1378,10 @@ export type ItemsBodyHostReportWritable = {
 
 export type ItemsBodyReportResultWritable = {
     items: Array<ReportResult> | null;
+};
+
+export type ItemsBodyRuleTargetWritable = {
+    items: Array<RuleTarget> | null;
 };
 
 export type LabelWritable = {
@@ -1428,7 +1539,7 @@ export type RuleWritable = {
     identifier: string;
     includes: Array<RuleInclude> | null;
     name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     updated_at: string;
 };
 
@@ -1439,7 +1550,7 @@ export type RuleMutationWritable = {
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
     name?: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
 export type SantaConfigurationReorderBodyWritable = {
@@ -1460,6 +1571,16 @@ export type SetupInputBodyWritable = {
     email: string;
     name?: string;
     password: string;
+};
+
+export type SoftwareReferenceWritable = {
+    block_count: number;
+    bundles: Array<BundleReference> | null;
+    certificates: Array<CertificateReference> | null;
+    executables: Array<ExecutableReference> | null;
+    execution_count: number;
+    rules: Array<RuleReference> | null;
+    signing_identities: Array<SigningIdentityReference> | null;
 };
 
 export type SoftwareTitleWritable = {
@@ -3847,6 +3968,51 @@ export type GetSantaFileAccessEventResponses = {
 
 export type GetSantaFileAccessEventResponse = GetSantaFileAccessEventResponses[keyof GetSantaFileAccessEventResponses];
 
+export type ListSantaRuleTargetsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        target_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+        limit?: number;
+    };
+    url: '/api/santa/rule-targets';
+};
+
+export type ListSantaRuleTargetsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListSantaRuleTargetsError = ListSantaRuleTargetsErrors[keyof ListSantaRuleTargetsErrors];
+
+export type ListSantaRuleTargetsResponses = {
+    /**
+     * OK
+     */
+    200: ItemsBodyRuleTarget;
+};
+
+export type ListSantaRuleTargetsResponse = ListSantaRuleTargetsResponses[keyof ListSantaRuleTargetsResponses];
+
 export type ListSantaRulesData = {
     body?: never;
     path?: never;
@@ -3855,7 +4021,7 @@ export type ListSantaRulesData = {
         page_index?: number;
         page_size?: number;
         sort?: string;
-        rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash';
+        rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     };
     url: '/api/santa/rules';
 };
@@ -4278,6 +4444,45 @@ export type GetSoftwareResponses = {
 };
 
 export type GetSoftwareResponse = GetSoftwareResponses[keyof GetSoftwareResponses];
+
+export type GetSoftwareSantaReferenceData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/software/{id}/santa';
+};
+
+export type GetSoftwareSantaReferenceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetSoftwareSantaReferenceError = GetSoftwareSantaReferenceErrors[keyof GetSoftwareSantaReferenceErrors];
+
+export type GetSoftwareSantaReferenceResponses = {
+    /**
+     * OK
+     */
+    200: SoftwareReference;
+};
+
+export type GetSoftwareSantaReferenceResponse = GetSoftwareSantaReferenceResponses[keyof GetSoftwareSantaReferenceResponses];
 
 export type ListUsersData = {
     body?: never;

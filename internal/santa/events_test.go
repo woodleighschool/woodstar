@@ -3,6 +3,7 @@ package santa_test
 import (
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -131,6 +132,22 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	if chainCount != 1 {
 		t.Fatalf("signing chain count = %d, want 1", chainCount)
 	}
+	var certificateCount int
+	if err := db.Pool().QueryRow(ctx, `SELECT count(*) FROM santa_certificates`).Scan(&certificateCount); err != nil {
+		t.Fatalf("count certificates: %v", err)
+	}
+	if certificateCount != 2 {
+		t.Fatalf("certificate count = %d, want 2", certificateCount)
+	}
+	var chainEntryCount int
+	if err := db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_signing_chain_entries`).
+		Scan(&chainEntryCount); err != nil {
+		t.Fatalf("count signing chain entries: %v", err)
+	}
+	if chainEntryCount != 2 {
+		t.Fatalf("signing chain entry count = %d, want 2", chainEntryCount)
+	}
 	var linkCount int
 	if err := db.Pool().
 		QueryRow(ctx, `SELECT count(*) FROM santa_executable_signing_chains`).
@@ -152,6 +169,100 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 		detail.Executable.SigningChain[0].CommonName != "Leaf" ||
 		detail.Executable.SigningChain[1].SHA256 != "root-sha" {
 		t.Fatalf("detail signing chain = %+v, want full chain", detail.Executable.SigningChain)
+	}
+}
+
+func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	eventStore := santaevents.NewStore(db)
+	service := santa.NewService(santa.Dependencies{
+		HostStore:      santa.NewStore(db),
+		Configurations: configurations.NewStore(db),
+		Events:         eventStore,
+		Rules:          santarules.NewStore(db),
+		Sync:           syncstate.NewStore(db),
+	})
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "santa-bundle-events-host",
+		OrbitNodeKey: "santa-bundle-events-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	bundleHash := strings.Repeat("b", 64)
+	firstResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", santa.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{{
+			FileSHA256:              strings.Repeat("1", 64),
+			FilePath:                "/Applications/Bundle.app/Contents/MacOS/Bundle",
+			FileName:                "Bundle",
+			OccurredAt:              time.Date(2026, 5, 24, 11, 0, 0, 0, time.UTC),
+			Decision:                santaevents.ExecutionDecisionAllowBinary,
+			BundleID:                "com.example.bundle",
+			BundlePath:              "/Applications/Bundle.app",
+			BundleExecutableRelPath: "Contents/MacOS/Bundle",
+			BundleName:              "Bundle",
+			BundleVersion:           "1.2.3",
+			BundleVersionString:     "1.2.3 (45)",
+			BundleHash:              bundleHash,
+			BundleHashMillis:        15,
+			BundleBinaryCount:       2,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("first event upload: %v", err)
+	}
+	if !slices.Equal(firstResponse.BundleBinaryRequests, []string{bundleHash}) {
+		t.Fatalf("bundle binary requests = %v, want [%s]", firstResponse.BundleBinaryRequests, bundleHash)
+	}
+
+	secondResponse, err := service.EventUpload(ctx, "santa-bundle-events-host", santa.EventUploadRequest{
+		Events: []santaevents.ExecutionEventInput{{
+			FileSHA256:        strings.Repeat("2", 64),
+			FileName:          "Bundle Helper",
+			Decision:          santaevents.ExecutionDecisionBundleBinary,
+			BundleID:          "com.example.bundle",
+			BundlePath:        "/Applications/Bundle.app",
+			BundleName:        "Bundle",
+			BundleVersion:     "1.2.3",
+			BundleHash:        bundleHash,
+			BundleBinaryCount: 2,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("bundle binary upload: %v", err)
+	}
+	if len(secondResponse.BundleBinaryRequests) != 0 {
+		t.Fatalf("second bundle binary requests = %v, want none", secondResponse.BundleBinaryRequests)
+	}
+
+	var eventCount int
+	if err := db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM santa_execution_events WHERE host_id = $1`, host.ID).
+		Scan(&eventCount); err != nil {
+		t.Fatalf("count execution events: %v", err)
+	}
+	if eventCount != 1 {
+		t.Fatalf("execution event count = %d, want only the real execution row", eventCount)
+	}
+
+	var binaryCount int
+	var collectedCount int
+	var uploadedAt *time.Time
+	err = db.Pool().QueryRow(ctx, `
+		SELECT b.binary_count, count(be.executable_id)::integer, b.uploaded_at
+		FROM santa_bundles b
+		LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
+		WHERE b.sha256 = $1
+		GROUP BY b.id
+	`, bundleHash).Scan(&binaryCount, &collectedCount, &uploadedAt)
+	if err != nil {
+		t.Fatalf("get bundle: %v", err)
+	}
+	if binaryCount != 2 || collectedCount != 2 || uploadedAt == nil {
+		t.Fatalf("bundle count/upload = %d/%d/%v, want complete", binaryCount, collectedCount, uploadedAt)
 	}
 }
 
@@ -258,6 +369,48 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 		detail.ProcessChain[0].SigningChain[0].CommonName != "Leaf" ||
 		detail.ProcessChain[1].FileName != "launchd" {
 		t.Fatalf("process chain = %+v, want persisted chain details", detail.ProcessChain)
+	}
+	var primarySHA256 string
+	var primaryPath string
+	var primarySigningID string
+	var primaryTeamID string
+	var primaryCDHash string
+	var primaryPID int
+	if err := db.Pool().QueryRow(ctx, `
+		SELECT
+			primary_process_sha256,
+			primary_process_path,
+			primary_process_signing_id,
+			primary_process_team_id,
+			primary_process_cdhash,
+			primary_process_pid
+		FROM santa_file_access_events
+		WHERE id = $1
+	`, row.ID).Scan(
+		&primarySHA256,
+		&primaryPath,
+		&primarySigningID,
+		&primaryTeamID,
+		&primaryCDHash,
+		&primaryPID,
+	); err != nil {
+		t.Fatalf("get primary process columns: %v", err)
+	}
+	if primarySHA256 != "process-sha" ||
+		primaryPath != "/Applications/Sketchy.app/Contents/MacOS/Sketchy" ||
+		primarySigningID != "EVILTEAM:sketchy" ||
+		primaryTeamID != "EVILTEAM" ||
+		primaryCDHash != "process-cdhash" ||
+		primaryPID != 100 {
+		t.Fatalf(
+			"primary process columns = %q %q %q %q %q %d",
+			primarySHA256,
+			primaryPath,
+			primarySigningID,
+			primaryTeamID,
+			primaryCDHash,
+			primaryPID,
+		)
 	}
 }
 

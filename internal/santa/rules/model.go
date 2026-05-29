@@ -17,6 +17,7 @@ const (
 	RuleTypeTeamID      RuleType = "teamid"
 	RuleTypeSigningID   RuleType = "signingid"
 	RuleTypeCDHash      RuleType = "cdhash"
+	RuleTypeBundle      RuleType = "bundle"
 )
 
 var RuleTypeValues = []RuleType{
@@ -25,6 +26,7 @@ var RuleTypeValues = []RuleType{
 	RuleTypeTeamID,
 	RuleTypeSigningID,
 	RuleTypeCDHash,
+	RuleTypeBundle,
 }
 
 type Policy string
@@ -104,6 +106,7 @@ type EffectiveRule struct {
 	CELExpression    string   `json:"cel_expression,omitempty"`
 	CustomMessage    string   `json:"custom_message,omitempty"`
 	CustomURL        string   `json:"custom_url,omitempty"`
+	AppName          string   `json:"notification_app_name,omitempty"`
 	MatchedIncludeID int64    `json:"matched_include_id"`
 }
 
@@ -115,4 +118,23 @@ type EffectiveRuleStatus struct {
 
 type EffectiveRuleListParams struct {
 	dbutil.ListParams
+}
+
+type RuleTargetListParams struct {
+	Q          string
+	TargetType RuleType
+	Limit      int
+}
+
+type RuleTarget struct {
+	TargetType           RuleType `json:"target_type"`
+	Identifier           string   `json:"identifier"`
+	Name                 string   `json:"name"`
+	Detail               string   `json:"detail,omitempty"`
+	BundleID             string   `json:"bundle_id,omitempty"`
+	Version              string   `json:"version,omitempty"`
+	BinaryCount          int      `json:"binary_count,omitempty"`
+	CollectedBinaryCount int      `json:"collected_binary_count,omitempty"`
+	RuleCount            int      `json:"rule_count"`
+	Complete             bool     `json:"complete"`
 }

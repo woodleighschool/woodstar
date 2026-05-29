@@ -7,6 +7,7 @@ import type {
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
   ListSantaRulesData,
+  ListSantaRuleTargetsData,
 } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -22,6 +23,8 @@ export type SantaHostSummary = Schemas["HostSummary"];
 export type SantaRule = Schemas["Rule"];
 export type SantaRuleMutation = Schemas["RuleMutation"];
 export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
+export type SantaRuleTarget = Schemas["RuleTarget"];
+export type SantaRuleTargetListResult = Schemas["ItemsBodyRuleTarget"];
 export type SantaClientMode = Schemas["HostState"]["client_mode_reported"] | SantaConfiguration["client_mode"];
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
@@ -30,6 +33,7 @@ export type SantaRulePolicy = NonNullable<SantaRule["includes"]>[number]["policy
 
 export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
+export type SantaRuleTargetListParams = NonNullable<ListSantaRuleTargetsData["query"]>;
 export type SantaEventListParams = NonNullable<ListSantaEventsData["query"]>;
 export type SantaFileAccessEventListParams = NonNullable<ListSantaFileAccessEventsData["query"]>;
 export type SantaEventDecisionFilter = NonNullable<NonNullable<SantaEventListParams["decisions"]>[number]>;
@@ -81,6 +85,21 @@ export function useSantaRule(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(apiClient.GET("/api/santa/rules/{id}", { params: { path: { id: id ?? 0 } }, signal })),
     enabled: id !== null,
+  });
+}
+
+export function useSantaRuleTargets(params: SantaRuleTargetListParams = {}) {
+  const queryParams = {
+    q: nonEmpty(params.q),
+    target_type: params.target_type,
+    limit: params.limit ?? 20,
+  };
+
+  return useQuery<SantaRuleTargetListResult, ApiError>({
+    queryKey: queryKeys.santaRuleTargets(queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(apiClient.GET("/api/santa/rule-targets", { params: { query: queryParams }, signal })),
+    placeholderData: keepPreviousData,
   });
 }
 

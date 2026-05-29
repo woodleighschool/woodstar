@@ -24,6 +24,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
+	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
@@ -63,6 +66,73 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 	}
 }
 
+func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	router, protected, cookie := santaAdminTestAPI(t, db, "rule-targets-admin@example.test")
+	RegisterSantaRules(protected, santarules.NewStore(db))
+
+	identifier := strings.Repeat("5", 64)
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_executables (sha256, file_name, team_id)
+		VALUES ($1, 'Endpoint Target', 'TEAMENDPT')
+	`, identifier); err != nil {
+		t.Fatalf("insert executable: %v", err)
+	}
+
+	rec := santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodGet,
+		"/api/santa/rule-targets?target_type=binary&q=Endpoint",
+		"",
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body itemsBody[santarules.RuleTarget]
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if len(body.Items) != 1 || body.Items[0].Identifier != identifier {
+		t.Fatalf("targets = %+v, want endpoint executable", body.Items)
+	}
+}
+
+func TestSoftwareSantaReferenceEndpoint(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	router, protected, cookie := santaTestAPIWith(t, db, "software-santa-admin@example.test", false)
+	RegisterSoftware(protected, software.NewStore(db), references.NewStore(db))
+
+	var titleID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO software_titles (name, display_name, source, bundle_identifier)
+		VALUES ('Reference Endpoint', 'Reference Endpoint', 'apps', 'com.example.reference-endpoint')
+		RETURNING id
+	`).Scan(&titleID); err != nil {
+		t.Fatalf("insert software title: %v", err)
+	}
+
+	rec := santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodGet,
+		fmt.Sprintf("/api/software/%d/santa", titleID),
+		"",
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body references.SoftwareReference
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode software reference: %v", err)
+	}
+	if body.ExecutionCount != 0 || body.BlockCount != 0 {
+		t.Fatalf("software reference = %+v, want empty counts", body)
+	}
+}
+
 func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
@@ -85,7 +155,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 		t.Fatalf("upsert observation: %v", err)
 	}
 	occurredAt := time.Date(2026, 5, 23, 14, 0, 0, 0, time.UTC)
-	if err := eventsStore.IngestEvents(ctx, host.ID, []santaevents.ExecutionEventInput{
+	if _, err := eventsStore.IngestEvents(ctx, host.ID, []santaevents.ExecutionEventInput{
 		{
 			FileSHA256: "wire-blocked-1",
 			FileName:   "Blocked One",

@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Code2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -9,7 +9,16 @@ import { CodeEditor } from "@/components/editor/code-editor";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -27,9 +36,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   useCreateSantaRule,
   useSantaRule,
+  useSantaRuleTargets,
   useUpdateSantaRule,
   type SantaRule,
   type SantaRuleMutation,
+  type SantaRuleTarget,
 } from "@/hooks/use-santa";
 
 import {
@@ -38,6 +49,7 @@ import {
   RULE_IDENTIFIER_RULES,
   RULE_TYPE_OPTIONS,
   RULE_TYPE_VALUES,
+  ruleTypeLabel,
   type RulePolicy,
   type RuleType,
 } from "./shared";
@@ -109,6 +121,7 @@ const emptyRuleForm: RuleFormState = {
 
 export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
+  const search = useSearch({ strict: false });
   const ruleId = params.ruleId ?? "";
   const ruleID = mode === "edit" ? Number(ruleId) : null;
   const detail = useSantaRule(ruleID);
@@ -133,7 +146,7 @@ export function SantaRuleEditPage({ mode }: { mode: "create" | "edit" }) {
     }
   }
 
-  const initial = mode === "edit" && detail.data ? formFromRule(detail.data) : emptyRuleForm;
+  const initial = mode === "edit" && detail.data ? formFromRule(detail.data) : formFromSearch(search);
 
   return <RuleForm key={ruleId || "new"} mode={mode} ruleId={ruleID} initial={initial} />;
 }
@@ -201,7 +214,7 @@ function RuleForm({
             <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
             <Select
               value={form.rule_type}
-              onValueChange={(rule_type) => setForm({ ...form, rule_type: rule_type as RuleType })}
+              onValueChange={(rule_type) => setForm({ ...form, rule_type: rule_type as RuleType, identifier: "" })}
             >
               <SelectTrigger id="santa-rule-type" className="w-full">
                 <SelectValue />
@@ -217,16 +230,12 @@ function RuleForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field data-invalid={identifierInvalid}>
-            <FieldLabel htmlFor="santa-rule-identifier">Identifier</FieldLabel>
-            <Input
-              id="santa-rule-identifier"
-              required
-              value={form.identifier}
-              onChange={(event) => setForm({ ...form, identifier: event.target.value })}
-            />
-            <FieldDescription>{identifierError ?? ruleIdentifierHint(form.rule_type)}</FieldDescription>
-          </Field>
+          <RuleTargetPicker
+            form={form}
+            identifierError={identifierError}
+            identifierInvalid={identifierInvalid}
+            onChange={setForm}
+          />
           <Field>
             <FieldLabel htmlFor="santa-rule-custom-url">Custom URL</FieldLabel>
             <Input
@@ -325,6 +334,121 @@ function RuleForm({
       </form>
     </PageShell>
   );
+}
+
+function RuleTargetPicker({
+  form,
+  identifierError,
+  identifierInvalid,
+  onChange,
+}: {
+  form: RuleFormState;
+  identifierError?: string;
+  identifierInvalid: boolean;
+  onChange: (form: RuleFormState) => void;
+}) {
+  const targets = useSantaRuleTargets({ target_type: form.rule_type, limit: 50 });
+  const rows = targets.data?.items ?? [];
+  const selected =
+    rows.find((target) => target.target_type === form.rule_type && target.identifier === form.identifier) ??
+    currentRuleTarget(form);
+  const items =
+    selected &&
+    !rows.some((target) => target.target_type === selected.target_type && target.identifier === selected.identifier)
+      ? [selected, ...rows]
+      : rows;
+
+  return (
+    <Field data-invalid={identifierInvalid}>
+      <FieldLabel htmlFor="santa-rule-target">Target</FieldLabel>
+      <Combobox
+        items={items}
+        value={selected}
+        itemToStringLabel={targetLabel}
+        itemToStringValue={(target) => target.identifier}
+        onValueChange={(target) => {
+          if (!target) {
+            onChange({ ...form, identifier: "" });
+            return;
+          }
+          onChange({
+            ...form,
+            rule_type: target.target_type,
+            identifier: target.identifier,
+            name: form.name.trim() === "" ? target.name : form.name,
+          });
+        }}
+      >
+        <ComboboxInput
+          id="santa-rule-target"
+          required
+          showClear
+          disabled={targets.isLoading}
+          placeholder={targets.isLoading ? "Loading Targets" : "Select Target"}
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>
+            {targets.error ? targets.error.message : targets.isLoading ? "Loading Targets..." : "No Targets Found."}
+          </ComboboxEmpty>
+          <ComboboxList>{ruleTargetItem}</ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <FieldDescription>{identifierError ?? ruleTargetDescription(selected, form.rule_type)}</FieldDescription>
+    </Field>
+  );
+}
+
+function currentRuleTarget(form: RuleFormState): SantaRuleTarget | null {
+  const identifier = form.identifier.trim();
+  if (identifier === "") return null;
+  return {
+    target_type: form.rule_type,
+    identifier,
+    name: form.name.trim() || identifier,
+    rule_count: 0,
+    complete: true,
+  };
+}
+
+function targetLabel(target: SantaRuleTarget) {
+  return target.name || target.identifier;
+}
+
+function ruleTargetItem(target: SantaRuleTarget) {
+  const disabled = target.target_type === "bundle" && !target.complete;
+  return (
+    <ComboboxItem key={`${target.target_type}:${target.identifier}`} value={target} disabled={disabled}>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{targetLabel(target)}</span>
+        <span className="text-muted-foreground block truncate font-mono text-xs">
+          {shortIdentifier(target.identifier)}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        {target.target_type === "bundle" ? (
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {target.collected_binary_count ?? 0}/{target.binary_count ?? 0}
+          </span>
+        ) : null}
+        <Badge variant={disabled ? "outline" : "secondary"} className="font-normal">
+          {ruleTypeLabel(target.target_type)}
+        </Badge>
+      </span>
+    </ComboboxItem>
+  );
+}
+
+function ruleTargetDescription(target: SantaRuleTarget | null, ruleType: RuleType) {
+  if (!target) return ruleIdentifierHint(ruleType);
+  if (target.target_type === "bundle" && !target.complete) {
+    return "Bundle target is incomplete.";
+  }
+  return target.detail ?? target.bundle_id ?? target.identifier;
+}
+
+function shortIdentifier(identifier: string) {
+  if (identifier.length <= 28) return identifier;
+  return `${identifier.slice(0, 12)}...${identifier.slice(-8)}`;
 }
 
 function IncludeTargetsTable({
@@ -511,6 +635,20 @@ function CELDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function formFromSearch(search: Record<string, unknown>): RuleFormState {
+  const ruleType = isRuleType(search.rule_type) ? search.rule_type : emptyRuleForm.rule_type;
+  return {
+    ...emptyRuleForm,
+    rule_type: ruleType,
+    identifier: typeof search.identifier === "string" ? search.identifier : "",
+    name: typeof search.name === "string" ? search.name : "",
+  };
+}
+
+function isRuleType(value: unknown): value is RuleType {
+  return typeof value === "string" && RULE_TYPE_VALUES.includes(value as RuleType);
 }
 
 function formFromRule(rule: SantaRule): RuleFormState {

@@ -241,6 +241,215 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	}
 }
 
+func TestBundleRuleExpandsToBinaryEffectiveRules(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
+	store := rules.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "santa-bundle-rule-host",
+		OrbitNodeKey: "santa-bundle-rule-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	labelID := createSantaRuleLabel(t, db, "Santa Bundle Rule")
+	if err := labelStore.SetMembership(ctx, labelID, host.ID, true); err != nil {
+		t.Fatalf("set label membership: %v", err)
+	}
+
+	bundleHash := strings.Repeat("b", 64)
+	firstSHA := strings.Repeat("1", 64)
+	secondSHA := strings.Repeat("2", 64)
+	var firstExecutableID int64
+	var secondExecutableID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO santa_executables (sha256, file_name)
+		VALUES ($1, 'Bundle Main')
+		RETURNING id
+	`, firstSHA).Scan(&firstExecutableID); err != nil {
+		t.Fatalf("insert first executable: %v", err)
+	}
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO santa_executables (sha256, file_name)
+		VALUES ($1, 'Bundle Helper')
+		RETURNING id
+	`, secondSHA).Scan(&secondExecutableID); err != nil {
+		t.Fatalf("insert second executable: %v", err)
+	}
+	var bundleID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO santa_bundles (
+			sha256,
+			bundle_id,
+			name,
+			path,
+			version,
+			version_string,
+			binary_count,
+			uploaded_at
+		)
+		VALUES ($1, 'com.example.bundle-rule', 'Bundle Rule App', '/Applications/Bundle Rule.app', '4.5.6', '4.5.6 (7)', 2, now())
+		RETURNING id
+	`, bundleHash).Scan(&bundleID); err != nil {
+		t.Fatalf("insert bundle: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_bundle_executables (bundle_id, executable_id)
+		VALUES ($1, $2), ($1, $3)
+	`, bundleID, firstExecutableID, secondExecutableID); err != nil {
+		t.Fatalf("link bundle executables: %v", err)
+	}
+
+	rule, err := store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:   rules.RuleTypeBundle,
+		Identifier: bundleHash,
+		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyBlocklist, LabelID: labelID}},
+	})
+	if err != nil {
+		t.Fatalf("create bundle rule: %v", err)
+	}
+
+	got, err := store.ResolveRulesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve rules: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("effective rules = %+v, want two binary expansions", got)
+	}
+	for _, effective := range got {
+		if effective.RuleID != rule.ID ||
+			effective.RuleType != rules.RuleTypeBinary ||
+			effective.Policy != rules.PolicyBlocklist ||
+			effective.AppName != "Bundle Rule App" {
+			t.Fatalf("expanded rule = %+v", effective)
+		}
+	}
+	if got[0].Identifier != firstSHA || got[1].Identifier != secondSHA {
+		t.Fatalf("expanded identifiers = %q/%q, want bundle executables", got[0].Identifier, got[1].Identifier)
+	}
+
+	targets := rules.SyncTargetsFromRules(got)
+	if len(targets) != 2 || targets[0].RuleType != string(rules.RuleTypeBinary) ||
+		targets[0].AppName != "Bundle Rule App" {
+		t.Fatalf("sync targets = %+v, want binary payloads carrying bundle notification data", targets)
+	}
+}
+
+func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	store := rules.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID: "santa-rule-target-software-host",
+		OrbitNodeKey: "santa-rule-target-software-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+
+	completeBundleHash := strings.Repeat("c", 64)
+	incompleteBundleHash := strings.Repeat("d", 64)
+	var executableID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO santa_executables (sha256, file_name, file_bundle_name)
+		VALUES ($1, 'Target Main', 'Target Bundle')
+		RETURNING id
+	`, strings.Repeat("3", 64)).Scan(&executableID); err != nil {
+		t.Fatalf("insert executable: %v", err)
+	}
+	var completeBundleID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO santa_bundles (sha256, bundle_id, name, path, version, binary_count, uploaded_at)
+		VALUES ($1, 'com.example.target', 'Target Bundle', '/Applications/Target.app', '1.0', 1, now())
+		RETURNING id
+	`, completeBundleHash).Scan(&completeBundleID); err != nil {
+		t.Fatalf("insert complete bundle: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_bundle_executables (bundle_id, executable_id)
+		VALUES ($1, $2)
+	`, completeBundleID, executableID); err != nil {
+		t.Fatalf("link complete bundle: %v", err)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_bundles (sha256, bundle_id, name, path, version, binary_count)
+		VALUES ($1, 'com.example.incomplete', 'Incomplete Bundle', '/Applications/Incomplete.app', '1.0', 2)
+	`, incompleteBundleHash); err != nil {
+		t.Fatalf("insert incomplete bundle: %v", err)
+	}
+
+	targets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          "Target Bundle",
+		TargetType: rules.RuleTypeBundle,
+	})
+	if err != nil {
+		t.Fatalf("list bundle targets: %v", err)
+	}
+	if len(targets) != 1 ||
+		targets[0].Identifier != completeBundleHash ||
+		targets[0].BinaryCount != 1 ||
+		targets[0].CollectedBinaryCount != 1 ||
+		!targets[0].Complete {
+		t.Fatalf("bundle targets = %+v, want complete bundle candidate", targets)
+	}
+
+	_, err = store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:   rules.RuleTypeBundle,
+		Identifier: incompleteBundleHash,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("incomplete bundle CreateRule error = %v, want ErrInvalidInput", err)
+	}
+
+	var titleID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO software_titles (name, display_name, source, bundle_identifier)
+		VALUES ('Software Target', 'Software Target', 'apps', 'com.example.software')
+		RETURNING id
+	`).Scan(&titleID); err != nil {
+		t.Fatalf("insert software title: %v", err)
+	}
+	var softwareID int64
+	if err := db.Pool().QueryRow(ctx, `
+		INSERT INTO software (title_id, name, version, source, bundle_identifier)
+		VALUES ($1, 'Software Target', '9.8.7', 'apps', 'com.example.software')
+		RETURNING id
+	`, titleID).Scan(&softwareID); err != nil {
+		t.Fatalf("insert software: %v", err)
+	}
+	softwareHash := strings.Repeat("4", 64)
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO host_software_installed_paths (
+			host_id,
+			software_id,
+			installed_path,
+			team_identifier,
+			cdhash_sha256,
+			executable_sha256,
+			executable_path
+		)
+		VALUES ($1, $2, '/Applications/Software Target.app', 'TEAMSOFT', 'soft-cdhash', $3, '/Applications/Software Target.app/Contents/MacOS/Software Target')
+	`, host.ID, softwareID, softwareHash); err != nil {
+		t.Fatalf("insert software path: %v", err)
+	}
+
+	softwareTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          softwareHash,
+		TargetType: rules.RuleTypeBinary,
+	})
+	if err != nil {
+		t.Fatalf("list software-backed targets: %v", err)
+	}
+	if len(softwareTargets) != 1 ||
+		softwareTargets[0].Identifier != softwareHash ||
+		softwareTargets[0].BundleID != "com.example.software" {
+		t.Fatalf("software targets = %+v, want osquery binary candidate", softwareTargets)
+	}
+}
+
 func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)

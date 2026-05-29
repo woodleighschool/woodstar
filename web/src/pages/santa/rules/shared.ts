@@ -7,6 +7,7 @@ export const RULE_TYPE_VALUES = [
   "teamid",
   "signingid",
   "cdhash",
+  "bundle",
 ] as const satisfies readonly SantaRuleType[];
 
 export const RULE_TYPES = {
@@ -30,6 +31,10 @@ export const RULE_TYPES = {
     name: "CDHash",
     description: "A rule keyed to a Mach-O code directory hash.",
   },
+  bundle: {
+    name: "Bundle",
+    description: "A server-side rule expanded to the collected executables in a Santa bundle.",
+  },
 } satisfies EnumMetadataMap<SantaRuleType>;
 
 export const RULE_TYPE_OPTIONS = enumOptions(RULE_TYPES);
@@ -46,14 +51,12 @@ export const POLICIES = {
   allowlist: {
     name: "Allowlist",
     description: "Allow matching software on targeted hosts.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allowlist_compiler: {
     name: "Compiler Allowlist",
     description: "Allow matching compilers to create transitive rules when that setting is enabled.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   blocklist: {
     name: "Blocklist",
@@ -85,6 +88,10 @@ export const RULE_IDENTIFIER_RULES: Record<RuleType, { pattern: RegExp; hint: st
   certificate: {
     pattern: /^[0-9a-fA-F]{64}$/,
     hint: "Use a 64 character certificate SHA-256 hex fingerprint.",
+  },
+  bundle: {
+    pattern: /^[0-9a-fA-F]{64}$/,
+    hint: "Pick a fully collected Santa bundle.",
   },
   cdhash: {
     pattern: /^[0-9a-fA-F]{40}$/,

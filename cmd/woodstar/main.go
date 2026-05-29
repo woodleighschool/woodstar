@@ -35,6 +35,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/software"
@@ -188,6 +189,7 @@ type appStores struct {
 	santaConfigurations *configurations.Store
 	santaEvents         *events.Store
 	santaRules          *rules.Store
+	santaReferences     *references.Store
 	santaSync           *syncstate.Store
 }
 
@@ -206,6 +208,7 @@ func newStores(db *database.DB) appStores {
 		santaConfigurations: configurations.NewStore(db),
 		santaEvents:         events.NewStore(db),
 		santaRules:          rules.NewStore(db),
+		santaReferences:     references.NewStore(db),
 		santaSync:           syncstate.NewStore(db),
 	}
 }
@@ -303,6 +306,7 @@ func newSanta(
 		Configurations: stores.santaConfigurations,
 		Rules:          stores.santaRules,
 		Events:         stores.santaEvents,
+		References:     stores.santaReferences,
 	}, eventCleanup.Stop
 }
 

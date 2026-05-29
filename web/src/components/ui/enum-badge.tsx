@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { EnumMetadata, EnumMetadataMap } from "@/lib/enum-metadata";
-import { cn } from "@/lib/utils";
 
 const FALLBACK: EnumMetadata = {
   name: "Unknown",
@@ -19,12 +18,7 @@ export function EnumBadge<T extends string>({
   fallback?: EnumMetadata;
 }) {
   const item = metadata[value as T] ?? fallback;
-  const badge = (
-    <Badge variant={item.variant ?? "secondary"} className="gap-1.5">
-      {item.indicatorClassName ? <span className={cn("size-1.5 rounded-full", item.indicatorClassName)} /> : null}
-      {item.name}
-    </Badge>
-  );
+  const badge = <Badge variant={item.variant ?? "secondary"}>{item.name}</Badge>;
 
   if (!item.description) return badge;
 

@@ -25,6 +25,7 @@ type Target struct {
 	CELExpression string `json:"cel_expression,omitempty"`
 	CustomMessage string `json:"custom_message,omitempty"`
 	CustomURL     string `json:"custom_url,omitempty"`
+	AppName       string `json:"notification_app_name,omitempty"`
 	PayloadHash   string `json:"payload_hash"`
 }
 
@@ -35,6 +36,7 @@ type PayloadRule struct {
 	CELExpression string `json:"cel_expression,omitempty"`
 	CustomMessage string `json:"custom_message,omitempty"`
 	CustomURL     string `json:"custom_url,omitempty"`
+	AppName       string `json:"notification_app_name,omitempty"`
 	PayloadHash   string `json:"payload_hash,omitempty"`
 	Removed       bool   `json:"removed,omitempty"`
 }
@@ -222,6 +224,7 @@ func (s *Store) LoadPendingPayloadPage(
 			cel_expression,
 			custom_message,
 			custom_url,
+			notification_app_name,
 			payload_hash,
 			removed
 		FROM santa_sync_pending_rules
@@ -300,6 +303,7 @@ func (s *Store) PromotePending(
 				cel_expression,
 				custom_message,
 				custom_url,
+				notification_app_name,
 				payload_hash,
 				updated_at
 			)
@@ -313,6 +317,7 @@ func (s *Store) PromotePending(
 				cel_expression,
 				custom_message,
 				custom_url,
+				notification_app_name,
 				payload_hash,
 				now()
 			FROM santa_sync_targets
@@ -359,6 +364,7 @@ func loadTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string) ([]
 			cel_expression,
 			custom_message,
 			custom_url,
+			notification_app_name,
 			payload_hash
 		FROM santa_sync_targets
 		WHERE host_id = $1 AND phase = $2::santa_sync_target_phase
@@ -388,6 +394,7 @@ func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, t
 				cel_expression,
 				custom_message,
 				custom_url,
+				notification_app_name,
 				payload_hash
 			)
 			VALUES (
@@ -400,7 +407,8 @@ func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, t
 				$7,
 				$8,
 				$9,
-				$10
+				$10,
+				$11
 			)
 		`,
 			hostID,
@@ -412,6 +420,7 @@ func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, t
 			target.CELExpression,
 			target.CustomMessage,
 			target.CustomURL,
+			target.AppName,
 			target.PayloadHash,
 		); err != nil {
 			return err
@@ -433,12 +442,13 @@ func insertPayloadRules(ctx context.Context, tx pgx.Tx, hostID int64, rules []Pa
 				rule_type,
 				identifier,
 				policy,
-				cel_expression,
-				custom_message,
-				custom_url,
-				payload_hash,
-				removed
-			)
+					cel_expression,
+					custom_message,
+					custom_url,
+					notification_app_name,
+					payload_hash,
+					removed
+				)
 			VALUES (
 				$1,
 				$2,
@@ -449,9 +459,10 @@ func insertPayloadRules(ctx context.Context, tx pgx.Tx, hostID int64, rules []Pa
 				$7,
 				$8,
 				$9,
-				$10
+				$10,
+				$11
 			)
-		`,
+			`,
 			hostID,
 			position,
 			rule.RuleType,
@@ -460,6 +471,7 @@ func insertPayloadRules(ctx context.Context, tx pgx.Tx, hostID int64, rules []Pa
 			rule.CELExpression,
 			rule.CustomMessage,
 			rule.CustomURL,
+			rule.AppName,
 			rule.PayloadHash,
 			rule.Removed,
 		); err != nil {
@@ -515,6 +527,7 @@ func payloadRuleFromTarget(target Target) PayloadRule {
 		CELExpression: target.CELExpression,
 		CustomMessage: target.CustomMessage,
 		CustomURL:     target.CustomURL,
+		AppName:       target.AppName,
 		PayloadHash:   target.PayloadHash,
 	}
 }
@@ -608,6 +621,7 @@ func scanTarget(row pgx.CollectableRow) (Target, error) {
 		&target.CELExpression,
 		&target.CustomMessage,
 		&target.CustomURL,
+		&target.AppName,
 		&target.PayloadHash,
 	)
 	return target, err
@@ -622,6 +636,7 @@ func scanPayloadRule(row pgx.CollectableRow) (PayloadRule, error) {
 		&rule.CELExpression,
 		&rule.CustomMessage,
 		&rule.CustomURL,
+		&rule.AppName,
 		&rule.PayloadHash,
 		&rule.Removed,
 	)

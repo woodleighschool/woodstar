@@ -30,7 +30,9 @@ type EventUploadRequest struct {
 	FileAccessEvents []events.FileAccessEventInput
 }
 
-type EventUploadResponse struct{}
+type EventUploadResponse struct {
+	BundleBinaryRequests []string
+}
 
 type RuleDownloadRequest struct {
 	Cursor string

@@ -8,6 +8,7 @@ import { nonEmpty } from "@/lib/utils";
 export type SoftwareTitle = Schemas["SoftwareTitle"];
 export type SoftwareListResult = Schemas["PaginatedBodySoftwareTitle"];
 export type SoftwareVersion = Schemas["SoftwareVersion"];
+export type SoftwareSantaReference = Schemas["SoftwareReference"];
 
 export interface SoftwareListParams {
   q?: string;
@@ -45,6 +46,20 @@ export function useSoftwareTitle(id: number | null) {
     queryFn: ({ signal }) =>
       unwrap(
         apiClient.GET("/api/software/{id}", {
+          params: { path: { id: id ?? 0 } },
+          signal,
+        }),
+      ),
+    enabled: id !== null,
+  });
+}
+
+export function useSoftwareSantaReference(id: number | null) {
+  return useQuery<SoftwareSantaReference, ApiError>({
+    queryKey: queryKeys.softwareSantaReference(id),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/software/{id}/santa", {
           params: { path: { id: id ?? 0 } },
           signal,
         }),

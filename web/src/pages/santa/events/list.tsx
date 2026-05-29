@@ -19,10 +19,11 @@ import {
   useSantaFileAccessEvents,
   type SantaEvent,
   type SantaFileAccessEvent,
+  type SantaHostSummary,
 } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./constants";
-import { ExecutionDecisionBadge, FileAccessDecisionBadge, HostLink, Timestamp } from "./event-ui";
+import { ExecutionDecisionBadge, FileAccessDecisionBadge, Timestamp } from "./event-ui";
 
 type EventListKind = "execution" | "file-access";
 
@@ -75,16 +76,45 @@ function ExecutionEventsTable() {
 
   const columns: ColumnDef<SantaEvent>[] = [
     {
+      id: "occurred_at",
+      accessorKey: "occurred_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Occurred At" />,
+      cell: ({ row }) => (
+        <span className="font-normal">
+          <Timestamp value={row.original.occurred_at} />
+        </span>
+      ),
+      meta: {
+        label: "Occurred At",
+        cellClassName: "w-44",
+      },
+    },
+    {
       id: "file_name",
+      accessorFn: (row) => row.executable.file_name || row.executable.sha256,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Executable" />,
       cell: ({ row }) => (
-        <div className="grid gap-1">
-          <span className="font-medium">{row.original.executable.file_name || row.original.executable.sha256}</span>
-          <span className="max-w-[34rem] truncate text-xs">
-            {row.original.file_path || row.original.executable.sha256}
-          </span>
-        </div>
+        <span className="block max-w-64 truncate" title={row.original.executable.file_name}>
+          {row.original.executable.file_name || row.original.executable.sha256}
+        </span>
       ),
+      meta: {
+        label: "Executable",
+      },
+    },
+    {
+      id: "file_path",
+      accessorKey: "file_path",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Path" />,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="block max-w-96 truncate" title={row.original.file_path}>
+          {row.original.file_path || "-"}
+        </span>
+      ),
+      meta: {
+        label: "Path",
+      },
     },
     {
       id: "decision",
@@ -96,19 +126,13 @@ function ExecutionEventsTable() {
       id: "host_id",
       accessorFn: (row) => row.host.display_name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
-      cell: ({ row }) => <HostLink host={row.original.host} />,
+      cell: ({ row }) => <EventHostLink host={row.original.host} />,
     },
     {
       id: "executing_user",
       accessorKey: "executing_user",
       header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
       cell: ({ row }) => row.original.executing_user || "-",
-    },
-    {
-      id: "occurred_at",
-      accessorFn: (row) => row.occurred_at,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="When" />,
-      cell: ({ row }) => <Timestamp value={row.original.occurred_at} />,
     },
   ];
 
@@ -174,11 +198,25 @@ function FileAccessEventsTable() {
 
   const columns: ColumnDef<SantaFileAccessEvent>[] = [
     {
+      id: "occurred_at",
+      accessorKey: "occurred_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Occurred At" />,
+      cell: ({ row }) => (
+        <span className="font-normal">
+          <Timestamp value={row.original.occurred_at} />
+        </span>
+      ),
+      meta: {
+        label: "Occurred At",
+        cellClassName: "w-44",
+      },
+    },
+    {
       id: "target",
       accessorKey: "target",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Target" />,
       cell: ({ row }) => (
-        <span className="block max-w-96 truncate font-medium" title={row.original.target}>
+        <span className="block max-w-96 truncate" title={row.original.target}>
           {fileName(row.original.target) || row.original.target}
         </span>
       ),
@@ -193,7 +231,7 @@ function FileAccessEventsTable() {
       id: "host",
       accessorFn: (row) => row.host.display_name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
-      cell: ({ row }) => <HostLink host={row.original.host} />,
+      cell: ({ row }) => <EventHostLink host={row.original.host} />,
     },
     {
       id: "process",
@@ -210,12 +248,6 @@ function FileAccessEventsTable() {
       accessorKey: "rule_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Rule" />,
       cell: ({ row }) => <span>{row.original.rule_name || row.original.rule_version || "-"}</span>,
-    },
-    {
-      id: "occurred_at",
-      accessorFn: (row) => row.occurred_at,
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Occurred" />,
-      cell: ({ row }) => <Timestamp value={row.original.occurred_at} />,
     },
   ];
 
@@ -264,6 +296,14 @@ function FileAccessEventsTable() {
         />
       )}
     </>
+  );
+}
+
+function EventHostLink({ host }: { host: SantaHostSummary }) {
+  return (
+    <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="hover:underline">
+      {host.display_name || host.hostname || host.computer_name || host.hardware_serial || host.id}
+    </Link>
   );
 }
 

@@ -19,6 +19,9 @@ type DecisionFilter string
 // FileAccessDecision is Santa's policy decision for a file-access event.
 type FileAccessDecision string
 
+// SigningStatus is Santa's code-signing status for an executable.
+type SigningStatus string
+
 const (
 	ExecutionDecisionUnknown          ExecutionDecision = "unknown"
 	ExecutionDecisionAllowUnknown     ExecutionDecision = "allow_unknown"
@@ -44,6 +47,13 @@ const (
 	FileAccessDecisionDenied                 FileAccessDecision = "denied"
 	FileAccessDecisionDeniedInvalidSignature FileAccessDecision = "denied_invalid_signature"
 	FileAccessDecisionAuditOnly              FileAccessDecision = "audit_only"
+
+	SigningStatusUnspecified SigningStatus = "unspecified"
+	SigningStatusUnsigned    SigningStatus = "unsigned"
+	SigningStatusInvalid     SigningStatus = "invalid"
+	SigningStatusAdhoc       SigningStatus = "adhoc"
+	SigningStatusDevelopment SigningStatus = "development"
+	SigningStatusProduction  SigningStatus = "production"
 )
 
 var ExecutionDecisionValues = []ExecutionDecision{
@@ -93,6 +103,15 @@ var FileAccessDecisionValues = []FileAccessDecision{
 	FileAccessDecisionAuditOnly,
 }
 
+var SigningStatusValues = []SigningStatus{
+	SigningStatusUnspecified,
+	SigningStatusUnsigned,
+	SigningStatusInvalid,
+	SigningStatusAdhoc,
+	SigningStatusDevelopment,
+	SigningStatusProduction,
+}
+
 func (ExecutionDecision) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(ExecutionDecisionValues...)
 }
@@ -103,6 +122,10 @@ func (DecisionFilter) Schema(_ huma.Registry) *huma.Schema {
 
 func (FileAccessDecision) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(FileAccessDecisionValues...)
+}
+
+func (SigningStatus) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(SigningStatusValues...)
 }
 
 // EventListParams contains filters shared by Santa event list endpoints.
@@ -135,6 +158,9 @@ type ExecutionEvent struct {
 	Executable      Executable        `json:"executable"`
 	FilePath        string            `json:"file_path"`
 	ExecutingUser   string            `json:"executing_user"`
+	PID             int32             `json:"pid"`
+	PPID            int32             `json:"ppid"`
+	ParentName      string            `json:"parent_name"`
 	LoggedInUsers   []string          `json:"logged_in_users"`
 	CurrentSessions []string          `json:"current_sessions"`
 	Decision        ExecutionDecision `json:"decision"`
@@ -157,21 +183,35 @@ type HostSummary struct {
 
 // ExecutionEventInput is a Santa execution event ready for persistence.
 type ExecutionEventInput struct {
-	FileSHA256      string
-	FilePath        string
-	FileName        string
-	ExecutingUser   string
-	OccurredAt      time.Time
-	LoggedInUsers   []string
-	CurrentSessions []string
-	Decision        ExecutionDecision
-	BundleID        string
-	BundlePath      string
-	SigningID       string
-	TeamID          string
-	CDHash          string
-	Entitlements    []byte
-	SigningChain    []CertificateInput
+	FileSHA256              string
+	FilePath                string
+	FileName                string
+	ExecutingUser           string
+	OccurredAt              time.Time
+	LoggedInUsers           []string
+	CurrentSessions         []string
+	Decision                ExecutionDecision
+	BundleID                string
+	BundlePath              string
+	BundleExecutableRelPath string
+	BundleName              string
+	BundleVersion           string
+	BundleVersionString     string
+	BundleHash              string
+	BundleHashMillis        int
+	BundleBinaryCount       int
+	PID                     int32
+	PPID                    int32
+	ParentName              string
+	SigningID               string
+	TeamID                  string
+	CDHash                  string
+	CodesigningFlags        uint32
+	SigningStatus           SigningStatus
+	SecureSigningTime       time.Time
+	SigningTime             time.Time
+	Entitlements            []byte
+	SigningChain            []CertificateInput
 }
 
 // CertificateInput is a certificate entry reported by Santa sync.
@@ -186,16 +226,27 @@ type CertificateInput struct {
 
 // Executable is metadata for the binary involved in an execution event.
 type Executable struct {
-	ID           int64               `json:"id"`
-	SHA256       string              `json:"sha256"`
-	FileName     string              `json:"file_name"`
-	BundleID     string              `json:"file_bundle_id"`
-	BundlePath   string              `json:"file_bundle_path"`
-	SigningID    string              `json:"signing_id"`
-	TeamID       string              `json:"team_id"`
-	CDHash       string              `json:"cdhash"`
-	Entitlements map[string]any      `json:"entitlements,omitempty"`
-	SigningChain []SigningChainEntry `json:"signing_chain,omitempty"`
+	ID                      int64               `json:"id"`
+	SHA256                  string              `json:"sha256"`
+	FileName                string              `json:"file_name"`
+	BundleID                string              `json:"file_bundle_id"`
+	BundlePath              string              `json:"file_bundle_path"`
+	BundleExecutableRelPath string              `json:"file_bundle_executable_rel_path"`
+	BundleName              string              `json:"file_bundle_name"`
+	BundleVersion           string              `json:"file_bundle_version"`
+	BundleVersionString     string              `json:"file_bundle_version_string"`
+	BundleHash              string              `json:"file_bundle_hash"`
+	BundleHashMillis        int                 `json:"file_bundle_hash_millis"`
+	BundleBinaryCount       int                 `json:"file_bundle_binary_count"`
+	SigningID               string              `json:"signing_id"`
+	TeamID                  string              `json:"team_id"`
+	CDHash                  string              `json:"cdhash"`
+	CodesigningFlags        uint32              `json:"codesigning_flags"`
+	SigningStatus           SigningStatus       `json:"signing_status"`
+	SecureSigningTime       *time.Time          `json:"secure_signing_time,omitempty"`
+	SigningTime             *time.Time          `json:"signing_time,omitempty"`
+	Entitlements            map[string]any      `json:"entitlements,omitempty"`
+	SigningChain            []SigningChainEntry `json:"signing_chain,omitempty"`
 }
 
 // SigningChainEntry is a certificate entry exposed through the admin API.
@@ -227,6 +278,21 @@ type FileAccessEventInput struct {
 	Decision     FileAccessDecision
 	OccurredAt   time.Time
 	ProcessChain []ProcessInput
+}
+
+type Bundle struct {
+	ID                   int64      `json:"id"`
+	SHA256               string     `json:"sha256"`
+	BundleID             string     `json:"bundle_id"`
+	Name                 string     `json:"name"`
+	Path                 string     `json:"path"`
+	ExecutableRelPath    string     `json:"executable_rel_path"`
+	Version              string     `json:"version"`
+	VersionString        string     `json:"version_string"`
+	BinaryCount          int        `json:"binary_count"`
+	CollectedBinaryCount int        `json:"collected_binary_count"`
+	HashMillis           int        `json:"hash_millis"`
+	UploadedAt           *time.Time `json:"uploaded_at,omitempty"`
 }
 
 // Process is a process-chain entry exposed through the admin API.

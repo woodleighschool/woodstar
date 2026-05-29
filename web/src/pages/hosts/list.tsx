@@ -385,19 +385,9 @@ function SelectionCheck({ selected }: { selected: boolean }) {
 
 function HostStatusBadge({ host, now }: { host: Host; now: number }) {
   if (!host.last_seen_at) {
-    return (
-      <Badge variant="secondary" className="gap-1.5">
-        <span className="bg-status-offline size-1.5 rounded-full" />
-        Offline
-      </Badge>
-    );
+    return <Badge variant="secondary">Offline</Badge>;
   }
   const lastSeen = new Date(host.last_seen_at).getTime();
   const online = now - lastSeen <= 5 * 60 * 1000;
-  return (
-    <Badge variant={online ? "outline" : "secondary"} className="gap-1.5">
-      <span className={online ? "bg-status-online size-1.5 rounded-full" : "bg-status-offline size-1.5 rounded-full"} />
-      {online ? "Online" : "Offline"}
-    </Badge>
-  );
+  return <Badge variant={online ? "success" : "secondary"}>{online ? "Online" : "Offline"}</Badge>;
 }

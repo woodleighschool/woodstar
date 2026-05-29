@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -227,6 +228,74 @@ func TestSantaHTTPPreflightDecodesRuleCounts(t *testing.T) {
 	}
 }
 
+func TestSantaHTTPEventUploadMapsBundleFieldsAndEncodesBundleRequests(t *testing.T) {
+	bundleHash := strings.Repeat("b", 64)
+	service := &recordingService{
+		eventUploadResponse: santa.EventUploadResponse{BundleBinaryRequests: []string{bundleHash}},
+	}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/eventupload/machine-1", &syncv1.EventUploadRequest{
+		Events: []*syncv1.Event{{
+			FileSha256:                  strings.Repeat("1", 64),
+			FilePath:                    "/Applications/Bundle.app/Contents/MacOS/Helper",
+			FileName:                    "Helper",
+			Decision:                    syncv1.Decision_BUNDLE_BINARY,
+			FileBundleId:                "com.example.bundle",
+			FileBundlePath:              "/Applications/Bundle.app",
+			FileBundleExecutableRelPath: "Contents/MacOS/Helper",
+			FileBundleName:              "Bundle",
+			FileBundleVersion:           "1.2.3",
+			FileBundleVersionString:     "1.2.3 (45)",
+			FileBundleHash:              bundleHash,
+			FileBundleHashMillis:        17,
+			FileBundleBinaryCount:       2,
+			Pid:                         501,
+			Ppid:                        1,
+			ParentName:                  "launchd",
+			SigningId:                   "TEAMID:com.example.bundle",
+			TeamId:                      "TEAMID",
+			Cdhash:                      "cdhash",
+			CsFlags:                     570425345,
+			SigningStatus:               syncv1.SigningStatus_SIGNING_STATUS_PRODUCTION,
+			SecureSigningTime:           100,
+			SigningTime:                 200,
+		}},
+	})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if service.stage != "eventupload" || service.machineID != "machine-1" {
+		t.Fatalf("stage/machine = %q/%q", service.stage, service.machineID)
+	}
+	if len(service.eventUploadRequest.Events) != 1 {
+		t.Fatalf("event upload request = %+v, want one event", service.eventUploadRequest)
+	}
+	event := service.eventUploadRequest.Events[0]
+	if !event.OccurredAt.IsZero() ||
+		event.Decision != santaevents.ExecutionDecisionBundleBinary ||
+		event.BundleHash != bundleHash ||
+		event.BundleBinaryCount != 2 ||
+		event.BundleExecutableRelPath != "Contents/MacOS/Helper" ||
+		event.PID != 501 ||
+		event.PPID != 1 ||
+		event.ParentName != "launchd" ||
+		event.CodesigningFlags != 570425345 ||
+		event.SigningStatus != santaevents.SigningStatusProduction ||
+		!event.SecureSigningTime.Equal(time.Unix(100, 0).UTC()) ||
+		!event.SigningTime.Equal(time.Unix(200, 0).UTC()) {
+		t.Fatalf("mapped bundle event = %+v", event)
+	}
+	var resp syncv1.EventUploadResponse
+	mustReadProtoResponse(t, rec.Body.Bytes(), &resp)
+	if !slices.Equal(resp.GetEventUploadBundleBinaries(), []string{bundleHash}) {
+		t.Fatalf("bundle binary response = %v, want [%s]", resp.GetEventUploadBundleBinaries(), bundleHash)
+	}
+}
+
 func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	service := &recordingService{
 		ruleDownloadResponse: santa.RuleDownloadResponse{
@@ -253,6 +322,37 @@ func TestSantaHTTPRuleDownloadEncodesRemovedPayload(t *testing.T) {
 	}
 	if resp.GetRules()[0].GetPolicy() != syncv1.Policy_REMOVE {
 		t.Fatalf("policy = %v, want REMOVE", resp.GetRules()[0].GetPolicy())
+	}
+}
+
+func TestSantaHTTPRuleDownloadEncodesNotificationAppName(t *testing.T) {
+	service := &recordingService{
+		ruleDownloadResponse: santa.RuleDownloadResponse{
+			Rules: []syncstate.PayloadRule{{
+				RuleType:   "binary",
+				Identifier: strings.Repeat("1", 64),
+				Policy:     string(santarules.PolicyBlocklist),
+				AppName:    "Bundle App",
+			}},
+		},
+	}
+	router := newSantaContractRouter(&staticVerifier{ok: true}, service)
+	rec := httptest.NewRecorder()
+	req := santaContractRequest(t, "/santa/sync/ruledownload/machine-1", &syncv1.RuleDownloadRequest{})
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var resp syncv1.RuleDownloadResponse
+	mustReadProtoResponse(t, rec.Body.Bytes(), &resp)
+	if len(resp.GetRules()) != 1 {
+		t.Fatalf("rules = %+v, want one", resp.GetRules())
+	}
+	rule := resp.GetRules()[0]
+	if rule.GetNotificationAppName() != "Bundle App" {
+		t.Fatalf("notification_app_name = %q, want %q", rule.GetNotificationAppName(), "Bundle App")
 	}
 }
 
@@ -619,6 +719,8 @@ type recordingService struct {
 	stage                string
 	machineID            string
 	preflightCounts      syncstate.RuleCounts
+	eventUploadRequest   santa.EventUploadRequest
+	eventUploadResponse  santa.EventUploadResponse
 	ruleDownloadCursor   string
 	ruleDownloadResponse santa.RuleDownloadResponse
 	err                  error
@@ -638,11 +740,12 @@ func (s *recordingService) Preflight(
 func (s *recordingService) EventUpload(
 	_ context.Context,
 	machineID string,
-	_ santa.EventUploadRequest,
+	req santa.EventUploadRequest,
 ) (santa.EventUploadResponse, error) {
 	s.stage = "eventupload"
 	s.machineID = machineID
-	return santa.EventUploadResponse{}, s.err
+	s.eventUploadRequest = req
+	return s.eventUploadResponse, s.err
 }
 
 func (s *recordingService) RuleDownload(

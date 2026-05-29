@@ -24,6 +24,7 @@ export const queryKeys = {
   checkHosts: (id: number | null) => ["checks", id, "hosts"] as const,
   software: (params?: unknown) => ["software", params ?? {}] as const,
   softwareTitle: (id: number | null) => ["software", id] as const,
+  softwareSantaReference: (id: number | null) => ["software", id, "santa"] as const,
   agentSecrets: ["agent-secrets"] as const,
   santaConfigurations: (params?: unknown) => ["santa", "configurations", params ?? {}] as const,
   santaConfiguration: (id: number | null) => ["santa", "configurations", id] as const,
@@ -33,4 +34,5 @@ export const queryKeys = {
   santaFileAccessEvent: (id: number | null) => ["santa", "file-access-events", id] as const,
   santaRules: (params?: unknown) => ["santa", "rules", params ?? {}] as const,
   santaRule: (id: number | null) => ["santa", "rules", id] as const,
+  santaRuleTargets: (params?: unknown) => ["santa", "rule-targets", params ?? {}] as const,
 };

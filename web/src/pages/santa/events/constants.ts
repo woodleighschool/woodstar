@@ -16,44 +16,37 @@ export const EXECUTION_DECISIONS = {
   allow_unknown: {
     name: "Allow Unknown",
     description: "Allowed because no rule matched while the client was in Monitor mode.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_binary: {
     name: "Allow Binary",
     description: "Allowed by a rule for this exact binary.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_certificate: {
     name: "Allow Certificate",
     description: "Allowed by a matching signing certificate.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_scope: {
     name: "Allow Scope",
     description: "Allowed by an approved path or script exception.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_teamid: {
     name: "Allow Team ID",
     description: "Allowed by a matching Team ID rule.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_signingid: {
     name: "Allow Signing ID",
     description: "Allowed by a matching Signing ID rule.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   allow_cdhash: {
     name: "Allow CDHash",
     description: "Allowed by a matching CDHash rule.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
   block_unknown: {
     name: "Block Unknown",
@@ -149,8 +142,7 @@ export const FILE_ACCESS_DECISIONS = {
   audit_only: {
     name: "Audit Only",
     description: "Santa recorded the file access event without blocking it.",
-    variant: "outline",
-    indicatorClassName: "bg-status-online",
+    variant: "success",
   },
 } satisfies EnumMetadataMap<SantaFileAccessDecision>;
 

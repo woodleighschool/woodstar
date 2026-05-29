@@ -20,6 +20,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
@@ -85,4 +86,5 @@ type SantaDependencies struct {
 	Configurations *configurations.Store
 	Rules          *rules.Store
 	Events         *events.Store
+	References     *references.Store
 }

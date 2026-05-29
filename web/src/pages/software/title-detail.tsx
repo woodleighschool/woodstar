@@ -1,5 +1,5 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { PageShell } from "@/components/layout/page-layout";
@@ -10,9 +10,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useSoftwareTitle, type SoftwareTitle, type SoftwareVersion } from "@/hooks/use-software";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  useSoftwareSantaReference,
+  useSoftwareTitle,
+  type SoftwareSantaReference,
+  type SoftwareTitle,
+  type SoftwareVersion,
+} from "@/hooks/use-software";
 import { softwareSourceLabel } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
+import { ruleTypeLabel, type RuleType } from "@/pages/santa/rules/shared";
+
+type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
+type CertificateReference = NonNullable<SoftwareSantaReference["certificates"]>[number];
+type ExecutableReference = NonNullable<SoftwareSantaReference["executables"]>[number];
+type RuleReference = NonNullable<SoftwareSantaReference["rules"]>[number];
+type SigningIdentityReference = NonNullable<SoftwareSantaReference["signing_identities"]>[number];
 
 export function SoftwareTitleDetailPage() {
   const { softwareId } = useParams({ from: "/_authenticated/software/titles/$softwareId" });
@@ -60,6 +74,7 @@ export function SoftwareTitleDetailPage() {
     <PageShell className="gap-6">
       <SoftwareHeader title={title} />
       <SoftwareInfoCard title={title} />
+      <SoftwareSantaCard titleID={title.id} />
       <SoftwareVersionsCard title={title} />
     </PageShell>
   );
@@ -139,6 +154,271 @@ function SoftwareInfoCard({ title }: { title: SoftwareTitle }) {
       </CardContent>
     </Card>
   );
+}
+
+function SoftwareSantaCard({ titleID }: { titleID: number }) {
+  const query = useSoftwareSantaReference(titleID);
+
+  if (query.error) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Failed to Load Santa Data</AlertTitle>
+        <AlertDescription>{query.error.message}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (query.isLoading || !query.data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Santa</CardTitle>
+        </CardHeader>
+        <CardContent className="text-muted-foreground flex items-center gap-2 text-sm">
+          <Loader2 className="size-4 animate-spin" /> Loading...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const ref = query.data;
+  const bundles = ref.bundles ?? [];
+  const executables = ref.executables ?? [];
+  const identities = ref.signing_identities ?? [];
+  const certificates = ref.certificates ?? [];
+  const rules = ref.rules ?? [];
+  const hasSantaData =
+    ref.execution_count > 0 ||
+    ref.block_count > 0 ||
+    bundles.length > 0 ||
+    executables.length > 0 ||
+    identities.length > 0 ||
+    certificates.length > 0 ||
+    rules.length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Santa</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+          <SantaMetric label="Executions" value={ref.execution_count} />
+          <SantaMetric label="Blocks" value={ref.block_count} />
+          <SantaMetric label="Rules" value={rules.length} />
+          <SantaMetric label="Bundles" value={bundles.length} />
+        </div>
+
+        {!hasSantaData ? (
+          <div className="bg-muted/30 rounded-md border border-dashed px-4 py-6 text-sm">
+            <p className="font-medium">No Santa Data</p>
+            <p className="text-muted-foreground">No related executions, bundles, signing identities, or rules.</p>
+          </div>
+        ) : (
+          <div className="grid gap-5 xl:grid-cols-2">
+            <SantaBundlesTable bundles={bundles} />
+            <SantaExecutablesTable executables={executables} />
+            <SantaSigningTable identities={identities} />
+            <SantaCertificatesTable certificates={certificates} />
+            <SantaRulesTable rules={rules} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SantaMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border px-3 py-2">
+      <div className="text-muted-foreground text-xs font-semibold">{label}</div>
+      <div className="text-foreground text-lg font-semibold tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function SantaBundlesTable({ bundles }: { bundles: BundleReference[] }) {
+  return (
+    <SantaReferenceTable title="Bundles" empty="No related bundles.">
+      {bundles.map((bundle) => (
+        <TableRow key={bundle.sha256}>
+          <TableCell className="min-w-0">
+            <div className="truncate font-medium">
+              {bundle.name || bundle.bundle_id || shortIdentifier(bundle.sha256)}
+            </div>
+            <div className="text-muted-foreground truncate text-xs">{bundle.bundle_id || bundle.path}</div>
+          </TableCell>
+          <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
+            {bundle.collected_binary_count}/{bundle.binary_count}
+          </TableCell>
+          <TableCell className="w-10 text-right">
+            {bundle.complete ? (
+              <QuickAddRuleButton
+                targetType="bundle"
+                identifier={bundle.sha256}
+                name={bundle.name || bundle.bundle_id}
+              />
+            ) : null}
+          </TableCell>
+        </TableRow>
+      ))}
+    </SantaReferenceTable>
+  );
+}
+
+function SantaExecutablesTable({ executables }: { executables: ExecutableReference[] }) {
+  return (
+    <SantaReferenceTable title="Executables" empty="No related executables.">
+      {executables.map((executable) => (
+        <TableRow key={executable.sha256}>
+          <TableCell className="min-w-0">
+            <div className="truncate font-medium">{executableDisplayName(executable)}</div>
+            <div className="text-muted-foreground truncate font-mono text-xs">{shortIdentifier(executable.sha256)}</div>
+          </TableCell>
+          <TableCell className="text-right text-xs tabular-nums">
+            <span>{executable.execution_count}</span>
+            <span className="text-muted-foreground"> / </span>
+            <span>{executable.block_count}</span>
+          </TableCell>
+          <TableCell className="w-10 text-right">
+            <QuickAddRuleButton targetType="binary" identifier={executable.sha256} name={executable.file_bundle_name} />
+          </TableCell>
+        </TableRow>
+      ))}
+    </SantaReferenceTable>
+  );
+}
+
+function SantaSigningTable({ identities }: { identities: SigningIdentityReference[] }) {
+  return (
+    <SantaReferenceTable title="Signing" empty="No signing identities.">
+      {identities.map((identity) => (
+        <TableRow key={`${identity.target_type}:${identity.identifier}`}>
+          <TableCell className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <Badge variant="secondary" className="font-normal">
+                {ruleTypeLabel(identity.target_type)}
+              </Badge>
+              <span className="truncate font-medium">{identity.identifier}</span>
+            </div>
+            <div className="text-muted-foreground truncate text-xs">{identity.name}</div>
+          </TableCell>
+          <TableCell className="text-right text-xs tabular-nums">{identity.rule_count}</TableCell>
+          <TableCell className="w-10 text-right">
+            <QuickAddRuleButton
+              targetType={identity.target_type}
+              identifier={identity.identifier}
+              name={identity.name || identity.identifier}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+    </SantaReferenceTable>
+  );
+}
+
+function executableDisplayName(executable: ExecutableReference) {
+  const bundleName = executable.file_bundle_name ?? "";
+  if (bundleName.trim() !== "") return bundleName;
+  if (executable.file_name.trim() !== "") return executable.file_name;
+  return "Executable";
+}
+
+function SantaCertificatesTable({ certificates }: { certificates: CertificateReference[] }) {
+  return (
+    <SantaReferenceTable title="Certificates" empty="No signing certificates.">
+      {certificates.map((certificate) => (
+        <TableRow key={certificate.sha256}>
+          <TableCell className="min-w-0">
+            <div className="truncate font-medium">{certificate.common_name || shortIdentifier(certificate.sha256)}</div>
+            <div className="text-muted-foreground truncate text-xs">
+              {certificate.organizational_unit || certificate.organization || shortIdentifier(certificate.sha256)}
+            </div>
+          </TableCell>
+          <TableCell className="text-right text-xs tabular-nums">{certificate.rule_count}</TableCell>
+          <TableCell className="w-10 text-right">
+            <QuickAddRuleButton
+              targetType="certificate"
+              identifier={certificate.sha256}
+              name={certificate.common_name}
+            />
+          </TableCell>
+        </TableRow>
+      ))}
+    </SantaReferenceTable>
+  );
+}
+
+function SantaRulesTable({ rules }: { rules: RuleReference[] }) {
+  return (
+    <SantaReferenceTable title="Rules" empty="No matching rules.">
+      {rules.map((rule) => (
+        <TableRow key={rule.id}>
+          <TableCell className="min-w-0">
+            <Link
+              to="/santa/rules/$ruleId/edit"
+              params={{ ruleId: String(rule.id) }}
+              className="hover:text-primary block truncate font-medium hover:underline"
+            >
+              {rule.name || rule.identifier}
+            </Link>
+            <div className="text-muted-foreground truncate font-mono text-xs">{shortIdentifier(rule.identifier)}</div>
+          </TableCell>
+          <TableCell className="text-right">
+            <Badge variant="secondary" className="font-normal">
+              {ruleTypeLabel(rule.rule_type)}
+            </Badge>
+          </TableCell>
+        </TableRow>
+      ))}
+    </SantaReferenceTable>
+  );
+}
+
+function SantaReferenceTable({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
+  const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  return (
+    <div className="min-w-0 space-y-2">
+      <h2 className="text-sm font-medium">{title}</h2>
+      {hasRows ? (
+        <div className="rounded-md border">
+          <Table>
+            <TableBody>{children}</TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="bg-muted/30 rounded-md border border-dashed px-3 py-4 text-sm">{empty}</div>
+      )}
+    </div>
+  );
+}
+
+function QuickAddRuleButton({
+  targetType,
+  identifier,
+  name,
+}: {
+  targetType: RuleType;
+  identifier: string;
+  name?: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button asChild type="button" variant="ghost" size="icon-sm">
+          <Link to="/santa/rules/new" search={{ rule_type: targetType, identifier, name }}>
+            <Plus />
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>New {ruleTypeLabel(targetType)} Rule</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function shortIdentifier(identifier: string) {
+  if (identifier.length <= 28) return identifier;
+  return `${identifier.slice(0, 12)}...${identifier.slice(-8)}`;
 }
 
 function SoftwareVersionsCard({ title }: { title: SoftwareTitle }) {

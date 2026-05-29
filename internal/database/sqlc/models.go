@@ -293,6 +293,7 @@ const (
 	SantaRuleTypeTeamid      SantaRuleType = "teamid"
 	SantaRuleTypeSigningid   SantaRuleType = "signingid"
 	SantaRuleTypeCdhash      SantaRuleType = "cdhash"
+	SantaRuleTypeBundle      SantaRuleType = "bundle"
 )
 
 func (e *SantaRuleType) Scan(src interface{}) error {
@@ -328,6 +329,52 @@ func (ns NullSantaRuleType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.SantaRuleType), nil
+}
+
+type SantaSigningStatus string
+
+const (
+	SantaSigningStatusUnspecified SantaSigningStatus = "unspecified"
+	SantaSigningStatusUnsigned    SantaSigningStatus = "unsigned"
+	SantaSigningStatusInvalid     SantaSigningStatus = "invalid"
+	SantaSigningStatusAdhoc       SantaSigningStatus = "adhoc"
+	SantaSigningStatusDevelopment SantaSigningStatus = "development"
+	SantaSigningStatusProduction  SantaSigningStatus = "production"
+)
+
+func (e *SantaSigningStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaSigningStatus(s)
+	case string:
+		*e = SantaSigningStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaSigningStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSantaSigningStatus struct {
+	SantaSigningStatus SantaSigningStatus `json:"santa_signing_status"`
+	Valid              bool               `json:"valid"` // Valid is true if SantaSigningStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaSigningStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaSigningStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaSigningStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaSigningStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaSigningStatus), nil
 }
 
 type SantaSyncTargetPhase string
@@ -658,6 +705,39 @@ type ReportResult struct {
 	LastFetched time.Time `json:"last_fetched"`
 }
 
+type SantaBundle struct {
+	ID                int64      `json:"id"`
+	Sha256            string     `json:"sha256"`
+	BundleID          string     `json:"bundle_id"`
+	Name              string     `json:"name"`
+	Path              string     `json:"path"`
+	ExecutableRelPath string     `json:"executable_rel_path"`
+	Version           string     `json:"version"`
+	VersionString     string     `json:"version_string"`
+	BinaryCount       int32      `json:"binary_count"`
+	HashMillis        int32      `json:"hash_millis"`
+	UploadedAt        *time.Time `json:"uploaded_at"`
+	FirstSeenAt       time.Time  `json:"first_seen_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+type SantaBundleExecutable struct {
+	BundleID     int64 `json:"bundle_id"`
+	ExecutableID int64 `json:"executable_id"`
+}
+
+type SantaCertificate struct {
+	ID                 int64      `json:"id"`
+	Sha256             string     `json:"sha256"`
+	CommonName         string     `json:"common_name"`
+	Organization       string     `json:"organization"`
+	OrganizationalUnit string     `json:"organizational_unit"`
+	ValidFrom          *time.Time `json:"valid_from"`
+	ValidUntil         *time.Time `json:"valid_until"`
+	FirstSeenAt        time.Time  `json:"first_seen_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
 type SantaConfiguration struct {
 	ID                                  int64                      `json:"id"`
 	Name                                string                     `json:"name"`
@@ -686,17 +766,28 @@ type SantaConfigurationLabel struct {
 }
 
 type SantaExecutable struct {
-	ID             int64     `json:"id"`
-	Sha256         string    `json:"sha256"`
-	FileName       string    `json:"file_name"`
-	FileBundleID   string    `json:"file_bundle_id"`
-	FileBundlePath string    `json:"file_bundle_path"`
-	SigningID      string    `json:"signing_id"`
-	TeamID         string    `json:"team_id"`
-	Cdhash         string    `json:"cdhash"`
-	Entitlements   []byte    `json:"entitlements"`
-	FirstSeenAt    time.Time `json:"first_seen_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                          int64              `json:"id"`
+	Sha256                      string             `json:"sha256"`
+	FileName                    string             `json:"file_name"`
+	FileBundleID                string             `json:"file_bundle_id"`
+	FileBundlePath              string             `json:"file_bundle_path"`
+	FileBundleExecutableRelPath string             `json:"file_bundle_executable_rel_path"`
+	FileBundleName              string             `json:"file_bundle_name"`
+	FileBundleVersion           string             `json:"file_bundle_version"`
+	FileBundleVersionString     string             `json:"file_bundle_version_string"`
+	FileBundleHash              string             `json:"file_bundle_hash"`
+	FileBundleHashMillis        int32              `json:"file_bundle_hash_millis"`
+	FileBundleBinaryCount       int32              `json:"file_bundle_binary_count"`
+	SigningID                   string             `json:"signing_id"`
+	TeamID                      string             `json:"team_id"`
+	Cdhash                      string             `json:"cdhash"`
+	CodesigningFlags            int64              `json:"codesigning_flags"`
+	SigningStatus               SantaSigningStatus `json:"signing_status"`
+	SecureSigningTime           *time.Time         `json:"secure_signing_time"`
+	SigningTime                 *time.Time         `json:"signing_time"`
+	Entitlements                []byte             `json:"entitlements"`
+	FirstSeenAt                 time.Time          `json:"first_seen_at"`
+	UpdatedAt                   time.Time          `json:"updated_at"`
 }
 
 type SantaExecutableSigningChain struct {
@@ -710,11 +801,32 @@ type SantaExecutionEvent struct {
 	ExecutableID    int64                  `json:"executable_id"`
 	FilePath        string                 `json:"file_path"`
 	ExecutingUser   string                 `json:"executing_user"`
+	Pid             int32                  `json:"pid"`
+	Ppid            int32                  `json:"ppid"`
+	ParentName      string                 `json:"parent_name"`
 	LoggedInUsers   []string               `json:"logged_in_users"`
 	CurrentSessions []string               `json:"current_sessions"`
 	Decision        SantaExecutionDecision `json:"decision"`
-	OccurredAt      *time.Time             `json:"occurred_at"`
+	OccurredAt      time.Time              `json:"occurred_at"`
 	IngestedAt      time.Time              `json:"ingested_at"`
+}
+
+type SantaFileAccessEvent struct {
+	ID                      int64       `json:"id"`
+	HostID                  int64       `json:"host_id"`
+	RuleVersion             string      `json:"rule_version"`
+	RuleName                string      `json:"rule_name"`
+	Target                  string      `json:"target"`
+	Decision                interface{} `json:"decision"`
+	PrimaryProcessSha256    string      `json:"primary_process_sha256"`
+	PrimaryProcessPath      string      `json:"primary_process_path"`
+	PrimaryProcessSigningID string      `json:"primary_process_signing_id"`
+	PrimaryProcessTeamID    string      `json:"primary_process_team_id"`
+	PrimaryProcessCdhash    string      `json:"primary_process_cdhash"`
+	PrimaryProcessPid       int32       `json:"primary_process_pid"`
+	ProcessChain            []byte      `json:"process_chain"`
+	OccurredAt              time.Time   `json:"occurred_at"`
+	IngestedAt              time.Time   `json:"ingested_at"`
 }
 
 type SantaHost struct {
@@ -761,22 +873,28 @@ type SantaRuleInclude struct {
 type SantaSigningChain struct {
 	ID          int64     `json:"id"`
 	Sha256      string    `json:"sha256"`
-	Entries     []byte    `json:"entries"`
 	FirstSeenAt time.Time `json:"first_seen_at"`
 }
 
+type SantaSigningChainEntry struct {
+	SigningChainID int64 `json:"signing_chain_id"`
+	Position       int32 `json:"position"`
+	CertificateID  int64 `json:"certificate_id"`
+}
+
 type SantaSyncPendingRule struct {
-	HostID        int64         `json:"host_id"`
-	Position      int32         `json:"position"`
-	RuleType      SantaRuleType `json:"rule_type"`
-	Identifier    string        `json:"identifier"`
-	Policy        *SantaPolicy  `json:"policy"`
-	CelExpression string        `json:"cel_expression"`
-	CustomMessage string        `json:"custom_message"`
-	CustomURL     string        `json:"custom_url"`
-	PayloadHash   string        `json:"payload_hash"`
-	Removed       bool          `json:"removed"`
-	UpdatedAt     time.Time     `json:"updated_at"`
+	HostID              int64         `json:"host_id"`
+	Position            int32         `json:"position"`
+	RuleType            SantaRuleType `json:"rule_type"`
+	Identifier          string        `json:"identifier"`
+	Policy              *SantaPolicy  `json:"policy"`
+	CelExpression       string        `json:"cel_expression"`
+	CustomMessage       string        `json:"custom_message"`
+	CustomURL           string        `json:"custom_url"`
+	NotificationAppName string        `json:"notification_app_name"`
+	PayloadHash         string        `json:"payload_hash"`
+	Removed             bool          `json:"removed"`
+	UpdatedAt           time.Time     `json:"updated_at"`
 }
 
 type SantaSyncState struct {
@@ -805,17 +923,18 @@ type SantaSyncState struct {
 }
 
 type SantaSyncTarget struct {
-	HostID        int64                `json:"host_id"`
-	Phase         SantaSyncTargetPhase `json:"phase"`
-	Position      int32                `json:"position"`
-	RuleType      SantaRuleType        `json:"rule_type"`
-	Identifier    string               `json:"identifier"`
-	Policy        SantaPolicy          `json:"policy"`
-	CelExpression string               `json:"cel_expression"`
-	CustomMessage string               `json:"custom_message"`
-	CustomURL     string               `json:"custom_url"`
-	PayloadHash   string               `json:"payload_hash"`
-	UpdatedAt     time.Time            `json:"updated_at"`
+	HostID              int64                `json:"host_id"`
+	Phase               SantaSyncTargetPhase `json:"phase"`
+	Position            int32                `json:"position"`
+	RuleType            SantaRuleType        `json:"rule_type"`
+	Identifier          string               `json:"identifier"`
+	Policy              SantaPolicy          `json:"policy"`
+	CelExpression       string               `json:"cel_expression"`
+	CustomMessage       string               `json:"custom_message"`
+	CustomURL           string               `json:"custom_url"`
+	NotificationAppName string               `json:"notification_app_name"`
+	PayloadHash         string               `json:"payload_hash"`
+	UpdatedAt           time.Time            `json:"updated_at"`
 }
 
 type Session struct {

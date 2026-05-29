@@ -8,7 +8,6 @@ export interface EnumMetadata {
   name: string;
   description?: string;
   variant?: BadgeVariant;
-  indicatorClassName?: string;
 }
 
 export type EnumMetadataMap<T extends string> = Record<T, EnumMetadata>;
