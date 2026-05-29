@@ -9,6 +9,9 @@ import (
 
 func reconcileLinks(ctx context.Context, q *sqlc.Queries) error {
 	return q.ReconcileHostDirectoryLinks(ctx, sqlc.ReconcileHostDirectoryLinksParams{
-		MdmSource: string(hosts.DeviceMappingSourceOrbitProfile),
+		AffinitySources: []string{
+			string(hosts.DeviceMappingSourceOrbitProfile),
+			string(hosts.DeviceMappingSourceSantaPrimaryUser),
+		},
 	})
 }

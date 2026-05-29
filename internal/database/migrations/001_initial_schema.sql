@@ -3,6 +3,8 @@
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
+CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
+CREATE TYPE host_directory_user_source AS ENUM ('manual', 'reported_user_affinity');
 
 -- Users, sessions, Enrollment ------------------------------------------
 
@@ -86,9 +88,9 @@ CREATE INDEX directory_user_groups_group_idx ON directory_user_groups (directory
 -- Hosts ----------------------------------------------------------------------
 
 -- host_directory_user links one host to one directory user (1:1). The link
--- has a source: 'manual' is set by an admin and is sticky; 'mdm_email' is
--- inferred by the reconciler from an Orbit MCX device-mapping email and is
--- overwritten by future manual links and overwrites future mdm_email
+-- has a source: 'manual' is set by an admin and is sticky;
+-- 'reported_user_affinity' is inferred from agent-reported user affinity and is
+-- overwritten by future manual links and overwrites future reported
 -- inferences when the matched directory user changes.
 
 CREATE TABLE hosts (
@@ -150,7 +152,7 @@ CREATE TABLE host_emails (
     id BIGSERIAL PRIMARY KEY,
     host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
     email TEXT NOT NULL,
-    source TEXT NOT NULL,
+    source host_user_affinity_source NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (host_id, source)
@@ -162,7 +164,7 @@ CREATE INDEX host_emails_email_idx ON host_emails (email);
 CREATE TABLE host_directory_user (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     directory_user_id BIGINT NOT NULL REFERENCES directory_users (id) ON DELETE CASCADE,
-    source TEXT NOT NULL CHECK (source IN ('manual', 'mdm_email')),
+    source host_directory_user_source NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -452,6 +454,8 @@ DROP TABLE directory_users;
 DROP TABLE agent_secrets;
 DROP TABLE sessions;
 DROP TABLE users;
+DROP TYPE IF EXISTS host_directory_user_source;
+DROP TYPE IF EXISTS host_user_affinity_source;
 DROP TYPE label_scope_mode;
 DROP TYPE agent;
 DROP TYPE user_role;

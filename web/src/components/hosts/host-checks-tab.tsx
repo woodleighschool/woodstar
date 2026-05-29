@@ -71,8 +71,6 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
       onPaginationChange={setPagination}
       onSortingChange={setSorting}
       isLoading={query.isLoading}
-      showExport
-      exportFilename="host-checks.csv"
       getRowId={(row) => `${row.check_id}-${row.host_id}`}
       rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.check_id) } })}
       empty={

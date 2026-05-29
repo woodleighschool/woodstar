@@ -56,9 +56,10 @@ type AuthDependencies struct {
 }
 
 type InventoryDependencies struct {
-	Hosts    *hosts.Store
-	Software *software.Store
-	Labels   *labels.Store
+	Hosts          *hosts.Store
+	DeviceMappings *hosts.DeviceMappingStore
+	Software       *software.Store
+	Labels         *labels.Store
 }
 
 type DirectoryDependencies struct {

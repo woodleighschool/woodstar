@@ -3,26 +3,14 @@
 
 ALTER TYPE santa_rule_type ADD VALUE IF NOT EXISTS 'bundle';
 
--- +goose StatementBegin
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_type
-        WHERE typname = 'santa_signing_status'
-    ) THEN
-        CREATE TYPE santa_signing_status AS ENUM (
-            'unspecified',
-            'unsigned',
-            'invalid',
-            'adhoc',
-            'development',
-            'production'
-        );
-    END IF;
-END
-$$;
--- +goose StatementEnd
+CREATE TYPE santa_signing_status AS ENUM (
+    'unspecified',
+    'unsigned',
+    'invalid',
+    'adhoc',
+    'development',
+    'production'
+);
 
 ALTER TABLE santa_sync_targets
     ADD COLUMN IF NOT EXISTS notification_app_name TEXT NOT NULL DEFAULT '';

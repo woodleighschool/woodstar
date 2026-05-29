@@ -120,8 +120,6 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               onPaginationChange={setPagination}
               onSortingChange={setSorting}
               isLoading={rules.isLoading}
-              showExport
-              exportFilename="host-santa-rules.csv"
               getRowId={(rule) => `${rule.rule_id}-${rule.matched_include_id}`}
               empty={
                 <DataTableEmptyState

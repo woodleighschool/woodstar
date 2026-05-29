@@ -9,11 +9,32 @@ import (
 	"context"
 )
 
+const deleteHostDeviceMapping = `-- name: DeleteHostDeviceMapping :exec
+DELETE FROM host_emails
+WHERE host_id = $1
+  AND source = $2
+`
+
+type DeleteHostDeviceMappingParams struct {
+	HostID int64                  `json:"host_id"`
+	Source HostUserAffinitySource `json:"source"`
+}
+
+func (q *Queries) DeleteHostDeviceMapping(ctx context.Context, arg DeleteHostDeviceMappingParams) error {
+	_, err := q.db.Exec(ctx, deleteHostDeviceMapping, arg.HostID, arg.Source)
+	return err
+}
+
 const listHostDeviceMappings = `-- name: ListHostDeviceMappings :many
 SELECT id, host_id, email, source, created_at, updated_at
 FROM host_emails
 WHERE host_id = $1
-ORDER BY source
+ORDER BY CASE source
+    WHEN 'manual' THEN 0
+    WHEN 'orbit_profile' THEN 1
+    WHEN 'santa_primary_user' THEN 1
+    ELSE 10
+END, source
 `
 
 type ListHostDeviceMappingsParams struct {
@@ -51,7 +72,12 @@ const listHostDeviceMappingsForHosts = `-- name: ListHostDeviceMappingsForHosts 
 SELECT id, host_id, email, source, created_at, updated_at
 FROM host_emails
 WHERE host_id = ANY($1::bigint[])
-ORDER BY host_id, source
+ORDER BY host_id, CASE source
+    WHEN 'manual' THEN 0
+    WHEN 'orbit_profile' THEN 1
+    WHEN 'santa_primary_user' THEN 1
+    ELSE 10
+END, source
 `
 
 type ListHostDeviceMappingsForHostsParams struct {
@@ -102,9 +128,9 @@ ON CONFLICT (host_id, source) DO UPDATE SET
 `
 
 type UpsertHostDeviceMappingParams struct {
-	HostID int64  `json:"host_id"`
-	Email  string `json:"email"`
-	Source string `json:"source"`
+	HostID int64                  `json:"host_id"`
+	Email  string                 `json:"email"`
+	Source HostUserAffinitySource `json:"source"`
 }
 
 func (q *Queries) UpsertHostDeviceMapping(ctx context.Context, arg UpsertHostDeviceMappingParams) error {

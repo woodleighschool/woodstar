@@ -101,8 +101,19 @@ type HostDetail struct {
 	Host
 	Labels       []labels.Label    `json:"labels"`
 	Users        []HostUser        `json:"users"`
+	UserAffinity *HostUserAffinity `json:"user_affinity,omitempty"`
 	Batteries    []HostBattery     `json:"batteries"`
 	Certificates []HostCertificate `json:"certificates"`
+}
+
+// HostUserAffinity is Woodstar's best user/device affinity for a host.
+type HostUserAffinity struct {
+	Email      string              `json:"email"`
+	Username   string              `json:"username"`
+	Name       string              `json:"name"`
+	Department string              `json:"department"`
+	Groups     []string            `json:"groups"`
+	Source     DeviceMappingSource `json:"source"`
 }
 
 // HostUser is one local account reported by osquery.

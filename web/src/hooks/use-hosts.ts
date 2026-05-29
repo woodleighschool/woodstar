@@ -18,6 +18,10 @@ export type HostSantaEffectiveRulesResult = Schemas["PaginatedBodyEffectiveRuleS
 export type HostSantaEffectiveRule = Schemas["EffectiveRuleStatus"];
 export type HostSantaEffectiveRulesParams = NonNullable<ListHostSantaEffectiveRulesData["query"]>;
 
+export interface HostDeviceMappingMutation {
+  email: string;
+}
+
 export interface ListParams {
   q?: string;
   page_index?: number;
@@ -89,6 +93,29 @@ export function useBulkDeleteHosts() {
     mutationFn: (ids) => unwrap(apiClient.POST("/api/hosts/bulk-delete", { body: { ids } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["hosts"] });
+    },
+  });
+}
+
+export function useSetHostDeviceMapping() {
+  const queryClient = useQueryClient();
+  return useMutation<HostDetail, ApiError, { id: number; body: HostDeviceMappingMutation }>({
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PUT("/api/hosts/{id}/device-mapping", { params: { path: { id } }, body })),
+    onSuccess: async (host) => {
+      queryClient.setQueryData(queryKeys.host(host.id), host);
+      await queryClient.invalidateQueries({ queryKey: ["hosts"] });
+    },
+  });
+}
+
+export function useClearHostDeviceMapping() {
+  const queryClient = useQueryClient();
+  return useMutation<HostDetail, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}/device-mapping", { params: { path: { id } } })),
+    onSuccess: async (host) => {
+      queryClient.setQueryData(queryKeys.host(host.id), host);
+      await queryClient.invalidateQueries({ queryKey: ["hosts"] });
     },
   });
 }

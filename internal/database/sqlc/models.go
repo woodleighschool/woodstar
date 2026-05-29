@@ -53,6 +53,91 @@ func (ns NullAgent) Value() (driver.Value, error) {
 	return string(ns.Agent), nil
 }
 
+type HostDirectoryUserSource string
+
+const (
+	HostDirectoryUserSourceManual               HostDirectoryUserSource = "manual"
+	HostDirectoryUserSourceReportedUserAffinity HostDirectoryUserSource = "reported_user_affinity"
+)
+
+func (e *HostDirectoryUserSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = HostDirectoryUserSource(s)
+	case string:
+		*e = HostDirectoryUserSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for HostDirectoryUserSource: %T", src)
+	}
+	return nil
+}
+
+type NullHostDirectoryUserSource struct {
+	HostDirectoryUserSource HostDirectoryUserSource `json:"host_directory_user_source"`
+	Valid                   bool                    `json:"valid"` // Valid is true if HostDirectoryUserSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullHostDirectoryUserSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.HostDirectoryUserSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.HostDirectoryUserSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullHostDirectoryUserSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.HostDirectoryUserSource), nil
+}
+
+type HostUserAffinitySource string
+
+const (
+	HostUserAffinitySourceManual           HostUserAffinitySource = "manual"
+	HostUserAffinitySourceOrbitProfile     HostUserAffinitySource = "orbit_profile"
+	HostUserAffinitySourceSantaPrimaryUser HostUserAffinitySource = "santa_primary_user"
+)
+
+func (e *HostUserAffinitySource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = HostUserAffinitySource(s)
+	case string:
+		*e = HostUserAffinitySource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for HostUserAffinitySource: %T", src)
+	}
+	return nil
+}
+
+type NullHostUserAffinitySource struct {
+	HostUserAffinitySource HostUserAffinitySource `json:"host_user_affinity_source"`
+	Valid                  bool                   `json:"valid"` // Valid is true if HostUserAffinitySource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullHostUserAffinitySource) Scan(value interface{}) error {
+	if value == nil {
+		ns.HostUserAffinitySource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.HostUserAffinitySource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullHostUserAffinitySource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.HostUserAffinitySource), nil
+}
+
 type LabelScopeMode string
 
 const (
@@ -612,20 +697,20 @@ type HostCertificate struct {
 }
 
 type HostDirectoryUser struct {
-	HostID          int64     `json:"host_id"`
-	DirectoryUserID int64     `json:"directory_user_id"`
-	Source          string    `json:"source"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	HostID          int64                   `json:"host_id"`
+	DirectoryUserID int64                   `json:"directory_user_id"`
+	Source          HostDirectoryUserSource `json:"source"`
+	CreatedAt       time.Time               `json:"created_at"`
+	UpdatedAt       time.Time               `json:"updated_at"`
 }
 
 type HostEmail struct {
-	ID        int64     `json:"id"`
-	HostID    int64     `json:"host_id"`
-	Email     string    `json:"email"`
-	Source    string    `json:"source"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64                  `json:"id"`
+	HostID    int64                  `json:"host_id"`
+	Email     string                 `json:"email"`
+	Source    HostUserAffinitySource `json:"source"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 type HostSoftware struct {
@@ -771,6 +856,12 @@ type SantaExecutable struct {
 	FileName                    string             `json:"file_name"`
 	FileBundleID                string             `json:"file_bundle_id"`
 	FileBundlePath              string             `json:"file_bundle_path"`
+	SigningID                   string             `json:"signing_id"`
+	TeamID                      string             `json:"team_id"`
+	Cdhash                      string             `json:"cdhash"`
+	Entitlements                []byte             `json:"entitlements"`
+	FirstSeenAt                 time.Time          `json:"first_seen_at"`
+	UpdatedAt                   time.Time          `json:"updated_at"`
 	FileBundleExecutableRelPath string             `json:"file_bundle_executable_rel_path"`
 	FileBundleName              string             `json:"file_bundle_name"`
 	FileBundleVersion           string             `json:"file_bundle_version"`
@@ -778,16 +869,10 @@ type SantaExecutable struct {
 	FileBundleHash              string             `json:"file_bundle_hash"`
 	FileBundleHashMillis        int32              `json:"file_bundle_hash_millis"`
 	FileBundleBinaryCount       int32              `json:"file_bundle_binary_count"`
-	SigningID                   string             `json:"signing_id"`
-	TeamID                      string             `json:"team_id"`
-	Cdhash                      string             `json:"cdhash"`
 	CodesigningFlags            int64              `json:"codesigning_flags"`
 	SigningStatus               SantaSigningStatus `json:"signing_status"`
 	SecureSigningTime           *time.Time         `json:"secure_signing_time"`
 	SigningTime                 *time.Time         `json:"signing_time"`
-	Entitlements                []byte             `json:"entitlements"`
-	FirstSeenAt                 time.Time          `json:"first_seen_at"`
-	UpdatedAt                   time.Time          `json:"updated_at"`
 }
 
 type SantaExecutableSigningChain struct {
@@ -801,14 +886,14 @@ type SantaExecutionEvent struct {
 	ExecutableID    int64                  `json:"executable_id"`
 	FilePath        string                 `json:"file_path"`
 	ExecutingUser   string                 `json:"executing_user"`
-	Pid             int32                  `json:"pid"`
-	Ppid            int32                  `json:"ppid"`
-	ParentName      string                 `json:"parent_name"`
 	LoggedInUsers   []string               `json:"logged_in_users"`
 	CurrentSessions []string               `json:"current_sessions"`
 	Decision        SantaExecutionDecision `json:"decision"`
 	OccurredAt      time.Time              `json:"occurred_at"`
 	IngestedAt      time.Time              `json:"ingested_at"`
+	Pid             int32                  `json:"pid"`
+	Ppid            int32                  `json:"ppid"`
+	ParentName      string                 `json:"parent_name"`
 }
 
 type SantaFileAccessEvent struct {
@@ -818,15 +903,15 @@ type SantaFileAccessEvent struct {
 	RuleName                string      `json:"rule_name"`
 	Target                  string      `json:"target"`
 	Decision                interface{} `json:"decision"`
+	ProcessChain            []byte      `json:"process_chain"`
+	OccurredAt              time.Time   `json:"occurred_at"`
+	IngestedAt              time.Time   `json:"ingested_at"`
 	PrimaryProcessSha256    string      `json:"primary_process_sha256"`
 	PrimaryProcessPath      string      `json:"primary_process_path"`
 	PrimaryProcessSigningID string      `json:"primary_process_signing_id"`
 	PrimaryProcessTeamID    string      `json:"primary_process_team_id"`
 	PrimaryProcessCdhash    string      `json:"primary_process_cdhash"`
 	PrimaryProcessPid       int32       `json:"primary_process_pid"`
-	ProcessChain            []byte      `json:"process_chain"`
-	OccurredAt              time.Time   `json:"occurred_at"`
-	IngestedAt              time.Time   `json:"ingested_at"`
 }
 
 type SantaHost struct {
@@ -891,10 +976,10 @@ type SantaSyncPendingRule struct {
 	CelExpression       string        `json:"cel_expression"`
 	CustomMessage       string        `json:"custom_message"`
 	CustomURL           string        `json:"custom_url"`
-	NotificationAppName string        `json:"notification_app_name"`
 	PayloadHash         string        `json:"payload_hash"`
 	Removed             bool          `json:"removed"`
 	UpdatedAt           time.Time     `json:"updated_at"`
+	NotificationAppName string        `json:"notification_app_name"`
 }
 
 type SantaSyncState struct {
@@ -932,9 +1017,9 @@ type SantaSyncTarget struct {
 	CelExpression       string               `json:"cel_expression"`
 	CustomMessage       string               `json:"custom_message"`
 	CustomURL           string               `json:"custom_url"`
-	NotificationAppName string               `json:"notification_app_name"`
 	PayloadHash         string               `json:"payload_hash"`
 	UpdatedAt           time.Time            `json:"updated_at"`
+	NotificationAppName string               `json:"notification_app_name"`
 }
 
 type Session struct {

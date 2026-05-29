@@ -1330,6 +1330,8 @@ components:
         updated_at:
           format: date-time
           type: string
+        user_affinity:
+          $ref: "#/components/schemas/HostUserAffinity"
         users:
           items:
             $ref: "#/components/schemas/HostUser"
@@ -1373,11 +1375,30 @@ components:
           type: string
         source:
           enum:
+            - manual
             - orbit_profile
+            - santa_primary_user
           type: string
       required:
         - email
         - source
+      type: object
+    HostDeviceMappingPutBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/HostDeviceMappingPutBody.json
+          format: uri
+          readOnly: true
+          type: string
+        email:
+          format: email
+          minLength: 3
+          type: string
+      required:
+        - email
       type: object
     HostReport:
       additionalProperties: false
@@ -1578,6 +1599,37 @@ components:
         - description
         - directory
         - shell
+      type: object
+    HostUserAffinity:
+      additionalProperties: false
+      properties:
+        department:
+          type: string
+        email:
+          type: string
+        groups:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        name:
+          type: string
+        source:
+          enum:
+            - manual
+            - orbit_profile
+            - santa_primary_user
+          type: string
+        username:
+          type: string
+      required:
+        - email
+        - username
+        - name
+        - department
+        - groups
+        - source
       type: object
     ItemsBodyCheckHostStatus:
       additionalProperties: false
@@ -3926,6 +3978,117 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Get an enrolled host
+      tags:
+        - Hosts
+  /api/hosts/{id}/device-mapping:
+    delete:
+      operationId: delete-host-device-mapping
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostDetailBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Clear the host user mapping
+      tags:
+        - Hosts
+    put:
+      operationId: put-host-device-mapping
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostDeviceMappingPutBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostDetailBody"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Set the host user mapping
       tags:
         - Hosts
   /api/hosts/{id}/osquery/checks:

@@ -3,6 +3,7 @@ package santa
 import (
 	"context"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -15,6 +16,7 @@ const ruleDownloadPageSize = 500
 type Service struct {
 	hosts          hostStore
 	configurations configurationResolver
+	deviceMappings deviceMappingStore
 	events         eventStore
 	rules          ruleStore
 	sync           syncStore
@@ -23,6 +25,7 @@ type Service struct {
 type Dependencies struct {
 	HostStore      hostStore
 	Configurations configurationResolver
+	DeviceMappings deviceMappingStore
 	Events         eventStore
 	Rules          ruleStore
 	Sync           syncStore
@@ -31,6 +34,10 @@ type Dependencies struct {
 type hostStore interface {
 	hostIDByMachineID(context.Context, string) (int64, error)
 	UpsertHostObservation(context.Context, HostObservation) error
+}
+
+type deviceMappingStore interface {
+	Upsert(context.Context, int64, string, hosts.DeviceMappingSource) error
 }
 
 type configurationResolver interface {
@@ -67,6 +74,7 @@ func NewService(deps Dependencies) *Service {
 	return &Service{
 		hosts:          deps.HostStore,
 		configurations: deps.Configurations,
+		deviceMappings: deps.DeviceMappings,
 		events:         deps.Events,
 		rules:          deps.Rules,
 		sync:           deps.Sync,
@@ -84,6 +92,16 @@ func (s *Service) Preflight(
 	}
 	if err := s.hosts.UpsertHostObservation(ctx, hostObservationFromPreflight(hostID, machineID, req)); err != nil {
 		return PreflightResponse{}, err
+	}
+	if s.deviceMappings != nil {
+		if err := s.deviceMappings.Upsert(
+			ctx,
+			hostID,
+			req.PrimaryUser,
+			hosts.DeviceMappingSourceSantaPrimaryUser,
+		); err != nil {
+			return PreflightResponse{}, err
+		}
 	}
 
 	effectiveRules, err := s.rules.ResolveRulesForHost(ctx, hostID)

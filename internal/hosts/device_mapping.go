@@ -2,6 +2,7 @@ package hosts
 
 import (
 	"context"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -12,9 +13,17 @@ import (
 
 type DeviceMappingSource string
 
-const DeviceMappingSourceOrbitProfile DeviceMappingSource = "orbit_profile"
+const (
+	DeviceMappingSourceManual           DeviceMappingSource = "manual"
+	DeviceMappingSourceOrbitProfile     DeviceMappingSource = "orbit_profile"
+	DeviceMappingSourceSantaPrimaryUser DeviceMappingSource = "santa_primary_user"
+)
 
-var DeviceMappingSourceValues = []DeviceMappingSource{DeviceMappingSourceOrbitProfile}
+var DeviceMappingSourceValues = []DeviceMappingSource{
+	DeviceMappingSourceManual,
+	DeviceMappingSourceOrbitProfile,
+	DeviceMappingSourceSantaPrimaryUser,
+}
 
 func (DeviceMappingSource) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(DeviceMappingSourceValues...)
@@ -30,13 +39,24 @@ func NewDeviceMappingStore(db *database.DB) *DeviceMappingStore {
 }
 
 func (s *DeviceMappingStore) Upsert(ctx context.Context, hostID int64, email string, source DeviceMappingSource) error {
+	email = strings.TrimSpace(email)
 	if email == "" || source == "" {
 		return nil
 	}
 	return s.q.UpsertHostDeviceMapping(ctx, sqlc.UpsertHostDeviceMappingParams{
 		HostID: hostID,
 		Email:  email,
-		Source: string(source),
+		Source: sqlc.HostUserAffinitySource(source),
+	})
+}
+
+func (s *DeviceMappingStore) Delete(ctx context.Context, hostID int64, source DeviceMappingSource) error {
+	if source == "" {
+		return nil
+	}
+	return s.q.DeleteHostDeviceMapping(ctx, sqlc.DeleteHostDeviceMappingParams{
+		HostID: hostID,
+		Source: sqlc.HostUserAffinitySource(source),
 	})
 }
 

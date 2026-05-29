@@ -158,9 +158,10 @@ func newServer(
 			UserService: userService,
 		},
 		Inventory: api.InventoryDependencies{
-			Hosts:    stores.hosts,
-			Software: stores.software,
-			Labels:   stores.labels,
+			Hosts:          stores.hosts,
+			DeviceMappings: stores.deviceMappings,
+			Software:       stores.software,
+			Labels:         stores.labels,
 		},
 		Directory: api.DirectoryDependencies{Store: stores.directory},
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
@@ -291,6 +292,7 @@ func newSanta(
 	santaService := santa.NewService(santa.Dependencies{
 		HostStore:      stores.santa,
 		Configurations: stores.santaConfigurations,
+		DeviceMappings: stores.deviceMappings,
 		Events:         stores.santaEvents,
 		Rules:          stores.santaRules,
 		Sync:           stores.santaSync,

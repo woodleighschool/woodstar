@@ -5,6 +5,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -24,6 +25,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	service := santa.NewService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurationStore,
+		DeviceMappings: hosts.NewDeviceMappingStore(db),
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
@@ -69,6 +71,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		ClientMode:       configurations.ReportedClientModeMonitor,
 		RequestCleanSync: true,
 		RulesHash:        "opaque-client-hash",
+		PrimaryUser:      "test1@woodleigh.vic.edu.au",
 	})
 	if err != nil {
 		t.Fatalf("preflight: %v", err)
@@ -84,6 +87,15 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}
 	if preflight.Configuration.FullSyncIntervalSeconds != 120 {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
+	}
+	affinity, err := directory.NewStore(db).LoadHostUserAffinity(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("load host user affinity after preflight: %v", err)
+	}
+	if affinity == nil ||
+		affinity.Email != "test1@woodleigh.vic.edu.au" ||
+		affinity.Source != hosts.DeviceMappingSourceSantaPrimaryUser {
+		t.Fatalf("user affinity after preflight = %+v, want santa primary user", affinity)
 	}
 
 	download, err := service.RuleDownload(ctx, "santa-sync-host", santa.RuleDownloadRequest{})

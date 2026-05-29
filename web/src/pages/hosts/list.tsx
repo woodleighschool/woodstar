@@ -29,6 +29,7 @@ import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { primaryDeviceMapping } from "@/lib/host-device-mappings";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
@@ -113,17 +114,17 @@ export function HostsListPage() {
     },
     {
       id: "primary_user",
-      header: () => "Primary User",
+      header: () => "User",
       enableSorting: false,
       cell: ({ row }) => {
-        const email = row.original.device_mappings?.[0]?.email ?? "";
+        const email = primaryDeviceMapping(row.original.device_mappings)?.email ?? "";
         return (
           <span className="block max-w-[16rem] truncate" title={email || ""}>
             {email || "-"}
           </span>
         );
       },
-      meta: { label: "Primary User" },
+      meta: { label: "User" },
     },
     {
       id: "last_seen_at",

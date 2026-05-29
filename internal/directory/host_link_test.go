@@ -40,6 +40,20 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	); err != nil {
 		t.Fatalf("seed host_emails: %v", err)
 	}
+	santaHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
+		HardwareUUID:   "fixture-santa-uuid",
+		HardwareSerial: "fixture-santa-serial",
+		Hostname:       "fixture-santa",
+		OrbitNodeKey:   "fixture-santa-node",
+	})
+	if err != nil {
+		t.Fatalf("enroll santa-backed host: %v", err)
+	}
+	if err := deviceMappings.Upsert(
+		ctx, santaHost.ID, "bob@example.com", hosts.DeviceMappingSourceSantaPrimaryUser,
+	); err != nil {
+		t.Fatalf("seed santa host email: %v", err)
+	}
 
 	if err := store.Apply(ctx, Snapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -52,8 +66,8 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	}
 
 	linkedUserID, source := hostDirectoryLink(t, ctx, store, host.ID)
-	if source != "mdm_email" {
-		t.Fatalf("source = %q, want mdm_email", source)
+	if source != "reported_user_affinity" {
+		t.Fatalf("source = %q, want reported_user_affinity", source)
 	}
 
 	aliceID := directoryUserID(t, ctx, store, "alice@example.com")
@@ -62,6 +76,14 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	}
 
 	bobID := directoryUserID(t, ctx, store, "bob@example.com")
+	linkedUserID, source = hostDirectoryLink(t, ctx, store, santaHost.ID)
+	if source != "reported_user_affinity" {
+		t.Fatalf("santa source = %q, want reported_user_affinity", source)
+	}
+	if linkedUserID != bobID {
+		t.Fatalf("santa link points to %d, want bob's id %d", linkedUserID, bobID)
+	}
+
 	if _, err := store.db.Pool().Exec(ctx, `
 		INSERT INTO host_directory_user (host_id, directory_user_id, source)
 		VALUES ($1, $2, 'manual')

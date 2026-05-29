@@ -1,15 +1,25 @@
--- ReconcileHostDirectoryLinks joins host_emails (Orbit-provided) to
--- directory_users by UPN and inserts mdm_email links. Existing manual links
--- are preserved by the WHERE clause; existing mdm_email links update if the
--- matched directory user has changed.
+-- ReconcileHostDirectoryLinks joins reported host user affinity mappings to
+-- directory_users by UPN and inserts reported_user_affinity links. Existing
+-- manual links are preserved by the WHERE clause; existing reported links
+-- update if the preferred matched directory user has changed.
 -- name: ReconcileHostDirectoryLinks :exec
 INSERT INTO host_directory_user (host_id, directory_user_id, source)
-SELECT he.host_id, du.id, 'mdm_email'
-FROM host_emails he
-INNER JOIN directory_users du ON du.user_principal_name = he.email
-WHERE he.source = @mdm_source
+SELECT host_id, directory_user_id, 'reported_user_affinity'::host_directory_user_source
+FROM (
+    SELECT DISTINCT ON (he.host_id)
+        he.host_id,
+        du.id AS directory_user_id
+    FROM host_emails he
+    INNER JOIN directory_users du ON lower(du.user_principal_name) = lower(he.email)
+    WHERE he.source::text = ANY(@affinity_sources::text[])
+    ORDER BY he.host_id, CASE he.source
+        WHEN 'orbit_profile' THEN 0
+        WHEN 'santa_primary_user' THEN 0
+        ELSE 10
+    END, he.source
+) preferred
 ON CONFLICT (host_id) DO UPDATE SET
     directory_user_id = EXCLUDED.directory_user_id,
-    source = 'mdm_email',
+    source = 'reported_user_affinity',
     updated_at = now()
 WHERE host_directory_user.source <> 'manual';

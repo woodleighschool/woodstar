@@ -29,6 +29,7 @@ export type Schemas = {
   HostSoftwareRow: API.HostSoftwareRow;
   HostState: API.HostState;
   HostSummary: API.HostSummary;
+  HostUserAffinity: API.HostUserAffinity;
   ItemsBodyCheckHostStatus: API.ItemsBodyCheckHostStatus;
   ItemsBodyHostReport: API.ItemsBodyHostReport;
   ItemsBodyReportResult: API.ItemsBodyReportResult;

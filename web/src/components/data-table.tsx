@@ -233,6 +233,7 @@ export function DataTable<TData, TValue>({
     </Button>
   ) : null;
   const toolbarContent = typeof toolbar === "function" ? toolbar(table, exportButton) : toolbar;
+  const defaultToolbarContent = exportButton ? <div className="flex justify-end">{exportButton}</div> : null;
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -307,7 +308,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      {toolbarContent ?? exportButton}
+      {toolbarContent ?? defaultToolbarContent}
       {canReorderRows ? (
         <DndContext
           id={sortableID}

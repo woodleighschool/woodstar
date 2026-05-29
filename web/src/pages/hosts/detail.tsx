@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { HostChecksTab } from "@/components/hosts/host-checks-tab";
 import {
   HostCertificatesCard,
+  HostIdentityCard,
   HostInfoCard,
   HostLabelsCard,
   HostUsersCard,
@@ -63,6 +64,7 @@ export function HostDetailPage() {
           <div className="flex flex-col gap-4">
             <HostInfoCard host={host} />
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] items-start gap-4">
+              <HostIdentityCard host={host} />
               <HostLabelsCard host={host} />
               <HostUsersCard host={host} />
             </div>

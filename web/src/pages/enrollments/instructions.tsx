@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import type { Integration } from "./types";
 
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
-const MDM_EMAIL_PLACEHOLDER = "REPLACE_WITH_MDM_USER_EMAIL";
+const USER_EMAIL_PLACEHOLDER = "REPLACE_WITH_ASSIGNED_USER_EMAIL";
 const PUBLIC_URL_PLACEHOLDER = "REPLACE_WITH_WOODSTAR_PUBLIC_URL";
 const xmlExtensions: Extension[] = [xml()];
 
@@ -30,7 +30,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
     <section className="grid gap-6">
       <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
         <p>
-          Build one Orbit package and reuse it. Put the Woodstar URL, enroll secret, and MDM user value in the
+          Build one Orbit package and reuse it. Put the Woodstar URL, enroll secret, and assigned user email in the
           configuration profile so the package can move between environments.
         </p>
       </div>
@@ -51,7 +51,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 
       <DeploymentArtifact
         title="Configuration Profile"
-        description={`The profile points Orbit at Woodstar, supplies the enroll secret, and maps the assigned user. Replace ${MDM_EMAIL_PLACEHOLDER} with the variable your MDM expands.`}
+        description={`The profile points Orbit at Woodstar, supplies the enroll secret, and maps the assigned user. Replace ${USER_EMAIL_PLACEHOLDER} with your MDM's user-email variable.`}
         value={orbitProfileTemplate(publicURL)}
         extensions={xmlExtensions}
         multiline
@@ -195,13 +195,13 @@ function orbitProfileTemplate(publicURL: string | undefined) {
     </dict>
     <dict>
       <key>EndUserEmail</key>
-      <string>${MDM_EMAIL_PLACEHOLDER}</string>
+      <string>${USER_EMAIL_PLACEHOLDER}</string>
       <key>PayloadDisplayName</key>
-      <string>MDM User Mapping</string>
+      <string>Orbit User Mapping</string>
       <key>PayloadIdentifier</key>
       <string>com.fleetdm.fleet.mdm.apple.mdm</string>
       <key>PayloadType</key>
-      <string>com.apple.mdm</string>
+      <string>au.vic.edu.woodleigh.woodstar.orbit.user</string>
       <key>PayloadUUID</key>
       <string>29713130-1602-4D27-90C9-B822A295E44E</string>
       <key>PayloadVersion</key>

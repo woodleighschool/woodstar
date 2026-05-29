@@ -505,12 +505,21 @@ export type HostDetailBody = {
     santa?: HostState;
     software_updated_at?: string;
     updated_at: string;
+    user_affinity?: HostUserAffinity;
     users: Array<HostUser> | null;
 };
 
 export type HostDeviceMapping = {
     email: string;
-    source: 'orbit_profile';
+    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
+};
+
+export type HostDeviceMappingPutBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    email: string;
 };
 
 export type HostReport = {
@@ -579,6 +588,15 @@ export type HostUser = {
     shell: string;
     type: string;
     uid: string;
+    username: string;
+};
+
+export type HostUserAffinity = {
+    department: string;
+    email: string;
+    groups: Array<string> | null;
+    name: string;
+    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
     username: string;
 };
 
@@ -1357,7 +1375,12 @@ export type HostDetailBodyWritable = {
     santa?: HostState;
     software_updated_at?: string;
     updated_at: string;
+    user_affinity?: HostUserAffinity;
     users: Array<HostUser> | null;
+};
+
+export type HostDeviceMappingPutBodyWritable = {
+    email: string;
 };
 
 export type HostReportResultsBodyWritable = {
@@ -2288,6 +2311,96 @@ export type GetHostResponses = {
 };
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
+
+export type DeleteHostDeviceMappingData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/device-mapping';
+};
+
+export type DeleteHostDeviceMappingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteHostDeviceMappingError = DeleteHostDeviceMappingErrors[keyof DeleteHostDeviceMappingErrors];
+
+export type DeleteHostDeviceMappingResponses = {
+    /**
+     * OK
+     */
+    200: HostDetailBody;
+};
+
+export type DeleteHostDeviceMappingResponse = DeleteHostDeviceMappingResponses[keyof DeleteHostDeviceMappingResponses];
+
+export type PutHostDeviceMappingData = {
+    body: HostDeviceMappingPutBodyWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/device-mapping';
+};
+
+export type PutHostDeviceMappingErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type PutHostDeviceMappingError = PutHostDeviceMappingErrors[keyof PutHostDeviceMappingErrors];
+
+export type PutHostDeviceMappingResponses = {
+    /**
+     * OK
+     */
+    200: HostDetailBody;
+};
+
+export type PutHostDeviceMappingResponse = PutHostDeviceMappingResponses[keyof PutHostDeviceMappingResponses];
 
 export type ListHostOsqueryChecksData = {
     body?: never;

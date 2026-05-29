@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -78,6 +79,15 @@ type hostBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
+type hostDeviceMappingPutBody struct {
+	Email string `json:"email" format:"email" minLength:"3"`
+}
+
+type hostDeviceMappingPutInput struct {
+	ID   int64 `path:"id"`
+	Body hostDeviceMappingPutBody
+}
+
 // HostDetailContributor adds capability-specific sections to a host detail response.
 type HostDetailContributor = hosts.DetailContributor[hostDetailBody]
 
@@ -86,11 +96,14 @@ type HostDetailContributor = hosts.DetailContributor[hostDetailBody]
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
+	deviceMappings *hosts.DeviceMappingStore,
 	softwareStore *software.Store,
 	contributors ...HostDetailContributor,
 ) {
 	registerListHosts(api, hostStore)
 	registerGetHost(api, hostStore, contributors)
+	registerPutHostDeviceMapping(api, hostStore, deviceMappings, contributors)
+	registerDeleteHostDeviceMapping(api, hostStore, deviceMappings, contributors)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
@@ -113,6 +126,35 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
+func loadHostDetailBody(
+	ctx context.Context,
+	hostStore *hosts.Store,
+	hostID int64,
+	contributors []HostDetailContributor,
+) (*hostDetailBody, error) {
+	host, err := hostStore.GetByID(ctx, hostID)
+	if errors.Is(err, dbutil.ErrNotFound) {
+		return nil, huma.Error404NotFound("host not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	detail, err := hostStore.LoadDetail(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	body := hostDetailBody{HostDetail: *detail}
+	for _, contributor := range contributors {
+		if contributor == nil {
+			continue
+		}
+		if err := contributor.ContributeHostDetail(ctx, hostID, &body); err != nil {
+			return nil, err
+		}
+	}
+	return &body, nil
+}
+
 func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDetailContributor) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
@@ -122,27 +164,86 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDe
 		Summary:     "Get an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
-		if errors.Is(err, dbutil.ErrNotFound) {
+		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
+		if err != nil {
+			return nil, err
+		}
+		return &hostDetailOutput{Body: *body}, nil
+	})
+}
+
+func registerPutHostDeviceMapping(
+	api huma.API,
+	hostStore *hosts.Store,
+	deviceMappings *hosts.DeviceMappingStore,
+	contributors []HostDetailContributor,
+) {
+	huma.Register(api, huma.Operation{
+		OperationID: "put-host-device-mapping",
+		Method:      http.MethodPut,
+		Path:        "/api/hosts/{id}/device-mapping",
+		Tags:        []string{hostsTag},
+		Summary:     "Set the host user mapping",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+		},
+	}, func(ctx context.Context, input *hostDeviceMappingPutInput) (*hostDetailOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
+		} else if err != nil {
+			return nil, err
 		}
+		email := strings.TrimSpace(input.Body.Email)
+		if email == "" {
+			return nil, huma.Error400BadRequest("email is required")
+		}
+		if err := deviceMappings.Upsert(ctx, input.ID, email, hosts.DeviceMappingSourceManual); err != nil {
+			return nil, err
+		}
+		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
 		if err != nil {
 			return nil, err
 		}
-		detail, err := hostStore.LoadDetail(ctx, host)
+		return &hostDetailOutput{Body: *body}, nil
+	})
+}
+
+func registerDeleteHostDeviceMapping(
+	api huma.API,
+	hostStore *hosts.Store,
+	deviceMappings *hosts.DeviceMappingStore,
+	contributors []HostDetailContributor,
+) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-host-device-mapping",
+		Method:      http.MethodDelete,
+		Path:        "/api/hosts/{id}/device-mapping",
+		Tags:        []string{hostsTag},
+		Summary:     "Clear the host user mapping",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+			return nil, huma.Error404NotFound("host not found")
+		} else if err != nil {
+			return nil, err
+		}
+		if err := deviceMappings.Delete(ctx, input.ID, hosts.DeviceMappingSourceManual); err != nil {
+			return nil, err
+		}
+		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
 		if err != nil {
 			return nil, err
 		}
-		body := hostDetailBody{HostDetail: *detail}
-		for _, contributor := range contributors {
-			if contributor == nil {
-				continue
-			}
-			if err := contributor.ContributeHostDetail(ctx, input.ID, &body); err != nil {
-				return nil, err
-			}
-		}
-		return &hostDetailOutput{Body: body}, nil
+		return &hostDetailOutput{Body: *body}, nil
 	})
 }
 

@@ -1,14 +1,29 @@
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
-import { useMemo, useState, type ReactNode } from "react";
+import { Pencil, Trash2, UserPlus } from "lucide-react";
+import { useMemo, useState, type ReactNode, type SyntheticEvent } from "react";
 
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { LabelChips } from "@/components/labels/label-chips";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Host, HostDetail } from "@/hooks/use-hosts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/use-auth";
+import { useClearHostDeviceMapping, useSetHostDeviceMapping, type Host, type HostDetail } from "@/hooks/use-hosts";
 import { deviceMappingSourceLabel } from "@/lib/device-mapping-source-labels";
-import { formatBytes, formatRelative } from "@/lib/utils";
+import { manualDeviceMapping } from "@/lib/host-device-mappings";
+import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
 interface Tile {
   label: string;
@@ -24,7 +39,18 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
 
   tiles.push({
     label: "Agent",
-    value: host.osquery_version || host.orbit_version ? agentSummary(host.osquery_version, host.orbit_version) : "-",
+    value: host.orbit_version ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>{host.orbit_version}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="whitespace-pre-line">{`osquery: ${host.osquery_version || "-"}\nOrbit: ${host.orbit_version}`}</div>
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      "-"
+    ),
   });
 
   const battery = host.batteries?.[0];
@@ -98,6 +124,43 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
   );
 }
 
+export function HostIdentityCard({ host }: { host: HostDetail }) {
+  const { user } = useAuth();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const affinity = host.user_affinity;
+  const canEdit = user?.role === "admin";
+  const hasManualMapping = manualDeviceMapping(host.device_mappings) !== null;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle>User Affinity</CardTitle>
+        {canEdit ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+            {hasManualMapping ? <Pencil className="size-4" /> : <UserPlus className="size-4" />}
+            {hasManualMapping ? "Edit user" : "Set user"}
+          </Button>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
+          <IdentityItem label="Name" value={displayValue(affinity?.name)} />
+          <IdentityItem label="Username" value={displayValue(affinity?.username)} />
+          <IdentityItem label="Email" value={displayValue(affinity?.email)} />
+          <IdentityItem label="Department" value={displayValue(affinity?.department)} />
+          <IdentityItem label="Source" value={affinity ? deviceMappingSourceLabel(affinity.source) : "-"} />
+          <IdentityItem
+            label="Groups"
+            value={<UserGroups groups={affinity?.groups ?? []} />}
+            className="sm:col-span-2"
+          />
+        </dl>
+      </CardContent>
+      {dialogOpen ? <HostUserMappingDialog host={host} onOpenChange={setDialogOpen} /> : null}
+    </Card>
+  );
+}
+
 export function HostLabelsCard({ host }: { host: HostDetail }) {
   const labels = (host.labels ?? []).filter((l) => l.label_type === "regular");
   if (labels.length === 0) return null;
@@ -114,23 +177,15 @@ export function HostLabelsCard({ host }: { host: HostDetail }) {
 }
 
 export function HostUsersCard({ host }: { host: HostDetail }) {
-  const primary = host.device_mappings?.[0];
   const users = (host.users ?? []).filter((u) => u.username);
-  if (users.length === 0 && !primary) return null;
+  if (users.length === 0) return null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Local Users</CardTitle>
+        <CardTitle>Local User Accounts</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {primary ? (
-          <p className="text-sm">
-            <span className="text-muted-foreground">Primary User: </span>
-            {primary.email}{" "}
-            <span className="text-muted-foreground text-xs">({deviceMappingSourceLabel(primary.source)})</span>
-          </p>
-        ) : null}
         {users.length > 0 ? (
           <div className="rounded-md border">
             <Table>
@@ -157,6 +212,97 @@ export function HostUsersCard({ host }: { host: HostDetail }) {
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function IdentityItem({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
+      <dt className="text-muted-foreground text-xs font-semibold">{label}</dt>
+      <dd className="text-foreground break-words text-sm">{value}</dd>
+    </div>
+  );
+}
+
+function UserGroups({ groups }: { groups: readonly string[] }) {
+  if (groups.length === 0) return <span>-</span>;
+  return (
+    <div className="max-h-24 overflow-y-auto pr-1">
+      <div className="flex flex-wrap gap-1.5">
+        {groups.map((group) => (
+          <Badge key={group} variant="secondary" className="font-normal">
+            {group}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function displayValue(value: string | null | undefined) {
+  return value && value.trim() !== "" ? value : "-";
+}
+
+function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpenChange: (open: boolean) => void }) {
+  const manual = manualDeviceMapping(host.device_mappings);
+  const [email, setEmail] = useState(manual?.email ?? host.user_affinity?.email ?? "");
+  const setMapping = useSetHostDeviceMapping();
+  const clearMapping = useClearHostDeviceMapping();
+  const pending = setMapping.isPending || clearMapping.isPending;
+  const error = setMapping.error ?? clearMapping.error;
+
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await setMapping.mutateAsync({ id: host.id, body: { email } });
+    onOpenChange(false);
+  }
+
+  async function handleClear() {
+    await clearMapping.mutateAsync(host.id);
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{manual ? "Edit User Affinity" : "Set User Affinity"}</DialogTitle>
+          <DialogDescription>Set the email or UPN Woodstar should prefer for this host.</DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="host-user-email">Email / UPN</FieldLabel>
+              <Input
+                id="host-user-email"
+                type="email"
+                required
+                autoComplete="off"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+
+          <FieldError>{error?.message}</FieldError>
+
+          <DialogFooter className="pt-2">
+            {manual ? (
+              <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => void handleClear()}>
+                <Trash2 className="size-4" />
+                Clear
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={pending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -340,17 +486,6 @@ function CertificateDetailSection({ title, rows }: { title: string; rows: Array<
       </dl>
     </section>
   );
-}
-
-function agentSummary(osqueryVersion: string, orbitVersion: string): ReactNode {
-  if (osqueryVersion && orbitVersion) {
-    return (
-      <span>
-        osquery {osqueryVersion} <span className="text-muted-foreground">·</span> Orbit {orbitVersion}
-      </span>
-    );
-  }
-  return osqueryVersion || orbitVersion;
 }
 
 function certificateKeychain(certificate: HostCertificate) {
