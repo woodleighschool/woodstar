@@ -92,7 +92,7 @@ type Rule struct {
 
 type RuleInclude struct {
 	ID            int64  `json:"id"`
-	Position      int    `json:"position"`
+	Position      int32  `json:"position"`
 	Policy        Policy `json:"policy"`
 	CELExpression string `json:"cel_expression,omitempty"`
 	LabelID       int64  `json:"label_id"`
@@ -133,8 +133,8 @@ type RuleTarget struct {
 	Detail               string   `json:"detail,omitempty"`
 	BundleID             string   `json:"bundle_id,omitempty"`
 	Version              string   `json:"version,omitempty"`
-	BinaryCount          int      `json:"binary_count,omitempty"`
-	CollectedBinaryCount int      `json:"collected_binary_count,omitempty"`
-	RuleCount            int      `json:"rule_count"`
+	BinaryCount          int32    `json:"binary_count,omitempty"`
+	CollectedBinaryCount int32    `json:"collected_binary_count,omitempty"`
+	RuleCount            int32    `json:"rule_count"`
 	Complete             bool     `json:"complete"`
 }

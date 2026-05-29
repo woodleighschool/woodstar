@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 type Agent string
@@ -555,14 +557,14 @@ type AgentSecret struct {
 }
 
 type Check struct {
-	ID              int64          `json:"id"`
-	Name            string         `json:"name"`
-	Description     string         `json:"description"`
-	Query           string         `json:"query"`
-	LabelScopeMode  LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID *int64         `json:"created_by_user_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID              int64                `json:"id"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description"`
+	Query           string               `json:"query"`
+	LabelScopeMode  scope.LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID *int64               `json:"created_by_user_id"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
 type CheckLabel struct {
@@ -629,8 +631,8 @@ type Host struct {
 	CPUType                 string      `json:"cpu_type"`
 	CPUSubtype              string      `json:"cpu_subtype"`
 	CPUBrand                string      `json:"cpu_brand"`
-	CPULogicalCores         int         `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int         `json:"cpu_physical_cores"`
+	CPULogicalCores         int32       `json:"cpu_logical_cores"`
+	CPUPhysicalCores        int32       `json:"cpu_physical_cores"`
 	PhysicalMemory          int64       `json:"physical_memory"`
 	KernelVersion           string      `json:"kernel_version"`
 	LastRestartedAt         *time.Time  `json:"last_restarted_at"`
@@ -765,16 +767,16 @@ type LabelMembership struct {
 }
 
 type Report struct {
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Query             string         `json:"query"`
-	MinOsqueryVersion *string        `json:"min_osquery_version"`
-	ScheduleInterval  int32          `json:"schedule_interval"`
-	LabelScopeMode    LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID   *int64         `json:"created_by_user_id"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	ID                int64                `json:"id"`
+	Name              string               `json:"name"`
+	Description       string               `json:"description"`
+	Query             string               `json:"query"`
+	MinOsqueryVersion *string              `json:"min_osquery_version"`
+	ScheduleInterval  int32                `json:"schedule_interval"`
+	LabelScopeMode    scope.LabelScopeMode `json:"label_scope_mode"`
+	CreatedByUserID   *int64               `json:"created_by_user_id"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
 }
 
 type ReportLabel struct {

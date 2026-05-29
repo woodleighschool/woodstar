@@ -95,7 +95,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 			Description:       params.Description,
 			Query:             params.Query,
 			MinOsqueryVersion: params.MinOsqueryVersion,
-			ScheduleInterval:  int32(params.ScheduleInterval),
+			ScheduleInterval:  params.ScheduleInterval,
 			CreatedByUserID:   params.CreatedByUserID,
 		})
 		if err != nil {
@@ -123,7 +123,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Rep
 			Description:       params.Description,
 			Query:             params.Query,
 			MinOsqueryVersion: params.MinOsqueryVersion,
-			ScheduleInterval:  int32(params.ScheduleInterval),
+			ScheduleInterval:  params.ScheduleInterval,
 			ID:                id,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -204,7 +204,7 @@ func reportFromSQLC(row sqlc.Report) *Report {
 		Description:       row.Description,
 		Query:             row.Query,
 		MinOsqueryVersion: row.MinOsqueryVersion,
-		ScheduleInterval:  int(row.ScheduleInterval),
+		ScheduleInterval:  row.ScheduleInterval,
 		CreatedByUserID:   row.CreatedByUserID,
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,

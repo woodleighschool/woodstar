@@ -13,17 +13,20 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
 // Store persists Santa execution and file-access events.
 type Store struct {
 	db *database.DB
+	q  *sqlc.Queries
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
+	return &Store{db: db, q: db.Queries()}
 }
 
 var validExecutionDecisions = map[ExecutionDecision]struct{}{
@@ -178,11 +181,15 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 
 // GetExecutionEvent returns one execution event by id.
 func (s *Store) GetExecutionEvent(ctx context.Context, id int64) (*ExecutionEvent, error) {
-	event, err := scanExecutionEvent(s.db.Pool().QueryRow(ctx, executionEventSelectSQL+"\nWHERE ee.id = $1", id))
+	row, err := s.q.GetSantaExecutionEvent(ctx, sqlc.GetSantaExecutionEventParams{ID: id})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, dbutil.ErrNotFound
 		}
+		return nil, err
+	}
+	event, err := executionEventFromSQLC(row)
+	if err != nil {
 		return nil, err
 	}
 	return &event, nil
@@ -230,11 +237,15 @@ func (s *Store) ListFileAccessEvents(
 
 // GetFileAccessEvent returns one file-access event by id.
 func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEvent, error) {
-	event, err := scanFileAccessEvent(s.db.Pool().QueryRow(ctx, fileAccessEventSelectSQL+"\nWHERE fae.id = $1", id))
+	row, err := s.q.GetSantaFileAccessEvent(ctx, sqlc.GetSantaFileAccessEventParams{ID: id})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, dbutil.ErrNotFound
 		}
+		return nil, err
+	}
+	event, err := fileAccessEventFromSQLC(row)
+	if err != nil {
 		return nil, err
 	}
 	return &event, nil
@@ -242,112 +253,32 @@ func (s *Store) GetFileAccessEvent(ctx context.Context, id int64) (*FileAccessEv
 
 // SweepEventsBefore deletes Santa events that occurred before cutoff.
 func (s *Store) SweepEventsBefore(ctx context.Context, cutoff time.Time) (int, error) {
-	var deleted int
-	err := s.db.Pool().QueryRow(ctx, `
-		WITH deleted_execution AS (
-			DELETE FROM santa_execution_events
-			WHERE occurred_at < $1
-			RETURNING 1
-		), deleted_file_access AS (
-			DELETE FROM santa_file_access_events
-			WHERE occurred_at < $1
-			RETURNING 1
-		)
-		SELECT
-			(SELECT count(*) FROM deleted_execution)::integer
-			+ (SELECT count(*) FROM deleted_file_access)::integer
-	`, cutoff).Scan(&deleted)
-	return deleted, err
+	deleted, err := s.q.SweepSantaEventsBefore(ctx, sqlc.SweepSantaEventsBeforeParams{CutoffTime: cutoff})
+	return int(deleted), err
 }
 
 func upsertExecutable(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, error) {
-	var id int64
-	err := tx.QueryRow(ctx, `
-		INSERT INTO santa_executables (
-			sha256,
-			file_name,
-			file_bundle_id,
-			file_bundle_path,
-			file_bundle_executable_rel_path,
-			file_bundle_name,
-			file_bundle_version,
-			file_bundle_version_string,
-			file_bundle_hash,
-			file_bundle_hash_millis,
-			file_bundle_binary_count,
-			signing_id,
-			team_id,
-			cdhash,
-			codesigning_flags,
-			signing_status,
-			secure_signing_time,
-			signing_time,
-			entitlements,
-			updated_at
-		)
-		VALUES (
-			$1,
-			$2,
-			$3,
-			$4,
-			$5,
-			$6,
-			$7,
-			$8,
-			$9,
-			$10,
-			$11,
-			$12,
-			$13,
-			$14,
-			$15,
-			$16,
-			$17,
-			$18,
-			now()
-		)
-		ON CONFLICT (sha256) DO UPDATE SET
-			file_name = EXCLUDED.file_name,
-			file_bundle_id = EXCLUDED.file_bundle_id,
-			file_bundle_path = EXCLUDED.file_bundle_path,
-			file_bundle_executable_rel_path = EXCLUDED.file_bundle_executable_rel_path,
-			file_bundle_name = EXCLUDED.file_bundle_name,
-			file_bundle_version = EXCLUDED.file_bundle_version,
-			file_bundle_version_string = EXCLUDED.file_bundle_version_string,
-			file_bundle_hash = EXCLUDED.file_bundle_hash,
-			file_bundle_hash_millis = EXCLUDED.file_bundle_hash_millis,
-			file_bundle_binary_count = EXCLUDED.file_bundle_binary_count,
-			signing_id = EXCLUDED.signing_id,
-			team_id = EXCLUDED.team_id,
-			cdhash = EXCLUDED.cdhash,
-			codesigning_flags = EXCLUDED.codesigning_flags,
-			signing_status = EXCLUDED.signing_status,
-			secure_signing_time = EXCLUDED.secure_signing_time,
-			signing_time = EXCLUDED.signing_time,
-			entitlements = EXCLUDED.entitlements,
-			updated_at = now()
-		RETURNING id
-	`, event.FileSHA256,
-		event.FileName,
-		event.BundleID,
-		event.BundlePath,
-		event.BundleExecutableRelPath,
-		event.BundleName,
-		event.BundleVersion,
-		event.BundleVersionString,
-		event.BundleHash,
-		event.BundleHashMillis,
-		event.BundleBinaryCount,
-		event.SigningID,
-		event.TeamID,
-		event.CDHash,
-		int64(event.CodesigningFlags),
-		normalizeSigningStatus(event.SigningStatus),
-		timeOrNil(event.SecureSigningTime),
-		timeOrNil(event.SigningTime),
-		executableEntitlements(event),
-	).Scan(&id)
-	return id, err
+	return sqlc.New(tx).UpsertSantaExecutable(ctx, sqlc.UpsertSantaExecutableParams{
+		Sha256:                      event.FileSHA256,
+		FileName:                    event.FileName,
+		FileBundleID:                event.BundleID,
+		FileBundlePath:              event.BundlePath,
+		FileBundleExecutableRelPath: event.BundleExecutableRelPath,
+		FileBundleName:              event.BundleName,
+		FileBundleVersion:           event.BundleVersion,
+		FileBundleVersionString:     event.BundleVersionString,
+		FileBundleHash:              event.BundleHash,
+		FileBundleHashMillis:        event.BundleHashMillis,
+		FileBundleBinaryCount:       event.BundleBinaryCount,
+		SigningID:                   event.SigningID,
+		TeamID:                      event.TeamID,
+		Cdhash:                      event.CDHash,
+		CodesigningFlags:            int64(event.CodesigningFlags),
+		SigningStatus:               sqlc.SantaSigningStatus(normalizeSigningStatus(event.SigningStatus)),
+		SecureSigningTime:           timeOrNil(event.SecureSigningTime),
+		SigningTime:                 timeOrNil(event.SigningTime),
+		Entitlements:                executableEntitlements(event),
+	})
 }
 
 func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chain []CertificateInput) error {
@@ -355,13 +286,11 @@ func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chai
 	if len(entries) == 0 {
 		return nil
 	}
-	var chainID int64
-	err := tx.QueryRow(ctx, `
-		INSERT INTO santa_signing_chains (sha256)
-		VALUES ($1)
-		ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
-		RETURNING id
-	`, signingChainHash(entries)).Scan(&chainID)
+	q := sqlc.New(tx)
+	chainID, err := q.UpsertSantaSigningChain(
+		ctx,
+		sqlc.UpsertSantaSigningChainParams{Sha256: signingChainHash(entries)},
+	)
 	if err != nil {
 		return err
 	}
@@ -370,99 +299,46 @@ func upsertSigningChain(ctx context.Context, tx pgx.Tx, executableID int64, chai
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_signing_chain_entries (signing_chain_id, position, certificate_id)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (signing_chain_id, position) DO UPDATE SET certificate_id = EXCLUDED.certificate_id
-		`, chainID, position, certificateID); err != nil {
+		if err := q.UpsertSantaSigningChainEntry(ctx, sqlc.UpsertSantaSigningChainEntryParams{
+			SigningChainID: chainID,
+			Position:       int32(position),
+			CertificateID:  certificateID,
+		}); err != nil {
 			return err
 		}
 	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO santa_executable_signing_chains (executable_id, signing_chain_id)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`, executableID, chainID)
-	return err
+	return q.LinkSantaExecutableSigningChain(ctx, sqlc.LinkSantaExecutableSigningChainParams{
+		ExecutableID:   executableID,
+		SigningChainID: chainID,
+	})
 }
 
 func upsertCertificate(ctx context.Context, tx pgx.Tx, entry signingChainEntry) (int64, error) {
-	var id int64
-	err := tx.QueryRow(ctx, `
-		INSERT INTO santa_certificates (
-			sha256,
-			common_name,
-			organization,
-			organizational_unit,
-			valid_from,
-			valid_until,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, now())
-		ON CONFLICT (sha256) DO UPDATE SET
-			common_name = EXCLUDED.common_name,
-			organization = EXCLUDED.organization,
-			organizational_unit = EXCLUDED.organizational_unit,
-			valid_from = EXCLUDED.valid_from,
-			valid_until = EXCLUDED.valid_until,
-			updated_at = now()
-		RETURNING id
-	`, entry.SHA256,
-		entry.CommonName,
-		entry.Org,
-		entry.OU,
-		certificateTime(entry.ValidFrom),
-		certificateTime(entry.ValidUntil),
-	).Scan(&id)
-	return id, err
+	return sqlc.New(tx).UpsertSantaCertificate(ctx, sqlc.UpsertSantaCertificateParams{
+		Sha256:             entry.SHA256,
+		CommonName:         entry.CommonName,
+		Organization:       entry.Org,
+		OrganizationalUnit: entry.OU,
+		ValidFrom:          certificateTime(entry.ValidFrom),
+		ValidUntil:         certificateTime(entry.ValidUntil),
+	})
 }
 
 func upsertBundle(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (int64, bool, error) {
 	if event.BundleHash == "" {
 		return 0, false, nil
 	}
-	var id int64
-	err := tx.QueryRow(ctx, `
-		INSERT INTO santa_bundles (
-			sha256,
-			bundle_id,
-			name,
-			path,
-			executable_rel_path,
-			version,
-			version_string,
-			binary_count,
-			hash_millis,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
-		ON CONFLICT (sha256) DO UPDATE SET
-			bundle_id = COALESCE(NULLIF(EXCLUDED.bundle_id, ''), santa_bundles.bundle_id),
-			name = COALESCE(NULLIF(EXCLUDED.name, ''), santa_bundles.name),
-			path = COALESCE(NULLIF(EXCLUDED.path, ''), santa_bundles.path),
-			executable_rel_path = COALESCE(NULLIF(EXCLUDED.executable_rel_path, ''), santa_bundles.executable_rel_path),
-			version = COALESCE(NULLIF(EXCLUDED.version, ''), santa_bundles.version),
-			version_string = COALESCE(NULLIF(EXCLUDED.version_string, ''), santa_bundles.version_string),
-			binary_count = CASE
-				WHEN EXCLUDED.binary_count > 0 THEN EXCLUDED.binary_count
-				ELSE santa_bundles.binary_count
-			END,
-			hash_millis = CASE
-				WHEN EXCLUDED.hash_millis > 0 THEN EXCLUDED.hash_millis
-				ELSE santa_bundles.hash_millis
-			END,
-			updated_at = now()
-		RETURNING id
-	`, event.BundleHash,
-		event.BundleID,
-		event.BundleName,
-		event.BundlePath,
-		event.BundleExecutableRelPath,
-		event.BundleVersion,
-		event.BundleVersionString,
-		event.BundleBinaryCount,
-		event.BundleHashMillis,
-	).Scan(&id)
+	id, err := sqlc.New(tx).UpsertSantaBundle(ctx, sqlc.UpsertSantaBundleParams{
+		Sha256:            event.BundleHash,
+		BundleID:          event.BundleID,
+		Name:              event.BundleName,
+		Path:              event.BundlePath,
+		ExecutableRelPath: event.BundleExecutableRelPath,
+		Version:           event.BundleVersion,
+		VersionString:     event.BundleVersionString,
+		BinaryCount:       event.BundleBinaryCount,
+		HashMillis:        event.BundleHashMillis,
+	})
 	if err != nil {
 		return 0, false, err
 	}
@@ -470,27 +346,17 @@ func upsertBundle(ctx context.Context, tx pgx.Tx, event ExecutionEventInput) (in
 }
 
 func linkBundleExecutable(ctx context.Context, tx pgx.Tx, bundleID int64, executableID int64) error {
-	_, err := tx.Exec(ctx, `
-		INSERT INTO santa_bundle_executables (bundle_id, executable_id)
-		VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`, bundleID, executableID)
-	return err
+	return sqlc.New(tx).LinkSantaBundleExecutable(ctx, sqlc.LinkSantaBundleExecutableParams{
+		BundleID:     bundleID,
+		ExecutableID: executableID,
+	})
 }
 
 func refreshBundleUploadedAt(ctx context.Context, tx pgx.Tx, bundleID int64) error {
-	_, err := tx.Exec(ctx, `
-		UPDATE santa_bundles b
-		SET uploaded_at = COALESCE(uploaded_at, now()), updated_at = now()
-		WHERE b.id = $1
-			AND b.binary_count > 0
-			AND (
-				SELECT count(*)
-				FROM santa_bundle_executables be
-				WHERE be.bundle_id = b.id
-			) >= b.binary_count
-	`, bundleID)
-	return err
+	return sqlc.New(tx).RefreshSantaBundleUploadedAt(
+		ctx,
+		sqlc.RefreshSantaBundleUploadedAtParams{BundleID: bundleID},
+	)
 }
 
 func incompleteBundleHashes(ctx context.Context, tx pgx.Tx, candidates []string) ([]string, error) {
@@ -498,18 +364,10 @@ func incompleteBundleHashes(ctx context.Context, tx pgx.Tx, candidates []string)
 	if len(hashes) == 0 {
 		return nil, nil
 	}
-	rows, err := tx.Query(ctx, `
-		SELECT b.sha256
-		FROM santa_bundles b
-		WHERE b.sha256 = ANY($1::text[])
-			AND b.uploaded_at IS NULL
-		ORDER BY b.sha256
-	`, hashes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return pgx.CollectRows(rows, pgx.RowTo[string])
+	return sqlc.New(tx).ListIncompleteSantaBundleHashes(
+		ctx,
+		sqlc.ListIncompleteSantaBundleHashesParams{Hashes: hashes},
+	)
 }
 
 func insertExecutionEvent(
@@ -519,34 +377,19 @@ func insertExecutionEvent(
 	executableID int64,
 	event ExecutionEventInput,
 ) error {
-	_, err := tx.Exec(ctx, `
-		INSERT INTO santa_execution_events (
-			host_id,
-			executable_id,
-			file_path,
-			executing_user,
-			pid,
-			ppid,
-			parent_name,
-			logged_in_users,
-			current_sessions,
-			decision,
-			occurred_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`, hostID,
-		executableID,
-		event.FilePath,
-		event.ExecutingUser,
-		event.PID,
-		event.PPID,
-		event.ParentName,
-		cleanStringSlice(event.LoggedInUsers),
-		cleanStringSlice(event.CurrentSessions),
-		event.Decision,
-		event.OccurredAt,
-	)
-	return err
+	return sqlc.New(tx).InsertSantaExecutionEvent(ctx, sqlc.InsertSantaExecutionEventParams{
+		HostID:          hostID,
+		ExecutableID:    executableID,
+		FilePath:        event.FilePath,
+		ExecutingUser:   event.ExecutingUser,
+		Pid:             event.PID,
+		Ppid:            event.PPID,
+		ParentName:      event.ParentName,
+		LoggedInUsers:   cleanStringSlice(event.LoggedInUsers),
+		CurrentSessions: cleanStringSlice(event.CurrentSessions),
+		Decision:        sqlc.SantaExecutionDecision(event.Decision),
+		OccurredAt:      event.OccurredAt,
+	})
 }
 
 func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event FileAccessEventInput) error {
@@ -554,38 +397,21 @@ func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event F
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO santa_file_access_events (
-			host_id,
-			rule_version,
-			rule_name,
-			target,
-			decision,
-			primary_process_sha256,
-			primary_process_path,
-			primary_process_signing_id,
-			primary_process_team_id,
-			primary_process_cdhash,
-			primary_process_pid,
-			process_chain,
-			occurred_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-	`, hostID,
-		event.RuleVersion,
-		event.RuleName,
-		event.Target,
-		event.Decision,
-		primaryFileSHA256(event.ProcessChain),
-		primaryFilePath(event.ProcessChain),
-		primarySigningID(event.ProcessChain),
-		primaryTeamID(event.ProcessChain),
-		primaryCDHash(event.ProcessChain),
-		primaryPID(event.ProcessChain),
-		processChain,
-		event.OccurredAt,
-	)
-	return err
+	return sqlc.New(tx).InsertSantaFileAccessEvent(ctx, sqlc.InsertSantaFileAccessEventParams{
+		HostID:                  hostID,
+		RuleVersion:             event.RuleVersion,
+		RuleName:                event.RuleName,
+		Target:                  event.Target,
+		Decision:                string(event.Decision),
+		PrimaryProcessSha256:    primaryFileSHA256(event.ProcessChain),
+		PrimaryProcessPath:      primaryFilePath(event.ProcessChain),
+		PrimaryProcessSigningID: primarySigningID(event.ProcessChain),
+		PrimaryProcessTeamID:    primaryTeamID(event.ProcessChain),
+		PrimaryProcessCdhash:    primaryCDHash(event.ProcessChain),
+		PrimaryProcessPid:       primaryPID(event.ProcessChain),
+		ProcessChain:            processChain,
+		OccurredAt:              event.OccurredAt,
+	})
 }
 
 func timeOrNil(t time.Time) *time.Time {
@@ -956,6 +782,94 @@ func scanFileAccessEvent(row pgx.Row) (FileAccessEvent, error) {
 	event.HostID = event.Host.ID
 	if len(processChain) > 0 {
 		if err := json.Unmarshal(processChain, &event.ProcessChain); err != nil {
+			return event, err
+		}
+	}
+	if len(event.ProcessChain) > 0 {
+		event.PrimaryProcess = event.ProcessChain[0]
+	}
+	return event, nil
+}
+
+func executionEventFromSQLC(row sqlc.GetSantaExecutionEventRow) (ExecutionEvent, error) {
+	event := ExecutionEvent{
+		ID: row.ID,
+		Host: HostSummary{
+			ID:              row.HostID,
+			DisplayName:     row.DisplayName,
+			Hostname:        row.Hostname,
+			ComputerName:    row.ComputerName,
+			HardwareSerial:  row.HardwareSerial,
+			HardwareModel:   row.HardwareModel,
+			SantaMachineID:  row.SantaMachineID,
+			SantaVersion:    row.SantaVersion,
+			SantaClientMode: configurations.ReportedClientMode(row.SantaClientMode),
+		},
+		FilePath:        row.FilePath,
+		ExecutingUser:   row.ExecutingUser,
+		PID:             row.Pid,
+		PPID:            row.Ppid,
+		ParentName:      row.ParentName,
+		LoggedInUsers:   row.LoggedInUsers,
+		CurrentSessions: row.CurrentSessions,
+		Decision:        ExecutionDecision(row.Decision),
+		OccurredAt:      row.OccurredAt,
+		IngestedAt:      row.IngestedAt,
+		Executable: Executable{
+			ID:                      row.ExecutableID,
+			SHA256:                  row.Sha256,
+			FileName:                row.FileName,
+			BundleID:                row.FileBundleID,
+			BundlePath:              row.FileBundlePath,
+			BundleExecutableRelPath: row.FileBundleExecutableRelPath,
+			BundleName:              row.FileBundleName,
+			BundleVersion:           row.FileBundleVersion,
+			BundleVersionString:     row.FileBundleVersionString,
+			BundleHash:              row.FileBundleHash,
+			BundleHashMillis:        row.FileBundleHashMillis,
+			BundleBinaryCount:       row.FileBundleBinaryCount,
+			SigningID:               row.SigningID,
+			TeamID:                  row.TeamID,
+			CDHash:                  row.Cdhash,
+			SecureSigningTime:       row.SecureSigningTime,
+			SigningTime:             row.SigningTime,
+		},
+	}
+	event.HostID = event.Host.ID
+	if row.CodesigningFlags > 0 {
+		event.Executable.CodesigningFlags = uint32(row.CodesigningFlags)
+	}
+	event.Executable.SigningStatus = normalizeSigningStatus(SigningStatus(row.SigningStatus))
+	if err := decodeExecutableJSON(&event.Executable, row.Entitlements, []byte(row.SigningChain)); err != nil {
+		return event, err
+	}
+	return event, nil
+}
+
+func fileAccessEventFromSQLC(row sqlc.GetSantaFileAccessEventRow) (FileAccessEvent, error) {
+	event := FileAccessEvent{
+		ID: row.ID,
+		Host: HostSummary{
+			ID:              row.HostID,
+			DisplayName:     row.DisplayName,
+			Hostname:        row.Hostname,
+			ComputerName:    row.ComputerName,
+			HardwareSerial:  row.HardwareSerial,
+			HardwareModel:   row.HardwareModel,
+			SantaMachineID:  row.SantaMachineID,
+			SantaVersion:    row.SantaVersion,
+			SantaClientMode: configurations.ReportedClientMode(row.SantaClientMode),
+		},
+		RuleVersion: row.RuleVersion,
+		RuleName:    row.RuleName,
+		Target:      row.Target,
+		Decision:    FileAccessDecision(row.Decision),
+		OccurredAt:  row.OccurredAt,
+		IngestedAt:  row.IngestedAt,
+	}
+	event.HostID = event.Host.ID
+	if len(row.ProcessChain) > 0 {
+		if err := json.Unmarshal(row.ProcessChain, &event.ProcessChain); err != nil {
 			return event, err
 		}
 	}

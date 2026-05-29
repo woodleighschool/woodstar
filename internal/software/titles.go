@@ -2,9 +2,12 @@ package software
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -42,27 +45,14 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 }
 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
-	query, args, err := softwareTitleListQuery(
-		dbutil.ListParams{PageSize: 1},
-		"WHERE st.id = $1",
-		[]any{id},
-	)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	titles, err := scanSoftwareTitles(rows)
-	if err != nil {
-		return nil, err
-	}
-	if len(titles) == 0 {
+	row, err := s.q.GetSoftwareTitleSummary(ctx, sqlc.GetSoftwareTitleSummaryParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
+	titles := []SoftwareTitle{softwareTitleFromSQLC(row)}
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
 	}
@@ -152,6 +142,36 @@ func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 	return titles, nil
 }
 
+func softwareTitleFromSQLC(row sqlc.GetSoftwareTitleSummaryRow) SoftwareTitle {
+	title := SoftwareTitle{
+		ID:               row.ID,
+		Name:             row.Name,
+		DisplayName:      row.DisplayName,
+		Source:           row.Source,
+		ExtensionFor:     row.ExtensionFor,
+		BundleIdentifier: row.BundleIdentifier,
+		Vendor:           row.Vendor,
+		HostsCount:       row.HostsCount,
+		VersionsCount:    row.VersionsCount,
+		CountsUpdatedAt:  timePtr(row.CountsUpdatedAt),
+	}
+	title.Browser = browserFor(title.Source, title.ExtensionFor)
+	return title
+}
+
+func timePtr(value any) *time.Time {
+	switch t := value.(type) {
+	case nil:
+		return nil
+	case time.Time:
+		return &t
+	case *time.Time:
+		return t
+	default:
+		return nil
+	}
+}
+
 // browserFor returns the browser name when source indicates a browser
 // extension; otherwise empty.
 func browserFor(source, extensionFor string) string {
@@ -174,40 +194,22 @@ func (s *Store) loadSoftwareTitleVersions(ctx context.Context, titles []Software
 		titleIndex[titles[i].ID] = i
 	}
 
-	rows, err := s.db.Pool().Query(ctx, `
-SELECT
-	s.title_id,
-	s.id,
-	s.version,
-	s.bundle_identifier,
-	COUNT(DISTINCT hs.host_id)::integer AS hosts_count
-FROM software s
-LEFT JOIN host_software hs ON hs.software_id = s.id
-WHERE s.title_id = ANY($1::bigint[])
-GROUP BY s.id
-ORDER BY array_position($1::bigint[], s.title_id), lower(s.version), s.id`, titleIDs)
+	rows, err := s.q.ListSoftwareTitleVersions(ctx, sqlc.ListSoftwareTitleVersionsParams{TitleIds: titleIDs})
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var titleID int64
+	for _, row := range rows {
 		var version SoftwareVersion
-		if err := rows.Scan(
-			&titleID,
-			&version.ID,
-			&version.Version,
-			&version.BundleIdentifier,
-			&version.HostsCount,
-		); err != nil {
-			return err
-		}
-		i, ok := titleIndex[titleID]
+		version.ID = row.ID
+		version.Version = row.Version
+		version.BundleIdentifier = row.BundleIdentifier
+		version.HostsCount = row.HostsCount
+		i, ok := titleIndex[row.TitleID]
 		if !ok {
 			continue
 		}
 		titles[i].Versions = append(titles[i].Versions, version)
 	}
-	return rows.Err()
+	return nil
 }

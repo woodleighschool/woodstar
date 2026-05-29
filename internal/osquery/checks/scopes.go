@@ -5,6 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
@@ -27,45 +28,22 @@ func (s *Store) loadCheckScopes(ctx context.Context, checkIDs []int64) (map[int6
 		return scopes, nil
 	}
 
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT id, label_scope_mode FROM checks WHERE id = ANY($1::bigint[])`, checkIDs)
+	rows, err := s.q.ListCheckScopes(ctx, sqlc.ListCheckScopesParams{CheckIds: checkIDs})
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		var checkID int64
-		var mode scope.LabelScopeMode
-		if err := rows.Scan(&checkID, &mode); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		scopes[checkID] = scope.LabelScope{Mode: mode}
+	for _, row := range rows {
+		scopes[row.ID] = scope.LabelScope{Mode: row.LabelScopeMode}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
 
-	rows, err = s.db.Pool().Query(ctx,
-		`SELECT check_id, label_id FROM check_labels WHERE check_id = ANY($1::bigint[]) ORDER BY check_id, label_id`,
-		checkIDs)
+	labels, err := s.q.ListCheckLabelIDs(ctx, sqlc.ListCheckLabelIDsParams{CheckIds: checkIDs})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var checkID int64
-		var labelID int64
-		if err := rows.Scan(&checkID, &labelID); err != nil {
-			return nil, err
-		}
-		lscope := scopes[checkID]
-		lscope.LabelIDs = append(lscope.LabelIDs, labelID)
-		scopes[checkID] = lscope
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	for _, row := range labels {
+		lscope := scopes[row.CheckID]
+		lscope.LabelIDs = append(lscope.LabelIDs, row.LabelID)
+		scopes[row.CheckID] = lscope
 	}
 	for checkID, lscope := range scopes {
 		scopes[checkID] = scope.NormalizeLabelScope(lscope)
@@ -75,18 +53,21 @@ func (s *Store) loadCheckScopes(ctx context.Context, checkIDs []int64) (map[int6
 
 func replaceCheckScope(ctx context.Context, tx pgx.Tx, checkID int64, lscope scope.LabelScope) error {
 	lscope = scope.NormalizeLabelScope(lscope)
-	if _, err := tx.Exec(ctx, `UPDATE checks SET label_scope_mode = $2 WHERE id = $1`,
-		checkID, string(lscope.Mode)); err != nil {
+	q := sqlc.New(tx)
+	if err := q.SetCheckScopeMode(ctx, sqlc.SetCheckScopeModeParams{
+		ID:             checkID,
+		LabelScopeMode: lscope.Mode,
+	}); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM check_labels WHERE check_id = $1`, checkID); err != nil {
+	if err := q.DeleteCheckLabels(ctx, sqlc.DeleteCheckLabelsParams{CheckID: checkID}); err != nil {
 		return err
 	}
 	if len(lscope.LabelIDs) == 0 {
 		return nil
 	}
-	_, err := tx.Exec(ctx,
-		`INSERT INTO check_labels (check_id, label_id) SELECT $1, unnest($2::bigint[])`,
-		checkID, lscope.LabelIDs)
-	return err
+	return q.InsertCheckLabels(ctx, sqlc.InsertCheckLabelsParams{
+		CheckID:  checkID,
+		LabelIds: lscope.LabelIDs,
+	})
 }

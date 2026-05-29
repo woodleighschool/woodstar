@@ -129,3 +129,79 @@ WHERE r.schedule_interval > 0
       )
   )
 ORDER BY r.id;
+
+-- name: ListReportScopes :many
+SELECT id, label_scope_mode
+FROM reports
+WHERE id = ANY(@report_ids::bigint[]);
+
+-- name: ListReportLabelIDs :many
+SELECT report_id, label_id
+FROM report_labels
+WHERE report_id = ANY(@report_ids::bigint[])
+ORDER BY report_id, label_id;
+
+-- name: SetReportScopeMode :exec
+UPDATE reports
+SET label_scope_mode = @label_scope_mode
+WHERE id = @id;
+
+-- name: DeleteReportLabels :exec
+DELETE FROM report_labels
+WHERE report_id = @report_id;
+
+-- name: InsertReportLabels :exec
+INSERT INTO report_labels (report_id, label_id)
+SELECT @report_id, unnest(@label_ids::bigint[]);
+
+-- name: DeleteReportResults :exec
+DELETE FROM report_results
+WHERE report_id = @report_id AND host_id = @host_id;
+
+-- name: ListReportResults :many
+SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+FROM report_results rr
+JOIN reports r ON r.id = rr.report_id
+JOIN hosts h ON h.id = rr.host_id
+WHERE rr.report_id = @report_id AND rr.data IS NOT NULL
+ORDER BY rr.last_fetched DESC, rr.host_id, rr.id;
+
+-- name: ListHostReportResults :many
+SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+FROM report_results rr
+JOIN reports r ON r.id = rr.report_id
+JOIN hosts h ON h.id = rr.host_id
+WHERE rr.report_id = @report_id AND rr.host_id = @host_id
+ORDER BY rr.last_fetched DESC, rr.id;
+
+-- name: ListHostReportStates :many
+WITH requested AS (
+    SELECT unnest(@report_ids::bigint[])::bigint AS report_id
+),
+latest_fetch AS (
+    SELECT DISTINCT ON (report_id) report_id, last_fetched
+    FROM report_results rr
+    WHERE rr.host_id = @state_host_id AND rr.report_id = ANY(@report_ids::bigint[])
+    ORDER BY report_id, last_fetched DESC, id DESC
+),
+result_counts AS (
+    SELECT report_id, count(*)::integer AS host_result_count
+    FROM report_results rr
+    WHERE rr.host_id = @state_host_id AND rr.report_id = ANY(@report_ids::bigint[]) AND rr.data IS NOT NULL
+    GROUP BY report_id
+),
+latest_data AS (
+    SELECT DISTINCT ON (report_id) report_id, data
+    FROM report_results rr
+    WHERE rr.host_id = @state_host_id AND rr.report_id = ANY(@report_ids::bigint[]) AND rr.data IS NOT NULL
+    ORDER BY report_id, last_fetched DESC, id DESC
+)
+SELECT
+    req.report_id,
+    lf.last_fetched,
+    coalesce(rc.host_result_count, 0)::integer AS host_result_count,
+    ld.data
+FROM requested req
+LEFT JOIN latest_fetch lf ON lf.report_id = req.report_id
+LEFT JOIN result_counts rc ON rc.report_id = req.report_id
+LEFT JOIN latest_data ld ON ld.report_id = req.report_id;

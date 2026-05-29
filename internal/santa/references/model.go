@@ -8,8 +8,8 @@ import (
 
 // SoftwareReference is the Santa security evidence related to one software title.
 type SoftwareReference struct {
-	ExecutionCount    int                        `json:"execution_count"`
-	BlockCount        int                        `json:"block_count"`
+	ExecutionCount    int32                      `json:"execution_count"`
+	BlockCount        int32                      `json:"block_count"`
 	Bundles           []BundleReference          `json:"bundles"`
 	Executables       []ExecutableReference      `json:"executables"`
 	SigningIdentities []SigningIdentityReference `json:"signing_identities"`
@@ -24,9 +24,9 @@ type BundleReference struct {
 	Path                 string     `json:"path"`
 	Version              string     `json:"version"`
 	VersionString        string     `json:"version_string"`
-	BinaryCount          int        `json:"binary_count"`
-	CollectedBinaryCount int        `json:"collected_binary_count"`
-	HashMillis           int        `json:"hash_millis"`
+	BinaryCount          int32      `json:"binary_count"`
+	CollectedBinaryCount int32      `json:"collected_binary_count"`
+	HashMillis           int32      `json:"hash_millis"`
 	UploadedAt           *time.Time `json:"uploaded_at,omitempty"`
 	Complete             bool       `json:"complete"`
 }
@@ -40,16 +40,16 @@ type ExecutableReference struct {
 	SigningID      string `json:"signing_id,omitempty"`
 	TeamID         string `json:"team_id,omitempty"`
 	CDHash         string `json:"cdhash,omitempty"`
-	ExecutionCount int    `json:"execution_count"`
-	BlockCount     int    `json:"block_count"`
+	ExecutionCount int32  `json:"execution_count"`
+	BlockCount     int32  `json:"block_count"`
 }
 
 type SigningIdentityReference struct {
 	TargetType      santarules.RuleType `json:"target_type"`
 	Identifier      string              `json:"identifier"`
 	Name            string              `json:"name"`
-	ExecutableCount int                 `json:"executable_count"`
-	RuleCount       int                 `json:"rule_count"`
+	ExecutableCount int32               `json:"executable_count"`
+	RuleCount       int32               `json:"rule_count"`
 }
 
 type CertificateReference struct {
@@ -59,7 +59,7 @@ type CertificateReference struct {
 	OrganizationalUnit string     `json:"organizational_unit"`
 	ValidFrom          *time.Time `json:"valid_from,omitempty"`
 	ValidUntil         *time.Time `json:"valid_until,omitempty"`
-	RuleCount          int        `json:"rule_count"`
+	RuleCount          int32      `json:"rule_count"`
 }
 
 type RuleReference struct {

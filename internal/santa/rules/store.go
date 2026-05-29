@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
@@ -78,19 +76,25 @@ func (s *Store) GetRuleByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) ListRuleTargets(ctx context.Context, params RuleTargetListParams) ([]RuleTarget, error) {
-	params.Q = strings.TrimSpace(params.Q)
 	if params.TargetType != "" && !validRuleType(params.TargetType) {
 		return nil, fmt.Errorf("%w: unknown target_type", dbutil.ErrInvalidInput)
 	}
 	if params.Limit <= 0 || params.Limit > 50 {
 		params.Limit = 20
 	}
-	rows, err := s.db.Pool().Query(ctx, ruleTargetSearchSQL, params.Q, string(params.TargetType), params.Limit)
+	rows, err := s.q.ListSantaRuleTargets(ctx, sqlc.ListSantaRuleTargetsParams{
+		Q:          params.Q,
+		TargetType: string(params.TargetType),
+		LimitCount: int32(params.Limit),
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return pgx.CollectRows(rows, scanRuleTarget)
+	targets := make([]RuleTarget, len(rows))
+	for i, row := range rows {
+		targets[i] = ruleTargetFromSQLC(row)
+	}
+	return targets, nil
 }
 
 func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
@@ -106,7 +110,6 @@ func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
 }
 
 func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, error) {
-	params = params.Clean()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -142,7 +145,6 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 }
 
 func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (*Rule, error) {
-	params = params.Clean()
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -201,62 +203,45 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIncludeIDs []int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		var exists bool
-		if err := tx.QueryRow(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM santa_rules
-				WHERE id = $1
-			)
-		`, ruleID).Scan(&exists); err != nil {
+		q := s.q.WithTx(tx)
+		exists, err := q.SantaRuleExists(ctx, sqlc.SantaRuleExistsParams{ID: ruleID})
+		if err != nil {
 			return err
 		}
 		if !exists {
 			return dbutil.ErrNotFound
 		}
 
-		rows, err := tx.Query(ctx, `
-			SELECT id
-			FROM santa_rule_includes
-			WHERE rule_id = $1
-			ORDER BY position, id
-		`, ruleID)
-		if err != nil {
-			return err
-		}
-		currentIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		currentIDs, err := q.ListSantaRuleIncludeIDs(ctx, sqlc.ListSantaRuleIncludeIDsParams{RuleID: ruleID})
 		if err != nil {
 			return err
 		}
 		if !dbutil.SameInt64Set(orderedIncludeIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_include_ids must exactly match existing include IDs", dbutil.ErrInvalidInput)
 		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE santa_rule_includes i
-			SET position = -ordered.position
-			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
-			WHERE i.id = ordered.id AND i.rule_id = $2
-		`, orderedIncludeIDs, ruleID); err != nil {
+		if err := q.SetSantaRuleIncludePositions(ctx, sqlc.SetSantaRuleIncludePositionsParams{
+			RuleID:     ruleID,
+			OrderedIds: orderedIncludeIDs,
+		}); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `
-			UPDATE santa_rule_includes
-			SET position = -position - 1
-			WHERE rule_id = $1
-		`, ruleID)
-		return err
+		return q.NormalizeSantaRuleIncludePositions(
+			ctx,
+			sqlc.NormalizeSantaRuleIncludePositionsParams{RuleID: ruleID},
+		)
 	})
 }
 
 func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]EffectiveRule, error) {
-	rows, err := s.db.Pool().Query(ctx, effectiveRulesForHostSQL+`
-		ORDER BY rule_type_sort, identifier, rule_id
-	`, hostID)
+	rows, err := s.q.ListEffectiveSantaRulesForHost(ctx, sqlc.ListEffectiveSantaRulesForHostParams{HostID: hostID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return pgx.CollectRows(rows, scanEffectiveRule)
+	rules := make([]EffectiveRule, len(rows))
+	for i, row := range rows {
+		rules[i] = effectiveRuleFromSQLC(row)
+	}
+	return rules, nil
 }
 
 func (s *Store) ListEffectiveRulesForHost(
@@ -268,23 +253,28 @@ func (s *Store) ListEffectiveRulesForHost(
 		params.PageSize = 100
 	}
 
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM ("+effectiveRulesForHostSQL+") effective_rules", hostID).
-		Scan(&count); err != nil {
+	count, err := s.q.CountEffectiveSantaRulesForHost(
+		ctx,
+		sqlc.CountEffectiveSantaRulesForHostParams{HostID: hostID},
+	)
+	if err != nil {
 		return nil, 0, err
 	}
 	offset := params.PageIndex * params.PageSize
-	rows, err := s.db.Pool().Query(ctx, effectiveRulesForHostSQL+`
-		ORDER BY rule_type_sort, identifier, rule_id
-		LIMIT $2 OFFSET $3
-	`, hostID, params.PageSize, offset)
+	rows, err := s.q.ListEffectiveSantaRulesForHostPage(
+		ctx,
+		sqlc.ListEffectiveSantaRulesForHostPageParams{
+			HostID:      hostID,
+			LimitCount:  int32(params.PageSize),
+			OffsetCount: int32(offset),
+		},
+	)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
-	rules, err := pgx.CollectRows(rows, scanEffectiveRule)
-	if err != nil {
-		return nil, 0, err
+	rules := make([]EffectiveRule, len(rows))
+	for i, row := range rows {
+		rules[i] = effectiveRuleFromPageSQLC(row)
 	}
 
 	targets := SyncTargetsFromRules(rules)
@@ -304,30 +294,17 @@ func (s *Store) ListEffectiveRulesForHost(
 		})
 	}
 
-	return statuses, count, nil
+	return statuses, int(count), nil
 }
 
 func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[string]bool, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT
-			rule_type::text,
-			identifier,
-			policy::text,
-			cel_expression,
-			custom_message,
-			custom_url,
-			notification_app_name,
-			payload_hash
-		FROM santa_sync_targets
-		WHERE host_id = $1 AND phase = 'applied'
-	`, hostID)
+	rows, err := s.q.ListAppliedSantaSyncTargets(ctx, sqlc.ListAppliedSantaSyncTargetsParams{HostID: hostID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	applied, err := pgx.CollectRows(rows, scanSyncTarget)
-	if err != nil {
-		return nil, err
+	applied := make([]syncstate.Target, len(rows))
+	for i, row := range rows {
+		applied[i] = syncTargetFromSQLC(row)
 	}
 	return syncstate.TargetSet(applied), nil
 }
@@ -339,10 +316,11 @@ func replaceRuleChildren(
 	includes []RuleIncludeWrite,
 	excludeLabelIDs []int64,
 ) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM santa_rule_exclude_labels WHERE rule_id = $1`, ruleID); err != nil {
+	q := sqlc.New(tx)
+	if err := q.DeleteSantaRuleExcludeLabels(ctx, sqlc.DeleteSantaRuleExcludeLabelsParams{RuleID: ruleID}); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM santa_rule_includes WHERE rule_id = $1`, ruleID); err != nil {
+	if err := q.DeleteSantaRuleIncludes(ctx, sqlc.DeleteSantaRuleIncludesParams{RuleID: ruleID}); err != nil {
 		return err
 	}
 	if len(includes) > 0 {
@@ -354,42 +332,22 @@ func replaceRuleChildren(
 			celExpressions[i] = include.CELExpression
 			labelIDs[i] = include.LabelID
 		}
-		if _, err := tx.Exec(ctx, `
-			WITH input AS (
-				SELECT
-					policy,
-					cel_expression,
-					label_id,
-					position
-				FROM unnest($2::text[], $3::text[], $4::bigint[]) WITH ORDINALITY AS input(
-					policy,
-					cel_expression,
-					label_id,
-					position
-				)
-			)
-			INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
-			SELECT
-				$1,
-				position - 1,
-				policy::santa_policy,
-				NULLIF(cel_expression, ''),
-				label_id
-			FROM input
-			ORDER BY position
-		`, ruleID, policies, celExpressions, labelIDs); err != nil {
+		if err := q.InsertSantaRuleIncludes(ctx, sqlc.InsertSantaRuleIncludesParams{
+			RuleID:         ruleID,
+			Policies:       policies,
+			CelExpressions: celExpressions,
+			LabelIds:       labelIDs,
+		}); err != nil {
 			return err
 		}
 	}
 	if len(excludeLabelIDs) == 0 {
 		return nil
 	}
-	_, err := tx.Exec(ctx, `
-		INSERT INTO santa_rule_exclude_labels (rule_id, label_id)
-		SELECT $1, label_id
-		FROM unnest($2::bigint[]) AS label_id
-	`, ruleID, excludeLabelIDs)
-	return err
+	return q.InsertSantaRuleExcludeLabels(ctx, sqlc.InsertSantaRuleExcludeLabelsParams{
+		RuleID:   ruleID,
+		LabelIds: excludeLabelIDs,
+	})
 }
 
 func (s *Store) attachRuleChildren(ctx context.Context, rules []Rule, ruleIDs []int64) error {
@@ -424,64 +382,35 @@ func (s *Store) attachRuleChildren(ctx context.Context, rules []Rule, ruleIDs []
 }
 
 func (s *Store) loadRuleIncludes(ctx context.Context, ruleIDs []int64) (map[int64][]RuleInclude, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT
-			i.rule_id,
-			i.id,
-			i.position,
-			i.policy::text,
-			COALESCE(i.cel_expression, ''),
-			i.label_id
-		FROM santa_rule_includes i
-		WHERE i.rule_id = ANY($1)
-		ORDER BY i.rule_id, i.position, i.id
-	`, ruleIDs)
+	rows, err := s.q.ListSantaRuleIncludes(ctx, sqlc.ListSantaRuleIncludesParams{RuleIds: ruleIDs})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	out := map[int64][]RuleInclude{}
-	for rows.Next() {
-		var ruleID int64
-		var include RuleInclude
-		if err := rows.Scan(
-			&ruleID,
-			&include.ID,
-			&include.Position,
-			&include.Policy,
-			&include.CELExpression,
-			&include.LabelID,
-		); err != nil {
-			return nil, err
-		}
-		out[ruleID] = append(out[ruleID], include)
+	for _, row := range rows {
+		out[row.RuleID] = append(out[row.RuleID], RuleInclude{
+			ID:            row.ID,
+			Position:      row.Position,
+			Policy:        Policy(row.Policy),
+			CELExpression: row.CelExpression,
+			LabelID:       row.LabelID,
+		})
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map[int64][]int64, error) {
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT rule_id, label_id
-		FROM santa_rule_exclude_labels
-		WHERE rule_id = ANY($1)
-		ORDER BY rule_id, label_id
-	`, ruleIDs)
+	rows, err := s.q.ListSantaRuleExcludeLabels(ctx, sqlc.ListSantaRuleExcludeLabelsParams{RuleIds: ruleIDs})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	out := map[int64][]int64{}
-	for rows.Next() {
-		var ruleID int64
-		var labelID int64
-		if err := rows.Scan(&ruleID, &labelID); err != nil {
-			return nil, err
-		}
-		out[ruleID] = append(out[ruleID], labelID)
+	for _, row := range rows {
+		out[row.RuleID] = append(out[row.RuleID], row.LabelID)
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 func (p RuleMutation) Validate() error {
@@ -519,17 +448,6 @@ func (p RuleMutation) Validate() error {
 	return nil
 }
 
-func (p RuleMutation) Clean() RuleMutation {
-	p.Identifier = strings.TrimSpace(p.Identifier)
-	p.Name = strings.TrimSpace(p.Name)
-	p.CustomMessage = strings.TrimSpace(p.CustomMessage)
-	p.CustomURL = strings.TrimSpace(p.CustomURL)
-	for i := range p.Includes {
-		p.Includes[i].CELExpression = strings.TrimSpace(p.Includes[i].CELExpression)
-	}
-	return p
-}
-
 func validRuleType(ruleType RuleType) bool {
 	return slices.Contains(RuleTypeValues, ruleType)
 }
@@ -542,15 +460,10 @@ func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutatio
 	if len(params.ExcludeLabelIDs) == 0 {
 		return nil
 	}
-	rows, err := tx.Query(ctx, `
-		SELECT id
-		FROM labels
-		WHERE id = ANY($1::bigint[]) AND label_type = $2
-	`, params.ExcludeLabelIDs, labels.LabelTypeBuiltin)
-	if err != nil {
-		return err
-	}
-	builtinExcludeIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	builtinExcludeIDs, err := sqlc.New(tx).ListBuiltinLabelIDs(
+		ctx,
+		sqlc.ListBuiltinLabelIDsParams{LabelIds: params.ExcludeLabelIDs},
+	)
 	if err != nil {
 		return err
 	}
@@ -564,12 +477,10 @@ func validateRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutation) err
 	if params.RuleType != RuleTypeBundle {
 		return nil
 	}
-	var complete bool
-	err := tx.QueryRow(ctx, `
-		SELECT uploaded_at IS NOT NULL
-		FROM santa_bundles
-		WHERE sha256 = $1
-	`, params.Identifier).Scan(&complete)
+	complete, err := sqlc.New(tx).IsSantaBundleComplete(
+		ctx,
+		sqlc.IsSantaBundleCompleteParams{Sha256: params.Identifier},
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("%w: bundle target is not collected", dbutil.ErrInvalidInput)
 	}
@@ -630,21 +541,19 @@ func scanRule(row pgx.Row) (Rule, error) {
 	return rule, err
 }
 
-func scanRuleTarget(row pgx.CollectableRow) (RuleTarget, error) {
-	var target RuleTarget
-	err := row.Scan(
-		&target.TargetType,
-		&target.Identifier,
-		&target.Name,
-		&target.Detail,
-		&target.BundleID,
-		&target.Version,
-		&target.BinaryCount,
-		&target.CollectedBinaryCount,
-		&target.RuleCount,
-		&target.Complete,
-	)
-	return target, err
+func ruleTargetFromSQLC(row sqlc.ListSantaRuleTargetsRow) RuleTarget {
+	return RuleTarget{
+		TargetType:           RuleType(row.TargetType),
+		Identifier:           row.Identifier,
+		Name:                 row.Name,
+		Detail:               row.Detail,
+		BundleID:             row.BundleID,
+		Version:              row.Version,
+		BinaryCount:          row.BinaryCount,
+		CollectedBinaryCount: row.CollectedBinaryCount,
+		RuleCount:            row.RuleCount,
+		Complete:             row.Complete,
+	}
 }
 
 func ruleFromSQLC(row sqlc.SantaRule) Rule {
@@ -660,22 +569,32 @@ func ruleFromSQLC(row sqlc.SantaRule) Rule {
 	}
 }
 
-func scanEffectiveRule(row pgx.CollectableRow) (EffectiveRule, error) {
-	var rule EffectiveRule
-	var ignoredSort int
-	err := row.Scan(
-		&rule.RuleID,
-		&rule.RuleType,
-		&rule.Identifier,
-		&rule.Policy,
-		&rule.CELExpression,
-		&rule.CustomMessage,
-		&rule.CustomURL,
-		&rule.AppName,
-		&rule.MatchedIncludeID,
-		&ignoredSort,
-	)
-	return rule, err
+func effectiveRuleFromSQLC(row sqlc.ListEffectiveSantaRulesForHostRow) EffectiveRule {
+	return EffectiveRule{
+		RuleID:           row.RuleID,
+		RuleType:         RuleType(row.RuleType),
+		Identifier:       row.Identifier,
+		Policy:           Policy(row.Policy),
+		CELExpression:    row.CelExpression,
+		CustomMessage:    row.CustomMessage,
+		CustomURL:        row.CustomURL,
+		AppName:          row.NotificationAppName,
+		MatchedIncludeID: row.MatchedIncludeID,
+	}
+}
+
+func effectiveRuleFromPageSQLC(row sqlc.ListEffectiveSantaRulesForHostPageRow) EffectiveRule {
+	return EffectiveRule{
+		RuleID:           row.RuleID,
+		RuleType:         RuleType(row.RuleType),
+		Identifier:       row.Identifier,
+		Policy:           Policy(row.Policy),
+		CELExpression:    row.CelExpression,
+		CustomMessage:    row.CustomMessage,
+		CustomURL:        row.CustomURL,
+		AppName:          row.NotificationAppName,
+		MatchedIncludeID: row.MatchedIncludeID,
+	}
 }
 
 // SyncTargetsFromRules returns Santa sync payload targets for effective rules.
@@ -713,19 +632,17 @@ func syncTargetKey(target syncstate.Target) string {
 	return target.RuleType + "\x00" + target.Identifier + "\x00" + target.PayloadHash
 }
 
-func scanSyncTarget(row pgx.CollectableRow) (syncstate.Target, error) {
-	var target syncstate.Target
-	err := row.Scan(
-		&target.RuleType,
-		&target.Identifier,
-		&target.Policy,
-		&target.CELExpression,
-		&target.CustomMessage,
-		&target.CustomURL,
-		&target.AppName,
-		&target.PayloadHash,
-	)
-	return target, err
+func syncTargetFromSQLC(row sqlc.ListAppliedSantaSyncTargetsRow) syncstate.Target {
+	return syncstate.Target{
+		RuleType:      row.RuleType,
+		Identifier:    row.Identifier,
+		Policy:        row.Policy,
+		CELExpression: row.CelExpression,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		AppName:       row.NotificationAppName,
+		PayloadHash:   row.PayloadHash,
+	}
 }
 
 const ruleTypeSortSQL = `CASE r.rule_type
@@ -754,281 +671,3 @@ FROM (
 		` + ruleTypeSortSQL + ` AS rule_type_sort
 	FROM santa_rules r
 ) sorted_rules`
-
-const effectiveRulesForHostSQL = `
-WITH host_labels AS (
-	SELECT label_id
-	FROM label_membership
-	WHERE host_id = $1
-),
-matching_includes AS (
-	SELECT
-		r.id AS rule_id,
-		r.rule_type,
-		r.identifier,
-		i.policy,
-		COALESCE(i.cel_expression, '') AS cel_expression,
-		r.custom_message,
-		r.custom_url,
-		i.id AS matched_include_id,
-		` + ruleTypeSortSQL + ` AS rule_type_sort,
-		row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
-	FROM santa_rules r
-	JOIN santa_rule_includes i ON i.rule_id = r.id
-	JOIN host_labels include_hl ON include_hl.label_id = i.label_id
-	WHERE NOT EXISTS (
-		SELECT 1
-		FROM santa_rule_exclude_labels el
-		JOIN host_labels hl ON hl.label_id = el.label_id
-		WHERE el.rule_id = r.id
-	)
-),
-selected_includes AS (
-	SELECT *
-	FROM matching_includes
-	WHERE include_rank = 1
-),
-expanded_rules AS (
-	SELECT
-		rule_id,
-		rule_type,
-		identifier,
-		policy,
-		cel_expression,
-		custom_message,
-		custom_url,
-		''::text AS notification_app_name,
-		matched_include_id,
-		rule_type_sort
-	FROM selected_includes
-	WHERE rule_type <> 'bundle'
-	UNION ALL
-	SELECT
-		si.rule_id,
-		'binary'::santa_rule_type AS rule_type,
-		e.sha256 AS identifier,
-		si.policy,
-		si.cel_expression,
-		si.custom_message,
-		si.custom_url,
-		COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
-		si.matched_include_id,
-		2 AS rule_type_sort
-	FROM selected_includes si
-	JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
-	JOIN santa_bundle_executables be ON be.bundle_id = b.id
-	JOIN santa_executables e ON e.id = be.executable_id
-	WHERE si.rule_type = 'bundle'
-		AND e.sha256 <> ''
-)
-SELECT
-	rule_id,
-	rule_type::text,
-	identifier,
-	policy::text,
-	cel_expression,
-	custom_message,
-	custom_url,
-	notification_app_name,
-	matched_include_id,
-	rule_type_sort
-FROM expanded_rules`
-
-const ruleTargetSearchSQL = `
-WITH candidate_sources AS (
-	SELECT
-		'binary'::text AS target_type,
-		e.sha256 AS identifier,
-		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.sha256) AS name,
-		NULLIF(e.file_name, '') AS detail,
-		e.file_bundle_id AS bundle_id,
-		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version) AS version,
-		0::integer AS binary_count,
-		0::integer AS collected_binary_count,
-		true AS complete
-	FROM santa_executables e
-	WHERE e.sha256 <> ''
-	UNION ALL
-	SELECT
-		'binary'::text,
-		p.executable_sha256,
-		COALESCE(NULLIF(st.display_name, ''), st.name, p.executable_sha256),
-		COALESCE(NULLIF(p.executable_path, ''), p.installed_path),
-		s.bundle_identifier,
-		s.version,
-		0::integer,
-		0::integer,
-		true
-	FROM host_software_installed_paths p
-	JOIN software s ON s.id = p.software_id
-	JOIN software_titles st ON st.id = s.title_id
-	WHERE p.executable_sha256 IS NOT NULL AND p.executable_sha256 <> ''
-	UNION ALL
-	SELECT
-		'certificate'::text,
-		c.sha256,
-		COALESCE(NULLIF(c.common_name, ''), c.sha256),
-		c.organizational_unit,
-		''::text,
-		''::text,
-		0::integer,
-		0::integer,
-		true
-	FROM santa_certificates c
-	WHERE c.sha256 <> ''
-	UNION ALL
-	SELECT
-		'teamid'::text,
-		e.team_id,
-		e.team_id,
-		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-		e.file_bundle_id,
-		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
-		0::integer,
-		0::integer,
-		true
-	FROM santa_executables e
-	WHERE e.team_id <> ''
-	UNION ALL
-	SELECT
-		'teamid'::text,
-		p.team_identifier,
-		p.team_identifier,
-		COALESCE(NULLIF(st.display_name, ''), st.name),
-		s.bundle_identifier,
-		s.version,
-		0::integer,
-		0::integer,
-		true
-	FROM host_software_installed_paths p
-	JOIN software s ON s.id = p.software_id
-	JOIN software_titles st ON st.id = s.title_id
-	WHERE p.team_identifier <> ''
-	UNION ALL
-	SELECT
-		'signingid'::text,
-		e.signing_id,
-		e.signing_id,
-		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-		e.file_bundle_id,
-		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
-		0::integer,
-		0::integer,
-		true
-	FROM santa_executables e
-	WHERE e.signing_id <> ''
-	UNION ALL
-	SELECT
-		'signingid'::text,
-		p.team_identifier || ':' || s.bundle_identifier,
-		p.team_identifier || ':' || s.bundle_identifier,
-		COALESCE(NULLIF(st.display_name, ''), st.name),
-		s.bundle_identifier,
-		s.version,
-		0::integer,
-		0::integer,
-		true
-	FROM host_software_installed_paths p
-	JOIN software s ON s.id = p.software_id
-	JOIN software_titles st ON st.id = s.title_id
-	WHERE p.team_identifier <> '' AND s.bundle_identifier <> ''
-	UNION ALL
-	SELECT
-		'cdhash'::text,
-		e.cdhash,
-		e.cdhash,
-		COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-		e.file_bundle_id,
-		COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
-		0::integer,
-		0::integer,
-		true
-	FROM santa_executables e
-	WHERE e.cdhash <> ''
-	UNION ALL
-	SELECT
-		'cdhash'::text,
-		p.cdhash_sha256,
-		p.cdhash_sha256,
-		COALESCE(NULLIF(st.display_name, ''), st.name),
-		s.bundle_identifier,
-		s.version,
-		0::integer,
-		0::integer,
-		true
-	FROM host_software_installed_paths p
-	JOIN software s ON s.id = p.software_id
-	JOIN software_titles st ON st.id = s.title_id
-	WHERE p.cdhash_sha256 IS NOT NULL AND p.cdhash_sha256 <> ''
-	UNION ALL
-	SELECT
-		'bundle'::text,
-		b.sha256,
-		COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256),
-		b.path,
-		b.bundle_id,
-		COALESCE(NULLIF(b.version_string, ''), b.version),
-		b.binary_count,
-		COUNT(be.executable_id)::integer,
-		b.uploaded_at IS NOT NULL
-	FROM santa_bundles b
-	LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
-	WHERE b.sha256 <> ''
-	GROUP BY b.id
-),
-targets AS (
-	SELECT
-		target_type,
-		identifier,
-		COALESCE(NULLIF(max(name), ''), identifier) AS name,
-		COALESCE(max(detail), '') AS detail,
-		COALESCE(max(bundle_id), '') AS bundle_id,
-		COALESCE(max(version), '') AS version,
-		max(binary_count)::integer AS binary_count,
-		max(collected_binary_count)::integer AS collected_binary_count,
-		bool_or(complete) AS complete
-	FROM candidate_sources
-	WHERE identifier <> ''
-	GROUP BY target_type, identifier
-)
-SELECT
-	t.target_type,
-	t.identifier,
-	t.name,
-	t.detail,
-	t.bundle_id,
-	t.version,
-	t.binary_count,
-	t.collected_binary_count,
-	COUNT(r.id)::integer AS rule_count,
-	t.complete
-FROM targets t
-LEFT JOIN santa_rules r
-	ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
-WHERE
-	($1 = '' OR t.identifier ILIKE '%' || $1 || '%' OR t.name ILIKE '%' || $1 || '%'
-		OR t.detail ILIKE '%' || $1 || '%' OR t.bundle_id ILIKE '%' || $1 || '%')
-	AND ($2 = '' OR t.target_type = $2)
-GROUP BY
-	t.target_type,
-	t.identifier,
-	t.name,
-	t.detail,
-	t.bundle_id,
-	t.version,
-	t.binary_count,
-	t.collected_binary_count,
-	t.complete
-ORDER BY
-	CASE t.target_type
-		WHEN 'bundle' THEN 1
-		WHEN 'signingid' THEN 2
-		WHEN 'teamid' THEN 3
-		WHEN 'certificate' THEN 4
-		WHEN 'binary' THEN 5
-		WHEN 'cdhash' THEN 6
-		ELSE 7
-	END,
-	lower(t.name),
-	t.identifier
-LIMIT $3`

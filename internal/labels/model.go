@@ -53,7 +53,7 @@ type Label struct {
 	HostIDs             []int64             `json:"host_ids,omitempty"`
 	LabelType           LabelType           `json:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type"`
-	HostsCount          int                 `json:"hosts_count"`
+	HostsCount          int32               `json:"hosts_count"`
 	CreatedAt           time.Time           `json:"created_at,omitzero"`
 	UpdatedAt           time.Time           `json:"updated_at,omitzero"`
 }

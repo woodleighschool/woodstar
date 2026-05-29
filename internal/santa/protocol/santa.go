@@ -176,11 +176,11 @@ func preflightRequestFromProto(req *syncv1.PreflightRequest) (santa.PreflightReq
 		RequestCleanSync: req.GetRequestCleanSync(),
 		RulesHash:        req.GetRulesHash(),
 		RuleCounts: syncstate.RuleCounts{
-			Binary:      int(req.GetBinaryRuleCount()),
-			Certificate: int(req.GetCertificateRuleCount()),
-			TeamID:      int(req.GetTeamidRuleCount()),
-			SigningID:   int(req.GetSigningidRuleCount()),
-			CDHash:      int(req.GetCdhashRuleCount()),
+			Binary:      int32(req.GetBinaryRuleCount()),
+			Certificate: int32(req.GetCertificateRuleCount()),
+			TeamID:      int32(req.GetTeamidRuleCount()),
+			SigningID:   int32(req.GetSigningidRuleCount()),
+			CDHash:      int32(req.GetCdhashRuleCount()),
 		},
 		PrimaryUser:       req.GetPrimaryUser(),
 		PrimaryUserGroups: req.GetPrimaryUserGroups(),
@@ -243,8 +243,8 @@ func ruleDownloadResponseToProto(resp santa.RuleDownloadResponse) (*syncv1.RuleD
 func postflightRequestFromProto(req *syncv1.PostflightRequest) (santa.PostflightRequest, error) {
 	return santa.PostflightRequest{
 		RulesHash:      req.GetRulesHash(),
-		RulesReceived:  int(req.GetRulesReceived()),
-		RulesProcessed: int(req.GetRulesProcessed()),
+		RulesReceived:  int32(req.GetRulesReceived()),
+		RulesProcessed: int32(req.GetRulesProcessed()),
 	}, nil
 }
 
@@ -281,8 +281,8 @@ func executionEventFromProto(event *syncv1.Event) (santaevents.ExecutionEventInp
 		BundleVersion:           event.GetFileBundleVersion(),
 		BundleVersionString:     event.GetFileBundleVersionString(),
 		BundleHash:              event.GetFileBundleHash(),
-		BundleHashMillis:        int(event.GetFileBundleHashMillis()),
-		BundleBinaryCount:       int(event.GetFileBundleBinaryCount()),
+		BundleHashMillis:        int32(event.GetFileBundleHashMillis()),
+		BundleBinaryCount:       int32(event.GetFileBundleBinaryCount()),
 		PID:                     event.GetPid(),
 		PPID:                    event.GetPpid(),
 		ParentName:              event.GetParentName(),

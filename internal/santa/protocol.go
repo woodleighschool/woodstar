@@ -42,8 +42,8 @@ type RuleDownloadResponse = syncstate.PayloadRulePage
 
 type PostflightRequest struct {
 	RulesHash      string
-	RulesReceived  int
-	RulesProcessed int
+	RulesReceived  int32
+	RulesProcessed int32
 }
 
 type PostflightResponse struct{}

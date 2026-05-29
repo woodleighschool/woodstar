@@ -36,8 +36,8 @@ type DetailUpdate struct {
 	CPUType                 string
 	CPUSubtype              string
 	CPUBrand                string
-	CPULogicalCores         int
-	CPUPhysicalCores        int
+	CPULogicalCores         int32
+	CPUPhysicalCores        int32
 	PhysicalMemory          int64
 	OrbitNodeKey            string
 	OsqueryVersion          string
@@ -73,8 +73,8 @@ type Host struct {
 	CPUType                 string              `json:"cpu_type"`
 	CPUSubtype              string              `json:"cpu_subtype"`
 	CPUBrand                string              `json:"cpu_brand"`
-	CPULogicalCores         int                 `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int                 `json:"cpu_physical_cores"`
+	CPULogicalCores         int32               `json:"cpu_logical_cores"`
+	CPUPhysicalCores        int32               `json:"cpu_physical_cores"`
 	PhysicalMemory          int64               `json:"physical_memory"`
 	KernelVersion           string              `json:"kernel_version"`
 	LastRestartedAt         *time.Time          `json:"last_restarted_at,omitempty"`

@@ -124,6 +124,33 @@ func (q *Queries) ApplyHostDetail(ctx context.Context, arg ApplyHostDetailParams
 	return err
 }
 
+const countSelectedHostStatus = `-- name: CountSelectedHostStatus :one
+SELECT
+    count(*)::integer AS total,
+    count(*) FILTER (WHERE last_seen_at >= $1)::integer AS online,
+    count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $1)::integer AS offline
+FROM hosts
+WHERE id = ANY($2::bigint[])
+`
+
+type CountSelectedHostStatusParams struct {
+	OnlineSince *time.Time `json:"online_since"`
+	HostIds     []int64    `json:"host_ids"`
+}
+
+type CountSelectedHostStatusRow struct {
+	Total   int32 `json:"total"`
+	Online  int32 `json:"online"`
+	Offline int32 `json:"offline"`
+}
+
+func (q *Queries) CountSelectedHostStatus(ctx context.Context, arg CountSelectedHostStatusParams) (CountSelectedHostStatusRow, error) {
+	row := q.db.QueryRow(ctx, countSelectedHostStatus, arg.OnlineSince, arg.HostIds)
+	var i CountSelectedHostStatusRow
+	err := row.Scan(&i.Total, &i.Online, &i.Offline)
+	return i, err
+}
+
 const deleteHost = `-- name: DeleteHost :one
 DELETE FROM hosts
 WHERE id = $1
@@ -515,6 +542,32 @@ func (q *Queries) InsertHostUser(ctx context.Context, arg InsertHostUserParams) 
 	return err
 }
 
+const listAllHostIDs = `-- name: ListAllHostIDs :many
+SELECT id
+FROM hosts
+ORDER BY id
+`
+
+func (q *Queries) ListAllHostIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listAllHostIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHostBatteries = `-- name: ListHostBatteries :many
 SELECT id, host_id, serial_number, manufacturer, model, chemistry, cycle_count, health, designed_capacity, max_capacity, current_capacity, percent_remaining, created_at, updated_at
 FROM host_batteries
@@ -618,6 +671,79 @@ func (q *Queries) ListHostCertificates(ctx context.Context, arg ListHostCertific
 	return items, nil
 }
 
+const listHostIDsByAnyLabel = `-- name: ListHostIDsByAnyLabel :many
+SELECT DISTINCT h.id
+FROM hosts h
+JOIN label_membership lm ON lm.host_id = h.id
+WHERE lm.label_id = ANY($1::bigint[])
+ORDER BY h.id
+`
+
+type ListHostIDsByAnyLabelParams struct {
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) ListHostIDsByAnyLabel(ctx context.Context, arg ListHostIDsByAnyLabelParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listHostIDsByAnyLabel, arg.LabelIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHostIDsByBuiltinAndRegularLabels = `-- name: ListHostIDsByBuiltinAndRegularLabels :many
+SELECT DISTINCT h.id
+FROM hosts h
+WHERE EXISTS (
+        SELECT 1
+        FROM label_membership lm
+        WHERE lm.host_id = h.id AND lm.label_id = ANY($1::bigint[])
+    )
+  AND EXISTS (
+        SELECT 1
+        FROM label_membership lm
+        WHERE lm.host_id = h.id AND lm.label_id = ANY($2::bigint[])
+    )
+ORDER BY h.id
+`
+
+type ListHostIDsByBuiltinAndRegularLabelsParams struct {
+	BuiltinLabelIds []int64 `json:"builtin_label_ids"`
+	RegularLabelIds []int64 `json:"regular_label_ids"`
+}
+
+func (q *Queries) ListHostIDsByBuiltinAndRegularLabels(ctx context.Context, arg ListHostIDsByBuiltinAndRegularLabelsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listHostIDsByBuiltinAndRegularLabels, arg.BuiltinLabelIds, arg.RegularLabelIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHostUsers = `-- name: ListHostUsers :many
 SELECT id, host_id, uid, username, type, description, directory, shell, created_at, updated_at
 FROM host_users
@@ -650,6 +776,107 @@ func (q *Queries) ListHostUsers(ctx context.Context, arg ListHostUsersParams) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOnlineSelectedHostIDs = `-- name: ListOnlineSelectedHostIDs :many
+SELECT id
+FROM hosts
+WHERE id = ANY($1::bigint[])
+  AND last_seen_at >= $2
+ORDER BY id
+`
+
+type ListOnlineSelectedHostIDsParams struct {
+	HostIds     []int64    `json:"host_ids"`
+	OnlineSince *time.Time `json:"online_since"`
+}
+
+func (q *Queries) ListOnlineSelectedHostIDs(ctx context.Context, arg ListOnlineSelectedHostIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listOnlineSelectedHostIDs, arg.HostIds, arg.OnlineSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSelectedHostIDs = `-- name: ListSelectedHostIDs :many
+SELECT id
+FROM hosts
+WHERE id = ANY($1::bigint[])
+ORDER BY id
+`
+
+type ListSelectedHostIDsParams struct {
+	HostIds []int64 `json:"host_ids"`
+}
+
+func (q *Queries) ListSelectedHostIDs(ctx context.Context, arg ListSelectedHostIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listSelectedHostIDs, arg.HostIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSelectedLabels = `-- name: ListSelectedLabels :many
+SELECT id, name, label_type
+FROM labels
+WHERE id = ANY($1::bigint[])
+ORDER BY id
+`
+
+type ListSelectedLabelsParams struct {
+	LabelIds []int64 `json:"label_ids"`
+}
+
+type ListSelectedLabelsRow struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	LabelType string `json:"label_type"`
+}
+
+func (q *Queries) ListSelectedLabels(ctx context.Context, arg ListSelectedLabelsParams) ([]ListSelectedLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listSelectedLabels, arg.LabelIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSelectedLabelsRow{}
+	for rows.Next() {
+		var i ListSelectedLabelsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.LabelType); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -981,8 +1208,8 @@ type UpsertHostOnOsqueryEnrollParams struct {
 	OrbitVersion     string `json:"orbit_version"`
 	OsqueryNodeKey   string `json:"osquery_node_key"`
 	CPUBrand         string `json:"cpu_brand"`
-	CPULogicalCores  int    `json:"cpu_logical_cores"`
-	CPUPhysicalCores int    `json:"cpu_physical_cores"`
+	CPULogicalCores  int32  `json:"cpu_logical_cores"`
+	CPUPhysicalCores int32  `json:"cpu_physical_cores"`
 	PhysicalMemory   int64  `json:"physical_memory"`
 	HardwareVendor   string `json:"hardware_vendor"`
 	KernelVersion    string `json:"kernel_version"`

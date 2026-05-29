@@ -93,8 +93,8 @@ type ConfigurationMutation struct {
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
-	FullSyncIntervalSeconds       int                  `json:"full_sync_interval_seconds"                minimum:"60"`
-	BatchSize                     int                  `json:"batch_size"                                minimum:"5"  maximum:"100"`
+	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"                minimum:"60"`
+	BatchSize                     int32                `json:"batch_size"                                minimum:"5"  maximum:"100"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`
 	BlockedPathRegex              string               `json:"blocked_path_regex,omitempty"`
 	RemovableMediaPolicy          RemovableMediaPolicy `json:"removable_media_policy,omitzero"`
@@ -107,13 +107,13 @@ type ConfigurationMutation struct {
 type Configuration struct {
 	ID                            int64                `json:"id"`
 	Name                          string               `json:"name"`
-	Position                      int                  `json:"position"`
+	Position                      int32                `json:"position"`
 	ClientMode                    ClientMode           `json:"client_mode"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
 	EnableAllEventUpload          bool                 `json:"enable_all_event_upload"`
-	FullSyncIntervalSeconds       int                  `json:"full_sync_interval_seconds"`
-	BatchSize                     int                  `json:"batch_size"`
+	FullSyncIntervalSeconds       int32                `json:"full_sync_interval_seconds"`
+	BatchSize                     int32                `json:"batch_size"`
 	AllowedPathRegex              string               `json:"allowed_path_regex,omitempty"`
 	BlockedPathRegex              string               `json:"blocked_path_regex,omitempty"`
 	RemovableMediaPolicy          RemovableMediaPolicy `json:"removable_media_policy,omitzero"`

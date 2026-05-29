@@ -8,9 +8,9 @@ const (
 )
 
 type RuleCounts struct {
-	Binary      int
-	Certificate int
-	TeamID      int
-	SigningID   int
-	CDHash      int
+	Binary      int32
+	Certificate int32
+	TeamID      int32
+	SigningID   int32
+	CDHash      int32
 }

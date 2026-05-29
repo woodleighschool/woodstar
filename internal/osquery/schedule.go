@@ -9,7 +9,7 @@ import (
 // ScheduleEntry is one osquery scheduled query config item.
 type ScheduleEntry struct {
 	Query    string `json:"query"`
-	Interval int    `json:"interval"`
+	Interval int32  `json:"interval"`
 	Snapshot bool   `json:"snapshot"`
 	Removed  bool   `json:"removed"`
 	Version  string `json:"version,omitempty"`

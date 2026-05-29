@@ -341,3 +341,57 @@ SELECT id, @host_id
 FROM labels
 WHERE name = 'All Hosts' AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING;
+
+-- name: ListSelectedHostIDs :many
+SELECT id
+FROM hosts
+WHERE id = ANY(@host_ids::bigint[])
+ORDER BY id;
+
+-- name: ListOnlineSelectedHostIDs :many
+SELECT id
+FROM hosts
+WHERE id = ANY(@host_ids::bigint[])
+  AND last_seen_at >= @online_since
+ORDER BY id;
+
+-- name: CountSelectedHostStatus :one
+SELECT
+    count(*)::integer AS total,
+    count(*) FILTER (WHERE last_seen_at >= @online_since)::integer AS online,
+    count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < @online_since)::integer AS offline
+FROM hosts
+WHERE id = ANY(@host_ids::bigint[]);
+
+-- name: ListSelectedLabels :many
+SELECT id, name, label_type
+FROM labels
+WHERE id = ANY(@label_ids::bigint[])
+ORDER BY id;
+
+-- name: ListAllHostIDs :many
+SELECT id
+FROM hosts
+ORDER BY id;
+
+-- name: ListHostIDsByAnyLabel :many
+SELECT DISTINCT h.id
+FROM hosts h
+JOIN label_membership lm ON lm.host_id = h.id
+WHERE lm.label_id = ANY(@label_ids::bigint[])
+ORDER BY h.id;
+
+-- name: ListHostIDsByBuiltinAndRegularLabels :many
+SELECT DISTINCT h.id
+FROM hosts h
+WHERE EXISTS (
+        SELECT 1
+        FROM label_membership lm
+        WHERE lm.host_id = h.id AND lm.label_id = ANY(@builtin_label_ids::bigint[])
+    )
+  AND EXISTS (
+        SELECT 1
+        FROM label_membership lm
+        WHERE lm.host_id = h.id AND lm.label_id = ANY(@regular_label_ids::bigint[])
+    )
+ORDER BY h.id;

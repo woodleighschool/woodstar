@@ -4,9 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
-	"github.com/woodleighschool/woodstar/internal/database"
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
@@ -27,14 +25,14 @@ type TargetMetrics struct {
 
 // ResolveSelectedTargets returns active host ids for a live target selection.
 func (s *Store) ResolveSelectedTargets(ctx context.Context, selection TargetSelection) ([]int64, error) {
-	directHostIDs, err := activeSelectedHostIDs(ctx, s.db, selection.HostIDs)
+	directHostIDs, err := activeSelectedHostIDs(ctx, s.q, selection.HostIDs)
 	if err != nil {
 		return nil, err
 	}
 	if len(selection.LabelIDs) == 0 {
 		return directHostIDs, nil
 	}
-	matches, err := resolveSelectedLabelTargets(ctx, s.db, selection.LabelIDs)
+	matches, err := resolveSelectedLabelTargets(ctx, s.q, selection.LabelIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -55,20 +53,11 @@ func (s *Store) ResolveOnlineSelectedTargets(
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT id
-		 FROM hosts
-		 WHERE id = ANY($1::bigint[])
-		   AND last_seen_at >= $2
-		 ORDER BY id`,
-		hostIDs,
-		now.Add(-hostOnlineWindow),
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanHostIDs(rows)
+	onlineSince := now.Add(-hostOnlineWindow)
+	return s.q.ListOnlineSelectedHostIDs(ctx, sqlc.ListOnlineSelectedHostIDsParams{
+		HostIds:     hostIDs,
+		OnlineSince: &onlineSince,
+	})
 }
 
 // CountSelectedTargets returns online/offline target status totals for a selection.
@@ -86,150 +75,76 @@ func (s *Store) CountSelectedTargets(
 	}
 
 	var metrics TargetMetrics
-	err = s.db.Pool().QueryRow(ctx,
-		`SELECT
-		     count(*)::integer AS total,
-		     count(*) FILTER (WHERE last_seen_at >= $2)::integer AS online,
-		     count(*) FILTER (WHERE last_seen_at IS NULL OR last_seen_at < $2)::integer AS offline
-		 FROM hosts
-		 WHERE id = ANY($1::bigint[])`,
-		hostIDs,
-		now.Add(-hostOnlineWindow),
-	).Scan(&metrics.Total, &metrics.Online, &metrics.Offline)
+	onlineSince := now.Add(-hostOnlineWindow)
+	counts, err := s.q.CountSelectedHostStatus(ctx, sqlc.CountSelectedHostStatusParams{
+		HostIds:     hostIDs,
+		OnlineSince: &onlineSince,
+	})
 	if err != nil {
 		return TargetMetrics{}, err
 	}
+	metrics.Total = int(counts.Total)
+	metrics.Online = int(counts.Online)
+	metrics.Offline = int(counts.Offline)
 	return metrics, nil
 }
 
-func activeSelectedHostIDs(ctx context.Context, db *database.DB, hostIDs []int64) ([]int64, error) {
+func activeSelectedHostIDs(ctx context.Context, q *sqlc.Queries, hostIDs []int64) ([]int64, error) {
 	if len(hostIDs) == 0 {
 		return nil, nil
 	}
-	rows, err := db.Pool().Query(ctx,
-		`SELECT id
-		 FROM hosts
-		 WHERE id = ANY($1::bigint[])
-		 ORDER BY id`,
-		hostIDs,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanHostIDs(rows)
+	return q.ListSelectedHostIDs(ctx, sqlc.ListSelectedHostIDsParams{HostIds: hostIDs})
 }
 
-func resolveSelectedLabelTargets(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
-	rows, err := db.Pool().Query(ctx,
-		`SELECT id, name, label_type
-		 FROM labels
-		 WHERE id = ANY($1::bigint[])
-		 ORDER BY id`,
-		labelIDs,
-	)
+func resolveSelectedLabelTargets(ctx context.Context, q *sqlc.Queries, labelIDs []int64) ([]int64, error) {
+	rows, err := q.ListSelectedLabels(ctx, sqlc.ListSelectedLabelsParams{LabelIds: labelIDs})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	builtinIDs := make([]int64, 0, len(labelIDs))
 	regularIDs := make([]int64, 0, len(labelIDs))
-	for rows.Next() {
-		var id int64
-		var name string
-		var labelType labels.LabelType
-		if err := rows.Scan(&id, &name, &labelType); err != nil {
-			return nil, err
-		}
-		if labelType == labels.LabelTypeBuiltin {
-			if name == "All Hosts" {
-				return allActiveHostIDs(ctx, db)
+	for _, row := range rows {
+		if labels.LabelType(row.LabelType) == labels.LabelTypeBuiltin {
+			if row.Name == "All Hosts" {
+				return allActiveHostIDs(ctx, q)
 			}
-			builtinIDs = append(builtinIDs, id)
+			builtinIDs = append(builtinIDs, row.ID)
 			continue
 		}
-		regularIDs = append(regularIDs, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+		regularIDs = append(regularIDs, row.ID)
 	}
 
 	switch {
 	case len(builtinIDs) > 0 && len(regularIDs) > 0:
-		return hostsMatchingBuiltinAndRegularLabels(ctx, db, builtinIDs, regularIDs)
+		return hostsMatchingBuiltinAndRegularLabels(ctx, q, builtinIDs, regularIDs)
 	case len(builtinIDs) > 0:
-		return hostsMatchingAnyLabel(ctx, db, builtinIDs)
+		return hostsMatchingAnyLabel(ctx, q, builtinIDs)
 	case len(regularIDs) > 0:
-		return hostsMatchingAnyLabel(ctx, db, regularIDs)
+		return hostsMatchingAnyLabel(ctx, q, regularIDs)
 	default:
 		return nil, nil
 	}
 }
 
-func allActiveHostIDs(ctx context.Context, db *database.DB) ([]int64, error) {
-	rows, err := db.Pool().Query(ctx, `SELECT id FROM hosts ORDER BY id`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanHostIDs(rows)
+func allActiveHostIDs(ctx context.Context, q *sqlc.Queries) ([]int64, error) {
+	return q.ListAllHostIDs(ctx)
 }
 
-func hostsMatchingAnyLabel(ctx context.Context, db *database.DB, labelIDs []int64) ([]int64, error) {
-	rows, err := db.Pool().Query(ctx,
-		`SELECT DISTINCT h.id
-		 FROM hosts h
-		 JOIN label_membership lm ON lm.host_id = h.id
-		 WHERE lm.label_id = ANY($1::bigint[])
-		 ORDER BY h.id`,
-		labelIDs,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanHostIDs(rows)
+func hostsMatchingAnyLabel(ctx context.Context, q *sqlc.Queries, labelIDs []int64) ([]int64, error) {
+	return q.ListHostIDsByAnyLabel(ctx, sqlc.ListHostIDsByAnyLabelParams{LabelIds: labelIDs})
 }
 
 func hostsMatchingBuiltinAndRegularLabels(
 	ctx context.Context,
-	db *database.DB,
+	q *sqlc.Queries,
 	builtinIDs []int64,
 	regularIDs []int64,
 ) ([]int64, error) {
-	rows, err := db.Pool().Query(ctx,
-		`SELECT DISTINCT h.id
-		 FROM hosts h
-		 WHERE EXISTS (
-		       SELECT 1 FROM label_membership lm
-		       WHERE lm.host_id = h.id AND lm.label_id = ANY($1::bigint[])
-		   )
-		   AND EXISTS (
-		       SELECT 1 FROM label_membership lm
-		       WHERE lm.host_id = h.id AND lm.label_id = ANY($2::bigint[])
-		   )
-		 ORDER BY h.id`,
-		builtinIDs,
-		regularIDs,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanHostIDs(rows)
-}
-
-func scanHostIDs(rows pgx.Rows) ([]int64, error) {
-	hostIDs := make([]int64, 0)
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		hostIDs = append(hostIDs, id)
-	}
-	return hostIDs, rows.Err()
+	return q.ListHostIDsByBuiltinAndRegularLabels(ctx, sqlc.ListHostIDsByBuiltinAndRegularLabelsParams{
+		BuiltinLabelIds: builtinIDs,
+		RegularLabelIds: regularIDs,
+	})
 }
 
 func mergeHostIDs(a, b []int64) []int64 {

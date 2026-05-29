@@ -276,37 +276,27 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 }
 
 type checkCounts struct {
-	Passing int
-	Failing int
+	Passing int32
+	Failing int32
 }
 
 func (s *Store) loadCheckCounts(ctx context.Context, checkIDs []int64) (map[int64]checkCounts, error) {
 	if len(checkIDs) == 0 {
 		return map[int64]checkCounts{}, nil
 	}
-	rows, err := s.db.Pool().Query(ctx, `
-SELECT
-    check_id,
-    COUNT(*) FILTER (WHERE passes IS TRUE)::INT AS passing_host_count,
-    COUNT(*) FILTER (WHERE passes IS FALSE)::INT AS failing_host_count
-FROM check_membership
-WHERE check_id = ANY($1::BIGINT[])
-GROUP BY check_id`, checkIDs)
+	rows, err := s.q.ListCheckCounts(ctx, sqlc.ListCheckCountsParams{CheckIds: checkIDs})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
 	counts := make(map[int64]checkCounts, len(checkIDs))
-	for rows.Next() {
-		var checkID int64
-		var count checkCounts
-		if err := rows.Scan(&checkID, &count.Passing, &count.Failing); err != nil {
-			return nil, err
+	for _, row := range rows {
+		counts[row.CheckID] = checkCounts{
+			Passing: row.PassingHostCount,
+			Failing: row.FailingHostCount,
 		}
-		counts[checkID] = count
 	}
-	return counts, rows.Err()
+	return counts, nil
 }
 
 func checkListWhere(params CheckListParams) (string, []any) {

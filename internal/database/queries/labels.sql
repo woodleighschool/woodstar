@@ -72,6 +72,38 @@ WHERE label_id = @label_id AND host_id = @host_id;
 DELETE FROM label_membership
 WHERE label_id = @label_id;
 
+-- name: ListDerivedLabels :many
+SELECT id, criteria
+FROM labels
+WHERE label_membership_type = 'derived'
+ORDER BY id;
+
+-- name: InsertDirectoryDepartmentLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT @label_id::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.department = ANY(@values::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
+
+-- name: InsertDirectoryGroupLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT @label_id::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
+JOIN directory_groups dg ON dg.id = dug.directory_group_id
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND dg.external_id = ANY(@values::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
+
+-- name: InsertDirectoryUserLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT @label_id::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.external_id = ANY(@values::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
+
 -- name: InsertLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT @label_id, unnest(@host_ids::bigint[])

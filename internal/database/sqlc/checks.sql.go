@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const createCheck = `-- name: CreateCheck :one
@@ -79,6 +81,20 @@ func (q *Queries) DeleteCheck(ctx context.Context, arg DeleteCheckParams) (int64
 	return id, err
 }
 
+const deleteCheckLabels = `-- name: DeleteCheckLabels :exec
+DELETE FROM check_labels
+WHERE check_id = $1
+`
+
+type DeleteCheckLabelsParams struct {
+	CheckID int64 `json:"check_id"`
+}
+
+func (q *Queries) DeleteCheckLabels(ctx context.Context, arg DeleteCheckLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteCheckLabels, arg.CheckID)
+	return err
+}
+
 const deleteChecks = `-- name: DeleteChecks :many
 DELETE FROM checks
 WHERE id = ANY($1::bigint[])
@@ -141,6 +157,21 @@ func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Che
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const insertCheckLabels = `-- name: InsertCheckLabels :exec
+INSERT INTO check_labels (check_id, label_id)
+SELECT $1, unnest($2::bigint[])
+`
+
+type InsertCheckLabelsParams struct {
+	CheckID  int64   `json:"check_id"`
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) InsertCheckLabels(ctx context.Context, arg InsertCheckLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertCheckLabels, arg.CheckID, arg.LabelIds)
+	return err
 }
 
 const listApplicableChecksForHost = `-- name: ListApplicableChecksForHost :many
@@ -220,6 +251,46 @@ func (q *Queries) ListApplicableChecksForHost(ctx context.Context, arg ListAppli
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCheckCounts = `-- name: ListCheckCounts :many
+SELECT
+    check_id,
+    COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
+    COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
+FROM check_membership
+WHERE check_id = ANY($1::bigint[])
+GROUP BY check_id
+`
+
+type ListCheckCountsParams struct {
+	CheckIds []int64 `json:"check_ids"`
+}
+
+type ListCheckCountsRow struct {
+	CheckID          int64 `json:"check_id"`
+	PassingHostCount int32 `json:"passing_host_count"`
+	FailingHostCount int32 `json:"failing_host_count"`
+}
+
+func (q *Queries) ListCheckCounts(ctx context.Context, arg ListCheckCountsParams) ([]ListCheckCountsRow, error) {
+	rows, err := q.db.Query(ctx, listCheckCounts, arg.CheckIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCheckCountsRow{}
+	for rows.Next() {
+		var i ListCheckCountsRow
+		if err := rows.Scan(&i.CheckID, &i.PassingHostCount, &i.FailingHostCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -336,6 +407,72 @@ func (q *Queries) ListCheckHostStatuses(ctx context.Context, arg ListCheckHostSt
 	return items, nil
 }
 
+const listCheckLabelIDs = `-- name: ListCheckLabelIDs :many
+SELECT check_id, label_id
+FROM check_labels
+WHERE check_id = ANY($1::bigint[])
+ORDER BY check_id, label_id
+`
+
+type ListCheckLabelIDsParams struct {
+	CheckIds []int64 `json:"check_ids"`
+}
+
+func (q *Queries) ListCheckLabelIDs(ctx context.Context, arg ListCheckLabelIDsParams) ([]CheckLabel, error) {
+	rows, err := q.db.Query(ctx, listCheckLabelIDs, arg.CheckIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CheckLabel{}
+	for rows.Next() {
+		var i CheckLabel
+		if err := rows.Scan(&i.CheckID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCheckScopes = `-- name: ListCheckScopes :many
+SELECT id, label_scope_mode
+FROM checks
+WHERE id = ANY($1::bigint[])
+`
+
+type ListCheckScopesParams struct {
+	CheckIds []int64 `json:"check_ids"`
+}
+
+type ListCheckScopesRow struct {
+	ID             int64                `json:"id"`
+	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
+}
+
+func (q *Queries) ListCheckScopes(ctx context.Context, arg ListCheckScopesParams) ([]ListCheckScopesRow, error) {
+	rows, err := q.db.Query(ctx, listCheckScopes, arg.CheckIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCheckScopesRow{}
+	for rows.Next() {
+		var i ListCheckScopesRow
+		if err := rows.Scan(&i.ID, &i.LabelScopeMode); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listHostCheckStatusesForHost = `-- name: ListHostCheckStatusesForHost :many
 WITH host_row AS (
     SELECT
@@ -436,6 +573,22 @@ func (q *Queries) ListHostCheckStatusesForHost(ctx context.Context, arg ListHost
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCheckScopeMode = `-- name: SetCheckScopeMode :exec
+UPDATE checks
+SET label_scope_mode = $1
+WHERE id = $2
+`
+
+type SetCheckScopeModeParams struct {
+	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
+	ID             int64                `json:"id"`
+}
+
+func (q *Queries) SetCheckScopeMode(ctx context.Context, arg SetCheckScopeModeParams) error {
+	_, err := q.db.Exec(ctx, setCheckScopeMode, arg.LabelScopeMode, arg.ID)
+	return err
 }
 
 const updateCheck = `-- name: UpdateCheck :one

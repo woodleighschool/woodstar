@@ -67,7 +67,7 @@ type syncStore interface {
 		bool,
 	) (syncstate.SyncType, error)
 	LoadPendingPayloadPage(context.Context, int64, string, int) (syncstate.PayloadRulePage, error)
-	PromotePending(context.Context, int64, string, int, int) error
+	PromotePending(context.Context, int64, string, int32, int32) error
 }
 
 func NewService(deps Dependencies) *Service {

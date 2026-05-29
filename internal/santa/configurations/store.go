@@ -161,49 +161,29 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 
 func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-			SELECT id
-			FROM santa_configurations
-			ORDER BY position, id
-		`)
-		if err != nil {
-			return err
-		}
-		currentIDs, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		q := s.q.WithTx(tx)
+		currentIDs, err := q.ListSantaConfigurationIDsByPosition(ctx)
 		if err != nil {
 			return err
 		}
 		if !dbutil.SameInt64Set(orderedIDs, currentIDs) {
 			return fmt.Errorf("%w: ordered_ids must exactly match existing configuration IDs", dbutil.ErrInvalidInput)
 		}
-		if _, err := tx.Exec(ctx, `
-			UPDATE santa_configurations c
-			SET position = -ordered.position
-			FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
-			WHERE c.id = ordered.id
-		`, orderedIDs); err != nil {
+		if err := q.SetSantaConfigurationPositions(
+			ctx,
+			sqlc.SetSantaConfigurationPositionsParams{OrderedIds: orderedIDs},
+		); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `
-			UPDATE santa_configurations
-			SET position = -position - 1
-		`)
-		return err
+		return q.NormalizeSantaConfigurationPositions(ctx)
 	})
 }
 
 func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ResolvedConfiguration, error) {
-	rows, err := s.db.Pool().Query(ctx, configurationWithMatchedLabelSelectSQL+`
-		JOIN santa_configuration_labels cl ON cl.configuration_id = c.id
-		JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = $1
-		JOIN labels l ON l.id = cl.label_id
-		ORDER BY c.position, c.id, l.name, l.id
-		LIMIT 1
-	`, hostID)
-	if err != nil {
-		return nil, err
-	}
-	record, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[resolvedConfigurationRecord])
+	record, err := s.q.ResolveSantaConfigurationForHost(
+		ctx,
+		sqlc.ResolveSantaConfigurationForHostParams{HostID: hostID},
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no matching configuration is represented by a nil result.
 	}
@@ -217,22 +197,20 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 }
 
 func replaceConfigurationLabels(ctx context.Context, tx pgx.Tx, configurationID int64, labelIDs []int64) error {
-	if _, err := tx.Exec(
+	q := sqlc.New(tx)
+	if err := q.DeleteSantaConfigurationLabels(
 		ctx,
-		`DELETE FROM santa_configuration_labels WHERE configuration_id = $1`,
-		configurationID,
+		sqlc.DeleteSantaConfigurationLabelsParams{ConfigurationID: configurationID},
 	); err != nil {
 		return err
 	}
 	if len(labelIDs) == 0 {
 		return nil
 	}
-	_, err := tx.Exec(ctx, `
-		INSERT INTO santa_configuration_labels (label_id, configuration_id)
-		SELECT label_id, $1
-		FROM unnest($2::bigint[]) AS label_id
-	`, configurationID, labelIDs)
-	return err
+	return q.InsertSantaConfigurationLabels(ctx, sqlc.InsertSantaConfigurationLabelsParams{
+		ConfigurationID: configurationID,
+		LabelIds:        labelIDs,
+	})
 }
 
 func validateConfigurationLabelsAvailable(
@@ -245,22 +223,12 @@ func validateConfigurationLabelsAvailable(
 		return nil
 	}
 
-	var conflict ConfigurationLabelConflictError
-	err := tx.QueryRow(ctx, `
-		SELECT
-			cl.label_id,
-			c.id,
-			c.name
-		FROM santa_configuration_labels cl
-		JOIN santa_configurations c ON c.id = cl.configuration_id
-		WHERE cl.label_id = ANY($1)
-			AND c.id <> $2
-		ORDER BY cl.label_id
-		LIMIT 1
-	`, labelIDs, configurationID).Scan(
-		&conflict.LabelID,
-		&conflict.ConfigurationID,
-		&conflict.ConfigurationName,
+	row, err := sqlc.New(tx).FindSantaConfigurationLabelConflict(
+		ctx,
+		sqlc.FindSantaConfigurationLabelConflictParams{
+			LabelIds:        labelIDs,
+			ConfigurationID: configurationID,
+		},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
@@ -268,7 +236,11 @@ func validateConfigurationLabelsAvailable(
 	if err != nil {
 		return err
 	}
-	return &conflict
+	return &ConfigurationLabelConflictError{
+		LabelID:           row.LabelID,
+		ConfigurationID:   row.ConfigurationID,
+		ConfigurationName: row.ConfigurationName,
+	}
 }
 
 func (s *Store) attachConfigurationLabels(
@@ -284,28 +256,20 @@ func (s *Store) attachConfigurationLabels(
 		configurationIndexes[configurations[i].ID] = i
 	}
 
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT configuration_id, label_id
-		FROM santa_configuration_labels
-		WHERE configuration_id = ANY($1)
-		ORDER BY configuration_id, label_id
-	`, configurationIDs)
+	rows, err := s.q.ListSantaConfigurationLabels(
+		ctx,
+		sqlc.ListSantaConfigurationLabelsParams{ConfigurationIds: configurationIDs},
+	)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var configurationID int64
-		var labelID int64
-		if err := rows.Scan(&configurationID, &labelID); err != nil {
-			return err
-		}
-		if i, ok := configurationIndexes[configurationID]; ok {
-			configurations[i].LabelIDs = append(configurations[i].LabelIDs, labelID)
+	for _, row := range rows {
+		if i, ok := configurationIndexes[row.ConfigurationID]; ok {
+			configurations[i].LabelIDs = append(configurations[i].LabelIDs, row.LabelID)
 		}
 	}
-	return rows.Err()
+	return nil
 }
 
 // Validate enforces cross-field rules that the DB and Huma DTO can't express:
@@ -383,8 +347,8 @@ func createConfigurationParams(configuration ConfigurationMutation) sqlc.CreateS
 		EnableBundles:                       configuration.EnableBundles,
 		EnableTransitiveRules:               configuration.EnableTransitiveRules,
 		EnableAllEventUpload:                configuration.EnableAllEventUpload,
-		FullSyncIntervalSeconds:             int32(configuration.FullSyncIntervalSeconds),
-		BatchSize:                           int32(configuration.BatchSize),
+		FullSyncIntervalSeconds:             configuration.FullSyncIntervalSeconds,
+		BatchSize:                           configuration.BatchSize,
 		AllowedPathRegex:                    configuration.AllowedPathRegex,
 		BlockedPathRegex:                    configuration.BlockedPathRegex,
 		RemovableMediaAction:                removableMediaAction,
@@ -422,13 +386,13 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
 	return &Configuration{
 		ID:                      row.ID,
 		Name:                    row.Name,
-		Position:                int(row.Position),
+		Position:                row.Position,
 		ClientMode:              ClientMode(row.ClientMode),
 		EnableBundles:           row.EnableBundles,
 		EnableTransitiveRules:   row.EnableTransitiveRules,
 		EnableAllEventUpload:    row.EnableAllEventUpload,
-		FullSyncIntervalSeconds: int(row.FullSyncIntervalSeconds),
-		BatchSize:               int(row.BatchSize),
+		FullSyncIntervalSeconds: row.FullSyncIntervalSeconds,
+		BatchSize:               row.BatchSize,
 		AllowedPathRegex:        row.AllowedPathRegex,
 		BlockedPathRegex:        row.BlockedPathRegex,
 		RemovableMediaPolicy: removableMediaPolicyFromSQLC(
@@ -464,12 +428,6 @@ func removableMediaPolicyFromSQLC(action *sqlc.SantaRemovableMediaAction, flags 
 	}
 }
 
-type resolvedConfigurationRecord struct {
-	sqlc.SantaConfiguration
-	LabelID   int64  `db:"label_id"`
-	LabelName string `db:"label_name"`
-}
-
 const configurationSelectSQL = `
 SELECT
 	c.id,
@@ -491,29 +449,4 @@ SELECT
 	c.event_detail_text,
 	c.created_at,
 	c.updated_at
-FROM santa_configurations c`
-
-const configurationWithMatchedLabelSelectSQL = `
-SELECT
-	c.id,
-	c.name,
-	c.position,
-	c.client_mode,
-	c.enable_bundles,
-	c.enable_transitive_rules,
-	c.enable_all_event_upload,
-	c.full_sync_interval_seconds,
-	c.batch_size,
-	c.allowed_path_regex,
-	c.blocked_path_regex,
-	c.removable_media_action,
-	c.removable_media_remount_flags,
-	c.encrypted_removable_media_action,
-	c.encrypted_removable_media_remount_flags,
-	c.event_detail_url,
-	c.event_detail_text,
-	c.created_at,
-	c.updated_at,
-	l.id AS label_id,
-	l.name AS label_name
 FROM santa_configurations c`

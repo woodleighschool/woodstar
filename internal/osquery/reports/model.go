@@ -14,7 +14,7 @@ type Report struct {
 	Description       string           `json:"description"`
 	Query             string           `json:"query"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval"`
+	ScheduleInterval  int32            `json:"schedule_interval"`
 	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
 	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
 	CreatedAt         time.Time        `json:"created_at"`
@@ -27,7 +27,7 @@ type ReportCreate struct {
 	Description       string           `json:"description,omitempty"`
 	Query             string           `json:"query"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
+	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
 	CreatedByUserID   *int64           `json:"-"`
 }
@@ -38,7 +38,7 @@ type ReportUpdate struct {
 	Description       string           `json:"description,omitempty"`
 	Query             string           `json:"query"`
 	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int              `json:"schedule_interval,omitempty"`
+	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
 }
 
@@ -64,5 +64,5 @@ type HostReport struct {
 	Description     string            `json:"description"`
 	LastFetched     *time.Time        `json:"last_fetched,omitempty"`
 	FirstResult     map[string]string `json:"first_result,omitempty"`
-	HostResultCount int               `json:"n_host_results"`
+	HostResultCount int32             `json:"n_host_results"`
 }

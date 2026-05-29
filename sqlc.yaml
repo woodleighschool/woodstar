@@ -32,7 +32,7 @@ sql:
               import: time
               type: Time
               pointer: true
-          - column: hosts.cpu_logical_cores
-            go_type: int
-          - column: hosts.cpu_physical_cores
-            go_type: int
+          - db_type: label_scope_mode
+            go_type:
+              import: github.com/woodleighschool/woodstar/internal/scope
+              type: LabelScopeMode

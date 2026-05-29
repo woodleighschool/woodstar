@@ -17,8 +17,8 @@ type Check struct {
 	Description      string           `json:"description"`
 	Query            string           `json:"query"`
 	LabelScope       scope.LabelScope `json:"label_scope,omitzero"`
-	PassingHostCount int              `json:"passing_host_count"`
-	FailingHostCount int              `json:"failing_host_count"`
+	PassingHostCount int32            `json:"passing_host_count"`
+	FailingHostCount int32            `json:"failing_host_count"`
 	CreatedByUserID  *int64           `json:"created_by_user_id,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`

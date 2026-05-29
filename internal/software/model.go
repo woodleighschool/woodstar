@@ -37,7 +37,7 @@ type SoftwareVersion struct {
 	ID               int64  `json:"id"`
 	Version          string `json:"version"`
 	BundleIdentifier string `json:"bundle_identifier,omitempty"`
-	HostsCount       int    `json:"hosts_count"`
+	HostsCount       int32  `json:"hosts_count"`
 }
 
 // PathSignatureInformation is signing/hash data for one path.
@@ -78,8 +78,8 @@ type SoftwareTitle struct {
 	Browser          string            `json:"browser"`
 	BundleIdentifier string            `json:"bundle_identifier,omitempty"`
 	Vendor           string            `json:"-"`
-	HostsCount       int               `json:"hosts_count"`
-	VersionsCount    int               `json:"versions_count"`
+	HostsCount       int32             `json:"hosts_count"`
+	VersionsCount    int32             `json:"versions_count"`
 	CountsUpdatedAt  *time.Time        `json:"counts_updated_at"`
 	Versions         []SoftwareVersion `json:"versions"`
 }

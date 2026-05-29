@@ -31,8 +31,8 @@ type HostState struct {
 }
 
 type RuleSyncSummary struct {
-	DesiredCount    int        `json:"desired_count"`
-	AppliedCount    int        `json:"applied_count"`
-	PendingCount    int        `json:"pending_count"`
+	DesiredCount    int32      `json:"desired_count"`
+	AppliedCount    int32      `json:"applied_count"`
+	PendingCount    int32      `json:"pending_count"`
 	LastCleanSyncAt *time.Time `json:"last_clean_sync_at,omitempty"`
 }

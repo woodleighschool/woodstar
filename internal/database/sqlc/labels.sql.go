@@ -145,6 +145,65 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 	return i, err
 }
 
+const insertDirectoryDepartmentLabelMemberships = `-- name: InsertDirectoryDepartmentLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.department = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
+`
+
+type InsertDirectoryDepartmentLabelMembershipsParams struct {
+	LabelID int64    `json:"label_id"`
+	Values  []string `json:"values"`
+}
+
+func (q *Queries) InsertDirectoryDepartmentLabelMemberships(ctx context.Context, arg InsertDirectoryDepartmentLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertDirectoryDepartmentLabelMemberships, arg.LabelID, arg.Values)
+	return err
+}
+
+const insertDirectoryGroupLabelMemberships = `-- name: InsertDirectoryGroupLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
+JOIN directory_groups dg ON dg.id = dug.directory_group_id
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND dg.external_id = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
+`
+
+type InsertDirectoryGroupLabelMembershipsParams struct {
+	LabelID int64    `json:"label_id"`
+	Values  []string `json:"values"`
+}
+
+func (q *Queries) InsertDirectoryGroupLabelMemberships(ctx context.Context, arg InsertDirectoryGroupLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertDirectoryGroupLabelMemberships, arg.LabelID, arg.Values)
+	return err
+}
+
+const insertDirectoryUserLabelMemberships = `-- name: InsertDirectoryUserLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hdu.host_id
+FROM host_directory_user hdu
+JOIN directory_users du ON du.id = hdu.directory_user_id
+WHERE du.active AND du.external_id = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
+`
+
+type InsertDirectoryUserLabelMembershipsParams struct {
+	LabelID int64    `json:"label_id"`
+	Values  []string `json:"values"`
+}
+
+func (q *Queries) InsertDirectoryUserLabelMemberships(ctx context.Context, arg InsertDirectoryUserLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertDirectoryUserLabelMemberships, arg.LabelID, arg.Values)
+	return err
+}
+
 const insertLabelMemberships = `-- name: InsertLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT $1, unnest($2::bigint[])
@@ -223,6 +282,38 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context) ([]Label, err
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDerivedLabels = `-- name: ListDerivedLabels :many
+SELECT id, criteria
+FROM labels
+WHERE label_membership_type = 'derived'
+ORDER BY id
+`
+
+type ListDerivedLabelsRow struct {
+	ID       int64  `json:"id"`
+	Criteria []byte `json:"criteria"`
+}
+
+func (q *Queries) ListDerivedLabels(ctx context.Context) ([]ListDerivedLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listDerivedLabels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDerivedLabelsRow{}
+	for rows.Next() {
+		var i ListDerivedLabelsRow
+		if err := rows.Scan(&i.ID, &i.Criteria); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

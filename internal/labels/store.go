@@ -69,7 +69,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Label, error) {
 	if err != nil {
 		return nil, err
 	}
-	label.HostsCount = int(row.HostsCount)
+	label.HostsCount = row.HostsCount
 	if label.LabelMembershipType == LabelMembershipTypeManual {
 		hostIDs, err := s.q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
 		if err != nil {
@@ -91,7 +91,7 @@ func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) 
 		if err != nil {
 			return nil, err
 		}
-		l.HostsCount = int(row.HostsCount)
+		l.HostsCount = row.HostsCount
 		labels[i] = *l
 	}
 	return labels, nil
@@ -124,7 +124,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 		if err != nil {
 			return err
 		}
-		if err := s.replaceMembership(ctx, tx, q, row.ID, params); err != nil {
+		if err := s.replaceMembership(ctx, q, row.ID, params); err != nil {
 			return err
 		}
 		out, err = getLabelByID(ctx, q, row.ID)
@@ -165,7 +165,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		if err != nil {
 			return err
 		}
-		if err := s.replaceMembership(ctx, tx, q, row.ID, LabelCreate{
+		if err := s.replaceMembership(ctx, q, row.ID, LabelCreate{
 			Query:               params.Query,
 			Criteria:            params.Criteria,
 			HostIDs:             params.HostIDs,
@@ -241,33 +241,18 @@ func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
 }
 
 func (s *Store) RefreshDerived(ctx context.Context) error {
-	type derivedLabel struct {
-		id       int64
-		criteria []byte
-	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-SELECT id, criteria
-FROM labels
-WHERE label_membership_type = 'derived'
-ORDER BY id`)
-		if err != nil {
-			return err
-		}
-		derived, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (derivedLabel, error) {
-			var label derivedLabel
-			err := row.Scan(&label.id, &label.criteria)
-			return label, err
-		})
+		q := s.q.WithTx(tx)
+		derived, err := q.ListDerivedLabels(ctx)
 		if err != nil {
 			return err
 		}
 		for _, label := range derived {
-			criteria, err := decodeCriteria(label.criteria)
+			criteria, err := decodeCriteria(label.Criteria)
 			if err != nil {
 				return err
 			}
-			if err := refreshDerivedMembership(ctx, tx, label.id, &criteria); err != nil {
+			if err := refreshDerivedMembership(ctx, q, label.ID, &criteria); err != nil {
 				return err
 			}
 		}
@@ -453,7 +438,7 @@ func labelFromListRecord(s labelListRecord) (Label, error) {
 	if err != nil {
 		return Label{}, err
 	}
-	label.HostsCount = int(s.HostsCount)
+	label.HostsCount = s.HostsCount
 	return *label, nil
 }
 
@@ -482,7 +467,7 @@ func getLabelByID(ctx context.Context, q *sqlc.Queries, id int64) (*Label, error
 	if err != nil {
 		return nil, err
 	}
-	label.HostsCount = int(row.HostsCount)
+	label.HostsCount = row.HostsCount
 	if label.LabelMembershipType == LabelMembershipTypeManual {
 		hostIDs, err := q.ListManualLabelHostIDs(ctx, sqlc.ListManualLabelHostIDsParams{LabelID: id})
 		if err != nil {
@@ -495,7 +480,6 @@ func getLabelByID(ctx context.Context, q *sqlc.Queries, id int64) (*Label, error
 
 func (s *Store) replaceMembership(
 	ctx context.Context,
-	tx pgx.Tx,
 	q *sqlc.Queries,
 	labelID int64,
 	params LabelCreate,
@@ -514,7 +498,7 @@ func (s *Store) replaceMembership(
 		}
 		return q.InsertLabelMemberships(ctx, sqlc.InsertLabelMembershipsParams{LabelID: labelID, HostIds: hostIDs})
 	case LabelMembershipTypeDerived:
-		return refreshDerivedMembership(ctx, tx, labelID, params.Criteria)
+		return refreshDerivedMembership(ctx, q, labelID, params.Criteria)
 	case LabelMembershipTypeDynamic:
 		return q.DeleteLabelMembershipsForLabel(ctx, sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID})
 	default:
@@ -538,45 +522,37 @@ func compactHostIDs(hostIDs []int64) []int64 {
 	return out
 }
 
-func refreshDerivedMembership(ctx context.Context, tx pgx.Tx, labelID int64, criteria *Criteria) error {
+func refreshDerivedMembership(ctx context.Context, q *sqlc.Queries, labelID int64, criteria *Criteria) error {
 	if err := validateCriteria(criteria); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM label_membership WHERE label_id = $1`, labelID); err != nil {
+	if err := q.DeleteLabelMembershipsForLabel(
+		ctx,
+		sqlc.DeleteLabelMembershipsForLabelParams{LabelID: labelID},
+	); err != nil {
 		return err
 	}
 
-	var query string
+	values := cleanCriteriaValues(criteria.Values)
 	switch criteria.Attribute {
 	case DerivedAttributeDirectoryDepartment:
-		query = `
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.department = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+		return q.InsertDirectoryDepartmentLabelMemberships(
+			ctx,
+			sqlc.InsertDirectoryDepartmentLabelMembershipsParams{LabelID: labelID, Values: values},
+		)
 	case DerivedAttributeDirectoryGroup:
-		query = `
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
-JOIN directory_groups dg ON dg.id = dug.directory_group_id
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND dg.external_id = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+		return q.InsertDirectoryGroupLabelMemberships(
+			ctx,
+			sqlc.InsertDirectoryGroupLabelMembershipsParams{LabelID: labelID, Values: values},
+		)
 	case DerivedAttributeDirectoryUser:
-		query = `
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.external_id = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()`
+		return q.InsertDirectoryUserLabelMemberships(
+			ctx,
+			sqlc.InsertDirectoryUserLabelMembershipsParams{LabelID: labelID, Values: values},
+		)
+	default:
+		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
-	_, err := tx.Exec(ctx, query, labelID, cleanCriteriaValues(criteria.Values))
-	return err
 }
 
 func cleanCriteriaValues(values []string) []string {

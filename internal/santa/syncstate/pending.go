@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -80,12 +81,13 @@ func (s *Store) PreparePending(
 	var pendingFullSync bool
 	var applied []Target
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
 		var err error
-		hadState, err = syncStateExists(ctx, tx, hostID)
+		hadState, err = syncStateExists(ctx, q, hostID)
 		if err != nil {
 			return err
 		}
-		applied, err = loadTargets(ctx, tx, hostID, phaseApplied)
+		applied, err = loadTargets(ctx, q, hostID, phaseApplied)
 		if err != nil {
 			return err
 		}
@@ -98,100 +100,42 @@ func (s *Store) PreparePending(
 			payload = fullSyncPayload(desired)
 		}
 
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_sync_state (
-				host_id,
-				client_rules_hash,
-				pending_full_sync,
-				pending_payload_rule_count,
-				pending_preflight_at,
-				desired_binary_rule_count,
-				desired_certificate_rule_count,
-				desired_teamid_rule_count,
-				desired_signingid_rule_count,
-				desired_cdhash_rule_count,
-				binary_rule_count,
-				certificate_rule_count,
-				teamid_rule_count,
-				signingid_rule_count,
-				cdhash_rule_count,
-				last_rule_sync_attempt_at,
-				last_reported_counts_match_at,
-				updated_at
-			)
-			VALUES (
-				$1,
-				$2,
-				$3,
-				$4,
-				now(),
-				$5,
-				$6,
-				$7,
-				$8,
-				$9,
-				$10,
-				$11,
-				$12,
-				$13,
-				$14,
-				now(),
-				CASE WHEN $15 THEN now() ELSE NULL END,
-				now()
-			)
-			ON CONFLICT (host_id) DO UPDATE SET
-				client_rules_hash = EXCLUDED.client_rules_hash,
-				pending_full_sync = EXCLUDED.pending_full_sync,
-				pending_payload_rule_count = EXCLUDED.pending_payload_rule_count,
-				pending_preflight_at = EXCLUDED.pending_preflight_at,
-				desired_binary_rule_count = EXCLUDED.desired_binary_rule_count,
-				desired_certificate_rule_count = EXCLUDED.desired_certificate_rule_count,
-				desired_teamid_rule_count = EXCLUDED.desired_teamid_rule_count,
-				desired_signingid_rule_count = EXCLUDED.desired_signingid_rule_count,
-				desired_cdhash_rule_count = EXCLUDED.desired_cdhash_rule_count,
-				binary_rule_count = EXCLUDED.binary_rule_count,
-				certificate_rule_count = EXCLUDED.certificate_rule_count,
-				teamid_rule_count = EXCLUDED.teamid_rule_count,
-				signingid_rule_count = EXCLUDED.signingid_rule_count,
-				cdhash_rule_count = EXCLUDED.cdhash_rule_count,
-				last_rule_sync_attempt_at = EXCLUDED.last_rule_sync_attempt_at,
-				last_reported_counts_match_at = CASE
-					WHEN $15 THEN EXCLUDED.last_reported_counts_match_at
-					ELSE santa_sync_state.last_reported_counts_match_at
-				END,
-				updated_at = now()
-		`,
-			hostID,
-			clientRulesHash,
-			pendingFullSync,
-			len(payload),
-			countTargets(desired).Binary,
-			countTargets(desired).Certificate,
-			countTargets(desired).TeamID,
-			countTargets(desired).SigningID,
-			countTargets(desired).CDHash,
-			reported.Binary,
-			reported.Certificate,
-			reported.TeamID,
-			reported.SigningID,
-			reported.CDHash,
-			countTargets(desired) == reported,
+		desiredCounts := countTargets(desired)
+		if err := q.UpsertSantaSyncPreflight(ctx, sqlc.UpsertSantaSyncPreflightParams{
+			HostID:                      hostID,
+			ClientRulesHash:             clientRulesHash,
+			PendingFullSync:             pendingFullSync,
+			PendingPayloadRuleCount:     int32(len(payload)),
+			DesiredBinaryRuleCount:      desiredCounts.Binary,
+			DesiredCertificateRuleCount: desiredCounts.Certificate,
+			DesiredTeamidRuleCount:      desiredCounts.TeamID,
+			DesiredSigningidRuleCount:   desiredCounts.SigningID,
+			DesiredCdhashRuleCount:      desiredCounts.CDHash,
+			BinaryRuleCount:             reported.Binary,
+			CertificateRuleCount:        reported.Certificate,
+			TeamidRuleCount:             reported.TeamID,
+			SigningidRuleCount:          reported.SigningID,
+			CdhashRuleCount:             reported.CDHash,
+			CountsMatch:                 desiredCounts == reported,
+		}); err != nil {
+			return err
+		}
+		if err := q.DeleteSantaSyncTargetsByPhase(ctx, sqlc.DeleteSantaSyncTargetsByPhaseParams{
+			HostID: hostID,
+			Phase:  sqlc.SantaSyncTargetPhase(phaseDesired),
+		}); err != nil {
+			return err
+		}
+		if err := q.DeleteSantaSyncPendingRules(
+			ctx,
+			sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
 		); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `
-			DELETE FROM santa_sync_targets
-			WHERE host_id = $1 AND phase = 'desired'
-		`, hostID); err != nil {
+		if err := insertTargets(ctx, q, hostID, phaseDesired, desired); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM santa_sync_pending_rules WHERE host_id = $1`, hostID); err != nil {
-			return err
-		}
-		if err := insertTargets(ctx, tx, hostID, phaseDesired, desired); err != nil {
-			return err
-		}
-		return insertPayloadRules(ctx, tx, hostID, payload)
+		return insertPayloadRules(ctx, q, hostID, payload)
 	})
 	if err != nil {
 		return "", err
@@ -216,30 +160,18 @@ func (s *Store) LoadPendingPayloadPage(
 		return PayloadRulePage{}, err
 	}
 
-	rows, err := s.db.Pool().Query(ctx, `
-		SELECT
-			rule_type::text,
-			identifier,
-			COALESCE(policy::text, ''),
-			cel_expression,
-			custom_message,
-			custom_url,
-			notification_app_name,
-			payload_hash,
-			removed
-		FROM santa_sync_pending_rules
-		WHERE host_id = $1
-		ORDER BY position
-		LIMIT $2 OFFSET $3
-	`, hostID, limit+1, offset)
+	rows, err := s.q.ListSantaPendingPayloadPage(ctx, sqlc.ListSantaPendingPayloadPageParams{
+		HostID:      hostID,
+		LimitCount:  int32(limit + 1),
+		OffsetCount: int32(offset),
+	})
 	if err != nil {
 		return PayloadRulePage{}, err
 	}
-	defer rows.Close()
 
-	rules, err := pgx.CollectRows(rows, scanPayloadRule)
-	if err != nil {
-		return PayloadRulePage{}, err
+	rules := make([]PayloadRule, len(rows))
+	for i, row := range rows {
+		rules[i] = payloadRuleFromSQLC(row)
 	}
 	nextCursor := ""
 	if len(rules) > limit {
@@ -256,225 +188,118 @@ func (s *Store) PromotePending(
 	ctx context.Context,
 	hostID int64,
 	clientRulesHash string,
-	rulesReceived int,
-	rulesProcessed int,
+	rulesReceived int32,
+	rulesProcessed int32,
 ) error {
-	var pendingCount int
+	var pendingCount int32
 	var pendingFullSync bool
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT pending_payload_rule_count, pending_full_sync
-		FROM santa_sync_state
-		WHERE host_id = $1
-	`, hostID).Scan(&pendingCount, &pendingFullSync)
+	row, err := s.q.GetSantaPendingState(ctx, sqlc.GetSantaPendingStateParams{HostID: hostID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
+	pendingCount = row.PendingPayloadRuleCount
+	pendingFullSync = row.PendingFullSync
 	if rulesProcessed != pendingCount {
-		_, err = s.db.Pool().Exec(ctx, `
-			UPDATE santa_sync_state
-			SET
-				client_rules_hash = $2,
-				rules_received = $3,
-				rules_processed = $4,
-				last_rule_sync_attempt_at = now(),
-				updated_at = now()
-			WHERE host_id = $1
-		`, hostID, clientRulesHash, rulesReceived, rulesProcessed)
-		return err
+		return s.q.MarkSantaSyncAttempt(ctx, sqlc.MarkSantaSyncAttemptParams{
+			HostID:          hostID,
+			ClientRulesHash: clientRulesHash,
+			RulesReceived:   rulesReceived,
+			RulesProcessed:  rulesProcessed,
+		})
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `
-			DELETE FROM santa_sync_targets
-			WHERE host_id = $1 AND phase = 'applied'
-		`, hostID); err != nil {
+		q := s.q.WithTx(tx)
+		if err := q.DeleteSantaSyncTargetsByPhase(ctx, sqlc.DeleteSantaSyncTargetsByPhaseParams{
+			HostID: hostID,
+			Phase:  sqlc.SantaSyncTargetPhase(phaseApplied),
+		}); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_sync_targets (
-				host_id,
-				phase,
-				position,
-				rule_type,
-				identifier,
-				policy,
-				cel_expression,
-				custom_message,
-				custom_url,
-				notification_app_name,
-				payload_hash,
-				updated_at
-			)
-			SELECT
-				host_id,
-				'applied'::santa_sync_target_phase,
-				position,
-				rule_type,
-				identifier,
-				policy,
-				cel_expression,
-				custom_message,
-				custom_url,
-				notification_app_name,
-				payload_hash,
-				now()
-			FROM santa_sync_targets
-			WHERE host_id = $1 AND phase = 'desired'
-			ORDER BY position
-		`, hostID); err != nil {
+		if err := q.PromoteSantaDesiredSyncTargets(
+			ctx,
+			sqlc.PromoteSantaDesiredSyncTargetsParams{PromoteHostID: hostID},
+		); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM santa_sync_pending_rules WHERE host_id = $1`, hostID); err != nil {
+		if err := q.DeleteSantaSyncPendingRules(
+			ctx,
+			sqlc.DeleteSantaSyncPendingRulesParams{HostID: hostID},
+		); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `
-			UPDATE santa_sync_state
-			SET
-				client_rules_hash = $2,
-				rules_received = $3,
-				rules_processed = $4,
-				pending_full_sync = false,
-				pending_payload_rule_count = 0,
-				pending_preflight_at = NULL,
-				last_rule_sync_attempt_at = now(),
-				last_rule_sync_success_at = now(),
-				last_clean_sync_at = CASE WHEN $5 THEN now() ELSE last_clean_sync_at END,
-				updated_at = now()
-			WHERE host_id = $1
-		`, hostID, clientRulesHash, rulesReceived, rulesProcessed, pendingFullSync)
-		return err
+		return q.CompleteSantaSync(ctx, sqlc.CompleteSantaSyncParams{
+			HostID:          hostID,
+			ClientRulesHash: clientRulesHash,
+			RulesReceived:   rulesReceived,
+			RulesProcessed:  rulesProcessed,
+			PendingFullSync: pendingFullSync,
+		})
 	})
 }
 
-func syncStateExists(ctx context.Context, tx pgx.Tx, hostID int64) (bool, error) {
-	var exists bool
-	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM santa_sync_state WHERE host_id = $1)`, hostID).
-		Scan(&exists)
-	return exists, err
+func syncStateExists(ctx context.Context, q *sqlc.Queries, hostID int64) (bool, error) {
+	return q.SantaSyncStateExists(ctx, sqlc.SantaSyncStateExistsParams{HostID: hostID})
 }
 
-func loadTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string) ([]Target, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT
-			rule_type::text,
-			identifier,
-			policy::text,
-			cel_expression,
-			custom_message,
-			custom_url,
-			notification_app_name,
-			payload_hash
-		FROM santa_sync_targets
-		WHERE host_id = $1 AND phase = $2::santa_sync_target_phase
-		ORDER BY position
-	`, hostID, phase)
+func loadTargets(ctx context.Context, q *sqlc.Queries, hostID int64, phase string) ([]Target, error) {
+	rows, err := q.ListSantaSyncTargets(ctx, sqlc.ListSantaSyncTargetsParams{
+		HostID: hostID,
+		Phase:  sqlc.SantaSyncTargetPhase(phase),
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	targets, err := pgx.CollectRows(rows, scanTarget)
-	if err != nil {
-		return nil, err
+	targets := make([]Target, len(rows))
+	for i, row := range rows {
+		targets[i] = targetFromSQLC(row)
 	}
 	return sortedTargets(targets), nil
 }
 
-func insertTargets(ctx context.Context, tx pgx.Tx, hostID int64, phase string, targets []Target) error {
+func insertTargets(ctx context.Context, q *sqlc.Queries, hostID int64, phase string, targets []Target) error {
 	for position, target := range sortedTargets(targets) {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_sync_targets (
-				host_id,
-				phase,
-				position,
-				rule_type,
-				identifier,
-				policy,
-				cel_expression,
-				custom_message,
-				custom_url,
-				notification_app_name,
-				payload_hash
-			)
-			VALUES (
-				$1,
-				$2::santa_sync_target_phase,
-				$3,
-				$4::santa_rule_type,
-				$5,
-				$6::santa_policy,
-				$7,
-				$8,
-				$9,
-				$10,
-				$11
-			)
-		`,
-			hostID,
-			phase,
-			position,
-			target.RuleType,
-			target.Identifier,
-			target.Policy,
-			target.CELExpression,
-			target.CustomMessage,
-			target.CustomURL,
-			target.AppName,
-			target.PayloadHash,
-		); err != nil {
+		if err := q.InsertSantaSyncTarget(ctx, sqlc.InsertSantaSyncTargetParams{
+			HostID:              hostID,
+			Phase:               sqlc.SantaSyncTargetPhase(phase),
+			Position:            int32(position),
+			RuleType:            sqlc.SantaRuleType(target.RuleType),
+			Identifier:          target.Identifier,
+			Policy:              sqlc.SantaPolicy(target.Policy),
+			CelExpression:       target.CELExpression,
+			CustomMessage:       target.CustomMessage,
+			CustomURL:           target.CustomURL,
+			NotificationAppName: target.AppName,
+			PayloadHash:         target.PayloadHash,
+		}); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func insertPayloadRules(ctx context.Context, tx pgx.Tx, hostID int64, rules []PayloadRule) error {
+func insertPayloadRules(ctx context.Context, q *sqlc.Queries, hostID int64, rules []PayloadRule) error {
 	for position, rule := range sortedPayloadRules(rules) {
-		var policy *string
+		var policy *sqlc.SantaPolicy
 		if !rule.Removed {
-			policy = &rule.Policy
+			value := sqlc.SantaPolicy(rule.Policy)
+			policy = &value
 		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO santa_sync_pending_rules (
-				host_id,
-				position,
-				rule_type,
-				identifier,
-				policy,
-					cel_expression,
-					custom_message,
-					custom_url,
-					notification_app_name,
-					payload_hash,
-					removed
-				)
-			VALUES (
-				$1,
-				$2,
-				$3::santa_rule_type,
-				$4,
-				$5::santa_policy,
-				$6,
-				$7,
-				$8,
-				$9,
-				$10,
-				$11
-			)
-			`,
-			hostID,
-			position,
-			rule.RuleType,
-			rule.Identifier,
-			policy,
-			rule.CELExpression,
-			rule.CustomMessage,
-			rule.CustomURL,
-			rule.AppName,
-			rule.PayloadHash,
-			rule.Removed,
-		); err != nil {
+		if err := q.InsertSantaSyncPendingRule(ctx, sqlc.InsertSantaSyncPendingRuleParams{
+			HostID:              hostID,
+			Position:            int32(position),
+			RuleType:            sqlc.SantaRuleType(rule.RuleType),
+			Identifier:          rule.Identifier,
+			Policy:              policy,
+			CelExpression:       rule.CELExpression,
+			CustomMessage:       rule.CustomMessage,
+			CustomURL:           rule.CustomURL,
+			NotificationAppName: rule.AppName,
+			PayloadHash:         rule.PayloadHash,
+			Removed:             rule.Removed,
+		}); err != nil {
 			return err
 		}
 	}
@@ -612,35 +437,31 @@ func countTargets(targets []Target) RuleCounts {
 	return counts
 }
 
-func scanTarget(row pgx.CollectableRow) (Target, error) {
-	var target Target
-	err := row.Scan(
-		&target.RuleType,
-		&target.Identifier,
-		&target.Policy,
-		&target.CELExpression,
-		&target.CustomMessage,
-		&target.CustomURL,
-		&target.AppName,
-		&target.PayloadHash,
-	)
-	return target, err
+func targetFromSQLC(row sqlc.ListSantaSyncTargetsRow) Target {
+	return Target{
+		RuleType:      row.RuleType,
+		Identifier:    row.Identifier,
+		Policy:        row.Policy,
+		CELExpression: row.CelExpression,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		AppName:       row.NotificationAppName,
+		PayloadHash:   row.PayloadHash,
+	}
 }
 
-func scanPayloadRule(row pgx.CollectableRow) (PayloadRule, error) {
-	var rule PayloadRule
-	err := row.Scan(
-		&rule.RuleType,
-		&rule.Identifier,
-		&rule.Policy,
-		&rule.CELExpression,
-		&rule.CustomMessage,
-		&rule.CustomURL,
-		&rule.AppName,
-		&rule.PayloadHash,
-		&rule.Removed,
-	)
-	return rule, err
+func payloadRuleFromSQLC(row sqlc.ListSantaPendingPayloadPageRow) PayloadRule {
+	return PayloadRule{
+		RuleType:      row.RuleType,
+		Identifier:    row.Identifier,
+		Policy:        row.Policy,
+		CELExpression: row.CelExpression,
+		CustomMessage: row.CustomMessage,
+		CustomURL:     row.CustomURL,
+		AppName:       row.NotificationAppName,
+		PayloadHash:   row.PayloadHash,
+		Removed:       row.Removed,
+	}
 }
 
 func decodeCursor(cursor string) (int, error) {

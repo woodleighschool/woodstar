@@ -198,8 +198,8 @@ type ExecutionEventInput struct {
 	BundleVersion           string
 	BundleVersionString     string
 	BundleHash              string
-	BundleHashMillis        int
-	BundleBinaryCount       int
+	BundleHashMillis        int32
+	BundleBinaryCount       int32
 	PID                     int32
 	PPID                    int32
 	ParentName              string
@@ -236,8 +236,8 @@ type Executable struct {
 	BundleVersion           string              `json:"file_bundle_version"`
 	BundleVersionString     string              `json:"file_bundle_version_string"`
 	BundleHash              string              `json:"file_bundle_hash"`
-	BundleHashMillis        int                 `json:"file_bundle_hash_millis"`
-	BundleBinaryCount       int                 `json:"file_bundle_binary_count"`
+	BundleHashMillis        int32               `json:"file_bundle_hash_millis"`
+	BundleBinaryCount       int32               `json:"file_bundle_binary_count"`
 	SigningID               string              `json:"signing_id"`
 	TeamID                  string              `json:"team_id"`
 	CDHash                  string              `json:"cdhash"`
@@ -289,9 +289,9 @@ type Bundle struct {
 	ExecutableRelPath    string     `json:"executable_rel_path"`
 	Version              string     `json:"version"`
 	VersionString        string     `json:"version_string"`
-	BinaryCount          int        `json:"binary_count"`
-	CollectedBinaryCount int        `json:"collected_binary_count"`
-	HashMillis           int        `json:"hash_millis"`
+	BinaryCount          int32      `json:"binary_count"`
+	CollectedBinaryCount int32      `json:"collected_binary_count"`
+	HashMillis           int32      `json:"hash_millis"`
 	UploadedAt           *time.Time `json:"uploaded_at,omitempty"`
 }
 

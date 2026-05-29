@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -43,12 +44,10 @@ func (s *Store) OverwriteResults(
 	}
 
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(
-			ctx,
-			"DELETE FROM report_results WHERE report_id = $1 AND host_id = $2",
-			reportID,
-			hostID,
-		); err != nil {
+		if err := s.q.WithTx(tx).DeleteReportResults(ctx, sqlc.DeleteReportResultsParams{
+			ReportID: reportID,
+			HostID:   hostID,
+		}); err != nil {
 			return err
 		}
 		if len(resultRows) == 0 {
@@ -66,29 +65,27 @@ func (s *Store) OverwriteResults(
 
 // Results returns stored snapshot rows for one report.
 func (s *Store) Results(ctx context.Context, reportID int64) ([]ReportResult, error) {
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
-		 FROM report_results rr
-		 JOIN reports r ON r.id = rr.report_id
-		 JOIN hosts h ON h.id = rr.host_id
-		 WHERE rr.report_id = $1 AND rr.data IS NOT NULL
-		 ORDER BY rr.last_fetched DESC, rr.host_id, rr.id`,
-		reportID,
-	)
+	rows, err := s.q.ListReportResults(ctx, sqlc.ListReportResultsParams{ReportID: reportID})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	results := make([]ReportResult, 0)
-	for rows.Next() {
-		result, err := scanReportResult(rows)
+	results := make([]ReportResult, 0, len(rows))
+	for _, row := range rows {
+		result, err := reportResultFromFields(
+			row.ReportID,
+			row.Name,
+			row.HostID,
+			row.DisplayName,
+			row.Data,
+			row.LastFetched,
+		)
 		if err != nil {
 			return nil, err
 		}
 		results = append(results, result)
 	}
-	return results, rows.Err()
+	return results, nil
 }
 
 // HostReports returns scheduled reports and their latest host-specific result.
@@ -125,25 +122,25 @@ func (s *Store) HostResults(
 	hostID int64,
 	reportID int64,
 ) ([]ReportResult, *time.Time, error) {
-	rows, err := s.db.Pool().Query(ctx,
-		`SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
-		 FROM report_results rr
-		 JOIN reports r ON r.id = rr.report_id
-		 JOIN hosts h ON h.id = rr.host_id
-		 WHERE rr.report_id = $1 AND rr.host_id = $2
-		 ORDER BY rr.last_fetched DESC, rr.id`,
-		reportID,
-		hostID,
-	)
+	rows, err := s.q.ListHostReportResults(ctx, sqlc.ListHostReportResultsParams{
+		ReportID: reportID,
+		HostID:   hostID,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
-	defer rows.Close()
 
-	results := make([]ReportResult, 0)
+	results := make([]ReportResult, 0, len(rows))
 	var lastFetched *time.Time
-	for rows.Next() {
-		result, hasData, err := scanReportResultRow(rows)
+	for _, row := range rows {
+		result, hasData, err := reportResultFromNullableFields(
+			row.ReportID,
+			row.Name,
+			row.HostID,
+			row.DisplayName,
+			row.Data,
+			row.LastFetched,
+		)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -154,7 +151,7 @@ func (s *Store) HostResults(
 			results = append(results, result)
 		}
 	}
-	return results, lastFetched, rows.Err()
+	return results, lastFetched, nil
 }
 
 func copyFromSnapshotRows(reportID int64, hostID int64, rows []snapshotResultRow) [][]any {
@@ -189,24 +186,38 @@ func snapshotResultRows(rows []map[string]string, fetchedAt time.Time) ([]snapsh
 	return out, nil
 }
 
-func scanReportResult(row pgx.Row) (ReportResult, error) {
-	result, _, err := scanReportResultRow(row)
-	return result, err
+func reportResultFromFields(
+	reportID int64,
+	reportName string,
+	hostID int64,
+	hostName string,
+	data []byte,
+	lastFetched time.Time,
+) (ReportResult, error) {
+	result, hasData, err := reportResultFromNullableFields(reportID, reportName, hostID, hostName, data, lastFetched)
+	if err != nil {
+		return ReportResult{}, err
+	}
+	if !hasData {
+		return ReportResult{}, nil
+	}
+	return result, nil
 }
 
-func scanReportResultRow(row pgx.Row) (ReportResult, bool, error) {
-	var result ReportResult
-	var data []byte
-	err := row.Scan(
-		&result.ReportID,
-		&result.ReportName,
-		&result.HostID,
-		&result.HostName,
-		&data,
-		&result.LastFetched,
-	)
-	if err != nil {
-		return ReportResult{}, false, err
+func reportResultFromNullableFields(
+	reportID int64,
+	reportName string,
+	hostID int64,
+	hostName string,
+	data []byte,
+	lastFetched time.Time,
+) (ReportResult, bool, error) {
+	result := ReportResult{
+		ReportID:    reportID,
+		ReportName:  reportName,
+		HostID:      hostID,
+		HostName:    hostName,
+		LastFetched: lastFetched,
 	}
 	if data == nil {
 		return result, false, nil
@@ -220,7 +231,7 @@ func scanReportResultRow(row pgx.Row) (ReportResult, bool, error) {
 type hostReportState struct {
 	lastFetched     *time.Time
 	firstResult     map[string]string
-	hostResultCount int
+	hostResultCount int32
 }
 
 func (s *Store) loadHostReportStates(
@@ -233,54 +244,24 @@ func (s *Store) loadHostReportStates(
 		return states, nil
 	}
 
-	rows, err := s.db.Pool().Query(ctx,
-		`WITH requested AS (
-		     SELECT unnest($1::bigint[]) AS report_id
-		 ),
-		 latest_fetch AS (
-		     SELECT DISTINCT ON (report_id) report_id, last_fetched
-		     FROM report_results
-		     WHERE host_id = $2 AND report_id = ANY($1::bigint[])
-		     ORDER BY report_id, last_fetched DESC, id DESC
-		 ),
-		 result_counts AS (
-		     SELECT report_id, count(*)::integer AS host_result_count
-		     FROM report_results
-		     WHERE host_id = $2 AND report_id = ANY($1::bigint[]) AND data IS NOT NULL
-		     GROUP BY report_id
-		 ),
-		 latest_data AS (
-		     SELECT DISTINCT ON (report_id) report_id, data
-		     FROM report_results
-		     WHERE host_id = $2 AND report_id = ANY($1::bigint[]) AND data IS NOT NULL
-		     ORDER BY report_id, last_fetched DESC, id DESC
-		 )
-		 SELECT req.report_id, lf.last_fetched, coalesce(rc.host_result_count, 0), ld.data
-		 FROM requested req
-		 LEFT JOIN latest_fetch lf ON lf.report_id = req.report_id
-		 LEFT JOIN result_counts rc ON rc.report_id = req.report_id
-		 LEFT JOIN latest_data ld ON ld.report_id = req.report_id`,
-		reportIDs,
-		hostID,
-	)
+	rows, err := s.q.ListHostReportStates(ctx, sqlc.ListHostReportStatesParams{
+		ReportIds:   reportIDs,
+		StateHostID: hostID,
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var reportID int64
+	for _, row := range rows {
 		var state hostReportState
-		var data []byte
-		if err := rows.Scan(&reportID, &state.lastFetched, &state.hostResultCount, &data); err != nil {
-			return nil, err
-		}
-		if data != nil {
-			if err := json.Unmarshal(data, &state.firstResult); err != nil {
+		state.lastFetched = row.LastFetched
+		state.hostResultCount = row.HostResultCount
+		if row.Data != nil {
+			if err := json.Unmarshal(row.Data, &state.firstResult); err != nil {
 				return nil, err
 			}
 		}
-		states[reportID] = state
+		states[row.ReportID] = state
 	}
-	return states, rows.Err()
+	return states, nil
 }

@@ -7,6 +7,9 @@ package sqlc
 
 import (
 	"context"
+	"time"
+
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const createReport = `-- name: CreateReport :one
@@ -90,6 +93,35 @@ func (q *Queries) DeleteReport(ctx context.Context, arg DeleteReportParams) (int
 	return id, err
 }
 
+const deleteReportLabels = `-- name: DeleteReportLabels :exec
+DELETE FROM report_labels
+WHERE report_id = $1
+`
+
+type DeleteReportLabelsParams struct {
+	ReportID int64 `json:"report_id"`
+}
+
+func (q *Queries) DeleteReportLabels(ctx context.Context, arg DeleteReportLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteReportLabels, arg.ReportID)
+	return err
+}
+
+const deleteReportResults = `-- name: DeleteReportResults :exec
+DELETE FROM report_results
+WHERE report_id = $1 AND host_id = $2
+`
+
+type DeleteReportResultsParams struct {
+	ReportID int64 `json:"report_id"`
+	HostID   int64 `json:"host_id"`
+}
+
+func (q *Queries) DeleteReportResults(ctx context.Context, arg DeleteReportResultsParams) error {
+	_, err := q.db.Exec(ctx, deleteReportResults, arg.ReportID, arg.HostID)
+	return err
+}
+
 const deleteReports = `-- name: DeleteReports :many
 DELETE FROM reports
 WHERE id = ANY($1::bigint[])
@@ -156,6 +188,256 @@ func (q *Queries) GetReportByID(ctx context.Context, arg GetReportByIDParams) (R
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const insertReportLabels = `-- name: InsertReportLabels :exec
+INSERT INTO report_labels (report_id, label_id)
+SELECT $1, unnest($2::bigint[])
+`
+
+type InsertReportLabelsParams struct {
+	ReportID int64   `json:"report_id"`
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) InsertReportLabels(ctx context.Context, arg InsertReportLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertReportLabels, arg.ReportID, arg.LabelIds)
+	return err
+}
+
+const listHostReportResults = `-- name: ListHostReportResults :many
+SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+FROM report_results rr
+JOIN reports r ON r.id = rr.report_id
+JOIN hosts h ON h.id = rr.host_id
+WHERE rr.report_id = $1 AND rr.host_id = $2
+ORDER BY rr.last_fetched DESC, rr.id
+`
+
+type ListHostReportResultsParams struct {
+	ReportID int64 `json:"report_id"`
+	HostID   int64 `json:"host_id"`
+}
+
+type ListHostReportResultsRow struct {
+	ReportID    int64     `json:"report_id"`
+	Name        string    `json:"name"`
+	HostID      int64     `json:"host_id"`
+	DisplayName string    `json:"display_name"`
+	Data        []byte    `json:"data"`
+	LastFetched time.Time `json:"last_fetched"`
+}
+
+func (q *Queries) ListHostReportResults(ctx context.Context, arg ListHostReportResultsParams) ([]ListHostReportResultsRow, error) {
+	rows, err := q.db.Query(ctx, listHostReportResults, arg.ReportID, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostReportResultsRow{}
+	for rows.Next() {
+		var i ListHostReportResultsRow
+		if err := rows.Scan(
+			&i.ReportID,
+			&i.Name,
+			&i.HostID,
+			&i.DisplayName,
+			&i.Data,
+			&i.LastFetched,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHostReportStates = `-- name: ListHostReportStates :many
+WITH requested AS (
+    SELECT unnest($1::bigint[])::bigint AS report_id
+),
+latest_fetch AS (
+    SELECT DISTINCT ON (report_id) report_id, last_fetched
+    FROM report_results rr
+    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[])
+    ORDER BY report_id, last_fetched DESC, id DESC
+),
+result_counts AS (
+    SELECT report_id, count(*)::integer AS host_result_count
+    FROM report_results rr
+    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
+    GROUP BY report_id
+),
+latest_data AS (
+    SELECT DISTINCT ON (report_id) report_id, data
+    FROM report_results rr
+    WHERE rr.host_id = $2 AND rr.report_id = ANY($1::bigint[]) AND rr.data IS NOT NULL
+    ORDER BY report_id, last_fetched DESC, id DESC
+)
+SELECT
+    req.report_id,
+    lf.last_fetched,
+    coalesce(rc.host_result_count, 0)::integer AS host_result_count,
+    ld.data
+FROM requested req
+LEFT JOIN latest_fetch lf ON lf.report_id = req.report_id
+LEFT JOIN result_counts rc ON rc.report_id = req.report_id
+LEFT JOIN latest_data ld ON ld.report_id = req.report_id
+`
+
+type ListHostReportStatesParams struct {
+	ReportIds   []int64 `json:"report_ids"`
+	StateHostID int64   `json:"state_host_id"`
+}
+
+type ListHostReportStatesRow struct {
+	ReportID        int64      `json:"report_id"`
+	LastFetched     *time.Time `json:"last_fetched"`
+	HostResultCount int32      `json:"host_result_count"`
+	Data            []byte     `json:"data"`
+}
+
+func (q *Queries) ListHostReportStates(ctx context.Context, arg ListHostReportStatesParams) ([]ListHostReportStatesRow, error) {
+	rows, err := q.db.Query(ctx, listHostReportStates, arg.ReportIds, arg.StateHostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostReportStatesRow{}
+	for rows.Next() {
+		var i ListHostReportStatesRow
+		if err := rows.Scan(
+			&i.ReportID,
+			&i.LastFetched,
+			&i.HostResultCount,
+			&i.Data,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReportLabelIDs = `-- name: ListReportLabelIDs :many
+SELECT report_id, label_id
+FROM report_labels
+WHERE report_id = ANY($1::bigint[])
+ORDER BY report_id, label_id
+`
+
+type ListReportLabelIDsParams struct {
+	ReportIds []int64 `json:"report_ids"`
+}
+
+func (q *Queries) ListReportLabelIDs(ctx context.Context, arg ListReportLabelIDsParams) ([]ReportLabel, error) {
+	rows, err := q.db.Query(ctx, listReportLabelIDs, arg.ReportIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportLabel{}
+	for rows.Next() {
+		var i ReportLabel
+		if err := rows.Scan(&i.ReportID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReportResults = `-- name: ListReportResults :many
+SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
+FROM report_results rr
+JOIN reports r ON r.id = rr.report_id
+JOIN hosts h ON h.id = rr.host_id
+WHERE rr.report_id = $1 AND rr.data IS NOT NULL
+ORDER BY rr.last_fetched DESC, rr.host_id, rr.id
+`
+
+type ListReportResultsParams struct {
+	ReportID int64 `json:"report_id"`
+}
+
+type ListReportResultsRow struct {
+	ReportID    int64     `json:"report_id"`
+	Name        string    `json:"name"`
+	HostID      int64     `json:"host_id"`
+	DisplayName string    `json:"display_name"`
+	Data        []byte    `json:"data"`
+	LastFetched time.Time `json:"last_fetched"`
+}
+
+func (q *Queries) ListReportResults(ctx context.Context, arg ListReportResultsParams) ([]ListReportResultsRow, error) {
+	rows, err := q.db.Query(ctx, listReportResults, arg.ReportID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReportResultsRow{}
+	for rows.Next() {
+		var i ListReportResultsRow
+		if err := rows.Scan(
+			&i.ReportID,
+			&i.Name,
+			&i.HostID,
+			&i.DisplayName,
+			&i.Data,
+			&i.LastFetched,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReportScopes = `-- name: ListReportScopes :many
+SELECT id, label_scope_mode
+FROM reports
+WHERE id = ANY($1::bigint[])
+`
+
+type ListReportScopesParams struct {
+	ReportIds []int64 `json:"report_ids"`
+}
+
+type ListReportScopesRow struct {
+	ID             int64                `json:"id"`
+	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
+}
+
+func (q *Queries) ListReportScopes(ctx context.Context, arg ListReportScopesParams) ([]ListReportScopesRow, error) {
+	rows, err := q.db.Query(ctx, listReportScopes, arg.ReportIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListReportScopesRow{}
+	for rows.Next() {
+		var i ListReportScopesRow
+		if err := rows.Scan(&i.ID, &i.LabelScopeMode); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listScheduledReportsForHost = `-- name: ListScheduledReportsForHost :many
@@ -248,6 +530,22 @@ func (q *Queries) ListScheduledReportsForHost(ctx context.Context, arg ListSched
 		return nil, err
 	}
 	return items, nil
+}
+
+const setReportScopeMode = `-- name: SetReportScopeMode :exec
+UPDATE reports
+SET label_scope_mode = $1
+WHERE id = $2
+`
+
+type SetReportScopeModeParams struct {
+	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
+	ID             int64                `json:"id"`
+}
+
+func (q *Queries) SetReportScopeMode(ctx context.Context, arg SetReportScopeModeParams) error {
+	_, err := q.db.Exec(ctx, setReportScopeMode, arg.LabelScopeMode, arg.ID)
+	return err
 }
 
 const updateReport = `-- name: UpdateReport :one

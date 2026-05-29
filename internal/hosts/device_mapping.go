@@ -2,7 +2,6 @@ package hosts
 
 import (
 	"context"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -39,7 +38,6 @@ func NewDeviceMappingStore(db *database.DB) *DeviceMappingStore {
 }
 
 func (s *DeviceMappingStore) Upsert(ctx context.Context, hostID int64, email string, source DeviceMappingSource) error {
-	email = strings.TrimSpace(email)
 	if email == "" || source == "" {
 		return nil
 	}

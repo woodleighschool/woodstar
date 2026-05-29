@@ -128,17 +128,17 @@ components:
       additionalProperties: false
       properties:
         binary_count:
-          format: int64
+          format: int32
           type: integer
         bundle_id:
           type: string
         collected_binary_count:
-          format: int64
+          format: int32
           type: integer
         complete:
           type: boolean
         hash_millis:
-          format: int64
+          format: int32
           type: integer
         name:
           type: string
@@ -192,7 +192,7 @@ components:
         organizational_unit:
           type: string
         rule_count:
-          format: int64
+          format: int32
           type: integer
         sha256:
           type: string
@@ -228,7 +228,7 @@ components:
         description:
           type: string
         failing_host_count:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64
@@ -238,7 +238,7 @@ components:
         name:
           type: string
         passing_host_count:
-          format: int64
+          format: int32
           type: integer
         query:
           type: string
@@ -342,7 +342,7 @@ components:
         allowed_path_regex:
           type: string
         batch_size:
-          format: int64
+          format: int32
           type: integer
         blocked_path_regex:
           type: string
@@ -368,7 +368,7 @@ components:
         event_detail_url:
           type: string
         full_sync_interval_seconds:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64
@@ -383,7 +383,7 @@ components:
         name:
           type: string
         position:
-          format: int64
+          format: int32
           type: integer
         removable_media_policy:
           $ref: "#/components/schemas/RemovableMediaPolicy"
@@ -417,7 +417,7 @@ components:
         allowed_path_regex:
           type: string
         batch_size:
-          format: int64
+          format: int32
           maximum: 100
           minimum: 5
           type: integer
@@ -442,7 +442,7 @@ components:
         event_detail_url:
           type: string
         full_sync_interval_seconds:
-          format: int64
+          format: int32
           minimum: 60
           type: integer
         label_ids:
@@ -726,14 +726,14 @@ components:
           additionalProperties: {}
           type: object
         file_bundle_binary_count:
-          format: int64
+          format: int32
           type: integer
         file_bundle_executable_rel_path:
           type: string
         file_bundle_hash:
           type: string
         file_bundle_hash_millis:
-          format: int64
+          format: int32
           type: integer
         file_bundle_id:
           type: string
@@ -800,12 +800,12 @@ components:
       additionalProperties: false
       properties:
         block_count:
-          format: int64
+          format: int32
           type: integer
         cdhash:
           type: string
         execution_count:
-          format: int64
+          format: int32
           type: integer
         file_bundle_id:
           type: string
@@ -1007,10 +1007,10 @@ components:
         cpu_brand:
           type: string
         cpu_logical_cores:
-          format: int64
+          format: int32
           type: integer
         cpu_physical_cores:
-          format: int64
+          format: int32
           type: integer
         cpu_subtype:
           type: string
@@ -1234,10 +1234,10 @@ components:
         cpu_brand:
           type: string
         cpu_logical_cores:
-          format: int64
+          format: int32
           type: integer
         cpu_physical_cores:
-          format: int64
+          format: int32
           type: integer
         cpu_subtype:
           type: string
@@ -1413,7 +1413,7 @@ components:
           format: date-time
           type: string
         n_host_results:
-          format: int64
+          format: int32
           type: integer
         name:
           type: string
@@ -1732,7 +1732,7 @@ components:
             - array
             - "null"
         hosts_count:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64
@@ -2379,7 +2379,7 @@ components:
         query:
           type: string
         schedule_interval:
-          format: int64
+          format: int32
           type: integer
         updated_at:
           format: date-time
@@ -2414,7 +2414,7 @@ components:
         query:
           type: string
         schedule_interval:
-          format: int64
+          format: int32
           type: integer
       required:
         - name
@@ -2469,7 +2469,7 @@ components:
         query:
           type: string
         schedule_interval:
-          format: int64
+          format: int32
           type: integer
       required:
         - name
@@ -2482,7 +2482,7 @@ components:
         allowed_path_regex:
           type: string
         batch_size:
-          format: int64
+          format: int32
           type: integer
         blocked_path_regex:
           type: string
@@ -2508,7 +2508,7 @@ components:
         event_detail_url:
           type: string
         full_sync_interval_seconds:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64
@@ -2525,7 +2525,7 @@ components:
         name:
           type: string
         position:
-          format: int64
+          format: int32
           type: integer
         removable_media_policy:
           $ref: "#/components/schemas/RemovableMediaPolicy"
@@ -2627,7 +2627,7 @@ components:
             - cel
           type: string
         position:
-          format: int64
+          format: int32
           type: integer
       required:
         - id
@@ -2734,16 +2734,16 @@ components:
       additionalProperties: false
       properties:
         applied_count:
-          format: int64
+          format: int32
           type: integer
         desired_count:
-          format: int64
+          format: int32
           type: integer
         last_clean_sync_at:
           format: date-time
           type: string
         pending_count:
-          format: int64
+          format: int32
           type: integer
       required:
         - desired_count
@@ -2754,12 +2754,12 @@ components:
       additionalProperties: false
       properties:
         binary_count:
-          format: int64
+          format: int32
           type: integer
         bundle_id:
           type: string
         collected_binary_count:
-          format: int64
+          format: int32
           type: integer
         complete:
           type: boolean
@@ -2770,7 +2770,7 @@ components:
         name:
           type: string
         rule_count:
-          format: int64
+          format: int32
           type: integer
         target_type:
           enum:
@@ -2896,14 +2896,14 @@ components:
       additionalProperties: false
       properties:
         executable_count:
-          format: int64
+          format: int32
           type: integer
         identifier:
           type: string
         name:
           type: string
         rule_count:
-          format: int64
+          format: int32
           type: integer
         target_type:
           enum:
@@ -2932,7 +2932,7 @@ components:
           readOnly: true
           type: string
         block_count:
-          format: int64
+          format: int32
           type: integer
         bundles:
           items:
@@ -2953,7 +2953,7 @@ components:
             - array
             - "null"
         execution_count:
-          format: int64
+          format: int32
           type: integer
         rules:
           items:
@@ -3000,7 +3000,7 @@ components:
         extension_for:
           type: string
         hosts_count:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64
@@ -3016,7 +3016,7 @@ components:
             - array
             - "null"
         versions_count:
-          format: int64
+          format: int32
           type: integer
       required:
         - id
@@ -3036,7 +3036,7 @@ components:
         bundle_identifier:
           type: string
         hosts_count:
-          format: int64
+          format: int32
           type: integer
         id:
           format: int64

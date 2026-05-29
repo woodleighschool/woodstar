@@ -257,3 +257,36 @@ ORDER BY
     END,
     lower(c.name),
     c.id;
+
+-- name: ListCheckScopes :many
+SELECT id, label_scope_mode
+FROM checks
+WHERE id = ANY(@check_ids::bigint[]);
+
+-- name: ListCheckLabelIDs :many
+SELECT check_id, label_id
+FROM check_labels
+WHERE check_id = ANY(@check_ids::bigint[])
+ORDER BY check_id, label_id;
+
+-- name: SetCheckScopeMode :exec
+UPDATE checks
+SET label_scope_mode = @label_scope_mode
+WHERE id = @id;
+
+-- name: DeleteCheckLabels :exec
+DELETE FROM check_labels
+WHERE check_id = @check_id;
+
+-- name: InsertCheckLabels :exec
+INSERT INTO check_labels (check_id, label_id)
+SELECT @check_id, unnest(@label_ids::bigint[]);
+
+-- name: ListCheckCounts :many
+SELECT
+    check_id,
+    COUNT(*) FILTER (WHERE passes IS TRUE)::integer AS passing_host_count,
+    COUNT(*) FILTER (WHERE passes IS FALSE)::integer AS failing_host_count
+FROM check_membership
+WHERE check_id = ANY(@check_ids::bigint[])
+GROUP BY check_id;

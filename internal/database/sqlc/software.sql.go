@@ -38,6 +38,60 @@ func (q *Queries) DeleteHostSoftwarePaths(ctx context.Context, arg DeleteHostSof
 	return err
 }
 
+const getSoftwareTitleSummary = `-- name: GetSoftwareTitleSummary :one
+SELECT
+    st.id,
+    st.name,
+    st.display_name,
+    st.source,
+    st.extension_for,
+    st.bundle_identifier,
+    st.vendor,
+    COUNT(DISTINCT hs.host_id)::integer AS hosts_count,
+    COUNT(DISTINCT s.id)::integer AS versions_count,
+    MAX(hs.last_seen_at) AS counts_updated_at
+FROM software_titles st
+LEFT JOIN software s ON s.title_id = st.id
+LEFT JOIN host_software hs ON hs.software_id = s.id
+WHERE st.id = $1
+GROUP BY st.id
+`
+
+type GetSoftwareTitleSummaryParams struct {
+	ID int64 `json:"id"`
+}
+
+type GetSoftwareTitleSummaryRow struct {
+	ID               int64       `json:"id"`
+	Name             string      `json:"name"`
+	DisplayName      string      `json:"display_name"`
+	Source           string      `json:"source"`
+	ExtensionFor     string      `json:"extension_for"`
+	BundleIdentifier string      `json:"bundle_identifier"`
+	Vendor           string      `json:"vendor"`
+	HostsCount       int32       `json:"hosts_count"`
+	VersionsCount    int32       `json:"versions_count"`
+	CountsUpdatedAt  interface{} `json:"counts_updated_at"`
+}
+
+func (q *Queries) GetSoftwareTitleSummary(ctx context.Context, arg GetSoftwareTitleSummaryParams) (GetSoftwareTitleSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getSoftwareTitleSummary, arg.ID)
+	var i GetSoftwareTitleSummaryRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Source,
+		&i.ExtensionFor,
+		&i.BundleIdentifier,
+		&i.Vendor,
+		&i.HostsCount,
+		&i.VersionsCount,
+		&i.CountsUpdatedAt,
+	)
+	return i, err
+}
+
 const insertHostSoftwareInstalledPath = `-- name: InsertHostSoftwareInstalledPath :exec
 INSERT INTO host_software_installed_paths (
     host_id,
@@ -88,6 +142,141 @@ func (q *Queries) InsertHostSoftwareInstalledPath(ctx context.Context, arg Inser
 		arg.ExecutablePath,
 	)
 	return err
+}
+
+const listHostSoftwareRows = `-- name: ListHostSoftwareRows :many
+SELECT
+    st.id AS title_id,
+    st.name AS title_name,
+    st.display_name,
+    st.source,
+    st.extension_for,
+    s.id AS software_id,
+    s.version,
+    s.bundle_identifier,
+    hs.last_opened_at,
+    COALESCE(paths.installed_path, '') AS installed_path,
+    COALESCE(paths.team_identifier, '') AS team_identifier,
+    COALESCE(paths.cdhash_sha256, '') AS cdhash_sha256,
+    COALESCE(paths.executable_sha256, '') AS executable_sha256,
+    COALESCE(paths.executable_path, '') AS executable_path
+FROM host_software hs
+JOIN software s ON s.id = hs.software_id
+JOIN software_titles st ON st.id = s.title_id
+LEFT JOIN host_software_installed_paths paths
+    ON paths.host_id = hs.host_id AND paths.software_id = hs.software_id
+WHERE hs.host_id = $1
+  AND st.id = ANY($2::bigint[])
+ORDER BY array_position($2::bigint[], st.id), lower(s.version), paths.installed_path
+`
+
+type ListHostSoftwareRowsParams struct {
+	HostID   int64   `json:"host_id"`
+	TitleIds []int64 `json:"title_ids"`
+}
+
+type ListHostSoftwareRowsRow struct {
+	TitleID          int64      `json:"title_id"`
+	TitleName        string     `json:"title_name"`
+	DisplayName      string     `json:"display_name"`
+	Source           string     `json:"source"`
+	ExtensionFor     string     `json:"extension_for"`
+	SoftwareID       int64      `json:"software_id"`
+	Version          string     `json:"version"`
+	BundleIdentifier string     `json:"bundle_identifier"`
+	LastOpenedAt     *time.Time `json:"last_opened_at"`
+	InstalledPath    string     `json:"installed_path"`
+	TeamIdentifier   string     `json:"team_identifier"`
+	CdhashSha256     string     `json:"cdhash_sha256"`
+	ExecutableSha256 string     `json:"executable_sha256"`
+	ExecutablePath   string     `json:"executable_path"`
+}
+
+func (q *Queries) ListHostSoftwareRows(ctx context.Context, arg ListHostSoftwareRowsParams) ([]ListHostSoftwareRowsRow, error) {
+	rows, err := q.db.Query(ctx, listHostSoftwareRows, arg.HostID, arg.TitleIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostSoftwareRowsRow{}
+	for rows.Next() {
+		var i ListHostSoftwareRowsRow
+		if err := rows.Scan(
+			&i.TitleID,
+			&i.TitleName,
+			&i.DisplayName,
+			&i.Source,
+			&i.ExtensionFor,
+			&i.SoftwareID,
+			&i.Version,
+			&i.BundleIdentifier,
+			&i.LastOpenedAt,
+			&i.InstalledPath,
+			&i.TeamIdentifier,
+			&i.CdhashSha256,
+			&i.ExecutableSha256,
+			&i.ExecutablePath,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSoftwareTitleVersions = `-- name: ListSoftwareTitleVersions :many
+SELECT
+    s.title_id,
+    s.id,
+    s.version,
+    s.bundle_identifier,
+    COUNT(DISTINCT hs.host_id)::integer AS hosts_count
+FROM software s
+LEFT JOIN host_software hs ON hs.software_id = s.id
+WHERE s.title_id = ANY($1::bigint[])
+GROUP BY s.id
+ORDER BY array_position($1::bigint[], s.title_id), lower(s.version), s.id
+`
+
+type ListSoftwareTitleVersionsParams struct {
+	TitleIds []int64 `json:"title_ids"`
+}
+
+type ListSoftwareTitleVersionsRow struct {
+	TitleID          int64  `json:"title_id"`
+	ID               int64  `json:"id"`
+	Version          string `json:"version"`
+	BundleIdentifier string `json:"bundle_identifier"`
+	HostsCount       int32  `json:"hosts_count"`
+}
+
+func (q *Queries) ListSoftwareTitleVersions(ctx context.Context, arg ListSoftwareTitleVersionsParams) ([]ListSoftwareTitleVersionsRow, error) {
+	rows, err := q.db.Query(ctx, listSoftwareTitleVersions, arg.TitleIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSoftwareTitleVersionsRow{}
+	for rows.Next() {
+		var i ListSoftwareTitleVersionsRow
+		if err := rows.Scan(
+			&i.TitleID,
+			&i.ID,
+			&i.Version,
+			&i.BundleIdentifier,
+			&i.HostsCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertHostSoftware = `-- name: UpsertHostSoftware :exec

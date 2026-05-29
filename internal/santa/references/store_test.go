@@ -201,7 +201,7 @@ func hasSigningIdentity(
 	identities []references.SigningIdentityReference,
 	targetType santarules.RuleType,
 	identifier string,
-	ruleCount int,
+	ruleCount int32,
 ) bool {
 	for _, identity := range identities {
 		if identity.TargetType == targetType && identity.Identifier == identifier && identity.RuleCount == ruleCount {

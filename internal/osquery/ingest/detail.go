@@ -23,8 +23,8 @@ func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
 		update.CPUType = row["cpu_type"]
 		update.CPUSubtype = row["cpu_subtype"]
 		update.CPUBrand = row["cpu_brand"]
-		update.CPULogicalCores = parseInt(row["cpu_logical_cores"])
-		update.CPUPhysicalCores = parseInt(row["cpu_physical_cores"])
+		update.CPULogicalCores = parseInt32(row["cpu_logical_cores"])
+		update.CPUPhysicalCores = parseInt32(row["cpu_physical_cores"])
 		update.PhysicalMemory = parseInt64(row["physical_memory"])
 	}
 	if row := details["osquery_info"]; row != nil {
@@ -93,9 +93,9 @@ func dottedVersion(row map[string]string) string {
 	return strings.Join(parts, ".")
 }
 
-func parseInt(value string) int {
-	parsed, _ := strconv.Atoi(value)
-	return parsed
+func parseInt32(value string) int32 {
+	parsed, _ := strconv.ParseInt(value, 10, 32)
+	return int32(parsed)
 }
 
 func parseInt64(value string) int64 {

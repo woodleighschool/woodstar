@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
+	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -49,11 +48,13 @@ func (s *Store) hostSoftwareRows(
 	hostID int64,
 	titleIDs []int64,
 ) ([]HostSoftwareRow, error) {
-	rows, err := s.db.Pool().Query(ctx, hostSoftwareSQL(), hostID, titleIDs)
+	rows, err := s.q.ListHostSoftwareRows(ctx, sqlc.ListHostSoftwareRowsParams{
+		HostID:   hostID,
+		TitleIds: titleIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	return scanHostSoftwareRows(rows)
 }
 
@@ -62,20 +63,13 @@ type hostSoftwareAccumulator struct {
 	versionByKey map[string]int
 }
 
-func scanHostSoftwareRows(rows pgx.Rows) ([]HostSoftwareRow, error) {
+func scanHostSoftwareRows(rows []sqlc.ListHostSoftwareRowsRow) ([]HostSoftwareRow, error) {
 	acc := hostSoftwareAccumulator{
 		titles:       newOrderedGroup[int64, HostSoftwareRow](),
 		versionByKey: make(map[string]int),
 	}
-	for rows.Next() {
-		row, err := scanHostSoftwareDBRow(rows)
-		if err != nil {
-			return nil, err
-		}
-		acc.add(row)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	for _, row := range rows {
+		acc.add(hostSoftwareDBRowFromSQLC(row))
 	}
 	return acc.rows(), nil
 }
@@ -127,27 +121,6 @@ func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hos
 	versionIndex = len(title.InstalledVersions) - 1
 	acc.versionByKey[key] = versionIndex
 	return versionIndex
-}
-
-func scanHostSoftwareDBRow(rows pgx.Rows) (hostSoftwareDBRow, error) {
-	var row hostSoftwareDBRow
-	err := rows.Scan(
-		&row.TitleID,
-		&row.TitleName,
-		&row.DisplayName,
-		&row.Source,
-		&row.ExtensionFor,
-		&row.SoftwareID,
-		&row.Version,
-		&row.BundleIdentifier,
-		&row.LastOpenedAt,
-		&row.InstalledPath,
-		&row.TeamIdentifier,
-		&row.CDHashSHA256,
-		&row.ExecutableSHA256,
-		&row.ExecutablePath,
-	)
-	return row, err
 }
 
 func (s *Store) hostSoftwareTitleIDs(
@@ -242,29 +215,21 @@ type hostSoftwareDBRow struct {
 	ExecutablePath   string
 }
 
-func hostSoftwareSQL() string {
-	return `
-SELECT
-	st.id,
-	st.name,
-	st.display_name,
-	st.source,
-	st.extension_for,
-	s.id,
-	s.version,
-	s.bundle_identifier,
-	hs.last_opened_at,
-	COALESCE(paths.installed_path, ''),
-	COALESCE(paths.team_identifier, ''),
-	COALESCE(paths.cdhash_sha256, ''),
-	COALESCE(paths.executable_sha256, ''),
-	COALESCE(paths.executable_path, '')
-FROM host_software hs
-JOIN software s ON s.id = hs.software_id
-JOIN software_titles st ON st.id = s.title_id
-LEFT JOIN host_software_installed_paths paths
-	ON paths.host_id = hs.host_id AND paths.software_id = hs.software_id
-WHERE hs.host_id = $1
-	AND st.id = ANY($2::bigint[])
-ORDER BY array_position($2::bigint[], st.id), lower(s.version), paths.installed_path`
+func hostSoftwareDBRowFromSQLC(row sqlc.ListHostSoftwareRowsRow) hostSoftwareDBRow {
+	return hostSoftwareDBRow{
+		TitleID:          row.TitleID,
+		TitleName:        row.TitleName,
+		DisplayName:      row.DisplayName,
+		Source:           row.Source,
+		ExtensionFor:     row.ExtensionFor,
+		SoftwareID:       row.SoftwareID,
+		Version:          row.Version,
+		BundleIdentifier: row.BundleIdentifier,
+		LastOpenedAt:     row.LastOpenedAt,
+		InstalledPath:    row.InstalledPath,
+		TeamIdentifier:   row.TeamIdentifier,
+		CDHashSHA256:     row.CdhashSha256,
+		ExecutableSHA256: row.ExecutableSha256,
+		ExecutablePath:   row.ExecutablePath,
+	}
 }

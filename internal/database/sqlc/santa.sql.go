@@ -10,6 +10,95 @@ import (
 	"time"
 )
 
+const countEffectiveSantaRulesForHost = `-- name: CountEffectiveSantaRulesForHost :one
+WITH host_labels AS (
+    SELECT label_id
+    FROM label_membership
+    WHERE host_id = $1
+),
+matching_includes AS (
+    SELECT
+        r.id AS rule_id,
+        r.rule_type,
+        r.identifier,
+        i.policy,
+        COALESCE(i.cel_expression, '') AS cel_expression,
+        r.custom_message,
+        r.custom_url,
+        i.id AS matched_include_id,
+        CASE r.rule_type
+            WHEN 'cdhash' THEN 1
+            WHEN 'binary' THEN 2
+            WHEN 'signingid' THEN 3
+            WHEN 'certificate' THEN 4
+            WHEN 'teamid' THEN 5
+            WHEN 'bundle' THEN 6
+            ELSE 7
+        END AS rule_type_sort,
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+    FROM santa_rules r
+    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN host_labels include_hl ON include_hl.label_id = i.label_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM santa_rule_exclude_labels el
+        JOIN host_labels hl ON hl.label_id = el.label_id
+        WHERE el.rule_id = r.id
+    )
+),
+selected_includes AS (
+    SELECT rule_id, rule_type, identifier, policy, cel_expression, custom_message, custom_url, matched_include_id, rule_type_sort, include_rank
+    FROM matching_includes
+    WHERE include_rank = 1
+),
+expanded_rules AS (
+    SELECT
+        rule_id,
+        rule_type,
+        identifier,
+        policy,
+        cel_expression,
+        custom_message,
+        custom_url,
+        ''::text AS notification_app_name,
+        matched_include_id,
+        rule_type_sort
+    FROM selected_includes
+    WHERE rule_type <> 'bundle'
+    UNION ALL
+    SELECT
+        si.rule_id,
+        'binary'::santa_rule_type AS rule_type,
+        e.sha256 AS identifier,
+        si.policy,
+        si.cel_expression,
+        si.custom_message,
+        si.custom_url,
+        COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
+        si.matched_include_id,
+        2 AS rule_type_sort
+    FROM selected_includes si
+    JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
+    JOIN santa_bundle_executables be ON be.bundle_id = b.id
+    JOIN santa_executables e ON e.id = be.executable_id
+    WHERE si.rule_type = 'bundle'
+      AND e.sha256 <> ''
+)
+SELECT count(*)::integer
+FROM expanded_rules
+`
+
+type CountEffectiveSantaRulesForHostParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+func (q *Queries) CountEffectiveSantaRulesForHost(ctx context.Context, arg CountEffectiveSantaRulesForHostParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countEffectiveSantaRulesForHost, arg.HostID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createSantaConfiguration = `-- name: CreateSantaConfiguration :one
 INSERT INTO santa_configurations (
     name,
@@ -176,6 +265,20 @@ func (q *Queries) DeleteSantaConfiguration(ctx context.Context, arg DeleteSantaC
 	return id, err
 }
 
+const deleteSantaConfigurationLabels = `-- name: DeleteSantaConfigurationLabels :exec
+DELETE FROM santa_configuration_labels
+WHERE configuration_id = $1
+`
+
+type DeleteSantaConfigurationLabelsParams struct {
+	ConfigurationID int64 `json:"configuration_id"`
+}
+
+func (q *Queries) DeleteSantaConfigurationLabels(ctx context.Context, arg DeleteSantaConfigurationLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteSantaConfigurationLabels, arg.ConfigurationID)
+	return err
+}
+
 const deleteSantaConfigurations = `-- name: DeleteSantaConfigurations :many
 DELETE FROM santa_configurations
 WHERE id = ANY($1::bigint[])
@@ -223,6 +326,34 @@ func (q *Queries) DeleteSantaRule(ctx context.Context, arg DeleteSantaRuleParams
 	return id, err
 }
 
+const deleteSantaRuleExcludeLabels = `-- name: DeleteSantaRuleExcludeLabels :exec
+DELETE FROM santa_rule_exclude_labels
+WHERE rule_id = $1
+`
+
+type DeleteSantaRuleExcludeLabelsParams struct {
+	RuleID int64 `json:"rule_id"`
+}
+
+func (q *Queries) DeleteSantaRuleExcludeLabels(ctx context.Context, arg DeleteSantaRuleExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteSantaRuleExcludeLabels, arg.RuleID)
+	return err
+}
+
+const deleteSantaRuleIncludes = `-- name: DeleteSantaRuleIncludes :exec
+DELETE FROM santa_rule_includes
+WHERE rule_id = $1
+`
+
+type DeleteSantaRuleIncludesParams struct {
+	RuleID int64 `json:"rule_id"`
+}
+
+func (q *Queries) DeleteSantaRuleIncludes(ctx context.Context, arg DeleteSantaRuleIncludesParams) error {
+	_, err := q.db.Exec(ctx, deleteSantaRuleIncludes, arg.RuleID)
+	return err
+}
+
 const deleteSantaRules = `-- name: DeleteSantaRules :many
 DELETE FROM santa_rules
 WHERE id = ANY($1::bigint[])
@@ -251,6 +382,88 @@ func (q *Queries) DeleteSantaRules(ctx context.Context, arg DeleteSantaRulesPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const findSantaConfigurationLabelConflict = `-- name: FindSantaConfigurationLabelConflict :one
+SELECT
+    cl.label_id,
+    c.id AS configuration_id,
+    c.name AS configuration_name
+FROM santa_configuration_labels cl
+JOIN santa_configurations c ON c.id = cl.configuration_id
+WHERE cl.label_id = ANY($1::bigint[])
+  AND c.id <> $2
+ORDER BY cl.label_id
+LIMIT 1
+`
+
+type FindSantaConfigurationLabelConflictParams struct {
+	LabelIds        []int64 `json:"label_ids"`
+	ConfigurationID int64   `json:"configuration_id"`
+}
+
+type FindSantaConfigurationLabelConflictRow struct {
+	LabelID           int64  `json:"label_id"`
+	ConfigurationID   int64  `json:"configuration_id"`
+	ConfigurationName string `json:"configuration_name"`
+}
+
+func (q *Queries) FindSantaConfigurationLabelConflict(ctx context.Context, arg FindSantaConfigurationLabelConflictParams) (FindSantaConfigurationLabelConflictRow, error) {
+	row := q.db.QueryRow(ctx, findSantaConfigurationLabelConflict, arg.LabelIds, arg.ConfigurationID)
+	var i FindSantaConfigurationLabelConflictRow
+	err := row.Scan(&i.LabelID, &i.ConfigurationID, &i.ConfigurationName)
+	return i, err
+}
+
+const getHostIDByMachineID = `-- name: GetHostIDByMachineID :one
+SELECT id
+FROM hosts
+WHERE hardware_uuid = $1
+`
+
+type GetHostIDByMachineIDParams struct {
+	MachineID string `json:"machine_id"`
+}
+
+func (q *Queries) GetHostIDByMachineID(ctx context.Context, arg GetHostIDByMachineIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getHostIDByMachineID, arg.MachineID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getObservedSantaHostState = `-- name: GetObservedSantaHostState :one
+SELECT
+    sh.santa_version,
+    sh.client_mode_reported,
+    sh.last_seen_at,
+    ss.last_clean_sync_at
+FROM santa_hosts sh
+LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
+WHERE sh.host_id = $1
+`
+
+type GetObservedSantaHostStateParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type GetObservedSantaHostStateRow struct {
+	SantaVersion       string          `json:"santa_version"`
+	ClientModeReported SantaClientMode `json:"client_mode_reported"`
+	LastSeenAt         *time.Time      `json:"last_seen_at"`
+	LastCleanSyncAt    *time.Time      `json:"last_clean_sync_at"`
+}
+
+func (q *Queries) GetObservedSantaHostState(ctx context.Context, arg GetObservedSantaHostStateParams) (GetObservedSantaHostStateRow, error) {
+	row := q.db.QueryRow(ctx, getObservedSantaHostState, arg.HostID)
+	var i GetObservedSantaHostStateRow
+	err := row.Scan(
+		&i.SantaVersion,
+		&i.ClientModeReported,
+		&i.LastSeenAt,
+		&i.LastCleanSyncAt,
+	)
+	return i, err
 }
 
 const getSantaConfigurationByID = `-- name: GetSantaConfigurationByID :one
@@ -314,6 +527,1039 @@ func (q *Queries) GetSantaRuleByID(ctx context.Context, arg GetSantaRuleByIDPara
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getSantaSyncSummary = `-- name: GetSantaSyncSummary :one
+SELECT
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'desired') AS desired_count,
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'applied') AS applied_count,
+    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = $1) AS pending_count
+`
+
+type GetSantaSyncSummaryParams struct {
+	SummaryHostID int64 `json:"summary_host_id"`
+}
+
+type GetSantaSyncSummaryRow struct {
+	DesiredCount int32 `json:"desired_count"`
+	AppliedCount int32 `json:"applied_count"`
+	PendingCount int32 `json:"pending_count"`
+}
+
+func (q *Queries) GetSantaSyncSummary(ctx context.Context, arg GetSantaSyncSummaryParams) (GetSantaSyncSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getSantaSyncSummary, arg.SummaryHostID)
+	var i GetSantaSyncSummaryRow
+	err := row.Scan(&i.DesiredCount, &i.AppliedCount, &i.PendingCount)
+	return i, err
+}
+
+const insertSantaConfigurationLabels = `-- name: InsertSantaConfigurationLabels :exec
+INSERT INTO santa_configuration_labels (label_id, configuration_id)
+SELECT label_id, $1
+FROM unnest($2::bigint[]) AS label_id
+`
+
+type InsertSantaConfigurationLabelsParams struct {
+	ConfigurationID int64   `json:"configuration_id"`
+	LabelIds        []int64 `json:"label_ids"`
+}
+
+func (q *Queries) InsertSantaConfigurationLabels(ctx context.Context, arg InsertSantaConfigurationLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertSantaConfigurationLabels, arg.ConfigurationID, arg.LabelIds)
+	return err
+}
+
+const insertSantaRuleExcludeLabels = `-- name: InsertSantaRuleExcludeLabels :exec
+INSERT INTO santa_rule_exclude_labels (rule_id, label_id)
+SELECT $1, label_id
+FROM unnest($2::bigint[]) AS label_id
+`
+
+type InsertSantaRuleExcludeLabelsParams struct {
+	RuleID   int64   `json:"rule_id"`
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) InsertSantaRuleExcludeLabels(ctx context.Context, arg InsertSantaRuleExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertSantaRuleExcludeLabels, arg.RuleID, arg.LabelIds)
+	return err
+}
+
+const insertSantaRuleIncludes = `-- name: InsertSantaRuleIncludes :exec
+WITH input AS (
+    SELECT
+        p.policy,
+        ce.cel_expression,
+        l.label_id,
+        p.position
+    FROM unnest($2::text[]) WITH ORDINALITY AS p(policy, position)
+    JOIN unnest($3::text[]) WITH ORDINALITY AS ce(cel_expression, position) USING (position)
+    JOIN unnest($4::bigint[]) WITH ORDINALITY AS l(label_id, position) USING (position)
+)
+INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
+SELECT
+    $1,
+    position - 1,
+    policy::santa_policy,
+    NULLIF(cel_expression, ''),
+    label_id
+FROM input
+ORDER BY position
+`
+
+type InsertSantaRuleIncludesParams struct {
+	RuleID         int64    `json:"rule_id"`
+	Policies       []string `json:"policies"`
+	CelExpressions []string `json:"cel_expressions"`
+	LabelIds       []int64  `json:"label_ids"`
+}
+
+func (q *Queries) InsertSantaRuleIncludes(ctx context.Context, arg InsertSantaRuleIncludesParams) error {
+	_, err := q.db.Exec(ctx, insertSantaRuleIncludes,
+		arg.RuleID,
+		arg.Policies,
+		arg.CelExpressions,
+		arg.LabelIds,
+	)
+	return err
+}
+
+const isSantaBundleComplete = `-- name: IsSantaBundleComplete :one
+SELECT (uploaded_at IS NOT NULL)::boolean AS complete
+FROM santa_bundles
+WHERE sha256 = $1
+`
+
+type IsSantaBundleCompleteParams struct {
+	Sha256 string `json:"sha256"`
+}
+
+func (q *Queries) IsSantaBundleComplete(ctx context.Context, arg IsSantaBundleCompleteParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isSantaBundleComplete, arg.Sha256)
+	var complete bool
+	err := row.Scan(&complete)
+	return complete, err
+}
+
+const listAppliedSantaSyncTargets = `-- name: ListAppliedSantaSyncTargets :many
+SELECT
+    rule_type::text,
+    identifier,
+    policy::text,
+    cel_expression,
+    custom_message,
+    custom_url,
+    notification_app_name,
+    payload_hash
+FROM santa_sync_targets
+WHERE host_id = $1 AND phase = 'applied'
+`
+
+type ListAppliedSantaSyncTargetsParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type ListAppliedSantaSyncTargetsRow struct {
+	RuleType            string `json:"rule_type"`
+	Identifier          string `json:"identifier"`
+	Policy              string `json:"policy"`
+	CelExpression       string `json:"cel_expression"`
+	CustomMessage       string `json:"custom_message"`
+	CustomURL           string `json:"custom_url"`
+	NotificationAppName string `json:"notification_app_name"`
+	PayloadHash         string `json:"payload_hash"`
+}
+
+func (q *Queries) ListAppliedSantaSyncTargets(ctx context.Context, arg ListAppliedSantaSyncTargetsParams) ([]ListAppliedSantaSyncTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listAppliedSantaSyncTargets, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAppliedSantaSyncTargetsRow{}
+	for rows.Next() {
+		var i ListAppliedSantaSyncTargetsRow
+		if err := rows.Scan(
+			&i.RuleType,
+			&i.Identifier,
+			&i.Policy,
+			&i.CelExpression,
+			&i.CustomMessage,
+			&i.CustomURL,
+			&i.NotificationAppName,
+			&i.PayloadHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBuiltinLabelIDs = `-- name: ListBuiltinLabelIDs :many
+SELECT id
+FROM labels
+WHERE id = ANY($1::bigint[]) AND label_type = 'builtin'
+`
+
+type ListBuiltinLabelIDsParams struct {
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) ListBuiltinLabelIDs(ctx context.Context, arg ListBuiltinLabelIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listBuiltinLabelIDs, arg.LabelIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEffectiveSantaRulesForHost = `-- name: ListEffectiveSantaRulesForHost :many
+WITH host_labels AS (
+    SELECT label_id
+    FROM label_membership
+    WHERE host_id = $1
+),
+matching_includes AS (
+    SELECT
+        r.id AS rule_id,
+        r.rule_type,
+        r.identifier,
+        i.policy,
+        COALESCE(i.cel_expression, '') AS cel_expression,
+        r.custom_message,
+        r.custom_url,
+        i.id AS matched_include_id,
+        CASE r.rule_type
+            WHEN 'cdhash' THEN 1
+            WHEN 'binary' THEN 2
+            WHEN 'signingid' THEN 3
+            WHEN 'certificate' THEN 4
+            WHEN 'teamid' THEN 5
+            WHEN 'bundle' THEN 6
+            ELSE 7
+        END AS rule_type_sort,
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+    FROM santa_rules r
+    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN host_labels include_hl ON include_hl.label_id = i.label_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM santa_rule_exclude_labels el
+        JOIN host_labels hl ON hl.label_id = el.label_id
+        WHERE el.rule_id = r.id
+    )
+),
+selected_includes AS (
+    SELECT rule_id, rule_type, identifier, policy, cel_expression, custom_message, custom_url, matched_include_id, rule_type_sort, include_rank
+    FROM matching_includes
+    WHERE include_rank = 1
+),
+expanded_rules AS (
+    SELECT
+        rule_id,
+        rule_type,
+        identifier,
+        policy,
+        cel_expression,
+        custom_message,
+        custom_url,
+        ''::text AS notification_app_name,
+        matched_include_id,
+        rule_type_sort
+    FROM selected_includes
+    WHERE rule_type <> 'bundle'
+    UNION ALL
+    SELECT
+        si.rule_id,
+        'binary'::santa_rule_type AS rule_type,
+        e.sha256 AS identifier,
+        si.policy,
+        si.cel_expression,
+        si.custom_message,
+        si.custom_url,
+        COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
+        si.matched_include_id,
+        2 AS rule_type_sort
+    FROM selected_includes si
+    JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
+    JOIN santa_bundle_executables be ON be.bundle_id = b.id
+    JOIN santa_executables e ON e.id = be.executable_id
+    WHERE si.rule_type = 'bundle'
+      AND e.sha256 <> ''
+)
+SELECT
+    rule_id,
+    rule_type::text,
+    identifier,
+    policy::text,
+    cel_expression,
+    custom_message,
+    custom_url,
+    notification_app_name,
+    matched_include_id,
+    rule_type_sort
+FROM expanded_rules
+ORDER BY rule_type_sort, identifier, rule_id
+`
+
+type ListEffectiveSantaRulesForHostParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type ListEffectiveSantaRulesForHostRow struct {
+	RuleID              int64  `json:"rule_id"`
+	RuleType            string `json:"rule_type"`
+	Identifier          string `json:"identifier"`
+	Policy              string `json:"policy"`
+	CelExpression       string `json:"cel_expression"`
+	CustomMessage       string `json:"custom_message"`
+	CustomURL           string `json:"custom_url"`
+	NotificationAppName string `json:"notification_app_name"`
+	MatchedIncludeID    int64  `json:"matched_include_id"`
+	RuleTypeSort        int32  `json:"rule_type_sort"`
+}
+
+func (q *Queries) ListEffectiveSantaRulesForHost(ctx context.Context, arg ListEffectiveSantaRulesForHostParams) ([]ListEffectiveSantaRulesForHostRow, error) {
+	rows, err := q.db.Query(ctx, listEffectiveSantaRulesForHost, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEffectiveSantaRulesForHostRow{}
+	for rows.Next() {
+		var i ListEffectiveSantaRulesForHostRow
+		if err := rows.Scan(
+			&i.RuleID,
+			&i.RuleType,
+			&i.Identifier,
+			&i.Policy,
+			&i.CelExpression,
+			&i.CustomMessage,
+			&i.CustomURL,
+			&i.NotificationAppName,
+			&i.MatchedIncludeID,
+			&i.RuleTypeSort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEffectiveSantaRulesForHostPage = `-- name: ListEffectiveSantaRulesForHostPage :many
+WITH host_labels AS (
+    SELECT label_id
+    FROM label_membership
+    WHERE host_id = $3
+),
+matching_includes AS (
+    SELECT
+        r.id AS rule_id,
+        r.rule_type,
+        r.identifier,
+        i.policy,
+        COALESCE(i.cel_expression, '') AS cel_expression,
+        r.custom_message,
+        r.custom_url,
+        i.id AS matched_include_id,
+        CASE r.rule_type
+            WHEN 'cdhash' THEN 1
+            WHEN 'binary' THEN 2
+            WHEN 'signingid' THEN 3
+            WHEN 'certificate' THEN 4
+            WHEN 'teamid' THEN 5
+            WHEN 'bundle' THEN 6
+            ELSE 7
+        END AS rule_type_sort,
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+    FROM santa_rules r
+    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN host_labels include_hl ON include_hl.label_id = i.label_id
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM santa_rule_exclude_labels el
+        JOIN host_labels hl ON hl.label_id = el.label_id
+        WHERE el.rule_id = r.id
+    )
+),
+selected_includes AS (
+    SELECT rule_id, rule_type, identifier, policy, cel_expression, custom_message, custom_url, matched_include_id, rule_type_sort, include_rank
+    FROM matching_includes
+    WHERE include_rank = 1
+),
+expanded_rules AS (
+    SELECT
+        rule_id,
+        rule_type,
+        identifier,
+        policy,
+        cel_expression,
+        custom_message,
+        custom_url,
+        ''::text AS notification_app_name,
+        matched_include_id,
+        rule_type_sort
+    FROM selected_includes
+    WHERE rule_type <> 'bundle'
+    UNION ALL
+    SELECT
+        si.rule_id,
+        'binary'::santa_rule_type AS rule_type,
+        e.sha256 AS identifier,
+        si.policy,
+        si.cel_expression,
+        si.custom_message,
+        si.custom_url,
+        COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256) AS notification_app_name,
+        si.matched_include_id,
+        2 AS rule_type_sort
+    FROM selected_includes si
+    JOIN santa_bundles b ON b.sha256 = si.identifier AND b.uploaded_at IS NOT NULL
+    JOIN santa_bundle_executables be ON be.bundle_id = b.id
+    JOIN santa_executables e ON e.id = be.executable_id
+    WHERE si.rule_type = 'bundle'
+      AND e.sha256 <> ''
+)
+SELECT
+    rule_id,
+    rule_type::text,
+    identifier,
+    policy::text,
+    cel_expression,
+    custom_message,
+    custom_url,
+    notification_app_name,
+    matched_include_id,
+    rule_type_sort
+FROM expanded_rules
+ORDER BY rule_type_sort, identifier, rule_id
+LIMIT $2 OFFSET $1
+`
+
+type ListEffectiveSantaRulesForHostPageParams struct {
+	OffsetCount int32 `json:"offset_count"`
+	LimitCount  int32 `json:"limit_count"`
+	HostID      int64 `json:"host_id"`
+}
+
+type ListEffectiveSantaRulesForHostPageRow struct {
+	RuleID              int64  `json:"rule_id"`
+	RuleType            string `json:"rule_type"`
+	Identifier          string `json:"identifier"`
+	Policy              string `json:"policy"`
+	CelExpression       string `json:"cel_expression"`
+	CustomMessage       string `json:"custom_message"`
+	CustomURL           string `json:"custom_url"`
+	NotificationAppName string `json:"notification_app_name"`
+	MatchedIncludeID    int64  `json:"matched_include_id"`
+	RuleTypeSort        int32  `json:"rule_type_sort"`
+}
+
+func (q *Queries) ListEffectiveSantaRulesForHostPage(ctx context.Context, arg ListEffectiveSantaRulesForHostPageParams) ([]ListEffectiveSantaRulesForHostPageRow, error) {
+	rows, err := q.db.Query(ctx, listEffectiveSantaRulesForHostPage, arg.OffsetCount, arg.LimitCount, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEffectiveSantaRulesForHostPageRow{}
+	for rows.Next() {
+		var i ListEffectiveSantaRulesForHostPageRow
+		if err := rows.Scan(
+			&i.RuleID,
+			&i.RuleType,
+			&i.Identifier,
+			&i.Policy,
+			&i.CelExpression,
+			&i.CustomMessage,
+			&i.CustomURL,
+			&i.NotificationAppName,
+			&i.MatchedIncludeID,
+			&i.RuleTypeSort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaConfigurationIDsByPosition = `-- name: ListSantaConfigurationIDsByPosition :many
+SELECT id
+FROM santa_configurations
+ORDER BY position, id
+`
+
+func (q *Queries) ListSantaConfigurationIDsByPosition(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listSantaConfigurationIDsByPosition)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaConfigurationLabels = `-- name: ListSantaConfigurationLabels :many
+SELECT configuration_id, label_id
+FROM santa_configuration_labels
+WHERE configuration_id = ANY($1::bigint[])
+ORDER BY configuration_id, label_id
+`
+
+type ListSantaConfigurationLabelsParams struct {
+	ConfigurationIds []int64 `json:"configuration_ids"`
+}
+
+type ListSantaConfigurationLabelsRow struct {
+	ConfigurationID int64 `json:"configuration_id"`
+	LabelID         int64 `json:"label_id"`
+}
+
+func (q *Queries) ListSantaConfigurationLabels(ctx context.Context, arg ListSantaConfigurationLabelsParams) ([]ListSantaConfigurationLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listSantaConfigurationLabels, arg.ConfigurationIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSantaConfigurationLabelsRow{}
+	for rows.Next() {
+		var i ListSantaConfigurationLabelsRow
+		if err := rows.Scan(&i.ConfigurationID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaRuleExcludeLabels = `-- name: ListSantaRuleExcludeLabels :many
+SELECT rule_id, label_id
+FROM santa_rule_exclude_labels
+WHERE rule_id = ANY($1::bigint[])
+ORDER BY rule_id, label_id
+`
+
+type ListSantaRuleExcludeLabelsParams struct {
+	RuleIds []int64 `json:"rule_ids"`
+}
+
+func (q *Queries) ListSantaRuleExcludeLabels(ctx context.Context, arg ListSantaRuleExcludeLabelsParams) ([]SantaRuleExcludeLabel, error) {
+	rows, err := q.db.Query(ctx, listSantaRuleExcludeLabels, arg.RuleIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SantaRuleExcludeLabel{}
+	for rows.Next() {
+		var i SantaRuleExcludeLabel
+		if err := rows.Scan(&i.RuleID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaRuleIncludeIDs = `-- name: ListSantaRuleIncludeIDs :many
+SELECT id
+FROM santa_rule_includes
+WHERE rule_id = $1
+ORDER BY position, id
+`
+
+type ListSantaRuleIncludeIDsParams struct {
+	RuleID int64 `json:"rule_id"`
+}
+
+func (q *Queries) ListSantaRuleIncludeIDs(ctx context.Context, arg ListSantaRuleIncludeIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listSantaRuleIncludeIDs, arg.RuleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaRuleIncludes = `-- name: ListSantaRuleIncludes :many
+SELECT
+    rule_id,
+    id,
+    position,
+    policy::text,
+    COALESCE(cel_expression, '') AS cel_expression,
+    label_id
+FROM santa_rule_includes
+WHERE rule_id = ANY($1::bigint[])
+ORDER BY rule_id, position, id
+`
+
+type ListSantaRuleIncludesParams struct {
+	RuleIds []int64 `json:"rule_ids"`
+}
+
+type ListSantaRuleIncludesRow struct {
+	RuleID        int64  `json:"rule_id"`
+	ID            int64  `json:"id"`
+	Position      int32  `json:"position"`
+	Policy        string `json:"policy"`
+	CelExpression string `json:"cel_expression"`
+	LabelID       int64  `json:"label_id"`
+}
+
+func (q *Queries) ListSantaRuleIncludes(ctx context.Context, arg ListSantaRuleIncludesParams) ([]ListSantaRuleIncludesRow, error) {
+	rows, err := q.db.Query(ctx, listSantaRuleIncludes, arg.RuleIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSantaRuleIncludesRow{}
+	for rows.Next() {
+		var i ListSantaRuleIncludesRow
+		if err := rows.Scan(
+			&i.RuleID,
+			&i.ID,
+			&i.Position,
+			&i.Policy,
+			&i.CelExpression,
+			&i.LabelID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSantaRuleTargets = `-- name: ListSantaRuleTargets :many
+WITH candidate_sources AS (
+    SELECT
+        'binary'::text AS target_type,
+        e.sha256 AS identifier,
+        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.sha256) AS name,
+        NULLIF(e.file_name, '') AS detail,
+        e.file_bundle_id AS bundle_id,
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version) AS version,
+        0::integer AS binary_count,
+        0::integer AS collected_binary_count,
+        true AS complete
+    FROM santa_executables e
+    WHERE e.sha256 <> ''
+    UNION ALL
+    SELECT
+        'binary'::text,
+        p.executable_sha256,
+        COALESCE(NULLIF(st.display_name, ''), st.name, p.executable_sha256),
+        COALESCE(NULLIF(p.executable_path, ''), p.installed_path),
+        s.bundle_identifier,
+        s.version,
+        0::integer,
+        0::integer,
+        true
+    FROM host_software_installed_paths p
+    JOIN software s ON s.id = p.software_id
+    JOIN software_titles st ON st.id = s.title_id
+    WHERE p.executable_sha256 IS NOT NULL AND p.executable_sha256 <> ''
+    UNION ALL
+    SELECT
+        'certificate'::text,
+        c.sha256,
+        COALESCE(NULLIF(c.common_name, ''), c.sha256),
+        c.organizational_unit,
+        ''::text,
+        ''::text,
+        0::integer,
+        0::integer,
+        true
+    FROM santa_certificates c
+    WHERE c.sha256 <> ''
+    UNION ALL
+    SELECT
+        'teamid'::text,
+        e.team_id,
+        e.team_id,
+        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+        e.file_bundle_id,
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        0::integer,
+        0::integer,
+        true
+    FROM santa_executables e
+    WHERE e.team_id <> ''
+    UNION ALL
+    SELECT
+        'teamid'::text,
+        p.team_identifier,
+        p.team_identifier,
+        COALESCE(NULLIF(st.display_name, ''), st.name),
+        s.bundle_identifier,
+        s.version,
+        0::integer,
+        0::integer,
+        true
+    FROM host_software_installed_paths p
+    JOIN software s ON s.id = p.software_id
+    JOIN software_titles st ON st.id = s.title_id
+    WHERE p.team_identifier <> ''
+    UNION ALL
+    SELECT
+        'signingid'::text,
+        e.signing_id,
+        e.signing_id,
+        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+        e.file_bundle_id,
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        0::integer,
+        0::integer,
+        true
+    FROM santa_executables e
+    WHERE e.signing_id <> ''
+    UNION ALL
+    SELECT
+        'signingid'::text,
+        p.team_identifier || ':' || s.bundle_identifier,
+        p.team_identifier || ':' || s.bundle_identifier,
+        COALESCE(NULLIF(st.display_name, ''), st.name),
+        s.bundle_identifier,
+        s.version,
+        0::integer,
+        0::integer,
+        true
+    FROM host_software_installed_paths p
+    JOIN software s ON s.id = p.software_id
+    JOIN software_titles st ON st.id = s.title_id
+    WHERE p.team_identifier <> '' AND s.bundle_identifier <> ''
+    UNION ALL
+    SELECT
+        'cdhash'::text,
+        e.cdhash,
+        e.cdhash,
+        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
+        e.file_bundle_id,
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        0::integer,
+        0::integer,
+        true
+    FROM santa_executables e
+    WHERE e.cdhash <> ''
+    UNION ALL
+    SELECT
+        'cdhash'::text,
+        p.cdhash_sha256,
+        p.cdhash_sha256,
+        COALESCE(NULLIF(st.display_name, ''), st.name),
+        s.bundle_identifier,
+        s.version,
+        0::integer,
+        0::integer,
+        true
+    FROM host_software_installed_paths p
+    JOIN software s ON s.id = p.software_id
+    JOIN software_titles st ON st.id = s.title_id
+    WHERE p.cdhash_sha256 IS NOT NULL AND p.cdhash_sha256 <> ''
+    UNION ALL
+    SELECT
+        'bundle'::text,
+        b.sha256,
+        COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256),
+        b.path,
+        b.bundle_id,
+        COALESCE(NULLIF(b.version_string, ''), b.version),
+        b.binary_count,
+        COUNT(be.executable_id)::integer,
+        b.uploaded_at IS NOT NULL
+    FROM santa_bundles b
+    LEFT JOIN santa_bundle_executables be ON be.bundle_id = b.id
+    WHERE b.sha256 <> ''
+    GROUP BY b.id
+),
+targets AS (
+    SELECT
+        target_type,
+        identifier,
+        COALESCE(NULLIF(max(name), ''), identifier) AS name,
+        COALESCE(max(detail), '')::text AS detail,
+        COALESCE(max(bundle_id), '')::text AS bundle_id,
+        COALESCE(max(version), '')::text AS version,
+        max(binary_count)::integer AS binary_count,
+        max(collected_binary_count)::integer AS collected_binary_count,
+        bool_or(complete) AS complete
+    FROM candidate_sources
+    WHERE identifier <> ''
+    GROUP BY target_type, identifier
+)
+SELECT
+    t.target_type,
+    t.identifier,
+    t.name,
+    t.detail,
+    t.bundle_id,
+    t.version,
+    t.binary_count,
+    t.collected_binary_count,
+    COUNT(r.id)::integer AS rule_count,
+    t.complete
+FROM targets t
+LEFT JOIN santa_rules r
+    ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
+WHERE
+    ($1::text = '' OR t.identifier ILIKE '%' || $1::text || '%' OR t.name ILIKE '%' || $1::text || '%'
+        OR t.detail ILIKE '%' || $1::text || '%' OR t.bundle_id ILIKE '%' || $1::text || '%')
+    AND ($2::text = '' OR t.target_type = $2::text)
+GROUP BY
+    t.target_type,
+    t.identifier,
+    t.name,
+    t.detail,
+    t.bundle_id,
+    t.version,
+    t.binary_count,
+    t.collected_binary_count,
+    t.complete
+ORDER BY
+    CASE t.target_type
+        WHEN 'bundle' THEN 1
+        WHEN 'signingid' THEN 2
+        WHEN 'teamid' THEN 3
+        WHEN 'certificate' THEN 4
+        WHEN 'binary' THEN 5
+        WHEN 'cdhash' THEN 6
+        ELSE 7
+    END,
+    lower(t.name),
+    t.identifier
+LIMIT $3
+`
+
+type ListSantaRuleTargetsParams struct {
+	Q          string `json:"q"`
+	TargetType string `json:"target_type"`
+	LimitCount int32  `json:"limit_count"`
+}
+
+type ListSantaRuleTargetsRow struct {
+	TargetType           string `json:"target_type"`
+	Identifier           string `json:"identifier"`
+	Name                 string `json:"name"`
+	Detail               string `json:"detail"`
+	BundleID             string `json:"bundle_id"`
+	Version              string `json:"version"`
+	BinaryCount          int32  `json:"binary_count"`
+	CollectedBinaryCount int32  `json:"collected_binary_count"`
+	RuleCount            int32  `json:"rule_count"`
+	Complete             bool   `json:"complete"`
+}
+
+func (q *Queries) ListSantaRuleTargets(ctx context.Context, arg ListSantaRuleTargetsParams) ([]ListSantaRuleTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listSantaRuleTargets, arg.Q, arg.TargetType, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSantaRuleTargetsRow{}
+	for rows.Next() {
+		var i ListSantaRuleTargetsRow
+		if err := rows.Scan(
+			&i.TargetType,
+			&i.Identifier,
+			&i.Name,
+			&i.Detail,
+			&i.BundleID,
+			&i.Version,
+			&i.BinaryCount,
+			&i.CollectedBinaryCount,
+			&i.RuleCount,
+			&i.Complete,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const normalizeSantaConfigurationPositions = `-- name: NormalizeSantaConfigurationPositions :exec
+UPDATE santa_configurations
+SET position = -position - 1
+`
+
+func (q *Queries) NormalizeSantaConfigurationPositions(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, normalizeSantaConfigurationPositions)
+	return err
+}
+
+const normalizeSantaRuleIncludePositions = `-- name: NormalizeSantaRuleIncludePositions :exec
+UPDATE santa_rule_includes
+SET position = -position - 1
+WHERE rule_id = $1
+`
+
+type NormalizeSantaRuleIncludePositionsParams struct {
+	RuleID int64 `json:"rule_id"`
+}
+
+func (q *Queries) NormalizeSantaRuleIncludePositions(ctx context.Context, arg NormalizeSantaRuleIncludePositionsParams) error {
+	_, err := q.db.Exec(ctx, normalizeSantaRuleIncludePositions, arg.RuleID)
+	return err
+}
+
+const resolveSantaConfigurationForHost = `-- name: ResolveSantaConfigurationForHost :one
+SELECT
+    c.id, c.name, c.position, c.client_mode, c.enable_bundles, c.enable_transitive_rules, c.enable_all_event_upload, c.full_sync_interval_seconds, c.batch_size, c.allowed_path_regex, c.blocked_path_regex, c.removable_media_action, c.removable_media_remount_flags, c.encrypted_removable_media_action, c.encrypted_removable_media_remount_flags, c.event_detail_url, c.event_detail_text, c.created_at, c.updated_at,
+    l.id AS label_id,
+    l.name AS label_name
+FROM santa_configurations c
+JOIN santa_configuration_labels cl ON cl.configuration_id = c.id
+JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = $1
+JOIN labels l ON l.id = cl.label_id
+ORDER BY c.position, c.id, l.name, l.id
+LIMIT 1
+`
+
+type ResolveSantaConfigurationForHostParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type ResolveSantaConfigurationForHostRow struct {
+	SantaConfiguration SantaConfiguration `json:"santa_configuration"`
+	LabelID            int64              `json:"label_id"`
+	LabelName          string             `json:"label_name"`
+}
+
+func (q *Queries) ResolveSantaConfigurationForHost(ctx context.Context, arg ResolveSantaConfigurationForHostParams) (ResolveSantaConfigurationForHostRow, error) {
+	row := q.db.QueryRow(ctx, resolveSantaConfigurationForHost, arg.HostID)
+	var i ResolveSantaConfigurationForHostRow
+	err := row.Scan(
+		&i.SantaConfiguration.ID,
+		&i.SantaConfiguration.Name,
+		&i.SantaConfiguration.Position,
+		&i.SantaConfiguration.ClientMode,
+		&i.SantaConfiguration.EnableBundles,
+		&i.SantaConfiguration.EnableTransitiveRules,
+		&i.SantaConfiguration.EnableAllEventUpload,
+		&i.SantaConfiguration.FullSyncIntervalSeconds,
+		&i.SantaConfiguration.BatchSize,
+		&i.SantaConfiguration.AllowedPathRegex,
+		&i.SantaConfiguration.BlockedPathRegex,
+		&i.SantaConfiguration.RemovableMediaAction,
+		&i.SantaConfiguration.RemovableMediaRemountFlags,
+		&i.SantaConfiguration.EncryptedRemovableMediaAction,
+		&i.SantaConfiguration.EncryptedRemovableMediaRemountFlags,
+		&i.SantaConfiguration.EventDetailURL,
+		&i.SantaConfiguration.EventDetailText,
+		&i.SantaConfiguration.CreatedAt,
+		&i.SantaConfiguration.UpdatedAt,
+		&i.LabelID,
+		&i.LabelName,
+	)
+	return i, err
+}
+
+const santaRuleExists = `-- name: SantaRuleExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM santa_rules
+    WHERE id = $1
+)
+`
+
+type SantaRuleExistsParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) SantaRuleExists(ctx context.Context, arg SantaRuleExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, santaRuleExists, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const setSantaConfigurationPositions = `-- name: SetSantaConfigurationPositions :exec
+UPDATE santa_configurations c
+SET position = -ordered.position
+FROM unnest($1::bigint[]) WITH ORDINALITY AS ordered(id, position)
+WHERE c.id = ordered.id
+`
+
+type SetSantaConfigurationPositionsParams struct {
+	OrderedIds []int64 `json:"ordered_ids"`
+}
+
+func (q *Queries) SetSantaConfigurationPositions(ctx context.Context, arg SetSantaConfigurationPositionsParams) error {
+	_, err := q.db.Exec(ctx, setSantaConfigurationPositions, arg.OrderedIds)
+	return err
+}
+
+const setSantaRuleIncludePositions = `-- name: SetSantaRuleIncludePositions :exec
+UPDATE santa_rule_includes i
+SET position = -ordered.position
+FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, position)
+WHERE i.id = ordered.id AND i.rule_id = $1
+`
+
+type SetSantaRuleIncludePositionsParams struct {
+	RuleID     int64   `json:"rule_id"`
+	OrderedIds []int64 `json:"ordered_ids"`
+}
+
+func (q *Queries) SetSantaRuleIncludePositions(ctx context.Context, arg SetSantaRuleIncludePositionsParams) error {
+	_, err := q.db.Exec(ctx, setSantaRuleIncludePositions, arg.RuleID, arg.OrderedIds)
+	return err
 }
 
 const updateSantaConfiguration = `-- name: UpdateSantaConfiguration :one

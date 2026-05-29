@@ -46,12 +46,7 @@ func (s *Store) UpsertHostObservation(ctx context.Context, observation HostObser
 }
 
 func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64, error) {
-	var hostID int64
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT id
-		FROM hosts
-		WHERE hardware_uuid = $1
-	`, machineID).Scan(&hostID)
+	hostID, err := s.q.GetHostIDByMachineID(ctx, sqlc.GetHostIDByMachineIDParams{MachineID: machineID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, dbutil.ErrNotFound
 	}
@@ -59,48 +54,34 @@ func (s *Store) hostIDByMachineID(ctx context.Context, machineID string) (int64,
 }
 
 func (s *Store) LoadObservedHostState(ctx context.Context, hostID int64) (*HostState, error) {
-	var detail HostState
-	var clientMode string
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT
-			sh.santa_version,
-			sh.client_mode_reported::text,
-			sh.last_seen_at,
-			ss.last_clean_sync_at
-		FROM santa_hosts sh
-		LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
-		WHERE sh.host_id = $1
-	`, hostID).Scan(
-		&detail.Version,
-		&clientMode,
-		&detail.LastSyncAt,
-		&detail.RuleSync.LastCleanSyncAt,
-	)
+	row, err := s.q.GetObservedSantaHostState(ctx, sqlc.GetObservedSantaHostStateParams{HostID: hostID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // missing Santa observation is represented by a nil state.
 	}
 	if err != nil {
 		return nil, err
 	}
+	detail := HostState{
+		Version:            row.SantaVersion,
+		LastSyncAt:         row.LastSeenAt,
+		ClientModeReported: configurations.ReportedClientMode(row.ClientModeReported),
+	}
 
 	ruleSync, err := s.syncSummary(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
-	ruleSync.LastCleanSyncAt = detail.RuleSync.LastCleanSyncAt
+	ruleSync.LastCleanSyncAt = row.LastCleanSyncAt
 
-	detail.ClientModeReported = configurations.ReportedClientMode(clientMode)
 	detail.RuleSync = ruleSync
 	return &detail, nil
 }
 
 func (s *Store) syncSummary(ctx context.Context, hostID int64) (RuleSyncSummary, error) {
-	var summary RuleSyncSummary
-	err := s.db.Pool().QueryRow(ctx, `
-		SELECT
-			(SELECT count(*) FROM santa_sync_targets WHERE host_id = $1 AND phase = 'desired'),
-			(SELECT count(*) FROM santa_sync_targets WHERE host_id = $1 AND phase = 'applied'),
-			(SELECT count(*) FROM santa_sync_pending_rules WHERE host_id = $1)
-	`, hostID).Scan(&summary.DesiredCount, &summary.AppliedCount, &summary.PendingCount)
-	return summary, err
+	row, err := s.q.GetSantaSyncSummary(ctx, sqlc.GetSantaSyncSummaryParams{SummaryHostID: hostID})
+	return RuleSyncSummary{
+		DesiredCount: row.DesiredCount,
+		AppliedCount: row.AppliedCount,
+		PendingCount: row.PendingCount,
+	}, err
 }
