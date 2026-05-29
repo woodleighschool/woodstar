@@ -2,10 +2,9 @@ import { useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2 } from "lucide-react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { EditButton, ExportButton, LiveRunButton, ShowQueryButton } from "@/components/queries/query-ui";
+import { EditButton, LiveRunButton, ShowQueryButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useReport, useReportResults } from "@/hooks/use-reports";
@@ -53,8 +52,6 @@ export function ReportDetailPage() {
     ),
   }));
   const columns = [...reportTableColumns({ linkHosts: true }), ...resultColumns];
-  const hasResults = rows.length > 0;
-
   return (
     <PageShell>
       <PageHeader
@@ -76,12 +73,13 @@ export function ReportDetailPage() {
           <div>
             <h2 className="text-base font-semibold">Results</h2>
           </div>
-          <ExportButton disabled={!hasResults} onClick={() => exportReport(report.data.name, rows)} />
         </div>
         <DataTable
           columns={columns}
           data={rows}
           isLoading={results.isLoading}
+          showExport
+          exportFilename={`${report.data.name || "report"}-results.csv`}
           totalCount={rows.length}
           pagination={{ pageIndex: 0, pageSize: rows.length || 50 }}
           sorting={[]}
@@ -100,36 +98,4 @@ export function ReportDetailPage() {
       </div>
     </PageShell>
   );
-}
-
-function exportReport(name: string, rows: ReportTableRow[]) {
-  const dynamicColumns = resultColumnNames(rows);
-  const headers = ["host_id", "host_display_name", "last_fetched", ...dynamicColumns];
-  const csv = [
-    headers.join(","),
-    ...rows.map((row) =>
-      [
-        String(row.hostId),
-        row.hostName,
-        row.lastFetched ?? "",
-        ...dynamicColumns.map((column) => row.columns[column] ?? ""),
-      ]
-        .map(csvCell)
-        .join(","),
-    ),
-  ].join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${name || "Report"} - Report.csv`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function csvCell(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
 }

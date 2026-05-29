@@ -1,8 +1,7 @@
 import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { LabelChips } from "@/components/labels/label-chips";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";

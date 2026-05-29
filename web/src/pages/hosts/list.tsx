@@ -1,14 +1,16 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef, Table as TanStackTable } from "@tanstack/react-table";
 import { Check, ListFilter, ServerCog, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableColumnToggle } from "@/components/data-table/data-table-column-toggle";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  BulkDeleteDialog,
+  DataTable,
+  DataTableColumnHeader,
+  DataTableColumnToggle,
+  DataTableEmptyState,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -230,6 +232,8 @@ export function HostsListPage() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          showExport
+          exportFilename="hosts.csv"
           enableRowSelection
           selectedRowIds={selectedHostIds}
           onSelectedRowIdsChange={setSelectedHostIds}
@@ -240,7 +244,7 @@ export function HostsListPage() {
             </Button>
           }
           rowHref={(row) => ({ to: "/hosts/$hostId", params: { hostId: String(row.id) } })}
-          toolbar={(table) => (
+          toolbar={(table, exportButton) => (
             <HostsToolbar
               draft={draft}
               onDraftChange={setDraft}
@@ -248,6 +252,7 @@ export function HostsListPage() {
               onLabelChange={(v) => setters.setFilter("label_id", v)}
               labelOptions={labelOptions}
               table={table}
+              actions={exportButton}
             />
           )}
           empty={
@@ -288,14 +293,24 @@ interface HostsToolbarProps {
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
   table: TanStackTable<Host>;
+  actions?: ReactNode;
 }
 
-function HostsToolbar({ draft, onDraftChange, labelId, onLabelChange, labelOptions, table }: HostsToolbarProps) {
+function HostsToolbar({
+  draft,
+  onDraftChange,
+  labelId,
+  onLabelChange,
+  labelOptions,
+  table,
+  actions,
+}: HostsToolbarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" className="basis-full sm:basis-64" />
       <DataTableColumnToggle table={table} variant="ghost" />
       <HostFilterDropdown labelId={labelId} onLabelChange={onLabelChange} labelOptions={labelOptions} />
+      {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
 }

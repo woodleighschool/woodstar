@@ -4,8 +4,7 @@ import { Check, Loader2, Play, Plus, Square, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { DataTable, DataTableSearch } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { ShowQueryButton } from "@/components/queries/query-ui";
@@ -601,6 +600,8 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       onSortingChange={() => undefined}
       getRowId={(row) => `${row.host_id}-${JSON.stringify(row)}`}
       clientSort
+      showExport
+      exportFilename="report-run-results.csv"
       empty={
         <RunEmptyState
           title={running ? "Waiting for Results" : "No Rows Returned"}
@@ -647,6 +648,8 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       onSortingChange={() => undefined}
       getRowId={(row) => String(row.host_id)}
       clientSort
+      showExport
+      exportFilename="check-run-results.csv"
       empty={
         <RunEmptyState
           title={running ? "Waiting for Hosts" : "No Host Results"}
@@ -685,6 +688,8 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
       onSortingChange={() => undefined}
       getRowId={(row) => String(row._seq)}
       clientSort
+      showExport
+      exportFilename="live-query-errors.csv"
       empty={<RunEmptyState title="No Errors" description="No host errors have been reported for this run." />}
     />
   );

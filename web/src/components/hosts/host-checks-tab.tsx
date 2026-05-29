@@ -3,9 +3,7 @@ import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-t
 import { ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
+import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useHostChecks } from "@/hooks/use-hosts";
@@ -73,6 +71,8 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
       onPaginationChange={setPagination}
       onSortingChange={setSorting}
       isLoading={query.isLoading}
+      showExport
+      exportFilename="host-checks.csv"
       getRowId={(row) => `${row.check_id}-${row.host_id}`}
       rowHref={(row) => ({ to: "/osquery/checks/$checkId", params: { checkId: String(row.check_id) } })}
       empty={

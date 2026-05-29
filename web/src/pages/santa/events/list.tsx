@@ -1,12 +1,15 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Activity } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -126,8 +129,10 @@ function ExecutionEventsTable() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          showExport
+          exportFilename="santa-execution-events.csv"
           rowHref={(row) => ({ to: "/santa/events/$eventId", params: { eventId: String(row.id) } })}
-          toolbar={
+          toolbar={(_table, exportButton) => (
             <EventTableToolbar
               draft={draft}
               setDraft={setDraft}
@@ -135,8 +140,9 @@ function ExecutionEventsTable() {
               decisionOptions={[...DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
               searchPlaceholder="Search"
+              actions={exportButton}
             />
-          }
+          )}
           empty={
             <DataTableEmptyState
               icon={<Activity />}
@@ -230,8 +236,10 @@ function FileAccessEventsTable() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          showExport
+          exportFilename="santa-file-access-events.csv"
           rowHref={(row) => ({ to: "/santa/events/file-access/$eventId", params: { eventId: String(row.id) } })}
-          toolbar={
+          toolbar={(_table, exportButton) => (
             <EventTableToolbar
               draft={draft}
               setDraft={setDraft}
@@ -239,8 +247,9 @@ function FileAccessEventsTable() {
               decisionOptions={[...FILE_ACCESS_DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
               searchPlaceholder="Search Target, Process, Host, Signer"
+              actions={exportButton}
             />
-          }
+          )}
           empty={
             <DataTableEmptyState
               icon={<Activity />}
@@ -265,6 +274,7 @@ function EventTableToolbar({
   decisionOptions,
   onDecisionsChange,
   searchPlaceholder,
+  actions,
 }: {
   draft: string;
   setDraft: (next: string) => void;
@@ -272,6 +282,7 @@ function EventTableToolbar({
   decisionOptions: Array<{ value: string; label: string }>;
   onDecisionsChange: (next: string[]) => void;
   searchPlaceholder: string;
+  actions?: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -282,6 +293,7 @@ function EventTableToolbar({
         selected={decisions}
         onChange={onDecisionsChange}
       />
+      {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
 }

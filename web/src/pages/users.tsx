@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
+import { DataTableEmptyState } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

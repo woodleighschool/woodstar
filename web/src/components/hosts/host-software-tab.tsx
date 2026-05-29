@@ -2,11 +2,13 @@ import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-t
 import { Package } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -169,7 +171,9 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
       }}
       rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
       isLoading={query.isLoading}
-      toolbar={
+      showExport
+      exportFilename="host-software.csv"
+      toolbar={(_table, exportButton) => (
         <div className="flex items-center gap-2">
           <DataTableSearch
             value={draft}
@@ -193,8 +197,9 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
               setPagination((prev) => ({ ...prev, pageIndex: 0 }));
             }}
           />
+          {exportButton ? <div className="ml-auto">{exportButton}</div> : null}
         </div>
-      }
+      )}
       empty={
         <DataTableEmptyState
           icon={<Package />}

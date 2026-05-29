@@ -3,11 +3,13 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { CircleAlert, CircleCheck, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  BulkDeleteDialog,
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -54,20 +56,6 @@ export function ChecksPage() {
             <span className="text-muted-foreground line-clamp-2 text-xs">{row.original.description}</span>
           ) : null}
         </div>
-      ),
-    },
-    {
-      id: "query",
-      accessorKey: "query",
-      enableSorting: false,
-      header: "Query",
-      cell: ({ row }) => (
-        <code
-          className="text-muted-foreground block max-w-[34rem] truncate font-mono text-xs"
-          title={row.original.query}
-        >
-          {row.original.query}
-        </code>
       ),
     },
     {

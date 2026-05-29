@@ -1,12 +1,15 @@
 import { useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Package } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { SoftwareIcon } from "@/components/software/software-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -99,15 +102,18 @@ export function SoftwarePage() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          showExport
+          exportFilename="software.csv"
           rowHref={(row) => ({ to: "/software/titles/$softwareId", params: { softwareId: String(row.id) } })}
-          toolbar={
+          toolbar={(_table, exportButton) => (
             <SoftwareToolbar
               draft={draft}
               onDraftChange={setDraft}
               sources={sources}
               onSourcesChange={(next) => setters.setFilter("source", next.length > 0 ? next.join(",") : undefined)}
+              actions={exportButton}
             />
-          }
+          )}
           empty={
             <DataTableEmptyState
               icon={<Package />}
@@ -128,11 +134,12 @@ interface SoftwareToolbarProps {
   onDraftChange: (next: string) => void;
   sources: string[];
   onSourcesChange: (next: string[]) => void;
+  actions?: ReactNode;
 }
 
-function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange }: SoftwareToolbarProps) {
+function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange, actions }: SoftwareToolbarProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" />
       <DataTableFacetedFilter
         title="Type"
@@ -140,6 +147,7 @@ function SoftwareToolbar({ draft, onDraftChange, sources, onSourcesChange }: Sof
         selected={sources}
         onChange={onSourcesChange}
       />
+      {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
 }

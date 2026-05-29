@@ -3,11 +3,13 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal, Plus, Tags } from "lucide-react";
 import { useState } from "react";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {

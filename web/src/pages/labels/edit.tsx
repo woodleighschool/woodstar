@@ -6,9 +6,7 @@ import type { ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import { DataTable, DataTableColumnHeader, DataTableSearch } from "@/components/data-table";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";

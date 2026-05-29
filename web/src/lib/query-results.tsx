@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { DataTableColumnHeader } from "@/components/data-table";
 import type { Schemas } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 

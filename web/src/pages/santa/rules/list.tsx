@@ -3,12 +3,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { BulkDeleteDialog } from "@/components/data-table/bulk-delete-dialog";
-import { DataTable } from "@/components/data-table/data-table";
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableEmptyState } from "@/components/data-table/data-table-empty-state";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableSearch } from "@/components/data-table/data-table-search";
+import {
+  BulkDeleteDialog,
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { TargetLabelsCell } from "@/components/santa/target-labels-cell";

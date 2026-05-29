@@ -4,7 +4,7 @@ import { Code2, Loader2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
-import { DataTable, DataTableRowDragHandle } from "@/components/data-table/data-table";
+import { DataTable, DataTableRowDragHandle } from "@/components/data-table";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
