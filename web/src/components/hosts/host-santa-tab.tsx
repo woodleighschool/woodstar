@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnumBadge } from "@/components/ui/enum-badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHostSantaEffectiveRules, type HostDetail, type HostSantaEffectiveRule } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
@@ -25,6 +26,24 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
   const santa = host.santa;
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
+  const matchedLabelName = santa?.effective_configuration?.matched_via_label?.name;
+
+  const configurationValue = santa?.effective_configuration?.name ? (
+    matchedLabelName ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>{santa.effective_configuration.name}</span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div>{`Matched via label: ${matchedLabelName}`}</div>
+        </TooltipContent>
+      </Tooltip>
+    ) : (
+      santa.effective_configuration.name
+    )
+  ) : (
+    "-"
+  );
 
   const columns = useMemo<ColumnDef<HostSantaEffectiveRule>[]>(
     () => [
@@ -76,9 +95,8 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
           <dl className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-8 gap-y-5">
             {[
               { label: "Version", value: santa.version || "-" },
-              { label: "Reported Mode", value: clientModeLabel(santa.client_mode_reported) },
-              { label: "Effective Configuration", value: santa.effective_configuration?.name ?? "-" },
-              { label: "Matched Label", value: santa.effective_configuration?.matched_via_label?.name ?? "-" },
+              { label: "Client Mode", value: clientModeLabel(santa.client_mode_reported) },
+              { label: "Configuration", value: configurationValue },
               { label: "Last Sync", value: formatRelative(santa.last_sync_at) },
               {
                 label: "Rule Sync",
@@ -97,17 +115,12 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
 
       <Card className="gap-4 py-4">
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Effective Rules</CardTitle>
-          {items.length > 0 ? (
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {items.length} {items.length === 1 ? "rule" : "rules"}
-            </span>
-          ) : null}
+          <CardTitle>Rules</CardTitle>
         </CardHeader>
         <CardContent>
           {rules.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Failed to Load Effective Rules</AlertTitle>
+              <AlertTitle>Failed to Load Rules</AlertTitle>
               <AlertDescription>{rules.error.message}</AlertDescription>
             </Alert>
           ) : (
@@ -124,7 +137,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               empty={
                 <DataTableEmptyState
                   icon={<ShieldCheck />}
-                  title="No Effective Rules"
+                  title="No Rules"
                   description="No Santa rules match this host."
                 />
               }
