@@ -18,7 +18,6 @@ export type Schemas = {
   DirectoryGroupsBody: API.DirectoryGroupsBody;
   DirectoryUserBody: API.DirectoryUserBody;
   DirectoryUsersBody: API.DirectoryUsersBody;
-  EffectiveRuleStatus: API.EffectiveRuleStatus;
   ExecutionEvent: API.ExecutionEvent;
   FileAccessEvent: API.FileAccessEvent;
   Handle: API.Handle;
@@ -45,7 +44,6 @@ export type Schemas = {
   LoginInputBody: API.LoginInputBody;
   PaginatedBodyCheck: API.PaginatedBodyCheck;
   PaginatedBodyConfiguration: API.PaginatedBodyConfiguration;
-  PaginatedBodyEffectiveRuleStatus: API.PaginatedBodyEffectiveRuleStatus;
   PaginatedBodyExecutionEvent: API.PaginatedBodyExecutionEvent;
   PaginatedBodyFileAccessEvent: API.PaginatedBodyFileAccessEvent;
   PaginatedBodyHost: API.PaginatedBodyHost;
@@ -53,6 +51,7 @@ export type Schemas = {
   PaginatedBodyLabel: API.PaginatedBodyLabel;
   PaginatedBodyReport: API.PaginatedBodyReport;
   PaginatedBodyRule: API.PaginatedBodyRule;
+  PaginatedBodyRuleStatus: API.PaginatedBodyRuleStatus;
   PaginatedBodySoftwareTitle: API.PaginatedBodySoftwareTitle;
   PaginatedBodyUser: API.PaginatedBodyUser;
   PathSignatureInformation: API.PathSignatureInformation;
@@ -62,6 +61,7 @@ export type Schemas = {
   Rule: API.Rule;
   RuleMutation: API.RuleMutation;
   RuleReference: API.RuleReference;
+  RuleStatus: API.RuleStatus;
   RuleTarget: API.RuleTarget;
   SessionBody: API.SessionBody;
   SetupInputBody: API.SetupInputBody;

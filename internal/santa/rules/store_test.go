@@ -98,6 +98,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		RuleType:      rules.RuleTypeBinary,
 		Identifier:    binaryIdentifier,
 		Name:          "Example",
+		Description:   "Example rule",
 		CustomMessage: "Blocked",
 		CustomURL:     "https://example.test",
 		Includes: []rules.RuleIncludeWrite{{
@@ -108,7 +109,8 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create rule: %v", err)
 	}
-	if rule.Identifier != binaryIdentifier || rule.Name != "Example" || rule.CustomMessage != "Blocked" ||
+	if rule.Identifier != binaryIdentifier || rule.Name != "Example" || rule.Description != "Example rule" ||
+		rule.CustomMessage != "Blocked" ||
 		rule.CustomURL != "https://example.test" {
 		t.Fatalf("rule = %+v, want persisted binary rule metadata", rule)
 	}
@@ -129,6 +131,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		RuleType:      rules.RuleTypeSigningID,
 		Identifier:    "ABCDE12345:com.example.updated",
 		Name:          "Updated",
+		Description:   "Updated rule",
 		CustomMessage: "Updated message",
 		Includes: []rules.RuleIncludeWrite{{
 			Policy:        rules.PolicyCEL,
@@ -142,6 +145,9 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 	if updated.RuleType != rules.RuleTypeSigningID || updated.Identifier != "ABCDE12345:com.example.updated" {
 		t.Fatalf("update identity = %s %q, want signing id update", updated.RuleType, updated.Identifier)
+	}
+	if updated.Description != "Updated rule" {
+		t.Fatalf("updated description = %q, want Updated rule", updated.Description)
 	}
 	if len(updated.Includes) != 1 || updated.Includes[0].CELExpression != celExpression {
 		t.Fatalf("updated include = %+v, want CEL expression", updated.Includes)
@@ -171,8 +177,9 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		t.Fatalf("set second label membership: %v", err)
 	}
 
-	effectiveRule, err := store.CreateRule(ctx, rules.RuleMutation{
+	hostRule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
+		Name:       "Scoped Binary",
 		Identifier: strings.Repeat("1", 64),
 		Includes: []rules.RuleIncludeWrite{
 			{Policy: rules.PolicyBlocklist, LabelID: firstLabelID},
@@ -180,7 +187,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("create effective rule: %v", err)
+		t.Fatalf("create host rule: %v", err)
 	}
 	excludedRule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:        rules.RuleTypeTeamID,
@@ -200,10 +207,11 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		t.Fatalf("resolve rules: %v", err)
 	}
 	if len(got) != 1 {
-		t.Fatalf("effective rules = %+v, want exactly one", got)
+		t.Fatalf("host rules = %+v, want exactly one", got)
 	}
-	if got[0].RuleID != effectiveRule.ID || got[0].Policy != rules.PolicySilentBlocklist {
-		t.Fatalf("effective rule = %+v, want second include to win", got[0])
+	if got[0].RuleID != hostRule.ID || got[0].Name != "Scoped Binary" ||
+		got[0].Policy != rules.PolicySilentBlocklist {
+		t.Fatalf("host rule = %+v, want second include to win", got[0])
 	}
 	if got[0].RuleID == excludedRule.ID {
 		t.Fatalf("excluded rule resolved: %+v", got[0])
@@ -238,11 +246,11 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 		t.Fatalf("resolve rules: %v", err)
 	}
 	if len(got) != 1 || got[0].RuleID != rule.ID {
-		t.Fatalf("effective rules = %+v, want all hosts rule", got)
+		t.Fatalf("host rules = %+v, want all hosts rule", got)
 	}
 }
 
-func TestBundleRuleExpandsToBinaryEffectiveRules(t *testing.T) {
+func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
@@ -317,14 +325,14 @@ func TestBundleRuleExpandsToBinaryEffectiveRules(t *testing.T) {
 		t.Fatalf("resolve rules: %v", err)
 	}
 	if len(got) != 2 {
-		t.Fatalf("effective rules = %+v, want two binary expansions", got)
+		t.Fatalf("host rules = %+v, want two binary expansions", got)
 	}
-	for _, effective := range got {
-		if effective.RuleID != rule.ID ||
-			effective.RuleType != rules.RuleTypeBinary ||
-			effective.Policy != rules.PolicyBlocklist ||
-			effective.AppName != "Bundle Rule App" {
-			t.Fatalf("expanded rule = %+v", effective)
+	for _, hostRule := range got {
+		if hostRule.RuleID != rule.ID ||
+			hostRule.RuleType != rules.RuleTypeBinary ||
+			hostRule.Policy != rules.PolicyBlocklist ||
+			hostRule.AppName != "Bundle Rule App" {
+			t.Fatalf("expanded rule = %+v", hostRule)
 		}
 	}
 	if got[0].Identifier != firstSHA || got[1].Identifier != secondSHA {

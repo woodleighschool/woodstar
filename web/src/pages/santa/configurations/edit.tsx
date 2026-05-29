@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateSantaConfiguration,
   useSantaConfiguration,
@@ -27,6 +28,7 @@ type MediaAction = "none" | "allow" | "block" | "remount";
 
 interface ConfigurationFormState {
   name: string;
+  description: string;
   client_mode: SantaConfigurationMutation["client_mode"];
   label_ids: number[];
   enable_bundles: boolean;
@@ -70,6 +72,7 @@ const configurationFormSchema = z.object({
 // so the backend never substitutes hidden defaults.
 const emptyConfigurationForm: ConfigurationFormState = {
   name: "",
+  description: "",
   client_mode: "monitor",
   label_ids: [],
   enable_bundles: false,
@@ -183,6 +186,15 @@ function ConfigurationForm({
               required
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-configuration-description">Description</FieldLabel>
+            <Textarea
+              id="santa-configuration-description"
+              rows={3}
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
           </Field>
           <Field>
@@ -421,6 +433,7 @@ function MediaActionField({
 function formFromConfiguration(configuration: SantaConfiguration): ConfigurationFormState {
   return {
     name: configuration.name,
+    description: configuration.description,
     client_mode: configuration.client_mode,
     label_ids: configuration.label_ids ?? [],
     enable_bundles: configuration.enable_bundles,
@@ -444,6 +457,7 @@ function formFromConfiguration(configuration: SantaConfiguration): Configuration
 function configurationBody(form: ConfigurationFormState): SantaConfigurationMutation {
   return {
     name: form.name.trim(),
+    description: optionalText(form.description),
     client_mode: form.client_mode,
     label_ids: form.label_ids,
     enable_bundles: form.enable_bundles,

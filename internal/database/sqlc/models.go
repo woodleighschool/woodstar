@@ -845,6 +845,7 @@ type SantaConfiguration struct {
 	EventDetailText                     string                     `json:"event_detail_text"`
 	CreatedAt                           time.Time                  `json:"created_at"`
 	UpdatedAt                           time.Time                  `json:"updated_at"`
+	Description                         string                     `json:"description"`
 }
 
 type SantaConfigurationLabel struct {
@@ -941,6 +942,7 @@ type SantaRule struct {
 	CustomURL     string        `json:"custom_url"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
+	Description   string        `json:"description"`
 }
 
 type SantaRuleExcludeLabel struct {

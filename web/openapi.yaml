@@ -355,6 +355,8 @@ components:
         created_at:
           format: date-time
           type: string
+        description:
+          type: string
         enable_all_event_upload:
           type: boolean
         enable_bundles:
@@ -393,6 +395,80 @@ components:
       required:
         - id
         - name
+        - description
+        - position
+        - client_mode
+        - enable_bundles
+        - enable_transitive_rules
+        - enable_all_event_upload
+        - full_sync_interval_seconds
+        - batch_size
+        - label_ids
+        - created_at
+        - updated_at
+      type: object
+    ConfigurationMatch:
+      additionalProperties: false
+      properties:
+        allowed_path_regex:
+          type: string
+        batch_size:
+          format: int32
+          type: integer
+        blocked_path_regex:
+          type: string
+        client_mode:
+          enum:
+            - monitor
+            - lockdown
+            - standalone
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        enable_all_event_upload:
+          type: boolean
+        enable_bundles:
+          type: boolean
+        enable_transitive_rules:
+          type: boolean
+        encrypted_removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        event_detail_text:
+          type: string
+        event_detail_url:
+          type: string
+        full_sync_interval_seconds:
+          format: int32
+          type: integer
+        id:
+          format: int64
+          type: integer
+        label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        matched_via_label:
+          $ref: "#/components/schemas/LabelMatch"
+        name:
+          type: string
+        position:
+          format: int32
+          type: integer
+        removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - description
         - position
         - client_mode
         - enable_bundles
@@ -428,6 +504,8 @@ components:
             - monitor
             - lockdown
             - standalone
+          type: string
+        description:
           type: string
         enable_all_event_upload:
           type: boolean
@@ -604,55 +682,6 @@ components:
       required:
         - items
         - count
-      type: object
-    EffectiveRuleStatus:
-      additionalProperties: false
-      properties:
-        applied:
-          type: boolean
-        cel_expression:
-          type: string
-        custom_message:
-          type: string
-        custom_url:
-          type: string
-        identifier:
-          type: string
-        matched_include_id:
-          format: int64
-          type: integer
-        notification_app_name:
-          type: string
-        payload_hash:
-          type: string
-        policy:
-          enum:
-            - allowlist
-            - allowlist_compiler
-            - blocklist
-            - silent_blocklist
-            - cel
-          type: string
-        rule_id:
-          format: int64
-          type: integer
-        rule_type:
-          enum:
-            - binary
-            - certificate
-            - teamid
-            - signingid
-            - cdhash
-            - bundle
-          type: string
-      required:
-        - applied
-        - payload_hash
-        - rule_id
-        - rule_type
-        - identifier
-        - policy
-        - matched_include_id
       type: object
     ErrorDetail:
       additionalProperties: false
@@ -1525,8 +1554,8 @@ components:
             - lockdown
             - standalone
           type: string
-        effective_configuration:
-          $ref: "#/components/schemas/ResolvedConfiguration"
+        configuration:
+          $ref: "#/components/schemas/ConfigurationMatch"
         last_sync_at:
           format: date-time
           type: string
@@ -2049,29 +2078,6 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyEffectiveRuleStatus:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PaginatedBodyEffectiveRuleStatus.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/EffectiveRuleStatus"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     PaginatedBodyExecutionEvent:
       additionalProperties: false
       properties:
@@ -2226,6 +2232,29 @@ components:
         items:
           items:
             $ref: "#/components/schemas/Rule"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PaginatedBodyRuleStatus:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PaginatedBodyRuleStatus.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/RuleStatus"
           type:
             - array
             - "null"
@@ -2476,76 +2505,6 @@ components:
         - query
         - label_scope
       type: object
-    ResolvedConfiguration:
-      additionalProperties: false
-      properties:
-        allowed_path_regex:
-          type: string
-        batch_size:
-          format: int32
-          type: integer
-        blocked_path_regex:
-          type: string
-        client_mode:
-          enum:
-            - monitor
-            - lockdown
-            - standalone
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        enable_all_event_upload:
-          type: boolean
-        enable_bundles:
-          type: boolean
-        enable_transitive_rules:
-          type: boolean
-        encrypted_removable_media_policy:
-          $ref: "#/components/schemas/RemovableMediaPolicy"
-        event_detail_text:
-          type: string
-        event_detail_url:
-          type: string
-        full_sync_interval_seconds:
-          format: int32
-          type: integer
-        id:
-          format: int64
-          type: integer
-        label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-        matched_via_label:
-          $ref: "#/components/schemas/LabelMatch"
-        name:
-          type: string
-        position:
-          format: int32
-          type: integer
-        removable_media_policy:
-          $ref: "#/components/schemas/RemovableMediaPolicy"
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - name
-        - position
-        - client_mode
-        - enable_bundles
-        - enable_transitive_rules
-        - enable_all_event_upload
-        - full_sync_interval_seconds
-        - batch_size
-        - label_ids
-        - created_at
-        - updated_at
-      type: object
     Rule:
       additionalProperties: false
       properties:
@@ -2562,6 +2521,8 @@ components:
         custom_message:
           type: string
         custom_url:
+          type: string
+        description:
           type: string
         exclude_label_ids:
           items:
@@ -2600,6 +2561,7 @@ components:
         - rule_type
         - identifier
         - name
+        - description
         - custom_message
         - custom_url
         - includes
@@ -2669,6 +2631,8 @@ components:
           type: string
         custom_url:
           type: string
+        description:
+          type: string
         exclude_label_ids:
           items:
             format: int64
@@ -2729,6 +2693,61 @@ components:
         - name
         - custom_message
         - custom_url
+      type: object
+    RuleStatus:
+      additionalProperties: false
+      properties:
+        applied:
+          type: boolean
+        cel_expression:
+          type: string
+        custom_message:
+          type: string
+        custom_url:
+          type: string
+        description:
+          type: string
+        identifier:
+          type: string
+        matched_include_id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        notification_app_name:
+          type: string
+        payload_hash:
+          type: string
+        policy:
+          enum:
+            - allowlist
+            - allowlist_compiler
+            - blocklist
+            - silent_blocklist
+            - cel
+          type: string
+        rule_id:
+          format: int64
+          type: integer
+        rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
+            - bundle
+          type: string
+      required:
+        - applied
+        - payload_hash
+        - rule_id
+        - rule_type
+        - identifier
+        - name
+        - description
+        - policy
+        - matched_include_id
       type: object
     RuleSyncSummary:
       additionalProperties: false
@@ -4232,9 +4251,9 @@ paths:
       tags:
         - Reports
         - Hosts
-  /api/hosts/{id}/santa/effective-rules:
+  /api/hosts/{id}/santa/rules:
     get:
-      operationId: list-host-santa-effective-rules
+      operationId: list-host-santa-rules
       parameters:
         - in: path
           name: id
@@ -4274,7 +4293,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyEffectiveRuleStatus"
+                $ref: "#/components/schemas/PaginatedBodyRuleStatus"
           description: OK
         "400":
           content:
@@ -4306,7 +4325,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List effective Santa rules for a host
+      summary: List Santa rules for a host
       tags:
         - Hosts
   /api/hosts/{id}/software:

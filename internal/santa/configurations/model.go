@@ -89,6 +89,7 @@ func (p RemovableMediaPolicy) IsZero() bool {
 // explicit value; the backend validates but does not substitute defaults.
 type ConfigurationMutation struct {
 	Name                          string               `json:"name"`
+	Description                   string               `json:"description,omitempty"`
 	ClientMode                    ClientMode           `json:"client_mode"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
 	EnableTransitiveRules         bool                 `json:"enable_transitive_rules"`
@@ -107,6 +108,7 @@ type ConfigurationMutation struct {
 type Configuration struct {
 	ID                            int64                `json:"id"`
 	Name                          string               `json:"name"`
+	Description                   string               `json:"description"`
 	Position                      int32                `json:"position"`
 	ClientMode                    ClientMode           `json:"client_mode"`
 	EnableBundles                 bool                 `json:"enable_bundles"`
@@ -125,7 +127,7 @@ type Configuration struct {
 	UpdatedAt                     time.Time            `json:"updated_at"`
 }
 
-type ResolvedConfiguration struct {
+type ConfigurationMatch struct {
 	Configuration
 	MatchedViaLabel *LabelMatch `json:"matched_via_label,omitempty"`
 }

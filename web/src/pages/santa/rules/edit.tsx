@@ -59,6 +59,7 @@ const ruleFormSchema = z
     rule_type: z.enum(RULE_TYPE_VALUES),
     identifier: z.string().trim(),
     name: z.string().trim(),
+    description: z.string().trim(),
     custom_message: z.string().trim(),
     custom_url: z.string().trim(),
     exclude_label_ids: z.array(z.number().int().positive()),
@@ -103,6 +104,7 @@ interface RuleFormState {
   rule_type: RuleType;
   identifier: string;
   name: string;
+  description: string;
   custom_message: string;
   custom_url: string;
   exclude_label_ids: number[];
@@ -113,6 +115,7 @@ const emptyRuleForm: RuleFormState = {
   rule_type: "binary",
   identifier: "",
   name: "",
+  description: "",
   custom_message: "",
   custom_url: "",
   exclude_label_ids: [],
@@ -208,6 +211,15 @@ function RuleForm({
               id="santa-rule-name"
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="santa-rule-description">Description</FieldLabel>
+            <Textarea
+              id="santa-rule-description"
+              rows={3}
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
           </Field>
           <Field>
@@ -644,6 +656,7 @@ function formFromSearch(search: Record<string, unknown>): RuleFormState {
     rule_type: ruleType,
     identifier: typeof search.identifier === "string" ? search.identifier : "",
     name: typeof search.name === "string" ? search.name : "",
+    description: "",
   };
 }
 
@@ -656,6 +669,7 @@ function formFromRule(rule: SantaRule): RuleFormState {
     rule_type: rule.rule_type,
     identifier: rule.identifier,
     name: rule.name,
+    description: rule.description,
     custom_message: rule.custom_message,
     custom_url: rule.custom_url,
     exclude_label_ids: rule.exclude_label_ids ?? [],
@@ -673,6 +687,7 @@ function ruleBody(form: RuleFormState): SantaRuleMutation {
     rule_type: form.rule_type,
     identifier: form.identifier.trim(),
     name: optionalText(form.name),
+    description: optionalText(form.description),
     custom_message: optionalText(form.custom_message),
     custom_url: optionalText(form.custom_url),
     exclude_label_ids: form.exclude_label_ids,

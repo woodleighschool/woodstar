@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2, MoreHorizontal, UserPlus, Users } from "lucide-react";
+import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import { MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
-import { DataTableEmptyState } from "@/components/data-table";
+import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EnumBadge } from "@/components/ui/enum-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
 import { USER_ROLES } from "@/components/users/user-role";
@@ -23,6 +23,8 @@ import { useUsers, type User } from "@/hooks/use-users";
 import { formatRelative } from "@/lib/utils";
 
 const INITIAL_USER_ID = 1;
+const USERS_TABLE_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 100 };
+const USERS_TABLE_SORTING: SortingState = [];
 
 export function UsersPage() {
   const query = useUsers();
@@ -67,6 +69,57 @@ interface UsersTableProps {
 }
 
 function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
+  const data = query.data ?? [];
+  const columns: ColumnDef<User>[] = [
+    {
+      id: "name",
+      accessorKey: "name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+      cell: ({ row }) => row.original.name || row.original.email,
+    },
+    {
+      id: "email",
+      accessorKey: "email",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
+      cell: ({ row }) => {
+        const isSelf = row.original.id === currentUserId;
+        const isInitial = row.original.id === INITIAL_USER_ID;
+        return (
+          <>
+            {row.original.email}
+            {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
+            {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
+          </>
+        );
+      },
+    },
+    {
+      id: "role",
+      accessorKey: "role",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
+      cell: ({ row }) => <EnumBadge value={row.original.role} metadata={USER_ROLES} />,
+    },
+    {
+      id: "created_at",
+      accessorKey: "created_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
+      cell: ({ row }) => (
+        <span title={new Date(row.original.created_at).toLocaleString()}>
+          {formatRelative(row.original.created_at)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => null,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <UserRowActions user={row.original} isSelf={row.original.id === currentUserId} onDelete={onDelete} />
+      ),
+      meta: { headClassName: "w-12" },
+    },
+  ];
+
   if (query.error) {
     return (
       <Alert variant="destructive">
@@ -79,83 +132,57 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
     );
   }
 
-  if (query.isLoading) {
-    return (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Loader2 className="size-4 animate-spin" /> Loading...
-      </div>
-    );
-  }
+  return (
+    <DataTable
+      columns={columns}
+      data={data}
+      totalCount={data.length}
+      pagination={USERS_TABLE_PAGINATION}
+      sorting={USERS_TABLE_SORTING}
+      onPaginationChange={() => undefined}
+      onSortingChange={() => undefined}
+      isLoading={query.isLoading}
+      clientSort
+      rowHref={(row) =>
+        row.id === currentUserId
+          ? { to: "/account" }
+          : { to: "/users/$userId/edit", params: { userId: String(row.id) } }
+      }
+      empty={<DataTableEmptyState icon={<Users />} title="No Account Access" description="Create a local account." />}
+    />
+  );
+}
 
-  const data = query.data ?? [];
-  if (data.length === 0) {
-    return <DataTableEmptyState icon={<Users />} title="No Account Access" description="Create a local account." />;
-  }
+function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolean; onDelete: (user: User) => void }) {
+  const isInitial = user.id === INITIAL_USER_ID;
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead className="w-12" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row) => {
-            const isSelf = row.id === currentUserId;
-            const isInitial = row.id === INITIAL_USER_ID;
-            return (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium">{row.name || row.email}</TableCell>
-                <TableCell>
-                  {row.email}
-                  {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
-                  {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
-                </TableCell>
-                <TableCell>
-                  <EnumBadge value={row.role} metadata={USER_ROLES} />
-                </TableCell>
-                <TableCell title={new Date(row.created_at).toLocaleString()}>
-                  {formatRelative(row.created_at)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button type="button" size="icon" variant="ghost">
-                        <MoreHorizontal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuGroup>
-                        {isSelf ? (
-                          <DropdownMenuItem asChild>
-                            <Link to="/account">Edit</Link>
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem asChild>
-                            <Link to="/users/$userId/edit" params={{ userId: String(row.id) }}>
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        {!isSelf && !isInitial ? (
-                          <DropdownMenuItem variant="destructive" onSelect={() => onDelete(row)}>
-                            Delete
-                          </DropdownMenuItem>
-                        ) : null}
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" size="icon" variant="ghost">
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          {isSelf ? (
+            <DropdownMenuItem asChild>
+              <Link to="/account">Edit</Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem asChild>
+              <Link to="/users/$userId/edit" params={{ userId: String(user.id) }}>
+                Edit
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {!isSelf && !isInitial ? (
+            <DropdownMenuItem variant="destructive" onSelect={() => onDelete(user)}>
+              Delete
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

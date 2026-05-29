@@ -180,7 +180,7 @@ func (s *Store) ReorderConfigurations(ctx context.Context, orderedIDs []int64) e
 	})
 }
 
-func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ResolvedConfiguration, error) {
+func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (*ConfigurationMatch, error) {
 	record, err := s.q.ResolveSantaConfigurationForHost(
 		ctx,
 		sqlc.ResolveSantaConfigurationForHostParams{HostID: hostID},
@@ -191,7 +191,7 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 	if err != nil {
 		return nil, err
 	}
-	return &ResolvedConfiguration{
+	return &ConfigurationMatch{
 		Configuration:   *configurationFromSQLC(record.SantaConfiguration),
 		MatchedViaLabel: &LabelMatch{ID: record.LabelID, Name: record.LabelName},
 	}, nil
@@ -326,6 +326,7 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
 			c.name ILIKE ` + search + `
+			OR c.description ILIKE ` + search + `
 			OR c.position::text ILIKE ` + search + `
 			OR c.client_mode::text ILIKE ` + search + `
 			OR c.allowed_path_regex ILIKE ` + search + `
@@ -354,9 +355,10 @@ func configurationListSQL(
 
 func configurationOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"name":       {SQL: "lower(c.name)"},
-		"position":   {SQL: "c.position"},
-		"updated_at": {SQL: "c.updated_at"},
+		"name":        {SQL: "lower(c.name)"},
+		"description": {SQL: "lower(c.description)"},
+		"position":    {SQL: "c.position"},
+		"updated_at":  {SQL: "c.updated_at"},
 	}
 }
 
@@ -367,6 +369,7 @@ func createConfigurationParams(configuration ConfigurationMutation) sqlc.CreateS
 	)
 	return sqlc.CreateSantaConfigurationParams{
 		Name:                                configuration.Name,
+		Description:                         configuration.Description,
 		ClientMode:                          sqlc.SantaClientMode(configuration.ClientMode),
 		EnableBundles:                       configuration.EnableBundles,
 		EnableTransitiveRules:               configuration.EnableTransitiveRules,
@@ -388,6 +391,7 @@ func updateConfigurationParams(id int64, configuration ConfigurationMutation) sq
 	params := createConfigurationParams(configuration)
 	return sqlc.UpdateSantaConfigurationParams{
 		Name:                                params.Name,
+		Description:                         params.Description,
 		ClientMode:                          params.ClientMode,
 		EnableBundles:                       params.EnableBundles,
 		EnableTransitiveRules:               params.EnableTransitiveRules,
@@ -410,6 +414,7 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
 	return &Configuration{
 		ID:                      row.ID,
 		Name:                    row.Name,
+		Description:             row.Description,
 		Position:                row.Position,
 		ClientMode:              ClientMode(row.ClientMode),
 		EnableBundles:           row.EnableBundles,
@@ -456,6 +461,7 @@ const configurationSelectSQL = `
 SELECT
 	c.id,
 	c.name,
+	c.description,
 	c.position,
 	c.client_mode,
 	c.enable_bundles,

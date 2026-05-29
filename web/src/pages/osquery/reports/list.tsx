@@ -50,14 +50,7 @@ export function ReportsPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="grid gap-1">
-          <span className="font-medium">{row.original.name}</span>
-          {row.original.description ? (
-            <span className="text-muted-foreground line-clamp-2 text-xs">{row.original.description}</span>
-          ) : null}
-        </div>
-      ),
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
       id: "schedule_interval",

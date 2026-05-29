@@ -41,6 +41,7 @@ ON CONFLICT (host_id) DO UPDATE SET
 -- name: CreateSantaConfiguration :one
 INSERT INTO santa_configurations (
     name,
+    description,
     position,
     client_mode,
     enable_bundles,
@@ -59,6 +60,7 @@ INSERT INTO santa_configurations (
 )
 VALUES (
     @name,
+    @description,
     (SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
     @client_mode::santa_client_mode,
     @enable_bundles,
@@ -86,6 +88,7 @@ WHERE id = @id;
 UPDATE santa_configurations
 SET
     name = @name,
+    description = @description,
     client_mode = @client_mode::santa_client_mode,
     enable_bundles = @enable_bundles,
     enable_transitive_rules = @enable_transitive_rules,
@@ -119,6 +122,7 @@ INSERT INTO santa_rules (
     rule_type,
     identifier,
     name,
+    description,
     custom_message,
     custom_url
 )
@@ -126,6 +130,7 @@ VALUES (
     @rule_type::santa_rule_type,
     @identifier,
     @name,
+    @description,
     @custom_message,
     @custom_url
 )
@@ -142,6 +147,7 @@ SET
     rule_type = @rule_type::santa_rule_type,
     identifier = @identifier,
     name = @name,
+    description = @description,
     custom_message = @custom_message,
     custom_url = @custom_url,
     updated_at = now()
@@ -257,7 +263,7 @@ UPDATE santa_rule_includes
 SET position = -position - 1
 WHERE rule_id = @rule_id;
 
--- name: CountEffectiveSantaRulesForHost :one
+-- name: CountSantaRulesForHost :one
 WITH host_labels AS (
     SELECT label_id
     FROM label_membership
@@ -268,6 +274,8 @@ matching_includes AS (
         r.id AS rule_id,
         r.rule_type,
         r.identifier,
+        r.name,
+        r.description,
         i.policy,
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
@@ -303,6 +311,8 @@ expanded_rules AS (
         rule_id,
         rule_type,
         identifier,
+        name,
+        description,
         policy,
         cel_expression,
         custom_message,
@@ -317,6 +327,8 @@ expanded_rules AS (
         si.rule_id,
         'binary'::santa_rule_type AS rule_type,
         e.sha256 AS identifier,
+        si.name,
+        si.description,
         si.policy,
         si.cel_expression,
         si.custom_message,
@@ -334,7 +346,7 @@ expanded_rules AS (
 SELECT count(*)::integer
 FROM expanded_rules;
 
--- name: ListEffectiveSantaRulesForHost :many
+-- name: ListSantaRulesForHost :many
 WITH host_labels AS (
     SELECT label_id
     FROM label_membership
@@ -345,6 +357,8 @@ matching_includes AS (
         r.id AS rule_id,
         r.rule_type,
         r.identifier,
+        r.name,
+        r.description,
         i.policy,
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
@@ -380,6 +394,8 @@ expanded_rules AS (
         rule_id,
         rule_type,
         identifier,
+        name,
+        description,
         policy,
         cel_expression,
         custom_message,
@@ -394,6 +410,8 @@ expanded_rules AS (
         si.rule_id,
         'binary'::santa_rule_type AS rule_type,
         e.sha256 AS identifier,
+        si.name,
+        si.description,
         si.policy,
         si.cel_expression,
         si.custom_message,
@@ -412,6 +430,8 @@ SELECT
     rule_id,
     rule_type::text,
     identifier,
+    name,
+    description,
     policy::text,
     cel_expression,
     custom_message,
@@ -422,7 +442,7 @@ SELECT
 FROM expanded_rules
 ORDER BY rule_type_sort, identifier, rule_id;
 
--- name: ListEffectiveSantaRulesForHostPage :many
+-- name: ListSantaRulesForHostPage :many
 WITH host_labels AS (
     SELECT label_id
     FROM label_membership
@@ -433,6 +453,8 @@ matching_includes AS (
         r.id AS rule_id,
         r.rule_type,
         r.identifier,
+        r.name,
+        r.description,
         i.policy,
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
@@ -468,6 +490,8 @@ expanded_rules AS (
         rule_id,
         rule_type,
         identifier,
+        name,
+        description,
         policy,
         cel_expression,
         custom_message,
@@ -482,6 +506,8 @@ expanded_rules AS (
         si.rule_id,
         'binary'::santa_rule_type AS rule_type,
         e.sha256 AS identifier,
+        si.name,
+        si.description,
         si.policy,
         si.cel_expression,
         si.custom_message,
@@ -500,6 +526,8 @@ SELECT
     rule_id,
     rule_type::text,
     identifier,
+    name,
+    description,
     policy::text,
     cel_expression,
     custom_message,

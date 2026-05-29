@@ -65,6 +65,7 @@ type RuleMutation struct {
 	RuleType        RuleType           `json:"rule_type"`
 	Identifier      string             `json:"identifier"`
 	Name            string             `json:"name,omitempty"`
+	Description     string             `json:"description,omitempty"`
 	CustomMessage   string             `json:"custom_message,omitempty"`
 	CustomURL       string             `json:"custom_url,omitempty"`
 	Includes        []RuleIncludeWrite `json:"includes,omitempty"`
@@ -82,6 +83,7 @@ type Rule struct {
 	RuleType        RuleType      `json:"rule_type"`
 	Identifier      string        `json:"identifier"`
 	Name            string        `json:"name"`
+	Description     string        `json:"description"`
 	CustomMessage   string        `json:"custom_message"`
 	CustomURL       string        `json:"custom_url"`
 	Includes        []RuleInclude `json:"includes"`
@@ -98,10 +100,12 @@ type RuleInclude struct {
 	LabelID       int64  `json:"label_id"`
 }
 
-type EffectiveRule struct {
+type HostRule struct {
 	RuleID           int64    `json:"rule_id"`
 	RuleType         RuleType `json:"rule_type"`
 	Identifier       string   `json:"identifier"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
 	Policy           Policy   `json:"policy"`
 	CELExpression    string   `json:"cel_expression,omitempty"`
 	CustomMessage    string   `json:"custom_message,omitempty"`
@@ -110,13 +114,13 @@ type EffectiveRule struct {
 	MatchedIncludeID int64    `json:"matched_include_id"`
 }
 
-type EffectiveRuleStatus struct {
-	EffectiveRule
+type RuleStatus struct {
+	HostRule
 	Applied     bool   `json:"applied"`
 	PayloadHash string `json:"payload_hash"`
 }
 
-type EffectiveRuleListParams struct {
+type RuleStatusListParams struct {
 	dbutil.ListParams
 }
 

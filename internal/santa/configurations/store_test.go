@@ -55,6 +55,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	}
 
 	create := baseline("Baseline")
+	create.Description = "Baseline policy"
 	create.ClientMode = configurations.ClientModeLockdown
 	create.EnableBundles = true
 	create.FullSyncIntervalSeconds = 120
@@ -68,7 +69,8 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}
-	if config.Name != "Baseline" || config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
+	if config.Name != "Baseline" || config.Description != "Baseline policy" ||
+		config.Position != 0 || config.ClientMode != configurations.ClientModeLockdown {
 		t.Fatalf("configuration = %+v, want baseline lockdown policy", config)
 	}
 	if !config.EnableBundles || len(config.RemovableMediaPolicy.RemountFlags) != 2 {
@@ -91,12 +93,14 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	}
 
 	update := baseline("Updated")
+	update.Description = "Updated policy"
 	update.LabelIDs = []int64{secondLabelID}
 	updated, err := store.UpdateConfiguration(ctx, config.ID, update)
 	if err != nil {
 		t.Fatalf("update configuration: %v", err)
 	}
-	if updated.Name != "Updated" || updated.ClientMode != configurations.ClientModeMonitor {
+	if updated.Name != "Updated" || updated.Description != "Updated policy" ||
+		updated.ClientMode != configurations.ClientModeMonitor {
 		t.Fatalf("updated configuration = %+v", updated)
 	}
 	if updated.EnableBundles || !updated.RemovableMediaPolicy.IsZero() {

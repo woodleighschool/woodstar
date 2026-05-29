@@ -322,14 +322,14 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 
 	var body struct {
 		Santa *struct {
-			Version                string `json:"version"`
-			ClientModeReported     string `json:"client_mode_reported"`
-			EffectiveConfiguration *struct {
+			Version            string `json:"version"`
+			ClientModeReported string `json:"client_mode_reported"`
+			Configuration      *struct {
 				ID              int64 `json:"id"`
 				MatchedViaLabel *struct {
 					ID int64 `json:"id"`
 				} `json:"matched_via_label"`
-			} `json:"effective_configuration"`
+			} `json:"configuration"`
 		} `json:"santa"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -341,12 +341,12 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 	if body.Santa.Version != "2026.2" || body.Santa.ClientModeReported != "lockdown" {
 		t.Fatalf("santa observation = %+v", body.Santa)
 	}
-	if body.Santa.EffectiveConfiguration == nil ||
-		body.Santa.EffectiveConfiguration.ID != configuration.ID ||
-		body.Santa.EffectiveConfiguration.MatchedViaLabel == nil ||
-		body.Santa.EffectiveConfiguration.MatchedViaLabel.ID != label.ID {
-		t.Fatalf("effective configuration = %+v, want id=%d via label=%d",
-			body.Santa.EffectiveConfiguration, configuration.ID, label.ID)
+	if body.Santa.Configuration == nil ||
+		body.Santa.Configuration.ID != configuration.ID ||
+		body.Santa.Configuration.MatchedViaLabel == nil ||
+		body.Santa.Configuration.MatchedViaLabel.ID != label.ID {
+		t.Fatalf("configuration = %+v, want id=%d via label=%d",
+			body.Santa.Configuration, configuration.ID, label.ID)
 	}
 }
 

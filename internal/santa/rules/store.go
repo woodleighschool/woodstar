@@ -14,7 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 )
 
-// Store persists Santa rule definitions and resolves effective rule state.
+// Store persists Santa rule definitions and resolves host rule state.
 type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
@@ -126,6 +126,7 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 			RuleType:      sqlc.SantaRuleType(params.RuleType),
 			Identifier:    params.Identifier,
 			Name:          params.Name,
+			Description:   params.Description,
 			CustomMessage: params.CustomMessage,
 			CustomURL:     params.CustomURL,
 		})
@@ -160,6 +161,7 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 			RuleType:      sqlc.SantaRuleType(params.RuleType),
 			Identifier:    params.Identifier,
 			Name:          params.Name,
+			Description:   params.Description,
 			CustomMessage: params.CustomMessage,
 			CustomURL:     params.CustomURL,
 			ID:            id,
@@ -232,38 +234,38 @@ func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIn
 	})
 }
 
-func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]EffectiveRule, error) {
-	rows, err := s.q.ListEffectiveSantaRulesForHost(ctx, sqlc.ListEffectiveSantaRulesForHostParams{HostID: hostID})
+func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRule, error) {
+	rows, err := s.q.ListSantaRulesForHost(ctx, sqlc.ListSantaRulesForHostParams{HostID: hostID})
 	if err != nil {
 		return nil, err
 	}
-	rules := make([]EffectiveRule, len(rows))
+	rules := make([]HostRule, len(rows))
 	for i, row := range rows {
-		rules[i] = effectiveRuleFromSQLC(row)
+		rules[i] = hostRuleFromSQLC(row)
 	}
 	return rules, nil
 }
 
-func (s *Store) ListEffectiveRulesForHost(
+func (s *Store) ListRuleStatusesForHost(
 	ctx context.Context,
 	hostID int64,
-	params EffectiveRuleListParams,
-) ([]EffectiveRuleStatus, int, error) {
+	params RuleStatusListParams,
+) ([]RuleStatus, int, error) {
 	if params.PageSize <= 0 {
 		params.PageSize = 100
 	}
 
-	count, err := s.q.CountEffectiveSantaRulesForHost(
+	count, err := s.q.CountSantaRulesForHost(
 		ctx,
-		sqlc.CountEffectiveSantaRulesForHostParams{HostID: hostID},
+		sqlc.CountSantaRulesForHostParams{HostID: hostID},
 	)
 	if err != nil {
 		return nil, 0, err
 	}
 	offset := params.PageIndex * params.PageSize
-	rows, err := s.q.ListEffectiveSantaRulesForHostPage(
+	rows, err := s.q.ListSantaRulesForHostPage(
 		ctx,
-		sqlc.ListEffectiveSantaRulesForHostPageParams{
+		sqlc.ListSantaRulesForHostPageParams{
 			HostID:      hostID,
 			LimitCount:  int32(params.PageSize),
 			OffsetCount: int32(offset),
@@ -272,9 +274,9 @@ func (s *Store) ListEffectiveRulesForHost(
 	if err != nil {
 		return nil, 0, err
 	}
-	rules := make([]EffectiveRule, len(rows))
+	rules := make([]HostRule, len(rows))
 	for i, row := range rows {
-		rules[i] = effectiveRuleFromPageSQLC(row)
+		rules[i] = hostRuleFromPageSQLC(row)
 	}
 
 	targets := SyncTargetsFromRules(rules)
@@ -283,14 +285,14 @@ func (s *Store) ListEffectiveRulesForHost(
 		return nil, 0, err
 	}
 
-	statuses := make([]EffectiveRuleStatus, 0, len(rules))
+	statuses := make([]RuleStatus, 0, len(rules))
 	for i, rule := range rules {
 		target := targets[i]
 		appliedRule := applied[syncTargetKey(target)]
-		statuses = append(statuses, EffectiveRuleStatus{
-			EffectiveRule: rule,
-			Applied:       appliedRule,
-			PayloadHash:   target.PayloadHash,
+		statuses = append(statuses, RuleStatus{
+			HostRule:    rule,
+			Applied:     appliedRule,
+			PayloadHash: target.PayloadHash,
 		})
 	}
 
@@ -497,7 +499,11 @@ func ruleListWhere(params RuleListParams) (string, []any, error) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
-		where.Add("(identifier ILIKE " + search + " OR name ILIKE " + search + ")")
+		where.Add(`(
+			identifier ILIKE ` + search + `
+			OR name ILIKE ` + search + `
+			OR description ILIKE ` + search + `
+		)`)
 	}
 	if params.RuleType != "" {
 		where.Add("rule_type = " + where.Arg(params.RuleType))
@@ -519,10 +525,11 @@ func ruleListSQL(params RuleListParams, where string, args []any) (string, []any
 
 func ruleOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"rule_type":  {SQL: "rule_type_sort"},
-		"identifier": {SQL: "identifier"},
-		"name":       {SQL: "lower(name)"},
-		"updated_at": {SQL: "updated_at"},
+		"rule_type":   {SQL: "rule_type_sort"},
+		"identifier":  {SQL: "identifier"},
+		"name":        {SQL: "lower(name)"},
+		"description": {SQL: "lower(description)"},
+		"updated_at":  {SQL: "updated_at"},
 	}
 }
 
@@ -533,6 +540,7 @@ func scanRule(row pgx.Row) (Rule, error) {
 		&rule.RuleType,
 		&rule.Identifier,
 		&rule.Name,
+		&rule.Description,
 		&rule.CustomMessage,
 		&rule.CustomURL,
 		&rule.CreatedAt,
@@ -562,6 +570,7 @@ func ruleFromSQLC(row sqlc.SantaRule) Rule {
 		RuleType:      RuleType(row.RuleType),
 		Identifier:    row.Identifier,
 		Name:          row.Name,
+		Description:   row.Description,
 		CustomMessage: row.CustomMessage,
 		CustomURL:     row.CustomURL,
 		CreatedAt:     row.CreatedAt,
@@ -569,11 +578,13 @@ func ruleFromSQLC(row sqlc.SantaRule) Rule {
 	}
 }
 
-func effectiveRuleFromSQLC(row sqlc.ListEffectiveSantaRulesForHostRow) EffectiveRule {
-	return EffectiveRule{
+func hostRuleFromSQLC(row sqlc.ListSantaRulesForHostRow) HostRule {
+	return HostRule{
 		RuleID:           row.RuleID,
 		RuleType:         RuleType(row.RuleType),
 		Identifier:       row.Identifier,
+		Name:             row.Name,
+		Description:      row.Description,
 		Policy:           Policy(row.Policy),
 		CELExpression:    row.CelExpression,
 		CustomMessage:    row.CustomMessage,
@@ -583,11 +594,13 @@ func effectiveRuleFromSQLC(row sqlc.ListEffectiveSantaRulesForHostRow) Effective
 	}
 }
 
-func effectiveRuleFromPageSQLC(row sqlc.ListEffectiveSantaRulesForHostPageRow) EffectiveRule {
-	return EffectiveRule{
+func hostRuleFromPageSQLC(row sqlc.ListSantaRulesForHostPageRow) HostRule {
+	return HostRule{
 		RuleID:           row.RuleID,
 		RuleType:         RuleType(row.RuleType),
 		Identifier:       row.Identifier,
+		Name:             row.Name,
+		Description:      row.Description,
 		Policy:           Policy(row.Policy),
 		CELExpression:    row.CelExpression,
 		CustomMessage:    row.CustomMessage,
@@ -597,8 +610,8 @@ func effectiveRuleFromPageSQLC(row sqlc.ListEffectiveSantaRulesForHostPageRow) E
 	}
 }
 
-// SyncTargetsFromRules returns Santa sync payload targets for effective rules.
-func SyncTargetsFromRules(rules []EffectiveRule) []syncstate.Target {
+// SyncTargetsFromRules returns Santa sync payload targets for host rules.
+func SyncTargetsFromRules(rules []HostRule) []syncstate.Target {
 	targets := make([]syncstate.Target, 0, len(rules))
 	for _, rule := range rules {
 		target := syncstate.Target{
@@ -661,6 +674,7 @@ SELECT
 	rule_type::text,
 	identifier,
 	name,
+	description,
 	custom_message,
 	custom_url,
 	created_at,

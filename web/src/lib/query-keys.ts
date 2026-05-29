@@ -9,8 +9,7 @@ export const queryKeys = {
   hostSoftware: (id: number | null, params?: unknown) => ["hosts", id, "software", params ?? {}] as const,
   hostReports: (id: number | null) => ["hosts", id, "reports"] as const,
   hostChecks: (id: number | null) => ["hosts", id, "checks"] as const,
-  hostSantaEffectiveRules: (id: number | null, params?: unknown) =>
-    ["hosts", id, "santa", "effective-rules", params ?? {}] as const,
+  hostSantaRules: (id: number | null, params?: unknown) => ["hosts", id, "santa", "rules", params ?? {}] as const,
   labels: (params?: unknown) => ["labels", params ?? {}] as const,
   label: (id: number | null) => ["labels", id] as const,
   directoryUsers: (params?: unknown) => ["directory", "users", params ?? {}] as const,

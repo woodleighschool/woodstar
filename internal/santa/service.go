@@ -41,7 +41,7 @@ type deviceMappingStore interface {
 }
 
 type configurationResolver interface {
-	ResolveConfigurationForHost(context.Context, int64) (*configurations.ResolvedConfiguration, error)
+	ResolveConfigurationForHost(context.Context, int64) (*configurations.ConfigurationMatch, error)
 }
 
 type eventStore interface {
@@ -54,7 +54,7 @@ type eventStore interface {
 }
 
 type ruleStore interface {
-	ResolveRulesForHost(context.Context, int64) ([]santarules.EffectiveRule, error)
+	ResolveRulesForHost(context.Context, int64) ([]santarules.HostRule, error)
 }
 
 type syncStore interface {
@@ -104,11 +104,11 @@ func (s *Service) Preflight(
 		}
 	}
 
-	effectiveRules, err := s.rules.ResolveRulesForHost(ctx, hostID)
+	rules, err := s.rules.ResolveRulesForHost(ctx, hostID)
 	if err != nil {
 		return PreflightResponse{}, err
 	}
-	targets := santarules.SyncTargetsFromRules(effectiveRules)
+	targets := santarules.SyncTargetsFromRules(rules)
 	syncType, err := s.sync.PreparePending(
 		ctx,
 		hostID,

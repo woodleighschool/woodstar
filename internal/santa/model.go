@@ -23,11 +23,11 @@ type HostObservation struct {
 
 // HostState is the Santa sub-object attached to host detail responses.
 type HostState struct {
-	Version                string                                `json:"version"`
-	ClientModeReported     configurations.ReportedClientMode     `json:"client_mode_reported"`
-	LastSyncAt             *time.Time                            `json:"last_sync_at,omitempty"`
-	EffectiveConfiguration *configurations.ResolvedConfiguration `json:"effective_configuration,omitempty"`
-	RuleSync               RuleSyncSummary                       `json:"rule_sync"`
+	Version            string                             `json:"version"`
+	ClientModeReported configurations.ReportedClientMode  `json:"client_mode_reported"`
+	LastSyncAt         *time.Time                         `json:"last_sync_at,omitempty"`
+	Configuration      *configurations.ConfigurationMatch `json:"configuration,omitempty"`
+	RuleSync           RuleSyncSummary                    `json:"rule_sync"`
 }
 
 type RuleSyncSummary struct {

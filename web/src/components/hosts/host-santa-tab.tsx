@@ -6,13 +6,12 @@ import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/compone
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EnumBadge } from "@/components/ui/enum-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useHostSantaEffectiveRules, type HostDetail, type HostSantaEffectiveRule } from "@/hooks/use-hosts";
+import { useHostSantaRules, type HostDetail, type HostSantaRule } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
 import { clientModeLabel } from "@/pages/santa/configurations/shared";
-import { POLICIES, policyLabel, ruleTypeLabel } from "@/pages/santa/rules/shared";
+import { policyLabel, ruleTypeLabel } from "@/pages/santa/rules/shared";
 
 const HOST_SANTA_RULES_PAGE_SIZE = 25;
 
@@ -22,51 +21,50 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
     pageSize: HOST_SANTA_RULES_PAGE_SIZE,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
-  const rules = useHostSantaEffectiveRules(hostId, tableQueryParams({ pagination, sorting }));
+  const rules = useHostSantaRules(hostId, tableQueryParams({ pagination, sorting }));
   const santa = host.santa;
   const items = rules.data?.items ?? [];
   const totalCount = rules.data?.count ?? 0;
-  const matchedLabelName = santa?.effective_configuration?.matched_via_label?.name;
+  const matchedLabelName = santa?.configuration?.matched_via_label?.name;
 
-  const configurationValue = santa?.effective_configuration?.name ? (
+  const configurationValue = santa?.configuration?.name ? (
     matchedLabelName ? (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span>{santa.effective_configuration.name}</span>
+          <span>{santa.configuration.name}</span>
         </TooltipTrigger>
         <TooltipContent>
           <div>{`Matched via label: ${matchedLabelName}`}</div>
         </TooltipContent>
       </Tooltip>
     ) : (
-      santa.effective_configuration.name
+      santa.configuration.name
     )
   ) : (
     "-"
   );
 
-  const columns = useMemo<ColumnDef<HostSantaEffectiveRule>[]>(
+  const columns = useMemo<ColumnDef<HostSantaRule>[]>(
     () => [
       {
+        accessorKey: "name",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
+        cell: ({ row }) => row.original.name || "-",
+      },
+      {
         accessorKey: "identifier",
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Rule" />,
-        cell: ({ row }) => (
-          <div className="grid gap-1">
-            <span className="font-medium">{row.original.identifier}</span>
-            <span className="text-muted-foreground text-xs">{ruleTypeLabel(row.original.rule_type)}</span>
-          </div>
-        ),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
+        cell: ({ row }) => <span className="block max-w-96 truncate">{row.original.identifier}</span>,
+      },
+      {
+        accessorKey: "rule_type",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+        cell: ({ row }) => ruleTypeLabel(row.original.rule_type),
       },
       {
         accessorKey: "policy",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Policy" />,
-        cell: ({ row }) => (
-          <EnumBadge
-            value={row.original.policy}
-            metadata={POLICIES}
-            fallback={{ name: policyLabel(row.original.policy) }}
-          />
-        ),
+        cell: ({ row }) => policyLabel(row.original.policy),
       },
       {
         accessorKey: "applied",
@@ -134,6 +132,10 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               onSortingChange={setSorting}
               isLoading={rules.isLoading}
               getRowId={(rule) => `${rule.rule_id}-${rule.matched_include_id}`}
+              rowHref={(rule) => ({
+                to: "/santa/rules/$ruleId/edit",
+                params: { ruleId: String(rule.rule_id) },
+              })}
               empty={
                 <DataTableEmptyState
                   icon={<ShieldCheck />}

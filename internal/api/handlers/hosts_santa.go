@@ -42,25 +42,25 @@ func (c santaHostDetailContributor) ContributeHostDetail(
 	return nil
 }
 
-type hostSantaEffectiveRulesOutput struct {
-	Body paginatedBody[santarules.EffectiveRuleStatus]
+type hostSantaRulesOutput struct {
+	Body paginatedBody[santarules.RuleStatus]
 }
 
-type hostSantaEffectiveRulesInput struct {
+type hostSantaRulesInput struct {
 	ID int64 `path:"id"`
 	ListQueryInput
 }
 
-// RegisterHostSantaEffectiveRules registers the Santa effective-rules host subresource.
-func RegisterHostSantaEffectiveRules(api huma.API, hostStore *hosts.Store, santaRuleStore *santarules.Store) {
+// RegisterHostSantaRules registers the Santa rules host subresource.
+func RegisterHostSantaRules(api huma.API, hostStore *hosts.Store, santaRuleStore *santarules.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-host-santa-effective-rules",
+		OperationID: "list-host-santa-rules",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/santa/effective-rules",
+		Path:        "/api/hosts/{id}/santa/rules",
 		Tags:        []string{hostsTag},
-		Summary:     "List effective Santa rules for a host",
+		Summary:     "List Santa rules for a host",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostSantaEffectiveRulesInput) (*hostSantaEffectiveRulesOutput, error) {
+	}, func(ctx context.Context, input *hostSantaRulesInput) (*hostSantaRulesOutput, error) {
 		if hostStore == nil || santaRuleStore == nil {
 			return nil, huma.Error404NotFound("host not found")
 		}
@@ -69,14 +69,14 @@ func RegisterHostSantaEffectiveRules(api huma.API, hostStore *hosts.Store, santa
 		} else if err != nil {
 			return nil, err
 		}
-		rows, count, err := santaRuleStore.ListEffectiveRulesForHost(ctx, input.ID, santarules.EffectiveRuleListParams{
+		rows, count, err := santaRuleStore.ListRuleStatusesForHost(ctx, input.ID, santarules.RuleStatusListParams{
 			ListParams: input.ListQueryInput.params(),
 		})
 		if err != nil {
-			return nil, resourceMutationError("Santa effective rule", err)
+			return nil, resourceMutationError("Santa rule", err)
 		}
-		return &hostSantaEffectiveRulesOutput{
-			Body: paginatedBody[santarules.EffectiveRuleStatus]{Items: rows, Count: count},
+		return &hostSantaRulesOutput{
+			Body: paginatedBody[santarules.RuleStatus]{Items: rows, Count: count},
 		}, nil
 	})
 }

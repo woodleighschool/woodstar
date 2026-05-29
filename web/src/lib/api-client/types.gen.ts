@@ -148,6 +148,7 @@ export type Configuration = {
     blocked_path_regex?: string;
     client_mode: 'monitor' | 'lockdown' | 'standalone';
     created_at: string;
+    description: string;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -163,6 +164,29 @@ export type Configuration = {
     updated_at: string;
 };
 
+export type ConfigurationMatch = {
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    created_at: string;
+    description: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: RemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    id: number;
+    label_ids: Array<number> | null;
+    matched_via_label?: LabelMatch;
+    name: string;
+    position: number;
+    removable_media_policy?: RemovableMediaPolicy;
+    updated_at: string;
+};
+
 export type ConfigurationMutation = {
     /**
      * A URL to the JSON Schema for this object.
@@ -172,6 +196,7 @@ export type ConfigurationMutation = {
     batch_size: number;
     blocked_path_regex?: string;
     client_mode: 'monitor' | 'lockdown' | 'standalone';
+    description?: string;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -238,20 +263,6 @@ export type DirectoryUsersBody = {
     readonly $schema?: string;
     count: number;
     items: Array<DirectoryUserBody> | null;
-};
-
-export type EffectiveRuleStatus = {
-    applied: boolean;
-    cel_expression?: string;
-    custom_message?: string;
-    custom_url?: string;
-    identifier: string;
-    matched_include_id: number;
-    notification_app_name?: string;
-    payload_hash: string;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
-    rule_id: number;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
 export type ErrorDetail = {
@@ -564,7 +575,7 @@ export type HostSoftwareRow = {
 
 export type HostState = {
     client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
-    effective_configuration?: ResolvedConfiguration;
+    configuration?: ConfigurationMatch;
     last_sync_at?: string;
     rule_sync: RuleSyncSummary;
     version: string;
@@ -764,15 +775,6 @@ export type PaginatedBodyConfiguration = {
     items: Array<Configuration> | null;
 };
 
-export type PaginatedBodyEffectiveRuleStatus = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<EffectiveRuleStatus> | null;
-};
-
 export type PaginatedBodyExecutionEvent = {
     /**
      * A URL to the JSON Schema for this object.
@@ -834,6 +836,15 @@ export type PaginatedBodyRule = {
     readonly $schema?: string;
     count: number;
     items: Array<Rule> | null;
+};
+
+export type PaginatedBodyRuleStatus = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<RuleStatus> | null;
 };
 
 export type PaginatedBodySoftwareTitle = {
@@ -935,28 +946,6 @@ export type ReportUpdate = {
     schedule_interval?: number;
 };
 
-export type ResolvedConfiguration = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    created_at: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    id: number;
-    label_ids: Array<number> | null;
-    matched_via_label?: LabelMatch;
-    name: string;
-    position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    updated_at: string;
-};
-
 export type Rule = {
     /**
      * A URL to the JSON Schema for this object.
@@ -965,6 +954,7 @@ export type Rule = {
     created_at: string;
     custom_message: string;
     custom_url: string;
+    description: string;
     exclude_label_ids: Array<number> | null;
     id: number;
     identifier: string;
@@ -995,6 +985,7 @@ export type RuleMutation = {
     readonly $schema?: string;
     custom_message?: string;
     custom_url?: string;
+    description?: string;
     exclude_label_ids?: Array<number> | null;
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
@@ -1008,6 +999,22 @@ export type RuleReference = {
     id: number;
     identifier: string;
     name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type RuleStatus = {
+    applied: boolean;
+    cel_expression?: string;
+    custom_message?: string;
+    custom_url?: string;
+    description: string;
+    identifier: string;
+    matched_include_id: number;
+    name: string;
+    notification_app_name?: string;
+    payload_hash: string;
+    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
+    rule_id: number;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
@@ -1221,6 +1228,7 @@ export type ConfigurationWritable = {
     blocked_path_regex?: string;
     client_mode: 'monitor' | 'lockdown' | 'standalone';
     created_at: string;
+    description: string;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -1241,6 +1249,7 @@ export type ConfigurationMutationWritable = {
     batch_size: number;
     blocked_path_regex?: string;
     client_mode: 'monitor' | 'lockdown' | 'standalone';
+    description?: string;
     enable_all_event_upload: boolean;
     enable_bundles: boolean;
     enable_transitive_rules: boolean;
@@ -1472,11 +1481,6 @@ export type PaginatedBodyConfigurationWritable = {
     items: Array<ConfigurationWritable> | null;
 };
 
-export type PaginatedBodyEffectiveRuleStatusWritable = {
-    count: number;
-    items: Array<EffectiveRuleStatus> | null;
-};
-
 export type PaginatedBodyExecutionEventWritable = {
     count: number;
     items: Array<ExecutionEventWritable> | null;
@@ -1510,6 +1514,11 @@ export type PaginatedBodyReportWritable = {
 export type PaginatedBodyRuleWritable = {
     count: number;
     items: Array<RuleWritable> | null;
+};
+
+export type PaginatedBodyRuleStatusWritable = {
+    count: number;
+    items: Array<RuleStatus> | null;
 };
 
 export type PaginatedBodySoftwareTitleWritable = {
@@ -1557,6 +1566,7 @@ export type RuleWritable = {
     created_at: string;
     custom_message: string;
     custom_url: string;
+    description: string;
     exclude_label_ids: Array<number> | null;
     id: number;
     identifier: string;
@@ -1569,6 +1579,7 @@ export type RuleWritable = {
 export type RuleMutationWritable = {
     custom_message?: string;
     custom_url?: string;
+    description?: string;
     exclude_label_ids?: Array<number> | null;
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
@@ -2520,7 +2531,7 @@ export type ListHostOsqueryReportResultsResponses = {
 
 export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
 
-export type ListHostSantaEffectiveRulesData = {
+export type ListHostSantaRulesData = {
     body?: never;
     path: {
         id: number;
@@ -2531,10 +2542,10 @@ export type ListHostSantaEffectiveRulesData = {
         page_size?: number;
         sort?: string;
     };
-    url: '/api/hosts/{id}/santa/effective-rules';
+    url: '/api/hosts/{id}/santa/rules';
 };
 
-export type ListHostSantaEffectiveRulesErrors = {
+export type ListHostSantaRulesErrors = {
     /**
      * Bad Request
      */
@@ -2557,16 +2568,16 @@ export type ListHostSantaEffectiveRulesErrors = {
     500: ErrorModel;
 };
 
-export type ListHostSantaEffectiveRulesError = ListHostSantaEffectiveRulesErrors[keyof ListHostSantaEffectiveRulesErrors];
+export type ListHostSantaRulesError = ListHostSantaRulesErrors[keyof ListHostSantaRulesErrors];
 
-export type ListHostSantaEffectiveRulesResponses = {
+export type ListHostSantaRulesResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyEffectiveRuleStatus;
+    200: PaginatedBodyRuleStatus;
 };
 
-export type ListHostSantaEffectiveRulesResponse = ListHostSantaEffectiveRulesResponses[keyof ListHostSantaEffectiveRulesResponses];
+export type ListHostSantaRulesResponse = ListHostSantaRulesResponses[keyof ListHostSantaRulesResponses];
 
 export type ListHostSoftwareData = {
     body?: never;

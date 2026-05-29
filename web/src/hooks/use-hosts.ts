@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type { ApiError } from "@/lib/api";
 import { apiClient, unwrap, type Schemas } from "@/lib/api";
-import type { ListHostSantaEffectiveRulesData } from "@/lib/api-client/types.gen";
+import type { ListHostSantaRulesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
@@ -14,9 +14,9 @@ export type HostSoftwareListResult = Schemas["PaginatedBodyHostSoftwareRow"];
 export type HostReportsResult = Schemas["ItemsBodyHostReport"];
 export type HostReport = Schemas["HostReport"];
 export type HostChecksResult = Schemas["ItemsBodyCheckHostStatus"];
-export type HostSantaEffectiveRulesResult = Schemas["PaginatedBodyEffectiveRuleStatus"];
-export type HostSantaEffectiveRule = Schemas["EffectiveRuleStatus"];
-export type HostSantaEffectiveRulesParams = NonNullable<ListHostSantaEffectiveRulesData["query"]>;
+export type HostSantaRulesResult = Schemas["PaginatedBodyRuleStatus"];
+export type HostSantaRule = Schemas["RuleStatus"];
+export type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 export interface HostDeviceMappingMutation {
   email: string;
@@ -165,18 +165,18 @@ export function useHostChecks(id: number | null) {
   });
 }
 
-export function useHostSantaEffectiveRules(id: number | null, params: HostSantaEffectiveRulesParams = {}) {
+export function useHostSantaRules(id: number | null, params: HostSantaRulesParams = {}) {
   const queryParams = {
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 100,
     sort: nonEmpty(params.sort),
   };
 
-  return useQuery<HostSantaEffectiveRulesResult, ApiError>({
-    queryKey: queryKeys.hostSantaEffectiveRules(id, queryParams),
+  return useQuery<HostSantaRulesResult, ApiError>({
+    queryKey: queryKeys.hostSantaRules(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/santa/effective-rules", {
+        apiClient.GET("/api/hosts/{id}/santa/rules", {
           params: { path: { id: id ?? 0 }, query: queryParams },
           signal,
         }),

@@ -6,7 +6,7 @@ type observedHostStateStore interface {
 	LoadObservedHostState(context.Context, int64) (*HostState, error)
 }
 
-// HostStateService composes Santa host observation with effective configuration.
+// HostStateService composes Santa host observation with the matching configuration.
 type HostStateService struct {
 	state          observedHostStateStore
 	configurations configurationResolver
@@ -28,7 +28,7 @@ func (s *HostStateService) LoadHostState(ctx context.Context, hostID int64) (*Ho
 		return nil, err
 	}
 	if configuration != nil {
-		state.EffectiveConfiguration = configuration
+		state.Configuration = configuration
 	}
 	return state, nil
 }
