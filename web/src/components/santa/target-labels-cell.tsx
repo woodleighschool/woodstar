@@ -20,6 +20,9 @@ export function TargetLabelsCell({
   }
 
   const labels = labelsFromIDs(labelIDs, labelsByID);
+  if (labels.length === 1 && labels[0].name === "All Hosts") {
+    return <span className="text-sm">All Hosts</span>;
+  }
 
   return (
     <HoverCard openDelay={150} closeDelay={150}>
