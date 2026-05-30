@@ -204,7 +204,7 @@ function RuleForm({
       >
         <PageHeader title={mode === "create" ? "New Rule" : "Edit Rule"} />
 
-        <FieldGroup className="max-w-5xl">
+        <FieldGroup>
           <Field>
             <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
             <Input
@@ -329,7 +329,7 @@ function RuleForm({
           </section>
         </FieldGroup>
 
-        <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
+        <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save

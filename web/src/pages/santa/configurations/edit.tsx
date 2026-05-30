@@ -178,7 +178,7 @@ function ConfigurationForm({
       >
         <PageHeader title={mode === "create" ? "New Configuration" : "Edit Configuration"} />
 
-        <FieldGroup className="max-w-4xl">
+        <FieldGroup>
           <Field>
             <FieldLabel htmlFor="santa-configuration-name">Name</FieldLabel>
             <Input
@@ -221,26 +221,29 @@ function ConfigurationForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>Monitor observes. Lockdown enforces.</FieldDescription>
+            <FieldDescription>
+              Monitor records activity. Lockdown enforces matching rules. Standalone leaves Santa outside this
+              configuration.
+            </FieldDescription>
           </Field>
           <BoolField
             id="santa-enable-bundles"
             label="Bundles"
-            description="Scan bundled applications."
+            description="Enables Santa bundle scanning."
             value={form.enable_bundles}
             onChange={(enable_bundles) => setForm({ ...form, enable_bundles })}
           />
           <BoolField
             id="santa-enable-transitive-rules"
             label="Transitive Rules"
-            description="Allow compiled binaries to inherit allowlists."
+            description="Allows compiler rules to create transitive allow rules for the binaries they produce."
             value={form.enable_transitive_rules}
             onChange={(enable_transitive_rules) => setForm({ ...form, enable_transitive_rules })}
           />
           <BoolField
             id="santa-upload-all-events"
             label="Upload All Events"
-            description="Include explicitly allowed executions."
+            description="Uploads explicitly allowed executions as well as blocked and scope decisions."
             value={form.enable_all_event_upload}
             onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
           />
@@ -254,7 +257,9 @@ function ConfigurationForm({
               value={form.full_sync_interval_seconds}
               onChange={(event) => setForm({ ...form, full_sync_interval_seconds: Number(event.target.value) })}
             />
-            <FieldDescription>Clean sync cadence in seconds.</FieldDescription>
+            <FieldDescription>
+              Maximum time, in seconds, before Santa performs a full sync. Santa enforces a 60 second minimum.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-batch-size">Batch Size</FieldLabel>
@@ -267,7 +272,9 @@ function ConfigurationForm({
               value={form.batch_size}
               onChange={(event) => setForm({ ...form, batch_size: Number(event.target.value) })}
             />
-            <FieldDescription>Rule rows per sync page.</FieldDescription>
+            <FieldDescription>
+              Rules downloaded or events uploaded per request. Santa makes another request when there is more work.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
@@ -276,6 +283,9 @@ function ConfigurationForm({
               value={form.allowed_path_regex}
               onChange={(event) => setForm({ ...form, allowed_path_regex: event.target.value })}
             />
+            <FieldDescription>
+              Matching binaries are allowed in both modes. Santa logs these events as ALLOW_SCOPE.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-blocked-path-regex">Blocked Path Regex</FieldLabel>
@@ -284,6 +294,7 @@ function ConfigurationForm({
               value={form.blocked_path_regex}
               onChange={(event) => setForm({ ...form, blocked_path_regex: event.target.value })}
             />
+            <FieldDescription>In Monitor mode, Santa blocks executables whose paths match this regex.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-event-detail-url">Event Detail URL</FieldLabel>
@@ -292,6 +303,7 @@ function ConfigurationForm({
               value={form.event_detail_url}
               onChange={(event) => setForm({ ...form, event_detail_url: event.target.value })}
             />
+            <FieldDescription>Optional link Santa can show with event details.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-event-detail-text">Event Detail Text</FieldLabel>
@@ -300,10 +312,12 @@ function ConfigurationForm({
               value={form.event_detail_text}
               onChange={(event) => setForm({ ...form, event_detail_text: event.target.value })}
             />
+            <FieldDescription>Text shown for the event detail link.</FieldDescription>
           </Field>
           <MediaActionField
             id="santa-removable-media"
             label="Removable Media"
+            description="Controls USB mass storage. Block prevents mounting; Remount mounts again with the flags below."
             action={form.removable_media_action}
             flags={form.removable_media_remount_flags}
             flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
@@ -313,6 +327,7 @@ function ConfigurationForm({
           <MediaActionField
             id="santa-encrypted-removable-media"
             label="Encrypted Removable Media"
+            description="Controls encrypted USB mass storage separately from other removable media."
             action={form.encrypted_removable_media_action}
             flags={form.encrypted_removable_media_remount_flags}
             flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
@@ -339,11 +354,13 @@ function ConfigurationForm({
                 onChange={(label_ids) => setForm({ ...form, label_ids })}
               />
             )}
-            <FieldDescription>Labels receiving this configuration.</FieldDescription>
+            <FieldDescription>
+              Labels that select hosts for this configuration. A label can only belong to one configuration.
+            </FieldDescription>
           </Field>
         </FieldGroup>
 
-        <div className="flex max-w-4xl items-center gap-2 border-t pt-4">
+        <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             Save
@@ -384,6 +401,7 @@ function BoolField({
 function MediaActionField({
   id,
   label,
+  description,
   action,
   flags,
   flagsError,
@@ -392,6 +410,7 @@ function MediaActionField({
 }: {
   id: string;
   label: string;
+  description: string;
   action: MediaAction;
   flags: string;
   flagsError?: string;
@@ -415,17 +434,20 @@ function MediaActionField({
           </SelectGroup>
         </SelectContent>
       </Select>
+      <FieldDescription>{description}</FieldDescription>
       {action === "remount" ? (
-        <Input
-          id={`${id}-flags`}
-          placeholder="remount flags"
-          required
-          value={flags}
-          onChange={(event) => onFlagsChange(event.target.value)}
-        />
+        <div className="flex flex-col gap-1">
+          <Input
+            id={`${id}-flags`}
+            placeholder="remount flags"
+            required
+            value={flags}
+            onChange={(event) => onFlagsChange(event.target.value)}
+          />
+          <FieldDescription>Separate mount options with commas or spaces.</FieldDescription>
+        </div>
       ) : null}
       {flagsError ? <FieldError>{flagsError}</FieldError> : null}
-      <FieldDescription>Remount requires one or more mount flags.</FieldDescription>
     </Field>
   );
 }
