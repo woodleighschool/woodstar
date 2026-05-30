@@ -131,7 +131,7 @@ function ExecutionEventsTable() {
       cell: ({ row }) => <ExecutionDecisionBadge decision={row.original.decision} />,
     },
     {
-      id: "host_id",
+      id: "host",
       accessorFn: (row) => row.host.display_name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) => <EventHostLink host={row.original.host} />,
@@ -171,7 +171,7 @@ function ExecutionEventsTable() {
               decisions={decisions}
               decisionOptions={[...DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              hostName={host.data ? hostLabel(host.data) : hostID ? `#${hostID}` : undefined}
+              hostName={host.data ? hostLabel(host.data) : undefined}
               onClearHost={() => setters.setFilter("host_id", undefined)}
               user={user}
               onClearUser={() => setters.setFilter("user", undefined)}
@@ -282,7 +282,7 @@ function FileAccessEventsTable() {
               decisions={decisions}
               decisionOptions={[...FILE_ACCESS_DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              hostName={host.data ? hostLabel(host.data) : hostID ? `#${hostID}` : undefined}
+              hostName={host.data ? hostLabel(host.data) : undefined}
               onClearHost={() => setters.setFilter("host_id", undefined)}
               searchPlaceholder="Search Target, Process, Host, Signer"
               actions={exportButton}
@@ -308,7 +308,7 @@ function FileAccessEventsTable() {
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
     <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="hover:underline">
-      {host.display_name || host.hostname || host.computer_name || host.hardware.serial || host.id}
+      {host.display_name}
     </Link>
   );
 }
@@ -328,7 +328,7 @@ function EventUserLink({ user, hostId }: { user: string; hostId: number | undefi
 }
 
 function hostLabel(host: HostDetail) {
-  return host.display_name || host.hostname || host.computer_name || host.hardware.serial || String(host.id);
+  return host.display_name;
 }
 
 function EventTableToolbar({

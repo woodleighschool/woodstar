@@ -339,7 +339,7 @@ function LabelEditForm({
 }
 
 function hostName(host: Host) {
-  return host.display_name || host.hostname || host.computer_name || host.hardware.uuid;
+  return host.display_name;
 }
 
 function HostSelector({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
@@ -366,7 +366,7 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
         id: "hardware.serial",
         accessorFn: (row) => row.hardware.serial,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-        cell: ({ row }) => row.original.hardware.serial || row.original.hardware.uuid,
+        cell: ({ row }) => row.original.hardware.serial,
       },
       {
         id: "hardware.model_identifier",

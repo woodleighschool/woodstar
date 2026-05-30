@@ -80,9 +80,9 @@ export function HostsListPage() {
   const allColumns: ColumnDef<Host>[] = [
     {
       id: "display_name",
-      accessorFn: (row) => row.display_name || row.hardware.uuid,
+      accessorFn: (row) => row.display_name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.display_name || row.original.hardware.uuid,
+      cell: ({ row }) => row.original.display_name,
       enableHiding: false,
       meta: { label: "Name" },
     },
@@ -128,7 +128,7 @@ export function HostsListPage() {
       id: "primary_user",
       header: () => "User Email",
       enableSorting: false,
-      cell: ({ row }) => row.original.user_affinity.primary?.email ?? "-",
+      cell: ({ row }) => row.original.user_affinity.primary?.email ?? "",
       meta: { label: "User Email" },
     },
     {

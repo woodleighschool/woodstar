@@ -21,7 +21,7 @@ export function reportRows(rows: ReportResultRow[] | null | undefined): ReportTa
     id: `${row.report_id}-${row.host_id}-${index}`,
     reportId: row.report_id,
     hostId: row.host_id,
-    hostName: row.host_name || String(row.host_id),
+    hostName: row.host_name,
     lastFetched: row.last_fetched,
     columns: row.columns,
   }));

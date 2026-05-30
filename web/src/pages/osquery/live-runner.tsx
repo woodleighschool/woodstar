@@ -494,7 +494,7 @@ function TargetPicker({
                   className="hover:bg-muted flex items-center justify-between rounded px-2 py-2 text-left text-sm"
                   onClick={() => addHost(host)}
                 >
-                  <span>{host.display_name || host.hostname || String(host.id)}</span>
+                  <span>{host.display_name}</span>
                 </button>
               ))
             ) : (
@@ -508,7 +508,7 @@ function TargetPicker({
               <TargetChip
                 key={host.id}
                 selected
-                label={host.display_name || host.hostname || String(host.id)}
+                label={host.display_name}
                 onClick={() => onHostsChange(selectedHosts.filter((item) => item.id !== host.id))}
               />
             ))}
@@ -623,7 +623,7 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       header: "Host",
       cell: ({ row }) => (
         <Link to="/hosts/$hostId" params={{ hostId: String(row.original.host_id) }} className="hover:underline">
-          {row.original.host_name ?? row.original.host_id}
+          {row.original.host_name}
         </Link>
       ),
     },
@@ -665,7 +665,7 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
     {
       id: "host",
       header: "Host",
-      cell: ({ row }) => row.original.host_name ?? row.original.host_id ?? "?",
+      cell: ({ row }) => row.original.host_name,
     },
     {
       id: "error",
@@ -718,7 +718,7 @@ function reportResultRows(rows: LiveQueryRow[]) {
     if (row.status !== "success") return [];
     return liveDataRows(row).map((data) => ({
       host_id: String(row.host_id ?? ""),
-      host_name: row.host_name ?? String(row.host_id ?? ""),
+      host_name: row.host_name ?? "",
       ...data,
     }));
   });

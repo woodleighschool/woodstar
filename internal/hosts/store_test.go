@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
-func TestDisplayNamePriority(t *testing.T) {
+func TestInventoryDisplayNamePriority(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
@@ -43,8 +43,8 @@ func TestDisplayNamePriority(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := displayName(tt.in.Hardware.UUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
-				t.Fatalf("displayName = %q, want %q", got, tt.want)
+			if got := inventoryDisplayName(tt.in.Hardware.UUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
+				t.Fatalf("inventoryDisplayName = %q, want %q", got, tt.want)
 			}
 		})
 	}

@@ -27,7 +27,7 @@ func NewStore(db *database.DB) *Store {
 func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	row, err := s.q.UpsertHostOnOrbitEnroll(ctx, sqlc.UpsertHostOnOrbitEnrollParams{
 		HardwareUUID:            update.Hardware.UUID,
-		DisplayName:             displayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
+		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
 		Hostname:                update.Hostname,
 		ComputerName:            update.ComputerName,
 		HardwareSerial:          update.Hardware.Serial,
@@ -47,7 +47,7 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	row, err := s.q.UpsertHostOnOsqueryEnroll(ctx, sqlc.UpsertHostOnOsqueryEnrollParams{
 		HardwareUUID:            update.Hardware.UUID,
-		DisplayName:             displayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
+		DisplayName:             inventoryDisplayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
 		Hostname:                update.Hostname,
 		ComputerName:            update.ComputerName,
 		HardwareSerial:          update.Hardware.Serial,
@@ -487,8 +487,8 @@ func addCheckFilter(where *dbutil.WhereBuilder, params ListParams) error {
 	return nil
 }
 
-// displayName picks the nicest name we have.
-func displayName(hardwareUUID, hostname, computerName string) string {
+// inventoryDisplayName persists the canonical host label exposed by the API.
+func inventoryDisplayName(hardwareUUID, hostname, computerName string) string {
 	if computerName != "" {
 		return computerName
 	}

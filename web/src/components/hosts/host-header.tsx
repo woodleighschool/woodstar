@@ -4,7 +4,6 @@ import type { Host } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
 export function HostHeader({ host }: { host: Host }) {
-  const displayName = host.display_name || host.hardware.uuid;
   const isOnline = statusFromHost(host) === "online";
 
   return (
@@ -19,8 +18,8 @@ export function HostHeader({ host }: { host: Host }) {
         ) : null}
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-foreground truncate text-xl font-semibold" title={displayName}>
-          {displayName}
+        <h1 className="text-foreground truncate text-xl font-semibold" title={host.display_name}>
+          {host.display_name}
         </h1>
         <p className="text-muted-foreground text-xs">
           {host.timestamps.inventory_updated_at ? (
