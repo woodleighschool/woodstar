@@ -41,12 +41,15 @@ export function SoftwarePage() {
       id: "name",
       accessorFn: (row) => row.display_name || row.name,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <span className="inline-flex items-center gap-2 truncate">
-          <SoftwareIcon source={row.original.source} />
-          <span className="truncate">{row.original.display_name || row.original.name}</span>
-        </span>
-      ),
+      cell: ({ row }) => {
+        const name = row.original.display_name || row.original.name;
+        return (
+          <span className="inline-flex items-center gap-2 truncate">
+            <SoftwareIcon source={row.original.source} />
+            <span className="truncate">{name}</span>
+          </span>
+        );
+      },
     },
     {
       id: "versions_count",
@@ -60,22 +63,20 @@ export function SoftwarePage() {
             : versions.length === 1
               ? versions[0].version || "-"
               : `${versions.length} versions`;
-        return <span className="tabular-nums">{label}</span>;
+        return label;
       },
     },
     {
       id: "source",
       accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
-      cell: ({ row }) => (
-        <span title={row.original.source}>{softwareSourceLabel(row.original.source, row.original.extension_for)}</span>
-      ),
+      cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
     },
     {
       id: "hosts_count",
       accessorKey: "hosts_count",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" align="right" />,
-      cell: ({ row }) => <div className="text-right tabular-nums">{row.original.hosts_count}</div>,
+      cell: ({ row }) => row.original.hosts_count,
       meta: { headClassName: "text-right", cellClassName: "text-right" },
     },
   ];

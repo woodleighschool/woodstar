@@ -58,14 +58,7 @@ export function LabelsPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => (
-        <div className="grid gap-1">
-          <span className="font-medium">{row.original.name}</span>
-          {row.original.description ? (
-            <span className="text-muted-foreground line-clamp-2 text-xs">{row.original.description}</span>
-          ) : null}
-        </div>
-      ),
+      cell: ({ row }) => row.original.name,
     },
     {
       id: "label_membership_type",
@@ -77,17 +70,13 @@ export function LabelsPage() {
       id: "hosts_count",
       accessorKey: "hosts_count",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Hosts" />,
-      cell: ({ row }) => <span className="tabular-nums">{row.original.hosts_count}</span>,
+      cell: ({ row }) => row.original.hosts_count,
     },
     {
       id: "updated_at",
       accessorKey: "updated_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
-      cell: ({ row }) => (
-        <span title={row.original.updated_at ? new Date(row.original.updated_at).toLocaleString() : ""}>
-          {row.original.updated_at ? formatRelative(row.original.updated_at) : "-"}
-        </span>
-      ),
+      cell: ({ row }) => (row.original.updated_at ? formatRelative(row.original.updated_at) : "-"),
     },
     {
       id: "actions",

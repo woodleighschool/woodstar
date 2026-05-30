@@ -569,7 +569,7 @@ function ReportRowsTable({ rows, running }: { rows: ReportResultRow[]; running: 
       accessorKey: "host_name",
       header: "Host",
       cell: ({ row }) => (
-        <Link to="/hosts/$hostId" params={{ hostId: row.original.host_id }} className="font-medium hover:underline">
+        <Link to="/hosts/$hostId" params={{ hostId: row.original.host_id }} className="hover:underline">
           {row.original.host_name}
         </Link>
       ),
@@ -622,11 +622,7 @@ function CheckRowsTable({ rows, running }: { rows: CheckLiveRow[]; running: bool
       accessorKey: "host_name",
       header: "Host",
       cell: ({ row }) => (
-        <Link
-          to="/hosts/$hostId"
-          params={{ hostId: String(row.original.host_id) }}
-          className="font-medium hover:underline"
-        >
+        <Link to="/hosts/$hostId" params={{ hostId: String(row.original.host_id) }} className="hover:underline">
           {row.original.host_name ?? row.original.host_id}
         </Link>
       ),
@@ -674,7 +670,7 @@ function ErrorRowsTable({ rows }: { rows: LiveQueryRow[] }) {
     {
       id: "error",
       header: "Error",
-      cell: ({ row }) => <span className="text-destructive">{row.original.error ?? row.original.status}</span>,
+      cell: ({ row }) => row.original.error ?? row.original.status,
     },
   ];
   return (

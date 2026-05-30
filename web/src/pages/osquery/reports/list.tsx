@@ -11,12 +11,12 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { IntervalIndicator } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useBulkDeleteReports, useReports, type Report } from "@/hooks/use-reports";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { formatInterval } from "@/lib/utils";
 
 export function ReportsPage() {
   const search = useSearch({ strict: false });
@@ -50,13 +50,14 @@ export function ReportsPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => row.original.name,
     },
     {
       id: "schedule_interval",
       accessorKey: "schedule_interval",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Interval" />,
-      cell: ({ row }) => <IntervalIndicator interval={row.original.schedule_interval} />,
+      cell: ({ row }) =>
+        row.original.schedule_interval ? `Every ${formatInterval(row.original.schedule_interval)}` : "Off",
     },
   ];
 

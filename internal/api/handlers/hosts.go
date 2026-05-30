@@ -49,8 +49,8 @@ type hostListInput struct {
 	SoftwareTitleID int64   `query:"software_title_id,omitempty"`
 	SoftwareID      int64   `query:"software_id,omitempty"`
 	IDs             []int64 `query:"ids,omitempty"`
-	CheckID         int64   `query:"check_id,omitempty" minimum:"1"`
-	CheckResponse   string  `query:"check_response,omitempty" enum:"pass,fail"`
+	CheckID         int64   `query:"check_id,omitempty"          minimum:"1"`
+	CheckResponse   string  `query:"check_response,omitempty"                enum:"pass,fail"`
 }
 
 func (i hostListInput) params() hosts.ListParams {

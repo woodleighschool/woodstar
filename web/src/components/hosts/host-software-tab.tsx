@@ -63,7 +63,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         cell: ({ row }) => {
           const name = row.original.display_name || row.original.name;
           return (
-            <span className="inline-flex items-center gap-2 truncate" title={name}>
+            <span className="inline-flex items-center gap-2 truncate">
               <SoftwareIcon source={row.original.source} />
               <span className="truncate">{name}</span>
             </span>
@@ -82,18 +82,14 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
               : versions.length === 1
                 ? versions[0].version || "-"
                 : `${versions.length} versions`;
-          return <span className="tabular-nums">{label}</span>;
+          return label;
         },
       },
       {
         id: "source",
         accessorKey: "source",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
-        cell: ({ row }) => (
-          <span title={row.original.source}>
-            {softwareSourceLabel(row.original.source, row.original.extension_for)}
-          </span>
-        ),
+        cell: ({ row }) => softwareSourceLabel(row.original.source, row.original.extension_for),
       },
       {
         id: "last_opened_at",
@@ -101,11 +97,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         header: ({ column }) => <DataTableColumnHeader column={column} title="Last Opened" />,
         cell: ({ row }) => {
           const lastOpenedAt = pickLatestLastOpened(row.original.installed_versions ?? []);
-          return (
-            <span title={lastOpenedAt ? new Date(lastOpenedAt).toLocaleString() : ""}>
-              {lastOpenedAt ? formatRelative(lastOpenedAt) : "-"}
-            </span>
-          );
+          return lastOpenedAt ? formatRelative(lastOpenedAt) : "-";
         },
       },
       {
@@ -134,11 +126,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
         enableSorting: false,
         cell: ({ row }) => {
           const paths = installedPathsFor(row.original.installed_versions ?? []);
-          return (
-            <span className="font-mono text-xs" title={singleHash(paths)}>
-              {truncateHash(singleHash(paths))}
-            </span>
-          );
+          return truncateHash(singleHash(paths));
         },
       },
     ],
@@ -233,14 +221,10 @@ function InstalledPathCell({
   paths: InstalledPath[];
 }) {
   if (paths.length === 0) {
-    return <span>-</span>;
+    return "-";
   }
   if (paths.length === 1) {
-    return (
-      <span className="block truncate" title={paths[0].path}>
-        {paths[0].path}
-      </span>
-    );
+    return paths[0].path;
   }
 
   return (

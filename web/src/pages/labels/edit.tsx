@@ -359,28 +359,17 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
       {
         accessorKey: "display_name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium">{hostName(row.original)}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.hostname || "No Hostname"}</div>
-          </div>
-        ),
+        cell: ({ row }) => hostName(row.original),
       },
       {
         accessorKey: "hardware_serial",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-        cell: ({ row }) => (
-          <span className="text-muted-foreground truncate">
-            {row.original.hardware_serial || row.original.hardware_uuid}
-          </span>
-        ),
+        cell: ({ row }) => row.original.hardware_serial || row.original.hardware_uuid,
       },
       {
         accessorKey: "hardware_model",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
-        cell: ({ row }) => (
-          <span className="text-muted-foreground truncate">{row.original.hardware_model || "Unknown"}</span>
-        ),
+        cell: ({ row }) => row.original.hardware_model || "Unknown",
       },
     ],
     [],
@@ -451,7 +440,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       {
         accessorKey: "value",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
-        cell: ({ row }) => <span className="font-medium">{row.original.value}</span>,
+        cell: ({ row }) => row.original.value,
       },
     ],
     [],
@@ -505,19 +494,12 @@ function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange
       {
         accessorKey: "display_name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Group" />,
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.display_name}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.external_id}</div>
-          </div>
-        ),
+        cell: ({ row }) => row.original.display_name,
       },
       {
         accessorKey: "mail_nickname",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Nickname" />,
-        cell: ({ row }) => (
-          <span className="text-muted-foreground truncate">{row.original.mail_nickname ?? "None"}</span>
-        ),
+        cell: ({ row }) => row.original.mail_nickname ?? "None",
       },
     ],
     [],
@@ -569,17 +551,12 @@ function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange:
       {
         accessorKey: "display_name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
-        cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.display_name}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.user_principal_name}</div>
-          </div>
-        ),
+        cell: ({ row }) => row.original.display_name,
       },
       {
         accessorKey: "department",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
-        cell: ({ row }) => <span className="text-muted-foreground truncate">{row.original.department ?? "None"}</span>,
+        cell: ({ row }) => row.original.department ?? "None",
       },
     ],
     [],

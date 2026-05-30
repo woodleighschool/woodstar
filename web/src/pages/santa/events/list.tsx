@@ -24,8 +24,9 @@ import {
   type SantaHostSummary,
 } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { formatRelative } from "@/lib/utils";
 import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./constants";
-import { ExecutionDecisionBadge, FileAccessDecisionBadge, Timestamp } from "./event-ui";
+import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
 
 type EventListKind = "execution" | "file-access";
 
@@ -98,11 +99,7 @@ function ExecutionEventsTable() {
       id: "occurred_at",
       accessorKey: "occurred_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Occurred At" />,
-      cell: ({ row }) => (
-        <span className="font-normal">
-          <Timestamp value={row.original.occurred_at} />
-        </span>
-      ),
+      cell: ({ row }) => formatRelative(row.original.occurred_at),
       meta: {
         label: "Occurred At",
         cellClassName: "w-44",
@@ -112,11 +109,7 @@ function ExecutionEventsTable() {
       id: "file_name",
       accessorFn: (row) => row.executable.file_name || row.executable.sha256,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Executable" />,
-      cell: ({ row }) => (
-        <span className="block max-w-64 truncate" title={row.original.executable.file_name}>
-          {row.original.executable.file_name || row.original.executable.sha256}
-        </span>
-      ),
+      cell: ({ row }) => row.original.executable.file_name || row.original.executable.sha256,
       meta: {
         label: "Executable",
       },
@@ -126,11 +119,7 @@ function ExecutionEventsTable() {
       accessorKey: "file_path",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Path" />,
       enableSorting: false,
-      cell: ({ row }) => (
-        <span className="block max-w-96 truncate" title={row.original.file_path}>
-          {row.original.file_path || "-"}
-        </span>
-      ),
+      cell: ({ row }) => row.original.file_path || "-",
       meta: {
         label: "Path",
       },
@@ -227,11 +216,7 @@ function FileAccessEventsTable() {
       id: "occurred_at",
       accessorKey: "occurred_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Occurred At" />,
-      cell: ({ row }) => (
-        <span className="font-normal">
-          <Timestamp value={row.original.occurred_at} />
-        </span>
-      ),
+      cell: ({ row }) => formatRelative(row.original.occurred_at),
       meta: {
         label: "Occurred At",
         cellClassName: "w-44",
@@ -241,11 +226,7 @@ function FileAccessEventsTable() {
       id: "target",
       accessorKey: "target",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Target" />,
-      cell: ({ row }) => (
-        <span className="block max-w-96 truncate" title={row.original.target}>
-          {fileName(row.original.target) || row.original.target}
-        </span>
-      ),
+      cell: ({ row }) => fileName(row.original.target) || row.original.target,
     },
     {
       id: "decision",
@@ -263,17 +244,14 @@ function FileAccessEventsTable() {
       id: "process",
       header: "Process",
       enableSorting: false,
-      cell: ({ row }) => (
-        <span className="block max-w-60 truncate">
-          {row.original.primary_process.file_name || fileName(row.original.primary_process.file_path) || "-"}
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.primary_process.file_name || fileName(row.original.primary_process.file_path) || "-",
     },
     {
       id: "rule_name",
       accessorKey: "rule_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Rule" />,
-      cell: ({ row }) => <span>{row.original.rule_name || row.original.rule_version || "-"}</span>,
+      cell: ({ row }) => row.original.rule_name || row.original.rule_version || "-",
     },
   ];
 

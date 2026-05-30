@@ -45,11 +45,7 @@ export function ReportDetailPage() {
     id: name,
     accessorFn: (row) => row.columns[name] ?? "",
     header: ({ column }) => <DataTableColumnHeader column={column} title={name} />,
-    cell: ({ row }) => (
-      <span className="block max-w-[28rem] truncate" title={row.original.columns[name] ?? ""}>
-        {resultValue(row.original.columns[name])}
-      </span>
-    ),
+    cell: ({ row }) => resultValue(row.original.columns[name]),
   }));
   const columns = [...reportTableColumns({ linkHosts: true }), ...resultColumns];
   return (

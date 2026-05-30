@@ -124,14 +124,14 @@ export function SantaConfigurationsPage() {
       id: "position",
       accessorKey: "position",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
-      cell: ({ row }) => <span className="tabular-nums">{row.original.position + 1}</span>,
+      cell: ({ row }) => row.original.position + 1,
       meta: { headClassName: "w-20", cellClassName: "w-20" },
     },
     {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => row.original.name,
     },
     {
       id: "client_mode",
@@ -151,11 +151,7 @@ export function SantaConfigurationsPage() {
       accessorKey: "updated_at",
       header: "Updated",
       enableSorting: false,
-      cell: ({ row }) => (
-        <span title={new Date(row.original.updated_at).toLocaleString()}>
-          {formatRelative(row.original.updated_at)}
-        </span>
-      ),
+      cell: ({ row }) => formatRelative(row.original.updated_at),
     },
   ];
 

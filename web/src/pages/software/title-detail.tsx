@@ -330,9 +330,9 @@ function SantaCertificatesTable({ certificates }: { certificates: CertificateRef
       {certificates.map((certificate) => (
         <TableRow key={certificate.sha256}>
           <TableCell className="min-w-0">
-            <div className="truncate font-medium">{certificate.common_name || shortIdentifier(certificate.sha256)}</div>
+            <div className="truncate font-medium">{certificate.common_name || "-"}</div>
             <div className="text-muted-foreground truncate text-xs">
-              {certificate.organizational_unit || certificate.organization || shortIdentifier(certificate.sha256)}
+              {certificate.organizational_unit || certificate.organization || "-"}
             </div>
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">{certificate.rule_count}</TableCell>

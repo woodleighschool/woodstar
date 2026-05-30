@@ -32,7 +32,7 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
           <Link
             to="/osquery/checks/$checkId"
             params={{ checkId: String(row.original.check_id) }}
-            className="font-medium hover:underline"
+            className="hover:underline"
           >
             {row.original.check_name || String(row.original.check_id)}
           </Link>

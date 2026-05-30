@@ -45,29 +45,18 @@ export function reportTableColumns(options: { linkHosts?: boolean } = {}): Colum
       header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
       cell: ({ row }) =>
         options.linkHosts ? (
-          <Link
-            to="/hosts/$hostId"
-            params={{ hostId: String(row.original.hostId) }}
-            className="font-medium hover:underline"
-          >
+          <Link to="/hosts/$hostId" params={{ hostId: String(row.original.hostId) }} className="hover:underline">
             {row.original.hostName}
           </Link>
         ) : (
-          <span className="font-medium">{row.original.hostName}</span>
+          row.original.hostName
         ),
     },
     {
       id: "lastFetched",
       accessorKey: "lastFetched",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Fetched" />,
-      cell: ({ row }) => (
-        <span
-          className="text-muted-foreground"
-          title={row.original.lastFetched ? new Date(row.original.lastFetched).toLocaleString() : ""}
-        >
-          {row.original.lastFetched ? formatRelative(row.original.lastFetched) : "-"}
-        </span>
-      ),
+      cell: ({ row }) => (row.original.lastFetched ? formatRelative(row.original.lastFetched) : "-"),
     },
   ];
 }

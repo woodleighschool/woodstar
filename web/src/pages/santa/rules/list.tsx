@@ -66,7 +66,7 @@ export function SantaRulesPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => row.original.name,
     },
     {
       id: "rule_type",

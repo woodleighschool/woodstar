@@ -56,7 +56,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
       {
         accessorKey: "identifier",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Identifier" />,
-        cell: ({ row }) => <span className="block max-w-96 truncate">{row.original.identifier}</span>,
+        cell: ({ row }) => row.original.identifier,
       },
       {
         accessorKey: "rule_type",

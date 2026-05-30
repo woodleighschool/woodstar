@@ -122,11 +122,8 @@ export function HostsListPage() {
       id: "disk_space_available_bytes",
       accessorKey: "disk_space_available_bytes",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Disk Free" />,
-      cell: ({ row }) => (
-        <span className="tabular-nums">
-          {row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-"}
-        </span>
-      ),
+      cell: ({ row }) =>
+        row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-",
       meta: { label: "Disk Free" },
     },
     {
@@ -135,11 +132,7 @@ export function HostsListPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const email = primaryDeviceMapping(row.original.device_mappings)?.email ?? "";
-        return (
-          <span className="block max-w-[16rem] truncate" title={email || ""}>
-            {email || "-"}
-          </span>
-        );
+        return email || "-";
       },
       meta: { label: "User" },
     },
@@ -147,43 +140,35 @@ export function HostsListPage() {
       id: "last_seen_at",
       accessorKey: "last_seen_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Seen" />,
-      cell: ({ row }) => (
-        <span title={row.original.last_seen_at ? new Date(row.original.last_seen_at).toLocaleString() : ""}>
-          {formatRelative(row.original.last_seen_at)}
-        </span>
-      ),
+      cell: ({ row }) => formatRelative(row.original.last_seen_at),
       meta: { label: "Last Seen" },
     },
     {
       id: "hardware_uuid",
       accessorKey: "hardware_uuid",
       header: ({ column }) => <DataTableColumnHeader column={column} title="UUID" />,
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.hardware_uuid || "-"}</span>,
+      cell: ({ row }) => row.original.hardware_uuid || "-",
       meta: { label: "UUID" },
     },
     {
       id: "primary_ip",
       accessorKey: "primary_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Private IP" />,
-      cell: ({ row }) => <span className="tabular-nums">{row.original.primary_ip ?? "-"}</span>,
+      cell: ({ row }) => row.original.primary_ip ?? "-",
       meta: { label: "Private IP" },
     },
     {
       id: "public_ip",
       accessorKey: "public_ip",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Public IP" />,
-      cell: ({ row }) => <span className="tabular-nums">{row.original.public_ip ?? "-"}</span>,
+      cell: ({ row }) => row.original.public_ip ?? "-",
       meta: { label: "Public IP" },
     },
     {
       id: "physical_memory",
       accessorKey: "physical_memory",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Memory" />,
-      cell: ({ row }) => (
-        <span className="tabular-nums">
-          {row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"}
-        </span>
-      ),
+      cell: ({ row }) => (row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"),
       meta: { label: "Memory" },
     },
     {
@@ -197,11 +182,7 @@ export function HostsListPage() {
       id: "last_restarted_at",
       accessorKey: "last_restarted_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Restarted" />,
-      cell: ({ row }) => (
-        <span title={row.original.last_restarted_at ? new Date(row.original.last_restarted_at).toLocaleString() : ""}>
-          {row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"}
-        </span>
-      ),
+      cell: ({ row }) => (row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"),
       meta: { label: "Last Restarted" },
     },
   ];

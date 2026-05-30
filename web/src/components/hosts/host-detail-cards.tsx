@@ -33,6 +33,10 @@ interface Tile {
 type HostCertificate = NonNullable<HostDetail["certificates"]>[number];
 
 const CERTIFICATES_PAGE_SIZE = 25;
+const certificateSourceLabels: Record<string, string> = {
+  system: "System",
+  user: "User",
+};
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
   const tiles: Tile[] = [];
@@ -340,13 +344,9 @@ export function HostCertificatesCard({ host }: { host: HostDetail }) {
 const certificateColumns: ColumnDef<HostCertificate>[] = [
   {
     id: "common_name",
-    accessorFn: (certificate) => certificateName(certificate),
+    accessorKey: "common_name",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-    cell: ({ row }) => (
-      <span className="block truncate font-medium" title={certificateName(row.original)}>
-        {certificateName(row.original)}
-      </span>
-    ),
+    cell: ({ row }) => row.original.common_name || "-",
     meta: {
       cellClassName: "max-w-[360px] py-1.5",
       headClassName: "h-8",
@@ -356,11 +356,7 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     id: "issuer",
     accessorFn: (certificate) => certificate.issuer.common_name,
     header: ({ column }) => <DataTableColumnHeader column={column} title="Issuer" />,
-    cell: ({ row }) => (
-      <span className="block max-w-[360px] truncate" title={row.original.issuer.common_name}>
-        {row.original.issuer.common_name || "-"}
-      </span>
-    ),
+    cell: ({ row }) => row.original.issuer.common_name || "-",
     meta: {
       cellClassName: "py-1.5",
       headClassName: "h-8",
@@ -368,13 +364,9 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
   },
   {
     id: "source",
-    accessorFn: (certificate) => certificateKeychain(certificate),
+    accessorFn: (certificate) => certificateSourceLabel(certificate.source),
     header: ({ column }) => <DataTableColumnHeader column={column} title="Keychain" />,
-    cell: ({ row }) => (
-      <span title={row.original.username !== "" ? row.original.username : undefined}>
-        {certificateKeychain(row.original)}
-      </span>
-    ),
+    cell: ({ row }) => certificateSourceLabel(row.original.source),
     meta: {
       cellClassName: "py-1.5",
       headClassName: "h-8",
@@ -384,14 +376,7 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     id: "not_valid_before",
     accessorKey: "not_valid_before",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Issued" />,
-    cell: ({ row }) =>
-      row.original.not_valid_before ? (
-        <span title={new Date(row.original.not_valid_before).toLocaleString()}>
-          {formatDate(row.original.not_valid_before)}
-        </span>
-      ) : (
-        <span>-</span>
-      ),
+    cell: ({ row }) => (row.original.not_valid_before ? formatDate(row.original.not_valid_before) : "-"),
     meta: {
       cellClassName: "py-1.5",
       headClassName: "h-8",
@@ -401,14 +386,7 @@ const certificateColumns: ColumnDef<HostCertificate>[] = [
     id: "not_valid_after",
     accessorKey: "not_valid_after",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Expires" />,
-    cell: ({ row }) =>
-      row.original.not_valid_after ? (
-        <span title={new Date(row.original.not_valid_after).toLocaleString()}>
-          {formatDate(row.original.not_valid_after)}
-        </span>
-      ) : (
-        <span>-</span>
-      ),
+    cell: ({ row }) => (row.original.not_valid_after ? formatDate(row.original.not_valid_after) : "-"),
     meta: {
       cellClassName: "py-1.5",
       headClassName: "h-8",
@@ -428,14 +406,11 @@ function CertificateDetailsDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Certificate Details</DialogTitle>
-          <DialogDescription>{certificate ? certificateName(certificate) : ""}</DialogDescription>
+          <DialogDescription>{certificate?.common_name ?? ""}</DialogDescription>
         </DialogHeader>
         {certificate ? (
           <div className="grid gap-5">
-            <CertificateDetailSection
-              title="Subject"
-              rows={certificateNameRows(certificate.subject, certificate.common_name)}
-            />
+            <CertificateDetailSection title="Subject" rows={certificateNameRows(certificate.subject)} />
             <CertificateDetailSection title="Issuer" rows={certificateNameRows(certificate.issuer)} />
             <CertificateDetailSection
               title="Validity"
@@ -458,7 +433,7 @@ function CertificateDetailsDialog({
               title="Signature and Keychain"
               rows={[
                 ["Signing algorithm", certificate.signing_algorithm],
-                ["Keychain", certificateKeychain(certificate)],
+                ["Keychain", certificateSourceLabel(certificate.source)],
                 ["Username", certificate.username],
               ]}
             />
@@ -488,32 +463,17 @@ function CertificateDetailSection({ title, rows }: { title: string; rows: Array<
   );
 }
 
-function certificateKeychain(certificate: HostCertificate) {
-  if (certificate.source === "system") return "System";
-  if (certificate.source === "user") return "User";
-  return firstNonEmpty(certificate.source, "-");
+function certificateSourceLabel(source: string) {
+  return certificateSourceLabels[source] ?? source;
 }
 
-function certificateName(certificate: HostCertificate) {
-  return firstNonEmpty(
-    certificate.common_name,
-    certificate.subject.common_name,
-    certificate.serial,
-    `Certificate ${certificate.id}`,
-  );
-}
-
-function certificateNameRows(name: HostCertificate["subject"], commonNameFallback = ""): Array<[string, ReactNode]> {
+function certificateNameRows(name: HostCertificate["subject"]): Array<[string, ReactNode]> {
   return [
     ["Country", name.country],
     ["Organization", name.organization],
     ["Organizational unit", name.organizational_unit],
-    ["Common name", firstNonEmpty(name.common_name, commonNameFallback)],
+    ["Common name", name.common_name],
   ];
-}
-
-function firstNonEmpty(...values: string[]) {
-  return values.find((value) => value !== "") ?? "";
 }
 
 function formatDate(value: string | null | undefined) {

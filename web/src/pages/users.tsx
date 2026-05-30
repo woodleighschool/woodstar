@@ -84,13 +84,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
       cell: ({ row }) => {
         const isSelf = row.original.id === currentUserId;
         const isInitial = row.original.id === INITIAL_USER_ID;
-        return (
-          <>
-            {row.original.email}
-            {isSelf ? <span className="text-muted-foreground"> (you)</span> : null}
-            {isInitial ? <span className="text-muted-foreground"> (initial)</span> : null}
-          </>
-        );
+        return `${row.original.email}${isSelf ? " (you)" : ""}${isInitial ? " (initial)" : ""}`;
       },
     },
     {
@@ -103,11 +97,7 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
       id: "created_at",
       accessorKey: "created_at",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
-      cell: ({ row }) => (
-        <span title={new Date(row.original.created_at).toLocaleString()}>
-          {formatRelative(row.original.created_at)}
-        </span>
-      ),
+      cell: ({ row }) => formatRelative(row.original.created_at),
     },
     {
       id: "actions",

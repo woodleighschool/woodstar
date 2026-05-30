@@ -49,7 +49,7 @@ export function ChecksPage() {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+      cell: ({ row }) => row.original.name,
     },
     {
       id: "passing_host_count",
@@ -156,7 +156,7 @@ function HostCount({ checkId, response, value }: { checkId: number; response: "p
     <Link
       to="/hosts"
       search={{ check_id: checkId, check_response: response }}
-      className="block text-right tabular-nums hover:underline"
+      className="hover:underline"
       onClick={(event) => event.stopPropagation()}
     >
       {value} {value === 1 ? "host" : "hosts"}
