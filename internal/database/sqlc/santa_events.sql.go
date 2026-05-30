@@ -347,19 +347,19 @@ VALUES (
 `
 
 type InsertSantaFileAccessEventParams struct {
-	HostID                  int64       `json:"host_id"`
-	RuleVersion             string      `json:"rule_version"`
-	RuleName                string      `json:"rule_name"`
-	Target                  string      `json:"target"`
-	Decision                interface{} `json:"decision"`
-	PrimaryProcessSha256    string      `json:"primary_process_sha256"`
-	PrimaryProcessPath      string      `json:"primary_process_path"`
-	PrimaryProcessSigningID string      `json:"primary_process_signing_id"`
-	PrimaryProcessTeamID    string      `json:"primary_process_team_id"`
-	PrimaryProcessCdhash    string      `json:"primary_process_cdhash"`
-	PrimaryProcessPid       int32       `json:"primary_process_pid"`
-	ProcessChain            []byte      `json:"process_chain"`
-	OccurredAt              time.Time   `json:"occurred_at"`
+	HostID                  int64                   `json:"host_id"`
+	RuleVersion             string                  `json:"rule_version"`
+	RuleName                string                  `json:"rule_name"`
+	Target                  string                  `json:"target"`
+	Decision                SantaFileAccessDecision `json:"decision"`
+	PrimaryProcessSha256    string                  `json:"primary_process_sha256"`
+	PrimaryProcessPath      string                  `json:"primary_process_path"`
+	PrimaryProcessSigningID string                  `json:"primary_process_signing_id"`
+	PrimaryProcessTeamID    string                  `json:"primary_process_team_id"`
+	PrimaryProcessCdhash    string                  `json:"primary_process_cdhash"`
+	PrimaryProcessPid       int32                   `json:"primary_process_pid"`
+	ProcessChain            []byte                  `json:"process_chain"`
+	OccurredAt              time.Time               `json:"occurred_at"`
 }
 
 func (q *Queries) InsertSantaFileAccessEvent(ctx context.Context, arg InsertSantaFileAccessEventParams) error {

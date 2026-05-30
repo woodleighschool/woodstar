@@ -1,12 +1,12 @@
 components:
   schemas:
-    AccountBody:
+    Account:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/AccountBody.json
+            - https://example.com/api/schemas/Account.json
           format: uri
           readOnly: true
           type: string
@@ -20,13 +20,13 @@ components:
       required:
         - user
       type: object
-    AccountPutBody:
+    AccountMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/AccountPutBody.json
+            - https://example.com/api/schemas/AccountMutation.json
           format: uri
           readOnly: true
           type: string
@@ -66,13 +66,13 @@ components:
         - value
         - created_at
       type: object
-    AgentSecretCreateInputBody:
+    AgentSecretCreate:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/AgentSecretCreateInputBody.json
+            - https://example.com/api/schemas/AgentSecretCreate.json
           format: uri
           readOnly: true
           type: string
@@ -88,13 +88,13 @@ components:
         - agent
         - value
       type: object
-    AgentSecretUpdateInputBody:
+    AgentSecretMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/AgentSecretUpdateInputBody.json
+            - https://example.com/api/schemas/AgentSecretMutation.json
           format: uri
           readOnly: true
           type: string
@@ -255,29 +255,6 @@ components:
         - created_at
         - updated_at
       type: object
-    CheckCreate:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/CheckCreate.json
-          format: uri
-          readOnly: true
-          type: string
-        description:
-          type: string
-        label_scope:
-          $ref: "#/components/schemas/LabelScope"
-        name:
-          type: string
-        query:
-          type: string
-      required:
-        - name
-        - query
-        - label_scope
-      type: object
     CheckHostStatus:
       additionalProperties: false
       properties:
@@ -306,13 +283,13 @@ components:
         - host_name
         - response
       type: object
-    CheckUpdate:
+    CheckMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/CheckUpdate.json
+            - https://example.com/api/schemas/CheckMutation.json
           format: uri
           readOnly: true
           type: string
@@ -566,30 +543,7 @@ components:
       required:
         - value
       type: object
-    DirectoryDepartmentsBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/DirectoryDepartmentsBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/Department"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
-    DirectoryGroupBody:
+    DirectoryGroup:
       additionalProperties: false
       properties:
         display_name:
@@ -599,37 +553,18 @@ components:
         id:
           format: int64
           type: integer
+        last_synced_at:
+          format: date-time
+          type: string
         mail_nickname:
           type: string
       required:
         - id
         - external_id
         - display_name
+        - last_synced_at
       type: object
-    DirectoryGroupsBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/DirectoryGroupsBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/DirectoryGroupBody"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
-    DirectoryUserBody:
+    DirectoryUser:
       additionalProperties: false
       properties:
         active:
@@ -647,6 +582,9 @@ components:
         id:
           format: int64
           type: integer
+        last_synced_at:
+          format: date-time
+          type: string
         mail:
           type: string
         mail_nickname:
@@ -659,29 +597,7 @@ components:
         - user_principal_name
         - display_name
         - active
-      type: object
-    DirectoryUsersBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/DirectoryUsersBody.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/DirectoryUserBody"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
+        - last_synced_at
       type: object
     ErrorDetail:
       additionalProperties: false
@@ -1196,13 +1112,13 @@ components:
         - source
         - username
       type: object
-    HostDetailBody:
+    HostDetail:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/HostDetailBody.json
+            - https://example.com/api/schemas/HostDetail.json
           format: uri
           readOnly: true
           type: string
@@ -1684,82 +1600,6 @@ components:
       required:
         - email
       type: object
-    ItemsBodyCheckHostStatus:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ItemsBodyCheckHostStatus.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/CheckHostStatus"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-      type: object
-    ItemsBodyHostReport:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ItemsBodyHostReport.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/HostReport"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-      type: object
-    ItemsBodyReportResult:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ItemsBodyReportResult.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/ReportResult"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-      type: object
-    ItemsBodyRuleTarget:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ItemsBodyRuleTarget.json
-          format: uri
-          readOnly: true
-          type: string
-        items:
-          items:
-            $ref: "#/components/schemas/RuleTarget"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-      type: object
     Label:
       additionalProperties: false
       properties:
@@ -1816,45 +1656,6 @@ components:
         - label_membership_type
         - hosts_count
       type: object
-    LabelCreateBody:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/LabelCreateBody.json
-          format: uri
-          readOnly: true
-          type: string
-        criteria:
-          $ref: "#/components/schemas/Criteria"
-        description:
-          type: string
-        host_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-        label_membership_type:
-          enum:
-            - dynamic
-            - manual
-            - derived
-          type: string
-        label_type:
-          enum:
-            - builtin
-            - regular
-          type: string
-        name:
-          type: string
-        query:
-          type: string
-      required:
-        - name
-      type: object
     LabelMatch:
       additionalProperties: false
       properties:
@@ -1867,13 +1668,13 @@ components:
         - id
         - name
       type: object
-    LabelMutationBody:
+    LabelMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/LabelMutationBody.json
+            - https://example.com/api/schemas/LabelMutation.json
           format: uri
           readOnly: true
           type: string
@@ -2056,13 +1857,13 @@ components:
         - email
         - password
       type: object
-    PaginatedBodyCheck:
+    PageCheck:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyCheck.json
+            - https://example.com/api/schemas/PageCheck.json
           format: uri
           readOnly: true
           type: string
@@ -2079,13 +1880,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyConfiguration:
+    PageConfiguration:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyConfiguration.json
+            - https://example.com/api/schemas/PageConfiguration.json
           format: uri
           readOnly: true
           type: string
@@ -2102,13 +1903,82 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyExecutionEvent:
+    PageDepartment:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyExecutionEvent.json
+            - https://example.com/api/schemas/PageDepartment.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/Department"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PageDirectoryGroup:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PageDirectoryGroup.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/DirectoryGroup"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PageDirectoryUser:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PageDirectoryUser.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/DirectoryUser"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
+    PageExecutionEvent:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PageExecutionEvent.json
           format: uri
           readOnly: true
           type: string
@@ -2125,13 +1995,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyFileAccessEvent:
+    PageFileAccessEvent:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyFileAccessEvent.json
+            - https://example.com/api/schemas/PageFileAccessEvent.json
           format: uri
           readOnly: true
           type: string
@@ -2148,13 +2018,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyHost:
+    PageHost:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyHost.json
+            - https://example.com/api/schemas/PageHost.json
           format: uri
           readOnly: true
           type: string
@@ -2171,13 +2041,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyHostSoftwareRow:
+    PageHostSoftwareRow:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyHostSoftwareRow.json
+            - https://example.com/api/schemas/PageHostSoftwareRow.json
           format: uri
           readOnly: true
           type: string
@@ -2194,13 +2064,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyLabel:
+    PageLabel:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyLabel.json
+            - https://example.com/api/schemas/PageLabel.json
           format: uri
           readOnly: true
           type: string
@@ -2217,13 +2087,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyReport:
+    PageReport:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyReport.json
+            - https://example.com/api/schemas/PageReport.json
           format: uri
           readOnly: true
           type: string
@@ -2240,13 +2110,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyRule:
+    PageRule:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyRule.json
+            - https://example.com/api/schemas/PageRule.json
           format: uri
           readOnly: true
           type: string
@@ -2263,13 +2133,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyRuleStatus:
+    PageRuleStatus:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyRuleStatus.json
+            - https://example.com/api/schemas/PageRuleStatus.json
           format: uri
           readOnly: true
           type: string
@@ -2286,13 +2156,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodySoftwareTitle:
+    PageSoftwareTitle:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodySoftwareTitle.json
+            - https://example.com/api/schemas/PageSoftwareTitle.json
           format: uri
           readOnly: true
           type: string
@@ -2309,13 +2179,13 @@ components:
         - items
         - count
       type: object
-    PaginatedBodyUser:
+    PageUser:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PaginatedBodyUser.json
+            - https://example.com/api/schemas/PageUser.json
           format: uri
           readOnly: true
           type: string
@@ -2446,13 +2316,13 @@ components:
         - created_at
         - updated_at
       type: object
-    ReportCreate:
+    ReportMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/ReportCreate.json
+            - https://example.com/api/schemas/ReportMutation.json
           format: uri
           readOnly: true
           type: string
@@ -2500,34 +2370,6 @@ components:
         - host_id
         - host_name
         - columns
-      type: object
-    ReportUpdate:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ReportUpdate.json
-          format: uri
-          readOnly: true
-          type: string
-        description:
-          type: string
-        label_scope:
-          $ref: "#/components/schemas/LabelScope"
-        min_osquery_version:
-          type: string
-        name:
-          type: string
-        query:
-          type: string
-        schedule_interval:
-          format: int32
-          type: integer
-      required:
-        - name
-        - query
-        - label_scope
       type: object
     Rule:
       additionalProperties: false
@@ -3135,13 +2977,13 @@ components:
         - created_at
         - updated_at
       type: object
-    UserCreateInputBody:
+    UserCreate:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/UserCreateInputBody.json
+            - https://example.com/api/schemas/UserCreate.json
           format: uri
           readOnly: true
           type: string
@@ -3163,13 +3005,13 @@ components:
         - role
         - password
       type: object
-    UserPutBody:
+    UserMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/UserPutBody.json
+            - https://example.com/api/schemas/UserMutation.json
           format: uri
           readOnly: true
           type: string
@@ -3207,7 +3049,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AccountBody"
+                $ref: "#/components/schemas/Account"
           description: OK
         "401":
           content:
@@ -3230,14 +3072,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AccountPutBody"
+              $ref: "#/components/schemas/AccountMutation"
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AccountBody"
+                $ref: "#/components/schemas/Account"
           description: OK
         "400":
           content:
@@ -3280,7 +3122,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AccountBody"
+                $ref: "#/components/schemas/Account"
           description: OK
         "401":
           content:
@@ -3304,7 +3146,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AccountBody"
+                $ref: "#/components/schemas/Account"
           description: Created
         "401":
           content:
@@ -3362,7 +3204,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AgentSecretCreateInputBody"
+              $ref: "#/components/schemas/AgentSecretCreate"
         required: true
       responses:
         "201":
@@ -3469,7 +3311,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AgentSecretUpdateInputBody"
+              $ref: "#/components/schemas/AgentSecretMutation"
         required: true
       responses:
         "200":
@@ -3645,7 +3487,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DirectoryDepartmentsBody"
+                $ref: "#/components/schemas/PageDepartment"
           description: OK
         "401":
           content:
@@ -3713,7 +3555,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DirectoryGroupsBody"
+                $ref: "#/components/schemas/PageDirectoryGroup"
           description: OK
         "401":
           content:
@@ -3781,7 +3623,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DirectoryUsersBody"
+                $ref: "#/components/schemas/PageDirectoryUser"
           description: OK
         "401":
           content:
@@ -3888,7 +3730,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyHost"
+                $ref: "#/components/schemas/PageHost"
           description: OK
         "401":
           content:
@@ -4016,7 +3858,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostDetailBody"
+                $ref: "#/components/schemas/HostDetail"
           description: OK
         "401":
           content:
@@ -4060,7 +3902,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ItemsBodyCheckHostStatus"
+                items:
+                  $ref: "#/components/schemas/CheckHostStatus"
+                type:
+                  - array
+                  - "null"
           description: OK
         "401":
           content:
@@ -4105,7 +3951,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ItemsBodyHostReport"
+                items:
+                  $ref: "#/components/schemas/HostReport"
+                type:
+                  - array
+                  - "null"
           description: OK
         "401":
           content:
@@ -4228,7 +4078,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyRuleStatus"
+                $ref: "#/components/schemas/PageRuleStatus"
           description: OK
         "400":
           content:
@@ -4314,7 +4164,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyHostSoftwareRow"
+                $ref: "#/components/schemas/PageHostSoftwareRow"
           description: OK
         "401":
           content:
@@ -4358,7 +4208,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostDetailBody"
+                $ref: "#/components/schemas/HostDetail"
           description: OK
         "401":
           content:
@@ -4413,7 +4263,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HostDetailBody"
+                $ref: "#/components/schemas/HostDetail"
           description: OK
         "400":
           content:
@@ -4507,7 +4357,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyLabel"
+                $ref: "#/components/schemas/PageLabel"
           description: OK
         "401":
           content:
@@ -4536,7 +4386,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LabelCreateBody"
+              $ref: "#/components/schemas/LabelMutation"
         required: true
       responses:
         "201":
@@ -4674,7 +4524,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LabelMutationBody"
+              $ref: "#/components/schemas/LabelMutation"
         required: true
       responses:
         "200":
@@ -4986,7 +4836,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyCheck"
+                $ref: "#/components/schemas/PageCheck"
           description: OK
         "401":
           content:
@@ -5015,7 +4865,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckCreate"
+              $ref: "#/components/schemas/CheckMutation"
         required: true
       responses:
         "201":
@@ -5198,7 +5048,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckUpdate"
+              $ref: "#/components/schemas/CheckMutation"
         required: true
       responses:
         "200":
@@ -5261,7 +5111,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ItemsBodyCheckHostStatus"
+                items:
+                  $ref: "#/components/schemas/CheckHostStatus"
+                type:
+                  - array
+                  - "null"
           description: OK
         "401":
           content:
@@ -5326,7 +5180,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyReport"
+                $ref: "#/components/schemas/PageReport"
           description: OK
         "401":
           content:
@@ -5355,7 +5209,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportCreate"
+              $ref: "#/components/schemas/ReportMutation"
         required: true
       responses:
         "201":
@@ -5538,7 +5392,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportUpdate"
+              $ref: "#/components/schemas/ReportMutation"
         required: true
       responses:
         "200":
@@ -5601,7 +5455,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ItemsBodyReportResult"
+                items:
+                  $ref: "#/components/schemas/ReportResult"
+                type:
+                  - array
+                  - "null"
           description: OK
         "401":
           content:
@@ -5666,7 +5524,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyConfiguration"
+                $ref: "#/components/schemas/PageConfiguration"
           description: OK
         "401":
           content:
@@ -6082,7 +5940,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyExecutionEvent"
+                $ref: "#/components/schemas/PageExecutionEvent"
           description: OK
         "400":
           content:
@@ -6235,7 +6093,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyFileAccessEvent"
+                $ref: "#/components/schemas/PageFileAccessEvent"
           description: OK
         "400":
           content:
@@ -6360,7 +6218,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ItemsBodyRuleTarget"
+                items:
+                  $ref: "#/components/schemas/RuleTarget"
+                type:
+                  - array
+                  - "null"
           description: OK
         "400":
           content:
@@ -6443,7 +6305,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyRule"
+                $ref: "#/components/schemas/PageRule"
           description: OK
         "400":
           content:
@@ -6885,7 +6747,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodySoftwareTitle"
+                $ref: "#/components/schemas/PageSoftwareTitle"
           description: OK
         "401":
           content:
@@ -7004,7 +6866,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaginatedBodyUser"
+                $ref: "#/components/schemas/PageUser"
           description: OK
         "401":
           content:
@@ -7033,7 +6895,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserCreateInputBody"
+              $ref: "#/components/schemas/UserCreate"
         required: true
       responses:
         "201":
@@ -7195,7 +7057,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserPutBody"
+              $ref: "#/components/schemas/UserMutation"
         required: true
       responses:
         "200":

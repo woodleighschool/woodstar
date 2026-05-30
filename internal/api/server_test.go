@@ -42,7 +42,7 @@ func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 func TestAgentSecretsAdminAPI(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Agent Secret Admin",
 		Password: testUserPassword,
@@ -174,7 +174,7 @@ func TestAgentSecretsAdminAPI(t *testing.T) {
 func TestAgentSecretsRejectBadAgent(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Agent Secret Admin",
 		Password: testUserPassword,
@@ -211,7 +211,7 @@ func TestAgentSecretsRejectBadAgent(t *testing.T) {
 func TestAgentSecretsRequireAdmin(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "viewer@example.test",
 		Name:     "Agent Secret Viewer",
 		Password: testUserPassword,
@@ -263,7 +263,7 @@ func TestLiveQueryStreamRequiresSession(t *testing.T) {
 func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: testUserPassword,
@@ -323,7 +323,7 @@ func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: testUserPassword,
@@ -400,7 +400,7 @@ func TestOrbitProtocolRoutesBypassBrowserAuth(t *testing.T) {
 func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	user, err := userService.Create(ctx, users.CreateParams{
+	user, err := userService.Create(ctx, users.UserCreate{
 		Email:    "api@example.test",
 		Name:     "API User",
 		Password: testUserPassword,
@@ -434,7 +434,7 @@ func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 func TestAccountReadReturnsRetrievableAPIKeyOnlyToSelf(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	user, err := userService.Create(ctx, users.CreateParams{
+	user, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Account User",
 		Password: testUserPassword,

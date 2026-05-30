@@ -30,7 +30,10 @@ func TestOrbitHTTPEnrollConfigAndUserAffinity(t *testing.T) {
 	hardwareUUID := "orbit-contract-" + suffix
 	userEmail := "student-" + suffix + "@example.test"
 
-	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "orbit-contract-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "orbit-contract-secret-value-" + suffix},
+	)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}

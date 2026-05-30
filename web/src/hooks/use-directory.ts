@@ -1,16 +1,15 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Department, DirectoryGroup, DirectoryUser, Page } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type DirectoryUser = Schemas["DirectoryUserBody"];
-export type DirectoryGroup = Schemas["DirectoryGroupBody"];
-export type DirectoryDepartment = Schemas["Department"];
-export type DirectoryUsersResult = Schemas["DirectoryUsersBody"];
-export type DirectoryGroupsResult = Schemas["DirectoryGroupsBody"];
-export type DirectoryDepartmentsResult = Schemas["DirectoryDepartmentsBody"];
+export type { DirectoryGroup, DirectoryUser };
+export type DirectoryDepartment = Department;
+export type DirectoryUsersResult = Page<DirectoryUser>;
+export type DirectoryGroupsResult = Page<DirectoryGroup>;
+export type DirectoryDepartmentsResult = Page<DirectoryDepartment>;
 
 export interface DirectoryListParams {
   q?: string;

@@ -17,7 +17,7 @@ func TestListIncludesLabelScope(t *testing.T) {
 	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-passing-host", "5.22.1")
 	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host", "5.22.1")
 
-	check, err := store.Create(ctx, CheckCreate{
+	check, err := store.Create(ctx, CheckMutation{
 		Name:  "Scoped check",
 		Query: "select 1;",
 		LabelScope: scope.LabelScope{
@@ -62,14 +62,14 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 		t.Fatalf("set matching label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, CheckCreate{
+	if _, err := store.Create(ctx, CheckMutation{
 		Name:       "Matching check",
 		Query:      "select 1;",
 		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
 	}); err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
-	if _, err := store.Create(ctx, CheckCreate{
+	if _, err := store.Create(ctx, CheckMutation{
 		Name:       "Nonmatching check",
 		Query:      "select 2;",
 		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
@@ -90,7 +90,7 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "5.22.1")
 
-	matching, err := store.Create(ctx, CheckCreate{
+	matching, err := store.Create(ctx, CheckMutation{
 		Name:  "Matching check",
 		Query: "select 1;",
 	})
@@ -115,21 +115,21 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host", "5.22.1")
 
-	passing, err := store.Create(ctx, CheckCreate{
+	passing, err := store.Create(ctx, CheckMutation{
 		Name:  "Passing check",
 		Query: "select 1;",
 	})
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
-	failing, err := store.Create(ctx, CheckCreate{
+	failing, err := store.Create(ctx, CheckMutation{
 		Name:  "Failing check",
 		Query: "select 0;",
 	})
 	if err != nil {
 		t.Fatalf("create failing check: %v", err)
 	}
-	unevaluated, err := store.Create(ctx, CheckCreate{
+	unevaluated, err := store.Create(ctx, CheckMutation{
 		Name:  "Unevaluated check",
 		Query: "select 2;",
 	})
@@ -183,7 +183,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 
 func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
-	check, err := store.Create(ctx, CheckCreate{
+	check, err := store.Create(ctx, CheckMutation{
 		Name:  "Status list check",
 		Query: "select 1;",
 	})
@@ -256,7 +256,7 @@ func newIntegrationCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store
 
 func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {
 	t.Helper()
-	label, err := store.Create(ctx, labels.LabelCreate{
+	label, err := store.Create(ctx, labels.LabelMutation{
 		Name:                name,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})

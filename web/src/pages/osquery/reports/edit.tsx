@@ -40,7 +40,7 @@ const emptyReport: ReportMutation = {
   label_scope: {},
 };
 
-export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
+export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const reportId = params.reportId ?? "";
   const reportID = mode === "edit" ? Number(reportId) : null;
@@ -83,12 +83,12 @@ export function ReportEditPage({ mode }: { mode: "create" | "edit" }) {
   );
 }
 
-export function ReportCreatePage() {
-  return <ReportEditPage mode="create" />;
+export function ReportNewPage() {
+  return <ReportMutationPage mode="create" />;
 }
 
-export function ReportUpdatePage() {
-  return <ReportEditPage mode="edit" />;
+export function ReportEditPage() {
+  return <ReportMutationPage mode="edit" />;
 }
 
 function ReportEditForm({

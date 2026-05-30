@@ -14,7 +14,7 @@ import (
 )
 
 type hostReportsOutput struct {
-	Body itemsBody[reports.HostReport]
+	Body []reports.HostReport
 }
 
 type hostReportResultsOutput struct {
@@ -59,7 +59,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 		if err != nil {
 			return nil, err
 		}
-		return &hostReportsOutput{Body: itemsBody[reports.HostReport]{Items: rows}}, nil
+		return &hostReportsOutput{Body: rows}, nil
 	})
 }
 

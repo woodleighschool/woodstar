@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/only-throw-error -- tanstack/react-router uses thrown redirect() as control-flow */
 import { redirect } from "@tanstack/react-router";
 
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import { apiClient, unwrap, type Session } from "@/lib/api";
 
-export type Session = Schemas["SessionBody"];
+export type { Session };
 export type SessionUser = NonNullable<Session["user"]>;
 
 async function loadSession(): Promise<Session> {

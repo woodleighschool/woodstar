@@ -1,15 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Page, Report, ReportMutation, ReportResult } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Report = Schemas["Report"];
-export type ReportListResult = Schemas["PaginatedBodyReport"];
-// ReportCreate and ReportUpdate carry identical wire shape; alias one for callers.
-export type ReportMutation = Schemas["ReportCreate"];
-export type ReportResults = Schemas["ItemsBodyReportResult"];
+export type { Report, ReportMutation };
+export type ReportListResult = Page<Report>;
+export type ReportResults = ReportResult[];
 
 export interface ReportListParams {
   q?: string;

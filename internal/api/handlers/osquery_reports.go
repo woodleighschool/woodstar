@@ -24,12 +24,12 @@ type reportGetInput struct {
 }
 
 type reportCreateInput struct {
-	Body reports.ReportCreate
+	Body reports.ReportMutation
 }
 
 type reportPutInput struct {
 	ID   int64 `path:"id"`
-	Body reports.ReportUpdate
+	Body reports.ReportMutation
 }
 
 type reportDeleteInput struct {
@@ -41,7 +41,7 @@ type reportBulkDeleteInput struct {
 }
 
 type reportListOutput struct {
-	Body paginatedBody[reports.Report]
+	Body Page[reports.Report]
 }
 
 type reportOutput struct {
@@ -49,7 +49,7 @@ type reportOutput struct {
 }
 
 type reportResultsOutput struct {
-	Body itemsBody[reports.ReportResult]
+	Body []reports.ReportResult
 }
 
 func RegisterReports(api huma.API, reportStore *reports.Store) {
@@ -75,7 +75,7 @@ func registerListReports(api huma.API, reportStore *reports.Store) {
 		if err != nil {
 			return nil, resourceMutationError(reportResource, err)
 		}
-		return &reportListOutput{Body: paginatedBody[reports.Report]{Items: items, Count: count}}, nil
+		return &reportListOutput{Body: Page[reports.Report]{Items: items, Count: count}}, nil
 	})
 }
 
@@ -184,7 +184,7 @@ func registerReportResults(api huma.API, reportStore *reports.Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &reportResultsOutput{Body: itemsBody[reports.ReportResult]{Items: rows}}, nil
+		return &reportResultsOutput{Body: rows}, nil
 	})
 }
 

@@ -24,13 +24,15 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, int, error) {
 	where, args := reportListWhere(params)
+	listQuery := reportListQuery(where, args, params)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM reports "+where, args...).Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := reportListSQL(where, args, params)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -87,7 +89,7 @@ func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
 	return reportFromSQLC(row), nil
 }
 
-func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error) {
+func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, error) {
 	labelScope := storedLabelScope(params.LabelScope)
 	var created *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -116,7 +118,7 @@ func (s *Store) Create(ctx context.Context, params ReportCreate) (*Report, error
 	return created, err
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params ReportUpdate) (*Report, error) {
+func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*Report, error) {
 	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -222,7 +224,7 @@ func reportListWhere(params ReportListParams) (string, []any) {
 	return where.Build()
 }
 
-func reportListSQL(where string, args []any, params ReportListParams) (string, []any, error) {
+func reportListQuery(where string, args []any, params ReportListParams) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: reportSelectSQL,
 		WhereSQL:  where,
@@ -235,7 +237,7 @@ func reportListSQL(where string, args []any, params ReportListParams) (string, [
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: dbutil.OrderUpdatedAt}, {SQL: "id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 const reportSelectSQL = `

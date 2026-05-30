@@ -1,15 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Check, CheckHostStatus, CheckMutation, Page } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Check = Schemas["Check"];
-export type CheckListResult = Schemas["PaginatedBodyCheck"];
-export type CheckMutation = Schemas["CheckCreate"];
-export type CheckHosts = Schemas["ItemsBodyCheckHostStatus"];
-export type CheckHostStatus = Schemas["CheckHostStatus"];
+export type { Check, CheckHostStatus, CheckMutation };
+export type CheckListResult = Page<Check>;
+export type CheckHosts = CheckHostStatus[];
 
 export interface CheckListParams {
   q?: string;

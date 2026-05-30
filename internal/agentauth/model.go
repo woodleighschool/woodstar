@@ -30,6 +30,15 @@ type AgentSecret struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type AgentSecretCreate struct {
+	Agent Agent  `json:"agent"`
+	Value string `json:"value" minLength:"32"`
+}
+
+type AgentSecretMutation struct {
+	Value string `json:"value" minLength:"32"`
+}
+
 func (Agent) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(AgentValues...)
 }

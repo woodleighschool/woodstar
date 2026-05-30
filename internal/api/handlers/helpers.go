@@ -33,13 +33,9 @@ type bulkIDsBody struct {
 	IDs []int64 `json:"ids"`
 }
 
-type paginatedBody[T any] struct {
+type Page[T any] struct {
 	Items []T `json:"items"`
 	Count int `json:"count"`
-}
-
-type itemsBody[T any] struct {
-	Items []T `json:"items"`
 }
 
 type ListQueryInput struct {

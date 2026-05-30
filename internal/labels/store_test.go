@@ -10,17 +10,17 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func TestLabelCreateValidate(t *testing.T) {
+func TestLabelMutationValidate(t *testing.T) {
 	t.Parallel()
 	query := "select 1;"
 	tests := []struct {
 		name    string
-		in      LabelCreate
+		in      LabelMutation
 		wantErr string
 	}{
 		{
 			name: "dynamic label with query is valid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name:                "Macs",
 				Query:               &query,
 				LabelMembershipType: LabelMembershipTypeDynamic,
@@ -28,7 +28,7 @@ func TestLabelCreateValidate(t *testing.T) {
 		},
 		{
 			name: "dynamic label without query is invalid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name:                "No query",
 				LabelMembershipType: LabelMembershipTypeDynamic,
 			},
@@ -36,7 +36,7 @@ func TestLabelCreateValidate(t *testing.T) {
 		},
 		{
 			name: "manual label with query is invalid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name:                "Manual",
 				Query:               &query,
 				LabelMembershipType: LabelMembershipTypeManual,
@@ -45,7 +45,7 @@ func TestLabelCreateValidate(t *testing.T) {
 		},
 		{
 			name: "derived label with criteria is valid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name: "Department",
 				Criteria: &Criteria{
 					Attribute: DerivedAttributeDirectoryDepartment,
@@ -56,7 +56,7 @@ func TestLabelCreateValidate(t *testing.T) {
 		},
 		{
 			name: "derived label without criteria is invalid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name:                "Department",
 				LabelMembershipType: LabelMembershipTypeDerived,
 			},
@@ -64,23 +64,13 @@ func TestLabelCreateValidate(t *testing.T) {
 		},
 		{
 			name: "dynamic label with hosts is invalid",
-			in: LabelCreate{
+			in: LabelMutation{
 				Name:                "Dynamic hosts",
 				Query:               &query,
 				HostIDs:             []int64{1},
 				LabelMembershipType: LabelMembershipTypeDynamic,
 			},
 			wantErr: "hosts are only allowed for manual labels",
-		},
-		{
-			name: "builtin cannot be created through admin path",
-			in: LabelCreate{
-				Name:                "Builtin",
-				Query:               &query,
-				LabelType:           LabelTypeBuiltin,
-				LabelMembershipType: LabelMembershipTypeDynamic,
-			},
-			wantErr: "builtin labels cannot be created",
 		},
 	}
 
@@ -107,7 +97,7 @@ func TestCreateManualLabelStoresHostIDs(t *testing.T) {
 	hostA := insertHost(t, db, "manual-a")
 	hostB := insertHost(t, db, "manual-b")
 
-	label, err := store.Create(ctx, LabelCreate{
+	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Manual",
 		LabelMembershipType: LabelMembershipTypeManual,
 		HostIDs:             []int64{hostB, hostA, hostA},
@@ -129,7 +119,7 @@ func TestListIncludesDerivedCriteria(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := NewStore(db)
 
-	label, err := store.Create(ctx, LabelCreate{
+	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Engineering",
 		LabelMembershipType: LabelMembershipTypeDerived,
 		Criteria:            &Criteria{Attribute: DerivedAttributeDirectoryDepartment, Values: []string{"Engineering"}},
@@ -197,7 +187,7 @@ func TestDerivedLabelsMatchDirectoryAttributes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			label, err := store.Create(ctx, LabelCreate{
+			label, err := store.Create(ctx, LabelMutation{
 				Name:                "Derived " + tt.name,
 				LabelMembershipType: LabelMembershipTypeDerived,
 				Criteria:            &tt.criteria,
@@ -226,7 +216,7 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 	userID := insertDirectoryUser(t, db, "refresh-user", "refresh@example.com", "Engineering")
 	linkHostDirectoryUser(t, db, hostID, userID)
 
-	label, err := store.Create(ctx, LabelCreate{
+	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Refresh derived",
 		LabelMembershipType: LabelMembershipTypeDerived,
 		Criteria:            &Criteria{Attribute: DerivedAttributeDirectoryDepartment, Values: []string{"Engineering"}},

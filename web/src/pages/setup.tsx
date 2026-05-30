@@ -6,19 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, SetupInput, User } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formString } from "@/lib/utils";
-
-type SetupInput = Schemas["SetupInputBody"];
-type UserBody = Schemas["User"];
 
 export function SetupPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const setup = useMutation<UserBody, ApiError, SetupInput>({
+  const setup = useMutation<User, ApiError, SetupInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/setup", { body })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });

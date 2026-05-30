@@ -7,8 +7,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// User is one synced directory account.
-type User struct {
+// DirectoryUser is one synced directory account.
+type DirectoryUser struct {
 	ID                int64     `json:"id"`
 	ExternalID        string    `json:"external_id"`
 	UserPrincipalName string    `json:"user_principal_name"`
@@ -22,8 +22,8 @@ type User struct {
 	LastSyncedAt      time.Time `json:"last_synced_at"`
 }
 
-// Group is one synced directory group.
-type Group struct {
+// DirectoryGroup is one synced directory group.
+type DirectoryGroup struct {
 	ID           int64     `json:"id"`
 	ExternalID   string    `json:"external_id"`
 	DisplayName  string    `json:"display_name"`

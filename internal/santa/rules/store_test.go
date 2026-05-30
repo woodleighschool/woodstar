@@ -614,9 +614,8 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 func createSantaRuleLabel(t *testing.T, db *database.DB, name string) int64 {
 	t.Helper()
 
-	label, err := labels.NewStore(db).Create(t.Context(), labels.LabelCreate{
+	label, err := labels.NewStore(db).Create(t.Context(), labels.LabelMutation{
 		Name:                name,
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {

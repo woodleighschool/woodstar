@@ -35,9 +35,8 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 	router, protected, cookie := santaAdminTestAPI(t, db, "config-conflict-admin@example.test")
 	RegisterSantaConfigurations(protected, configurations.NewStore(db))
 
-	label, err := labels.NewStore(db).Create(ctx, labels.LabelCreate{
+	label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
 		Name:                "Conflict Label",
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {
@@ -90,17 +89,17 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var body itemsBody[santarules.RuleTarget]
+	var body []santarules.RuleTarget
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	if len(body.Items) != 1 || body.Items[0].Identifier != identifier {
-		t.Fatalf("targets = %+v, want endpoint executable", body.Items)
+	if len(body) != 1 || body[0].Identifier != identifier {
+		t.Fatalf("targets = %+v, want endpoint executable", body)
 	}
-	if body.Items[0].DisplayName != "" ||
-		body.Items[0].FileName != "Endpoint Target" ||
-		body.Items[0].BundleIdentifier != "com.example.endpoint" {
-		t.Fatalf("target metadata = %+v, want semantic executable fields", body.Items[0])
+	if body[0].DisplayName != "" ||
+		body[0].FileName != "Endpoint Target" ||
+		body[0].BundleIdentifier != "com.example.endpoint" {
+		t.Fatalf("target metadata = %+v, want semantic executable fields", body[0])
 	}
 }
 
@@ -242,7 +241,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var executionList paginatedBody[santaevents.ExecutionEvent]
+	var executionList Page[santaevents.ExecutionEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &executionList); err != nil {
 		t.Fatalf("decode execution list: %v", err)
 	}
@@ -259,7 +258,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file access status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var fileAccessList paginatedBody[santaevents.FileAccessEvent]
+	var fileAccessList Page[santaevents.FileAccessEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &fileAccessList); err != nil {
 		t.Fatalf("decode file access list: %v", err)
 	}
@@ -316,9 +315,8 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("upsert santa observation: %v", err)
 	}
-	label, err := labels.NewStore(db).Create(ctx, labels.LabelCreate{
+	label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
 		Name:                "Enricher Label",
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {
@@ -411,7 +409,7 @@ func santaTestAPIWith(
 	t.Helper()
 
 	userService := users.NewService(users.NewStore(db))
-	if _, err := userService.Create(context.Background(), users.CreateParams{
+	if _, err := userService.Create(context.Background(), users.UserCreate{
 		Email:    email,
 		Name:     "Santa Test Admin",
 		Password: "correct-password",

@@ -1,6 +1,4 @@
-import type { Schemas } from "@/lib/api";
-
-type LabelScope = Schemas["LabelScope"];
+import type { LabelScope } from "@/lib/api";
 
 export function targetSummary(scope: LabelScope | undefined) {
   return targetScopeLabel(scope);

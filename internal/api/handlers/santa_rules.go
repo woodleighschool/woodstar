@@ -56,7 +56,7 @@ type santaRuleReorderIncludesBody struct {
 }
 
 type santaRuleListOutput struct {
-	Body paginatedBody[santarules.Rule]
+	Body Page[santarules.Rule]
 }
 
 type santaRuleOutput struct {
@@ -64,7 +64,7 @@ type santaRuleOutput struct {
 }
 
 type santaRuleTargetListOutput struct {
-	Body itemsBody[santarules.RuleTarget]
+	Body []santarules.RuleTarget
 }
 
 func (input santaRuleListInput) params() santarules.RuleListParams {
@@ -106,7 +106,7 @@ func registerListSantaRules(api huma.API, store *santarules.Store) {
 		if err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleListOutput{Body: paginatedBody[santarules.Rule]{Items: rules, Count: count}}, nil
+		return &santaRuleListOutput{Body: Page[santarules.Rule]{Items: rules, Count: count}}, nil
 	})
 }
 
@@ -123,7 +123,7 @@ func registerListSantaRuleTargets(api huma.API, store *santarules.Store) {
 		if err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleTargetListOutput{Body: itemsBody[santarules.RuleTarget]{Items: targets}}, nil
+		return &santaRuleTargetListOutput{Body: targets}, nil
 	})
 }
 

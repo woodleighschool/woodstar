@@ -25,13 +25,15 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int, error) {
 	where, args := checkListWhere(params)
+	listQuery := checkListQuery(where, args, params)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM checks c "+where, args...).Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := checkListSQL(where, args, params)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -93,7 +95,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	return check, nil
 }
 
-func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) {
+func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error) {
 	labelScope := storedLabelScope(params.LabelScope)
 	var created *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -120,7 +122,7 @@ func (s *Store) Create(ctx context.Context, params CheckCreate) (*Check, error) 
 	return created, err
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params CheckUpdate) (*Check, error) {
+func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Check, error) {
 	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -310,7 +312,7 @@ func checkListWhere(params CheckListParams) (string, []any) {
 	return where.Build()
 }
 
-func checkListSQL(where string, args []any, params CheckListParams) (string, []any, error) {
+func checkListQuery(where string, args []any, params CheckListParams) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: checkSelectSQL,
 		WhereSQL:  where,
@@ -322,7 +324,7 @@ func checkListSQL(where string, args []any, params CheckListParams) (string, []a
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.updated_at"}, {SQL: "c.id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 const checkSelectSQL = `

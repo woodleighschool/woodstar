@@ -49,7 +49,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		t.Fatalf("enroll host: %v", err)
 	}
 
-	label, err := stores.labels.Create(ctx, labels.LabelCreate{
+	label, err := stores.labels.Create(ctx, labels.LabelMutation{
 		Name:                "Santa Contract " + suffix,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
@@ -84,7 +84,10 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		t.Fatalf("create rule: %v", err)
 	}
 
-	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentSanta, "santa-contract-secret-value-long-32")
+	secret, err := stores.agentSecrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-contract-secret-value-long-32"},
+	)
 	if err != nil {
 		t.Fatalf("create santa agent secret: %v", err)
 	}
@@ -531,15 +534,24 @@ func TestSantaHTTPAuthorizesOnlyActiveSantaAgentSecrets(t *testing.T) {
 	service := &recordingService{}
 	router := newSantaContractRouter(secrets, service)
 
-	santaSecret, err := secrets.Create(ctx, agentauth.AgentSanta, "santa-active-secret-value-long-32")
+	santaSecret, err := secrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-active-secret-value-long-32"},
+	)
 	if err != nil {
 		t.Fatalf("create santa agent secret: %v", err)
 	}
-	orbitSecret, err := secrets.Create(ctx, agentauth.AgentOrbit, "orbit-wrong-agent-secret-value-32")
+	orbitSecret, err := secrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "orbit-wrong-agent-secret-value-32"},
+	)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
-	deletedSecret, err := secrets.Create(ctx, agentauth.AgentSanta, "santa-deleted-secret-value-long-32")
+	deletedSecret, err := secrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentSanta, Value: "santa-deleted-secret-value-long-32"},
+	)
 	if err != nil {
 		t.Fatalf("create deleted santa agent secret: %v", err)
 	}

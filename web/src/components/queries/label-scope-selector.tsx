@@ -4,9 +4,8 @@ import { LabelPicker } from "@/components/labels/label-picker";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Schemas } from "@/lib/api";
+import type { LabelScope } from "@/lib/api";
 
-type LabelScope = Schemas["LabelScope"];
 type LabelScopeMode = NonNullable<LabelScope["mode"]>;
 
 const includeAny: LabelScopeMode = "include_any";

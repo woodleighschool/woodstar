@@ -1,13 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Page, User, UserCreate, UserMutation } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type User = Schemas["User"];
-export type UserListResult = Schemas["PaginatedBodyUser"];
-export type UserCreateBody = Schemas["UserCreateInputBody"];
-export type UserUpdateBody = Schemas["UserPutBody"];
+export type { User, UserCreate, UserMutation };
+export type UserListResult = Page<User>;
 
 export function useUsers() {
   return useQuery<User[], ApiError>({
@@ -34,7 +32,7 @@ export function useUser(id: number | null) {
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
-  return useMutation<User, ApiError, UserCreateBody>({
+  return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.users });
@@ -44,7 +42,7 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
-  return useMutation<User, ApiError, { id: number; body: UserUpdateBody }>({
+  return useMutation<User, ApiError, { id: number; body: UserMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(
         apiClient.PUT("/api/users/{id}", {

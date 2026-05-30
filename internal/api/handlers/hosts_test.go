@@ -143,7 +143,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 		}
-		var body paginatedBody[hosts.Host]
+		var body Page[hosts.Host]
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("decode hosts body: %v", err)
 		}

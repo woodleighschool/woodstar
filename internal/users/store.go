@@ -17,19 +17,19 @@ type Store struct {
 	q *sqlc.Queries
 }
 
-// CreateParams contains fields needed to create a user.
-type CreateParams struct {
-	Email    string
-	Name     string
-	Role     Role
-	Password string
+// UserCreate contains fields needed to create a user.
+type UserCreate struct {
+	Email    string `json:"email"          format:"email"`
+	Name     string `json:"name,omitempty"`
+	Role     Role   `json:"role"`
+	Password string `json:"password"                      minLength:"12"`
 }
 
-// UpdateParams replaces the writable fields of a user.
-type UpdateParams struct {
-	Name     string
-	Role     Role
-	Password *string
+// UserMutation replaces the writable fields of a user.
+type UserMutation struct {
+	Name     string  `json:"name"`
+	Role     Role    `json:"role"`
+	Password *string `json:"password,omitempty"`
 }
 
 func NewStore(db *database.DB) *Store {
@@ -40,7 +40,7 @@ func (s *Store) Exists(ctx context.Context) (bool, error) {
 	return s.q.UserExists(ctx)
 }
 
-func (s *Store) Create(ctx context.Context, params CreateParams) (*User, error) {
+func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 	hash, err := HashPassword(params.Password)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (s *Store) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params UpdateParams) (*User, error) {
+func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*User, error) {
 	var passwordHash *string
 	if params.Password != nil {
 		hash, err := HashPassword(*params.Password)
@@ -137,7 +137,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UpdateParams) (*Use
 
 // UpdateAccount writes the signed-in user's editable account fields and
 // returns the fresh account view in a single round trip.
-func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountUpdateParams) (*Account, error) {
+func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountMutation) (*Account, error) {
 	var passwordHash *string
 	if params.Password != nil {
 		hash, err := HashPassword(*params.Password)

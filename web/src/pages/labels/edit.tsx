@@ -27,7 +27,7 @@ import {
   type DirectoryUser,
 } from "@/hooks/use-directory";
 import { useHosts, type Host } from "@/hooks/use-hosts";
-import { useCreateLabel, useLabel, useUpdateLabel, type LabelCreate, type LabelMutation } from "@/hooks/use-labels";
+import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { cn } from "@/lib/utils";
 import {
@@ -86,7 +86,7 @@ const labelFormSchema = z
 
 type LabelFormParse = ReturnType<typeof labelFormSchema.safeParse>;
 
-export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
+export function LabelMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const labelId = params.labelId ?? "";
   const labelID = mode === "edit" ? Number(labelId) : null;
@@ -138,12 +138,12 @@ export function LabelEditPage({ mode }: { mode: "create" | "edit" }) {
   return <LabelEditForm key={labelId || "new"} mode={mode} labelId={labelID} initial={initial} />;
 }
 
-export function LabelCreatePage() {
-  return <LabelEditPage mode="create" />;
+export function LabelNewPage() {
+  return <LabelMutationPage mode="create" />;
 }
 
-export function LabelUpdatePage() {
-  return <LabelEditPage mode="edit" />;
+export function LabelEditPage() {
+  return <LabelMutationPage mode="edit" />;
 }
 
 function LabelEditForm({
@@ -177,7 +177,7 @@ function LabelEditForm({
       return;
     }
     const cleaned = parsed.data;
-    const body: LabelCreate | LabelMutation = {
+    const body: LabelMutation = {
       name: cleaned.name,
       description: cleaned.description,
       label_membership_type: cleaned.label_membership_type,

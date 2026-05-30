@@ -1,15 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Label, LabelMutation, Page } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import type { ListLabelsData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Label = Schemas["Label"];
-export type LabelListResult = Schemas["PaginatedBodyLabel"];
-export type LabelCreate = Schemas["LabelCreateBody"];
-export type LabelMutation = Schemas["LabelMutationBody"];
+export type { Label, LabelMutation };
+export type LabelListResult = Page<Label>;
 export type LabelListParams = NonNullable<ListLabelsData["query"]>;
 
 export function useLabels(params: LabelListParams = {}) {
@@ -51,7 +49,7 @@ export function useLabel(id: number | null) {
 
 export function useCreateLabel() {
   const queryClient = useQueryClient();
-  return useMutation<Label, ApiError, LabelCreate>({
+  return useMutation<Label, ApiError, LabelMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/labels", { body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["labels"] });

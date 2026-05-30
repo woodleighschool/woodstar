@@ -1,7 +1,19 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type {
+  ApiError,
+  Configuration,
+  ConfigurationMutation,
+  ExecutionEvent,
+  FileAccessEvent,
+  HostState,
+  HostSummary,
+  Page,
+  Rule,
+  RuleMutation,
+  RuleTarget,
+} from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import type {
   ListSantaConfigurationsData,
   ListSantaEventsData,
@@ -12,20 +24,20 @@ import type {
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SantaConfiguration = Schemas["Configuration"];
-export type SantaConfigurationMutation = Schemas["ConfigurationMutation"];
-export type SantaConfigurationListResult = Schemas["PaginatedBodyConfiguration"];
-export type SantaEvent = Schemas["ExecutionEvent"];
-export type SantaEventListResult = Schemas["PaginatedBodyExecutionEvent"];
-export type SantaFileAccessEvent = Schemas["FileAccessEvent"];
-export type SantaFileAccessEventListResult = Schemas["PaginatedBodyFileAccessEvent"];
-export type SantaHostSummary = Schemas["HostSummary"];
-export type SantaRule = Schemas["Rule"];
-export type SantaRuleMutation = Schemas["RuleMutation"];
-export type SantaRuleListResult = Schemas["PaginatedBodyRule"];
-export type SantaRuleTarget = Schemas["RuleTarget"];
-export type SantaRuleTargetListResult = Schemas["ItemsBodyRuleTarget"];
-export type SantaClientMode = Schemas["HostState"]["client_mode_reported"] | SantaConfiguration["client_mode"];
+export type SantaConfiguration = Configuration;
+export type SantaConfigurationMutation = ConfigurationMutation;
+export type SantaConfigurationListResult = Page<SantaConfiguration>;
+export type SantaEvent = ExecutionEvent;
+export type SantaEventListResult = Page<SantaEvent>;
+export type SantaFileAccessEvent = FileAccessEvent;
+export type SantaFileAccessEventListResult = Page<SantaFileAccessEvent>;
+export type SantaHostSummary = HostSummary;
+export type SantaRule = Rule;
+export type SantaRuleMutation = RuleMutation;
+export type SantaRuleListResult = Page<SantaRule>;
+export type SantaRuleTarget = RuleTarget;
+export type SantaRuleTargetListResult = SantaRuleTarget[];
+export type SantaClientMode = HostState["client_mode_reported"] | SantaConfiguration["client_mode"];
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 export type SantaRuleType = SantaRule["rule_type"];

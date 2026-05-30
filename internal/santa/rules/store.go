@@ -29,12 +29,14 @@ func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, i
 	if err != nil {
 		return nil, 0, err
 	}
+	listQuery := ruleListQuery(params, where, args)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, "SELECT count(*) FROM santa_rules "+where, args...).Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := ruleListSQL(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -512,7 +514,7 @@ func ruleListWhere(params RuleListParams) (string, []any, error) {
 	return whereSQL, args, nil
 }
 
-func ruleListSQL(params RuleListParams, where string, args []any) (string, []any, error) {
+func ruleListQuery(params RuleListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL:    ruleSelectSQL,
 		WhereSQL:     where,
@@ -520,7 +522,7 @@ func ruleListSQL(params RuleListParams, where string, args []any) (string, []any
 		OrderKeys:    ruleOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "rule_type_sort"}, {SQL: "identifier"}, {SQL: "id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 func ruleOrderKeys() map[string]dbutil.OrderExpr {

@@ -28,7 +28,7 @@ type santaEventListInput struct {
 }
 
 type santaEventListOutput struct {
-	Body paginatedBody[santaevents.ExecutionEvent]
+	Body Page[santaevents.ExecutionEvent]
 }
 
 type santaEventGetInput struct {
@@ -47,7 +47,7 @@ type santaFileAccessEventListInput struct {
 }
 
 type santaFileAccessEventListOutput struct {
-	Body paginatedBody[santaevents.FileAccessEvent]
+	Body Page[santaevents.FileAccessEvent]
 }
 
 type santaFileAccessEventGetInput struct {
@@ -109,7 +109,7 @@ func registerListSantaEvents(api huma.API, store *santaevents.Store) {
 		if err != nil {
 			return nil, resourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: paginatedBody[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
+		return &santaEventListOutput{Body: Page[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
 	})
 }
 
@@ -147,7 +147,7 @@ func registerListSantaFileAccessEvents(api huma.API, store *santaevents.Store) {
 			return nil, resourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: paginatedBody[santaevents.FileAccessEvent]{Items: events, Count: count},
+			Body: Page[santaevents.FileAccessEvent]{Items: events, Count: count},
 		}, nil
 	})
 }

@@ -8,13 +8,10 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useSession } from "@/hooks/use-auth";
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, LoginInput, User } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { formString } from "@/lib/utils";
-
-type LoginInput = Schemas["LoginInputBody"];
-type UserBody = Schemas["User"];
 
 export function LoginPage() {
   const queryClient = useQueryClient();
@@ -23,7 +20,7 @@ export function LoginPage() {
   const search: { sso_error?: string } = useSearch({ strict: false });
   const ssoEnabled = session?.sso_enabled ?? false;
 
-  const login = useMutation<UserBody, ApiError, LoginInput>({
+  const login = useMutation<User, ApiError, LoginInput>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/auth/login", { body })),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });

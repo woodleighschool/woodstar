@@ -76,25 +76,14 @@ type ListParams struct {
 	LabelMembershipType LabelMembershipType
 }
 
-// LabelCreate is a new label.
-type LabelCreate struct {
-	Name                string
-	Description         string
-	Query               *string
-	Criteria            *Criteria
-	HostIDs             []int64
-	LabelType           LabelType
-	LabelMembershipType LabelMembershipType
-}
-
-// LabelUpdate is the editable label state.
-type LabelUpdate struct {
-	Name                string
-	Description         string
-	Query               *string
-	Criteria            *Criteria
-	HostIDs             []int64
-	LabelMembershipType LabelMembershipType
+// LabelMutation is the editable label state used by create and update.
+type LabelMutation struct {
+	Name                string              `json:"name"`
+	Description         string              `json:"description,omitempty"`
+	Query               *string             `json:"query,omitempty"`
+	Criteria            *Criteria           `json:"criteria,omitempty"`
+	HostIDs             []int64             `json:"host_ids,omitempty"`
+	LabelMembershipType LabelMembershipType `json:"label_membership_type,omitempty"`
 }
 
 func (LabelType) Schema(_ huma.Registry) *huma.Schema {

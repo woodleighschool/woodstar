@@ -25,7 +25,7 @@ const emptyCheck: CheckMutation = {
   label_scope: {},
 };
 
-export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
+export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
   const checkId = params.checkId ?? "";
   const checkID = mode === "edit" ? Number(checkId) : null;
@@ -64,12 +64,12 @@ export function CheckEditPage({ mode }: { mode: "create" | "edit" }) {
   return <CheckEditForm key={checkId || "new"} mode={mode} checkId={checkID} checkParam={checkId} initial={initial} />;
 }
 
-export function CheckCreatePage() {
-  return <CheckEditPage mode="create" />;
+export function CheckNewPage() {
+  return <CheckMutationPage mode="create" />;
 }
 
-export function CheckUpdatePage() {
-  return <CheckEditPage mode="edit" />;
+export function CheckEditPage() {
+  return <CheckMutationPage mode="edit" />;
 }
 
 function CheckEditForm({

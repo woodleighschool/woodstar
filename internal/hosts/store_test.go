@@ -195,9 +195,8 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll label host: %v", err)
 	}
-	label, err := labelStore.Create(ctx, labels.LabelCreate{
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
 		Name:                "Live Target Test",
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {
@@ -253,9 +252,8 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	); err != nil {
 		t.Fatalf("set host seen times: %v", err)
 	}
-	label, err := labelStore.Create(ctx, labels.LabelCreate{
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
 		Name:                "Live Count Test",
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {
@@ -297,9 +295,8 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	if err != nil {
 		t.Fatalf("enroll offline host: %v", err)
 	}
-	label, err := labelStore.Create(ctx, labels.LabelCreate{
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
 		Name:                "Live Online Target Test",
-		LabelType:           labels.LabelTypeRegular,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})
 	if err != nil {

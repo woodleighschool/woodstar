@@ -1,23 +1,11 @@
 -- +goose Up
 
--- +goose StatementBegin
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_type
-        WHERE typname = 'santa_file_access_decision'
-    ) THEN
-        CREATE TYPE santa_file_access_decision AS ENUM (
-            'unknown',
-            'denied',
-            'denied_invalid_signature',
-            'audit_only'
-        );
-    END IF;
-END
-$$;
--- +goose StatementEnd
+CREATE TYPE santa_file_access_decision AS ENUM (
+    'unknown',
+    'denied',
+    'denied_invalid_signature',
+    'audit_only'
+);
 
 UPDATE santa_execution_events
 SET occurred_at = ingested_at

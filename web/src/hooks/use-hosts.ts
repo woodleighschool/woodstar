@@ -1,21 +1,28 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type {
+  ApiError,
+  CheckHostStatus,
+  Host,
+  HostDetail,
+  HostReport,
+  HostSoftwareRow,
+  Page,
+  RuleStatus,
+} from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import type { ListHostSantaRulesData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type Host = Schemas["Host"];
-export type HostDetail = Schemas["HostDetailBody"];
-export type HostSoftware = Schemas["HostSoftwareRow"];
-export type HostListResult = Schemas["PaginatedBodyHost"];
-export type HostSoftwareListResult = Schemas["PaginatedBodyHostSoftwareRow"];
-export type HostReportsResult = Schemas["ItemsBodyHostReport"];
-export type HostReport = Schemas["HostReport"];
-export type HostChecksResult = Schemas["ItemsBodyCheckHostStatus"];
-export type HostSantaRulesResult = Schemas["PaginatedBodyRuleStatus"];
-export type HostSantaRule = Schemas["RuleStatus"];
+export type { Host, HostDetail, HostReport };
+export type HostSoftware = HostSoftwareRow;
+export type HostListResult = Page<Host>;
+export type HostSoftwareListResult = Page<HostSoftwareRow>;
+export type HostReportsResult = HostReport[];
+export type HostChecksResult = CheckHostStatus[];
+export type HostSantaRulesResult = Page<RuleStatus>;
+export type HostSantaRule = RuleStatus;
 export type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
 export interface HostUserAffinityMutation {

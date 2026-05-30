@@ -16,7 +16,7 @@ func TestListIncludesLabelScope(t *testing.T) {
 	labelA := createManualLabel(t, ctx, labelStore, "Report A")
 	labelB := createManualLabel(t, ctx, labelStore, "Report B")
 
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Scoped report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
@@ -50,7 +50,7 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 		t.Fatalf("set matching label membership: %v", err)
 	}
 
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
@@ -58,7 +58,7 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
@@ -80,7 +80,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "5.22.1")
 
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
 		MinOsqueryVersion: new("5.0.0"),
@@ -88,14 +88,14 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 0,
 	}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
-	if _, err := store.Create(ctx, ReportCreate{
+	if _, err := store.Create(ctx, ReportMutation{
 		Name:              "Version-gated scheduled report",
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
@@ -121,7 +121,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-host", "5.22.1")
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
-	reportWithRows, err := store.Create(ctx, ReportCreate{
+	reportWithRows, err := store.Create(ctx, ReportMutation{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
@@ -129,7 +129,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
 	}
-	reportEmpty, err := store.Create(ctx, ReportCreate{
+	reportEmpty, err := store.Create(ctx, ReportMutation{
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
@@ -186,7 +186,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHost(t, ctx, hostStore, "report-overwrite-host")
-	report, err := store.Create(ctx, ReportCreate{
+	report, err := store.Create(ctx, ReportMutation{
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
@@ -244,7 +244,7 @@ func newIntegrationReportStore(t *testing.T) (*Store, *labels.Store, *hosts.Stor
 
 func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, name string) *labels.Label {
 	t.Helper()
-	label, err := store.Create(ctx, labels.LabelCreate{
+	label, err := store.Create(ctx, labels.LabelMutation{
 		Name:                name,
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 	})

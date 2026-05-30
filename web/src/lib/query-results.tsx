@@ -2,10 +2,10 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTableColumnHeader } from "@/components/data-table";
-import type { Schemas } from "@/lib/api";
+import type { ReportResult } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
 
-export type ReportResultRow = Schemas["ReportResult"];
+export type ReportResultRow = ReportResult;
 
 export type ReportTableRow = {
   id: string;

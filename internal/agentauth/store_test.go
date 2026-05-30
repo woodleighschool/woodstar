@@ -10,11 +10,17 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 
-	orbitSecret, err := store.Create(ctx, AgentOrbit, "orbit-secret-value-long-enough-32")
+	orbitSecret, err := store.Create(ctx, AgentSecretCreate{
+		Agent: AgentOrbit,
+		Value: "orbit-secret-value-long-enough-32",
+	})
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
-	santaSecret, err := store.Create(ctx, AgentSanta, "santa-secret-value-long-enough-32")
+	santaSecret, err := store.Create(ctx, AgentSecretCreate{
+		Agent: AgentSanta,
+		Value: "santa-secret-value-long-enough-32",
+	})
 	if err != nil {
 		t.Fatalf("create santa agent secret: %v", err)
 	}
@@ -54,7 +60,9 @@ func TestAgentSecretLifecycle(t *testing.T) {
 		t.Fatal("empty secret verified")
 	}
 
-	updatedOrbitSecret, err := store.Update(ctx, orbitSecret.ID, "updated-orbit-secret-value-long-32")
+	updatedOrbitSecret, err := store.Update(ctx, orbitSecret.ID, AgentSecretMutation{
+		Value: "updated-orbit-secret-value-long-32",
+	})
 	if err != nil {
 		t.Fatalf("update orbit secret: %v", err)
 	}
@@ -93,7 +101,10 @@ func TestCreateRejectsUnknownAgent(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 
-	if _, err := store.Create(ctx, Agent("osquery"), "raw-osquery-secret-value-long-32"); err == nil {
+	if _, err := store.Create(ctx, AgentSecretCreate{
+		Agent: Agent("osquery"),
+		Value: "raw-osquery-secret-value-long-32",
+	}); err == nil {
 		t.Fatal("Create accepted unknown agent")
 	}
 }

@@ -5,8 +5,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/osquery/labelscope"
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
@@ -23,70 +23,16 @@ func (s *Store) loadCheckScope(ctx context.Context, checkID int64) (scope.LabelS
 }
 
 func (s *Store) loadCheckScopes(ctx context.Context, checkIDs []int64) (map[int64]scope.LabelScope, error) {
-	scopes := make(map[int64]scope.LabelScope, len(checkIDs))
 	if len(checkIDs) == 0 {
-		return scopes, nil
+		return map[int64]scope.LabelScope{}, nil
 	}
-
-	rows, err := s.q.ListCheckScopes(ctx, sqlc.ListCheckScopesParams{CheckIds: checkIDs})
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range rows {
-		scopes[row.ID] = scope.LabelScope{Mode: row.LabelScopeMode}
-	}
-
-	labels, err := s.q.ListCheckLabelIDs(ctx, sqlc.ListCheckLabelIDsParams{CheckIds: checkIDs})
-	if err != nil {
-		return nil, err
-	}
-	for _, row := range labels {
-		lscope := scopes[row.CheckID]
-		lscope.LabelIDs = append(lscope.LabelIDs, row.LabelID)
-		scopes[row.CheckID] = lscope
-	}
-	for checkID, lscope := range scopes {
-		scopes[checkID] = scope.NormalizeLabelScope(lscope)
-	}
-	return scopes, nil
+	return labelscope.LoadChecks(ctx, s.q, checkIDs)
 }
 
 func replaceCheckScope(ctx context.Context, tx pgx.Tx, checkID int64, lscope scope.LabelScope) error {
-	lscope = storedLabelScope(lscope)
-	q := sqlc.New(tx)
-	if err := q.SetCheckScopeMode(ctx, sqlc.SetCheckScopeModeParams{
-		ID:             checkID,
-		LabelScopeMode: lscope.Mode,
-	}); err != nil {
-		return err
-	}
-	if err := q.DeleteCheckLabels(ctx, sqlc.DeleteCheckLabelsParams{CheckID: checkID}); err != nil {
-		return err
-	}
-	if len(lscope.LabelIDs) == 0 {
-		return nil
-	}
-	return q.InsertCheckLabels(ctx, sqlc.InsertCheckLabelsParams{
-		CheckID:  checkID,
-		LabelIds: lscope.LabelIDs,
-	})
+	return labelscope.ReplaceCheck(ctx, tx, checkID, lscope)
 }
 
 func storedLabelScope(lscope scope.LabelScope) scope.LabelScope {
-	lscope = scope.NormalizeLabelScope(lscope)
-	lscope.LabelIDs = uniqueInt64s(lscope.LabelIDs)
-	return lscope
-}
-
-func uniqueInt64s(values []int64) []int64 {
-	out := make([]int64, 0, len(values))
-	seen := make(map[int64]struct{}, len(values))
-	for _, value := range values {
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
+	return labelscope.Normalize(lscope)
 }

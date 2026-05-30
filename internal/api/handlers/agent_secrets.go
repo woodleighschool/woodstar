@@ -21,10 +21,7 @@ type agentSecretListOutput struct {
 }
 
 type agentSecretCreateInput struct {
-	Body struct {
-		Agent agentauth.Agent `json:"agent"`
-		Value string          `json:"value" minLength:"32"`
-	}
+	Body agentauth.AgentSecretCreate
 }
 
 type agentSecretCreateOutput struct {
@@ -33,9 +30,7 @@ type agentSecretCreateOutput struct {
 
 type agentSecretUpdateInput struct {
 	ID   int64 `path:"id"`
-	Body struct {
-		Value string `json:"value" minLength:"32"`
-	}
+	Body agentauth.AgentSecretMutation
 }
 
 type agentSecretDeleteInput struct {
@@ -67,11 +62,10 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *agentSecretCreateInput) (*agentSecretCreateOutput, error) {
-		agent, err := agentauth.ParseAgent(string(input.Body.Agent))
-		if err != nil {
+		if _, err := agentauth.ParseAgent(string(input.Body.Agent)); err != nil {
 			return nil, huma.Error400BadRequest("invalid agent")
 		}
-		secret, err := store.Create(ctx, agent, input.Body.Value)
+		secret, err := store.Create(ctx, input.Body)
 		if errors.Is(err, agentauth.ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
@@ -94,7 +88,7 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
-		secret, err := store.Update(ctx, input.ID, input.Body.Value)
+		secret, err := store.Update(ctx, input.ID, input.Body)
 		if errors.Is(err, agentauth.ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}

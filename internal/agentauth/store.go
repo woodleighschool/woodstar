@@ -33,13 +33,13 @@ func (s *Store) List(ctx context.Context) ([]AgentSecret, error) {
 	return secrets, nil
 }
 
-func (s *Store) Create(ctx context.Context, agent Agent, value string) (AgentSecret, error) {
-	if !agent.Valid() {
+func (s *Store) Create(ctx context.Context, params AgentSecretCreate) (AgentSecret, error) {
+	if !params.Agent.Valid() {
 		return AgentSecret{}, ErrInvalidAgent
 	}
 	row, err := s.q.CreateAgentSecret(ctx, sqlc.CreateAgentSecretParams{
-		Agent: sqlc.Agent(agent),
-		Value: value,
+		Agent: sqlc.Agent(params.Agent),
+		Value: params.Value,
 	})
 	if err != nil {
 		return AgentSecret{}, err
@@ -47,10 +47,10 @@ func (s *Store) Create(ctx context.Context, agent Agent, value string) (AgentSec
 	return agentSecretFromRecord(row), nil
 }
 
-func (s *Store) Update(ctx context.Context, id int64, value string) (AgentSecret, error) {
+func (s *Store) Update(ctx context.Context, id int64, params AgentSecretMutation) (AgentSecret, error) {
 	row, err := s.q.UpdateAgentSecret(ctx, sqlc.UpdateAgentSecretParams{
 		ID:    id,
-		Value: value,
+		Value: params.Value,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AgentSecret{}, dbutil.ErrNotFound

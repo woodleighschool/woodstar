@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -13,26 +12,12 @@ import (
 
 const accountTag = "Account"
 
-// accountBody is the self-view returned to the signed-in user. APIKey is
-// the plaintext token; it is only present in /api/account responses, never
-// in admin endpoints like ListUsers where one admin can see others.
-type accountBody struct {
-	User            users.User `json:"user"`
-	APIKey          string     `json:"api_key,omitempty"`
-	APIKeyCreatedAt *time.Time `json:"api_key_created_at,omitempty"`
-}
-
 type accountOutput struct {
-	Body accountBody
-}
-
-type accountPutBody struct {
-	Name     string  `json:"name"`
-	Password *string `json:"password,omitempty"`
+	Body users.Account
 }
 
 type accountPutInput struct {
-	Body accountPutBody
+	Body users.AccountMutation
 }
 
 // RegisterAccount registers self-service endpoints scoped to the signed-in
@@ -62,7 +47,7 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &accountOutput{Body: accountBodyFor(*account)}, nil
+		return &accountOutput{Body: *account}, nil
 	})
 }
 
@@ -83,14 +68,11 @@ func registerPutAccount(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, err
 		}
-		account, err := userService.UpdateAccount(ctx, user.ID, users.AccountUpdateParams{
-			Name:     input.Body.Name,
-			Password: input.Body.Password,
-		})
+		account, err := userService.UpdateAccount(ctx, user.ID, input.Body)
 		if err != nil {
 			return nil, userMutationError(err)
 		}
-		return &accountOutput{Body: accountBodyFor(*account)}, nil
+		return &accountOutput{Body: *account}, nil
 	})
 }
 
@@ -112,7 +94,7 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &accountOutput{Body: accountBodyFor(*rotated)}, nil
+		return &accountOutput{Body: *rotated}, nil
 	})
 }
 
@@ -133,7 +115,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &accountOutput{Body: accountBodyFor(*cleared)}, nil
+		return &accountOutput{Body: *cleared}, nil
 	})
 }
 
@@ -147,12 +129,4 @@ func requireUser(ctx context.Context) (*users.User, error) {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
 	return user, nil
-}
-
-func accountBodyFor(account users.Account) accountBody {
-	return accountBody{
-		User:            account.User,
-		APIKey:          account.APIKey,
-		APIKeyCreatedAt: account.APIKeyCreatedAt,
-	}
 }

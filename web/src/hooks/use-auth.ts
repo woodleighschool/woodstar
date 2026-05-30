@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Session } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type Session = Schemas["SessionBody"];
+export type { Session };
 export type CurrentUser = NonNullable<Session["user"]>;
 
 export function useSession(): { session: Session | null; isLoading: boolean } {

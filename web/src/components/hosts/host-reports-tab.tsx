@@ -9,7 +9,7 @@ import { useHostReports } from "@/hooks/use-hosts";
 
 export function HostReportsTab({ hostId }: { hostId: number | null }) {
   const reports = useHostReports(hostId);
-  const reportItems = reports.data?.items;
+  const reportItems = reports.data;
   const rows = useMemo(() => reportItems ?? [], [reportItems]);
 
   if (reports.error) {

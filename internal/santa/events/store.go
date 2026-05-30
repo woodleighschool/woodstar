@@ -149,13 +149,15 @@ func (s *Store) ListEvents(ctx context.Context, params ExecutionEventListParams)
 	if err != nil {
 		return nil, 0, err
 	}
+	listQuery := executionEventListQuery(params, where, args)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, executionEventCountSQL+"\n"+where, args...).Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := executionEventListQuery(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -205,13 +207,15 @@ func (s *Store) ListFileAccessEvents(
 	if err != nil {
 		return nil, 0, err
 	}
+	listQuery := fileAccessEventListQuery(params, where, args)
 
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, fileAccessEventCountSQL+"\n"+where, args...).Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := fileAccessEventListQuery(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -402,7 +406,7 @@ func insertFileAccessEvent(ctx context.Context, tx pgx.Tx, hostID int64, event F
 		RuleVersion:             event.RuleVersion,
 		RuleName:                event.RuleName,
 		Target:                  event.Target,
-		Decision:                string(event.Decision),
+		Decision:                sqlc.SantaFileAccessDecision(event.Decision),
 		PrimaryProcessSha256:    primaryFileSHA256(event.ProcessChain),
 		PrimaryProcessPath:      primaryFilePath(event.ProcessChain),
 		PrimaryProcessSigningID: primarySigningID(event.ProcessChain),
@@ -667,7 +671,7 @@ func addExecutionEventFilters(where *dbutil.WhereBuilder, params ExecutionEventL
 	return nil
 }
 
-func executionEventListQuery(params ExecutionEventListParams, where string, args []any) (string, []any, error) {
+func executionEventListQuery(params ExecutionEventListParams, where string, args []any) dbutil.ListQuery {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	if params.Sort == "" {
 		params.Sort = "occurred_at.desc"
@@ -679,10 +683,10 @@ func executionEventListQuery(params ExecutionEventListParams, where string, args
 		OrderKeys:    eventOrderKeys("ee", "e"),
 		Params:       params.ListParams,
 		DefaultOrder: defaultEventOrder("ee"),
-	}.Build()
+	}
 }
 
-func fileAccessEventListQuery(params FileAccessEventListParams, where string, args []any) (string, []any, error) {
+func fileAccessEventListQuery(params FileAccessEventListParams, where string, args []any) dbutil.ListQuery {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	if params.Sort == "" {
 		params.Sort = "occurred_at.desc"
@@ -694,7 +698,7 @@ func fileAccessEventListQuery(params FileAccessEventListParams, where string, ar
 		OrderKeys:    fileAccessEventOrderKeys(),
 		Params:       params.ListParams,
 		DefaultOrder: defaultEventOrder("fae"),
-	}.Build()
+	}
 }
 
 func scanExecutionEvent(row pgx.Row) (ExecutionEvent, error) {
@@ -1049,13 +1053,6 @@ JOIN santa_executables e ON e.id = ee.executable_id
 JOIN hosts h ON h.id = ee.host_id
 LEFT JOIN santa_hosts sh ON sh.host_id = h.id`
 
-const executionEventCountSQL = `
-SELECT count(*)
-FROM santa_execution_events ee
-JOIN santa_executables e ON e.id = ee.executable_id
-JOIN hosts h ON h.id = ee.host_id
-LEFT JOIN santa_hosts sh ON sh.host_id = h.id`
-
 const fileAccessEventSelectSQL = `
 SELECT
 	fae.id,
@@ -1067,12 +1064,6 @@ SELECT
 	fae.process_chain,
 	fae.occurred_at,
 	fae.ingested_at
-FROM santa_file_access_events fae
-JOIN hosts h ON h.id = fae.host_id
-LEFT JOIN santa_hosts sh ON sh.host_id = h.id`
-
-const fileAccessEventCountSQL = `
-SELECT count(*)
 FROM santa_file_access_events fae
 JOIN hosts h ON h.id = fae.host_id
 LEFT JOIN santa_hosts sh ON sh.host_id = h.id`

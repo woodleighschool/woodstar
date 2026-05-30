@@ -50,7 +50,7 @@ type santaConfigurationReorderBody struct {
 }
 
 type santaConfigurationListOutput struct {
-	Body paginatedBody[configurations.Configuration]
+	Body Page[configurations.Configuration]
 }
 
 type santaConfigurationOutput struct {
@@ -87,7 +87,7 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store) 
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &santaConfigurationListOutput{
-			Body: paginatedBody[configurations.Configuration]{Items: rows, Count: count},
+			Body: Page[configurations.Configuration]{Items: rows, Count: count},
 		}, nil
 	})
 }

@@ -14,7 +14,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { USER_ROLE_OPTIONS, type UserRole } from "@/components/users/user-role";
-import { useCreateUser, useUpdateUser, type User, type UserCreateBody, type UserUpdateBody } from "@/hooks/use-users";
+import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
 
 type Role = UserRole;
 
@@ -83,13 +83,13 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
 
   async function handleSubmit() {
     if (mode === "create") {
-      const body: UserCreateBody = { email, name, role, password };
+      const body: UserCreate = { email, name, role, password };
       await create.mutateAsync(body);
       onClose();
       return;
     }
 
-    const body: UserUpdateBody = {
+    const body: UserMutation = {
       name: isInitialUser ? editing!.name : name,
       role: canChangeRole ? role : editing!.role,
     };

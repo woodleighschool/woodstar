@@ -136,24 +136,6 @@ ON CONFLICT (host_id, software_id, installed_path) DO UPDATE SET
     executable_path = EXCLUDED.executable_path,
     last_seen_at = now();
 
--- name: GetSoftwareTitleSummary :one
-SELECT
-    st.id,
-    st.name,
-    st.display_name,
-    st.source,
-    st.extension_for,
-    st.bundle_identifier,
-    st.vendor,
-    COUNT(DISTINCT hs.host_id)::integer AS hosts_count,
-    COUNT(DISTINCT s.id)::integer AS versions_count,
-    MAX(hs.last_seen_at) AS counts_updated_at
-FROM software_titles st
-LEFT JOIN software s ON s.title_id = st.id
-LEFT JOIN host_software hs ON hs.software_id = s.id
-WHERE st.id = @id
-GROUP BY st.id;
-
 -- name: ListSoftwareTitleVersions :many
 SELECT
     s.title_id,

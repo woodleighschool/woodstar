@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { Account, AccountMutation, ApiError, Session } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-export type Account = Schemas["AccountBody"];
-export type AccountUpdateBody = Schemas["AccountPutBody"];
+export type { Account, AccountMutation };
 
 export function useAccount() {
   return useQuery<Account, ApiError>({
@@ -17,12 +16,12 @@ export function useAccount() {
 
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
-  return useMutation<Account, ApiError, AccountUpdateBody>({
+  return useMutation<Account, ApiError, AccountMutation>({
     mutationFn: (body) => unwrap(apiClient.PUT("/api/account", { body })),
     onSuccess: async (account) => {
       queryClient.setQueryData(queryKeys.account, account);
       queryClient.setQueryData(queryKeys.user(account.user.id), account.user);
-      queryClient.setQueryData(queryKeys.session, (session: Schemas["SessionBody"] | undefined) =>
+      queryClient.setQueryData(queryKeys.session, (session: Session | undefined) =>
         session ? { ...session, user: account.user } : session,
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.users });

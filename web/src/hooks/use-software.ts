@@ -1,14 +1,13 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import type { ApiError } from "@/lib/api";
-import { apiClient, unwrap, type Schemas } from "@/lib/api";
+import type { ApiError, Page, SoftwareReference, SoftwareTitle, SoftwareVersion } from "@/lib/api";
+import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
-export type SoftwareTitle = Schemas["SoftwareTitle"];
-export type SoftwareListResult = Schemas["PaginatedBodySoftwareTitle"];
-export type SoftwareVersion = Schemas["SoftwareVersion"];
-export type SoftwareSantaReference = Schemas["SoftwareReference"];
+export type { SoftwareTitle, SoftwareVersion };
+export type SoftwareListResult = Page<SoftwareTitle>;
+export type SoftwareSantaReference = SoftwareReference;
 
 export interface SoftwareListParams {
   q?: string;

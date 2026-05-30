@@ -7,10 +7,8 @@ import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/compone
 import { CheckStatusBadge } from "@/components/osquery/checks/check-status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useHostChecks } from "@/hooks/use-hosts";
-import type { Schemas } from "@/lib/api";
+import type { CheckHostStatus } from "@/lib/api";
 import { formatRelative } from "@/lib/utils";
-
-type HostCheck = Schemas["CheckHostStatus"];
 
 const HOST_CHECKS_PAGE_SIZE = 25;
 
@@ -21,9 +19,9 @@ export function HostChecksTab({ hostId }: { hostId: number | null }) {
   });
   const [sorting, setSorting] = useState<SortingState>([{ id: "check_name", desc: false }]);
   const query = useHostChecks(hostId);
-  const rows = query.data?.items ?? [];
+  const rows = query.data ?? [];
 
-  const columns = useMemo<ColumnDef<HostCheck>[]>(
+  const columns = useMemo<ColumnDef<CheckHostStatus>[]>(
     () => [
       {
         accessorKey: "check_name",

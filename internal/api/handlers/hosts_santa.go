@@ -32,7 +32,7 @@ func SantaHostDetailContributor(loader santaHostStateLoader) HostDetailContribut
 func (c santaHostDetailContributor) ContributeHostDetail(
 	ctx context.Context,
 	hostID int64,
-	body *hostDetailBody,
+	body *HostDetail,
 ) error {
 	detail, err := c.loader.LoadHostState(ctx, hostID)
 	if err != nil {
@@ -43,7 +43,7 @@ func (c santaHostDetailContributor) ContributeHostDetail(
 }
 
 type hostSantaRulesOutput struct {
-	Body paginatedBody[santarules.RuleStatus]
+	Body Page[santarules.RuleStatus]
 }
 
 type hostSantaRulesInput struct {
@@ -76,7 +76,7 @@ func RegisterHostSantaRules(api huma.API, hostStore *hosts.Store, santaRuleStore
 			return nil, resourceMutationError("Santa rule", err)
 		}
 		return &hostSantaRulesOutput{
-			Body: paginatedBody[santarules.RuleStatus]{Items: rows, Count: count},
+			Body: Page[santarules.RuleStatus]{Items: rows, Count: count},
 		}, nil
 	})
 }

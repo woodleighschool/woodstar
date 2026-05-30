@@ -15,12 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useHostSoftware, type HostSoftware } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
-import type { Schemas } from "@/lib/api";
+import type { HostSoftwareInstalledVersion, PathSignatureInformation } from "@/lib/api";
 import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
-
-type InstalledVersion = Schemas["HostSoftwareInstalledVersion"];
-type SignatureInfo = Schemas["PathSignatureInformation"];
 
 const HOST_SOFTWARE_PAGE_SIZE = 50;
 
@@ -206,7 +203,7 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
 interface InstalledPath {
   path: string;
   version: string;
-  signature?: SignatureInfo;
+  signature?: PathSignatureInformation;
 }
 
 function InstalledPathCell({
@@ -262,7 +259,7 @@ function InstalledPathCell({
   );
 }
 
-function installedPathsFor(versions: InstalledVersion[]): InstalledPath[] {
+function installedPathsFor(versions: HostSoftwareInstalledVersion[]): InstalledPath[] {
   return versions.flatMap((version) => {
     const signatures = buildSignatureIndex(version.signature_information);
     return (version.installed_paths ?? []).map((path) => ({
@@ -283,7 +280,7 @@ function truncateHash(hash: string): string {
   return `${hash.slice(0, 8)}…${hash.slice(-8)}`;
 }
 
-function pickLatestLastOpened(versions: InstalledVersion[]): string | undefined {
+function pickLatestLastOpened(versions: HostSoftwareInstalledVersion[]): string | undefined {
   let latest: string | undefined;
   for (const version of versions) {
     const value = version.last_opened_at;
@@ -295,8 +292,10 @@ function pickLatestLastOpened(versions: InstalledVersion[]): string | undefined 
   return latest;
 }
 
-function buildSignatureIndex(rows: SignatureInfo[] | null | undefined): Map<string, SignatureInfo> {
-  const map = new Map<string, SignatureInfo>();
+function buildSignatureIndex(
+  rows: PathSignatureInformation[] | null | undefined,
+): Map<string, PathSignatureInformation> {
+  const map = new Map<string, PathSignatureInformation>();
   if (!rows) return map;
   for (const row of rows) {
     if (row.installed_path) map.set(row.installed_path, row);

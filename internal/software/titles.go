@@ -3,7 +3,6 @@ package software
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -14,17 +13,15 @@ import (
 func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) ([]SoftwareTitle, int, error) {
 	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	whereSQL, args := softwareTitleWhere(params)
+	listQuery := softwareTitleListQuery(params.ListParams, whereSQL, args)
 
-	countSQL := `SELECT count(*) FROM software_titles st`
-	if whereSQL != "" {
-		countSQL += "\n" + whereSQL
-	}
 	var total int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	query, args, err := softwareTitleListQuery(params.ListParams, whereSQL, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -45,14 +42,15 @@ func (s *Store) ListTitles(ctx context.Context, params SoftwareTitleListParams) 
 }
 
 func (s *Store) GetTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
-	row, err := s.q.GetSoftwareTitleSummary(ctx, sqlc.GetSoftwareTitleSummaryParams{ID: id})
+	query := softwareTitleSelectSQL + "\nWHERE st.id = $1\nGROUP BY st.id"
+	title, err := scanSoftwareTitle(s.db.Pool().QueryRow(ctx, query, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	titles := []SoftwareTitle{softwareTitleFromSQLC(row)}
+	titles := []SoftwareTitle{title}
 	if err := s.loadSoftwareTitleVersions(ctx, titles); err != nil {
 		return nil, err
 	}
@@ -80,7 +78,7 @@ func softwareTitleWhere(params SoftwareTitleListParams) (string, []any) {
 	return where.Build()
 }
 
-func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []any) (string, []any, error) {
+func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL:  softwareTitleSelectSQL,
 		WhereSQL:   whereSQL,
@@ -95,7 +93,7 @@ func softwareTitleListQuery(params dbutil.ListParams, whereSQL string, args []an
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(st.name)"}, {SQL: "st.id"}},
 		Params:       params,
-	}.Build()
+	}
 }
 
 const softwareTitleSelectSQL = `
@@ -109,7 +107,7 @@ SELECT
 	st.vendor,
 	COUNT(DISTINCT hs.host_id)::integer AS hosts_count,
 	COUNT(DISTINCT s.id)::integer AS versions_count,
-	MAX(hs.last_seen_at) AS counts_updated_at
+	(CASE WHEN COUNT(hs.last_seen_at) = 0 THEN NULL ELSE MAX(hs.last_seen_at) END)::timestamptz AS counts_updated_at
 FROM software_titles st
 LEFT JOIN software s ON s.title_id = st.id
 LEFT JOIN host_software hs ON hs.software_id = s.id
@@ -118,22 +116,10 @@ LEFT JOIN host_software hs ON hs.software_id = s.id
 func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 	titles := make([]SoftwareTitle, 0)
 	for rows.Next() {
-		var title SoftwareTitle
-		if err := rows.Scan(
-			&title.ID,
-			&title.Name,
-			&title.DisplayName,
-			&title.Source,
-			&title.ExtensionFor,
-			&title.BundleIdentifier,
-			&title.Vendor,
-			&title.HostsCount,
-			&title.VersionsCount,
-			&title.CountsUpdatedAt,
-		); err != nil {
+		title, err := scanSoftwareTitle(rows)
+		if err != nil {
 			return nil, err
 		}
-		title.Browser = browserFor(title.Source, title.ExtensionFor)
 		titles = append(titles, title)
 	}
 	if err := rows.Err(); err != nil {
@@ -142,34 +128,22 @@ func scanSoftwareTitles(rows pgx.Rows) ([]SoftwareTitle, error) {
 	return titles, nil
 }
 
-func softwareTitleFromSQLC(row sqlc.GetSoftwareTitleSummaryRow) SoftwareTitle {
-	title := SoftwareTitle{
-		ID:               row.ID,
-		Name:             row.Name,
-		DisplayName:      row.DisplayName,
-		Source:           row.Source,
-		ExtensionFor:     row.ExtensionFor,
-		BundleIdentifier: row.BundleIdentifier,
-		Vendor:           row.Vendor,
-		HostsCount:       row.HostsCount,
-		VersionsCount:    row.VersionsCount,
-		CountsUpdatedAt:  timePtr(row.CountsUpdatedAt),
-	}
+func scanSoftwareTitle(row pgx.Row) (SoftwareTitle, error) {
+	var title SoftwareTitle
+	err := row.Scan(
+		&title.ID,
+		&title.Name,
+		&title.DisplayName,
+		&title.Source,
+		&title.ExtensionFor,
+		&title.BundleIdentifier,
+		&title.Vendor,
+		&title.HostsCount,
+		&title.VersionsCount,
+		&title.CountsUpdatedAt,
+	)
 	title.Browser = browserFor(title.Source, title.ExtensionFor)
-	return title
-}
-
-func timePtr(value any) *time.Time {
-	switch t := value.(type) {
-	case nil:
-		return nil
-	case time.Time:
-		return &t
-	case *time.Time:
-		return t
-	default:
-		return nil
-	}
+	return title, err
 }
 
 // browserFor returns the browser name when source indicates a browser

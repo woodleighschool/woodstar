@@ -46,12 +46,12 @@ func (s *Service) IsInitialUser(user *User) bool {
 	return user != nil && user.ID == initialUserID
 }
 
-func (s *Service) Create(ctx context.Context, params CreateParams) (*User, error) {
+func (s *Service) Create(ctx context.Context, params UserCreate) (*User, error) {
 	return s.store.Create(ctx, params)
 }
 
 // Update writes the full target record.
-func (s *Service) Update(ctx context.Context, targetID int64, params UpdateParams) (*User, error) {
+func (s *Service) Update(ctx context.Context, targetID int64, params UserMutation) (*User, error) {
 	if targetID == initialUserID {
 		current, err := s.store.GetByID(ctx, targetID)
 		if err != nil {

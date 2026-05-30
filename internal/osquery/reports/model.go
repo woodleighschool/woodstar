@@ -21,8 +21,8 @@ type Report struct {
 	UpdatedAt         time.Time        `json:"updated_at"`
 }
 
-// ReportCreate is a new report.
-type ReportCreate struct {
+// ReportMutation is the editable report state used by create and update.
+type ReportMutation struct {
 	Name              string           `json:"name"`
 	Description       string           `json:"description,omitempty"`
 	Query             string           `json:"query"`
@@ -30,16 +30,6 @@ type ReportCreate struct {
 	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
 	CreatedByUserID   *int64           `json:"-"`
-}
-
-// ReportUpdate is the editable report state.
-type ReportUpdate struct {
-	Name              string           `json:"name"`
-	Description       string           `json:"description,omitempty"`
-	Query             string           `json:"query"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
-	LabelScope        scope.LabelScope `json:"label_scope"`
 }
 
 // ReportListParams filters reports.

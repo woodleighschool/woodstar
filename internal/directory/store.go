@@ -22,15 +22,15 @@ func NewStore(db *database.DB) *Store {
 }
 
 // ListUsers returns directory users for admin selectors.
-func (s *Store) ListUsers(ctx context.Context, params ListParams) ([]User, int, error) {
+func (s *Store) ListUsers(ctx context.Context, params ListParams) ([]DirectoryUser, int, error) {
 	where, args := directoryUserWhere(params)
+	listQuery := directoryUserListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
 	var count int
-	if err := s.db.Pool().
-		QueryRow(ctx, "SELECT count(*)::integer FROM directory_users "+where, args...).
-		Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := directoryUserListSQL(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -39,8 +39,8 @@ func (s *Store) ListUsers(ctx context.Context, params ListParams) ([]User, int, 
 		return nil, 0, err
 	}
 	defer rows.Close()
-	users, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (User, error) {
-		var user User
+	users, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (DirectoryUser, error) {
+		var user DirectoryUser
 		var mail, mailNickname, givenName, familyName, department *string
 		err := row.Scan(
 			&user.ID,
@@ -66,15 +66,15 @@ func (s *Store) ListUsers(ctx context.Context, params ListParams) ([]User, int, 
 }
 
 // ListGroups returns directory groups for admin selectors.
-func (s *Store) ListGroups(ctx context.Context, params ListParams) ([]Group, int, error) {
+func (s *Store) ListGroups(ctx context.Context, params ListParams) ([]DirectoryGroup, int, error) {
 	where, args := directoryGroupWhere(params)
+	listQuery := directoryGroupListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
 	var count int
-	if err := s.db.Pool().
-		QueryRow(ctx, "SELECT count(*)::integer FROM directory_groups "+where, args...).
-		Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := directoryGroupListSQL(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -83,8 +83,8 @@ func (s *Store) ListGroups(ctx context.Context, params ListParams) ([]Group, int
 		return nil, 0, err
 	}
 	defer rows.Close()
-	groups, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Group, error) {
-		var group Group
+	groups, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (DirectoryGroup, error) {
+		var group DirectoryGroup
 		var mailNickname *string
 		err := row.Scan(&group.ID, &group.ExternalID, &group.DisplayName, &mailNickname, &group.LastSyncedAt)
 		group.MailNickname = stringValue(mailNickname)
@@ -96,12 +96,13 @@ func (s *Store) ListGroups(ctx context.Context, params ListParams) ([]Group, int
 // ListDepartments returns distinct non-empty directory departments for admin selectors.
 func (s *Store) ListDepartments(ctx context.Context, params ListParams) ([]Department, int, error) {
 	where, args := directoryDepartmentWhere(params)
-	countSQL := "SELECT count(*)::integer FROM (SELECT DISTINCT department FROM directory_users " + where + ") d"
+	listQuery := directoryDepartmentListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
 	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, args...).Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := directoryDepartmentListSQL(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -240,7 +241,7 @@ func directoryDepartmentWhere(params ListParams) (string, []any) {
 	return where.Build()
 }
 
-func directoryUserListSQL(params ListParams, where string, args []any) (string, []any, error) {
+func directoryUserListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: `SELECT id, external_id, user_principal_name, mail, mail_nickname, display_name,
 	given_name, family_name, department, active, last_synced_at
@@ -255,10 +256,10 @@ FROM directory_users`,
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
-func directoryGroupListSQL(params ListParams, where string, args []any) (string, []any, error) {
+func directoryGroupListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: "SELECT id, external_id, display_name, mail_nickname, last_synced_at FROM directory_groups",
 		WhereSQL:  where,
@@ -270,10 +271,10 @@ func directoryGroupListSQL(params ListParams, where string, args []any) (string,
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
-func directoryDepartmentListSQL(params ListParams, where string, args []any) (string, []any, error) {
+func directoryDepartmentListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: "SELECT DISTINCT department FROM directory_users",
 		WhereSQL:  where,
@@ -283,7 +284,7 @@ func directoryDepartmentListSQL(params ListParams, where string, args []any) (st
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "department"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 func cleanValues(values []string) []string {

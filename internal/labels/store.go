@@ -27,13 +27,13 @@ func NewStore(db *database.DB) *Store {
 
 func (s *Store) List(ctx context.Context, params ListParams) ([]Label, int, error) {
 	where, args := labelListWhere(params)
+	listQuery := labelListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
 	var count int
-	if err := s.db.Pool().
-		QueryRow(ctx, "SELECT count(*)::integer FROM labels l "+where, args...).
-		Scan(&count); err != nil {
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := labelListSQLWithWhere(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -97,7 +97,7 @@ func (s *Store) ListForHost(ctx context.Context, hostID int64) ([]Label, error) 
 	return labels, nil
 }
 
-func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) {
+func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error) {
 	params = params.withDefaults()
 	if err := params.Validate(); err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 			Description:         params.Description,
 			Query:               params.Query,
 			Criteria:            criteria,
-			LabelType:           string(params.LabelType),
+			LabelType:           string(LabelTypeRegular),
 			LabelMembershipType: string(params.LabelMembershipType),
 		})
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *Store) Create(ctx context.Context, params LabelCreate) (*Label, error) 
 	return out, nil
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Label, error) {
+func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*Label, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelUpdate) (*Labe
 		if err != nil {
 			return err
 		}
-		if err := s.replaceMembership(ctx, q, row.ID, LabelCreate{
+		if err := s.replaceMembership(ctx, q, row.ID, LabelMutation{
 			Query:               params.Query,
 			Criteria:            params.Criteria,
 			HostIDs:             params.HostIDs,
@@ -257,22 +257,11 @@ func (s *Store) RefreshDerived(ctx context.Context) error {
 }
 
 // Validate checks the label shape before the DB sees it.
-func (p LabelCreate) Validate() error {
-	if p.LabelType == LabelTypeBuiltin {
-		return fmt.Errorf("%w: builtin labels cannot be created", dbutil.ErrInvalidInput)
-	}
+func (p LabelMutation) Validate() error {
 	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
 }
 
-// Validate checks the update shape.
-func (p LabelUpdate) Validate() error {
-	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
-}
-
-func (p LabelCreate) withDefaults() LabelCreate {
-	if p.LabelType == "" {
-		p.LabelType = LabelTypeRegular
-	}
+func (p LabelMutation) withDefaults() LabelMutation {
 	if p.LabelMembershipType == "" {
 		p.LabelMembershipType = LabelMembershipTypeDynamic
 	}
@@ -339,7 +328,7 @@ func validateCriteria(criteria *Criteria) error {
 	return nil
 }
 
-func labelListSQLWithWhere(params ListParams, where string, args []any) (string, []any, error) {
+func labelListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: `SELECT
 	l.id,
@@ -366,7 +355,7 @@ LEFT JOIN label_membership lm ON lm.label_id = l.id`,
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(l.name)"}, {SQL: "l.id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 func labelListWhere(params ListParams) (string, []any) {
@@ -478,7 +467,7 @@ func (s *Store) replaceMembership(
 	ctx context.Context,
 	q *sqlc.Queries,
 	labelID int64,
-	params LabelCreate,
+	params LabelMutation,
 ) error {
 	switch params.LabelMembershipType {
 	case LabelMembershipTypeManual:

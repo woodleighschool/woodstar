@@ -16,19 +16,15 @@ func (s *Store) ListForHost(
 ) ([]HostSoftwareRow, int, error) {
 	params.SoftwareSources = dbutil.SplitListValues(params.SoftwareSources)
 	whereSQL, args := hostSoftwareWhere(hostID, params)
+	listQuery := hostSoftwareTitleListQuery(whereSQL, args, params)
 
-	countSQL := `
-SELECT count(DISTINCT st.id)
-FROM host_software hs
-JOIN software s ON s.id = hs.software_id
-JOIN software_titles st ON st.id = s.title_id
-` + whereSQL
 	var total int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	titleIDs, err := s.hostSoftwareTitleIDs(ctx, whereSQL, args, params)
+	titleIDs, err := s.hostSoftwareTitleIDs(ctx, listQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -125,28 +121,9 @@ func (acc *hostSoftwareAccumulator) versionIndex(title *HostSoftwareRow, row hos
 
 func (s *Store) hostSoftwareTitleIDs(
 	ctx context.Context,
-	whereSQL string,
-	args []any,
-	params HostSoftwareListParams,
+	listQuery dbutil.ListQuery,
 ) ([]int64, error) {
-	query, queryArgs, err := dbutil.ListQuery{
-		SelectSQL: `
-SELECT st.id
-FROM host_software hs
-JOIN software s ON s.id = hs.software_id
-JOIN software_titles st ON st.id = s.title_id`,
-		WhereSQL:   whereSQL,
-		GroupBySQL: "GROUP BY st.id",
-		Args:       args,
-		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":           {SQL: "MIN(lower(st.name))"},
-			"version":        {SQL: "MIN(lower(s.version))"},
-			"source":         {SQL: "MIN(lower(st.source))"},
-			"last_opened_at": {SQL: "MAX(hs.last_opened_at)", NullOrder: dbutil.NullsLast},
-		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "MIN(lower(st.name))"}, {SQL: "st.id"}},
-		Params:       params.ListParams,
-	}.Build()
+	query, queryArgs, err := listQuery.Build()
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +145,31 @@ JOIN software_titles st ON st.id = s.title_id`,
 		return nil, err
 	}
 	return ids, nil
+}
+
+func hostSoftwareTitleListQuery(
+	whereSQL string,
+	args []any,
+	params HostSoftwareListParams,
+) dbutil.ListQuery {
+	return dbutil.ListQuery{
+		SelectSQL: `
+SELECT st.id
+FROM host_software hs
+JOIN software s ON s.id = hs.software_id
+JOIN software_titles st ON st.id = s.title_id`,
+		WhereSQL:   whereSQL,
+		GroupBySQL: "GROUP BY st.id",
+		Args:       args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"name":           {SQL: "MIN(lower(st.name))"},
+			"version":        {SQL: "MIN(lower(s.version))"},
+			"source":         {SQL: "MIN(lower(st.source))"},
+			"last_opened_at": {SQL: "MAX(hs.last_opened_at)", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "MIN(lower(st.name))"}, {SQL: "st.id"}},
+		Params:       params.ListParams,
+	}
 }
 
 func hostSoftwareWhere(hostID int64, params HostSoftwareListParams) (string, []any) {

@@ -24,21 +24,13 @@ type Check struct {
 	UpdatedAt        time.Time        `json:"updated_at"`
 }
 
-// CheckCreate is a new check.
-type CheckCreate struct {
+// CheckMutation is the editable check state used by create and update.
+type CheckMutation struct {
 	Name            string           `json:"name"`
 	Description     string           `json:"description,omitempty"`
 	Query           string           `json:"query"`
 	LabelScope      scope.LabelScope `json:"label_scope"`
 	CreatedByUserID *int64           `json:"-"`
-}
-
-// CheckUpdate is the editable check state.
-type CheckUpdate struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Query       string           `json:"query"`
-	LabelScope  scope.LabelScope `json:"label_scope"`
 }
 
 // CheckListParams filters checks.

@@ -18,7 +18,7 @@ const (
 )
 
 type userListOutput struct {
-	Body paginatedBody[users.User]
+	Body Page[users.User]
 }
 
 type userOutput struct {
@@ -26,27 +26,16 @@ type userOutput struct {
 }
 
 type userCreateInput struct {
-	Body struct {
-		Email    string     `json:"email"    format:"email"`
-		Name     string     `json:"name,omitempty"`
-		Role     users.Role `json:"role"`
-		Password string     `json:"password" minLength:"12"`
-	}
+	Body users.UserCreate
 }
 
 type userGetInput struct {
 	ID int64 `path:"id"`
 }
 
-type userPutBody struct {
-	Name     string     `json:"name"`
-	Role     users.Role `json:"role"`
-	Password *string    `json:"password,omitempty"`
-}
-
 type userPutInput struct {
 	ID   int64 `path:"id"`
-	Body userPutBody
+	Body users.UserMutation
 }
 
 type userDeleteInput struct {
@@ -77,7 +66,7 @@ func registerListUsers(api huma.API, userService *users.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &userListOutput{Body: paginatedBody[users.User]{Items: list, Count: len(list)}}, nil
+		return &userListOutput{Body: Page[users.User]{Items: list, Count: len(list)}}, nil
 	})
 }
 
@@ -99,12 +88,7 @@ func registerCreateUser(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		user, err := userService.Create(ctx, users.CreateParams{
-			Email:    input.Body.Email,
-			Name:     input.Body.Name,
-			Role:     input.Body.Role,
-			Password: input.Body.Password,
-		})
+		user, err := userService.Create(ctx, input.Body)
 		if err != nil {
 			return nil, userMutationError(err)
 		}
@@ -150,11 +134,7 @@ func registerPutUser(api huma.API, userService *users.Service) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		user, err := userService.Update(ctx, input.ID, users.UpdateParams{
-			Name:     input.Body.Name,
-			Role:     input.Body.Role,
-			Password: input.Body.Password,
-		})
+		user, err := userService.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, userMutationError(err)
 		}

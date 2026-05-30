@@ -33,7 +33,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, e
 		return nil, ErrAlreadySetup
 	}
 
-	user, err := s.users.Create(ctx, users.CreateParams{
+	user, err := s.users.Create(ctx, users.UserCreate{
 		Email:    params.Email,
 		Name:     params.Name,
 		Password: params.Password,

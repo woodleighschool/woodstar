@@ -38,60 +38,6 @@ func (q *Queries) DeleteHostSoftwarePaths(ctx context.Context, arg DeleteHostSof
 	return err
 }
 
-const getSoftwareTitleSummary = `-- name: GetSoftwareTitleSummary :one
-SELECT
-    st.id,
-    st.name,
-    st.display_name,
-    st.source,
-    st.extension_for,
-    st.bundle_identifier,
-    st.vendor,
-    COUNT(DISTINCT hs.host_id)::integer AS hosts_count,
-    COUNT(DISTINCT s.id)::integer AS versions_count,
-    MAX(hs.last_seen_at) AS counts_updated_at
-FROM software_titles st
-LEFT JOIN software s ON s.title_id = st.id
-LEFT JOIN host_software hs ON hs.software_id = s.id
-WHERE st.id = $1
-GROUP BY st.id
-`
-
-type GetSoftwareTitleSummaryParams struct {
-	ID int64 `json:"id"`
-}
-
-type GetSoftwareTitleSummaryRow struct {
-	ID               int64       `json:"id"`
-	Name             string      `json:"name"`
-	DisplayName      string      `json:"display_name"`
-	Source           string      `json:"source"`
-	ExtensionFor     string      `json:"extension_for"`
-	BundleIdentifier string      `json:"bundle_identifier"`
-	Vendor           string      `json:"vendor"`
-	HostsCount       int32       `json:"hosts_count"`
-	VersionsCount    int32       `json:"versions_count"`
-	CountsUpdatedAt  interface{} `json:"counts_updated_at"`
-}
-
-func (q *Queries) GetSoftwareTitleSummary(ctx context.Context, arg GetSoftwareTitleSummaryParams) (GetSoftwareTitleSummaryRow, error) {
-	row := q.db.QueryRow(ctx, getSoftwareTitleSummary, arg.ID)
-	var i GetSoftwareTitleSummaryRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.DisplayName,
-		&i.Source,
-		&i.ExtensionFor,
-		&i.BundleIdentifier,
-		&i.Vendor,
-		&i.HostsCount,
-		&i.VersionsCount,
-		&i.CountsUpdatedAt,
-	)
-	return i, err
-}
-
 const insertHostSoftwareInstalledPath = `-- name: InsertHostSoftwareInstalledPath :exec
 INSERT INTO host_software_installed_paths (
     host_id,

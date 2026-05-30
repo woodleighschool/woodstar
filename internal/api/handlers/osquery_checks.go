@@ -24,12 +24,12 @@ type checkGetInput struct {
 }
 
 type checkCreateInput struct {
-	Body checks.CheckCreate
+	Body checks.CheckMutation
 }
 
 type checkPutInput struct {
 	ID   int64 `path:"id"`
-	Body checks.CheckUpdate
+	Body checks.CheckMutation
 }
 
 type checkDeleteInput struct {
@@ -41,7 +41,7 @@ type checkBulkDeleteInput struct {
 }
 
 type checkListOutput struct {
-	Body paginatedBody[checks.Check]
+	Body Page[checks.Check]
 }
 
 type checkOutput struct {
@@ -49,7 +49,7 @@ type checkOutput struct {
 }
 
 type checkHostsOutput struct {
-	Body itemsBody[checks.CheckHostStatus]
+	Body []checks.CheckHostStatus
 }
 
 func RegisterChecks(api huma.API, checkStore *checks.Store) {
@@ -75,7 +75,7 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
 		}
-		return &checkListOutput{Body: paginatedBody[checks.Check]{Items: items, Count: count}}, nil
+		return &checkListOutput{Body: Page[checks.Check]{Items: items, Count: count}}, nil
 	})
 }
 
@@ -184,7 +184,7 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, err
 		}
-		return &checkHostsOutput{Body: itemsBody[checks.CheckHostStatus]{Items: rows}}, nil
+		return &checkHostsOutput{Body: rows}, nil
 	})
 }
 

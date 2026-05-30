@@ -111,6 +111,80 @@ func (q *Queries) ListHostUserAffinityMappingsForHosts(ctx context.Context, arg 
 	return items, nil
 }
 
+const listHostUserAffinityPrimaries = `-- name: ListHostUserAffinityPrimaries :many
+WITH primary_mapping AS (
+    SELECT DISTINCT ON (he.host_id) he.host_id, he.email, he.source::text AS source
+    FROM host_user_affinity_mappings he
+    WHERE he.host_id = ANY($1::bigint[])
+    ORDER BY he.host_id, CASE he.source
+        WHEN 'manual' THEN 0
+        WHEN 'orbit_profile' THEN 1
+        WHEN 'santa_primary_user' THEN 1
+        ELSE 10
+    END, he.source
+)
+SELECT
+    pm.host_id,
+    pm.email,
+    pm.source,
+    COALESCE(du.mail_nickname, '') AS username,
+    COALESCE(du.display_name, '') AS name,
+    COALESCE(du.department, '') AS department,
+    COALESCE(
+        array_agg(dg.display_name ORDER BY lower(dg.display_name)) FILTER (WHERE dg.id IS NOT NULL),
+        ARRAY[]::text[]
+    )::text[] AS groups
+FROM primary_mapping pm
+LEFT JOIN host_directory_user hdu ON hdu.host_id = pm.host_id
+LEFT JOIN directory_users du ON du.id = hdu.directory_user_id AND du.active
+LEFT JOIN directory_user_groups dug ON dug.directory_user_id = du.id
+LEFT JOIN directory_groups dg ON dg.id = dug.directory_group_id
+GROUP BY pm.host_id, pm.email, pm.source, du.mail_nickname, du.display_name, du.department
+ORDER BY pm.host_id
+`
+
+type ListHostUserAffinityPrimariesParams struct {
+	HostIds []int64 `json:"host_ids"`
+}
+
+type ListHostUserAffinityPrimariesRow struct {
+	HostID     int64    `json:"host_id"`
+	Email      string   `json:"email"`
+	Source     string   `json:"source"`
+	Username   string   `json:"username"`
+	Name       string   `json:"name"`
+	Department string   `json:"department"`
+	Groups     []string `json:"groups"`
+}
+
+func (q *Queries) ListHostUserAffinityPrimaries(ctx context.Context, arg ListHostUserAffinityPrimariesParams) ([]ListHostUserAffinityPrimariesRow, error) {
+	rows, err := q.db.Query(ctx, listHostUserAffinityPrimaries, arg.HostIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHostUserAffinityPrimariesRow{}
+	for rows.Next() {
+		var i ListHostUserAffinityPrimariesRow
+		if err := rows.Scan(
+			&i.HostID,
+			&i.Email,
+			&i.Source,
+			&i.Username,
+			&i.Name,
+			&i.Department,
+			&i.Groups,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loadHostUserAffinityPrimary = `-- name: LoadHostUserAffinityPrimary :one
 WITH primary_mapping AS (
     SELECT he.host_id, he.email, he.source::text AS source

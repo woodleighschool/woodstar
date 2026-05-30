@@ -19,23 +19,23 @@ const (
 	hostResource = "host"
 )
 
-// hostDetailBody is the host detail response with capability-enriched fields.
+// HostDetail is the host detail response with capability-enriched fields.
 // Capability packages contribute their slice through registered enrichers.
-type hostDetailBody struct {
+type HostDetail struct {
 	hosts.HostDetail
 	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
 type hostListOutput struct {
-	Body paginatedBody[hosts.Host]
+	Body Page[hosts.Host]
 }
 
 type hostDetailOutput struct {
-	Body hostDetailBody
+	Body HostDetail
 }
 
 type hostSoftwareOutput struct {
-	Body paginatedBody[software.HostSoftwareRow]
+	Body Page[software.HostSoftwareRow]
 }
 
 type hostGetInput struct {
@@ -93,7 +93,7 @@ type hostUserAffinityPutInput struct {
 }
 
 // HostDetailContributor adds capability-specific sections to a host detail response.
-type HostDetailContributor = hosts.DetailContributor[hostDetailBody]
+type HostDetailContributor = hosts.DetailContributor[HostDetail]
 
 // RegisterHosts registers admin host inventory endpoints.
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
@@ -126,7 +126,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 		if err != nil {
 			return nil, resourceMutationError("host", err)
 		}
-		return &hostListOutput{Body: paginatedBody[hosts.Host]{Items: rows, Count: count}}, nil
+		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -135,7 +135,7 @@ func loadHostDetailBody(
 	hostStore *hosts.Store,
 	hostID int64,
 	contributors []HostDetailContributor,
-) (*hostDetailBody, error) {
+) (*HostDetail, error) {
 	host, err := hostStore.GetByID(ctx, hostID)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, huma.Error404NotFound("host not found")
@@ -147,7 +147,7 @@ func loadHostDetailBody(
 	if err != nil {
 		return nil, err
 	}
-	body := hostDetailBody{HostDetail: *detail}
+	body := HostDetail{HostDetail: *detail}
 	for _, contributor := range contributors {
 		if contributor == nil {
 			continue
@@ -308,6 +308,6 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &hostSoftwareOutput{Body: paginatedBody[software.HostSoftwareRow]{Items: rows, Count: count}}, nil
+		return &hostSoftwareOutput{Body: Page[software.HostSoftwareRow]{Items: rows, Count: count}}, nil
 	})
 }

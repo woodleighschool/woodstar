@@ -4,7 +4,7 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type AccountBody = {
+export type Account = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -14,7 +14,7 @@ export type AccountBody = {
     user: User;
 };
 
-export type AccountPutBody = {
+export type AccountMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -34,7 +34,7 @@ export type AgentSecret = {
     value: string;
 };
 
-export type AgentSecretCreateInputBody = {
+export type AgentSecretCreate = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -43,7 +43,7 @@ export type AgentSecretCreateInputBody = {
     value: string;
 };
 
-export type AgentSecretUpdateInputBody = {
+export type AgentSecretMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -107,17 +107,6 @@ export type Check = {
     updated_at: string;
 };
 
-export type CheckCreate = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    description?: string;
-    label_scope: LabelScope;
-    name: string;
-    query: string;
-};
-
 export type CheckHostStatus = {
     check_id: number;
     check_name: string;
@@ -127,7 +116,7 @@ export type CheckHostStatus = {
     updated_at?: string;
 };
 
-export type CheckUpdate = {
+export type CheckMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -218,32 +207,15 @@ export type Department = {
     value: string;
 };
 
-export type DirectoryDepartmentsBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<Department> | null;
-};
-
-export type DirectoryGroupBody = {
+export type DirectoryGroup = {
     display_name: string;
     external_id: string;
     id: number;
+    last_synced_at: string;
     mail_nickname?: string;
 };
 
-export type DirectoryGroupsBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<DirectoryGroupBody> | null;
-};
-
-export type DirectoryUserBody = {
+export type DirectoryUser = {
     active: boolean;
     department?: string;
     display_name: string;
@@ -251,18 +223,10 @@ export type DirectoryUserBody = {
     family_name?: string;
     given_name?: string;
     id: number;
+    last_synced_at: string;
     mail?: string;
     mail_nickname?: string;
     user_principal_name: string;
-};
-
-export type DirectoryUsersBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<DirectoryUserBody> | null;
 };
 
 export type ErrorDetail = {
@@ -464,7 +428,7 @@ export type HostCertificate = {
     username: string;
 };
 
-export type HostDetailBody = {
+export type HostDetail = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -639,38 +603,6 @@ export type HostUserAffinityPutBody = {
     email: string;
 };
 
-export type ItemsBodyCheckHostStatus = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    items: Array<CheckHostStatus> | null;
-};
-
-export type ItemsBodyHostReport = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    items: Array<HostReport> | null;
-};
-
-export type ItemsBodyReportResult = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    items: Array<ReportResult> | null;
-};
-
-export type ItemsBodyRuleTarget = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    items: Array<RuleTarget> | null;
-};
-
 export type Label = {
     /**
      * A URL to the JSON Schema for this object.
@@ -689,26 +621,12 @@ export type Label = {
     updated_at?: string;
 };
 
-export type LabelCreateBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    criteria?: Criteria;
-    description?: string;
-    host_ids?: Array<number> | null;
-    label_membership_type?: 'dynamic' | 'manual' | 'derived';
-    label_type?: 'builtin' | 'regular';
-    name: string;
-    query?: string;
-};
-
 export type LabelMatch = {
     id: number;
     name: string;
 };
 
-export type LabelMutationBody = {
+export type LabelMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -785,7 +703,7 @@ export type LoginInputBody = {
     password: string;
 };
 
-export type PaginatedBodyCheck = {
+export type PageCheck = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -794,7 +712,7 @@ export type PaginatedBodyCheck = {
     items: Array<Check> | null;
 };
 
-export type PaginatedBodyConfiguration = {
+export type PageConfiguration = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -803,7 +721,34 @@ export type PaginatedBodyConfiguration = {
     items: Array<Configuration> | null;
 };
 
-export type PaginatedBodyExecutionEvent = {
+export type PageDepartment = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<Department> | null;
+};
+
+export type PageDirectoryGroup = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<DirectoryGroup> | null;
+};
+
+export type PageDirectoryUser = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<DirectoryUser> | null;
+};
+
+export type PageExecutionEvent = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -812,7 +757,7 @@ export type PaginatedBodyExecutionEvent = {
     items: Array<ExecutionEvent> | null;
 };
 
-export type PaginatedBodyFileAccessEvent = {
+export type PageFileAccessEvent = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -821,7 +766,7 @@ export type PaginatedBodyFileAccessEvent = {
     items: Array<FileAccessEvent> | null;
 };
 
-export type PaginatedBodyHost = {
+export type PageHost = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -830,7 +775,7 @@ export type PaginatedBodyHost = {
     items: Array<Host> | null;
 };
 
-export type PaginatedBodyHostSoftwareRow = {
+export type PageHostSoftwareRow = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -839,7 +784,7 @@ export type PaginatedBodyHostSoftwareRow = {
     items: Array<HostSoftwareRow> | null;
 };
 
-export type PaginatedBodyLabel = {
+export type PageLabel = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -848,7 +793,7 @@ export type PaginatedBodyLabel = {
     items: Array<Label> | null;
 };
 
-export type PaginatedBodyReport = {
+export type PageReport = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -857,7 +802,7 @@ export type PaginatedBodyReport = {
     items: Array<Report> | null;
 };
 
-export type PaginatedBodyRule = {
+export type PageRule = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -866,7 +811,7 @@ export type PaginatedBodyRule = {
     items: Array<Rule> | null;
 };
 
-export type PaginatedBodyRuleStatus = {
+export type PageRuleStatus = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -875,7 +820,7 @@ export type PaginatedBodyRuleStatus = {
     items: Array<RuleStatus> | null;
 };
 
-export type PaginatedBodySoftwareTitle = {
+export type PageSoftwareTitle = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -884,7 +829,7 @@ export type PaginatedBodySoftwareTitle = {
     items: Array<SoftwareTitle> | null;
 };
 
-export type PaginatedBodyUser = {
+export type PageUser = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -937,7 +882,7 @@ export type Report = {
     updated_at: string;
 };
 
-export type ReportCreate = {
+export type ReportMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -959,19 +904,6 @@ export type ReportResult = {
     last_fetched?: string;
     report_id: number;
     report_name: string;
-};
-
-export type ReportUpdate = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    description?: string;
-    label_scope: LabelScope;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval?: number;
 };
 
 export type Rule = {
@@ -1175,7 +1107,7 @@ export type User = {
     updated_at: string;
 };
 
-export type UserCreateInputBody = {
+export type UserCreate = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -1186,7 +1118,7 @@ export type UserCreateInputBody = {
     role: 'admin' | 'viewer';
 };
 
-export type UserPutBody = {
+export type UserMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -1196,13 +1128,13 @@ export type UserPutBody = {
     role: 'admin' | 'viewer';
 };
 
-export type AccountBodyWritable = {
+export type AccountWritable = {
     api_key?: string;
     api_key_created_at?: string;
     user: UserWritable;
 };
 
-export type AccountPutBodyWritable = {
+export type AccountMutationWritable = {
     name: string;
     password?: string;
 };
@@ -1214,12 +1146,12 @@ export type AgentSecretWritable = {
     value: string;
 };
 
-export type AgentSecretCreateInputBodyWritable = {
+export type AgentSecretCreateWritable = {
     agent: 'orbit' | 'santa';
     value: string;
 };
 
-export type AgentSecretUpdateInputBodyWritable = {
+export type AgentSecretMutationWritable = {
     value: string;
 };
 
@@ -1240,14 +1172,7 @@ export type CheckWritable = {
     updated_at: string;
 };
 
-export type CheckCreateWritable = {
-    description?: string;
-    label_scope: LabelScope;
-    name: string;
-    query: string;
-};
-
-export type CheckUpdateWritable = {
+export type CheckMutationWritable = {
     description?: string;
     label_scope: LabelScope;
     name: string;
@@ -1292,21 +1217,6 @@ export type ConfigurationMutationWritable = {
     label_ids?: Array<number> | null;
     name: string;
     removable_media_policy?: RemovableMediaPolicy;
-};
-
-export type DirectoryDepartmentsBodyWritable = {
-    count: number;
-    items: Array<Department> | null;
-};
-
-export type DirectoryGroupsBodyWritable = {
-    count: number;
-    items: Array<DirectoryGroupBody> | null;
-};
-
-export type DirectoryUsersBodyWritable = {
-    count: number;
-    items: Array<DirectoryUserBody> | null;
 };
 
 export type ErrorModelWritable = {
@@ -1374,7 +1284,7 @@ export type HandleWritable = {
     started_at: string;
 };
 
-export type HostDetailBodyWritable = {
+export type HostDetailWritable = {
     agents: HostAgents;
     batteries: Array<HostBattery> | null;
     certificates: Array<HostCertificate> | null;
@@ -1407,22 +1317,6 @@ export type HostUserAffinityPutBodyWritable = {
     email: string;
 };
 
-export type ItemsBodyCheckHostStatusWritable = {
-    items: Array<CheckHostStatus> | null;
-};
-
-export type ItemsBodyHostReportWritable = {
-    items: Array<HostReport> | null;
-};
-
-export type ItemsBodyReportResultWritable = {
-    items: Array<ReportResult> | null;
-};
-
-export type ItemsBodyRuleTargetWritable = {
-    items: Array<RuleTarget> | null;
-};
-
 export type LabelWritable = {
     created_at?: string;
     criteria?: Criteria;
@@ -1437,17 +1331,7 @@ export type LabelWritable = {
     updated_at?: string;
 };
 
-export type LabelCreateBodyWritable = {
-    criteria?: Criteria;
-    description?: string;
-    host_ids?: Array<number> | null;
-    label_membership_type?: 'dynamic' | 'manual' | 'derived';
-    label_type?: 'builtin' | 'regular';
-    name: string;
-    query?: string;
-};
-
-export type LabelMutationBodyWritable = {
+export type LabelMutationWritable = {
     criteria?: Criteria;
     description?: string;
     host_ids?: Array<number> | null;
@@ -1478,62 +1362,77 @@ export type LoginInputBodyWritable = {
     password: string;
 };
 
-export type PaginatedBodyCheckWritable = {
+export type PageCheckWritable = {
     count: number;
     items: Array<CheckWritable> | null;
 };
 
-export type PaginatedBodyConfigurationWritable = {
+export type PageConfigurationWritable = {
     count: number;
     items: Array<ConfigurationWritable> | null;
 };
 
-export type PaginatedBodyExecutionEventWritable = {
+export type PageDepartmentWritable = {
+    count: number;
+    items: Array<Department> | null;
+};
+
+export type PageDirectoryGroupWritable = {
+    count: number;
+    items: Array<DirectoryGroup> | null;
+};
+
+export type PageDirectoryUserWritable = {
+    count: number;
+    items: Array<DirectoryUser> | null;
+};
+
+export type PageExecutionEventWritable = {
     count: number;
     items: Array<ExecutionEventWritable> | null;
 };
 
-export type PaginatedBodyFileAccessEventWritable = {
+export type PageFileAccessEventWritable = {
     count: number;
     items: Array<FileAccessEventWritable> | null;
 };
 
-export type PaginatedBodyHostWritable = {
+export type PageHostWritable = {
     count: number;
     items: Array<Host> | null;
 };
 
-export type PaginatedBodyHostSoftwareRowWritable = {
+export type PageHostSoftwareRowWritable = {
     count: number;
     items: Array<HostSoftwareRow> | null;
 };
 
-export type PaginatedBodyLabelWritable = {
+export type PageLabelWritable = {
     count: number;
     items: Array<LabelWritable> | null;
 };
 
-export type PaginatedBodyReportWritable = {
+export type PageReportWritable = {
     count: number;
     items: Array<ReportWritable> | null;
 };
 
-export type PaginatedBodyRuleWritable = {
+export type PageRuleWritable = {
     count: number;
     items: Array<RuleWritable> | null;
 };
 
-export type PaginatedBodyRuleStatusWritable = {
+export type PageRuleStatusWritable = {
     count: number;
     items: Array<RuleStatus> | null;
 };
 
-export type PaginatedBodySoftwareTitleWritable = {
+export type PageSoftwareTitleWritable = {
     count: number;
     items: Array<SoftwareTitleWritable> | null;
 };
 
-export type PaginatedBodyUserWritable = {
+export type PageUserWritable = {
     count: number;
     items: Array<UserWritable> | null;
 };
@@ -1551,16 +1450,7 @@ export type ReportWritable = {
     updated_at: string;
 };
 
-export type ReportCreateWritable = {
-    description?: string;
-    label_scope: LabelScope;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval?: number;
-};
-
-export type ReportUpdateWritable = {
+export type ReportMutationWritable = {
     description?: string;
     label_scope: LabelScope;
     min_osquery_version?: string;
@@ -1647,14 +1537,14 @@ export type UserWritable = {
     updated_at: string;
 };
 
-export type UserCreateInputBodyWritable = {
+export type UserCreateWritable = {
     email: string;
     name?: string;
     password: string;
     role: 'admin' | 'viewer';
 };
 
-export type UserPutBodyWritable = {
+export type UserMutationWritable = {
     name: string;
     password?: string;
     role: 'admin' | 'viewer';
@@ -1684,13 +1574,13 @@ export type GetAccountResponses = {
     /**
      * OK
      */
-    200: AccountBody;
+    200: Account;
 };
 
 export type GetAccountResponse = GetAccountResponses[keyof GetAccountResponses];
 
 export type UpdateAccountData = {
-    body: AccountPutBodyWritable;
+    body: AccountMutationWritable;
     path?: never;
     query?: never;
     url: '/api/account';
@@ -1725,7 +1615,7 @@ export type UpdateAccountResponses = {
     /**
      * OK
      */
-    200: AccountBody;
+    200: Account;
 };
 
 export type UpdateAccountResponse = UpdateAccountResponses[keyof UpdateAccountResponses];
@@ -1754,7 +1644,7 @@ export type RevokeAccountApiKeyResponses = {
     /**
      * OK
      */
-    200: AccountBody;
+    200: Account;
 };
 
 export type RevokeAccountApiKeyResponse = RevokeAccountApiKeyResponses[keyof RevokeAccountApiKeyResponses];
@@ -1783,7 +1673,7 @@ export type RotateAccountApiKeyResponses = {
     /**
      * Created
      */
-    201: AccountBody;
+    201: Account;
 };
 
 export type RotateAccountApiKeyResponse = RotateAccountApiKeyResponses[keyof RotateAccountApiKeyResponses];
@@ -1822,7 +1712,7 @@ export type ListAgentSecretsResponses = {
 export type ListAgentSecretsResponse = ListAgentSecretsResponses[keyof ListAgentSecretsResponses];
 
 export type CreateAgentSecretData = {
-    body: AgentSecretCreateInputBodyWritable;
+    body: AgentSecretCreateWritable;
     path?: never;
     query?: never;
     url: '/api/agent-secrets';
@@ -1910,7 +1800,7 @@ export type DeleteAgentSecretResponses = {
 export type DeleteAgentSecretResponse = DeleteAgentSecretResponses[keyof DeleteAgentSecretResponses];
 
 export type UpdateAgentSecretData = {
-    body: AgentSecretUpdateInputBodyWritable;
+    body: AgentSecretMutationWritable;
     path: {
         id: number;
     };
@@ -2081,7 +1971,7 @@ export type ListDirectoryDepartmentsResponses = {
     /**
      * OK
      */
-    200: DirectoryDepartmentsBody;
+    200: PageDepartment;
 };
 
 export type ListDirectoryDepartmentsResponse = ListDirectoryDepartmentsResponses[keyof ListDirectoryDepartmentsResponses];
@@ -2120,7 +2010,7 @@ export type ListDirectoryGroupsResponses = {
     /**
      * OK
      */
-    200: DirectoryGroupsBody;
+    200: PageDirectoryGroup;
 };
 
 export type ListDirectoryGroupsResponse = ListDirectoryGroupsResponses[keyof ListDirectoryGroupsResponses];
@@ -2159,7 +2049,7 @@ export type ListDirectoryUsersResponses = {
     /**
      * OK
      */
-    200: DirectoryUsersBody;
+    200: PageDirectoryUser;
 };
 
 export type ListDirectoryUsersResponse = ListDirectoryUsersResponses[keyof ListDirectoryUsersResponses];
@@ -2204,7 +2094,7 @@ export type ListHostsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyHost;
+    200: PageHost;
 };
 
 export type ListHostsResponse = ListHostsResponses[keyof ListHostsResponses];
@@ -2327,7 +2217,7 @@ export type GetHostResponses = {
     /**
      * OK
      */
-    200: HostDetailBody;
+    200: HostDetail;
 };
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
@@ -2366,7 +2256,7 @@ export type ListHostOsqueryChecksResponses = {
     /**
      * OK
      */
-    200: ItemsBodyCheckHostStatus;
+    200: Array<CheckHostStatus> | null;
 };
 
 export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
@@ -2405,7 +2295,7 @@ export type ListHostOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: ItemsBodyHostReport;
+    200: Array<HostReport> | null;
 };
 
 export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
@@ -2493,7 +2383,7 @@ export type ListHostSantaRulesResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyRuleStatus;
+    200: PageRuleStatus;
 };
 
 export type ListHostSantaRulesResponse = ListHostSantaRulesResponses[keyof ListHostSantaRulesResponses];
@@ -2538,7 +2428,7 @@ export type ListHostSoftwareResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyHostSoftwareRow;
+    200: PageHostSoftwareRow;
 };
 
 export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];
@@ -2581,7 +2471,7 @@ export type DeleteHostUserAffinityResponses = {
     /**
      * OK
      */
-    200: HostDetailBody;
+    200: HostDetail;
 };
 
 export type DeleteHostUserAffinityResponse = DeleteHostUserAffinityResponses[keyof DeleteHostUserAffinityResponses];
@@ -2628,7 +2518,7 @@ export type PutHostUserAffinityResponses = {
     /**
      * OK
      */
-    200: HostDetailBody;
+    200: HostDetail;
 };
 
 export type PutHostUserAffinityResponse = PutHostUserAffinityResponses[keyof PutHostUserAffinityResponses];
@@ -2668,13 +2558,13 @@ export type ListLabelsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyLabel;
+    200: PageLabel;
 };
 
 export type ListLabelsResponse = ListLabelsResponses[keyof ListLabelsResponses];
 
 export type CreateLabelData = {
-    body: LabelCreateBodyWritable;
+    body: LabelMutationWritable;
     path?: never;
     query?: never;
     url: '/api/labels';
@@ -2793,7 +2683,7 @@ export type GetLabelResponses = {
 export type GetLabelResponse = GetLabelResponses[keyof GetLabelResponses];
 
 export type UpdateLabelData = {
-    body: LabelMutationBodyWritable;
+    body: LabelMutationWritable;
     path: {
         id: number;
     };
@@ -3068,13 +2958,13 @@ export type ListOsqueryChecksResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyCheck;
+    200: PageCheck;
 };
 
 export type ListOsqueryChecksResponse = ListOsqueryChecksResponses[keyof ListOsqueryChecksResponses];
 
 export type CreateOsqueryCheckData = {
-    body: CheckCreateWritable;
+    body: CheckMutationWritable;
     path?: never;
     query?: never;
     url: '/api/osquery/checks';
@@ -3234,7 +3124,7 @@ export type GetOsqueryCheckResponses = {
 export type GetOsqueryCheckResponse = GetOsqueryCheckResponses[keyof GetOsqueryCheckResponses];
 
 export type UpdateOsqueryCheckData = {
-    body: CheckUpdateWritable;
+    body: CheckMutationWritable;
     path: {
         id: number;
     };
@@ -3314,7 +3204,7 @@ export type ListOsqueryCheckHostsResponses = {
     /**
      * OK
      */
-    200: ItemsBodyCheckHostStatus;
+    200: Array<CheckHostStatus> | null;
 };
 
 export type ListOsqueryCheckHostsResponse = ListOsqueryCheckHostsResponses[keyof ListOsqueryCheckHostsResponses];
@@ -3352,13 +3242,13 @@ export type ListOsqueryReportsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyReport;
+    200: PageReport;
 };
 
 export type ListOsqueryReportsResponse = ListOsqueryReportsResponses[keyof ListOsqueryReportsResponses];
 
 export type CreateOsqueryReportData = {
-    body: ReportCreateWritable;
+    body: ReportMutationWritable;
     path?: never;
     query?: never;
     url: '/api/osquery/reports';
@@ -3518,7 +3408,7 @@ export type GetOsqueryReportResponses = {
 export type GetOsqueryReportResponse = GetOsqueryReportResponses[keyof GetOsqueryReportResponses];
 
 export type UpdateOsqueryReportData = {
-    body: ReportUpdateWritable;
+    body: ReportMutationWritable;
     path: {
         id: number;
     };
@@ -3598,7 +3488,7 @@ export type ListOsqueryReportResultsResponses = {
     /**
      * OK
      */
-    200: ItemsBodyReportResult;
+    200: Array<ReportResult> | null;
 };
 
 export type ListOsqueryReportResultsResponse = ListOsqueryReportResultsResponses[keyof ListOsqueryReportResultsResponses];
@@ -3640,7 +3530,7 @@ export type ListSantaConfigurationsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyConfiguration;
+    200: PageConfiguration;
 };
 
 export type ListSantaConfigurationsResponse = ListSantaConfigurationsResponses[keyof ListSantaConfigurationsResponses];
@@ -3954,7 +3844,7 @@ export type ListSantaEventsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyExecutionEvent;
+    200: PageExecutionEvent;
 };
 
 export type ListSantaEventsResponse = ListSantaEventsResponses[keyof ListSantaEventsResponses];
@@ -4050,7 +3940,7 @@ export type ListSantaFileAccessEventsResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyFileAccessEvent;
+    200: PageFileAccessEvent;
 };
 
 export type ListSantaFileAccessEventsResponse = ListSantaFileAccessEventsResponses[keyof ListSantaFileAccessEventsResponses];
@@ -4142,7 +4032,7 @@ export type ListSantaRuleTargetsResponses = {
     /**
      * OK
      */
-    200: ItemsBodyRuleTarget;
+    200: Array<RuleTarget> | null;
 };
 
 export type ListSantaRuleTargetsResponse = ListSantaRuleTargetsResponses[keyof ListSantaRuleTargetsResponses];
@@ -4189,7 +4079,7 @@ export type ListSantaRulesResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyRule;
+    200: PageRule;
 };
 
 export type ListSantaRulesResponse = ListSantaRulesResponses[keyof ListSantaRulesResponses];
@@ -4535,7 +4425,7 @@ export type ListSoftwareResponses = {
     /**
      * OK
      */
-    200: PaginatedBodySoftwareTitle;
+    200: PageSoftwareTitle;
 };
 
 export type ListSoftwareResponse = ListSoftwareResponses[keyof ListSoftwareResponses];
@@ -4646,13 +4536,13 @@ export type ListUsersResponses = {
     /**
      * OK
      */
-    200: PaginatedBodyUser;
+    200: PageUser;
 };
 
 export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
 
 export type CreateUserData = {
-    body: UserCreateInputBodyWritable;
+    body: UserCreateWritable;
     path?: never;
     query?: never;
     url: '/api/users';
@@ -4787,7 +4677,7 @@ export type GetUserResponses = {
 export type GetUserResponse = GetUserResponses[keyof GetUserResponses];
 
 export type UpdateUserData = {
-    body: UserPutBodyWritable;
+    body: UserMutationWritable;
     path: {
         id: number;
     };

@@ -32,6 +32,6 @@ func RegisterHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts
 		if err != nil {
 			return nil, err
 		}
-		return &checkHostsOutput{Body: itemsBody[checks.CheckHostStatus]{Items: rows}}, nil
+		return &checkHostsOutput{Body: rows}, nil
 	})
 }

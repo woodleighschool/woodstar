@@ -36,7 +36,10 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	softwareName := "Example App " + suffix
 	bundleID := "com.example.osquery." + suffix
 
-	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-contract-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "osquery-contract-secret-value-" + suffix},
+	)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
@@ -79,12 +82,15 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-schedule-" + suffix
-	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-schedule-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "osquery-schedule-secret-value-" + suffix},
+	)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
 	minVersion := "6.0.0"
-	report, err := stores.reports.Create(ctx, reports.ReportCreate{
+	report, err := stores.reports.Create(ctx, reports.ReportMutation{
 		Name:              "Versioned report " + suffix,
 		Query:             "select 42;",
 		MinOsqueryVersion: &minVersion,
@@ -124,11 +130,14 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "osquery-report-" + suffix
-	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "osquery-report-secret-value-"+suffix)
+	secret, err := stores.agentSecrets.Create(
+		ctx,
+		agentauth.AgentSecretCreate{Agent: agentauth.AgentOrbit, Value: "osquery-report-secret-value-" + suffix},
+	)
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
-	report, err := stores.reports.Create(ctx, reports.ReportCreate{
+	report, err := stores.reports.Create(ctx, reports.ReportMutation{
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
 		ScheduleInterval: 60,

@@ -63,6 +63,20 @@ func (q ListQuery) Build() (string, []any, error) {
 	limitIndex := len(args) + 1
 	args = append(args, int32(params.PageSize), int32(params.PageIndex*params.PageSize))
 
+	parts := q.baseParts()
+	if orderSQL != "" {
+		parts = append(parts, orderSQL)
+	}
+	parts = append(parts, fmt.Sprintf("LIMIT $%d OFFSET $%d", limitIndex, limitIndex+1))
+	return strings.Join(parts, "\n"), args, nil
+}
+
+func (q ListQuery) BuildCount() (string, []any) {
+	return "SELECT count(*)::integer FROM (\n" + strings.Join(q.baseParts(), "\n") + "\n) list_count",
+		slices.Clone(q.Args)
+}
+
+func (q ListQuery) baseParts() []string {
 	parts := []string{q.SelectSQL}
 	if q.WhereSQL != "" {
 		parts = append(parts, q.WhereSQL)
@@ -70,11 +84,7 @@ func (q ListQuery) Build() (string, []any, error) {
 	if q.GroupBySQL != "" {
 		parts = append(parts, q.GroupBySQL)
 	}
-	if orderSQL != "" {
-		parts = append(parts, orderSQL)
-	}
-	parts = append(parts, fmt.Sprintf("LIMIT $%d OFFSET $%d", limitIndex, limitIndex+1))
-	return strings.Join(parts, "\n"), args, nil
+	return parts
 }
 
 func OrderBy(params ListParams, orderKeys map[string]OrderExpr, defaultOrder []OrderExpr) (string, error) {

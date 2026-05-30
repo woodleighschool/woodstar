@@ -27,14 +27,14 @@ func (s *Store) ListConfigurations(
 	params ConfigurationListParams,
 ) ([]Configuration, int, error) {
 	where, args := configurationListWhere(params)
+	listQuery := configurationListQuery(params, where, args)
 
 	var count int
-	if err := s.db.Pool().
-		QueryRow(ctx, "SELECT count(*) FROM santa_configurations c "+where, args...).
-		Scan(&count); err != nil {
+	countSQL, countArgs := listQuery.BuildCount()
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, err
 	}
-	query, args, err := configurationListSQL(params, where, args)
+	query, args, err := listQuery.Build()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -338,11 +338,11 @@ func configurationListWhere(params ConfigurationListParams) (string, []any) {
 	return where.Build()
 }
 
-func configurationListSQL(
+func configurationListQuery(
 	params ConfigurationListParams,
 	where string,
 	args []any,
-) (string, []any, error) {
+) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL:    configurationSelectSQL,
 		WhereSQL:     where,
@@ -350,7 +350,7 @@ func configurationListSQL(
 		OrderKeys:    configurationOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "c.position"}, {SQL: "c.id"}},
 		Params:       params.ListParams,
-	}.Build()
+	}
 }
 
 func configurationOrderKeys() map[string]dbutil.OrderExpr {

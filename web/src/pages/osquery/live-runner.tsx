@@ -32,7 +32,7 @@ import {
   type LiveQueryResult,
   type LiveQueryRow,
   type LiveQueryTargetCount,
-  type LiveQueryTargetCountBody,
+  type LiveQueryTargetSelection,
 } from "@/hooks/use-live-queries";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
@@ -70,7 +70,7 @@ export function LiveRunner({
   const selectedLabelIDs = useMemo(() => selectedLabels.map((label) => label.id), [selectedLabels]);
   const targetCount = selectedLabels.length + selectedHosts.length;
   const hasTargets = targetCount > 0;
-  const targetSelection = useMemo<LiveQueryTargetCountBody>(
+  const targetSelection = useMemo<LiveQueryTargetSelection>(
     () => ({
       report_id: kind === "report" ? itemId : undefined,
       selected: {

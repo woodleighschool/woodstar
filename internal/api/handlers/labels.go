@@ -16,7 +16,7 @@ const (
 )
 
 type labelListOutput struct {
-	Body paginatedBody[labels.Label]
+	Body Page[labels.Label]
 }
 
 type labelOutput struct {
@@ -34,35 +34,16 @@ type labelGetInput struct {
 }
 
 type labelCreateInput struct {
-	Body labelCreateBody
+	Body labels.LabelMutation
 }
 
 type labelPutInput struct {
 	ID   int64 `path:"id"`
-	Body labelMutationBody
+	Body labels.LabelMutation
 }
 
 type labelDeleteInput struct {
 	ID int64 `path:"id"`
-}
-
-type labelCreateBody struct {
-	Name           string                     `json:"name"`
-	Description    string                     `json:"description,omitempty"`
-	Query          *string                    `json:"query,omitempty"`
-	Criteria       *labels.Criteria           `json:"criteria,omitempty"`
-	HostIDs        []int64                    `json:"host_ids,omitempty"`
-	LabelType      labels.LabelType           `json:"label_type,omitempty"`
-	MembershipType labels.LabelMembershipType `json:"label_membership_type,omitempty"`
-}
-
-type labelMutationBody struct {
-	Name           string                     `json:"name"`
-	Description    string                     `json:"description,omitempty"`
-	Query          *string                    `json:"query,omitempty"`
-	Criteria       *labels.Criteria           `json:"criteria,omitempty"`
-	HostIDs        []int64                    `json:"host_ids,omitempty"`
-	MembershipType labels.LabelMembershipType `json:"label_membership_type,omitempty"`
 }
 
 func (i labelListInput) params() labels.ListParams {
@@ -94,7 +75,7 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
-		return &labelListOutput{Body: paginatedBody[labels.Label]{Items: rows, Count: count}}, nil
+		return &labelListOutput{Body: Page[labels.Label]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -108,15 +89,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
-		label, err := labelStore.Create(ctx, labels.LabelCreate{
-			Name:                input.Body.Name,
-			Description:         input.Body.Description,
-			Query:               input.Body.Query,
-			Criteria:            input.Body.Criteria,
-			HostIDs:             input.Body.HostIDs,
-			LabelType:           input.Body.LabelType,
-			LabelMembershipType: input.Body.MembershipType,
-		})
+		label, err := labelStore.Create(ctx, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}
@@ -150,14 +123,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 		Summary:     "Replace a label",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelPutInput) (*labelOutput, error) {
-		label, err := labelStore.Update(ctx, input.ID, labels.LabelUpdate{
-			Name:                input.Body.Name,
-			Description:         input.Body.Description,
-			Query:               input.Body.Query,
-			Criteria:            input.Body.Criteria,
-			HostIDs:             input.Body.HostIDs,
-			LabelMembershipType: input.Body.MembershipType,
-		})
+		label, err := labelStore.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(labelResource, err)
 		}

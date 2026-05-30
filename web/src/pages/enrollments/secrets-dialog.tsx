@@ -166,7 +166,7 @@ export function AgentSecretsDialog({
             }
           }}
           onSave={async (value) => {
-            const next = await update.mutateAsync({ id: editing.id, value });
+            const next = await update.mutateAsync({ id: editing.id, body: { value } });
             setEditing(null);
             setVisibleSecrets((current) => ({ ...current, [next.id]: true }));
             toast.success(`${integrationLabel(editing.agent)} enrollment secret updated.`);

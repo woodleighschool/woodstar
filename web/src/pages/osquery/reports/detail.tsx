@@ -40,7 +40,7 @@ export function ReportDetailPage() {
     );
   }
 
-  const rows = reportRows(results.data?.items);
+  const rows = reportRows(results.data);
   const resultColumns: ColumnDef<ReportTableRow>[] = resultColumnNames(rows).map((name) => ({
     id: name,
     accessorFn: (row) => row.columns[name] ?? "",

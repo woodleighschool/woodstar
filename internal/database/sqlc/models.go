@@ -284,6 +284,50 @@ func (ns NullSantaExecutionDecision) Value() (driver.Value, error) {
 	return string(ns.SantaExecutionDecision), nil
 }
 
+type SantaFileAccessDecision string
+
+const (
+	SantaFileAccessDecisionUnknown                SantaFileAccessDecision = "unknown"
+	SantaFileAccessDecisionDenied                 SantaFileAccessDecision = "denied"
+	SantaFileAccessDecisionDeniedInvalidSignature SantaFileAccessDecision = "denied_invalid_signature"
+	SantaFileAccessDecisionAuditOnly              SantaFileAccessDecision = "audit_only"
+)
+
+func (e *SantaFileAccessDecision) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SantaFileAccessDecision(s)
+	case string:
+		*e = SantaFileAccessDecision(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SantaFileAccessDecision: %T", src)
+	}
+	return nil
+}
+
+type NullSantaFileAccessDecision struct {
+	SantaFileAccessDecision SantaFileAccessDecision `json:"santa_file_access_decision"`
+	Valid                   bool                    `json:"valid"` // Valid is true if SantaFileAccessDecision is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSantaFileAccessDecision) Scan(value interface{}) error {
+	if value == nil {
+		ns.SantaFileAccessDecision, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SantaFileAccessDecision.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSantaFileAccessDecision) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SantaFileAccessDecision), nil
+}
+
 type SantaPolicy string
 
 const (
@@ -899,21 +943,21 @@ type SantaExecutionEvent struct {
 }
 
 type SantaFileAccessEvent struct {
-	ID                      int64       `json:"id"`
-	HostID                  int64       `json:"host_id"`
-	RuleVersion             string      `json:"rule_version"`
-	RuleName                string      `json:"rule_name"`
-	Target                  string      `json:"target"`
-	Decision                interface{} `json:"decision"`
-	ProcessChain            []byte      `json:"process_chain"`
-	OccurredAt              time.Time   `json:"occurred_at"`
-	IngestedAt              time.Time   `json:"ingested_at"`
-	PrimaryProcessSha256    string      `json:"primary_process_sha256"`
-	PrimaryProcessPath      string      `json:"primary_process_path"`
-	PrimaryProcessSigningID string      `json:"primary_process_signing_id"`
-	PrimaryProcessTeamID    string      `json:"primary_process_team_id"`
-	PrimaryProcessCdhash    string      `json:"primary_process_cdhash"`
-	PrimaryProcessPid       int32       `json:"primary_process_pid"`
+	ID                      int64                   `json:"id"`
+	HostID                  int64                   `json:"host_id"`
+	RuleVersion             string                  `json:"rule_version"`
+	RuleName                string                  `json:"rule_name"`
+	Target                  string                  `json:"target"`
+	Decision                SantaFileAccessDecision `json:"decision"`
+	ProcessChain            []byte                  `json:"process_chain"`
+	OccurredAt              time.Time               `json:"occurred_at"`
+	IngestedAt              time.Time               `json:"ingested_at"`
+	PrimaryProcessSha256    string                  `json:"primary_process_sha256"`
+	PrimaryProcessPath      string                  `json:"primary_process_path"`
+	PrimaryProcessSigningID string                  `json:"primary_process_signing_id"`
+	PrimaryProcessTeamID    string                  `json:"primary_process_team_id"`
+	PrimaryProcessCdhash    string                  `json:"primary_process_cdhash"`
+	PrimaryProcessPid       int32                   `json:"primary_process_pid"`
 }
 
 type SantaHost struct {

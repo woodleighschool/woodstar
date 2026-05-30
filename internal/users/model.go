@@ -36,7 +36,7 @@ func (Role) Schema(_ huma.Registry) *huma.Schema {
 
 // Account is the signed-in user's self-view, including their retrievable API key.
 type Account struct {
-	User            User
-	APIKey          string
-	APIKeyCreatedAt *time.Time
+	User            User       `json:"user"`
+	APIKey          string     `json:"api_key,omitempty"`
+	APIKeyCreatedAt *time.Time `json:"api_key_created_at,omitempty"`
 }

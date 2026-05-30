@@ -31,7 +31,7 @@ type softwareGetInput struct {
 }
 
 type softwareListOutput struct {
-	Body paginatedBody[software.SoftwareTitle]
+	Body Page[software.SoftwareTitle]
 }
 
 type softwareGetOutput struct {
@@ -55,7 +55,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store, santaReferenc
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: paginatedBody[software.SoftwareTitle]{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: Page[software.SoftwareTitle]{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

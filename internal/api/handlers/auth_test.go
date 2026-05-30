@@ -74,7 +74,7 @@ func TestRequireAdmin(t *testing.T) {
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.CreateParams{
+	if _, err := userService.Create(ctx, users.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: "correct-password",

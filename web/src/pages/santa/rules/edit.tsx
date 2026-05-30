@@ -366,7 +366,7 @@ function RuleTargetPicker({
   onChange: (form: RuleFormState) => void;
 }) {
   const targets = useSantaRuleTargets({ target_type: form.rule_type, limit: 50 });
-  const rows = targets.data?.items ?? [];
+  const rows = targets.data ?? [];
   const selected =
     rows.find((target) => target.target_type === form.rule_type && target.identifier === form.identifier) ??
     currentRuleTarget(form);
