@@ -20,9 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { useClearHostDeviceMapping, useSetHostDeviceMapping, type Host, type HostDetail } from "@/hooks/use-hosts";
-import { deviceMappingSourceLabel } from "@/lib/device-mapping-source-labels";
-import { manualDeviceMapping } from "@/lib/host-device-mappings";
+import { useClearHostUserAffinity, useSetHostUserAffinity, type Host, type HostDetail } from "@/hooks/use-hosts";
+import { manualUserAffinityMapping } from "@/lib/host-user-affinity";
+import { userAffinitySourceLabel } from "@/lib/user-affinity-source-labels";
 import { cn, formatBytes, formatRelative } from "@/lib/utils";
 
 interface Tile {
@@ -40,21 +40,24 @@ const certificateSourceLabels: Record<string, string> = {
 
 export function HostInfoCard({ host }: { host: HostDetail }) {
   const tiles: Tile[] = [];
+  const osqueryVersion = host.agents.osquery.version;
+  const orbitVersion = host.agents.orbit.version;
 
   tiles.push({
     label: "Agent",
-    value: host.orbit_version ? (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span>{host.orbit_version}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="whitespace-pre-line">{`osquery: ${host.osquery_version || "-"}\nOrbit: ${host.orbit_version}`}</div>
-        </TooltipContent>
-      </Tooltip>
-    ) : (
-      "-"
-    ),
+    value:
+      orbitVersion || osqueryVersion ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{orbitVersion || osqueryVersion}</span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="whitespace-pre-line">{`osquery: ${osqueryVersion || "-"}\nOrbit: ${orbitVersion || "-"}`}</div>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        "-"
+      ),
   });
 
   const battery = host.batteries?.[0];
@@ -62,53 +65,57 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
     tiles.push({ label: "Battery Condition", value: battery.health });
   }
 
-  if (host.disk_space_available_bytes != null) {
+  if (host.storage.boot_volume.available_bytes != null) {
     tiles.push({
       label: "Disk Space Available",
-      value: `${formatBytes(host.disk_space_available_bytes)}${diskPercent(host)}`,
+      value: `${formatBytes(host.storage.boot_volume.available_bytes)}${diskPercent(host)}`,
     });
   }
 
   tiles.push({
     label: "Enrolled",
-    value: host.enrolled_at ? (
-      <span title={new Date(host.enrolled_at).toLocaleString()}>{formatRelative(host.enrolled_at)}</span>
+    value: host.enrollment.enrolled_at ? (
+      <span title={new Date(host.enrollment.enrolled_at).toLocaleString()}>
+        {formatRelative(host.enrollment.enrolled_at)}
+      </span>
     ) : (
       "-"
     ),
   });
 
-  tiles.push({ label: "Hardware Model", value: host.hardware_model || "-" });
+  tiles.push({ label: "Hardware Model", value: host.hardware.model_identifier || "-" });
 
-  if (host.last_restarted_at) {
+  if (host.timestamps.last_restarted_at) {
     tiles.push({
       label: "Last Restarted",
       value: (
-        <span title={new Date(host.last_restarted_at).toLocaleString()}>{formatRelative(host.last_restarted_at)}</span>
+        <span title={new Date(host.timestamps.last_restarted_at).toLocaleString()}>
+          {formatRelative(host.timestamps.last_restarted_at)}
+        </span>
       ),
     });
   }
 
   tiles.push({
     label: "MAC Address",
-    value: host.primary_mac || "-",
+    value: host.network.primary_mac || "-",
   });
 
-  if (host.physical_memory > 0) {
-    tiles.push({ label: "Memory", value: formatBytes(host.physical_memory) });
+  if (host.hardware.memory_bytes > 0) {
+    tiles.push({ label: "Memory", value: formatBytes(host.hardware.memory_bytes) });
   }
 
-  tiles.push({ label: "Operating System", value: host.os_version || "-" });
+  tiles.push({ label: "Operating System", value: osDisplayName(host) });
 
-  tiles.push({ label: "Private IP Address", value: host.primary_ip ?? "-" });
+  tiles.push({ label: "Private IP Address", value: host.network.primary_ip ?? "-" });
 
-  if (host.cpu_brand || host.cpu_type) {
-    tiles.push({ label: "Processor Type", value: host.cpu_brand || host.cpu_type });
+  if (host.hardware.cpu.brand || host.hardware.cpu.architecture) {
+    tiles.push({ label: "Processor Type", value: host.hardware.cpu.brand || host.hardware.cpu.architecture });
   }
 
-  tiles.push({ label: "Public IP Address", value: host.public_ip ?? "-" });
+  tiles.push({ label: "Public IP Address", value: host.network.last_remote_ip ?? "-" });
 
-  tiles.push({ label: "Serial Number", value: host.hardware_serial || "-" });
+  tiles.push({ label: "Serial Number", value: host.hardware.serial || "-" });
 
   tiles.sort((a, b) => a.label.localeCompare(b.label));
 
@@ -131,9 +138,9 @@ export function HostInfoCard({ host }: { host: HostDetail }) {
 export function HostIdentityCard({ host }: { host: HostDetail }) {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const affinity = host.user_affinity;
+  const affinity = host.user_affinity.primary;
   const canEdit = user?.role === "admin";
-  const hasManualMapping = manualDeviceMapping(host.device_mappings) !== null;
+  const hasManualMapping = manualUserAffinityMapping(host.user_affinity.mappings) !== null;
 
   return (
     <Card>
@@ -152,7 +159,7 @@ export function HostIdentityCard({ host }: { host: HostDetail }) {
           <IdentityItem label="Username" value={displayValue(affinity?.username)} />
           <IdentityItem label="Email" value={displayValue(affinity?.email)} />
           <IdentityItem label="Department" value={displayValue(affinity?.department)} />
-          <IdentityItem label="Source" value={affinity ? deviceMappingSourceLabel(affinity.source) : "-"} />
+          <IdentityItem label="Source" value={affinity ? userAffinitySourceLabel(affinity.source) : "-"} />
           <IdentityItem
             label="Groups"
             value={<UserGroups groups={affinity?.groups ?? []} />}
@@ -248,10 +255,10 @@ function displayValue(value: string | null | undefined) {
 }
 
 function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpenChange: (open: boolean) => void }) {
-  const manual = manualDeviceMapping(host.device_mappings);
-  const [email, setEmail] = useState(manual?.email ?? host.user_affinity?.email ?? "");
-  const setMapping = useSetHostDeviceMapping();
-  const clearMapping = useClearHostDeviceMapping();
+  const manual = manualUserAffinityMapping(host.user_affinity.mappings);
+  const [email, setEmail] = useState(manual?.email ?? host.user_affinity.primary?.email ?? "");
+  const setMapping = useSetHostUserAffinity();
+  const clearMapping = useClearHostUserAffinity();
   const pending = setMapping.isPending || clearMapping.isPending;
   const error = setMapping.error ?? clearMapping.error;
 
@@ -484,8 +491,14 @@ function formatDate(value: string | null | undefined) {
 }
 
 function diskPercent(host: Host) {
-  const available = host.disk_space_available_bytes;
-  const total = host.disk_space_total_bytes;
+  const available = host.storage.boot_volume.available_bytes;
+  const total = host.storage.boot_volume.total_bytes;
   if (available == null || total == null || total <= 0) return "";
   return ` (${((available / total) * 100).toFixed(0)}%)`;
+}
+
+function osDisplayName(host: Host) {
+  const parts = [host.os.name, host.os.version].filter(Boolean);
+  if (parts.length > 0) return parts.join(" ");
+  return host.os.build || "-";
 }

@@ -1,7 +1,6 @@
 package ingest
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -10,77 +9,66 @@ import (
 )
 
 // ParseHostDetails maps osquery detail rows to host fields.
-func ParseHostDetails(details map[string]map[string]string) hosts.DetailUpdate {
-	var update hosts.DetailUpdate
+func ParseHostDetails(details map[string]map[string]string) hosts.InventoryUpdate {
+	var update hosts.InventoryUpdate
 	if row := details["system_info"]; row != nil {
-		update.HardwareUUID = row["uuid"]
+		update.Hardware.UUID = row["uuid"]
 		update.Hostname = row["hostname"]
 		update.ComputerName = row["computer_name"]
-		update.HardwareSerial = row["hardware_serial"]
-		update.HardwareModel = row["hardware_model"]
-		update.HardwareVersion = row["hardware_version"]
-		update.HardwareVendor = row["hardware_vendor"]
-		update.CPUType = row["cpu_type"]
-		update.CPUSubtype = row["cpu_subtype"]
-		update.CPUBrand = row["cpu_brand"]
-		update.CPULogicalCores = parseInt32(row["cpu_logical_cores"])
-		update.CPUPhysicalCores = parseInt32(row["cpu_physical_cores"])
-		update.PhysicalMemory = parseInt64(row["physical_memory"])
+		update.Hardware.Serial = row["hardware_serial"]
+		update.Hardware.ModelIdentifier = row["hardware_model"]
+		update.Hardware.Vendor = row["hardware_vendor"]
+		update.Hardware.CPU.Architecture = row["cpu_type"]
+		update.Hardware.CPU.Subtype = row["cpu_subtype"]
+		update.Hardware.CPU.Brand = row["cpu_brand"]
+		update.Hardware.CPU.LogicalCores = parseInt32(row["cpu_logical_cores"])
+		update.Hardware.CPU.PhysicalCores = parseInt32(row["cpu_physical_cores"])
+		update.Hardware.MemoryBytes = parseInt64(row["physical_memory"])
 	}
 	if row := details["osquery_info"]; row != nil {
-		update.OsqueryVersion = row["version"]
+		update.Agents.Osquery.Version = row["version"]
 	}
 	if row := details["orbit_info"]; row != nil {
-		update.OrbitVersion = row["version"]
+		update.Agents.Orbit.Version = row["version"]
 	}
 	if row := details["os_version"]; row != nil {
-		update.OSName = row["name"]
-		update.OSVersion = osVersion(row)
-		update.OSBuild = row["build"]
+		update.OS.Name = row["name"]
+		update.OS.Version = versionString(row)
+		update.OS.Build = row["build"]
+		update.OS.Platform = row["platform"]
 	}
 	if row := details["platform_info"]; row != nil {
-		update.KernelVersion = row["extra"]
+		update.OS.KernelVersion = row["extra"]
 	}
 	if row := details["uptime"]; row != nil {
 		if seconds := parsePositiveInt64Ptr(row["total_seconds"]); seconds != nil {
 			restarted := time.Now().Add(-time.Duration(*seconds) * time.Second)
-			update.LastRestartedAt = &restarted
+			update.Timestamps.LastRestartedAt = &restarted
 		}
 	}
 	if row := details["root_disk"]; row != nil {
 		total := parseInt64(row["bytes_total"])
 		available := parseInt64(row["bytes_available"])
 		if total > 0 {
-			update.DiskSpaceTotalBytes = new(total)
+			update.Storage.BootVolume.TotalBytes = new(total)
 			if available >= 0 {
-				update.DiskSpaceAvailableBytes = new(available)
+				update.Storage.BootVolume.AvailableBytes = new(available)
 			}
 		}
 	}
 	if row := details["primary_interface"]; row != nil {
-		update.PrimaryIP = row["primary_ip"]
-		update.PrimaryMAC = row["primary_mac"]
+		update.Network.PrimaryIP = row["primary_ip"]
+		update.Network.PrimaryMAC = row["primary_mac"]
 	}
 	return update
 }
 
-func osVersion(row map[string]string) string {
-	name := row["name"]
+func versionString(row map[string]string) string {
 	version := row["version"]
 	if version == "" {
 		version = dottedVersion(row)
 	}
-	build := row["build"]
-	switch {
-	case name == "":
-		return version
-	case version == "":
-		return name
-	case build == "":
-		return name + " " + version
-	default:
-		return fmt.Sprintf("%s %s (build %s)", name, version, build)
-	}
+	return version
 }
 
 func dottedVersion(row map[string]string) string {

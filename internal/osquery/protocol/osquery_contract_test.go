@@ -382,17 +382,20 @@ func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
 	if host.DisplayName != "Osquery Mac" {
 		t.Fatalf("host display_name = %q, want Osquery Mac", host.DisplayName)
 	}
-	if host.PhysicalMemory != 68719476736 {
-		t.Fatalf("host physical_memory = %d, want 68719476736", host.PhysicalMemory)
+	if host.Hardware.MemoryBytes != 68719476736 {
+		t.Fatalf("host hardware.memory_bytes = %d, want 68719476736", host.Hardware.MemoryBytes)
 	}
-	if host.OrbitVersion != "1.47.0" {
-		t.Fatalf("host orbit_version = %q, want 1.47.0", host.OrbitVersion)
+	if host.Agents.Orbit.Version != "1.47.0" {
+		t.Fatalf("host agents.orbit.version = %q, want 1.47.0", host.Agents.Orbit.Version)
 	}
-	if host.DiskSpaceAvailableBytes == nil || *host.DiskSpaceAvailableBytes != 1073741824 {
-		t.Fatalf("host disk_space_available_bytes = %v, want 1073741824", host.DiskSpaceAvailableBytes)
+	if host.Storage.BootVolume.AvailableBytes == nil || *host.Storage.BootVolume.AvailableBytes != 1073741824 {
+		t.Fatalf(
+			"host storage.boot_volume.available_bytes = %v, want 1073741824",
+			host.Storage.BootVolume.AvailableBytes,
+		)
 	}
-	if host.DiskSpaceTotalBytes == nil || *host.DiskSpaceTotalBytes != 4294967296 {
-		t.Fatalf("host disk_space_total_bytes = %v, want 4294967296", host.DiskSpaceTotalBytes)
+	if host.Storage.BootVolume.TotalBytes == nil || *host.Storage.BootVolume.TotalBytes != 4294967296 {
+		t.Fatalf("host storage.boot_volume.total_bytes = %v, want 4294967296", host.Storage.BootVolume.TotalBytes)
 	}
 }
 

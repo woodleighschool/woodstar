@@ -70,64 +70,6 @@ func (q *Queries) InsertDirectoryUserGroups(ctx context.Context, arg InsertDirec
 	return err
 }
 
-const loadHostUserAffinity = `-- name: LoadHostUserAffinity :one
-WITH primary_mapping AS (
-    SELECT he.host_id, he.email, he.source::text AS source
-    FROM host_emails he
-    WHERE he.host_id = $1
-    ORDER BY CASE he.source
-        WHEN 'manual' THEN 0
-        WHEN 'orbit_profile' THEN 1
-        WHEN 'santa_primary_user' THEN 1
-        ELSE 10
-    END, he.source
-    LIMIT 1
-)
-SELECT
-    pm.email,
-    pm.source,
-    COALESCE(du.mail_nickname, '') AS username,
-    COALESCE(du.display_name, '') AS name,
-    COALESCE(du.department, '') AS department,
-    COALESCE(
-        array_agg(dg.display_name ORDER BY lower(dg.display_name)) FILTER (WHERE dg.id IS NOT NULL),
-        ARRAY[]::text[]
-    )::text[] AS groups
-FROM primary_mapping pm
-LEFT JOIN host_directory_user hdu ON hdu.host_id = pm.host_id
-LEFT JOIN directory_users du ON du.id = hdu.directory_user_id AND du.active
-LEFT JOIN directory_user_groups dug ON dug.directory_user_id = du.id
-LEFT JOIN directory_groups dg ON dg.id = dug.directory_group_id
-GROUP BY pm.email, pm.source, du.mail_nickname, du.display_name, du.department
-`
-
-type LoadHostUserAffinityParams struct {
-	AffinityHostID int64 `json:"affinity_host_id"`
-}
-
-type LoadHostUserAffinityRow struct {
-	Email      string   `json:"email"`
-	Source     string   `json:"source"`
-	Username   string   `json:"username"`
-	Name       string   `json:"name"`
-	Department string   `json:"department"`
-	Groups     []string `json:"groups"`
-}
-
-func (q *Queries) LoadHostUserAffinity(ctx context.Context, arg LoadHostUserAffinityParams) (LoadHostUserAffinityRow, error) {
-	row := q.db.QueryRow(ctx, loadHostUserAffinity, arg.AffinityHostID)
-	var i LoadHostUserAffinityRow
-	err := row.Scan(
-		&i.Email,
-		&i.Source,
-		&i.Username,
-		&i.Name,
-		&i.Department,
-		&i.Groups,
-	)
-	return i, err
-}
-
 const upsertDirectoryGroup = `-- name: UpsertDirectoryGroup :one
 INSERT INTO directory_groups (
     external_id,

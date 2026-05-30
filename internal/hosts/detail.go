@@ -24,13 +24,20 @@ func (s *Store) LoadDetail(ctx context.Context, host *Host) (*HostDetail, error)
 	if err != nil {
 		return nil, err
 	}
-	mappings, err := s.q.ListHostDeviceMappings(ctx, sqlc.ListHostDeviceMappingsParams{HostID: host.ID})
+	mappings, err := s.q.ListHostUserAffinityMappings(ctx, sqlc.ListHostUserAffinityMappingsParams{HostID: host.ID})
 	if err != nil {
 		return nil, err
 	}
 
 	detailHost := *host
-	detailHost.DeviceMappings = groupHostDeviceMappings(mappings, 1)[host.ID]
+	detailHost.UserAffinity.Mappings = groupHostUserAffinityMappings(mappings, 1)[host.ID]
+	if detailHost.UserAffinity.Mappings == nil {
+		detailHost.UserAffinity.Mappings = []HostUserAffinityMapping{}
+	}
+	detailHost.UserAffinity.Primary, err = s.loadHostUserAffinityPrimary(ctx, host.ID)
+	if err != nil {
+		return nil, err
+	}
 	return &HostDetail{
 		Host:         detailHost,
 		Labels:       hostLabels,

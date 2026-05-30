@@ -38,10 +38,12 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	machineID := "santa-contract-" + suffix
-	host, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   machineID,
-		HardwareSerial: "SANTACONTRACT",
-		OrbitNodeKey:   "santa-contract-orbit-" + suffix,
+	host, err := stores.hosts.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   machineID,
+			Serial: "SANTACONTRACT",
+		},
+		OrbitNodeKey: "santa-contract-orbit-" + suffix,
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)

@@ -163,8 +163,8 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	labelStore := labels.NewStore(db)
 	store := rules.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-rule-resolver-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-rule-resolver-host"},
 		OrbitNodeKey: "santa-rule-resolver-orbit",
 	})
 	if err != nil {
@@ -223,8 +223,8 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	store := rules.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-rule-all-hosts",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-rule-all-hosts"},
 		OrbitNodeKey: "santa-rule-all-hosts-orbit",
 	})
 	if err != nil {
@@ -256,8 +256,8 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	labelStore := labels.NewStore(db)
 	store := rules.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-bundle-rule-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-bundle-rule-host"},
 		OrbitNodeKey: "santa-bundle-rule-orbit",
 	})
 	if err != nil {
@@ -351,8 +351,8 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	store := rules.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-rule-target-software-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-rule-target-software-host"},
 		OrbitNodeKey: "santa-rule-target-software-orbit",
 	})
 	if err != nil {

@@ -21,14 +21,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
 
-func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
+func TestOrbitHTTPEnrollConfigAndUserAffinity(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	stores := newOrbitContractStores(database)
 	router := newOrbitContractRouter(stores)
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 10)
 	hardwareUUID := "orbit-contract-" + suffix
-	deviceEmail := "student-" + suffix + "@example.test"
+	userEmail := "student-" + suffix + "@example.test"
 
 	secret, err := stores.agentSecrets.Create(ctx, agentauth.AgentOrbit, "orbit-contract-secret-value-"+suffix)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 
 	doOrbitJSON(t, router, http.MethodPut, "/api/fleet/orbit/device_mapping", orbit.DeviceMappingRequest{
 		OrbitNodeKey: enrollBody.OrbitNodeKey,
-		Email:        deviceEmail,
+		Email:        userEmail,
 	}, http.StatusOK, nil)
 
 	host, err := stores.hosts.GetByOrbitNodeKey(ctx, enrollBody.OrbitNodeKey)
@@ -78,8 +78,8 @@ func TestOrbitHTTPEnrollConfigAndDeviceMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load host detail: %v", err)
 	}
-	if !hasDeviceMapping(detail.DeviceMappings, deviceEmail) {
-		t.Fatalf("device mapping %q not found: %#v", deviceEmail, detail.DeviceMappings)
+	if !hasUserAffinityMapping(detail.UserAffinity.Mappings, userEmail) {
+		t.Fatalf("user affinity mapping %q not found: %#v", userEmail, detail.UserAffinity.Mappings)
 	}
 }
 
@@ -96,14 +96,14 @@ func TestOrbitHTTPRejectsInvalidEnrollSecret(t *testing.T) {
 
 type orbitContractStores struct {
 	hosts          *hosts.Store
-	deviceMappings *hosts.DeviceMappingStore
+	userAffinities *hosts.UserAffinityStore
 	agentSecrets   *agentauth.Store
 }
 
 func newOrbitContractStores(database *database.DB) orbitContractStores {
 	return orbitContractStores{
 		hosts:          hosts.NewStore(database),
-		deviceMappings: hosts.NewDeviceMappingStore(database),
+		userAffinities: hosts.NewUserAffinityStore(database),
 		agentSecrets:   agentauth.NewStore(database),
 	}
 }
@@ -112,15 +112,15 @@ func newOrbitContractRouter(stores orbitContractStores) http.Handler {
 	router := chi.NewRouter()
 	RegisterOrbitRoutes(
 		router,
-		orbit.NewService(stores.hosts, stores.agentSecrets, stores.deviceMappings),
+		orbit.NewService(stores.hosts, stores.agentSecrets, stores.userAffinities),
 		slog.New(slog.DiscardHandler),
 	)
 	return router
 }
 
-func hasDeviceMapping(mappings []hosts.HostDeviceMapping, email string) bool {
+func hasUserAffinityMapping(mappings []hosts.HostUserAffinityMapping, email string) bool {
 	for _, mapping := range mappings {
-		if mapping.Email == email && mapping.Source == hosts.DeviceMappingSourceOrbitProfile {
+		if mapping.Email == email && mapping.Source == hosts.UserAffinitySourceOrbitProfile {
 			return true
 		}
 	}

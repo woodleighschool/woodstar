@@ -16,10 +16,12 @@ func TestHostObservationUpsertAndDetail(t *testing.T) {
 	store := santa.NewStore(db)
 	hostState := santa.NewHostStateService(store, configurations.NewStore(db))
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "santa-host-observation-uuid",
-		HardwareSerial: "C02SANTA",
-		OrbitNodeKey:   "santa-host-observation-orbit",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "santa-host-observation-uuid",
+			Serial: "C02SANTA",
+		},
+		OrbitNodeKey: "santa-host-observation-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)

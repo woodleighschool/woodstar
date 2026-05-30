@@ -122,15 +122,16 @@ func parseSort(sort string) (string, string, error) {
 	if sort == "" {
 		return "", orderAsc, nil
 	}
-	key, direction, ok := strings.Cut(sort, ".")
+	dot := strings.LastIndex(sort, ".")
+	if dot == -1 {
+		return sort, orderAsc, nil
+	}
+	key, direction := sort[:dot], sort[dot+1:]
 	if key == "" {
 		return "", "", fmt.Errorf("%w: sort key is required", ErrInvalidInput)
 	}
-	if !ok || direction == "" {
-		return key, orderAsc, nil
-	}
 	if direction != orderAsc && direction != orderDesc {
-		return "", "", fmt.Errorf("%w: sort direction must be asc or desc", ErrInvalidInput)
+		return sort, orderAsc, nil
 	}
 	return key, direction, nil
 }

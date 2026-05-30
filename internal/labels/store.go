@@ -236,10 +236,6 @@ func (s *Store) SetMembership(ctx context.Context, labelID int64, hostID int64, 
 	return s.q.DeleteLabelMembership(ctx, sqlc.DeleteLabelMembershipParams{LabelID: labelID, HostID: hostID})
 }
 
-func (s *Store) MarkHostLabelsFresh(ctx context.Context, hostID int64) error {
-	return s.q.MarkHostLabelsFresh(ctx, sqlc.MarkHostLabelsFreshParams{HostID: hostID})
-}
-
 func (s *Store) RefreshDerived(ctx context.Context) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)

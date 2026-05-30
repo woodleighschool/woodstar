@@ -29,81 +29,127 @@ const (
 	CheckResponseFail CheckResponse = "fail"
 )
 
-// DetailUpdate is inventory reported by osquery detail queries.
-type DetailUpdate struct {
-	HardwareUUID            string
-	Hostname                string
-	ComputerName            string
-	HardwareSerial          string
-	HardwareModel           string
-	HardwareVersion         string
-	OSName                  string
-	OSVersion               string
-	OSBuild                 string
-	KernelVersion           string
-	HardwareVendor          string
-	OrbitVersion            string
-	CPUType                 string
-	CPUSubtype              string
-	CPUBrand                string
-	CPULogicalCores         int32
-	CPUPhysicalCores        int32
-	PhysicalMemory          int64
-	OrbitNodeKey            string
-	OsqueryVersion          string
-	OsqueryNodeKey          string
-	LastRestartedAt         *time.Time
-	DiskSpaceAvailableBytes *int64
-	DiskSpaceTotalBytes     *int64
-	PublicIP                string
-	PrimaryIP               string
-	PrimaryMAC              string
-	DistributedInterval     *int32
-	ConfigTLSRefresh        *int32
+// InventoryUpdate is inventory reported by enrolling agents and osquery detail queries.
+type InventoryUpdate struct {
+	Hostname        string
+	ComputerName    string
+	Hardware        HostHardware
+	OS              HostOS
+	Storage         HostStorage
+	Network         InventoryNetwork
+	Agents          HostAgents
+	Timestamps      InventoryTimestamps
+	OrbitNodeKey    string
+	OsqueryNodeKey  string
+	EnrollmentAgent string
 }
+
+// InventoryNetwork is network inventory before PostgreSQL inet parsing.
+type InventoryNetwork struct {
+	PrimaryIP    string
+	PrimaryMAC   string
+	LastRemoteIP string
+}
+
+// InventoryTimestamps carries timestamp inventory updates.
+type InventoryTimestamps struct {
+	LastRestartedAt *time.Time
+}
+
+type HostStatus string
+
+const (
+	HostStatusOnline  HostStatus = "online"
+	HostStatusOffline HostStatus = "offline"
+)
 
 // Host is an enrolled Mac. Used for list rows and as the base of HostDetail.
 type Host struct {
-	ID                      int64               `json:"id"`
-	HardwareUUID            string              `json:"hardware_uuid"`
-	DisplayName             string              `json:"display_name"`
-	Hostname                string              `json:"hostname"`
-	ComputerName            string              `json:"computer_name"`
-	HardwareSerial          string              `json:"hardware_serial"`
-	HardwareModel           string              `json:"hardware_model"`
-	HardwareVersion         string              `json:"hardware_version"`
-	HardwareVendor          string              `json:"hardware_vendor"`
-	OSName                  string              `json:"os_name"`
-	OSVersion               string              `json:"os_version"`
-	OSBuild                 string              `json:"os_build"`
-	OsqueryVersion          string              `json:"osquery_version"`
-	OrbitVersion            string              `json:"orbit_version"`
-	OrbitNodeKey            string              `json:"-"`
-	OsqueryNodeKey          string              `json:"-"`
-	CPUType                 string              `json:"cpu_type"`
-	CPUSubtype              string              `json:"cpu_subtype"`
-	CPUBrand                string              `json:"cpu_brand"`
-	CPULogicalCores         int32               `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int32               `json:"cpu_physical_cores"`
-	PhysicalMemory          int64               `json:"physical_memory"`
-	KernelVersion           string              `json:"kernel_version"`
-	LastRestartedAt         *time.Time          `json:"last_restarted_at,omitempty"`
-	DiskSpaceAvailableBytes *int64              `json:"disk_space_available_bytes,omitempty"`
-	DiskSpaceTotalBytes     *int64              `json:"disk_space_total_bytes,omitempty"`
-	PublicIP                *netip.Addr         `json:"public_ip,omitempty"`
-	PrimaryIP               *netip.Addr         `json:"primary_ip,omitempty"`
-	PrimaryMAC              string              `json:"primary_mac"`
-	DistributedInterval     *int32              `json:"distributed_interval,omitempty"`
-	ConfigTLSRefresh        *int32              `json:"config_tls_refresh,omitempty"`
-	DetailQueryHash         string              `json:"-"`
-	EnrolledAt              *time.Time          `json:"enrolled_at,omitempty"`
-	LastSeenAt              *time.Time          `json:"last_seen_at,omitempty"`
-	DetailUpdatedAt         *time.Time          `json:"detail_updated_at,omitempty"`
-	LabelUpdatedAt          *time.Time          `json:"label_updated_at,omitempty"`
-	SoftwareUpdatedAt       *time.Time          `json:"software_updated_at,omitempty"`
-	CreatedAt               time.Time           `json:"created_at"`
-	UpdatedAt               time.Time           `json:"updated_at"`
-	DeviceMappings          []HostDeviceMapping `json:"device_mappings,omitempty"`
+	ID           int64            `json:"id"`
+	DisplayName  string           `json:"display_name"`
+	Status       HostStatus       `json:"status"`
+	Hostname     string           `json:"hostname"`
+	ComputerName string           `json:"computer_name"`
+	Enrollment   HostEnrollment   `json:"enrollment"`
+	Hardware     HostHardware     `json:"hardware"`
+	OS           HostOS           `json:"os"`
+	Storage      HostStorage      `json:"storage"`
+	Network      HostNetwork      `json:"network"`
+	Agents       HostAgents       `json:"agents"`
+	UserAffinity HostUserAffinity `json:"user_affinity"`
+	Timestamps   HostTimestamps   `json:"timestamps"`
+
+	OrbitNodeKey       string `json:"-"`
+	OsqueryNodeKey     string `json:"-"`
+	InventoryQueryHash string `json:"-"`
+}
+
+type HostEnrollment struct {
+	Agent      string     `json:"agent"`
+	EnrolledAt *time.Time `json:"enrolled_at,omitempty"`
+}
+
+type HostHardware struct {
+	UUID            string  `json:"uuid"`
+	Serial          string  `json:"serial"`
+	Vendor          string  `json:"vendor"`
+	ModelIdentifier string  `json:"model_identifier"`
+	MemoryBytes     int64   `json:"memory_bytes"`
+	CPU             HostCPU `json:"cpu"`
+}
+
+type HostCPU struct {
+	Architecture  string `json:"architecture"`
+	Subtype       string `json:"subtype"`
+	Brand         string `json:"brand"`
+	PhysicalCores int32  `json:"physical_cores"`
+	LogicalCores  int32  `json:"logical_cores"`
+}
+
+type HostOS struct {
+	Platform      string `json:"platform"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	Build         string `json:"build"`
+	KernelVersion string `json:"kernel_version"`
+}
+
+type HostStorage struct {
+	BootVolume HostBootVolume `json:"boot_volume"`
+}
+
+type HostBootVolume struct {
+	AvailableBytes *int64 `json:"available_bytes,omitempty"`
+	TotalBytes     *int64 `json:"total_bytes,omitempty"`
+}
+
+type HostNetwork struct {
+	PrimaryIP    *netip.Addr `json:"primary_ip,omitempty"`
+	PrimaryMAC   string      `json:"primary_mac"`
+	LastRemoteIP *netip.Addr `json:"last_remote_ip,omitempty"`
+}
+
+type HostAgents struct {
+	Osquery HostOsqueryAgent `json:"osquery"`
+	Orbit   HostOrbitAgent   `json:"orbit"`
+}
+
+type HostOsqueryAgent struct {
+	Version                    string `json:"version"`
+	DistributedIntervalSeconds *int32 `json:"distributed_interval_seconds,omitempty"`
+	ConfigRefreshSeconds       *int32 `json:"config_refresh_seconds,omitempty"`
+}
+
+type HostOrbitAgent struct {
+	Version string `json:"version"`
+}
+
+type HostTimestamps struct {
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	LastSeenAt         *time.Time `json:"last_seen_at,omitempty"`
+	InventoryUpdatedAt *time.Time `json:"inventory_updated_at,omitempty"`
+	LastRestartedAt    *time.Time `json:"last_restarted_at,omitempty"`
 }
 
 // HostDetail is a host plus its loaded children.
@@ -111,19 +157,23 @@ type HostDetail struct {
 	Host
 	Labels       []labels.Label    `json:"labels"`
 	Users        []HostUser        `json:"users"`
-	UserAffinity *HostUserAffinity `json:"user_affinity,omitempty"`
 	Batteries    []HostBattery     `json:"batteries"`
 	Certificates []HostCertificate `json:"certificates"`
 }
 
-// HostUserAffinity is Woodstar's best user/device affinity for a host.
+// HostUserAffinity is Woodstar's resolved user affinity plus raw mappings.
 type HostUserAffinity struct {
-	Email      string              `json:"email"`
-	Username   string              `json:"username"`
-	Name       string              `json:"name"`
-	Department string              `json:"department"`
-	Groups     []string            `json:"groups"`
-	Source     DeviceMappingSource `json:"source"`
+	Primary  *HostUserAffinityPrimary  `json:"primary,omitempty"`
+	Mappings []HostUserAffinityMapping `json:"mappings"`
+}
+
+type HostUserAffinityPrimary struct {
+	Email      string             `json:"email"`
+	Username   string             `json:"username"`
+	Name       string             `json:"name"`
+	Department string             `json:"department"`
+	Groups     []string           `json:"groups"`
+	Source     UserAffinitySource `json:"source"`
 }
 
 // HostUser is one local account reported by osquery.
@@ -189,12 +239,12 @@ type CertificateName struct {
 	CommonName         string `json:"common_name"`
 }
 
-// HostDeviceMapping is a user/device association observed for a host.
-type HostDeviceMapping struct {
-	ID        int64               `json:"-"`
-	HostID    int64               `json:"-"`
-	Email     string              `json:"email"`
-	Source    DeviceMappingSource `json:"source"`
-	CreatedAt time.Time           `json:"-"`
-	UpdatedAt time.Time           `json:"-"`
+// HostUserAffinityMapping is a user association observed for a host.
+type HostUserAffinityMapping struct {
+	ID        int64              `json:"-"`
+	HostID    int64              `json:"-"`
+	Email     string             `json:"email"`
+	Source    UserAffinitySource `json:"source"`
+	CreatedAt time.Time          `json:"-"`
+	UpdatedAt time.Time          `json:"-"`
 }

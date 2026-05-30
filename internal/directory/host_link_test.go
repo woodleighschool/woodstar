@@ -13,7 +13,7 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
 	hostStore := hosts.NewStore(database)
-	deviceMappings := hosts.NewDeviceMappingStore(database)
+	userAffinities := hosts.NewUserAffinityStore(database)
 
 	if err := store.Apply(ctx, Snapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -25,32 +25,36 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("apply directory snapshot: %v", err)
 	}
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "fixture-uuid",
-		HardwareSerial: "fixture-serial",
-		Hostname:       "fixture",
-		OrbitNodeKey:   "fixture-node",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "fixture-uuid",
+			Serial: "fixture-serial",
+		},
+		Hostname:     "fixture",
+		OrbitNodeKey: "fixture-node",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
 
-	if err := deviceMappings.Upsert(
-		ctx, host.ID, "alice@example.com", hosts.DeviceMappingSourceOrbitProfile,
+	if err := userAffinities.Upsert(
+		ctx, host.ID, "alice@example.com", hosts.UserAffinitySourceOrbitProfile,
 	); err != nil {
-		t.Fatalf("seed host_emails: %v", err)
+		t.Fatalf("seed host user affinity: %v", err)
 	}
-	santaHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "fixture-santa-uuid",
-		HardwareSerial: "fixture-santa-serial",
-		Hostname:       "fixture-santa",
-		OrbitNodeKey:   "fixture-santa-node",
+	santaHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "fixture-santa-uuid",
+			Serial: "fixture-santa-serial",
+		},
+		Hostname:     "fixture-santa",
+		OrbitNodeKey: "fixture-santa-node",
 	})
 	if err != nil {
 		t.Fatalf("enroll santa-backed host: %v", err)
 	}
-	if err := deviceMappings.Upsert(
-		ctx, santaHost.ID, "bob@example.com", hosts.DeviceMappingSourceSantaPrimaryUser,
+	if err := userAffinities.Upsert(
+		ctx, santaHost.ID, "bob@example.com", hosts.UserAffinitySourceSantaPrimaryUser,
 	); err != nil {
 		t.Fatalf("seed santa host email: %v", err)
 	}

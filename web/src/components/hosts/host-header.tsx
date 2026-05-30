@@ -4,13 +4,13 @@ import type { Host } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
 export function HostHeader({ host }: { host: Host }) {
-  const displayName = host.display_name || host.hardware_uuid;
+  const displayName = host.display_name || host.hardware.uuid;
   const isOnline = statusFromHost(host) === "online";
 
   return (
     <div className="flex items-center gap-4">
       <div className="relative shrink-0">
-        <HostImage hardwareModel={host.hardware_model} />
+        <HostImage hardwareModel={host.hardware.model_identifier} />
         {isOnline ? (
           <span
             title="Online"
@@ -23,9 +23,9 @@ export function HostHeader({ host }: { host: Host }) {
           {displayName}
         </h1>
         <p className="text-muted-foreground text-xs">
-          {host.detail_updated_at ? (
-            <span title={new Date(host.detail_updated_at).toLocaleString()}>
-              Last fetched {formatRelative(host.detail_updated_at)}
+          {host.timestamps.inventory_updated_at ? (
+            <span title={new Date(host.timestamps.inventory_updated_at).toLocaleString()}>
+              Last fetched {formatRelative(host.timestamps.inventory_updated_at)}
             </span>
           ) : (
             "Never fetched"

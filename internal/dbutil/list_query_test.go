@@ -54,6 +54,22 @@ func TestListQueryRejectsUnknownSortKey(t *testing.T) {
 	}
 }
 
+func TestListQueryNestedSortKey(t *testing.T) {
+	query, _, err := ListQuery{
+		SelectSQL: "SELECT * FROM hosts",
+		OrderKeys: map[string]OrderExpr{
+			"hardware.serial": {SQL: "lower(hardware_serial)"},
+		},
+		Params: CleanListParams(ListParams{Sort: "hardware.serial.desc"}),
+	}.Build()
+	if err != nil {
+		t.Fatalf("Build returned error: %v", err)
+	}
+	if !strings.Contains(query, "ORDER BY lower(hardware_serial) DESC") {
+		t.Fatalf("query = %s", query)
+	}
+}
+
 func TestWhereBuilderBuildsClausesWithStablePlaceholders(t *testing.T) {
 	var where WhereBuilder
 	search := where.Arg("%mac%")

@@ -308,7 +308,7 @@ function FileAccessEventsTable() {
 function EventHostLink({ host }: { host: SantaHostSummary }) {
   return (
     <Link to="/hosts/$hostId" params={{ hostId: String(host.id) }} className="hover:underline">
-      {host.display_name || host.hostname || host.computer_name || host.hardware_serial || host.id}
+      {host.display_name || host.hostname || host.computer_name || host.hardware.serial || host.id}
     </Link>
   );
 }
@@ -328,7 +328,7 @@ function EventUserLink({ user, hostId }: { user: string; hostId: number | undefi
 }
 
 function hostLabel(host: HostDetail) {
-  return host.display_name || host.hostname || host.computer_name || host.hardware_serial || String(host.id);
+  return host.display_name || host.hostname || host.computer_name || host.hardware.serial || String(host.id);
 }
 
 function EventTableToolbar({

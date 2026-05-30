@@ -15,7 +15,6 @@ type labelStore interface {
 	ListApplicableDynamic(context.Context) ([]labels.Label, error)
 	ApplicableDynamicIDs(context.Context, []int64) (map[int64]struct{}, error)
 	SetMembership(context.Context, int64, int64, bool) error
-	MarkHostLabelsFresh(context.Context, int64) error
 }
 
 // LabelResult is one label match.
@@ -67,9 +66,6 @@ func (e *LabelEvaluator) Finalize(ctx context.Context, host *hosts.Host, results
 	}
 	if handled == 0 {
 		return nil
-	}
-	if err := e.store.MarkHostLabelsFresh(ctx, host.ID); err != nil {
-		return err
 	}
 	e.logger.DebugContext(ctx, "osquery label results ingested",
 		"operation", "label_evaluation",

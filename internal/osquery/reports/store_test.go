@@ -256,8 +256,8 @@ func createManualLabel(t *testing.T, ctx context.Context, store *labels.Store, n
 
 func enrollTestHost(t *testing.T, ctx context.Context, store *hosts.Store, hardwareUUID string) *hosts.Host {
 	t.Helper()
-	host, err := store.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: hardwareUUID,
+	host, err := store.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: hardwareUUID},
 		OrbitNodeKey: hardwareUUID + "-node-key",
 	})
 	if err != nil {
@@ -274,10 +274,10 @@ func enrollTestHostDetail(
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
-	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   hardwareUUID,
+	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		OsqueryVersion: osqueryVersion,
+		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: osqueryVersion}},
 	})
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)

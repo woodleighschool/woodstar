@@ -13,7 +13,11 @@ END
 $$;
 -- +goose StatementEnd
 
-ALTER TABLE host_emails
+ALTER TABLE IF EXISTS host_emails
+    ALTER COLUMN source TYPE host_user_affinity_source
+    USING source::host_user_affinity_source;
+
+ALTER TABLE IF EXISTS host_user_affinity_mappings
     ALTER COLUMN source TYPE host_user_affinity_source
     USING source::host_user_affinity_source;
 
@@ -40,7 +44,11 @@ ALTER TABLE host_directory_user
 ALTER TABLE host_directory_user
     ADD CONSTRAINT host_directory_user_source_check CHECK (source IN ('manual', 'mdm_email'));
 
-ALTER TABLE host_emails
+ALTER TABLE IF EXISTS host_emails
+    ALTER COLUMN source TYPE TEXT
+    USING source::text;
+
+ALTER TABLE IF EXISTS host_user_affinity_mappings
     ALTER COLUMN source TYPE TEXT
     USING source::text;
 

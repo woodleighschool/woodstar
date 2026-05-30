@@ -159,7 +159,7 @@ func newServer(
 		},
 		Inventory: api.InventoryDependencies{
 			Hosts:          stores.hosts,
-			DeviceMappings: stores.deviceMappings,
+			UserAffinities: stores.userAffinities,
 			Software:       stores.software,
 			Labels:         stores.labels,
 		},
@@ -179,7 +179,7 @@ func newServer(
 type appStores struct {
 	users               *users.Store
 	hosts               *hosts.Store
-	deviceMappings      *hosts.DeviceMappingStore
+	userAffinities      *hosts.UserAffinityStore
 	directory           *directory.Store
 	agentSecrets        *agentauth.Store
 	software            *software.Store
@@ -198,7 +198,7 @@ func newStores(db *database.DB) appStores {
 	return appStores{
 		users:               users.NewStore(db),
 		hosts:               hosts.NewStore(db),
-		deviceMappings:      hosts.NewDeviceMappingStore(db),
+		userAffinities:      hosts.NewUserAffinityStore(db),
 		directory:           directory.NewStore(db),
 		agentSecrets:        agentauth.NewStore(db),
 		software:            software.NewStore(db),
@@ -247,7 +247,7 @@ func newAuthService(
 // background lifecycle of its own, so there's no stop func.
 func newOrbit(stores appStores) api.OrbitDependencies {
 	return api.OrbitDependencies{
-		Agent: orbit.NewService(stores.hosts, stores.agentSecrets, stores.deviceMappings),
+		Agent: orbit.NewService(stores.hosts, stores.agentSecrets, stores.userAffinities),
 	}
 }
 
@@ -292,7 +292,7 @@ func newSanta(
 	santaService := santa.NewService(santa.Dependencies{
 		HostStore:      stores.santa,
 		Configurations: stores.santaConfigurations,
-		DeviceMappings: stores.deviceMappings,
+		UserAffinities: stores.userAffinities,
 		Events:         stores.santaEvents,
 		Rules:          stores.santaRules,
 		Sync:           stores.santaSync,

@@ -401,43 +401,24 @@ export type Handle = {
 };
 
 export type Host = {
+    agents: HostAgents;
     computer_name: string;
-    config_tls_refresh?: number;
-    cpu_brand: string;
-    cpu_logical_cores: number;
-    cpu_physical_cores: number;
-    cpu_subtype: string;
-    cpu_type: string;
-    created_at: string;
-    detail_updated_at?: string;
-    device_mappings?: Array<HostDeviceMapping> | null;
-    disk_space_available_bytes?: number;
-    disk_space_total_bytes?: number;
     display_name: string;
-    distributed_interval?: number;
-    enrolled_at?: string;
-    hardware_model: string;
-    hardware_serial: string;
-    hardware_uuid: string;
-    hardware_vendor: string;
-    hardware_version: string;
+    enrollment: HostEnrollment;
+    hardware: HostHardware;
     hostname: string;
     id: number;
-    kernel_version: string;
-    label_updated_at?: string;
-    last_restarted_at?: string;
-    last_seen_at?: string;
-    orbit_version: string;
-    os_build: string;
-    os_name: string;
-    os_version: string;
-    osquery_version: string;
-    physical_memory: number;
-    primary_ip?: string;
-    primary_mac: string;
-    public_ip?: string;
-    software_updated_at?: string;
-    updated_at: string;
+    network: HostNetwork;
+    os: HostOs;
+    status: string;
+    storage: HostStorage;
+    timestamps: HostTimestamps;
+    user_affinity: HostUserAffinity;
+};
+
+export type HostAgents = {
+    orbit: HostOrbitAgent;
+    osquery: HostOsqueryAgent;
 };
 
 export type HostBattery = {
@@ -451,6 +432,19 @@ export type HostBattery = {
     model: string;
     percent_remaining?: number;
     serial_number: string;
+};
+
+export type HostBootVolume = {
+    available_bytes?: number;
+    total_bytes?: number;
+};
+
+export type HostCpu = {
+    architecture: string;
+    brand: string;
+    logical_cores: number;
+    physical_cores: number;
+    subtype: string;
 };
 
 export type HostCertificate = {
@@ -475,62 +469,62 @@ export type HostDetailBody = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    agents: HostAgents;
     batteries: Array<HostBattery> | null;
     certificates: Array<HostCertificate> | null;
     computer_name: string;
-    config_tls_refresh?: number;
-    cpu_brand: string;
-    cpu_logical_cores: number;
-    cpu_physical_cores: number;
-    cpu_subtype: string;
-    cpu_type: string;
-    created_at: string;
-    detail_updated_at?: string;
-    device_mappings?: Array<HostDeviceMapping> | null;
-    disk_space_available_bytes?: number;
-    disk_space_total_bytes?: number;
     display_name: string;
-    distributed_interval?: number;
-    enrolled_at?: string;
-    hardware_model: string;
-    hardware_serial: string;
-    hardware_uuid: string;
-    hardware_vendor: string;
-    hardware_version: string;
+    enrollment: HostEnrollment;
+    hardware: HostHardware;
     hostname: string;
     id: number;
-    kernel_version: string;
-    label_updated_at?: string;
     labels: Array<Label> | null;
-    last_restarted_at?: string;
-    last_seen_at?: string;
-    orbit_version: string;
-    os_build: string;
-    os_name: string;
-    os_version: string;
-    osquery_version: string;
-    physical_memory: number;
-    primary_ip?: string;
-    primary_mac: string;
-    public_ip?: string;
+    network: HostNetwork;
+    os: HostOs;
     santa?: HostState;
-    software_updated_at?: string;
-    updated_at: string;
-    user_affinity?: HostUserAffinity;
+    status: string;
+    storage: HostStorage;
+    timestamps: HostTimestamps;
+    user_affinity: HostUserAffinity;
     users: Array<HostUser> | null;
 };
 
-export type HostDeviceMapping = {
-    email: string;
-    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
+export type HostEnrollment = {
+    agent: string;
+    enrolled_at?: string;
 };
 
-export type HostDeviceMappingPutBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    email: string;
+export type HostHardware = {
+    cpu: HostCpu;
+    memory_bytes: number;
+    model_identifier: string;
+    serial: string;
+    uuid: string;
+    vendor: string;
+};
+
+export type HostNetwork = {
+    last_remote_ip?: string;
+    primary_ip?: string;
+    primary_mac: string;
+};
+
+export type HostOs = {
+    build: string;
+    kernel_version: string;
+    name: string;
+    platform: string;
+    version: string;
+};
+
+export type HostOrbitAgent = {
+    version: string;
+};
+
+export type HostOsqueryAgent = {
+    config_refresh_seconds?: number;
+    distributed_interval_seconds?: number;
+    version: string;
 };
 
 export type HostReport = {
@@ -581,16 +575,32 @@ export type HostState = {
     version: string;
 };
 
+export type HostStorage = {
+    boot_volume: HostBootVolume;
+};
+
 export type HostSummary = {
     computer_name: string;
     display_name: string;
-    hardware_model: string;
-    hardware_serial: string;
+    hardware: HostSummaryHardware;
     hostname: string;
     id: number;
     santa_client_mode: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
     santa_machine_id: string;
     santa_version: string;
+};
+
+export type HostSummaryHardware = {
+    model_identifier: string;
+    serial: string;
+};
+
+export type HostTimestamps = {
+    created_at: string;
+    inventory_updated_at?: string;
+    last_restarted_at?: string;
+    last_seen_at?: string;
+    updated_at: string;
 };
 
 export type HostUser = {
@@ -603,12 +613,30 @@ export type HostUser = {
 };
 
 export type HostUserAffinity = {
+    mappings: Array<HostUserAffinityMapping> | null;
+    primary?: HostUserAffinityPrimary;
+};
+
+export type HostUserAffinityMapping = {
+    email: string;
+    source: 'manual' | 'orbit_profile' | 'santa_primary_user';
+};
+
+export type HostUserAffinityPrimary = {
     department: string;
     email: string;
     groups: Array<string> | null;
     name: string;
     source: 'manual' | 'orbit_profile' | 'santa_primary_user';
     username: string;
+};
+
+export type HostUserAffinityPutBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    email: string;
 };
 
 export type ItemsBodyCheckHostStatus = {
@@ -1347,53 +1375,24 @@ export type HandleWritable = {
 };
 
 export type HostDetailBodyWritable = {
+    agents: HostAgents;
     batteries: Array<HostBattery> | null;
     certificates: Array<HostCertificate> | null;
     computer_name: string;
-    config_tls_refresh?: number;
-    cpu_brand: string;
-    cpu_logical_cores: number;
-    cpu_physical_cores: number;
-    cpu_subtype: string;
-    cpu_type: string;
-    created_at: string;
-    detail_updated_at?: string;
-    device_mappings?: Array<HostDeviceMapping> | null;
-    disk_space_available_bytes?: number;
-    disk_space_total_bytes?: number;
     display_name: string;
-    distributed_interval?: number;
-    enrolled_at?: string;
-    hardware_model: string;
-    hardware_serial: string;
-    hardware_uuid: string;
-    hardware_vendor: string;
-    hardware_version: string;
+    enrollment: HostEnrollment;
+    hardware: HostHardware;
     hostname: string;
     id: number;
-    kernel_version: string;
-    label_updated_at?: string;
     labels: Array<LabelWritable> | null;
-    last_restarted_at?: string;
-    last_seen_at?: string;
-    orbit_version: string;
-    os_build: string;
-    os_name: string;
-    os_version: string;
-    osquery_version: string;
-    physical_memory: number;
-    primary_ip?: string;
-    primary_mac: string;
-    public_ip?: string;
+    network: HostNetwork;
+    os: HostOs;
     santa?: HostState;
-    software_updated_at?: string;
-    updated_at: string;
-    user_affinity?: HostUserAffinity;
+    status: string;
+    storage: HostStorage;
+    timestamps: HostTimestamps;
+    user_affinity: HostUserAffinity;
     users: Array<HostUser> | null;
-};
-
-export type HostDeviceMappingPutBodyWritable = {
-    email: string;
 };
 
 export type HostReportResultsBodyWritable = {
@@ -1402,6 +1401,10 @@ export type HostReportResultsBodyWritable = {
     items: Array<ReportResult> | null;
     last_fetched?: string;
     report_id: number;
+};
+
+export type HostUserAffinityPutBodyWritable = {
+    email: string;
 };
 
 export type ItemsBodyCheckHostStatusWritable = {
@@ -2329,96 +2332,6 @@ export type GetHostResponses = {
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
 
-export type DeleteHostDeviceMappingData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/device-mapping';
-};
-
-export type DeleteHostDeviceMappingErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type DeleteHostDeviceMappingError = DeleteHostDeviceMappingErrors[keyof DeleteHostDeviceMappingErrors];
-
-export type DeleteHostDeviceMappingResponses = {
-    /**
-     * OK
-     */
-    200: HostDetailBody;
-};
-
-export type DeleteHostDeviceMappingResponse = DeleteHostDeviceMappingResponses[keyof DeleteHostDeviceMappingResponses];
-
-export type PutHostDeviceMappingData = {
-    body: HostDeviceMappingPutBodyWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/device-mapping';
-};
-
-export type PutHostDeviceMappingErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type PutHostDeviceMappingError = PutHostDeviceMappingErrors[keyof PutHostDeviceMappingErrors];
-
-export type PutHostDeviceMappingResponses = {
-    /**
-     * OK
-     */
-    200: HostDetailBody;
-};
-
-export type PutHostDeviceMappingResponse = PutHostDeviceMappingResponses[keyof PutHostDeviceMappingResponses];
-
 export type ListHostOsqueryChecksData = {
     body?: never;
     path: {
@@ -2629,6 +2542,96 @@ export type ListHostSoftwareResponses = {
 };
 
 export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];
+
+export type DeleteHostUserAffinityData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/user-affinity';
+};
+
+export type DeleteHostUserAffinityErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteHostUserAffinityError = DeleteHostUserAffinityErrors[keyof DeleteHostUserAffinityErrors];
+
+export type DeleteHostUserAffinityResponses = {
+    /**
+     * OK
+     */
+    200: HostDetailBody;
+};
+
+export type DeleteHostUserAffinityResponse = DeleteHostUserAffinityResponses[keyof DeleteHostUserAffinityResponses];
+
+export type PutHostUserAffinityData = {
+    body: HostUserAffinityPutBodyWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{id}/user-affinity';
+};
+
+export type PutHostUserAffinityErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type PutHostUserAffinityError = PutHostUserAffinityErrors[keyof PutHostUserAffinityErrors];
+
+export type PutHostUserAffinityResponses = {
+    /**
+     * OK
+     */
+    200: HostDetailBody;
+};
+
+export type PutHostUserAffinityResponse = PutHostUserAffinityResponses[keyof PutHostUserAffinityResponses];
 
 export type ListLabelsData = {
     body?: never;

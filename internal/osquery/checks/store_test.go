@@ -274,10 +274,10 @@ func enrollTestHostDetail(
 	osqueryVersion string,
 ) *hosts.Host {
 	t.Helper()
-	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   hardwareUUID,
+	host, err := store.UpsertOnOsqueryEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:       hosts.HostHardware{UUID: hardwareUUID},
 		OsqueryNodeKey: hardwareUUID + "-node-key",
-		OsqueryVersion: osqueryVersion,
+		Agents:         hosts.HostAgents{Osquery: hosts.HostOsqueryAgent{Version: osqueryVersion}},
 	})
 	if err != nil {
 		t.Fatalf("enroll osquery host: %v", err)

@@ -5,8 +5,9 @@ INSERT INTO hosts (
     hostname,
     computer_name,
     hardware_serial,
-    hardware_model,
+    hardware_model_identifier,
     orbit_node_key,
+    enrollment_agent,
     enrolled_at,
     last_seen_at
 )
@@ -16,8 +17,9 @@ VALUES (
     @hostname,
     @computer_name,
     @hardware_serial,
-    @hardware_model,
+    @hardware_model_identifier,
     @orbit_node_key,
+    'orbit',
     now(),
     now()
 )
@@ -26,8 +28,9 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     hostname = EXCLUDED.hostname,
     computer_name = EXCLUDED.computer_name,
     hardware_serial = EXCLUDED.hardware_serial,
-    hardware_model = EXCLUDED.hardware_model,
+    hardware_model_identifier = EXCLUDED.hardware_model_identifier,
     orbit_node_key = EXCLUDED.orbit_node_key,
+    enrollment_agent = EXCLUDED.enrollment_agent,
     enrolled_at = now(),
     last_seen_at = now(),
     updated_at = now()
@@ -40,22 +43,25 @@ INSERT INTO hosts (
     hostname,
     computer_name,
     hardware_serial,
-    hardware_model,
-    hardware_version,
+    hardware_model_identifier,
     os_version,
     os_name,
     os_build,
+    os_platform,
     osquery_version,
     orbit_version,
     osquery_node_key,
+    enrollment_agent,
+    cpu_type,
+    cpu_subtype,
     cpu_brand,
     cpu_logical_cores,
     cpu_physical_cores,
-    physical_memory,
+    memory_bytes,
     hardware_vendor,
-    kernel_version,
+    os_kernel_version,
     last_seen_at,
-    detail_updated_at
+    inventory_updated_at
 )
 VALUES (
     @hardware_uuid,
@@ -63,20 +69,23 @@ VALUES (
     @hostname,
     @computer_name,
     @hardware_serial,
-    @hardware_model,
-    @hardware_version,
+    @hardware_model_identifier,
     @os_version,
     @os_name,
     @os_build,
+    @os_platform,
     @osquery_version,
     @orbit_version,
     @osquery_node_key,
+    'osquery',
+    @cpu_type,
+    @cpu_subtype,
     @cpu_brand,
     @cpu_logical_cores,
     @cpu_physical_cores,
-    @physical_memory,
+    @memory_bytes,
     @hardware_vendor,
-    @kernel_version,
+    @os_kernel_version,
     now(),
     NULL
 )
@@ -85,22 +94,25 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     hostname = EXCLUDED.hostname,
     computer_name = EXCLUDED.computer_name,
     hardware_serial = EXCLUDED.hardware_serial,
-    hardware_model = EXCLUDED.hardware_model,
-    hardware_version = COALESCE(NULLIF(EXCLUDED.hardware_version, ''), hosts.hardware_version),
+    hardware_model_identifier = EXCLUDED.hardware_model_identifier,
     os_version = EXCLUDED.os_version,
     os_name = COALESCE(NULLIF(EXCLUDED.os_name, ''), hosts.os_name),
     os_build = COALESCE(NULLIF(EXCLUDED.os_build, ''), hosts.os_build),
+    os_platform = COALESCE(NULLIF(EXCLUDED.os_platform, ''), hosts.os_platform),
     osquery_version = EXCLUDED.osquery_version,
     orbit_version = COALESCE(NULLIF(EXCLUDED.orbit_version, ''), hosts.orbit_version),
     osquery_node_key = EXCLUDED.osquery_node_key,
+    enrollment_agent = EXCLUDED.enrollment_agent,
+    cpu_type = EXCLUDED.cpu_type,
+    cpu_subtype = EXCLUDED.cpu_subtype,
     cpu_brand = EXCLUDED.cpu_brand,
     cpu_logical_cores = EXCLUDED.cpu_logical_cores,
     cpu_physical_cores = EXCLUDED.cpu_physical_cores,
-    physical_memory = EXCLUDED.physical_memory,
+    memory_bytes = EXCLUDED.memory_bytes,
     hardware_vendor = EXCLUDED.hardware_vendor,
-    kernel_version = EXCLUDED.kernel_version,
-    detail_updated_at = NULL,
-    detail_query_hash = '',
+    os_kernel_version = EXCLUDED.os_kernel_version,
+    inventory_updated_at = NULL,
+    inventory_query_hash = '',
     last_seen_at = now(),
     updated_at = now()
 RETURNING *;
@@ -132,18 +144,18 @@ SET last_seen_at = now(), updated_at = now()
 WHERE osquery_node_key = @osquery_node_key AND osquery_node_key <> ''
 RETURNING *;
 
--- name: ApplyHostDetail :exec
+-- name: ApplyHostInventory :exec
 UPDATE hosts
 SET
     hostname = COALESCE(NULLIF(@hostname::text, ''), hostname),
     computer_name = COALESCE(NULLIF(@computer_name::text, ''), computer_name),
     display_name = COALESCE(NULLIF(@computer_name::text, ''), NULLIF(@hostname::text, ''), display_name),
     hardware_serial = COALESCE(NULLIF(@hardware_serial::text, ''), hardware_serial),
-    hardware_model = COALESCE(NULLIF(@hardware_model::text, ''), hardware_model),
-    hardware_version = COALESCE(NULLIF(@hardware_version::text, ''), hardware_version),
+    hardware_model_identifier = COALESCE(NULLIF(@hardware_model_identifier::text, ''), hardware_model_identifier),
     os_name = COALESCE(NULLIF(@os_name::text, ''), os_name),
     os_version = COALESCE(NULLIF(@os_version::text, ''), os_version),
     os_build = COALESCE(NULLIF(@os_build::text, ''), os_build),
+    os_platform = COALESCE(NULLIF(@os_platform::text, ''), os_platform),
     osquery_version = COALESCE(NULLIF(@osquery_version::text, ''), osquery_version),
     orbit_version = COALESCE(NULLIF(@orbit_version::text, ''), orbit_version),
     cpu_type = COALESCE(NULLIF(@cpu_type::text, ''), cpu_type),
@@ -151,23 +163,23 @@ SET
     cpu_brand = COALESCE(NULLIF(@cpu_brand::text, ''), cpu_brand),
     cpu_logical_cores = CASE WHEN @cpu_logical_cores::integer > 0 THEN @cpu_logical_cores::integer ELSE cpu_logical_cores END,
     cpu_physical_cores = CASE WHEN @cpu_physical_cores::integer > 0 THEN @cpu_physical_cores::integer ELSE cpu_physical_cores END,
-    physical_memory = CASE WHEN @physical_memory::bigint > 0 THEN @physical_memory::bigint ELSE physical_memory END,
+    memory_bytes = CASE WHEN @memory_bytes::bigint > 0 THEN @memory_bytes::bigint ELSE memory_bytes END,
     hardware_vendor = COALESCE(NULLIF(@hardware_vendor::text, ''), hardware_vendor),
-    kernel_version = COALESCE(NULLIF(@kernel_version::text, ''), kernel_version),
+    os_kernel_version = COALESCE(NULLIF(@os_kernel_version::text, ''), os_kernel_version),
     last_restarted_at = COALESCE(sqlc.narg(last_restarted_at)::timestamptz, last_restarted_at),
-    disk_space_available_bytes = COALESCE(sqlc.narg(disk_space_available_bytes)::bigint, disk_space_available_bytes),
-    disk_space_total_bytes = COALESCE(sqlc.narg(disk_space_total_bytes)::bigint, disk_space_total_bytes),
-    public_ip = COALESCE(NULLIF(@public_ip::text, '')::inet, public_ip),
+    boot_volume_available_bytes = COALESCE(sqlc.narg(boot_volume_available_bytes)::bigint, boot_volume_available_bytes),
+    boot_volume_total_bytes = COALESCE(sqlc.narg(boot_volume_total_bytes)::bigint, boot_volume_total_bytes),
+    last_remote_ip = COALESCE(NULLIF(@last_remote_ip::text, '')::inet, last_remote_ip),
     primary_ip = COALESCE(NULLIF(@primary_ip::text, '')::inet, primary_ip),
     primary_mac = COALESCE(NULLIF(@primary_mac::text, ''), primary_mac),
-    distributed_interval = COALESCE(sqlc.narg(distributed_interval)::integer, distributed_interval),
-    config_tls_refresh = COALESCE(sqlc.narg(config_tls_refresh)::integer, config_tls_refresh),
+    osquery_distributed_interval_seconds = COALESCE(sqlc.narg(osquery_distributed_interval_seconds)::integer, osquery_distributed_interval_seconds),
+    osquery_config_refresh_seconds = COALESCE(sqlc.narg(osquery_config_refresh_seconds)::integer, osquery_config_refresh_seconds),
     updated_at = now()
 WHERE id = @id;
 
--- name: MarkHostDetailFresh :exec
+-- name: MarkHostInventoryFresh :exec
 UPDATE hosts
-SET detail_updated_at = now(), detail_query_hash = @detail_query_hash, updated_at = now()
+SET inventory_updated_at = now(), inventory_query_hash = @inventory_query_hash, updated_at = now()
 WHERE id = @id;
 
 -- name: DeleteHostUsers :exec

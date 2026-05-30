@@ -67,7 +67,7 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 			r.Context(),
 			"orbit host enrolled", "operation", "enroll",
 			"host_id", host.ID,
-			"hardware_uuid", host.HardwareUUID,
+			"hardware_uuid", host.Hardware.UUID,
 			"display_name", host.DisplayName,
 		)
 		httpjson.Write(w, http.StatusOK, orbit.EnrollResponse{OrbitNodeKey: nodeKey})
@@ -96,7 +96,7 @@ func orbitDeviceMappingHandler(svc *orbit.Service, logger *slog.Logger) http.Han
 	return orbitNodeKeyHandler(svc, logger,
 		func(req orbit.DeviceMappingRequest) string { return req.OrbitNodeKey },
 		func(w http.ResponseWriter, r *http.Request, req orbit.DeviceMappingRequest) {
-			if err := svc.SetDeviceMapping(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
+			if err := svc.SetUserAffinity(r.Context(), req.OrbitNodeKey, req.Email); err != nil {
 				logger.WarnContext(
 					r.Context(),
 					"orbit device mapping rejected", "operation", "device_mapping",

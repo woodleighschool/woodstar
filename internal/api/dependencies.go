@@ -57,7 +57,7 @@ type AuthDependencies struct {
 
 type InventoryDependencies struct {
 	Hosts          *hosts.Store
-	DeviceMappings *hosts.DeviceMappingStore
+	UserAffinities *hosts.UserAffinityStore
 	Software       *software.Store
 	Labels         *labels.Store
 }

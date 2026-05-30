@@ -144,8 +144,8 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	santaStore := santa.NewStore(db)
 	eventsStore := santaevents.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-events-wire-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-events-wire-host"},
 		OrbitNodeKey: "santa-events-wire-orbit",
 	})
 	if err != nil {
@@ -295,10 +295,12 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	santaStore := santa.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "santa-enricher-host",
-		HardwareSerial: "ENRICH",
-		OrbitNodeKey:   "santa-enricher-orbit",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "santa-enricher-host",
+			Serial: "ENRICH",
+		},
+		OrbitNodeKey: "santa-enricher-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
@@ -338,7 +340,7 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 
 	hostState := santa.NewHostStateService(santaStore, configurations.NewStore(db))
 	router, cookie := santaAuthedRouter(t, db, "enricher-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, hosts.NewDeviceMappingStore(db), nil, SantaHostDetailContributor(hostState))
+		RegisterHosts(api, hostStore, hosts.NewUserAffinityStore(db), nil, SantaHostDetailContributor(hostState))
 	})
 	rec := santaAdminRequest(t, router, cookie, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
 	if rec.Code != http.StatusOK {

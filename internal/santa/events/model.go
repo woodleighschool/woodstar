@@ -175,11 +175,15 @@ type HostSummary struct {
 	DisplayName     string                            `json:"display_name"`
 	Hostname        string                            `json:"hostname"`
 	ComputerName    string                            `json:"computer_name"`
-	HardwareSerial  string                            `json:"hardware_serial"`
-	HardwareModel   string                            `json:"hardware_model"`
+	Hardware        HostSummaryHardware               `json:"hardware"`
 	SantaMachineID  string                            `json:"santa_machine_id"`
 	SantaVersion    string                            `json:"santa_version"`
 	SantaClientMode configurations.ReportedClientMode `json:"santa_client_mode"`
+}
+
+type HostSummaryHardware struct {
+	Serial          string `json:"serial"`
+	ModelIdentifier string `json:"model_identifier"`
 }
 
 // ExecutionEventInput is a Santa execution event ready for persistence.

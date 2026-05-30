@@ -83,13 +83,13 @@ type hostBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
-type hostDeviceMappingPutBody struct {
+type hostUserAffinityPutBody struct {
 	Email string `json:"email" format:"email" minLength:"3"`
 }
 
-type hostDeviceMappingPutInput struct {
+type hostUserAffinityPutInput struct {
 	ID   int64 `path:"id"`
-	Body hostDeviceMappingPutBody
+	Body hostUserAffinityPutBody
 }
 
 // HostDetailContributor adds capability-specific sections to a host detail response.
@@ -100,14 +100,14 @@ type HostDetailContributor = hosts.DetailContributor[hostDetailBody]
 func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
-	deviceMappings *hosts.DeviceMappingStore,
+	userAffinities *hosts.UserAffinityStore,
 	softwareStore *software.Store,
 	contributors ...HostDetailContributor,
 ) {
 	registerListHosts(api, hostStore)
 	registerGetHost(api, hostStore, contributors)
-	registerPutHostDeviceMapping(api, hostStore, deviceMappings, contributors)
-	registerDeleteHostDeviceMapping(api, hostStore, deviceMappings, contributors)
+	registerPutHostUserAffinity(api, hostStore, userAffinities, contributors)
+	registerDeleteHostUserAffinity(api, hostStore, userAffinities, contributors)
 	registerDeleteHost(api, hostStore)
 	registerBulkDeleteHosts(api, hostStore)
 	registerHostSoftware(api, hostStore, softwareStore)
@@ -176,25 +176,25 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDe
 	})
 }
 
-func registerPutHostDeviceMapping(
+func registerPutHostUserAffinity(
 	api huma.API,
 	hostStore *hosts.Store,
-	deviceMappings *hosts.DeviceMappingStore,
+	userAffinities *hosts.UserAffinityStore,
 	contributors []HostDetailContributor,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID: "put-host-device-mapping",
+		OperationID: "put-host-user-affinity",
 		Method:      http.MethodPut,
-		Path:        "/api/hosts/{id}/device-mapping",
+		Path:        "/api/hosts/{id}/user-affinity",
 		Tags:        []string{hostsTag},
-		Summary:     "Set the host user mapping",
+		Summary:     "Set the host user affinity",
 		Errors: []int{
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusForbidden,
 			http.StatusNotFound,
 		},
-	}, func(ctx context.Context, input *hostDeviceMappingPutInput) (*hostDetailOutput, error) {
+	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
@@ -207,7 +207,7 @@ func registerPutHostDeviceMapping(
 		if email == "" {
 			return nil, huma.Error400BadRequest("email is required")
 		}
-		if err := deviceMappings.Upsert(ctx, input.ID, email, hosts.DeviceMappingSourceManual); err != nil {
+		if err := userAffinities.Upsert(ctx, input.ID, email, hosts.UserAffinitySourceManual); err != nil {
 			return nil, err
 		}
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
@@ -218,18 +218,18 @@ func registerPutHostDeviceMapping(
 	})
 }
 
-func registerDeleteHostDeviceMapping(
+func registerDeleteHostUserAffinity(
 	api huma.API,
 	hostStore *hosts.Store,
-	deviceMappings *hosts.DeviceMappingStore,
+	userAffinities *hosts.UserAffinityStore,
 	contributors []HostDetailContributor,
 ) {
 	huma.Register(api, huma.Operation{
-		OperationID: "delete-host-device-mapping",
+		OperationID: "delete-host-user-affinity",
 		Method:      http.MethodDelete,
-		Path:        "/api/hosts/{id}/device-mapping",
+		Path:        "/api/hosts/{id}/user-affinity",
 		Tags:        []string{hostsTag},
-		Summary:     "Clear the host user mapping",
+		Summary:     "Clear the host user affinity",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
@@ -240,7 +240,7 @@ func registerDeleteHostDeviceMapping(
 		} else if err != nil {
 			return nil, err
 		}
-		if err := deviceMappings.Delete(ctx, input.ID, hosts.DeviceMappingSourceManual); err != nil {
+		if err := userAffinities.Delete(ctx, input.ID, hosts.UserAffinitySourceManual); err != nil {
 			return nil, err
 		}
 		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)

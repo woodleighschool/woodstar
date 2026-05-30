@@ -112,7 +112,7 @@ func TestDetailQueriesUseExplicitColumns(t *testing.T) {
 
 func TestHostDetailQueriesProjectIngestShape(t *testing.T) {
 	osVersionSQL := DetailQueries()[QueryOSVersion].SQL
-	for _, want := range []string{"name", "version", "major", "minor", "build"} {
+	for _, want := range []string{"name", "version", "major", "minor", "build", "platform"} {
 		if !strings.Contains(osVersionSQL, want) {
 			t.Fatalf("os_version SQL missing %q: %s", want, osVersionSQL)
 		}

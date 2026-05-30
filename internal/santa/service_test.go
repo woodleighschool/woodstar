@@ -5,7 +5,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -25,16 +24,18 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	service := santa.NewService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurationStore,
-		DeviceMappings: hosts.NewDeviceMappingStore(db),
+		UserAffinities: hosts.NewUserAffinityStore(db),
 		Events:         santaevents.NewStore(db),
 		Rules:          ruleStore,
 		Sync:           syncstate.NewStore(db),
 	})
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "santa-sync-host",
-		HardwareSerial: "SANTASYNC",
-		OrbitNodeKey:   "santa-sync-orbit",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "santa-sync-host",
+			Serial: "SANTASYNC",
+		},
+		OrbitNodeKey: "santa-sync-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
@@ -88,13 +89,18 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if preflight.Configuration.FullSyncIntervalSeconds != 120 {
 		t.Fatalf("full sync interval = %v, want 120", preflight.Configuration.FullSyncIntervalSeconds)
 	}
-	affinity, err := directory.NewStore(db).LoadHostUserAffinity(ctx, host.ID)
+	loadedHost, err := hostStore.GetByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("get host after preflight: %v", err)
+	}
+	detail, err := hostStore.LoadDetail(ctx, loadedHost)
 	if err != nil {
 		t.Fatalf("load host user affinity after preflight: %v", err)
 	}
+	affinity := detail.UserAffinity.Primary
 	if affinity == nil ||
 		affinity.Email != "test1@woodleigh.vic.edu.au" ||
-		affinity.Source != hosts.DeviceMappingSourceSantaPrimaryUser {
+		affinity.Source != hosts.UserAffinitySourceSantaPrimaryUser {
 		t.Fatalf("user affinity after preflight = %+v, want santa primary user", affinity)
 	}
 

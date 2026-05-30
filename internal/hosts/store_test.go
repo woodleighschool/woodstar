@@ -16,26 +16,26 @@ func TestDisplayNamePriority(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
-		in   DetailUpdate
+		in   InventoryUpdate
 		want string
 	}{
 		{
 			name: "computer name wins",
-			in: DetailUpdate{
+			in: InventoryUpdate{
 				ComputerName: "Example MacBook Pro",
 				Hostname:     "example-macbook-pro",
-				HardwareUUID: "uuid-1",
+				Hardware:     HostHardware{UUID: "uuid-1"},
 			},
 			want: "Example MacBook Pro",
 		},
 		{
 			name: "hostname when no computer name",
-			in:   DetailUpdate{Hostname: "example-macbook-pro", HardwareUUID: "uuid-1"},
+			in:   InventoryUpdate{Hostname: "example-macbook-pro", Hardware: HostHardware{UUID: "uuid-1"}},
 			want: "example-macbook-pro",
 		},
 		{
 			name: "uuid when no friendly name",
-			in:   DetailUpdate{HardwareUUID: "uuid-1"},
+			in:   InventoryUpdate{Hardware: HostHardware{UUID: "uuid-1"}},
 			want: "uuid-1",
 		},
 	}
@@ -43,7 +43,7 @@ func TestDisplayNamePriority(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := displayName(tt.in.HardwareUUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
+			if got := displayName(tt.in.Hardware.UUID, tt.in.Hostname, tt.in.ComputerName); got != tt.want {
 				t.Fatalf("displayName = %q, want %q", got, tt.want)
 			}
 		})
@@ -118,11 +118,11 @@ func TestHostListWhereCheckFilter(t *testing.T) {
 	}
 }
 
-func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
+func TestApplyInventoryAcceptsBigMemory(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 
-	host, err := store.UpsertOnOsqueryEnroll(ctx, DetailUpdate{
-		HardwareUUID:   "test-apply-detail-big-memory",
+	host, err := store.UpsertOnOsqueryEnroll(ctx, InventoryUpdate{
+		Hardware:       HostHardware{UUID: "test-apply-detail-big-memory"},
 		OsqueryNodeKey: "node-key",
 	})
 	if err != nil {
@@ -130,16 +130,18 @@ func TestApplyDetailAcceptsBigPhysicalMemory(t *testing.T) {
 	}
 
 	const memoryBytes = int64(68719476736)
-	if err := store.ApplyDetail(ctx, host.ID, DetailUpdate{PhysicalMemory: memoryBytes}); err != nil {
-		t.Fatalf("apply detail: %v", err)
+	if err := store.ApplyInventory(ctx, host.ID, InventoryUpdate{
+		Hardware: HostHardware{MemoryBytes: memoryBytes},
+	}); err != nil {
+		t.Fatalf("apply inventory: %v", err)
 	}
 
 	got, err := store.GetByID(ctx, host.ID)
 	if err != nil {
 		t.Fatalf("get host: %v", err)
 	}
-	if got.PhysicalMemory != memoryBytes {
-		t.Fatalf("PhysicalMemory = %d, want %d", got.PhysicalMemory, memoryBytes)
+	if got.Hardware.MemoryBytes != memoryBytes {
+		t.Fatalf("memory_bytes = %d, want %d", got.Hardware.MemoryBytes, memoryBytes)
 	}
 }
 
@@ -148,8 +150,8 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)
 
-	host, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-enroll-all-hosts",
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-enroll-all-hosts"},
 		OrbitNodeKey: "orbit-key",
 	})
 	if err != nil {
@@ -179,15 +181,15 @@ func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)
 
-	directHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-target-direct",
+	directHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-target-direct"},
 		OrbitNodeKey: "orbit-key-direct",
 	})
 	if err != nil {
 		t.Fatalf("enroll direct host: %v", err)
 	}
-	labelHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-target-label",
+	labelHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-target-label"},
 		OrbitNodeKey: "orbit-key-label",
 	})
 	if err != nil {
@@ -222,15 +224,15 @@ func TestCountSelectedTargetsSplitsOnlineAndOffline(t *testing.T) {
 	labelStore := labels.NewStore(store.db)
 	now := time.Date(2026, 5, 15, 12, 0, 0, 0, time.UTC)
 
-	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-count-online",
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-count-online"},
 		OrbitNodeKey: "orbit-key-count-online",
 	})
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
-	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-count-offline",
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-count-offline"},
 		OrbitNodeKey: "orbit-key-count-offline",
 	})
 	if err != nil {
@@ -281,15 +283,15 @@ func TestResolveOnlineSelectedTargetsReturnsOnlyCurrentlyOnlineHosts(t *testing.
 	labelStore := labels.NewStore(store.db)
 	now := time.Date(2026, 5, 19, 12, 0, 0, 0, time.UTC)
 
-	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-online-target-online",
+	onlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-online-target-online"},
 		OrbitNodeKey: "orbit-key-live-online",
 	})
 	if err != nil {
 		t.Fatalf("enroll online host: %v", err)
 	}
-	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, DetailUpdate{
-		HardwareUUID: "test-live-online-target-offline",
+	offlineHost, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-live-online-target-offline"},
 		OrbitNodeKey: "orbit-key-live-offline",
 	})
 	if err != nil {

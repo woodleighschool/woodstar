@@ -16,8 +16,8 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 	store := references.NewStore(db)
 	hostStore := hosts.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-reference-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-reference-host"},
 		OrbitNodeKey: "santa-reference-orbit",
 	})
 	if err != nil {

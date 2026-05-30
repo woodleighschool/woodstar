@@ -407,21 +407,6 @@ func (q *Queries) ListManualLabelHostIDs(ctx context.Context, arg ListManualLabe
 	return items, nil
 }
 
-const markHostLabelsFresh = `-- name: MarkHostLabelsFresh :exec
-UPDATE hosts
-SET label_updated_at = now(), updated_at = now()
-WHERE id = $1
-`
-
-type MarkHostLabelsFreshParams struct {
-	HostID int64 `json:"host_id"`
-}
-
-func (q *Queries) MarkHostLabelsFresh(ctx context.Context, arg MarkHostLabelsFreshParams) error {
-	_, err := q.db.Exec(ctx, markHostLabelsFresh, arg.HostID)
-	return err
-}
-
 const updateLabel = `-- name: UpdateLabel :one
 UPDATE labels
 SET

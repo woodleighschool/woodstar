@@ -219,7 +219,7 @@ const sidebarRouteIDs = new Set([
 function HostCrumb({ id }: { id: string }) {
   const { data, isLoading } = useHost(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
-  return <span title={data.hardware_uuid}>{data.display_name || id}</span>;
+  return <span title={data.hardware.uuid}>{data.display_name || id}</span>;
 }
 
 function SoftwareCrumb({ id }: { id: string }) {

@@ -27,18 +27,18 @@ func (q *Queries) AddHostToAllHostsLabel(ctx context.Context, arg AddHostToAllHo
 	return err
 }
 
-const applyHostDetail = `-- name: ApplyHostDetail :exec
+const applyHostInventory = `-- name: ApplyHostInventory :exec
 UPDATE hosts
 SET
     hostname = COALESCE(NULLIF($1::text, ''), hostname),
     computer_name = COALESCE(NULLIF($2::text, ''), computer_name),
     display_name = COALESCE(NULLIF($2::text, ''), NULLIF($1::text, ''), display_name),
     hardware_serial = COALESCE(NULLIF($3::text, ''), hardware_serial),
-    hardware_model = COALESCE(NULLIF($4::text, ''), hardware_model),
-    hardware_version = COALESCE(NULLIF($5::text, ''), hardware_version),
-    os_name = COALESCE(NULLIF($6::text, ''), os_name),
-    os_version = COALESCE(NULLIF($7::text, ''), os_version),
-    os_build = COALESCE(NULLIF($8::text, ''), os_build),
+    hardware_model_identifier = COALESCE(NULLIF($4::text, ''), hardware_model_identifier),
+    os_name = COALESCE(NULLIF($5::text, ''), os_name),
+    os_version = COALESCE(NULLIF($6::text, ''), os_version),
+    os_build = COALESCE(NULLIF($7::text, ''), os_build),
+    os_platform = COALESCE(NULLIF($8::text, ''), os_platform),
     osquery_version = COALESCE(NULLIF($9::text, ''), osquery_version),
     orbit_version = COALESCE(NULLIF($10::text, ''), orbit_version),
     cpu_type = COALESCE(NULLIF($11::text, ''), cpu_type),
@@ -46,61 +46,61 @@ SET
     cpu_brand = COALESCE(NULLIF($13::text, ''), cpu_brand),
     cpu_logical_cores = CASE WHEN $14::integer > 0 THEN $14::integer ELSE cpu_logical_cores END,
     cpu_physical_cores = CASE WHEN $15::integer > 0 THEN $15::integer ELSE cpu_physical_cores END,
-    physical_memory = CASE WHEN $16::bigint > 0 THEN $16::bigint ELSE physical_memory END,
+    memory_bytes = CASE WHEN $16::bigint > 0 THEN $16::bigint ELSE memory_bytes END,
     hardware_vendor = COALESCE(NULLIF($17::text, ''), hardware_vendor),
-    kernel_version = COALESCE(NULLIF($18::text, ''), kernel_version),
+    os_kernel_version = COALESCE(NULLIF($18::text, ''), os_kernel_version),
     last_restarted_at = COALESCE($19::timestamptz, last_restarted_at),
-    disk_space_available_bytes = COALESCE($20::bigint, disk_space_available_bytes),
-    disk_space_total_bytes = COALESCE($21::bigint, disk_space_total_bytes),
-    public_ip = COALESCE(NULLIF($22::text, '')::inet, public_ip),
+    boot_volume_available_bytes = COALESCE($20::bigint, boot_volume_available_bytes),
+    boot_volume_total_bytes = COALESCE($21::bigint, boot_volume_total_bytes),
+    last_remote_ip = COALESCE(NULLIF($22::text, '')::inet, last_remote_ip),
     primary_ip = COALESCE(NULLIF($23::text, '')::inet, primary_ip),
     primary_mac = COALESCE(NULLIF($24::text, ''), primary_mac),
-    distributed_interval = COALESCE($25::integer, distributed_interval),
-    config_tls_refresh = COALESCE($26::integer, config_tls_refresh),
+    osquery_distributed_interval_seconds = COALESCE($25::integer, osquery_distributed_interval_seconds),
+    osquery_config_refresh_seconds = COALESCE($26::integer, osquery_config_refresh_seconds),
     updated_at = now()
 WHERE id = $27
 `
 
-type ApplyHostDetailParams struct {
-	Hostname                string     `json:"hostname"`
-	ComputerName            string     `json:"computer_name"`
-	HardwareSerial          string     `json:"hardware_serial"`
-	HardwareModel           string     `json:"hardware_model"`
-	HardwareVersion         string     `json:"hardware_version"`
-	OSName                  string     `json:"os_name"`
-	OSVersion               string     `json:"os_version"`
-	OSBuild                 string     `json:"os_build"`
-	OsqueryVersion          string     `json:"osquery_version"`
-	OrbitVersion            string     `json:"orbit_version"`
-	CPUType                 string     `json:"cpu_type"`
-	CPUSubtype              string     `json:"cpu_subtype"`
-	CPUBrand                string     `json:"cpu_brand"`
-	CPULogicalCores         int32      `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int32      `json:"cpu_physical_cores"`
-	PhysicalMemory          int64      `json:"physical_memory"`
-	HardwareVendor          string     `json:"hardware_vendor"`
-	KernelVersion           string     `json:"kernel_version"`
-	LastRestartedAt         *time.Time `json:"last_restarted_at"`
-	DiskSpaceAvailableBytes *int64     `json:"disk_space_available_bytes"`
-	DiskSpaceTotalBytes     *int64     `json:"disk_space_total_bytes"`
-	PublicIP                string     `json:"public_ip"`
-	PrimaryIP               string     `json:"primary_ip"`
-	PrimaryMAC              string     `json:"primary_mac"`
-	DistributedInterval     *int32     `json:"distributed_interval"`
-	ConfigTLSRefresh        *int32     `json:"config_tls_refresh"`
-	ID                      int64      `json:"id"`
+type ApplyHostInventoryParams struct {
+	Hostname                          string     `json:"hostname"`
+	ComputerName                      string     `json:"computer_name"`
+	HardwareSerial                    string     `json:"hardware_serial"`
+	HardwareModelIdentifier           string     `json:"hardware_model_identifier"`
+	OSName                            string     `json:"os_name"`
+	OSVersion                         string     `json:"os_version"`
+	OSBuild                           string     `json:"os_build"`
+	OSPlatform                        string     `json:"os_platform"`
+	OsqueryVersion                    string     `json:"osquery_version"`
+	OrbitVersion                      string     `json:"orbit_version"`
+	CPUType                           string     `json:"cpu_type"`
+	CPUSubtype                        string     `json:"cpu_subtype"`
+	CPUBrand                          string     `json:"cpu_brand"`
+	CPULogicalCores                   int32      `json:"cpu_logical_cores"`
+	CPUPhysicalCores                  int32      `json:"cpu_physical_cores"`
+	MemoryBytes                       int64      `json:"memory_bytes"`
+	HardwareVendor                    string     `json:"hardware_vendor"`
+	OSKernelVersion                   string     `json:"os_kernel_version"`
+	LastRestartedAt                   *time.Time `json:"last_restarted_at"`
+	BootVolumeAvailableBytes          *int64     `json:"boot_volume_available_bytes"`
+	BootVolumeTotalBytes              *int64     `json:"boot_volume_total_bytes"`
+	LastRemoteIP                      string     `json:"last_remote_ip"`
+	PrimaryIP                         string     `json:"primary_ip"`
+	PrimaryMAC                        string     `json:"primary_mac"`
+	OsqueryDistributedIntervalSeconds *int32     `json:"osquery_distributed_interval_seconds"`
+	OsqueryConfigRefreshSeconds       *int32     `json:"osquery_config_refresh_seconds"`
+	ID                                int64      `json:"id"`
 }
 
-func (q *Queries) ApplyHostDetail(ctx context.Context, arg ApplyHostDetailParams) error {
-	_, err := q.db.Exec(ctx, applyHostDetail,
+func (q *Queries) ApplyHostInventory(ctx context.Context, arg ApplyHostInventoryParams) error {
+	_, err := q.db.Exec(ctx, applyHostInventory,
 		arg.Hostname,
 		arg.ComputerName,
 		arg.HardwareSerial,
-		arg.HardwareModel,
-		arg.HardwareVersion,
+		arg.HardwareModelIdentifier,
 		arg.OSName,
 		arg.OSVersion,
 		arg.OSBuild,
+		arg.OSPlatform,
 		arg.OsqueryVersion,
 		arg.OrbitVersion,
 		arg.CPUType,
@@ -108,17 +108,17 @@ func (q *Queries) ApplyHostDetail(ctx context.Context, arg ApplyHostDetailParams
 		arg.CPUBrand,
 		arg.CPULogicalCores,
 		arg.CPUPhysicalCores,
-		arg.PhysicalMemory,
+		arg.MemoryBytes,
 		arg.HardwareVendor,
-		arg.KernelVersion,
+		arg.OSKernelVersion,
 		arg.LastRestartedAt,
-		arg.DiskSpaceAvailableBytes,
-		arg.DiskSpaceTotalBytes,
-		arg.PublicIP,
+		arg.BootVolumeAvailableBytes,
+		arg.BootVolumeTotalBytes,
+		arg.LastRemoteIP,
 		arg.PrimaryIP,
 		arg.PrimaryMAC,
-		arg.DistributedInterval,
-		arg.ConfigTLSRefresh,
+		arg.OsqueryDistributedIntervalSeconds,
+		arg.OsqueryConfigRefreshSeconds,
 		arg.ID,
 	)
 	return err
@@ -241,7 +241,7 @@ func (q *Queries) DeleteHosts(ctx context.Context, arg DeleteHostsParams) ([]int
 }
 
 const getHostByID = `-- name: GetHostByID :one
-SELECT id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at
+SELECT id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
 FROM hosts
 WHERE id = $1
 `
@@ -260,37 +260,36 @@ func (q *Queries) GetHostByID(ctx context.Context, arg GetHostByIDParams) (Host,
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
-		&i.HardwareVersion,
+		&i.HardwareModelIdentifier,
 		&i.HardwareVendor,
 		&i.OSName,
 		&i.OSVersion,
 		&i.OSBuild,
+		&i.OSPlatform,
 		&i.OsqueryVersion,
 		&i.OrbitVersion,
 		&i.OrbitNodeKey,
 		&i.OsqueryNodeKey,
+		&i.EnrollmentAgent,
 		&i.CPUType,
 		&i.CPUSubtype,
 		&i.CPUBrand,
 		&i.CPULogicalCores,
 		&i.CPUPhysicalCores,
-		&i.PhysicalMemory,
-		&i.KernelVersion,
+		&i.MemoryBytes,
+		&i.OSKernelVersion,
 		&i.LastRestartedAt,
-		&i.DiskSpaceAvailableBytes,
-		&i.DiskSpaceTotalBytes,
-		&i.PublicIP,
+		&i.BootVolumeAvailableBytes,
+		&i.BootVolumeTotalBytes,
+		&i.LastRemoteIP,
 		&i.PrimaryIP,
 		&i.PrimaryMAC,
-		&i.DistributedInterval,
-		&i.ConfigTLSRefresh,
-		&i.DetailQueryHash,
+		&i.OsqueryDistributedIntervalSeconds,
+		&i.OsqueryConfigRefreshSeconds,
+		&i.InventoryQueryHash,
 		&i.EnrolledAt,
 		&i.LastSeenAt,
-		&i.DetailUpdatedAt,
-		&i.LabelUpdatedAt,
-		&i.SoftwareUpdatedAt,
+		&i.InventoryUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -887,19 +886,19 @@ func (q *Queries) ListSelectedLabels(ctx context.Context, arg ListSelectedLabels
 	return items, nil
 }
 
-const markHostDetailFresh = `-- name: MarkHostDetailFresh :exec
+const markHostInventoryFresh = `-- name: MarkHostInventoryFresh :exec
 UPDATE hosts
-SET detail_updated_at = now(), detail_query_hash = $1, updated_at = now()
+SET inventory_updated_at = now(), inventory_query_hash = $1, updated_at = now()
 WHERE id = $2
 `
 
-type MarkHostDetailFreshParams struct {
-	DetailQueryHash string `json:"detail_query_hash"`
-	ID              int64  `json:"id"`
+type MarkHostInventoryFreshParams struct {
+	InventoryQueryHash string `json:"inventory_query_hash"`
+	ID                 int64  `json:"id"`
 }
 
-func (q *Queries) MarkHostDetailFresh(ctx context.Context, arg MarkHostDetailFreshParams) error {
-	_, err := q.db.Exec(ctx, markHostDetailFresh, arg.DetailQueryHash, arg.ID)
+func (q *Queries) MarkHostInventoryFresh(ctx context.Context, arg MarkHostInventoryFreshParams) error {
+	_, err := q.db.Exec(ctx, markHostInventoryFresh, arg.InventoryQueryHash, arg.ID)
 	return err
 }
 
@@ -907,7 +906,7 @@ const touchHostByOrbitNodeKey = `-- name: TouchHostByOrbitNodeKey :one
 UPDATE hosts
 SET last_seen_at = now(), updated_at = now()
 WHERE orbit_node_key = $1 AND orbit_node_key <> ''
-RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at
+RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
 `
 
 type TouchHostByOrbitNodeKeyParams struct {
@@ -924,37 +923,36 @@ func (q *Queries) TouchHostByOrbitNodeKey(ctx context.Context, arg TouchHostByOr
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
-		&i.HardwareVersion,
+		&i.HardwareModelIdentifier,
 		&i.HardwareVendor,
 		&i.OSName,
 		&i.OSVersion,
 		&i.OSBuild,
+		&i.OSPlatform,
 		&i.OsqueryVersion,
 		&i.OrbitVersion,
 		&i.OrbitNodeKey,
 		&i.OsqueryNodeKey,
+		&i.EnrollmentAgent,
 		&i.CPUType,
 		&i.CPUSubtype,
 		&i.CPUBrand,
 		&i.CPULogicalCores,
 		&i.CPUPhysicalCores,
-		&i.PhysicalMemory,
-		&i.KernelVersion,
+		&i.MemoryBytes,
+		&i.OSKernelVersion,
 		&i.LastRestartedAt,
-		&i.DiskSpaceAvailableBytes,
-		&i.DiskSpaceTotalBytes,
-		&i.PublicIP,
+		&i.BootVolumeAvailableBytes,
+		&i.BootVolumeTotalBytes,
+		&i.LastRemoteIP,
 		&i.PrimaryIP,
 		&i.PrimaryMAC,
-		&i.DistributedInterval,
-		&i.ConfigTLSRefresh,
-		&i.DetailQueryHash,
+		&i.OsqueryDistributedIntervalSeconds,
+		&i.OsqueryConfigRefreshSeconds,
+		&i.InventoryQueryHash,
 		&i.EnrolledAt,
 		&i.LastSeenAt,
-		&i.DetailUpdatedAt,
-		&i.LabelUpdatedAt,
-		&i.SoftwareUpdatedAt,
+		&i.InventoryUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -965,7 +963,7 @@ const touchHostByOsqueryNodeKey = `-- name: TouchHostByOsqueryNodeKey :one
 UPDATE hosts
 SET last_seen_at = now(), updated_at = now()
 WHERE osquery_node_key = $1 AND osquery_node_key <> ''
-RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at
+RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
 `
 
 type TouchHostByOsqueryNodeKeyParams struct {
@@ -982,37 +980,36 @@ func (q *Queries) TouchHostByOsqueryNodeKey(ctx context.Context, arg TouchHostBy
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
-		&i.HardwareVersion,
+		&i.HardwareModelIdentifier,
 		&i.HardwareVendor,
 		&i.OSName,
 		&i.OSVersion,
 		&i.OSBuild,
+		&i.OSPlatform,
 		&i.OsqueryVersion,
 		&i.OrbitVersion,
 		&i.OrbitNodeKey,
 		&i.OsqueryNodeKey,
+		&i.EnrollmentAgent,
 		&i.CPUType,
 		&i.CPUSubtype,
 		&i.CPUBrand,
 		&i.CPULogicalCores,
 		&i.CPUPhysicalCores,
-		&i.PhysicalMemory,
-		&i.KernelVersion,
+		&i.MemoryBytes,
+		&i.OSKernelVersion,
 		&i.LastRestartedAt,
-		&i.DiskSpaceAvailableBytes,
-		&i.DiskSpaceTotalBytes,
-		&i.PublicIP,
+		&i.BootVolumeAvailableBytes,
+		&i.BootVolumeTotalBytes,
+		&i.LastRemoteIP,
 		&i.PrimaryIP,
 		&i.PrimaryMAC,
-		&i.DistributedInterval,
-		&i.ConfigTLSRefresh,
-		&i.DetailQueryHash,
+		&i.OsqueryDistributedIntervalSeconds,
+		&i.OsqueryConfigRefreshSeconds,
+		&i.InventoryQueryHash,
 		&i.EnrolledAt,
 		&i.LastSeenAt,
-		&i.DetailUpdatedAt,
-		&i.LabelUpdatedAt,
-		&i.SoftwareUpdatedAt,
+		&i.InventoryUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1026,8 +1023,9 @@ INSERT INTO hosts (
     hostname,
     computer_name,
     hardware_serial,
-    hardware_model,
+    hardware_model_identifier,
     orbit_node_key,
+    enrollment_agent,
     enrolled_at,
     last_seen_at
 )
@@ -1039,6 +1037,7 @@ VALUES (
     $5,
     $6,
     $7,
+    'orbit',
     now(),
     now()
 )
@@ -1047,22 +1046,23 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     hostname = EXCLUDED.hostname,
     computer_name = EXCLUDED.computer_name,
     hardware_serial = EXCLUDED.hardware_serial,
-    hardware_model = EXCLUDED.hardware_model,
+    hardware_model_identifier = EXCLUDED.hardware_model_identifier,
     orbit_node_key = EXCLUDED.orbit_node_key,
+    enrollment_agent = EXCLUDED.enrollment_agent,
     enrolled_at = now(),
     last_seen_at = now(),
     updated_at = now()
-RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at
+RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
 `
 
 type UpsertHostOnOrbitEnrollParams struct {
-	HardwareUUID   string `json:"hardware_uuid"`
-	DisplayName    string `json:"display_name"`
-	Hostname       string `json:"hostname"`
-	ComputerName   string `json:"computer_name"`
-	HardwareSerial string `json:"hardware_serial"`
-	HardwareModel  string `json:"hardware_model"`
-	OrbitNodeKey   string `json:"orbit_node_key"`
+	HardwareUUID            string `json:"hardware_uuid"`
+	DisplayName             string `json:"display_name"`
+	Hostname                string `json:"hostname"`
+	ComputerName            string `json:"computer_name"`
+	HardwareSerial          string `json:"hardware_serial"`
+	HardwareModelIdentifier string `json:"hardware_model_identifier"`
+	OrbitNodeKey            string `json:"orbit_node_key"`
 }
 
 func (q *Queries) UpsertHostOnOrbitEnroll(ctx context.Context, arg UpsertHostOnOrbitEnrollParams) (Host, error) {
@@ -1072,7 +1072,7 @@ func (q *Queries) UpsertHostOnOrbitEnroll(ctx context.Context, arg UpsertHostOnO
 		arg.Hostname,
 		arg.ComputerName,
 		arg.HardwareSerial,
-		arg.HardwareModel,
+		arg.HardwareModelIdentifier,
 		arg.OrbitNodeKey,
 	)
 	var i Host
@@ -1083,37 +1083,36 @@ func (q *Queries) UpsertHostOnOrbitEnroll(ctx context.Context, arg UpsertHostOnO
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
-		&i.HardwareVersion,
+		&i.HardwareModelIdentifier,
 		&i.HardwareVendor,
 		&i.OSName,
 		&i.OSVersion,
 		&i.OSBuild,
+		&i.OSPlatform,
 		&i.OsqueryVersion,
 		&i.OrbitVersion,
 		&i.OrbitNodeKey,
 		&i.OsqueryNodeKey,
+		&i.EnrollmentAgent,
 		&i.CPUType,
 		&i.CPUSubtype,
 		&i.CPUBrand,
 		&i.CPULogicalCores,
 		&i.CPUPhysicalCores,
-		&i.PhysicalMemory,
-		&i.KernelVersion,
+		&i.MemoryBytes,
+		&i.OSKernelVersion,
 		&i.LastRestartedAt,
-		&i.DiskSpaceAvailableBytes,
-		&i.DiskSpaceTotalBytes,
-		&i.PublicIP,
+		&i.BootVolumeAvailableBytes,
+		&i.BootVolumeTotalBytes,
+		&i.LastRemoteIP,
 		&i.PrimaryIP,
 		&i.PrimaryMAC,
-		&i.DistributedInterval,
-		&i.ConfigTLSRefresh,
-		&i.DetailQueryHash,
+		&i.OsqueryDistributedIntervalSeconds,
+		&i.OsqueryConfigRefreshSeconds,
+		&i.InventoryQueryHash,
 		&i.EnrolledAt,
 		&i.LastSeenAt,
-		&i.DetailUpdatedAt,
-		&i.LabelUpdatedAt,
-		&i.SoftwareUpdatedAt,
+		&i.InventoryUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1127,22 +1126,25 @@ INSERT INTO hosts (
     hostname,
     computer_name,
     hardware_serial,
-    hardware_model,
-    hardware_version,
+    hardware_model_identifier,
     os_version,
     os_name,
     os_build,
+    os_platform,
     osquery_version,
     orbit_version,
     osquery_node_key,
+    enrollment_agent,
+    cpu_type,
+    cpu_subtype,
     cpu_brand,
     cpu_logical_cores,
     cpu_physical_cores,
-    physical_memory,
+    memory_bytes,
     hardware_vendor,
-    kernel_version,
+    os_kernel_version,
     last_seen_at,
-    detail_updated_at
+    inventory_updated_at
 )
 VALUES (
     $1,
@@ -1158,12 +1160,15 @@ VALUES (
     $11,
     $12,
     $13,
+    'osquery',
     $14,
     $15,
     $16,
     $17,
     $18,
     $19,
+    $20,
+    $21,
     now(),
     NULL
 )
@@ -1172,47 +1177,52 @@ ON CONFLICT (hardware_uuid) DO UPDATE SET
     hostname = EXCLUDED.hostname,
     computer_name = EXCLUDED.computer_name,
     hardware_serial = EXCLUDED.hardware_serial,
-    hardware_model = EXCLUDED.hardware_model,
-    hardware_version = COALESCE(NULLIF(EXCLUDED.hardware_version, ''), hosts.hardware_version),
+    hardware_model_identifier = EXCLUDED.hardware_model_identifier,
     os_version = EXCLUDED.os_version,
     os_name = COALESCE(NULLIF(EXCLUDED.os_name, ''), hosts.os_name),
     os_build = COALESCE(NULLIF(EXCLUDED.os_build, ''), hosts.os_build),
+    os_platform = COALESCE(NULLIF(EXCLUDED.os_platform, ''), hosts.os_platform),
     osquery_version = EXCLUDED.osquery_version,
     orbit_version = COALESCE(NULLIF(EXCLUDED.orbit_version, ''), hosts.orbit_version),
     osquery_node_key = EXCLUDED.osquery_node_key,
+    enrollment_agent = EXCLUDED.enrollment_agent,
+    cpu_type = EXCLUDED.cpu_type,
+    cpu_subtype = EXCLUDED.cpu_subtype,
     cpu_brand = EXCLUDED.cpu_brand,
     cpu_logical_cores = EXCLUDED.cpu_logical_cores,
     cpu_physical_cores = EXCLUDED.cpu_physical_cores,
-    physical_memory = EXCLUDED.physical_memory,
+    memory_bytes = EXCLUDED.memory_bytes,
     hardware_vendor = EXCLUDED.hardware_vendor,
-    kernel_version = EXCLUDED.kernel_version,
-    detail_updated_at = NULL,
-    detail_query_hash = '',
+    os_kernel_version = EXCLUDED.os_kernel_version,
+    inventory_updated_at = NULL,
+    inventory_query_hash = '',
     last_seen_at = now(),
     updated_at = now()
-RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model, hardware_version, hardware_vendor, os_name, os_version, os_build, osquery_version, orbit_version, orbit_node_key, osquery_node_key, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, physical_memory, kernel_version, last_restarted_at, disk_space_available_bytes, disk_space_total_bytes, public_ip, primary_ip, primary_mac, distributed_interval, config_tls_refresh, detail_query_hash, enrolled_at, last_seen_at, detail_updated_at, label_updated_at, software_updated_at, created_at, updated_at
+RETURNING id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
 `
 
 type UpsertHostOnOsqueryEnrollParams struct {
-	HardwareUUID     string `json:"hardware_uuid"`
-	DisplayName      string `json:"display_name"`
-	Hostname         string `json:"hostname"`
-	ComputerName     string `json:"computer_name"`
-	HardwareSerial   string `json:"hardware_serial"`
-	HardwareModel    string `json:"hardware_model"`
-	HardwareVersion  string `json:"hardware_version"`
-	OSVersion        string `json:"os_version"`
-	OSName           string `json:"os_name"`
-	OSBuild          string `json:"os_build"`
-	OsqueryVersion   string `json:"osquery_version"`
-	OrbitVersion     string `json:"orbit_version"`
-	OsqueryNodeKey   string `json:"osquery_node_key"`
-	CPUBrand         string `json:"cpu_brand"`
-	CPULogicalCores  int32  `json:"cpu_logical_cores"`
-	CPUPhysicalCores int32  `json:"cpu_physical_cores"`
-	PhysicalMemory   int64  `json:"physical_memory"`
-	HardwareVendor   string `json:"hardware_vendor"`
-	KernelVersion    string `json:"kernel_version"`
+	HardwareUUID            string `json:"hardware_uuid"`
+	DisplayName             string `json:"display_name"`
+	Hostname                string `json:"hostname"`
+	ComputerName            string `json:"computer_name"`
+	HardwareSerial          string `json:"hardware_serial"`
+	HardwareModelIdentifier string `json:"hardware_model_identifier"`
+	OSVersion               string `json:"os_version"`
+	OSName                  string `json:"os_name"`
+	OSBuild                 string `json:"os_build"`
+	OSPlatform              string `json:"os_platform"`
+	OsqueryVersion          string `json:"osquery_version"`
+	OrbitVersion            string `json:"orbit_version"`
+	OsqueryNodeKey          string `json:"osquery_node_key"`
+	CPUType                 string `json:"cpu_type"`
+	CPUSubtype              string `json:"cpu_subtype"`
+	CPUBrand                string `json:"cpu_brand"`
+	CPULogicalCores         int32  `json:"cpu_logical_cores"`
+	CPUPhysicalCores        int32  `json:"cpu_physical_cores"`
+	MemoryBytes             int64  `json:"memory_bytes"`
+	HardwareVendor          string `json:"hardware_vendor"`
+	OSKernelVersion         string `json:"os_kernel_version"`
 }
 
 func (q *Queries) UpsertHostOnOsqueryEnroll(ctx context.Context, arg UpsertHostOnOsqueryEnrollParams) (Host, error) {
@@ -1222,20 +1232,22 @@ func (q *Queries) UpsertHostOnOsqueryEnroll(ctx context.Context, arg UpsertHostO
 		arg.Hostname,
 		arg.ComputerName,
 		arg.HardwareSerial,
-		arg.HardwareModel,
-		arg.HardwareVersion,
+		arg.HardwareModelIdentifier,
 		arg.OSVersion,
 		arg.OSName,
 		arg.OSBuild,
+		arg.OSPlatform,
 		arg.OsqueryVersion,
 		arg.OrbitVersion,
 		arg.OsqueryNodeKey,
+		arg.CPUType,
+		arg.CPUSubtype,
 		arg.CPUBrand,
 		arg.CPULogicalCores,
 		arg.CPUPhysicalCores,
-		arg.PhysicalMemory,
+		arg.MemoryBytes,
 		arg.HardwareVendor,
-		arg.KernelVersion,
+		arg.OSKernelVersion,
 	)
 	var i Host
 	err := row.Scan(
@@ -1245,37 +1257,36 @@ func (q *Queries) UpsertHostOnOsqueryEnroll(ctx context.Context, arg UpsertHostO
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
-		&i.HardwareVersion,
+		&i.HardwareModelIdentifier,
 		&i.HardwareVendor,
 		&i.OSName,
 		&i.OSVersion,
 		&i.OSBuild,
+		&i.OSPlatform,
 		&i.OsqueryVersion,
 		&i.OrbitVersion,
 		&i.OrbitNodeKey,
 		&i.OsqueryNodeKey,
+		&i.EnrollmentAgent,
 		&i.CPUType,
 		&i.CPUSubtype,
 		&i.CPUBrand,
 		&i.CPULogicalCores,
 		&i.CPUPhysicalCores,
-		&i.PhysicalMemory,
-		&i.KernelVersion,
+		&i.MemoryBytes,
+		&i.OSKernelVersion,
 		&i.LastRestartedAt,
-		&i.DiskSpaceAvailableBytes,
-		&i.DiskSpaceTotalBytes,
-		&i.PublicIP,
+		&i.BootVolumeAvailableBytes,
+		&i.BootVolumeTotalBytes,
+		&i.LastRemoteIP,
 		&i.PrimaryIP,
 		&i.PrimaryMAC,
-		&i.DistributedInterval,
-		&i.ConfigTLSRefresh,
-		&i.DetailQueryHash,
+		&i.OsqueryDistributedIntervalSeconds,
+		&i.OsqueryConfigRefreshSeconds,
+		&i.InventoryQueryHash,
 		&i.EnrolledAt,
 		&i.LastSeenAt,
-		&i.DetailUpdatedAt,
-		&i.LabelUpdatedAt,
-		&i.SoftwareUpdatedAt,
+		&i.InventoryUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

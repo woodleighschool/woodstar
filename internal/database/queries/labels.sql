@@ -126,8 +126,3 @@ JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = @
 LEFT JOIN label_membership lm_all ON lm_all.label_id = l.id
 GROUP BY l.id
 ORDER BY lower(l.name), l.id;
-
--- name: MarkHostLabelsFresh :exec
-UPDATE hosts
-SET label_updated_at = now(), updated_at = now()
-WHERE id = @host_id;

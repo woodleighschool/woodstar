@@ -339,7 +339,7 @@ function LabelEditForm({
 }
 
 function hostName(host: Host) {
-  return host.display_name || host.hostname || host.computer_name || host.hardware_uuid;
+  return host.display_name || host.hostname || host.computer_name || host.hardware.uuid;
 }
 
 function HostSelector({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
@@ -357,19 +357,22 @@ function HostSelector({ value, onChange }: { value: number[]; onChange: (value: 
   const columns = useMemo<ColumnDef<Host>[]>(
     () => [
       {
-        accessorKey: "display_name",
+        id: "display_name",
+        accessorFn: (row) => row.display_name,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Host" />,
         cell: ({ row }) => hostName(row.original),
       },
       {
-        accessorKey: "hardware_serial",
+        id: "hardware.serial",
+        accessorFn: (row) => row.hardware.serial,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-        cell: ({ row }) => row.original.hardware_serial || row.original.hardware_uuid,
+        cell: ({ row }) => row.original.hardware.serial || row.original.hardware.uuid,
       },
       {
-        accessorKey: "hardware_model",
+        id: "hardware.model_identifier",
+        accessorFn: (row) => row.hardware.model_identifier,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
-        cell: ({ row }) => row.original.hardware_model || "Unknown",
+        cell: ({ row }) => row.original.hardware.model_identifier || "Unknown",
       },
     ],
     [],

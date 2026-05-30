@@ -9,11 +9,12 @@ import (
 func TestParseHostDetails(t *testing.T) {
 	details := map[string]map[string]string{
 		"os_version": {
-			"name":    "macOS",
-			"version": "26.5",
-			"build":   "25F5068a",
-			"major":   "26",
-			"minor":   "5",
+			"name":     "macOS",
+			"version":  "26.5",
+			"build":    "25F5068a",
+			"major":    "26",
+			"minor":    "5",
+			"platform": "darwin",
 		},
 		"osquery_info": {
 			"version": "5.22.1",
@@ -53,32 +54,44 @@ func TestParseHostDetails(t *testing.T) {
 	}
 
 	got := ParseHostDetails(details)
-	want := hosts.DetailUpdate{
-		OSVersion:               "macOS 26.5 (build 25F5068a)",
-		Hostname:                "example-host",
-		ComputerName:            "EXAMPLE-HOST",
-		HardwareUUID:            "00000000-0000-4000-8000-000000000000",
-		HardwareSerial:          "ABCDEFGHIJ",
-		HardwareModel:           "Mac15,8",
-		HardwareVersion:         "1.0",
-		HardwareVendor:          "Apple Inc.",
-		OSName:                  "macOS",
-		OSBuild:                 "25F5068a",
-		CPUType:                 "arm64e",
-		CPUSubtype:              "2",
-		CPUBrand:                "Apple M3",
-		CPULogicalCores:         8,
-		CPUPhysicalCores:        8,
-		PhysicalMemory:          68719476736,
-		OsqueryVersion:          "5.22.1",
-		OrbitVersion:            "1.47.0",
-		KernelVersion:           "Darwin Kernel Version 25.5.0",
-		DiskSpaceAvailableBytes: new(int64(102400)),
-		DiskSpaceTotalBytes:     new(int64(409600)),
-		PrimaryIP:               "192.0.2.10",
-		PrimaryMAC:              "aa:bb:cc:dd:ee:ff",
+	want := hosts.InventoryUpdate{
+		Hostname:     "example-host",
+		ComputerName: "EXAMPLE-HOST",
+		Hardware: hosts.HostHardware{
+			UUID:            "00000000-0000-4000-8000-000000000000",
+			Serial:          "ABCDEFGHIJ",
+			ModelIdentifier: "Mac15,8",
+			Vendor:          "Apple Inc.",
+			MemoryBytes:     68719476736,
+			CPU: hosts.HostCPU{
+				Architecture:  "arm64e",
+				Subtype:       "2",
+				Brand:         "Apple M3",
+				LogicalCores:  8,
+				PhysicalCores: 8,
+			},
+		},
+		OS: hosts.HostOS{
+			Name:          "macOS",
+			Version:       "26.5",
+			Build:         "25F5068a",
+			Platform:      "darwin",
+			KernelVersion: "Darwin Kernel Version 25.5.0",
+		},
+		Storage: hosts.HostStorage{BootVolume: hosts.HostBootVolume{
+			AvailableBytes: new(int64(102400)),
+			TotalBytes:     new(int64(409600)),
+		}},
+		Network: hosts.InventoryNetwork{
+			PrimaryIP:  "192.0.2.10",
+			PrimaryMAC: "aa:bb:cc:dd:ee:ff",
+		},
+		Agents: hosts.HostAgents{
+			Osquery: hosts.HostOsqueryAgent{Version: "5.22.1"},
+			Orbit:   hosts.HostOrbitAgent{Version: "1.47.0"},
+		},
 	}
-	assertDetailUpdate(t, got, want)
+	assertInventoryUpdate(t, got, want)
 }
 
 func TestParseHostDetailsMissingFields(t *testing.T) {
@@ -89,44 +102,45 @@ func TestParseHostDetailsMissingFields(t *testing.T) {
 		},
 	})
 
-	if got.CPULogicalCores != 0 {
-		t.Fatalf("CPULogicalCores = %d, want 0", got.CPULogicalCores)
+	if got.Hardware.CPU.LogicalCores != 0 {
+		t.Fatalf("logical cores = %d, want 0", got.Hardware.CPU.LogicalCores)
 	}
-	if got.PhysicalMemory != 0 {
-		t.Fatalf("PhysicalMemory = %d, want 0", got.PhysicalMemory)
+	if got.Hardware.MemoryBytes != 0 {
+		t.Fatalf("memory bytes = %d, want 0", got.Hardware.MemoryBytes)
 	}
 }
 
-func assertDetailUpdate(t *testing.T, got hosts.DetailUpdate, want hosts.DetailUpdate) {
+func assertInventoryUpdate(t *testing.T, got hosts.InventoryUpdate, want hosts.InventoryUpdate) {
 	t.Helper()
-	if got.HardwareUUID != want.HardwareUUID ||
+	if got.Hardware.UUID != want.Hardware.UUID ||
 		got.Hostname != want.Hostname ||
 		got.ComputerName != want.ComputerName ||
-		got.HardwareSerial != want.HardwareSerial ||
-		got.HardwareModel != want.HardwareModel ||
-		got.HardwareVersion != want.HardwareVersion ||
-		got.HardwareVendor != want.HardwareVendor ||
-		got.OSName != want.OSName ||
-		got.OSVersion != want.OSVersion ||
-		got.OSBuild != want.OSBuild ||
-		got.KernelVersion != want.KernelVersion ||
-		got.OrbitVersion != want.OrbitVersion ||
-		got.CPUType != want.CPUType ||
-		got.CPUSubtype != want.CPUSubtype ||
-		got.CPUBrand != want.CPUBrand ||
-		got.CPULogicalCores != want.CPULogicalCores ||
-		got.CPUPhysicalCores != want.CPUPhysicalCores ||
-		got.PhysicalMemory != want.PhysicalMemory ||
-		got.OsqueryVersion != want.OsqueryVersion ||
-		got.PrimaryIP != want.PrimaryIP ||
-		got.PrimaryMAC != want.PrimaryMAC {
+		got.Hardware.Serial != want.Hardware.Serial ||
+		got.Hardware.ModelIdentifier != want.Hardware.ModelIdentifier ||
+		got.Hardware.Vendor != want.Hardware.Vendor ||
+		got.Hardware.MemoryBytes != want.Hardware.MemoryBytes ||
+		got.Hardware.CPU != want.Hardware.CPU ||
+		got.OS != want.OS ||
+		got.Agents != want.Agents ||
+		got.Network.PrimaryIP != want.Network.PrimaryIP ||
+		got.Network.PrimaryMAC != want.Network.PrimaryMAC {
 		t.Fatalf("ParseHostDetails() = %#v, want %#v", got, want)
 	}
-	if got.LastRestartedAt == nil {
+	if got.Timestamps.LastRestartedAt == nil {
 		t.Fatalf("LastRestartedAt is nil, want timestamp")
 	}
-	assertInt64Ptr(t, "DiskSpaceAvailableBytes", got.DiskSpaceAvailableBytes, want.DiskSpaceAvailableBytes)
-	assertInt64Ptr(t, "DiskSpaceTotalBytes", got.DiskSpaceTotalBytes, want.DiskSpaceTotalBytes)
+	assertInt64Ptr(
+		t,
+		"storage.boot_volume.available_bytes",
+		got.Storage.BootVolume.AvailableBytes,
+		want.Storage.BootVolume.AvailableBytes,
+	)
+	assertInt64Ptr(
+		t,
+		"storage.boot_volume.total_bytes",
+		got.Storage.BootVolume.TotalBytes,
+		want.Storage.BootVolume.TotalBytes,
+	)
 }
 
 func assertInt64Ptr(t *testing.T, name string, got *int64, want *int64) {

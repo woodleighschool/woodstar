@@ -18,7 +18,7 @@ export type HostSantaRulesResult = Schemas["PaginatedBodyRuleStatus"];
 export type HostSantaRule = Schemas["RuleStatus"];
 export type HostSantaRulesParams = NonNullable<ListHostSantaRulesData["query"]>;
 
-export interface HostDeviceMappingMutation {
+export interface HostUserAffinityMutation {
   email: string;
 }
 
@@ -101,11 +101,11 @@ export function useBulkDeleteHosts() {
   });
 }
 
-export function useSetHostDeviceMapping() {
+export function useSetHostUserAffinity() {
   const queryClient = useQueryClient();
-  return useMutation<HostDetail, ApiError, { id: number; body: HostDeviceMappingMutation }>({
+  return useMutation<HostDetail, ApiError, { id: number; body: HostUserAffinityMutation }>({
     mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/hosts/{id}/device-mapping", { params: { path: { id } }, body })),
+      unwrap(apiClient.PUT("/api/hosts/{id}/user-affinity", { params: { path: { id } }, body })),
     onSuccess: async (host) => {
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: ["hosts"] });
@@ -113,10 +113,10 @@ export function useSetHostDeviceMapping() {
   });
 }
 
-export function useClearHostDeviceMapping() {
+export function useClearHostUserAffinity() {
   const queryClient = useQueryClient();
   return useMutation<HostDetail, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}/device-mapping", { params: { path: { id } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/hosts/{id}/user-affinity", { params: { path: { id } } })),
     onSuccess: async (host) => {
       queryClient.setQueryData(queryKeys.host(host.id), host);
       await queryClient.invalidateQueries({ queryKey: ["hosts"] });

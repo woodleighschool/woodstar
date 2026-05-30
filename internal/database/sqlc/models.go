@@ -612,45 +612,44 @@ type DirectoryUserGroup struct {
 }
 
 type Host struct {
-	ID                      int64       `json:"id"`
-	HardwareUUID            string      `json:"hardware_uuid"`
-	DisplayName             string      `json:"display_name"`
-	Hostname                string      `json:"hostname"`
-	ComputerName            string      `json:"computer_name"`
-	HardwareSerial          string      `json:"hardware_serial"`
-	HardwareModel           string      `json:"hardware_model"`
-	HardwareVersion         string      `json:"hardware_version"`
-	HardwareVendor          string      `json:"hardware_vendor"`
-	OSName                  string      `json:"os_name"`
-	OSVersion               string      `json:"os_version"`
-	OSBuild                 string      `json:"os_build"`
-	OsqueryVersion          string      `json:"osquery_version"`
-	OrbitVersion            string      `json:"orbit_version"`
-	OrbitNodeKey            string      `json:"orbit_node_key"`
-	OsqueryNodeKey          string      `json:"osquery_node_key"`
-	CPUType                 string      `json:"cpu_type"`
-	CPUSubtype              string      `json:"cpu_subtype"`
-	CPUBrand                string      `json:"cpu_brand"`
-	CPULogicalCores         int32       `json:"cpu_logical_cores"`
-	CPUPhysicalCores        int32       `json:"cpu_physical_cores"`
-	PhysicalMemory          int64       `json:"physical_memory"`
-	KernelVersion           string      `json:"kernel_version"`
-	LastRestartedAt         *time.Time  `json:"last_restarted_at"`
-	DiskSpaceAvailableBytes *int64      `json:"disk_space_available_bytes"`
-	DiskSpaceTotalBytes     *int64      `json:"disk_space_total_bytes"`
-	PublicIP                *netip.Addr `json:"public_ip"`
-	PrimaryIP               *netip.Addr `json:"primary_ip"`
-	PrimaryMAC              string      `json:"primary_mac"`
-	DistributedInterval     *int32      `json:"distributed_interval"`
-	ConfigTLSRefresh        *int32      `json:"config_tls_refresh"`
-	DetailQueryHash         string      `json:"detail_query_hash"`
-	EnrolledAt              *time.Time  `json:"enrolled_at"`
-	LastSeenAt              *time.Time  `json:"last_seen_at"`
-	DetailUpdatedAt         *time.Time  `json:"detail_updated_at"`
-	LabelUpdatedAt          *time.Time  `json:"label_updated_at"`
-	SoftwareUpdatedAt       *time.Time  `json:"software_updated_at"`
-	CreatedAt               time.Time   `json:"created_at"`
-	UpdatedAt               time.Time   `json:"updated_at"`
+	ID                                int64       `json:"id"`
+	HardwareUUID                      string      `json:"hardware_uuid"`
+	DisplayName                       string      `json:"display_name"`
+	Hostname                          string      `json:"hostname"`
+	ComputerName                      string      `json:"computer_name"`
+	HardwareSerial                    string      `json:"hardware_serial"`
+	HardwareModelIdentifier           string      `json:"hardware_model_identifier"`
+	HardwareVendor                    string      `json:"hardware_vendor"`
+	OSName                            string      `json:"os_name"`
+	OSVersion                         string      `json:"os_version"`
+	OSBuild                           string      `json:"os_build"`
+	OSPlatform                        string      `json:"os_platform"`
+	OsqueryVersion                    string      `json:"osquery_version"`
+	OrbitVersion                      string      `json:"orbit_version"`
+	OrbitNodeKey                      string      `json:"orbit_node_key"`
+	OsqueryNodeKey                    string      `json:"osquery_node_key"`
+	EnrollmentAgent                   string      `json:"enrollment_agent"`
+	CPUType                           string      `json:"cpu_type"`
+	CPUSubtype                        string      `json:"cpu_subtype"`
+	CPUBrand                          string      `json:"cpu_brand"`
+	CPULogicalCores                   int32       `json:"cpu_logical_cores"`
+	CPUPhysicalCores                  int32       `json:"cpu_physical_cores"`
+	MemoryBytes                       int64       `json:"memory_bytes"`
+	OSKernelVersion                   string      `json:"os_kernel_version"`
+	LastRestartedAt                   *time.Time  `json:"last_restarted_at"`
+	BootVolumeAvailableBytes          *int64      `json:"boot_volume_available_bytes"`
+	BootVolumeTotalBytes              *int64      `json:"boot_volume_total_bytes"`
+	LastRemoteIP                      *netip.Addr `json:"last_remote_ip"`
+	PrimaryIP                         *netip.Addr `json:"primary_ip"`
+	PrimaryMAC                        string      `json:"primary_mac"`
+	OsqueryDistributedIntervalSeconds *int32      `json:"osquery_distributed_interval_seconds"`
+	OsqueryConfigRefreshSeconds       *int32      `json:"osquery_config_refresh_seconds"`
+	InventoryQueryHash                string      `json:"inventory_query_hash"`
+	EnrolledAt                        *time.Time  `json:"enrolled_at"`
+	LastSeenAt                        *time.Time  `json:"last_seen_at"`
+	InventoryUpdatedAt                *time.Time  `json:"inventory_updated_at"`
+	CreatedAt                         time.Time   `json:"created_at"`
+	UpdatedAt                         time.Time   `json:"updated_at"`
 }
 
 type HostBattery struct {
@@ -706,15 +705,6 @@ type HostDirectoryUser struct {
 	UpdatedAt       time.Time               `json:"updated_at"`
 }
 
-type HostEmail struct {
-	ID        int64                  `json:"id"`
-	HostID    int64                  `json:"host_id"`
-	Email     string                 `json:"email"`
-	Source    HostUserAffinitySource `json:"source"`
-	CreatedAt time.Time              `json:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at"`
-}
-
 type HostSoftware struct {
 	HostID       int64      `json:"host_id"`
 	SoftwareID   int64      `json:"software_id"`
@@ -745,6 +735,15 @@ type HostUser struct {
 	Shell       string    `json:"shell"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type HostUserAffinityMapping struct {
+	ID        int64                  `json:"id"`
+	HostID    int64                  `json:"host_id"`
+	Email     string                 `json:"email"`
+	Source    HostUserAffinitySource `json:"source"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 type Label struct {

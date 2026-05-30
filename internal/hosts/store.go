@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -23,15 +24,15 @@ func NewStore(db *database.DB) *Store {
 }
 
 // UpsertOnOrbitEnroll creates or refreshes a host from Orbit enroll.
-func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
+func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	row, err := s.q.UpsertHostOnOrbitEnroll(ctx, sqlc.UpsertHostOnOrbitEnrollParams{
-		HardwareUUID:   update.HardwareUUID,
-		DisplayName:    displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
-		Hostname:       update.Hostname,
-		ComputerName:   update.ComputerName,
-		HardwareSerial: update.HardwareSerial,
-		HardwareModel:  update.HardwareModel,
-		OrbitNodeKey:   update.OrbitNodeKey,
+		HardwareUUID:            update.Hardware.UUID,
+		DisplayName:             displayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
+		Hostname:                update.Hostname,
+		ComputerName:            update.ComputerName,
+		HardwareSerial:          update.Hardware.Serial,
+		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
+		OrbitNodeKey:            update.OrbitNodeKey,
 	})
 	if err != nil {
 		return nil, err
@@ -43,27 +44,29 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update DetailUpdate) (*
 }
 
 // UpsertOnOsqueryEnroll creates or refreshes a host from osquery enroll.
-func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update DetailUpdate) (*Host, error) {
+func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdate) (*Host, error) {
 	row, err := s.q.UpsertHostOnOsqueryEnroll(ctx, sqlc.UpsertHostOnOsqueryEnrollParams{
-		HardwareUUID:     update.HardwareUUID,
-		DisplayName:      displayName(update.HardwareUUID, update.Hostname, update.ComputerName),
-		Hostname:         update.Hostname,
-		ComputerName:     update.ComputerName,
-		HardwareSerial:   update.HardwareSerial,
-		HardwareModel:    update.HardwareModel,
-		HardwareVersion:  update.HardwareVersion,
-		OSName:           update.OSName,
-		OSVersion:        update.OSVersion,
-		OSBuild:          update.OSBuild,
-		OsqueryVersion:   update.OsqueryVersion,
-		OsqueryNodeKey:   update.OsqueryNodeKey,
-		OrbitVersion:     update.OrbitVersion,
-		CPUBrand:         update.CPUBrand,
-		CPULogicalCores:  update.CPULogicalCores,
-		CPUPhysicalCores: update.CPUPhysicalCores,
-		PhysicalMemory:   update.PhysicalMemory,
-		HardwareVendor:   update.HardwareVendor,
-		KernelVersion:    update.KernelVersion,
+		HardwareUUID:            update.Hardware.UUID,
+		DisplayName:             displayName(update.Hardware.UUID, update.Hostname, update.ComputerName),
+		Hostname:                update.Hostname,
+		ComputerName:            update.ComputerName,
+		HardwareSerial:          update.Hardware.Serial,
+		HardwareModelIdentifier: update.Hardware.ModelIdentifier,
+		OSName:                  update.OS.Name,
+		OSVersion:               update.OS.Version,
+		OSBuild:                 update.OS.Build,
+		OSPlatform:              update.OS.Platform,
+		OsqueryVersion:          update.Agents.Osquery.Version,
+		OsqueryNodeKey:          update.OsqueryNodeKey,
+		OrbitVersion:            update.Agents.Orbit.Version,
+		CPUType:                 update.Hardware.CPU.Architecture,
+		CPUSubtype:              update.Hardware.CPU.Subtype,
+		CPUBrand:                update.Hardware.CPU.Brand,
+		CPULogicalCores:         update.Hardware.CPU.LogicalCores,
+		CPUPhysicalCores:        update.Hardware.CPU.PhysicalCores,
+		MemoryBytes:             update.Hardware.MemoryBytes,
+		HardwareVendor:          update.Hardware.Vendor,
+		OSKernelVersion:         update.OS.KernelVersion,
 	})
 	if err != nil {
 		return nil, err
@@ -102,7 +105,7 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]Host, int, error
 	for i, row := range dbHosts {
 		hosts[i] = hostFromSQLC(row)
 	}
-	if err := s.attachDeviceMappings(ctx, hosts); err != nil {
+	if err := s.attachUserAffinity(ctx, hosts); err != nil {
 		return nil, 0, err
 	}
 	return hosts, count, nil
@@ -161,35 +164,35 @@ func (s *Store) GetByOsqueryNodeKey(ctx context.Context, nodeKey string) (*Host,
 	return new(hostFromSQLC(row)), nil
 }
 
-func (s *Store) ApplyDetail(ctx context.Context, hostID int64, update DetailUpdate) error {
-	return s.q.ApplyHostDetail(ctx, sqlc.ApplyHostDetailParams{
-		ID:                      hostID,
-		Hostname:                update.Hostname,
-		ComputerName:            update.ComputerName,
-		HardwareSerial:          update.HardwareSerial,
-		HardwareModel:           update.HardwareModel,
-		HardwareVersion:         update.HardwareVersion,
-		OSName:                  update.OSName,
-		OSVersion:               update.OSVersion,
-		OSBuild:                 update.OSBuild,
-		OsqueryVersion:          update.OsqueryVersion,
-		OrbitVersion:            update.OrbitVersion,
-		CPUType:                 update.CPUType,
-		CPUSubtype:              update.CPUSubtype,
-		CPUBrand:                update.CPUBrand,
-		CPULogicalCores:         update.CPULogicalCores,
-		CPUPhysicalCores:        update.CPUPhysicalCores,
-		PhysicalMemory:          update.PhysicalMemory,
-		HardwareVendor:          update.HardwareVendor,
-		KernelVersion:           update.KernelVersion,
-		LastRestartedAt:         update.LastRestartedAt,
-		DiskSpaceAvailableBytes: update.DiskSpaceAvailableBytes,
-		DiskSpaceTotalBytes:     update.DiskSpaceTotalBytes,
-		PublicIP:                update.PublicIP,
-		PrimaryIP:               update.PrimaryIP,
-		PrimaryMAC:              update.PrimaryMAC,
-		DistributedInterval:     update.DistributedInterval,
-		ConfigTLSRefresh:        update.ConfigTLSRefresh,
+func (s *Store) ApplyInventory(ctx context.Context, hostID int64, update InventoryUpdate) error {
+	return s.q.ApplyHostInventory(ctx, sqlc.ApplyHostInventoryParams{
+		ID:                                hostID,
+		Hostname:                          update.Hostname,
+		ComputerName:                      update.ComputerName,
+		HardwareSerial:                    update.Hardware.Serial,
+		HardwareModelIdentifier:           update.Hardware.ModelIdentifier,
+		OSName:                            update.OS.Name,
+		OSVersion:                         update.OS.Version,
+		OSBuild:                           update.OS.Build,
+		OSPlatform:                        update.OS.Platform,
+		OsqueryVersion:                    update.Agents.Osquery.Version,
+		OrbitVersion:                      update.Agents.Orbit.Version,
+		CPUType:                           update.Hardware.CPU.Architecture,
+		CPUSubtype:                        update.Hardware.CPU.Subtype,
+		CPUBrand:                          update.Hardware.CPU.Brand,
+		CPULogicalCores:                   update.Hardware.CPU.LogicalCores,
+		CPUPhysicalCores:                  update.Hardware.CPU.PhysicalCores,
+		MemoryBytes:                       update.Hardware.MemoryBytes,
+		HardwareVendor:                    update.Hardware.Vendor,
+		OSKernelVersion:                   update.OS.KernelVersion,
+		LastRestartedAt:                   update.Timestamps.LastRestartedAt,
+		BootVolumeAvailableBytes:          update.Storage.BootVolume.AvailableBytes,
+		BootVolumeTotalBytes:              update.Storage.BootVolume.TotalBytes,
+		LastRemoteIP:                      update.Network.LastRemoteIP,
+		PrimaryIP:                         update.Network.PrimaryIP,
+		PrimaryMAC:                        update.Network.PrimaryMAC,
+		OsqueryDistributedIntervalSeconds: update.Agents.Osquery.DistributedIntervalSeconds,
+		OsqueryConfigRefreshSeconds:       update.Agents.Osquery.ConfigRefreshSeconds,
 	})
 }
 
@@ -326,11 +329,14 @@ func (s *Store) ListCertificates(ctx context.Context, hostID int64) ([]HostCerti
 	return certificates, nil
 }
 
-func (s *Store) MarkDetailFresh(ctx context.Context, hostID int64, detailQueryHash string) error {
-	return s.q.MarkHostDetailFresh(ctx, sqlc.MarkHostDetailFreshParams{ID: hostID, DetailQueryHash: detailQueryHash})
+func (s *Store) MarkInventoryFresh(ctx context.Context, hostID int64, inventoryQueryHash string) error {
+	return s.q.MarkHostInventoryFresh(ctx, sqlc.MarkHostInventoryFreshParams{
+		ID:                 hostID,
+		InventoryQueryHash: inventoryQueryHash,
+	})
 }
 
-func (s *Store) attachDeviceMappings(ctx context.Context, hosts []Host) error {
+func (s *Store) attachUserAffinity(ctx context.Context, hosts []Host) error {
 	if len(hosts) == 0 {
 		return nil
 	}
@@ -338,15 +344,27 @@ func (s *Store) attachDeviceMappings(ctx context.Context, hosts []Host) error {
 	for i := range hosts {
 		hostIDs[i] = hosts[i].ID
 	}
-	rows, err := s.q.ListHostDeviceMappingsForHosts(ctx, sqlc.ListHostDeviceMappingsForHostsParams{
+	rows, err := s.q.ListHostUserAffinityMappingsForHosts(ctx, sqlc.ListHostUserAffinityMappingsForHostsParams{
 		HostIds: hostIDs,
 	})
 	if err != nil {
 		return err
 	}
-	grouped := groupHostDeviceMappings(rows, len(hostIDs))
+	grouped := groupHostUserAffinityMappings(rows, len(hostIDs))
 	for i := range hosts {
-		hosts[i].DeviceMappings = grouped[hosts[i].ID]
+		mappings := grouped[hosts[i].ID]
+		if mappings == nil {
+			mappings = []HostUserAffinityMapping{}
+		}
+		hosts[i].UserAffinity.Mappings = mappings
+		if len(mappings) == 0 {
+			continue
+		}
+		primary, err := s.loadHostUserAffinityPrimary(ctx, hosts[i].ID)
+		if err != nil {
+			return err
+		}
+		hosts[i].UserAffinity.Primary = primary
 	}
 	return nil
 }
@@ -357,18 +375,18 @@ func hostListSQLWithWhere(params ListParams, where string, args []any) (string, 
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"display_name":               {SQL: "lower(display_name)"},
-			"hardware_serial":            {SQL: "lower(hardware_serial)"},
-			"hardware_model":             {SQL: "lower(hardware_model)"},
-			"hardware_uuid":              {SQL: "hardware_uuid"},
-			"os_version":                 {SQL: "lower(os_version)"},
-			"osquery_version":            {SQL: "lower(osquery_version)"},
-			"last_seen_at":               {SQL: "last_seen_at", NullOrder: dbutil.NullsLast},
-			"last_restarted_at":          {SQL: "last_restarted_at", NullOrder: dbutil.NullsLast},
-			"disk_space_available_bytes": {SQL: "disk_space_available_bytes", NullOrder: dbutil.NullsLast},
-			"physical_memory":            {SQL: "physical_memory"},
-			"primary_ip":                 {SQL: "primary_ip", NullOrder: dbutil.NullsLast},
-			"public_ip":                  {SQL: "public_ip", NullOrder: dbutil.NullsLast},
+			"display_name":                        {SQL: "lower(display_name)"},
+			"hardware.serial":                     {SQL: "lower(hardware_serial)"},
+			"hardware.model_identifier":           {SQL: "lower(hardware_model_identifier)"},
+			"hardware.uuid":                       {SQL: "hardware_uuid"},
+			"os.version":                          {SQL: "lower(os_version)"},
+			"agents.osquery.version":              {SQL: "lower(osquery_version)"},
+			"timestamps.last_seen_at":             {SQL: "last_seen_at", NullOrder: dbutil.NullsLast},
+			"timestamps.last_restarted_at":        {SQL: "last_restarted_at", NullOrder: dbutil.NullsLast},
+			"storage.boot_volume.available_bytes": {SQL: "boot_volume_available_bytes", NullOrder: dbutil.NullsLast},
+			"hardware.memory_bytes":               {SQL: "memory_bytes"},
+			"network.primary_ip":                  {SQL: "primary_ip", NullOrder: dbutil.NullsLast},
+			"network.last_remote_ip":              {SQL: "last_remote_ip", NullOrder: dbutil.NullsLast},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(display_name)"}, {SQL: "id"}},
 		Params:       params.ListParams,
@@ -382,16 +400,16 @@ func hostListWhere(params ListParams) (string, []any, error) {
 		where.Add(`(
 			display_name ILIKE ` + search + `
 			OR hostname ILIKE ` + search + `
-			OR computer_name ILIKE ` + search + `
-			OR hardware_serial ILIKE ` + search + `
-			OR hardware_uuid ILIKE ` + search + `
-			OR hardware_model ILIKE ` + search + `
-			OR os_version ILIKE ` + search + `
-			OR EXISTS (
-				SELECT 1 FROM host_emails he
-				WHERE he.host_id = hosts.id AND he.email ILIKE ` + search + `
-			)
-		)`)
+				OR computer_name ILIKE ` + search + `
+				OR hardware_serial ILIKE ` + search + `
+				OR hardware_uuid ILIKE ` + search + `
+				OR hardware_model_identifier ILIKE ` + search + `
+				OR os_version ILIKE ` + search + `
+				OR EXISTS (
+					SELECT 1 FROM host_user_affinity_mappings he
+					WHERE he.host_id = hosts.id AND he.email ILIKE ` + search + `
+				)
+			)`)
 	}
 	if len(params.IDs) > 0 {
 		ids := where.Arg(params.IDs)
@@ -480,47 +498,95 @@ func displayName(hardwareUUID, hostname, computerName string) string {
 	return hardwareUUID
 }
 
+func statusFromLastSeen(lastSeen *time.Time, now time.Time) HostStatus {
+	if lastSeen == nil || lastSeen.Before(now.Add(-hostOnlineWindow)) {
+		return HostStatusOffline
+	}
+	return HostStatusOnline
+}
+
+func (s *Store) loadHostUserAffinityPrimary(ctx context.Context, hostID int64) (*HostUserAffinityPrimary, error) {
+	row, err := s.q.LoadHostUserAffinityPrimary(ctx, sqlc.LoadHostUserAffinityPrimaryParams{
+		AffinityHostID: hostID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil //nolint:nilnil // no host affinity is represented as an omitted primary object.
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &HostUserAffinityPrimary{
+		Email:      row.Email,
+		Username:   row.Username,
+		Name:       row.Name,
+		Department: row.Department,
+		Groups:     row.Groups,
+		Source:     UserAffinitySource(row.Source),
+	}, nil
+}
+
 func hostFromSQLC(s sqlc.Host) Host {
 	return Host{
-		ID:                      s.ID,
-		HardwareUUID:            s.HardwareUUID,
-		DisplayName:             s.DisplayName,
-		Hostname:                s.Hostname,
-		ComputerName:            s.ComputerName,
-		HardwareSerial:          s.HardwareSerial,
-		HardwareModel:           s.HardwareModel,
-		HardwareVersion:         s.HardwareVersion,
-		HardwareVendor:          s.HardwareVendor,
-		OSName:                  s.OSName,
-		OSVersion:               s.OSVersion,
-		OSBuild:                 s.OSBuild,
-		OsqueryVersion:          s.OsqueryVersion,
-		OrbitVersion:            s.OrbitVersion,
-		OrbitNodeKey:            s.OrbitNodeKey,
-		OsqueryNodeKey:          s.OsqueryNodeKey,
-		CPUType:                 s.CPUType,
-		CPUSubtype:              s.CPUSubtype,
-		CPUBrand:                s.CPUBrand,
-		CPULogicalCores:         s.CPULogicalCores,
-		CPUPhysicalCores:        s.CPUPhysicalCores,
-		PhysicalMemory:          s.PhysicalMemory,
-		KernelVersion:           s.KernelVersion,
-		LastRestartedAt:         s.LastRestartedAt,
-		DiskSpaceAvailableBytes: s.DiskSpaceAvailableBytes,
-		DiskSpaceTotalBytes:     s.DiskSpaceTotalBytes,
-		PublicIP:                s.PublicIP,
-		PrimaryIP:               s.PrimaryIP,
-		PrimaryMAC:              s.PrimaryMAC,
-		DistributedInterval:     s.DistributedInterval,
-		ConfigTLSRefresh:        s.ConfigTLSRefresh,
-		DetailQueryHash:         s.DetailQueryHash,
-		EnrolledAt:              s.EnrolledAt,
-		LastSeenAt:              s.LastSeenAt,
-		DetailUpdatedAt:         s.DetailUpdatedAt,
-		LabelUpdatedAt:          s.LabelUpdatedAt,
-		SoftwareUpdatedAt:       s.SoftwareUpdatedAt,
-		CreatedAt:               s.CreatedAt,
-		UpdatedAt:               s.UpdatedAt,
+		ID:           s.ID,
+		DisplayName:  s.DisplayName,
+		Status:       statusFromLastSeen(s.LastSeenAt, time.Now()),
+		Hostname:     s.Hostname,
+		ComputerName: s.ComputerName,
+		Enrollment: HostEnrollment{
+			Agent:      s.EnrollmentAgent,
+			EnrolledAt: s.EnrolledAt,
+		},
+		Hardware: HostHardware{
+			UUID:            s.HardwareUUID,
+			Serial:          s.HardwareSerial,
+			Vendor:          s.HardwareVendor,
+			ModelIdentifier: s.HardwareModelIdentifier,
+			MemoryBytes:     s.MemoryBytes,
+			CPU: HostCPU{
+				Architecture:  s.CPUType,
+				Subtype:       s.CPUSubtype,
+				Brand:         s.CPUBrand,
+				LogicalCores:  s.CPULogicalCores,
+				PhysicalCores: s.CPUPhysicalCores,
+			},
+		},
+		OS: HostOS{
+			Platform:      s.OSPlatform,
+			Name:          s.OSName,
+			Version:       s.OSVersion,
+			Build:         s.OSBuild,
+			KernelVersion: s.OSKernelVersion,
+		},
+		Storage: HostStorage{
+			BootVolume: HostBootVolume{
+				AvailableBytes: s.BootVolumeAvailableBytes,
+				TotalBytes:     s.BootVolumeTotalBytes,
+			},
+		},
+		Network: HostNetwork{
+			PrimaryIP:    s.PrimaryIP,
+			PrimaryMAC:   s.PrimaryMAC,
+			LastRemoteIP: s.LastRemoteIP,
+		},
+		Agents: HostAgents{
+			Osquery: HostOsqueryAgent{
+				Version:                    s.OsqueryVersion,
+				DistributedIntervalSeconds: s.OsqueryDistributedIntervalSeconds,
+				ConfigRefreshSeconds:       s.OsqueryConfigRefreshSeconds,
+			},
+			Orbit: HostOrbitAgent{Version: s.OrbitVersion},
+		},
+		UserAffinity: HostUserAffinity{Mappings: []HostUserAffinityMapping{}},
+		Timestamps: HostTimestamps{
+			CreatedAt:          s.CreatedAt,
+			UpdatedAt:          s.UpdatedAt,
+			LastSeenAt:         s.LastSeenAt,
+			InventoryUpdatedAt: s.InventoryUpdatedAt,
+			LastRestartedAt:    s.LastRestartedAt,
+		},
+		OrbitNodeKey:       s.OrbitNodeKey,
+		OsqueryNodeKey:     s.OsqueryNodeKey,
+		InventoryQueryHash: s.InventoryQueryHash,
 	}
 }
 

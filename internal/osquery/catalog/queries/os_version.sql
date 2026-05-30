@@ -1,1 +1,1 @@
-SELECT name, version, major, minor, build FROM os_version;
+SELECT name, version, major, minor, build, platform FROM os_version;

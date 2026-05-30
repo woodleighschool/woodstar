@@ -9,7 +9,7 @@ FROM (
     SELECT DISTINCT ON (he.host_id)
         he.host_id,
         du.id AS directory_user_id
-    FROM host_emails he
+    FROM host_user_affinity_mappings he
     INNER JOIN directory_users du ON lower(du.user_principal_name) = lower(he.email)
     WHERE he.source::text = ANY(@affinity_sources::text[])
     ORDER BY he.host_id, CASE he.source

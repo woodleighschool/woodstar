@@ -14,8 +14,8 @@ import (
 )
 
 type hostStore interface {
-	MarkDetailFresh(context.Context, int64, string) error
-	ApplyDetail(context.Context, int64, hosts.DetailUpdate) error
+	MarkInventoryFresh(context.Context, int64, string) error
+	ApplyInventory(context.Context, int64, hosts.InventoryUpdate) error
 	ReplaceUsers(context.Context, int64, []hosts.HostUser) error
 	ReplaceBatteries(context.Context, int64, []hosts.HostBattery) error
 	ReplaceCertificates(context.Context, int64, []hosts.HostCertificate) error
@@ -36,7 +36,7 @@ func NewProjector(hostStore hostStore, softwareStore softwareStore, logger *slog
 }
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
-	return p.hostStore.MarkDetailFresh(ctx, hostID, catalog.DetailQueryHash())
+	return p.hostStore.MarkInventoryFresh(ctx, hostID, catalog.DetailQueryHash())
 }
 
 // IngestDetail dispatches a single detail query result to the appropriate ingester.
@@ -123,7 +123,7 @@ func ingestHostDetail(
 		return nil
 	}
 	name = canonicalHostDetailName(name)
-	return projector.hostStore.ApplyDetail(
+	return projector.hostStore.ApplyInventory(
 		ctx,
 		hostID,
 		ParseHostDetails(map[string]map[string]string{name: rows[0]}),
@@ -142,14 +142,14 @@ func canonicalHostDetailName(name string) string {
 }
 
 func ingestOsqueryFlags(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
-	return projector.hostStore.ApplyDetail(ctx, hostID, parseOsqueryFlags(rows))
+	return projector.hostStore.ApplyInventory(ctx, hostID, parseOsqueryFlags(rows))
 }
 
 func ingestUptime(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return projector.hostStore.ApplyDetail(
+	return projector.hostStore.ApplyInventory(
 		ctx,
 		hostID,
 		ParseHostDetails(map[string]map[string]string{catalog.QueryUptime: rows[0]}),
@@ -326,14 +326,14 @@ func parseBool(value string) bool {
 	}
 }
 
-func parseOsqueryFlags(rows []map[string]string) hosts.DetailUpdate {
-	var update hosts.DetailUpdate
+func parseOsqueryFlags(rows []map[string]string) hosts.InventoryUpdate {
+	var update hosts.InventoryUpdate
 	for _, row := range rows {
 		switch row["name"] {
 		case "distributed_interval":
-			update.DistributedInterval = parseInt32Ptr(row["value"])
+			update.Agents.Osquery.DistributedIntervalSeconds = parseInt32Ptr(row["value"])
 		case "config_tls_refresh":
-			update.ConfigTLSRefresh = parseInt32Ptr(row["value"])
+			update.Agents.Osquery.ConfigRefreshSeconds = parseInt32Ptr(row["value"])
 		}
 	}
 	return update

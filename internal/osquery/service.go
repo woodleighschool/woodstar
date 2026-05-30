@@ -43,9 +43,9 @@ type Dependencies struct {
 }
 
 type hostStore interface {
-	UpsertOnOsqueryEnroll(context.Context, hosts.DetailUpdate) (*hosts.Host, error)
+	UpsertOnOsqueryEnroll(context.Context, hosts.InventoryUpdate) (*hosts.Host, error)
 	GetByOsqueryNodeKey(context.Context, string) (*hosts.Host, error)
-	ApplyDetail(context.Context, int64, hosts.DetailUpdate) error
+	ApplyInventory(context.Context, int64, hosts.InventoryUpdate) error
 }
 
 type inventoryProjector interface {
@@ -95,10 +95,10 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 	}
 
 	update := ingest.ParseHostDetails(req.HostDetails)
-	if update.HardwareUUID == "" {
-		update.HardwareUUID = req.HostIdentifier
+	if update.Hardware.UUID == "" {
+		update.Hardware.UUID = req.HostIdentifier
 	}
-	if update.HardwareUUID == "" {
+	if update.Hardware.UUID == "" {
 		return "", orbit.ErrMissingHardwareUUID
 	}
 	update.OsqueryNodeKey = nodeKey
@@ -111,7 +111,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 		ctx,
 		"osquery host enrolled", "operation", "enroll",
 		"host_id", host.ID,
-		"hardware_uuid", host.HardwareUUID,
+		"hardware_uuid", host.Hardware.UUID,
 		"display_name", host.DisplayName,
 	)
 	return nodeKey, nil
@@ -160,7 +160,7 @@ func (s *Service) DistributedRead(
 		return DistributedReadResponse{}, err
 	}
 
-	due := catalog.DetailQueriesDue(host.DetailUpdatedAt, host.DetailQueryHash)
+	due := catalog.DetailQueriesDue(host.Timestamps.InventoryUpdatedAt, host.InventoryQueryHash)
 	detailQueries := make(map[string]string, len(due.Queries))
 	for suffix, sql := range due.Queries {
 		detailQueries[detailQueryName(suffix)] = sql
@@ -281,7 +281,9 @@ func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publ
 	if publicIP == "" {
 		return nil
 	}
-	return s.hostStore.ApplyDetail(ctx, host.ID, hosts.DetailUpdate{PublicIP: publicIP})
+	return s.hostStore.ApplyInventory(ctx, host.ID, hosts.InventoryUpdate{
+		Network: hosts.InventoryNetwork{LastRemoteIP: publicIP},
+	})
 }
 
 func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {

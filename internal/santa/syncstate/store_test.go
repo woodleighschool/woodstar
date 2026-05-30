@@ -292,8 +292,8 @@ func countRows(t *testing.T, ctx context.Context, db *database.DB, table string,
 func createHost(t *testing.T, ctx context.Context, db *database.DB, suffix string) *hosts.Host {
 	t.Helper()
 
-	host, err := hosts.NewStore(db).UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "syncstate-" + suffix + "-host",
+	host, err := hosts.NewStore(db).UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "syncstate-" + suffix + "-host"},
 		OrbitNodeKey: "syncstate-" + suffix + "-orbit",
 	})
 	if err != nil {

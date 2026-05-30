@@ -10,17 +10,17 @@ import (
 
 // Service performs Orbit-protocol operations against the host store.
 type Service struct {
-	hostStore          *hosts.Store
-	secretStore        *agentauth.Store
-	deviceMappingStore *hosts.DeviceMappingStore
+	hostStore         *hosts.Store
+	secretStore       *agentauth.Store
+	userAffinityStore *hosts.UserAffinityStore
 }
 
 func NewService(
 	hostStore *hosts.Store,
 	secretStore *agentauth.Store,
-	deviceMappingStore *hosts.DeviceMappingStore,
+	userAffinityStore *hosts.UserAffinityStore,
 ) *Service {
-	return &Service{hostStore: hostStore, secretStore: secretStore, deviceMappingStore: deviceMappingStore}
+	return &Service{hostStore: hostStore, secretStore: secretStore, userAffinityStore: userAffinityStore}
 }
 
 // Enroll validates the request, upserts the host, and returns a fresh node key.
@@ -36,13 +36,15 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 		return nil, "", err
 	}
 
-	host, err := s.hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   req.HardwareUUID,
-		HardwareSerial: req.HardwareSerial,
-		Hostname:       req.Hostname,
-		ComputerName:   req.ComputerName,
-		HardwareModel:  req.HardwareModel,
-		OrbitNodeKey:   nodeKey,
+	host, err := s.hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:            req.HardwareUUID,
+			Serial:          req.HardwareSerial,
+			ModelIdentifier: req.HardwareModel,
+		},
+		Hostname:     req.Hostname,
+		ComputerName: req.ComputerName,
+		OrbitNodeKey: nodeKey,
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("upsert host: %w", err)
@@ -64,11 +66,11 @@ func (s *Service) ValidateNodeKey(ctx context.Context, nodeKey string) error {
 	return err
 }
 
-// SetDeviceMapping records a profile-provided email for the host.
-func (s *Service) SetDeviceMapping(ctx context.Context, nodeKey, email string) error {
+// SetUserAffinity records a profile-provided email for the host.
+func (s *Service) SetUserAffinity(ctx context.Context, nodeKey, email string) error {
 	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		return err
 	}
-	return s.deviceMappingStore.Upsert(ctx, host.ID, email, hosts.DeviceMappingSourceOrbitProfile)
+	return s.userAffinityStore.Upsert(ctx, host.ID, email, hosts.UserAffinitySourceOrbitProfile)
 }

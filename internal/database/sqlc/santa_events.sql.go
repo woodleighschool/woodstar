@@ -18,7 +18,7 @@ SELECT
     h.hostname,
     h.computer_name,
     h.hardware_serial,
-    h.hardware_model,
+    h.hardware_model_identifier,
     COALESCE(sh.machine_id, '') AS santa_machine_id,
     COALESCE(sh.santa_version, '') AS santa_version,
     COALESCE(sh.client_mode_reported::text, '')::text AS santa_client_mode,
@@ -93,7 +93,7 @@ type GetSantaExecutionEventRow struct {
 	Hostname                    string     `json:"hostname"`
 	ComputerName                string     `json:"computer_name"`
 	HardwareSerial              string     `json:"hardware_serial"`
-	HardwareModel               string     `json:"hardware_model"`
+	HardwareModelIdentifier     string     `json:"hardware_model_identifier"`
 	SantaMachineID              string     `json:"santa_machine_id"`
 	SantaVersion                string     `json:"santa_version"`
 	SantaClientMode             string     `json:"santa_client_mode"`
@@ -140,7 +140,7 @@ func (q *Queries) GetSantaExecutionEvent(ctx context.Context, arg GetSantaExecut
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
+		&i.HardwareModelIdentifier,
 		&i.SantaMachineID,
 		&i.SantaVersion,
 		&i.SantaClientMode,
@@ -187,7 +187,7 @@ SELECT
     h.hostname,
     h.computer_name,
     h.hardware_serial,
-    h.hardware_model,
+    h.hardware_model_identifier,
     COALESCE(sh.machine_id, '') AS santa_machine_id,
     COALESCE(sh.santa_version, '') AS santa_version,
     COALESCE(sh.client_mode_reported::text, '')::text AS santa_client_mode,
@@ -209,23 +209,23 @@ type GetSantaFileAccessEventParams struct {
 }
 
 type GetSantaFileAccessEventRow struct {
-	ID              int64     `json:"id"`
-	HostID          int64     `json:"host_id"`
-	DisplayName     string    `json:"display_name"`
-	Hostname        string    `json:"hostname"`
-	ComputerName    string    `json:"computer_name"`
-	HardwareSerial  string    `json:"hardware_serial"`
-	HardwareModel   string    `json:"hardware_model"`
-	SantaMachineID  string    `json:"santa_machine_id"`
-	SantaVersion    string    `json:"santa_version"`
-	SantaClientMode string    `json:"santa_client_mode"`
-	RuleVersion     string    `json:"rule_version"`
-	RuleName        string    `json:"rule_name"`
-	Target          string    `json:"target"`
-	Decision        string    `json:"decision"`
-	ProcessChain    []byte    `json:"process_chain"`
-	OccurredAt      time.Time `json:"occurred_at"`
-	IngestedAt      time.Time `json:"ingested_at"`
+	ID                      int64     `json:"id"`
+	HostID                  int64     `json:"host_id"`
+	DisplayName             string    `json:"display_name"`
+	Hostname                string    `json:"hostname"`
+	ComputerName            string    `json:"computer_name"`
+	HardwareSerial          string    `json:"hardware_serial"`
+	HardwareModelIdentifier string    `json:"hardware_model_identifier"`
+	SantaMachineID          string    `json:"santa_machine_id"`
+	SantaVersion            string    `json:"santa_version"`
+	SantaClientMode         string    `json:"santa_client_mode"`
+	RuleVersion             string    `json:"rule_version"`
+	RuleName                string    `json:"rule_name"`
+	Target                  string    `json:"target"`
+	Decision                string    `json:"decision"`
+	ProcessChain            []byte    `json:"process_chain"`
+	OccurredAt              time.Time `json:"occurred_at"`
+	IngestedAt              time.Time `json:"ingested_at"`
 }
 
 func (q *Queries) GetSantaFileAccessEvent(ctx context.Context, arg GetSantaFileAccessEventParams) (GetSantaFileAccessEventRow, error) {
@@ -238,7 +238,7 @@ func (q *Queries) GetSantaFileAccessEvent(ctx context.Context, arg GetSantaFileA
 		&i.Hostname,
 		&i.ComputerName,
 		&i.HardwareSerial,
-		&i.HardwareModel,
+		&i.HardwareModelIdentifier,
 		&i.SantaMachineID,
 		&i.SantaVersion,
 		&i.SantaClientMode,

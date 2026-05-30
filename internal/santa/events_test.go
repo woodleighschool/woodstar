@@ -31,10 +31,12 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 		Sync:           syncstate.NewStore(db),
 	})
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID:   "santa-events-host",
-		HardwareSerial: "SANTAEVENTS",
-		OrbitNodeKey:   "santa-events-orbit",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "santa-events-host",
+			Serial: "SANTAEVENTS",
+		},
+		OrbitNodeKey: "santa-events-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
@@ -223,8 +225,8 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 		Sync:           syncstate.NewStore(db),
 	})
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-bundle-events-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-bundle-events-host"},
 		OrbitNodeKey: "santa-bundle-events-orbit",
 	})
 	if err != nil {
@@ -317,8 +319,8 @@ func TestEventUploadRejectsEventsWithoutOccurrenceTime(t *testing.T) {
 		Sync:           syncstate.NewStore(db),
 	})
 
-	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-event-time-required-host",
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-event-time-required-host"},
 		OrbitNodeKey: "santa-event-time-required-orbit",
 	}); err != nil {
 		t.Fatalf("enroll host: %v", err)
@@ -346,8 +348,8 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 		Sync:           syncstate.NewStore(db),
 	})
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-file-access-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-file-access-host"},
 		Hostname:     "file-access.example.test",
 		OrbitNodeKey: "santa-file-access-orbit",
 	})
@@ -466,8 +468,8 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 		Sync:           syncstate.NewStore(db),
 	})
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-event-list-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-event-list-host"},
 		OrbitNodeKey: "santa-event-list-orbit",
 	})
 	if err != nil {
@@ -583,8 +585,8 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 		Sync:           syncstate.NewStore(db),
 	})
 
-	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-concurrent-chain-host",
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-concurrent-chain-host"},
 		OrbitNodeKey: "santa-concurrent-chain-orbit",
 	}); err != nil {
 		t.Fatalf("enroll host: %v", err)

@@ -23,7 +23,6 @@ import { useBulkDeleteHosts, useHosts, type Host } from "@/hooks/use-hosts";
 import { useLabels } from "@/hooks/use-labels";
 import { useSoftwareTitle, type SoftwareTitle } from "@/hooks/use-software";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { primaryDeviceMapping } from "@/lib/host-device-mappings";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatBytes, formatRelative } from "@/lib/utils";
 
@@ -76,17 +75,14 @@ export function HostsListPage() {
 
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  // Captured once on mount; "online" thresholds don't need second-by-second precision in a list.
-  const [now] = useState(() => Date.now());
-
   const hasFilters = !!search.q || !!search.status || !!search.label_id || isSoftwareFiltered || isCheckFiltered;
 
   const allColumns: ColumnDef<Host>[] = [
     {
       id: "display_name",
-      accessorFn: (row) => row.display_name || row.hardware_uuid,
+      accessorFn: (row) => row.display_name || row.hardware.uuid,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.display_name || row.original.hardware_uuid,
+      cell: ({ row }) => row.original.display_name || row.original.hardware.uuid,
       enableHiding: false,
       meta: { label: "Name" },
     },
@@ -94,95 +90,96 @@ export function HostsListPage() {
       id: "status",
       header: () => "Status",
       enableSorting: false,
-      cell: ({ row }) => <HostStatusBadge host={row.original} now={now} />,
+      cell: ({ row }) => <HostStatusBadge host={row.original} />,
       meta: { label: "Status" },
     },
     {
-      id: "os_version",
-      accessorKey: "os_version",
+      id: "os.version",
+      accessorFn: (row) => row.os.version,
       header: ({ column }) => <DataTableColumnHeader column={column} title="OS" />,
-      cell: ({ row }) => row.original.os_version || "-",
+      cell: ({ row }) => row.original.os.version || "-",
       meta: { label: "OS" },
     },
     {
-      id: "hardware_model",
-      accessorKey: "hardware_model",
+      id: "hardware.model_identifier",
+      accessorFn: (row) => row.hardware.model_identifier,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Model" />,
-      cell: ({ row }) => row.original.hardware_model || "-",
+      cell: ({ row }) => row.original.hardware.model_identifier || "-",
       meta: { label: "Model" },
     },
     {
-      id: "hardware_serial",
-      accessorKey: "hardware_serial",
+      id: "hardware.serial",
+      accessorFn: (row) => row.hardware.serial,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Serial" />,
-      cell: ({ row }) => row.original.hardware_serial || "-",
+      cell: ({ row }) => row.original.hardware.serial || "-",
       meta: { label: "Serial" },
     },
     {
-      id: "disk_space_available_bytes",
-      accessorKey: "disk_space_available_bytes",
+      id: "storage.boot_volume.available_bytes",
+      accessorFn: (row) => row.storage.boot_volume.available_bytes,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Disk Free" />,
       cell: ({ row }) =>
-        row.original.disk_space_available_bytes ? formatBytes(row.original.disk_space_available_bytes) : "-",
+        row.original.storage.boot_volume.available_bytes
+          ? formatBytes(row.original.storage.boot_volume.available_bytes)
+          : "-",
       meta: { label: "Disk Free" },
     },
     {
       id: "primary_user",
-      header: () => "User",
+      header: () => "User Email",
       enableSorting: false,
-      cell: ({ row }) => {
-        const email = primaryDeviceMapping(row.original.device_mappings)?.email ?? "";
-        return email || "-";
-      },
-      meta: { label: "User" },
+      cell: ({ row }) => row.original.user_affinity.primary?.email ?? "-",
+      meta: { label: "User Email" },
     },
     {
-      id: "last_seen_at",
-      accessorKey: "last_seen_at",
+      id: "timestamps.last_seen_at",
+      accessorFn: (row) => row.timestamps.last_seen_at,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Seen" />,
-      cell: ({ row }) => formatRelative(row.original.last_seen_at),
+      cell: ({ row }) => formatRelative(row.original.timestamps.last_seen_at),
       meta: { label: "Last Seen" },
     },
     {
-      id: "hardware_uuid",
-      accessorKey: "hardware_uuid",
+      id: "hardware.uuid",
+      accessorFn: (row) => row.hardware.uuid,
       header: ({ column }) => <DataTableColumnHeader column={column} title="UUID" />,
-      cell: ({ row }) => row.original.hardware_uuid || "-",
+      cell: ({ row }) => row.original.hardware.uuid || "-",
       meta: { label: "UUID" },
     },
     {
-      id: "primary_ip",
-      accessorKey: "primary_ip",
+      id: "network.primary_ip",
+      accessorFn: (row) => row.network.primary_ip,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Private IP" />,
-      cell: ({ row }) => row.original.primary_ip ?? "-",
+      cell: ({ row }) => row.original.network.primary_ip ?? "-",
       meta: { label: "Private IP" },
     },
     {
-      id: "public_ip",
-      accessorKey: "public_ip",
+      id: "network.last_remote_ip",
+      accessorFn: (row) => row.network.last_remote_ip,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Public IP" />,
-      cell: ({ row }) => row.original.public_ip ?? "-",
+      cell: ({ row }) => row.original.network.last_remote_ip ?? "-",
       meta: { label: "Public IP" },
     },
     {
-      id: "physical_memory",
-      accessorKey: "physical_memory",
+      id: "hardware.memory_bytes",
+      accessorFn: (row) => row.hardware.memory_bytes,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Memory" />,
-      cell: ({ row }) => (row.original.physical_memory > 0 ? formatBytes(row.original.physical_memory) : "-"),
+      cell: ({ row }) =>
+        row.original.hardware.memory_bytes > 0 ? formatBytes(row.original.hardware.memory_bytes) : "-",
       meta: { label: "Memory" },
     },
     {
-      id: "osquery_version",
-      accessorKey: "osquery_version",
+      id: "agents.osquery.version",
+      accessorFn: (row) => row.agents.osquery.version,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Osquery" />,
-      cell: ({ row }) => row.original.osquery_version || "-",
+      cell: ({ row }) => row.original.agents.osquery.version || "-",
       meta: { label: "Osquery Version" },
     },
     {
-      id: "last_restarted_at",
-      accessorKey: "last_restarted_at",
+      id: "timestamps.last_restarted_at",
+      accessorFn: (row) => row.timestamps.last_restarted_at,
       header: ({ column }) => <DataTableColumnHeader column={column} title="Last Restarted" />,
-      cell: ({ row }) => (row.original.last_restarted_at ? formatRelative(row.original.last_restarted_at) : "-"),
+      cell: ({ row }) =>
+        row.original.timestamps.last_restarted_at ? formatRelative(row.original.timestamps.last_restarted_at) : "-",
       meta: { label: "Last Restarted" },
     },
   ];
@@ -377,11 +374,7 @@ function softwareFilterLabel({
   return `Title #${softwareTitleID}`;
 }
 
-function HostStatusBadge({ host, now }: { host: Host; now: number }) {
-  if (!host.last_seen_at) {
-    return <Badge variant="secondary">Offline</Badge>;
-  }
-  const lastSeen = new Date(host.last_seen_at).getTime();
-  const online = now - lastSeen <= 5 * 60 * 1000;
+function HostStatusBadge({ host }: { host: Host }) {
+  const online = host.status === "online";
   return <Badge variant={online ? "success" : "secondary"}>{online ? "Online" : "Offline"}</Badge>;
 }

@@ -115,8 +115,10 @@ function parseSorting(sort: unknown): SortingState {
   if (typeof sort !== "string" || sort === "") {
     return [];
   }
-  const [id, direction] = sort.split(".");
-  if (!id) {
+  const dot = sort.lastIndexOf(".");
+  const id = dot === -1 ? sort : sort.slice(0, dot);
+  const direction = dot === -1 ? "asc" : sort.slice(dot + 1);
+  if (!id || (direction !== "asc" && direction !== "desc")) {
     return [];
   }
   return [{ id, desc: direction === "desc" }];

@@ -117,8 +117,8 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	labelStore := labels.NewStore(db)
 	store := configurations.NewStore(db)
 
-	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.DetailUpdate{
-		HardwareUUID: "santa-configuration-resolver-host",
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-configuration-resolver-host"},
 		OrbitNodeKey: "santa-configuration-resolver-orbit",
 	})
 	if err != nil {

@@ -33,9 +33,6 @@ func TestLabelEvaluatorFinalizeUpdatesOnlyApplicableSuccessfulLabels(t *testing.
 	if store.setCalls[1] != (fakeSetCall{labelID: 2, hostID: 9, matched: false}) {
 		t.Fatalf("second set call = %#v", store.setCalls[1])
 	}
-	if store.markedHostID != 9 {
-		t.Fatalf("markedHostID = %d, want 9", store.markedHostID)
-	}
 }
 
 func TestLabelEvaluatorFinalizeNoOpOnEmpty(t *testing.T) {
@@ -52,9 +49,8 @@ func TestLabelEvaluatorFinalizeNoOpOnEmpty(t *testing.T) {
 }
 
 type fakelabelStore struct {
-	applicable   map[int64]struct{}
-	setCalls     []fakeSetCall
-	markedHostID int64
+	applicable map[int64]struct{}
+	setCalls   []fakeSetCall
 }
 
 type fakeSetCall struct {
@@ -76,10 +72,5 @@ func (s *fakelabelStore) ApplicableDynamicIDs(
 
 func (s *fakelabelStore) SetMembership(_ context.Context, labelID int64, hostID int64, matched bool) error {
 	s.setCalls = append(s.setCalls, fakeSetCall{labelID: labelID, hostID: hostID, matched: matched})
-	return nil
-}
-
-func (s *fakelabelStore) MarkHostLabelsFresh(_ context.Context, hostID int64) error {
-	s.markedHostID = hostID
 	return nil
 }
