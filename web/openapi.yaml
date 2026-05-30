@@ -2775,18 +2775,26 @@ components:
         binary_count:
           format: int32
           type: integer
-        bundle_id:
+        bundle_identifier:
+          type: string
+        certificate_common_name:
+          type: string
+        certificate_organization:
+          type: string
+        certificate_organizational_unit:
           type: string
         collected_binary_count:
           format: int32
           type: integer
         complete:
           type: boolean
-        detail:
+        display_name:
+          type: string
+        file_name:
           type: string
         identifier:
           type: string
-        name:
+        path:
           type: string
         rule_count:
           format: int32
@@ -2805,7 +2813,6 @@ components:
       required:
         - target_type
         - identifier
-        - name
         - rule_count
         - complete
       type: object

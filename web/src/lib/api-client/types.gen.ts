@@ -1027,12 +1027,16 @@ export type RuleSyncSummary = {
 
 export type RuleTarget = {
     binary_count?: number;
-    bundle_id?: string;
+    bundle_identifier?: string;
+    certificate_common_name?: string;
+    certificate_organization?: string;
+    certificate_organizational_unit?: string;
     collected_binary_count?: number;
     complete: boolean;
-    detail?: string;
+    display_name?: string;
+    file_name?: string;
     identifier: string;
-    name: string;
+    path?: string;
     rule_count: number;
     target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     version?: string;

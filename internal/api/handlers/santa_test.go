@@ -73,8 +73,8 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 
 	identifier := strings.Repeat("5", 64)
 	if _, err := db.Pool().Exec(ctx, `
-		INSERT INTO santa_executables (sha256, file_name, team_id)
-		VALUES ($1, 'Endpoint Target', 'TEAMENDPT')
+		INSERT INTO santa_executables (sha256, file_name, file_bundle_id, team_id)
+		VALUES ($1, 'Endpoint Target', 'com.example.endpoint', 'TEAMENDPT')
 	`, identifier); err != nil {
 		t.Fatalf("insert executable: %v", err)
 	}
@@ -96,6 +96,11 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 	}
 	if len(body.Items) != 1 || body.Items[0].Identifier != identifier {
 		t.Fatalf("targets = %+v, want endpoint executable", body.Items)
+	}
+	if body.Items[0].DisplayName != "" ||
+		body.Items[0].FileName != "Endpoint Target" ||
+		body.Items[0].BundleIdentifier != "com.example.endpoint" {
+		t.Fatalf("target metadata = %+v, want semantic executable fields", body.Items[0])
 	}
 }
 

@@ -265,15 +265,21 @@ function RuleForm({
               onChange={(event) => setForm({ ...form, custom_message: event.target.value })}
             />
           </Field>
-          <div className="flex flex-col gap-4">
+          <section className="mt-2 flex flex-col gap-4 border-t pt-6">
             <div className="flex flex-col gap-1">
-              <h2 className="text-sm font-medium">Assignments</h2>
+              <h2 className="text-lg font-semibold">Assignments</h2>
+              <p className="text-muted-foreground text-sm">
+                Includes are evaluated top to bottom, like configuration order. Higher rows have higher priority.
+              </p>
             </div>
             <Field>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <FieldLabel>Include</FieldLabel>
-                  <FieldDescription>Labels where this rule applies.</FieldDescription>
+                  <FieldDescription>
+                    Pick the labels this rule can match. If a host matches more than one include, the highest matching
+                    row sets the policy.
+                  </FieldDescription>
                 </div>
                 <Button
                   type="button"
@@ -318,9 +324,9 @@ function RuleForm({
                 unavailableLabelIDs={includeLabelIDs}
                 onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
               />
-              <FieldDescription>Labels excluded from this rule.</FieldDescription>
+              <FieldDescription>Hosts with these labels never receive this rule.</FieldDescription>
             </Field>
-          </div>
+          </section>
         </FieldGroup>
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
@@ -387,7 +393,7 @@ function RuleTargetPicker({
             ...form,
             rule_type: target.target_type,
             identifier: target.identifier,
-            name: form.name.trim() === "" ? target.name : form.name,
+            name: form.name.trim() === "" && target.display_name ? target.display_name : form.name,
           });
         }}
       >
@@ -416,25 +422,23 @@ function currentRuleTarget(form: RuleFormState): SantaRuleTarget | null {
   return {
     target_type: form.rule_type,
     identifier,
-    name: form.name.trim() || identifier,
     rule_count: 0,
     complete: true,
   };
 }
 
 function targetLabel(target: SantaRuleTarget) {
-  return target.name || target.identifier;
+  return target.identifier;
 }
 
 function ruleTargetItem(target: SantaRuleTarget) {
   const disabled = target.target_type === "bundle" && !target.complete;
+  const secondary = ruleTargetSecondary(target);
   return (
     <ComboboxItem key={`${target.target_type}:${target.identifier}`} value={target} disabled={disabled}>
       <span className="min-w-0 flex-1">
-        <span className="block truncate">{targetLabel(target)}</span>
-        <span className="text-muted-foreground block truncate font-mono text-xs">
-          {shortIdentifier(target.identifier)}
-        </span>
+        <span className="block break-all leading-snug">{targetLabel(target)}</span>
+        {secondary ? <span className="text-muted-foreground block truncate text-xs">{secondary}</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-2">
         {target.target_type === "bundle" ? (
@@ -450,17 +454,37 @@ function ruleTargetItem(target: SantaRuleTarget) {
   );
 }
 
+function ruleTargetSecondary(target: SantaRuleTarget) {
+  if (target.target_type === "teamid") return undefined;
+  if (!target.display_name) return undefined;
+  return target.display_name;
+}
+
 function ruleTargetDescription(target: SantaRuleTarget | null, ruleType: RuleType) {
   if (!target) return ruleIdentifierHint(ruleType);
   if (target.target_type === "bundle" && !target.complete) {
     return "Bundle target is incomplete.";
   }
-  return target.detail ?? target.bundle_id ?? target.identifier;
+  const description = ruleTargetDescriptionParts(target).join(" | ");
+  return description || ruleIdentifierHint(target.target_type);
 }
 
-function shortIdentifier(identifier: string) {
-  if (identifier.length <= 28) return identifier;
-  return `${identifier.slice(0, 12)}...${identifier.slice(-8)}`;
+function ruleTargetDescriptionParts(target: SantaRuleTarget) {
+  const parts: string[] = [];
+  if (target.target_type === "teamid") {
+    if (target.certificate_organization) parts.push(target.certificate_organization);
+    return parts;
+  }
+  if (target.target_type === "certificate" && target.certificate_common_name) {
+    parts.push(target.certificate_common_name);
+  }
+  if (target.target_type === "certificate" && target.certificate_organization) {
+    parts.push(target.certificate_organization);
+  }
+  if (target.bundle_identifier) parts.push(target.bundle_identifier);
+  if (target.version) parts.push(target.version);
+  if (target.path) parts.push(target.path);
+  return parts;
 }
 
 function IncludeTargetsTable({

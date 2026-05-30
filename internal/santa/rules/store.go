@@ -551,16 +551,20 @@ func scanRule(row pgx.Row) (Rule, error) {
 
 func ruleTargetFromSQLC(row sqlc.ListSantaRuleTargetsRow) RuleTarget {
 	return RuleTarget{
-		TargetType:           RuleType(row.TargetType),
-		Identifier:           row.Identifier,
-		Name:                 row.Name,
-		Detail:               row.Detail,
-		BundleID:             row.BundleID,
-		Version:              row.Version,
-		BinaryCount:          row.BinaryCount,
-		CollectedBinaryCount: row.CollectedBinaryCount,
-		RuleCount:            row.RuleCount,
-		Complete:             row.Complete,
+		TargetType:                    RuleType(row.TargetType),
+		Identifier:                    row.Identifier,
+		DisplayName:                   row.DisplayName,
+		CertificateCommonName:         row.CertificateCommonName,
+		CertificateOrganization:       row.CertificateOrganization,
+		CertificateOrganizationalUnit: row.CertificateOrganizationalUnit,
+		FileName:                      row.FileName,
+		BundleIdentifier:              row.BundleIdentifier,
+		Path:                          row.Path,
+		Version:                       row.Version,
+		BinaryCount:                   row.BinaryCount,
+		CollectedBinaryCount:          row.CollectedBinaryCount,
+		RuleCount:                     row.RuleCount,
+		Complete:                      row.Complete,
 	}
 }
 

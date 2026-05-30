@@ -399,6 +399,8 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	}
 	if len(targets) != 1 ||
 		targets[0].Identifier != completeBundleHash ||
+		targets[0].DisplayName != "Target Bundle" ||
+		targets[0].BundleIdentifier != "com.example.target" ||
 		targets[0].BinaryCount != 1 ||
 		targets[0].CollectedBinaryCount != 1 ||
 		!targets[0].Complete {
@@ -440,7 +442,7 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 			executable_sha256,
 			executable_path
 		)
-		VALUES ($1, $2, '/Applications/Software Target.app', 'TEAMSOFT', 'soft-cdhash', $3, '/Applications/Software Target.app/Contents/MacOS/Software Target')
+		VALUES ($1, $2, '/Applications/Software Target.app', 'TEAMSOFT12', 'soft-cdhash', $3, '/Applications/Software Target.app/Contents/MacOS/Software Target')
 	`, host.ID, softwareID, softwareHash); err != nil {
 		t.Fatalf("insert software path: %v", err)
 	}
@@ -454,8 +456,89 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	}
 	if len(softwareTargets) != 1 ||
 		softwareTargets[0].Identifier != softwareHash ||
-		softwareTargets[0].BundleID != "com.example.software" {
+		softwareTargets[0].DisplayName != "Software Target" ||
+		softwareTargets[0].BundleIdentifier != "com.example.software" ||
+		softwareTargets[0].Path != "/Applications/Software Target.app/Contents/MacOS/Software Target" {
 		t.Fatalf("software targets = %+v, want osquery binary candidate", softwareTargets)
+	}
+
+	teamTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          "TEAMSOFT12",
+		TargetType: rules.RuleTypeTeamID,
+	})
+	if err != nil {
+		t.Fatalf("list team targets: %v", err)
+	}
+	if len(teamTargets) != 1 ||
+		teamTargets[0].Identifier != "TEAMSOFT12" ||
+		teamTargets[0].DisplayName != "" ||
+		teamTargets[0].BundleIdentifier != "com.example.software" {
+		t.Fatalf("team targets = %+v, want publisher identity without app display fallback", teamTargets)
+	}
+
+	signingTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          "TEAMSOFT12:com.example.software",
+		TargetType: rules.RuleTypeSigningID,
+	})
+	if err != nil {
+		t.Fatalf("list signing targets: %v", err)
+	}
+	if len(signingTargets) != 1 ||
+		signingTargets[0].Identifier != "TEAMSOFT12:com.example.software" ||
+		signingTargets[0].DisplayName != "Software Target" {
+		t.Fatalf("signing targets = %+v, want signing ID plus software display name", signingTargets)
+	}
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_executables (
+			sha256,
+			file_name,
+			file_bundle_name,
+			file_bundle_id,
+			team_id,
+			signing_id
+		)
+		VALUES ($1, 'Software Target Helper', 'Observed Software Target', 'com.example.software', 'TEAMSOFT12', 'TEAMSOFT12:com.example.software')
+	`, strings.Repeat("7", 64)); err != nil {
+		t.Fatalf("insert observed signing target: %v", err)
+	}
+	ambiguousSigningTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          "Observed Software Target",
+		TargetType: rules.RuleTypeSigningID,
+	})
+	if err != nil {
+		t.Fatalf("list ambiguous signing targets: %v", err)
+	}
+	if len(ambiguousSigningTargets) != 1 ||
+		ambiguousSigningTargets[0].Identifier != "TEAMSOFT12:com.example.software" ||
+		ambiguousSigningTargets[0].DisplayName != "" ||
+		ambiguousSigningTargets[0].BundleIdentifier != "com.example.software" {
+		t.Fatalf(
+			"ambiguous signing targets = %+v, want searchable context without display fallback",
+			ambiguousSigningTargets,
+		)
+	}
+
+	certificateHash := strings.Repeat("6", 64)
+	if _, err := db.Pool().Exec(ctx, `
+		INSERT INTO santa_certificates (sha256, common_name, organization, organizational_unit)
+		VALUES ($1, 'Developer ID Application: Example', 'Example Org', 'TEAMSOFT12')
+	`, certificateHash); err != nil {
+		t.Fatalf("insert certificate: %v", err)
+	}
+	certificateTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
+		Q:          "Developer ID",
+		TargetType: rules.RuleTypeCertificate,
+	})
+	if err != nil {
+		t.Fatalf("list certificate targets: %v", err)
+	}
+	if len(certificateTargets) != 1 ||
+		certificateTargets[0].Identifier != certificateHash ||
+		certificateTargets[0].CertificateCommonName != "Developer ID Application: Example" ||
+		certificateTargets[0].CertificateOrganization != "Example Org" ||
+		certificateTargets[0].CertificateOrganizationalUnit != "TEAMSOFT12" ||
+		certificateTargets[0].DisplayName != "" {
+		t.Fatalf("certificate targets = %+v, want fingerprint plus certificate common name", certificateTargets)
 	}
 }
 

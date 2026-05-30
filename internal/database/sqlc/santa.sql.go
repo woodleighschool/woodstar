@@ -929,10 +929,14 @@ WITH candidate_sources AS (
     SELECT
         'binary'::text AS target_type,
         e.sha256 AS identifier,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.sha256) AS name,
-        NULLIF(e.file_name, '') AS detail,
-        e.file_bundle_id AS bundle_id,
-        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version) AS version,
+        NULLIF(e.file_bundle_name, '') AS display_name,
+        NULL::text AS certificate_common_name,
+        NULL::text AS certificate_organization,
+        NULL::text AS certificate_organizational_unit,
+        NULLIF(e.file_name, '') AS file_name,
+        NULLIF(e.file_bundle_id, '') AS bundle_identifier,
+        NULLIF(e.file_bundle_path, '') AS path,
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), NULLIF(e.file_bundle_version, '')) AS version,
         0::integer AS binary_count,
         0::integer AS collected_binary_count,
         true AS complete
@@ -942,10 +946,14 @@ WITH candidate_sources AS (
     SELECT
         'binary'::text,
         p.executable_sha256,
-        COALESCE(NULLIF(st.display_name, ''), st.name, p.executable_sha256),
-        COALESCE(NULLIF(p.executable_path, ''), p.installed_path),
-        s.bundle_identifier,
-        s.version,
+        COALESCE(NULLIF(st.display_name, ''), NULLIF(st.name, '')),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(s.bundle_identifier, ''),
+        COALESCE(NULLIF(p.executable_path, ''), NULLIF(p.installed_path, '')),
+        NULLIF(s.version, ''),
         0::integer,
         0::integer,
         true
@@ -957,10 +965,14 @@ WITH candidate_sources AS (
     SELECT
         'certificate'::text,
         c.sha256,
-        COALESCE(NULLIF(c.common_name, ''), c.sha256),
-        c.organizational_unit,
-        ''::text,
-        ''::text,
+        NULL::text,
+        NULLIF(c.common_name, ''),
+        NULLIF(c.organization, ''),
+        NULLIF(c.organizational_unit, ''),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
         0::integer,
         0::integer,
         true
@@ -970,23 +982,34 @@ WITH candidate_sources AS (
     SELECT
         'teamid'::text,
         e.team_id,
-        e.team_id,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-        e.file_bundle_id,
-        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        NULL::text,
+        NULL::text,
+        NULLIF(c.organization, ''),
+        NULLIF(c.organizational_unit, ''),
+        NULLIF(e.file_name, ''),
+        NULLIF(e.file_bundle_id, ''),
+        NULLIF(e.file_bundle_path, ''),
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), NULLIF(e.file_bundle_version, '')),
         0::integer,
         0::integer,
         true
     FROM santa_executables e
+    LEFT JOIN santa_executable_signing_chains esc ON esc.executable_id = e.id
+    LEFT JOIN santa_signing_chain_entries sce ON sce.signing_chain_id = esc.signing_chain_id
+    LEFT JOIN santa_certificates c ON c.id = sce.certificate_id AND c.organizational_unit = e.team_id
     WHERE e.team_id <> ''
     UNION ALL
     SELECT
         'teamid'::text,
         p.team_identifier,
-        p.team_identifier,
-        COALESCE(NULLIF(st.display_name, ''), st.name),
-        s.bundle_identifier,
-        s.version,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(s.bundle_identifier, ''),
+        COALESCE(NULLIF(p.executable_path, ''), NULLIF(p.installed_path, '')),
+        NULLIF(s.version, ''),
         0::integer,
         0::integer,
         true
@@ -998,10 +1021,14 @@ WITH candidate_sources AS (
     SELECT
         'signingid'::text,
         e.signing_id,
-        e.signing_id,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-        e.file_bundle_id,
-        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        NULLIF(e.file_bundle_name, ''),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(e.file_name, ''),
+        NULLIF(e.file_bundle_id, ''),
+        NULLIF(e.file_bundle_path, ''),
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), NULLIF(e.file_bundle_version, '')),
         0::integer,
         0::integer,
         true
@@ -1011,10 +1038,14 @@ WITH candidate_sources AS (
     SELECT
         'signingid'::text,
         p.team_identifier || ':' || s.bundle_identifier,
-        p.team_identifier || ':' || s.bundle_identifier,
-        COALESCE(NULLIF(st.display_name, ''), st.name),
-        s.bundle_identifier,
-        s.version,
+        COALESCE(NULLIF(st.display_name, ''), NULLIF(st.name, '')),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(s.bundle_identifier, ''),
+        COALESCE(NULLIF(p.executable_path, ''), NULLIF(p.installed_path, '')),
+        NULLIF(s.version, ''),
         0::integer,
         0::integer,
         true
@@ -1026,10 +1057,14 @@ WITH candidate_sources AS (
     SELECT
         'cdhash'::text,
         e.cdhash,
-        e.cdhash,
-        COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, '')),
-        e.file_bundle_id,
-        COALESCE(NULLIF(e.file_bundle_version_string, ''), e.file_bundle_version),
+        NULLIF(e.file_bundle_name, ''),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(e.file_name, ''),
+        NULLIF(e.file_bundle_id, ''),
+        NULLIF(e.file_bundle_path, ''),
+        COALESCE(NULLIF(e.file_bundle_version_string, ''), NULLIF(e.file_bundle_version, '')),
         0::integer,
         0::integer,
         true
@@ -1039,10 +1074,14 @@ WITH candidate_sources AS (
     SELECT
         'cdhash'::text,
         p.cdhash_sha256,
-        p.cdhash_sha256,
-        COALESCE(NULLIF(st.display_name, ''), st.name),
-        s.bundle_identifier,
-        s.version,
+        COALESCE(NULLIF(st.display_name, ''), NULLIF(st.name, '')),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(s.bundle_identifier, ''),
+        COALESCE(NULLIF(p.executable_path, ''), NULLIF(p.installed_path, '')),
+        NULLIF(s.version, ''),
         0::integer,
         0::integer,
         true
@@ -1054,10 +1093,14 @@ WITH candidate_sources AS (
     SELECT
         'bundle'::text,
         b.sha256,
-        COALESCE(NULLIF(b.name, ''), NULLIF(b.bundle_id, ''), b.sha256),
-        b.path,
-        b.bundle_id,
-        COALESCE(NULLIF(b.version_string, ''), b.version),
+        NULLIF(b.name, ''),
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULL::text,
+        NULLIF(b.bundle_id, ''),
+        NULLIF(b.path, ''),
+        COALESCE(NULLIF(b.version_string, ''), NULLIF(b.version, '')),
         b.binary_count,
         COUNT(be.executable_id)::integer,
         b.uploaded_at IS NOT NULL
@@ -1070,13 +1113,70 @@ targets AS (
     SELECT
         target_type,
         identifier,
-        COALESCE(NULLIF(max(name), ''), identifier) AS name,
-        COALESCE(max(detail), '')::text AS detail,
-        COALESCE(max(bundle_id), '')::text AS bundle_id,
-        COALESCE(max(version), '')::text AS version,
+        COALESCE(
+            CASE WHEN COUNT(DISTINCT NULLIF(display_name, '')) = 1 THEN MIN(NULLIF(display_name, '')) END,
+            ''
+        )::text AS display_name,
+        COALESCE(
+            CASE
+                WHEN COUNT(DISTINCT NULLIF(certificate_common_name, '')) = 1
+                THEN MIN(NULLIF(certificate_common_name, ''))
+            END,
+            ''
+        )::text AS certificate_common_name,
+        COALESCE(
+            CASE
+                WHEN COUNT(DISTINCT NULLIF(certificate_organization, '')) = 1
+                THEN MIN(NULLIF(certificate_organization, ''))
+            END,
+            ''
+        )::text AS certificate_organization,
+        COALESCE(
+            CASE
+                WHEN COUNT(DISTINCT NULLIF(certificate_organizational_unit, '')) = 1
+                THEN MIN(NULLIF(certificate_organizational_unit, ''))
+            END,
+            ''
+        )::text AS certificate_organizational_unit,
+        COALESCE(
+            CASE WHEN COUNT(DISTINCT NULLIF(file_name, '')) = 1 THEN MIN(NULLIF(file_name, '')) END,
+            ''
+        )::text AS file_name,
+        COALESCE(
+            CASE
+                WHEN COUNT(DISTINCT NULLIF(bundle_identifier, '')) = 1
+                THEN MIN(NULLIF(bundle_identifier, ''))
+            END,
+            ''
+        )::text AS bundle_identifier,
+        COALESCE(
+            CASE WHEN COUNT(DISTINCT NULLIF(path, '')) = 1 THEN MIN(NULLIF(path, '')) END,
+            ''
+        )::text AS path,
+        COALESCE(
+            CASE WHEN COUNT(DISTINCT NULLIF(version, '')) = 1 THEN MIN(NULLIF(version, '')) END,
+            ''
+        )::text AS version,
         max(binary_count)::integer AS binary_count,
         max(collected_binary_count)::integer AS collected_binary_count,
-        bool_or(complete) AS complete
+        bool_or(complete) AS complete,
+        COALESCE(
+            string_agg(
+                DISTINCT concat_ws(
+                    ' ',
+                    NULLIF(display_name, ''),
+                    NULLIF(certificate_common_name, ''),
+                    NULLIF(certificate_organization, ''),
+                    NULLIF(certificate_organizational_unit, ''),
+                    NULLIF(file_name, ''),
+                    NULLIF(bundle_identifier, ''),
+                    NULLIF(path, ''),
+                    NULLIF(version, '')
+                ),
+                ' '
+            ),
+            ''
+        )::text AS search_text
     FROM candidate_sources
     WHERE identifier <> ''
     GROUP BY target_type, identifier
@@ -1084,9 +1184,13 @@ targets AS (
 SELECT
     t.target_type,
     t.identifier,
-    t.name,
-    t.detail,
-    t.bundle_id,
+    t.display_name,
+    t.certificate_common_name,
+    t.certificate_organization,
+    t.certificate_organizational_unit,
+    t.file_name,
+    t.bundle_identifier,
+    t.path,
     t.version,
     t.binary_count,
     t.collected_binary_count,
@@ -1096,15 +1200,28 @@ FROM targets t
 LEFT JOIN santa_rules r
     ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
 WHERE
-    ($1::text = '' OR t.identifier ILIKE '%' || $1::text || '%' OR t.name ILIKE '%' || $1::text || '%'
-        OR t.detail ILIKE '%' || $1::text || '%' OR t.bundle_id ILIKE '%' || $1::text || '%')
+    ($1::text = ''
+        OR t.identifier ILIKE '%' || $1::text || '%'
+        OR t.display_name ILIKE '%' || $1::text || '%'
+        OR t.certificate_common_name ILIKE '%' || $1::text || '%'
+        OR t.certificate_organization ILIKE '%' || $1::text || '%'
+        OR t.certificate_organizational_unit ILIKE '%' || $1::text || '%'
+        OR t.file_name ILIKE '%' || $1::text || '%'
+        OR t.bundle_identifier ILIKE '%' || $1::text || '%'
+        OR t.path ILIKE '%' || $1::text || '%'
+        OR t.version ILIKE '%' || $1::text || '%'
+        OR t.search_text ILIKE '%' || $1::text || '%')
     AND ($2::text = '' OR t.target_type = $2::text)
 GROUP BY
     t.target_type,
     t.identifier,
-    t.name,
-    t.detail,
-    t.bundle_id,
+    t.display_name,
+    t.certificate_common_name,
+    t.certificate_organization,
+    t.certificate_organizational_unit,
+    t.file_name,
+    t.bundle_identifier,
+    t.path,
     t.version,
     t.binary_count,
     t.collected_binary_count,
@@ -1119,7 +1236,7 @@ ORDER BY
         WHEN 'cdhash' THEN 6
         ELSE 7
     END,
-    lower(t.name),
+    lower(COALESCE(NULLIF(t.display_name, ''), NULLIF(t.certificate_common_name, ''), t.identifier)),
     t.identifier
 LIMIT $3
 `
@@ -1131,16 +1248,20 @@ type ListSantaRuleTargetsParams struct {
 }
 
 type ListSantaRuleTargetsRow struct {
-	TargetType           string `json:"target_type"`
-	Identifier           string `json:"identifier"`
-	Name                 string `json:"name"`
-	Detail               string `json:"detail"`
-	BundleID             string `json:"bundle_id"`
-	Version              string `json:"version"`
-	BinaryCount          int32  `json:"binary_count"`
-	CollectedBinaryCount int32  `json:"collected_binary_count"`
-	RuleCount            int32  `json:"rule_count"`
-	Complete             bool   `json:"complete"`
+	TargetType                    string `json:"target_type"`
+	Identifier                    string `json:"identifier"`
+	DisplayName                   string `json:"display_name"`
+	CertificateCommonName         string `json:"certificate_common_name"`
+	CertificateOrganization       string `json:"certificate_organization"`
+	CertificateOrganizationalUnit string `json:"certificate_organizational_unit"`
+	FileName                      string `json:"file_name"`
+	BundleIdentifier              string `json:"bundle_identifier"`
+	Path                          string `json:"path"`
+	Version                       string `json:"version"`
+	BinaryCount                   int32  `json:"binary_count"`
+	CollectedBinaryCount          int32  `json:"collected_binary_count"`
+	RuleCount                     int32  `json:"rule_count"`
+	Complete                      bool   `json:"complete"`
 }
 
 func (q *Queries) ListSantaRuleTargets(ctx context.Context, arg ListSantaRuleTargetsParams) ([]ListSantaRuleTargetsRow, error) {
@@ -1155,9 +1276,13 @@ func (q *Queries) ListSantaRuleTargets(ctx context.Context, arg ListSantaRuleTar
 		if err := rows.Scan(
 			&i.TargetType,
 			&i.Identifier,
-			&i.Name,
-			&i.Detail,
-			&i.BundleID,
+			&i.DisplayName,
+			&i.CertificateCommonName,
+			&i.CertificateOrganization,
+			&i.CertificateOrganizationalUnit,
+			&i.FileName,
+			&i.BundleIdentifier,
+			&i.Path,
 			&i.Version,
 			&i.BinaryCount,
 			&i.CollectedBinaryCount,
