@@ -185,6 +185,48 @@ func (ns NullLabelScopeMode) Value() (driver.Value, error) {
 	return string(ns.LabelScopeMode), nil
 }
 
+type MunkiArtifactKind string
+
+const (
+	MunkiArtifactKindPackage MunkiArtifactKind = "package"
+	MunkiArtifactKindIcon    MunkiArtifactKind = "icon"
+)
+
+func (e *MunkiArtifactKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiArtifactKind(s)
+	case string:
+		*e = MunkiArtifactKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiArtifactKind: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiArtifactKind struct {
+	MunkiArtifactKind MunkiArtifactKind `json:"munki_artifact_kind"`
+	Valid             bool              `json:"valid"` // Valid is true if MunkiArtifactKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiArtifactKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiArtifactKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiArtifactKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiArtifactKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiArtifactKind), nil
+}
+
 type MunkiAssignmentIntent string
 
 const (
@@ -855,6 +897,19 @@ type LabelMembership struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type MunkiArtifact struct {
+	ID          int64             `json:"id"`
+	Kind        MunkiArtifactKind `json:"kind"`
+	DisplayName string            `json:"display_name"`
+	Location    string            `json:"location"`
+	ContentType string            `json:"content_type"`
+	SizeBytes   int64             `json:"size_bytes"`
+	Sha256      string            `json:"sha256"`
+	StorageKey  string            `json:"storage_key"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+}
+
 type MunkiAssignment struct {
 	ID        int64                 `json:"id"`
 	ReleaseID int64                 `json:"release_id"`
@@ -909,15 +964,16 @@ type MunkiHostStatus struct {
 }
 
 type MunkiRelease struct {
-	ID          int64     `json:"id"`
-	SoftwareID  int64     `json:"software_id"`
-	Name        string    `json:"name"`
-	Version     string    `json:"version"`
-	DisplayName string    `json:"display_name"`
-	Pkginfo     []byte    `json:"pkginfo"`
-	Eligible    bool      `json:"eligible"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                  int64     `json:"id"`
+	SoftwareID          int64     `json:"software_id"`
+	Name                string    `json:"name"`
+	Version             string    `json:"version"`
+	DisplayName         string    `json:"display_name"`
+	Pkginfo             []byte    `json:"pkginfo"`
+	Eligible            bool      `json:"eligible"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	InstallerArtifactID *int64    `json:"installer_artifact_id"`
 }
 
 type MunkiSoftwareTitle struct {

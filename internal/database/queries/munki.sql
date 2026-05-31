@@ -30,6 +30,48 @@ SELECT *
 FROM munki_software_titles
 WHERE id = @id;
 
+-- name: CreateMunkiArtifact :one
+INSERT INTO munki_artifacts (
+    kind,
+    display_name,
+    location,
+    content_type,
+    size_bytes,
+    sha256,
+    storage_key
+)
+VALUES (
+    @kind::munki_artifact_kind,
+    @display_name,
+    @location,
+    @content_type,
+    @size_bytes,
+    @sha256,
+    @storage_key
+)
+RETURNING *;
+
+-- name: ListMunkiArtifacts :many
+SELECT *
+FROM munki_artifacts
+ORDER BY lower(COALESCE(NULLIF(display_name, ''), location)), lower(location), id
+LIMIT @limit_rows OFFSET @offset_rows;
+
+-- name: CountMunkiArtifacts :one
+SELECT COUNT(*)::integer
+FROM munki_artifacts;
+
+-- name: GetMunkiArtifactByID :one
+SELECT *
+FROM munki_artifacts
+WHERE id = @id;
+
+-- name: GetMunkiArtifactByKindAndLocation :one
+SELECT *
+FROM munki_artifacts
+WHERE kind = @kind::munki_artifact_kind
+  AND location = @location;
+
 -- name: CreateMunkiRelease :one
 INSERT INTO munki_releases (
     software_id,
@@ -37,6 +79,7 @@ INSERT INTO munki_releases (
     version,
     display_name,
     pkginfo,
+    installer_artifact_id,
     eligible
 )
 VALUES (
@@ -45,6 +88,7 @@ VALUES (
     @version,
     @display_name,
     @pkginfo::jsonb,
+    sqlc.narg(installer_artifact_id)::bigint,
     @eligible
 )
 RETURNING *;
@@ -149,6 +193,8 @@ SELECT
     r.version,
     r.display_name,
     r.pkginfo,
+    r.installer_artifact_id,
+    art.location AS installer_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -166,6 +212,7 @@ SELECT
     END AS scope_rank
 FROM munki_assignments a
 JOIN munki_releases r ON r.id = a.release_id
+LEFT JOIN munki_artifacts art ON art.id = r.installer_artifact_id
 WHERE r.eligible
   AND (
     a.all_hosts

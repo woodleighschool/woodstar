@@ -1779,6 +1779,113 @@ components:
         - email
         - password
       type: object
+    MunkiArtifact:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/MunkiArtifact.json
+          format: uri
+          readOnly: true
+          type: string
+        content_type:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        display_name:
+          type: string
+        id:
+          format: int64
+          type: integer
+        kind:
+          enum:
+            - package
+            - icon
+          type: string
+        location:
+          type: string
+        sha256:
+          type: string
+        size_bytes:
+          format: int64
+          type: integer
+        storage_key:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - kind
+        - display_name
+        - location
+        - content_type
+        - size_bytes
+        - sha256
+        - storage_key
+        - created_at
+        - updated_at
+      type: object
+    MunkiArtifactMutation:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/MunkiArtifactMutation.json
+          format: uri
+          readOnly: true
+          type: string
+        content_type:
+          type: string
+        display_name:
+          type: string
+        kind:
+          enum:
+            - package
+            - icon
+          type: string
+        location:
+          type: string
+        sha256:
+          type: string
+        size_bytes:
+          format: int64
+          type: integer
+        storage_key:
+          type: string
+      required:
+        - kind
+        - location
+        - size_bytes
+        - sha256
+        - storage_key
+      type: object
+    MunkiArtifactPage:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/MunkiArtifactPage.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiArtifact"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     MunkiAssignment:
       additionalProperties: false
       properties:
@@ -1999,6 +2106,11 @@ components:
         id:
           format: int64
           type: integer
+        installer_artifact_id:
+          format: int64
+          type: integer
+        installer_artifact_location:
+          type: string
         name:
           type: string
         pkginfo:
@@ -2037,6 +2149,11 @@ components:
           type: string
         eligible:
           type: boolean
+        installer_artifact_id:
+          format: int64
+          type: integer
+        installer_artifact_location:
+          type: string
         name:
           type: string
         pkginfo:
@@ -5208,6 +5325,125 @@ paths:
       summary: Stream live query results
       tags:
         - Live Queries
+  /api/munki/artifacts:
+    get:
+      operationId: list-munki-artifacts
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiArtifactPage"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List Munki artifacts
+      tags:
+        - Munki
+    post:
+      operationId: create-munki-artifact
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiArtifactMutation"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiArtifact"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Create a Munki artifact
+      tags:
+        - Munki
   /api/munki/assignments:
     get:
       operationId: list-munki-assignments

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authenticated/munki/assignments")({
+export const Route = createFileRoute("/_authenticated/munki/artifacts")({
   component: () => <Outlet />,
 });

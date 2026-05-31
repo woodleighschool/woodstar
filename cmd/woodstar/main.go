@@ -27,6 +27,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -136,7 +137,7 @@ func newServer(
 
 	orbitDeps := newOrbit(stores)
 	osqueryDeps := newOsquery(stores, logger)
-	munkiDeps := newMunki(stores)
+	munkiDeps := newMunki(ctx, cfg, stores, logger)
 	santaDeps, stopSanta := newSanta(ctx, cfg, stores, logger)
 
 	stopBackground := append([]func(){stopSanta}, startIntegrations(ctx, cfg, db, stores, logger)...)
@@ -287,9 +288,34 @@ func newOsquery(
 }
 
 // newMunki builds the Munki capability's runtime dependencies.
-func newMunki(stores appStores) api.MunkiDependencies {
+func newMunki(ctx context.Context, cfg config.Config, stores appStores, logger *slog.Logger) api.MunkiDependencies {
+	var artifactPresigner munki.ServiceOption
+	if cfg.MunkiS3Enabled() {
+		presigner, err := munkistorage.NewS3Presigner(ctx, munkistorage.S3Config{
+			Bucket:    cfg.MunkiS3Bucket,
+			Region:    cfg.MunkiS3Region,
+			Endpoint:  cfg.MunkiS3Endpoint,
+			AccessKey: cfg.MunkiS3AccessKey,
+			SecretKey: cfg.MunkiS3SecretKey,
+			PathStyle: cfg.MunkiS3PathStyle,
+			TTL:       cfg.MunkiS3PresignTTL,
+		})
+		if err != nil {
+			logger.WarnContext(ctx, "munki artifact storage disabled: s3 presigner failed",
+				"component", "munki", "operation", "s3-presigner", "err", err)
+		} else {
+			artifactPresigner = munki.WithArtifactPresigner(presigner)
+		}
+	}
+	options := []munki.ServiceOption{
+		munki.WithArtifactStore(stores.munki),
+		munki.WithPublicURL(cfg.PublicURL),
+	}
+	if artifactPresigner != nil {
+		options = append(options, artifactPresigner)
+	}
 	return api.MunkiDependencies{
-		Repository: munki.NewService(stores.hosts, stores.munki),
+		Repository: munki.NewService(stores.hosts, stores.munki, options...),
 		Store:      stores.munki,
 	}
 }

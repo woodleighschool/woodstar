@@ -1,5 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ClipboardList, PackageCheck, PackageSearch } from "lucide-react";
+import { ClipboardList, Package, PackageCheck, PackageSearch, Plus } from "lucide-react";
 import type { ComponentProps } from "react";
 
 import { DataTable, DataTableEmptyState } from "@/components/data-table";
@@ -8,15 +9,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  useMunkiArtifacts,
   useMunkiAssignments,
   useMunkiReleases,
   useMunkiSoftwareTitles,
+  type MunkiArtifact,
   type MunkiAssignment,
   type MunkiRelease,
   type MunkiSoftwareTitle,
 } from "@/hooks/use-munki";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { formatRelative } from "@/lib/utils";
+import { formatBytes, formatRelative } from "@/lib/utils";
 
 type BadgeVariant = ComponentProps<typeof Badge>["variant"];
 
@@ -74,7 +77,11 @@ export function MunkiSoftwareTitlesPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Munki Software" description="Desired software titles managed by Munki." />
+      <PageHeader
+        title="Munki Software"
+        description="Desired software titles managed by Munki."
+        actions={<NewButton to="/munki/software-titles/new" />}
+      />
       <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
       {!query.error ? (
         <DataTable
@@ -93,6 +100,73 @@ export function MunkiSoftwareTitlesPage() {
               description="No desired software titles yet."
             />
           }
+        />
+      ) : null}
+    </PageShell>
+  );
+}
+
+export function MunkiArtifactsPage() {
+  const { state, setters } = useTablePaginationParams();
+  const query = useMunkiArtifacts(tableQueryParams(state));
+  const rows = query.data?.items ?? [];
+
+  const columns: ColumnDef<MunkiArtifact>[] = [
+    {
+      id: "display_name",
+      accessorFn: (row) => row.display_name || row.location,
+      header: "Name",
+      enableSorting: false,
+      cell: ({ row }) => row.original.display_name || row.original.location,
+    },
+    {
+      id: "kind",
+      accessorKey: "kind",
+      header: "Kind",
+      enableSorting: false,
+      cell: ({ row }) => <Badge variant="secondary">{row.original.kind === "package" ? "Package" : "Icon"}</Badge>,
+    },
+    {
+      id: "location",
+      accessorKey: "location",
+      header: "Location",
+      enableSorting: false,
+    },
+    {
+      id: "size_bytes",
+      accessorKey: "size_bytes",
+      header: "Size",
+      enableSorting: false,
+      cell: ({ row }) => formatBytes(row.original.size_bytes),
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      enableSorting: false,
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+    },
+  ];
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="Munki Artifacts"
+        description="Installer and icon objects referenced by Munki metadata."
+        actions={<NewButton to="/munki/artifacts/new" />}
+      />
+      <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
+      {!query.error ? (
+        <DataTable
+          columns={columns}
+          data={rows}
+          totalCount={query.data?.count ?? 0}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
+          isLoading={query.isLoading}
+          empty={<DataTableEmptyState icon={<Package />} title="No Munki Artifacts" description="No artifacts yet." />}
         />
       ) : null}
     </PageShell>
@@ -124,6 +198,13 @@ export function MunkiReleasesPage() {
       enableSorting: false,
     },
     {
+      id: "installer_artifact_id",
+      accessorKey: "installer_artifact_id",
+      header: "Artifact",
+      enableSorting: false,
+      cell: ({ row }) => row.original.installer_artifact_id ?? "-",
+    },
+    {
       id: "eligible",
       accessorKey: "eligible",
       header: "Eligible",
@@ -143,7 +224,11 @@ export function MunkiReleasesPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Munki Releases" description="Pkginfo-backed releases available to assignments." />
+      <PageHeader
+        title="Munki Releases"
+        description="Pkginfo-backed releases available to assignments."
+        actions={<NewButton to="/munki/releases/new" />}
+      />
       <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
       {!query.error ? (
         <DataTable
@@ -200,7 +285,11 @@ export function MunkiAssignmentsPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Munki Assignments" description="Desired state resolved by host and label scope." />
+      <PageHeader
+        title="Munki Assignments"
+        description="Desired state resolved by host and label scope."
+        actions={<NewButton to="/munki/assignments/new" />}
+      />
       <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
       {!query.error ? (
         <DataTable
@@ -222,6 +311,17 @@ export function MunkiAssignmentsPage() {
         />
       ) : null}
     </PageShell>
+  );
+}
+
+function NewButton({ to }: { to: string }) {
+  return (
+    <Button asChild size="sm">
+      <Link to={to}>
+        <Plus className="size-4" />
+        New
+      </Link>
+    </Button>
   );
 }
 

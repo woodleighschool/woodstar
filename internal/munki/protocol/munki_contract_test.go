@@ -98,6 +98,92 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	}
 }
 
+func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
+	artifactID := int64(42)
+	service := munki.NewService(
+		nil,
+		staticReleaseResolver{releases: []munki.EffectiveRelease{
+			{
+				AssignmentID: 10,
+				Intent:       munki.IntentEnsureInstalled,
+				Release: munki.Release{
+					ID:      20,
+					Name:    "GoogleChrome",
+					Version: "148.0.0.1",
+					Pkginfo: json.RawMessage(
+						`{"name":"GoogleChrome","version":"148.0.0.1","PackageCompleteURL":"https://s3.example/raw?expires=1","PackageURL":"https://packages.example"}`,
+					),
+					InstallerArtifactID:       &artifactID,
+					InstallerArtifactLocation: "apps/GoogleChrome.pkg",
+				},
+			},
+		}},
+		munki.WithPublicURL("https://woodstar.example"),
+	)
+
+	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
+	if err != nil {
+		t.Fatalf("catalog: %v", err)
+	}
+
+	var decoded []map[string]any
+	if _, err := plist.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("catalog plist: %v", err)
+	}
+	if len(decoded) != 1 {
+		t.Fatalf("catalog items = %d, want 1", len(decoded))
+	}
+	if got := decoded[0]["installer_item_location"]; got != "apps/GoogleChrome.pkg" {
+		t.Fatalf("installer_item_location = %q, want artifact location", got)
+	}
+	if got := decoded[0]["PackageCompleteURL"]; got != "https://woodstar.example/munki/pkgs/apps/GoogleChrome.pkg" {
+		t.Fatalf("PackageCompleteURL = %q", got)
+	}
+	if _, ok := decoded[0]["PackageURL"]; ok {
+		t.Fatalf("PackageURL was rendered from stored pkginfo: %+v", decoded[0])
+	}
+}
+
+func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
+	service := munki.NewService(
+		nil,
+		staticReleaseResolver{releases: []munki.EffectiveRelease{
+			{
+				AssignmentID: 10,
+				Intent:       munki.IntentEnsureInstalled,
+				Release: munki.Release{
+					ID:      20,
+					Name:    "ExternalURLApp",
+					Version: "1.0",
+					Pkginfo: json.RawMessage(
+						`{"name":"ExternalURLApp","version":"1.0","PackageCompleteURL":"https://s3.example/raw?expires=1","PackageURL":"https://packages.example"}`,
+					),
+				},
+			},
+		}},
+		munki.WithPublicURL("https://woodstar.example"),
+	)
+
+	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
+	if err != nil {
+		t.Fatalf("catalog: %v", err)
+	}
+
+	var decoded []map[string]any
+	if _, err := plist.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("catalog plist: %v", err)
+	}
+	if len(decoded) != 1 {
+		t.Fatalf("catalog items = %d, want 1", len(decoded))
+	}
+	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
+		t.Fatalf("PackageCompleteURL was rendered from stored pkginfo: %+v", decoded[0])
+	}
+	if _, ok := decoded[0]["PackageURL"]; ok {
+		t.Fatalf("PackageURL was rendered from stored pkginfo: %+v", decoded[0])
+	}
+}
+
 func assertManifestPlist(t *testing.T, body []byte) {
 	t.Helper()
 	var decoded struct {
@@ -280,20 +366,20 @@ func TestMunkiHTTPRequiresExistingSerial(t *testing.T) {
 	}
 }
 
-func TestMunkiHTTPDoesNotUseManifestNameAsIdentity(t *testing.T) {
+func TestMunkiHTTPUsesSerialHeaderNotManifestName(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepository("C02MUNKI"),
 	)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02OTHER", nil)
+	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/site_default", nil)
 	req.Header.Set("Authorization", "Bearer munki-secret")
 	req.Header.Set("Serial", "C02MUNKI")
 
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusNotFound, rec.Body.String())
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
 
@@ -316,6 +402,55 @@ func TestMunkiHTTPVerifiesMunkiAgent(t *testing.T) {
 	}
 	if repository.serial != "C02MUNKI" {
 		t.Fatalf("serial = %q, want C02MUNKI", repository.serial)
+	}
+}
+
+func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
+	repository := newStaticRepository("C02MUNKI")
+	repository.artifactURL = "https://storage.example/GoogleChrome.pkg?signature=test"
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		repository,
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/apps/GoogleChrome.pkg", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != repository.artifactURL {
+		t.Fatalf("Location = %q, want %q", got, repository.artifactURL)
+	}
+	if repository.artifactKind != munki.ArtifactKindPackage || repository.artifactLocation != "apps/GoogleChrome.pkg" {
+		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
+	}
+	if repository.serial != "C02MUNKI" {
+		t.Fatalf("serial = %q, want C02MUNKI", repository.serial)
+	}
+}
+
+func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
+	repository := newStaticRepository("C02MUNKI")
+	repository.artifactErr = munki.ErrStorageUnavailable
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		repository,
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/pkgs/apps/GoogleChrome.pkg", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
 	}
 }
 
@@ -365,9 +500,13 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service *munki.Service
-	want    string
-	serial  string
+	service          *munki.Service
+	want             string
+	serial           string
+	artifactURL      string
+	artifactErr      error
+	artifactKind     munki.ArtifactKind
+	artifactLocation string
 }
 
 func newStaticRepository(serial string) *staticRepository {
@@ -395,6 +534,23 @@ func (r *staticRepository) Manifest(ctx context.Context, client munki.ClientHost
 
 func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
 	return r.service.Catalog(ctx, client, name)
+}
+
+func (r *staticRepository) ArtifactRedirect(
+	_ context.Context,
+	_ munki.ClientHost,
+	kind munki.ArtifactKind,
+	location string,
+) (string, error) {
+	r.artifactKind = kind
+	r.artifactLocation = location
+	if r.artifactErr != nil {
+		return "", r.artifactErr
+	}
+	if r.artifactURL == "" {
+		return "", munki.ErrNotFound
+	}
+	return r.artifactURL, nil
 }
 
 type staticReleaseResolver struct {

@@ -14,9 +14,11 @@ import (
 const (
 	munkiTag                = "Munki"
 	munkiSoftwareTitlePath  = "/api/munki/software-titles"
+	munkiArtifactPath       = "/api/munki/artifacts"
 	munkiReleasePath        = "/api/munki/releases"
 	munkiAssignmentPath     = "/api/munki/assignments"
 	munkiSoftwareTitleLabel = "Munki software title"
+	munkiArtifactLabel      = "Munki artifact"
 	munkiReleaseLabel       = "Munki release"
 	munkiAssignmentLabel    = "Munki assignment"
 )
@@ -39,6 +41,18 @@ type munkiSoftwareTitleOutput struct {
 
 type munkiReleaseListOutput struct {
 	Body munkiReleasePage
+}
+
+type munkiArtifactListOutput struct {
+	Body munkiArtifactPage
+}
+
+type munkiArtifactCreateInput struct {
+	Body munkiArtifactMutation
+}
+
+type munkiArtifactOutput struct {
+	Body munkiArtifact
 }
 
 type munkiReleaseCreateInput struct {
@@ -69,6 +83,11 @@ type munkiSoftwareTitlePage struct {
 type munkiReleasePage struct {
 	Items []munkiRelease `json:"items"`
 	Count int            `json:"count"`
+}
+
+type munkiArtifactPage struct {
+	Items []munkiArtifact `json:"items"`
+	Count int             `json:"count"`
 }
 
 type munkiAssignmentPage struct {
@@ -119,12 +138,14 @@ func munkiSoftwareTitleFromDomain(title munki.SoftwareTitle) munkiSoftwareTitle 
 }
 
 type munkiReleaseMutation struct {
-	SoftwareID  int64          `json:"software_id"`
-	Name        string         `json:"name"`
-	Version     string         `json:"version"`
-	DisplayName string         `json:"display_name,omitempty"`
-	Pkginfo     map[string]any `json:"pkginfo"`
-	Eligible    bool           `json:"eligible"`
+	SoftwareID                int64          `json:"software_id"`
+	Name                      string         `json:"name"`
+	Version                   string         `json:"version"`
+	DisplayName               string         `json:"display_name,omitempty"`
+	Pkginfo                   map[string]any `json:"pkginfo"`
+	InstallerArtifactID       *int64         `json:"installer_artifact_id,omitempty"`
+	InstallerArtifactLocation string         `json:"installer_artifact_location,omitempty"`
+	Eligible                  bool           `json:"eligible"`
 }
 
 func (m munkiReleaseMutation) domain() (munki.ReleaseMutation, error) {
@@ -133,38 +154,43 @@ func (m munkiReleaseMutation) domain() (munki.ReleaseMutation, error) {
 		return munki.ReleaseMutation{}, huma.Error400BadRequest("pkginfo must be a JSON object")
 	}
 	return munki.ReleaseMutation{
-		SoftwareID:  m.SoftwareID,
-		Name:        m.Name,
-		Version:     m.Version,
-		DisplayName: m.DisplayName,
-		Pkginfo:     pkginfo,
-		Eligible:    m.Eligible,
+		SoftwareID:          m.SoftwareID,
+		Name:                m.Name,
+		Version:             m.Version,
+		DisplayName:         m.DisplayName,
+		Pkginfo:             pkginfo,
+		InstallerArtifactID: m.InstallerArtifactID,
+		Eligible:            m.Eligible,
 	}, nil
 }
 
 type munkiRelease struct {
-	ID          int64          `json:"id"`
-	SoftwareID  int64          `json:"software_id"`
-	Name        string         `json:"name"`
-	Version     string         `json:"version"`
-	DisplayName string         `json:"display_name"`
-	Pkginfo     map[string]any `json:"pkginfo"`
-	Eligible    bool           `json:"eligible"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID                        int64          `json:"id"`
+	SoftwareID                int64          `json:"software_id"`
+	Name                      string         `json:"name"`
+	Version                   string         `json:"version"`
+	DisplayName               string         `json:"display_name"`
+	Pkginfo                   map[string]any `json:"pkginfo"`
+	InstallerArtifactID       *int64         `json:"installer_artifact_id,omitempty"`
+	InstallerArtifactLocation string         `json:"installer_artifact_location,omitempty"`
+	Eligible                  bool           `json:"eligible"`
+	CreatedAt                 time.Time      `json:"created_at"`
+	UpdatedAt                 time.Time      `json:"updated_at"`
 }
 
 func munkiReleaseFromDomain(release munki.Release) munkiRelease {
 	return munkiRelease{
-		ID:          release.ID,
-		SoftwareID:  release.SoftwareID,
-		Name:        release.Name,
-		Version:     release.Version,
-		DisplayName: release.DisplayName,
-		Pkginfo:     munkiPkginfoObject(release.Pkginfo),
-		Eligible:    release.Eligible,
-		CreatedAt:   release.CreatedAt,
-		UpdatedAt:   release.UpdatedAt,
+		ID:                        release.ID,
+		SoftwareID:                release.SoftwareID,
+		Name:                      release.Name,
+		Version:                   release.Version,
+		DisplayName:               release.DisplayName,
+		Pkginfo:                   munkiPkginfoObject(release.Pkginfo),
+		InstallerArtifactID:       release.InstallerArtifactID,
+		InstallerArtifactLocation: release.InstallerArtifactLocation,
+		Eligible:                  release.Eligible,
+		CreatedAt:                 release.CreatedAt,
+		UpdatedAt:                 release.UpdatedAt,
 	}
 }
 
@@ -221,6 +247,8 @@ func munkiAssignmentFromDomain(assignment munki.Assignment) munkiAssignment {
 func RegisterMunki(api huma.API, store *munki.Store) {
 	registerListMunkiSoftwareTitles(api, store)
 	registerCreateMunkiSoftwareTitle(api, store)
+	registerListMunkiArtifacts(api, store)
+	registerCreateMunkiArtifact(api, store)
 	registerListMunkiReleases(api, store)
 	registerCreateMunkiRelease(api, store)
 	registerListMunkiAssignments(api, store)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -17,12 +18,23 @@ import (
 // ErrNotFound reports that a requested Munki repository object does not exist.
 var ErrNotFound = errors.New("munki resource not found")
 
+// ErrStorageUnavailable reports that an artifact exists but has no usable storage backend.
+var ErrStorageUnavailable = errors.New("munki artifact storage unavailable")
+
 type hostResolver interface {
 	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
 }
 
 type releaseResolver interface {
 	EffectiveReleasesForHost(context.Context, int64) ([]EffectiveRelease, error)
+}
+
+type artifactResolver interface {
+	GetArtifactByLocation(context.Context, ArtifactKind, string) (*Artifact, error)
+}
+
+type artifactPresigner interface {
+	PresignGet(context.Context, Artifact) (string, error)
 }
 
 // ClientHost identifies the existing Woodstar host making a Munki request.
@@ -34,13 +46,47 @@ type ClientHost struct {
 
 // Service renders the Munki client-facing repository surface.
 type Service struct {
-	hosts    hostResolver
-	releases releaseResolver
+	hosts     hostResolver
+	releases  releaseResolver
+	artifacts artifactResolver
+	presigner artifactPresigner
+	publicURL string
+}
+
+// ServiceOption changes optional Munki repository behavior.
+type ServiceOption func(*Service)
+
+// WithArtifactStore lets the service resolve stable artifact locations.
+func WithArtifactStore(artifacts artifactResolver) ServiceOption {
+	return func(s *Service) {
+		s.artifacts = artifacts
+	}
+}
+
+// WithArtifactPresigner lets the service redirect stable artifact URLs to object storage.
+func WithArtifactPresigner(presigner artifactPresigner) ServiceOption {
+	return func(s *Service) {
+		s.presigner = presigner
+	}
+}
+
+// WithPublicURL sets the absolute base URL used in rendered Munki metadata.
+func WithPublicURL(publicURL string) ServiceOption {
+	return func(s *Service) {
+		s.publicURL = strings.TrimRight(strings.TrimSpace(publicURL), "/")
+	}
 }
 
 // NewService returns the default Munki repository renderer.
-func NewService(hosts hostResolver, releases releaseResolver) *Service {
-	return &Service{hosts: hosts, releases: releases}
+func NewService(hosts hostResolver, releases releaseResolver, options ...ServiceOption) *Service {
+	s := &Service{hosts: hosts, releases: releases}
+	if artifacts, ok := releases.(artifactResolver); ok {
+		s.artifacts = artifacts
+	}
+	for _, option := range options {
+		option(s)
+	}
+	return s
 }
 
 // ResolveClient resolves the Munki request identity to an existing host.
@@ -64,7 +110,7 @@ func (s *Service) ResolveClient(ctx context.Context, serial string) (ClientHost,
 
 // Manifest returns a Munki manifest plist for name.
 func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) ([]byte, error) {
-	if !validResourceName(name) || name != client.Serial {
+	if !validResourcePath(name) {
 		return nil, ErrNotFound
 	}
 	displayName := client.DisplayName
@@ -99,11 +145,45 @@ func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) (
 	if err != nil {
 		return nil, err
 	}
-	items, err := catalogItems(releases)
+	items, err := s.catalogItems(releases)
 	if err != nil {
 		return nil, err
 	}
 	return encodePlist(items)
+}
+
+// ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
+func (s *Service) ArtifactRedirect(
+	ctx context.Context,
+	_ ClientHost,
+	kind ArtifactKind,
+	location string,
+) (string, error) {
+	if s.artifacts == nil {
+		return "", ErrNotFound
+	}
+	location = strings.TrimSpace(location)
+	if !validArtifactKind(kind) || !validResourcePath(location) {
+		return "", ErrNotFound
+	}
+	artifact, err := s.artifacts.GetArtifactByLocation(ctx, kind, location)
+	if errors.Is(err, dbutil.ErrNotFound) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if s.presigner == nil {
+		return "", ErrStorageUnavailable
+	}
+	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(storageURL) == "" {
+		return "", ErrStorageUnavailable
+	}
+	return storageURL, nil
 }
 
 func (s *Service) effectiveReleases(ctx context.Context, hostID int64) ([]EffectiveRelease, error) {
@@ -189,7 +269,7 @@ func assignmentIntentRank(intent AssignmentIntent) int {
 	}
 }
 
-func catalogItems(releases []EffectiveRelease) ([]map[string]any, error) {
+func (s *Service) catalogItems(releases []EffectiveRelease) ([]map[string]any, error) {
 	items := make([]map[string]any, 0, len(releases))
 	seen := make(map[int64]bool, len(releases))
 	for _, release := range releases {
@@ -200,6 +280,17 @@ func catalogItems(releases []EffectiveRelease) ([]map[string]any, error) {
 		var item map[string]any
 		if err := json.Unmarshal(release.Release.Pkginfo, &item); err != nil {
 			return nil, fmt.Errorf("render munki pkginfo %d: %w", release.Release.ID, err)
+		}
+		delete(item, "PackageCompleteURL")
+		delete(item, "PackageURL")
+		if release.Release.InstallerArtifactID != nil {
+			if release.Release.InstallerArtifactLocation != "" {
+				item["installer_item_location"] = release.Release.InstallerArtifactLocation
+				item["PackageCompleteURL"] = s.artifactURL(
+					ArtifactKindPackage,
+					release.Release.InstallerArtifactLocation,
+				)
+			}
 		}
 		items = append(items, item)
 	}
@@ -216,6 +307,43 @@ func appendUnique(values []string, value string) []string {
 func validResourceName(name string) bool {
 	name = strings.TrimSpace(name)
 	return name != "" && !strings.ContainsAny(name, `/\`)
+}
+
+func validResourcePath(location string) bool {
+	location = strings.TrimSpace(location)
+	if location == "" || strings.HasPrefix(location, "/") || strings.Contains(location, `\`) {
+		return false
+	}
+	for segment := range strings.SplitSeq(location, "/") {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Service) artifactURL(kind ArtifactKind, location string) string {
+	path := artifactPath(kind, location)
+	if s.publicURL == "" {
+		return path
+	}
+	return s.publicURL + path
+}
+
+func artifactPath(kind ArtifactKind, location string) string {
+	prefix := "/munki/pkgs/"
+	if kind == ArtifactKindIcon {
+		prefix = "/munki/icons/"
+	}
+	return prefix + escapePath(location)
+}
+
+func escapePath(location string) string {
+	segments := strings.Split(location, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
 }
 
 func encodePlist(value any) ([]byte, error) {

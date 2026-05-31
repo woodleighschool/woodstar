@@ -23,6 +23,18 @@ func (q *Queries) ClearMunkiHostStatus(ctx context.Context, arg ClearMunkiHostSt
 	return err
 }
 
+const countMunkiArtifacts = `-- name: CountMunkiArtifacts :one
+SELECT COUNT(*)::integer
+FROM munki_artifacts
+`
+
+func (q *Queries) CountMunkiArtifacts(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countMunkiArtifacts)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countMunkiAssignments = `-- name: CountMunkiAssignments :one
 SELECT COUNT(*)::integer
 FROM munki_assignments
@@ -57,6 +69,64 @@ func (q *Queries) CountMunkiSoftwareTitles(ctx context.Context) (int32, error) {
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const createMunkiArtifact = `-- name: CreateMunkiArtifact :one
+INSERT INTO munki_artifacts (
+    kind,
+    display_name,
+    location,
+    content_type,
+    size_bytes,
+    sha256,
+    storage_key
+)
+VALUES (
+    $1::munki_artifact_kind,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7
+)
+RETURNING id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
+`
+
+type CreateMunkiArtifactParams struct {
+	Kind        MunkiArtifactKind `json:"kind"`
+	DisplayName string            `json:"display_name"`
+	Location    string            `json:"location"`
+	ContentType string            `json:"content_type"`
+	SizeBytes   int64             `json:"size_bytes"`
+	Sha256      string            `json:"sha256"`
+	StorageKey  string            `json:"storage_key"`
+}
+
+func (q *Queries) CreateMunkiArtifact(ctx context.Context, arg CreateMunkiArtifactParams) (MunkiArtifact, error) {
+	row := q.db.QueryRow(ctx, createMunkiArtifact,
+		arg.Kind,
+		arg.DisplayName,
+		arg.Location,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.StorageKey,
+	)
+	var i MunkiArtifact
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.DisplayName,
+		&i.Location,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createMunkiAssignment = `-- name: CreateMunkiAssignment :one
@@ -100,6 +170,7 @@ INSERT INTO munki_releases (
     version,
     display_name,
     pkginfo,
+    installer_artifact_id,
     eligible
 )
 VALUES (
@@ -108,18 +179,20 @@ VALUES (
     $3,
     $4,
     $5::jsonb,
-    $6
+    $6::bigint,
+    $7
 )
-RETURNING id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at
+RETURNING id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
 `
 
 type CreateMunkiReleaseParams struct {
-	SoftwareID  int64  `json:"software_id"`
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	DisplayName string `json:"display_name"`
-	Pkginfo     []byte `json:"pkginfo"`
-	Eligible    bool   `json:"eligible"`
+	SoftwareID          int64  `json:"software_id"`
+	Name                string `json:"name"`
+	Version             string `json:"version"`
+	DisplayName         string `json:"display_name"`
+	Pkginfo             []byte `json:"pkginfo"`
+	InstallerArtifactID *int64 `json:"installer_artifact_id"`
+	Eligible            bool   `json:"eligible"`
 }
 
 func (q *Queries) CreateMunkiRelease(ctx context.Context, arg CreateMunkiReleaseParams) (MunkiRelease, error) {
@@ -129,6 +202,7 @@ func (q *Queries) CreateMunkiRelease(ctx context.Context, arg CreateMunkiRelease
 		arg.Version,
 		arg.DisplayName,
 		arg.Pkginfo,
+		arg.InstallerArtifactID,
 		arg.Eligible,
 	)
 	var i MunkiRelease
@@ -142,6 +216,7 @@ func (q *Queries) CreateMunkiRelease(ctx context.Context, arg CreateMunkiRelease
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.InstallerArtifactID,
 	)
 	return i, err
 }
@@ -208,6 +283,64 @@ func (q *Queries) DeleteMunkiHostItems(ctx context.Context, arg DeleteMunkiHostI
 	return err
 }
 
+const getMunkiArtifactByID = `-- name: GetMunkiArtifactByID :one
+SELECT id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
+FROM munki_artifacts
+WHERE id = $1
+`
+
+type GetMunkiArtifactByIDParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) GetMunkiArtifactByID(ctx context.Context, arg GetMunkiArtifactByIDParams) (MunkiArtifact, error) {
+	row := q.db.QueryRow(ctx, getMunkiArtifactByID, arg.ID)
+	var i MunkiArtifact
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.DisplayName,
+		&i.Location,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMunkiArtifactByKindAndLocation = `-- name: GetMunkiArtifactByKindAndLocation :one
+SELECT id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
+FROM munki_artifacts
+WHERE kind = $1::munki_artifact_kind
+  AND location = $2
+`
+
+type GetMunkiArtifactByKindAndLocationParams struct {
+	Kind     MunkiArtifactKind `json:"kind"`
+	Location string            `json:"location"`
+}
+
+func (q *Queries) GetMunkiArtifactByKindAndLocation(ctx context.Context, arg GetMunkiArtifactByKindAndLocationParams) (MunkiArtifact, error) {
+	row := q.db.QueryRow(ctx, getMunkiArtifactByKindAndLocation, arg.Kind, arg.Location)
+	var i MunkiArtifact
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.DisplayName,
+		&i.Location,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getMunkiHostStatus = `-- name: GetMunkiHostStatus :one
 SELECT host_id, version, manifest_name, success, errors, warnings, problem_installs, run_started_at, run_ended_at, last_seen_at, updated_at
 FROM munki_host_status
@@ -238,7 +371,7 @@ func (q *Queries) GetMunkiHostStatus(ctx context.Context, arg GetMunkiHostStatus
 }
 
 const getMunkiReleaseByID = `-- name: GetMunkiReleaseByID :one
-SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at
+SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
 FROM munki_releases
 WHERE id = $1
 `
@@ -260,6 +393,7 @@ func (q *Queries) GetMunkiReleaseByID(ctx context.Context, arg GetMunkiReleaseBy
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.InstallerArtifactID,
 	)
 	return i, err
 }
@@ -416,6 +550,8 @@ SELECT
     r.version,
     r.display_name,
     r.pkginfo,
+    r.installer_artifact_id,
+    art.location AS installer_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -433,6 +569,7 @@ SELECT
     END AS scope_rank
 FROM munki_assignments a
 JOIN munki_releases r ON r.id = a.release_id
+LEFT JOIN munki_artifacts art ON art.id = r.installer_artifact_id
 WHERE r.eligible
   AND (
     a.all_hosts
@@ -467,15 +604,17 @@ type ListEffectiveMunkiReleasesForHostParams struct {
 }
 
 type ListEffectiveMunkiReleasesForHostRow struct {
-	AssignmentID int64                 `json:"assignment_id"`
-	Intent       MunkiAssignmentIntent `json:"intent"`
-	ReleaseID    int64                 `json:"release_id"`
-	SoftwareID   int64                 `json:"software_id"`
-	Name         string                `json:"name"`
-	Version      string                `json:"version"`
-	DisplayName  string                `json:"display_name"`
-	Pkginfo      []byte                `json:"pkginfo"`
-	ScopeRank    int32                 `json:"scope_rank"`
+	AssignmentID              int64                 `json:"assignment_id"`
+	Intent                    MunkiAssignmentIntent `json:"intent"`
+	ReleaseID                 int64                 `json:"release_id"`
+	SoftwareID                int64                 `json:"software_id"`
+	Name                      string                `json:"name"`
+	Version                   string                `json:"version"`
+	DisplayName               string                `json:"display_name"`
+	Pkginfo                   []byte                `json:"pkginfo"`
+	InstallerArtifactID       *int64                `json:"installer_artifact_id"`
+	InstallerArtifactLocation *string               `json:"installer_artifact_location"`
+	ScopeRank                 int32                 `json:"scope_rank"`
 }
 
 func (q *Queries) ListEffectiveMunkiReleasesForHost(ctx context.Context, arg ListEffectiveMunkiReleasesForHostParams) ([]ListEffectiveMunkiReleasesForHostRow, error) {
@@ -496,7 +635,52 @@ func (q *Queries) ListEffectiveMunkiReleasesForHost(ctx context.Context, arg Lis
 			&i.Version,
 			&i.DisplayName,
 			&i.Pkginfo,
+			&i.InstallerArtifactID,
+			&i.InstallerArtifactLocation,
 			&i.ScopeRank,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMunkiArtifacts = `-- name: ListMunkiArtifacts :many
+SELECT id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
+FROM munki_artifacts
+ORDER BY lower(COALESCE(NULLIF(display_name, ''), location)), lower(location), id
+LIMIT $2 OFFSET $1
+`
+
+type ListMunkiArtifactsParams struct {
+	OffsetRows int32 `json:"offset_rows"`
+	LimitRows  int32 `json:"limit_rows"`
+}
+
+func (q *Queries) ListMunkiArtifacts(ctx context.Context, arg ListMunkiArtifactsParams) ([]MunkiArtifact, error) {
+	rows, err := q.db.Query(ctx, listMunkiArtifacts, arg.OffsetRows, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MunkiArtifact{}
+	for rows.Next() {
+		var i MunkiArtifact
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.DisplayName,
+			&i.Location,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.Sha256,
+			&i.StorageKey,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -711,7 +895,7 @@ func (q *Queries) ListMunkiHostItems(ctx context.Context, arg ListMunkiHostItems
 }
 
 const listMunkiReleases = `-- name: ListMunkiReleases :many
-SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at
+SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
 FROM munki_releases
 ORDER BY lower(COALESCE(NULLIF(display_name, ''), name)), lower(name), lower(version), id
 LIMIT $2 OFFSET $1
@@ -741,6 +925,7 @@ func (q *Queries) ListMunkiReleases(ctx context.Context, arg ListMunkiReleasesPa
 			&i.Eligible,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.InstallerArtifactID,
 		); err != nil {
 			return nil, err
 		}

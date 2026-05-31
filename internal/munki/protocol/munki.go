@@ -26,6 +26,7 @@ type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
 	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
 	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
+	ArtifactRedirect(context.Context, munki.ClientHost, munki.ArtifactKind, string) (string, error)
 }
 
 type handler struct {
@@ -48,6 +49,8 @@ func RegisterMunkiRoutes(
 	}
 	r.Get("/munki/manifests/{name}", h.manifest)
 	r.Get("/munki/catalogs/{name}", h.catalog)
+	r.Get("/munki/pkgs/*", h.packageArtifact)
+	r.Get("/munki/icons/*", h.iconArtifact)
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +69,56 @@ func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 		}
 		return h.repository.Catalog(ctx, client, name)
 	})
+}
+
+func (h handler) packageArtifact(w http.ResponseWriter, r *http.Request) {
+	h.artifact(w, r, munki.ArtifactKindPackage)
+}
+
+func (h handler) iconArtifact(w http.ResponseWriter, r *http.Request) {
+	h.artifact(w, r, munki.ArtifactKindIcon)
+}
+
+func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind munki.ArtifactKind) {
+	authorized, err := h.authorized(r)
+	if err != nil {
+		h.log(r, http.StatusInternalServerError, "artifact", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if !authorized {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	client, err := h.clientHost(r)
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log(r, http.StatusInternalServerError, "artifact", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if h.repository == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	location, err := h.repository.ArtifactRedirect(r.Context(), client, kind, chi.URLParam(r, "*"))
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if errors.Is(err, munki.ErrStorageUnavailable) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+	if err != nil {
+		h.log(r, http.StatusInternalServerError, "artifact", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, location, http.StatusFound)
 }
 
 func (h handler) writePlist(

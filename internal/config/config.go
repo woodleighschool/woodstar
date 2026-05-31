@@ -48,6 +48,14 @@ type Config struct {
 	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
 	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     envDefault:"1h"`
 
+	MunkiS3Bucket     string        `env:"MUNKI_S3_BUCKET"`
+	MunkiS3Region     string        `env:"MUNKI_S3_REGION"`
+	MunkiS3Endpoint   string        `env:"MUNKI_S3_ENDPOINT"`
+	MunkiS3AccessKey  string        `env:"MUNKI_S3_ACCESS_KEY"`
+	MunkiS3SecretKey  string        `env:"MUNKI_S3_SECRET_KEY"`
+	MunkiS3PathStyle  bool          `env:"MUNKI_S3_PATH_STYLE"`
+	MunkiS3PresignTTL time.Duration `env:"MUNKI_S3_PRESIGN_TTL" envDefault:"15m"`
+
 	publicURLScheme string
 }
 
@@ -59,6 +67,14 @@ func (cfg *Config) OIDCEnabled() bool {
 // EntraEnabled reports whether the required Entra directory settings are present.
 func (cfg *Config) EntraEnabled() bool {
 	return cfg.EntraTenantID != "" && cfg.EntraClientID != "" && cfg.EntraClientSecret != ""
+}
+
+// MunkiS3Enabled reports whether Munki artifact redirects can use S3.
+func (cfg *Config) MunkiS3Enabled() bool {
+	return cfg.MunkiS3Bucket != "" &&
+		cfg.MunkiS3Region != "" &&
+		cfg.MunkiS3AccessKey != "" &&
+		cfg.MunkiS3SecretKey != ""
 }
 
 // ApplyEnvironment fills cfg from environment variables and normalizes derived values.
@@ -81,6 +97,9 @@ func (cfg *Config) normalize() error {
 	cfg.publicURLScheme = scheme
 	if len(cfg.SessionSecret) < minSessionSecretLength {
 		return fmt.Errorf("WOODSTAR_SESSION_SECRET must be at least %d characters", minSessionSecretLength)
+	}
+	if err := cfg.normalizeMunkiS3(); err != nil {
+		return err
 	}
 
 	return nil
@@ -111,4 +130,30 @@ func normalizePublicURL(value string) (string, string, error) {
 // IsHTTPS reports whether PublicURL uses the https scheme.
 func (cfg *Config) IsHTTPS() bool {
 	return cfg.publicURLScheme == "https"
+}
+
+func (cfg *Config) normalizeMunkiS3() error {
+	cfg.MunkiS3Bucket = strings.TrimSpace(cfg.MunkiS3Bucket)
+	cfg.MunkiS3Region = strings.TrimSpace(cfg.MunkiS3Region)
+	cfg.MunkiS3Endpoint = strings.TrimSpace(cfg.MunkiS3Endpoint)
+	cfg.MunkiS3AccessKey = strings.TrimSpace(cfg.MunkiS3AccessKey)
+	cfg.MunkiS3SecretKey = strings.TrimSpace(cfg.MunkiS3SecretKey)
+	if !cfg.munkiS3Configured() {
+		return nil
+	}
+	if !cfg.MunkiS3Enabled() {
+		return errors.New("incomplete WOODSTAR_MUNKI_S3 configuration")
+	}
+	if cfg.MunkiS3PresignTTL <= 0 {
+		return errors.New("WOODSTAR_MUNKI_S3_PRESIGN_TTL must be positive")
+	}
+	return nil
+}
+
+func (cfg *Config) munkiS3Configured() bool {
+	return cfg.MunkiS3Bucket != "" ||
+		cfg.MunkiS3Region != "" ||
+		cfg.MunkiS3Endpoint != "" ||
+		cfg.MunkiS3AccessKey != "" ||
+		cfg.MunkiS3SecretKey != ""
 }

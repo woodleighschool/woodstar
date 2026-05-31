@@ -266,16 +266,27 @@ func TestMunkiAdminAPI(t *testing.T) {
 		"/api/munki/software-titles",
 		`{"name":"GoogleChrome","display_name":"Google Chrome"}`,
 	)
+	artifact := postMunkiJSON[munki.Artifact](
+		t,
+		server,
+		cookie,
+		"/api/munki/artifacts",
+		`{"kind":"package","display_name":"Google Chrome Installer","location":"apps/GoogleChrome.pkg","content_type":"application/octet-stream","size_bytes":2048,"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","storage_key":"pkgs/GoogleChrome.pkg"}`,
+	)
 	release := postMunkiJSON[munki.Release](
 		t,
 		server,
 		cookie,
 		"/api/munki/releases",
 		fmt.Sprintf(
-			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","pkginfo":{"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg"},"eligible":true}`,
+			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","installer_artifact_id":%d,"pkginfo":{"name":"GoogleChrome","version":"148.0.0.1"},"eligible":true}`,
 			title.ID,
+			artifact.ID,
 		),
 	)
+	if release.InstallerArtifactID == nil || *release.InstallerArtifactID != artifact.ID {
+		t.Fatalf("release installer artifact id = %v, want %d", release.InstallerArtifactID, artifact.ID)
+	}
 	assignment := postMunkiJSON[munki.Assignment](
 		t,
 		server,
@@ -300,6 +311,29 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
 		t.Fatalf("assignments page = %+v, want created assignment", listed)
+	}
+
+	artifactListRec := httptest.NewRecorder()
+	artifactListReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/artifacts", nil)
+	artifactListReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(artifactListRec, artifactListReq)
+	if artifactListRec.Code != http.StatusOK {
+		t.Fatalf(
+			"list artifacts status = %d, want %d; body = %q",
+			artifactListRec.Code,
+			http.StatusOK,
+			artifactListRec.Body.String(),
+		)
+	}
+	var artifactPage struct {
+		Items []munki.Artifact `json:"items"`
+		Count int              `json:"count"`
+	}
+	if err := json.NewDecoder(artifactListRec.Body).Decode(&artifactPage); err != nil {
+		t.Fatalf("decode artifacts page: %v", err)
+	}
+	if artifactPage.Count != 1 || len(artifactPage.Items) != 1 || artifactPage.Items[0].ID != artifact.ID {
+		t.Fatalf("artifacts page = %+v, want created artifact", artifactPage)
 	}
 }
 

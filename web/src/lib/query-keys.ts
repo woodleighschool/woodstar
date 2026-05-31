@@ -25,6 +25,7 @@ export const queryKeys = {
   softwareTitle: (id: number | null) => ["software", id] as const,
   softwareSantaReference: (id: number | null) => ["software", id, "santa"] as const,
   munkiSoftwareTitles: (params?: unknown) => ["munki", "software-titles", params ?? {}] as const,
+  munkiArtifacts: (params?: unknown) => ["munki", "artifacts", params ?? {}] as const,
   munkiReleases: (params?: unknown) => ["munki", "releases", params ?? {}] as const,
   munkiAssignments: (params?: unknown) => ["munki", "assignments", params ?? {}] as const,
   agentSecrets: ["agent-secrets"] as const,

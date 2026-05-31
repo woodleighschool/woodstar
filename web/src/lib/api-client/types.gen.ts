@@ -678,6 +678,46 @@ export type LoginInputBody = {
     password: string;
 };
 
+export type MunkiArtifact = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content_type: string;
+    created_at: string;
+    display_name: string;
+    id: number;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+    updated_at: string;
+};
+
+export type MunkiArtifactMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content_type?: string;
+    display_name?: string;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+};
+
+export type MunkiArtifactPage = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiArtifact> | null;
+};
+
 export type MunkiAssignment = {
     /**
      * A URL to the JSON Schema for this object.
@@ -740,6 +780,8 @@ export type MunkiRelease = {
     display_name: string;
     eligible: boolean;
     id: number;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
     name: string;
     pkginfo: {
         [key: string]: unknown;
@@ -756,6 +798,8 @@ export type MunkiReleaseMutation = {
     readonly $schema?: string;
     display_name?: string;
     eligible: boolean;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
     name: string;
     pkginfo: {
         [key: string]: unknown;
@@ -1481,6 +1525,34 @@ export type LoginInputBodyWritable = {
     password: string;
 };
 
+export type MunkiArtifactWritable = {
+    content_type: string;
+    created_at: string;
+    display_name: string;
+    id: number;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+    updated_at: string;
+};
+
+export type MunkiArtifactMutationWritable = {
+    content_type?: string;
+    display_name?: string;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+};
+
+export type MunkiArtifactPageWritable = {
+    count: number;
+    items: Array<MunkiArtifactWritable> | null;
+};
+
 export type MunkiAssignmentWritable = {
     all_hosts: boolean;
     created_at: string;
@@ -1514,6 +1586,8 @@ export type MunkiReleaseWritable = {
     display_name: string;
     eligible: boolean;
     id: number;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
     name: string;
     pkginfo: {
         [key: string]: unknown;
@@ -1526,6 +1600,8 @@ export type MunkiReleaseWritable = {
 export type MunkiReleaseMutationWritable = {
     display_name?: string;
     eligible: boolean;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
     name: string;
     pkginfo: {
         [key: string]: unknown;
@@ -3147,6 +3223,93 @@ export type StreamLiveQueryResponses = {
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
+
+export type ListMunkiArtifactsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/munki/artifacts';
+};
+
+export type ListMunkiArtifactsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiArtifactsError = ListMunkiArtifactsErrors[keyof ListMunkiArtifactsErrors];
+
+export type ListMunkiArtifactsResponses = {
+    /**
+     * OK
+     */
+    200: MunkiArtifactPage;
+};
+
+export type ListMunkiArtifactsResponse = ListMunkiArtifactsResponses[keyof ListMunkiArtifactsResponses];
+
+export type CreateMunkiArtifactData = {
+    body: MunkiArtifactMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/artifacts';
+};
+
+export type CreateMunkiArtifactErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiArtifactError = CreateMunkiArtifactErrors[keyof CreateMunkiArtifactErrors];
+
+export type CreateMunkiArtifactResponses = {
+    /**
+     * Created
+     */
+    201: MunkiArtifact;
+};
+
+export type CreateMunkiArtifactResponse = CreateMunkiArtifactResponses[keyof CreateMunkiArtifactResponses];
 
 export type ListMunkiAssignmentsData = {
     body?: never;

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -113,6 +114,122 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	}
 	if len(excluded) != 0 {
 		t.Fatalf("excluded effective releases = %+v, want none", excluded)
+	}
+}
+
+func TestArtifactsCreateListAndBindRelease(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	store := munki.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "munki-artifact-host-uuid", Serial: "C02MUNKIART"},
+		OrbitNodeKey: "munki-artifact-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "ArtifactApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	artifact, err := store.CreateArtifact(ctx, munki.ArtifactMutation{
+		Kind:        munki.ArtifactKindPackage,
+		DisplayName: "Artifact App Installer",
+		Location:    "apps/ArtifactApp.pkg",
+		ContentType: "application/octet-stream",
+		SizeBytes:   1234,
+		SHA256:      strings.Repeat("a", 64),
+		StorageKey:  "pkgs/ArtifactApp.pkg",
+	})
+	if err != nil {
+		t.Fatalf("create artifact: %v", err)
+	}
+	if artifact.DisplayName != "Artifact App Installer" || artifact.Location != "apps/ArtifactApp.pkg" {
+		t.Fatalf("artifact = %+v", artifact)
+	}
+	loadedArtifact, err := store.GetArtifact(ctx, artifact.ID)
+	if err != nil {
+		t.Fatalf("get artifact: %v", err)
+	}
+	if loadedArtifact.StorageKey != "pkgs/ArtifactApp.pkg" {
+		t.Fatalf("storage key = %q", loadedArtifact.StorageKey)
+	}
+	loadedByLocation, err := store.GetArtifactByLocation(ctx, munki.ArtifactKindPackage, "apps/ArtifactApp.pkg")
+	if err != nil {
+		t.Fatalf("get artifact by location: %v", err)
+	}
+	if loadedByLocation.ID != artifact.ID {
+		t.Fatalf("artifact by location id = %d, want %d", loadedByLocation.ID, artifact.ID)
+	}
+	artifacts, artifactCount, err := store.ListArtifacts(ctx, dbutil.ListParams{})
+	if err != nil {
+		t.Fatalf("list artifacts: %v", err)
+	}
+	if artifactCount != 1 || len(artifacts) != 1 || artifacts[0].ID != artifact.ID {
+		t.Fatalf("artifacts = %+v count = %d, want created artifact", artifacts, artifactCount)
+	}
+
+	release, err := store.CreateRelease(ctx, munki.ReleaseMutation{
+		SoftwareID:          title.ID,
+		Name:                "ArtifactApp",
+		Version:             "1.0",
+		Pkginfo:             json.RawMessage(`{"name":"ArtifactApp","version":"1.0"}`),
+		InstallerArtifactID: &artifact.ID,
+		Eligible:            true,
+	})
+	if err != nil {
+		t.Fatalf("create release: %v", err)
+	}
+	if release.InstallerArtifactID == nil || *release.InstallerArtifactID != artifact.ID {
+		t.Fatalf("release installer artifact id = %v, want %d", release.InstallerArtifactID, artifact.ID)
+	}
+	if _, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
+		ReleaseID: release.ID,
+		Intent:    munki.IntentEnsureInstalled,
+		AllHosts:  true,
+	}); err != nil {
+		t.Fatalf("create assignment: %v", err)
+	}
+
+	effective, err := store.EffectiveReleasesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve effective releases: %v", err)
+	}
+	if len(effective) != 1 || effective[0].Release.InstallerArtifactLocation != "apps/ArtifactApp.pkg" {
+		t.Fatalf("effective releases = %+v, want artifact location", effective)
+	}
+}
+
+func TestCreateReleaseRejectsIconArtifactAsInstaller(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "IconApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	artifact, err := store.CreateArtifact(ctx, munki.ArtifactMutation{
+		Kind:       munki.ArtifactKindIcon,
+		Location:   "IconApp.png",
+		SizeBytes:  256,
+		SHA256:     strings.Repeat("b", 64),
+		StorageKey: "icons/IconApp.png",
+	})
+	if err != nil {
+		t.Fatalf("create icon artifact: %v", err)
+	}
+
+	_, err = store.CreateRelease(ctx, munki.ReleaseMutation{
+		SoftwareID:          title.ID,
+		Name:                "IconApp",
+		Version:             "1.0",
+		Pkginfo:             json.RawMessage(`{"name":"IconApp","version":"1.0"}`),
+		InstallerArtifactID: &artifact.ID,
+		Eligible:            true,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("CreateRelease error = %v, want invalid input", err)
 	}
 }
 
