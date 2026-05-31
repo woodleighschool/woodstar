@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateReport, useReport, useUpdateReport, type ReportMutation } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors } from "@/lib/form-validation";
+import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 
@@ -43,8 +43,8 @@ const emptyReport: ReportMutation = {
 };
 
 const reportFormSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  query: z.string().trim().min(1, "Query is required.").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
+  name: requiredString("Name"),
+  query: requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
 });
 
 export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
@@ -154,6 +154,7 @@ function ReportEditForm({
   return (
     <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -162,10 +163,13 @@ function ReportEditForm({
         <PageHeader title={mode === "create" ? "New Report" : "Edit Report"} />
         <FieldGroup>
           <Field data-invalid={showErrors && errors.name ? true : undefined}>
-            <FieldLabel htmlFor="report-name">Name</FieldLabel>
+            <FieldLabel htmlFor="report-name" required>
+              Name
+            </FieldLabel>
             <Input
               id="report-name"
               required
+              aria-invalid={showErrors && errors.name ? true : undefined}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
@@ -209,13 +213,14 @@ function ReportEditForm({
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
 
         <Field data-invalid={showErrors && errors.query ? true : undefined}>
-          <FieldLabel>Query</FieldLabel>
+          <FieldLabel required>Query</FieldLabel>
           <SQLEditor
             ref={editorRef}
             value={form.query}
             onChange={(query) => setForm({ ...form, query })}
             onTableMetaClick={selectSchemaTable}
             placeholder="SELECT ..."
+            invalid={showErrors && errors.query ? true : undefined}
           />
           {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
         </Field>

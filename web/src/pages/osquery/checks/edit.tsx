@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors } from "@/lib/form-validation";
+import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +28,8 @@ const emptyCheck: CheckMutation = {
 };
 
 const checkFormSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  query: z.string().trim().min(1, "Query is required.").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
+  name: requiredString("Name"),
+  query: requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
 });
 
 export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
@@ -134,6 +134,7 @@ function CheckEditForm({
   return (
     <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -142,10 +143,13 @@ function CheckEditForm({
         <PageHeader title={mode === "create" ? "New Check" : "Edit Check"} />
         <FieldGroup>
           <Field data-invalid={showErrors && errors.name ? true : undefined}>
-            <FieldLabel htmlFor="check-name">Name</FieldLabel>
+            <FieldLabel htmlFor="check-name" required>
+              Name
+            </FieldLabel>
             <Input
               id="check-name"
               required
+              aria-invalid={showErrors && errors.name ? true : undefined}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
@@ -171,13 +175,14 @@ function CheckEditForm({
         />
 
         <Field data-invalid={showErrors && errors.query ? true : undefined}>
-          <FieldLabel>Query</FieldLabel>
+          <FieldLabel required>Query</FieldLabel>
           <SQLEditor
             ref={editorRef}
             value={form.query}
             onChange={(query) => setForm({ ...form, query })}
             onTableMetaClick={selectSchemaTable}
             placeholder="SELECT ..."
+            invalid={showErrors && errors.query ? true : undefined}
           />
           {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
         </Field>

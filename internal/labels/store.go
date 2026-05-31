@@ -258,6 +258,9 @@ func (s *Store) RefreshDerived(ctx context.Context) error {
 
 // Validate checks the label shape before the DB sees it.
 func (p LabelMutation) Validate() error {
+	if p.Name == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
 	return validateMembershipPairing(p.LabelMembershipType, p.Query, p.Criteria, p.HostIDs)
 }
 

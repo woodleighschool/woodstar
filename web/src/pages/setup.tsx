@@ -46,7 +46,9 @@ export function SetupPage() {
           >
             <FieldGroup className="gap-4">
               <Field>
-                <FieldLabel htmlFor="setup-email">Email</FieldLabel>
+                <FieldLabel htmlFor="setup-email" required>
+                  Email
+                </FieldLabel>
                 <Input
                   id="setup-email"
                   name="email"
@@ -58,11 +60,15 @@ export function SetupPage() {
                 <FieldDescription>Break-glass identity.</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="setup-name">Display Name</FieldLabel>
+                <FieldLabel htmlFor="setup-name" required>
+                  Display Name
+                </FieldLabel>
                 <Input id="setup-name" name="name" autoComplete="name" placeholder="Site administrator" required />
               </Field>
               <Field>
-                <FieldLabel htmlFor="setup-password">Password</FieldLabel>
+                <FieldLabel htmlFor="setup-password" required>
+                  Password
+                </FieldLabel>
                 <Input
                   id="setup-password"
                   name="password"

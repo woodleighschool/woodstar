@@ -283,7 +283,9 @@ function HostUserMappingDialog({ host, onOpenChange }: { host: HostDetail; onOpe
         <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
           <FieldGroup className="gap-4">
             <Field>
-              <FieldLabel htmlFor="host-user-email">Email / UPN</FieldLabel>
+              <FieldLabel htmlFor="host-user-email" required>
+                Email / UPN
+              </FieldLabel>
               <Input
                 id="host-user-email"
                 type="email"

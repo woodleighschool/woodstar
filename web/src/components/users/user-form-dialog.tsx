@@ -122,7 +122,9 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
       >
         <FieldGroup className="gap-4">
           <Field data-disabled={mode === "edit"}>
-            <FieldLabel htmlFor="user-email">Email</FieldLabel>
+            <FieldLabel htmlFor="user-email" required={mode === "create"}>
+              Email
+            </FieldLabel>
             <Input
               id="user-email"
               type="email"
@@ -170,7 +172,9 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="user-password">Password</FieldLabel>
+            <FieldLabel htmlFor="user-password" required={mode === "create"}>
+              Password
+            </FieldLabel>
             <Input
               id="user-password"
               type="password"

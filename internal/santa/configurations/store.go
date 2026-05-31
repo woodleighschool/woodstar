@@ -290,6 +290,11 @@ func (p ConfigurationMutation) Validate() error {
 	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
 		return err
 	}
+	for _, labelID := range p.LabelIDs {
+		if labelID <= 0 {
+			return fmt.Errorf("%w: label IDs must be positive", dbutil.ErrInvalidInput)
+		}
+	}
 	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
 }
 

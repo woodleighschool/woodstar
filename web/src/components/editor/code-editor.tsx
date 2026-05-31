@@ -15,6 +15,7 @@ interface CodeEditorProps {
   placeholder?: string;
   readOnly?: boolean;
   className?: string;
+  invalid?: boolean;
   lineNumbers?: boolean;
   lineWrapping?: boolean;
   highlightActiveLine?: boolean;
@@ -85,6 +86,7 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
     placeholder,
     readOnly,
     className,
+    invalid,
     lineNumbers = true,
     lineWrapping = true,
     highlightActiveLine = true,
@@ -104,7 +106,14 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
   );
 
   return (
-    <div className={cn("border-input bg-card overflow-visible rounded-md border", className)}>
+    <div
+      aria-invalid={invalid ? true : undefined}
+      className={cn(
+        "border-input bg-card overflow-visible rounded-md border",
+        "aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20",
+        className,
+      )}
+    >
       <CodeMirror
         ref={ref}
         value={value}

@@ -949,7 +949,7 @@ export type RuleMutation = {
     exclude_label_ids?: Array<number> | null;
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
-    name?: string;
+    name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
@@ -1480,7 +1480,7 @@ export type RuleMutationWritable = {
     exclude_label_ids?: Array<number> | null;
     identifier: string;
     includes?: Array<RuleIncludeWrite> | null;
-    name?: string;
+    name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 

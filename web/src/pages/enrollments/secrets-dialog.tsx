@@ -380,10 +380,15 @@ function SecretValueDialog({
 
         <FieldGroup>
           <Field data-invalid={Boolean(message)}>
-            <FieldLabel htmlFor="agent-secret-value">Enrollment Secret</FieldLabel>
+            <FieldLabel htmlFor="agent-secret-value" required>
+              Enrollment Secret
+            </FieldLabel>
             <Input
               id="agent-secret-value"
               value={value}
+              required
+              minLength={MIN_SECRET_LENGTH}
+              aria-invalid={message ? true : undefined}
               className="font-mono"
               autoComplete="off"
               spellCheck={false}

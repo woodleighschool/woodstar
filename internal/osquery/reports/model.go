@@ -2,7 +2,6 @@ package reports
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -35,11 +34,14 @@ type ReportMutation struct {
 }
 
 func (p ReportMutation) Validate() error {
-	if strings.TrimSpace(p.Name) == "" {
+	if p.Name == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
-	if strings.TrimSpace(p.Query) == "" {
+	if p.Query == "" {
 		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+	}
+	if p.ScheduleInterval < 0 {
+		return fmt.Errorf("%w: schedule_interval must be non-negative", dbutil.ErrInvalidInput)
 	}
 	return nil
 }

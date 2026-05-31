@@ -23,6 +23,7 @@ interface LabelPickerProps {
   emptyPlaceholder?: string;
   placeholder?: string;
   required?: boolean;
+  invalid?: boolean;
 }
 
 export function LabelPicker({
@@ -35,6 +36,7 @@ export function LabelPicker({
   emptyPlaceholder,
   placeholder = "Add Label",
   required = false,
+  invalid = false,
 }: LabelPickerProps) {
   const labels = useLabels({
     page_size: MAX_PAGE_SIZE,
@@ -69,6 +71,7 @@ export function LabelPicker({
         <ComboboxInput
           placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
           required={required}
+          aria-invalid={invalid ? true : undefined}
           showClear
         />
         <ComboboxContent>
@@ -97,6 +100,7 @@ export function LabelPicker({
         <ComboboxChipsInput
           placeholder={items.length === 0 ? (emptyPlaceholder ?? "No Labels Available") : placeholder}
           required={required && selected.length === 0}
+          aria-invalid={invalid ? true : undefined}
         />
       </ComboboxChips>
       <ComboboxContent>

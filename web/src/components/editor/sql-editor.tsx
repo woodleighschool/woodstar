@@ -16,11 +16,12 @@ interface SQLEditorProps {
   placeholder?: string;
   readOnly?: boolean;
   className?: string;
+  invalid?: boolean;
   onTableMetaClick?: (tableName: string) => void;
 }
 
 export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function SQLEditor(
-  { value, onChange, placeholder, readOnly, className, onTableMetaClick },
+  { value, onChange, placeholder, readOnly, className, invalid, onTableMetaClick },
   ref,
 ) {
   const schema = useOsquerySchema();
@@ -45,6 +46,7 @@ export const SQLEditor = forwardRef<ReactCodeMirrorRef, SQLEditorProps>(function
       placeholder={placeholder}
       readOnly={readOnly}
       className={className}
+      invalid={invalid}
     />
   );
 });

@@ -40,10 +40,21 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("tiny batch size error = %v, want ErrInvalidInput", err)
 	}
 
+	missingName := baseline("")
+	if _, err := store.CreateConfiguration(ctx, missingName); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("missing name error = %v, want ErrInvalidInput", err)
+	}
+
 	emptyClientMode := baseline("empty client mode")
 	emptyClientMode.ClientMode = ""
 	if _, err := store.CreateConfiguration(ctx, emptyClientMode); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("empty client mode error = %v, want ErrInvalidInput", err)
+	}
+
+	invalidLabel := baseline("invalid label")
+	invalidLabel.LabelIDs = []int64{-1}
+	if _, err := store.CreateConfiguration(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("invalid label ID error = %v, want ErrInvalidInput", err)
 	}
 
 	remountWithoutFlags := baseline("remount without flags")

@@ -15,6 +15,11 @@ import (
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
+	const (
+		binaryIdentifier      = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		certificateIdentifier = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	)
+
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
@@ -56,7 +61,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	}
 	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
 		RuleType:      santarules.RuleTypeBinary,
-		Identifier:    "binary-sha",
+		Identifier:    binaryIdentifier,
+		Name:          "Blocked binary",
 		CustomMessage: "Blocked",
 		Includes: []santarules.RuleIncludeWrite{{
 			Policy:  santarules.PolicyBlocklist,
@@ -111,7 +117,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if len(download.Rules) != 1 {
 		t.Fatalf("downloaded rules = %+v, want one", download.Rules)
 	}
-	if download.Rules[0].Identifier != "binary-sha" ||
+	if download.Rules[0].Identifier != binaryIdentifier ||
 		download.Rules[0].Policy != string(santarules.PolicyBlocklist) ||
 		download.Rules[0].RuleType != string(santarules.RuleTypeBinary) ||
 		download.Rules[0].CustomMessage != "Blocked" {
@@ -120,7 +126,8 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 
 	if _, err := ruleStore.CreateRule(ctx, santarules.RuleMutation{
 		RuleType:   santarules.RuleTypeCertificate,
-		Identifier: "cert-sha",
+		Identifier: certificateIdentifier,
+		Name:       "Blocked certificate",
 		Includes: []santarules.RuleIncludeWrite{{
 			Policy:  santarules.PolicyBlocklist,
 			LabelID: labelID,
@@ -132,7 +139,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rule download after desired change: %v", err)
 	}
-	if len(frozenDownload.Rules) != 1 || frozenDownload.Rules[0].Identifier != "binary-sha" {
+	if len(frozenDownload.Rules) != 1 || frozenDownload.Rules[0].Identifier != binaryIdentifier {
 		t.Fatalf("frozen download = %+v, want original preflight payload", frozenDownload.Rules)
 	}
 

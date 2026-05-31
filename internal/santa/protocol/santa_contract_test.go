@@ -75,6 +75,7 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 	if _, err := stores.rules.CreateRule(ctx, santarules.RuleMutation{
 		RuleType:      santarules.RuleTypeBinary,
 		Identifier:    ruleIdentifier,
+		Name:          "Contract rule " + suffix,
 		CustomMessage: "Blocked by contract",
 		Includes: []santarules.RuleIncludeWrite{{
 			Policy:  santarules.PolicyBlocklist,

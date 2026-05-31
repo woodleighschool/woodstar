@@ -20,9 +20,10 @@ import {
   type SantaConfiguration,
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
+import { fieldErrors, integerRange, optionalText, positiveIntegerArray, requiredString } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-import { CLIENT_MODE_OPTIONS } from "./shared";
+import { CLIENT_MODE_OPTIONS, CLIENT_MODE_VALUES } from "./shared";
 
 type MediaAction = "none" | "allow" | "block" | "remount";
 
@@ -52,21 +53,47 @@ const MEDIA_ACTION_OPTIONS: { value: MediaAction; label: string }[] = [
   { value: "block", label: "Block" },
   { value: "remount", label: "Remount" },
 ];
+const MEDIA_ACTION_VALUES = ["none", "allow", "block", "remount"] as const;
 
-const mediaActionSchema = z
+const configurationFormSchema = z
   .object({
-    action: z.enum(["none", "allow", "block", "remount"]),
-    flags: z.string(),
+    name: requiredString("Name"),
+    description: z.string().trim(),
+    client_mode: z.enum(CLIENT_MODE_VALUES),
+    label_ids: positiveIntegerArray("Label"),
+    enable_bundles: z.boolean(),
+    enable_transitive_rules: z.boolean(),
+    enable_all_event_upload: z.boolean(),
+    full_sync_interval_seconds: integerRange("Full sync interval", 60),
+    batch_size: integerRange("Batch size", 5, 100),
+    allowed_path_regex: z.string().trim(),
+    blocked_path_regex: z.string().trim(),
+    removable_media_action: z.enum(MEDIA_ACTION_VALUES),
+    removable_media_remount_flags: z.string().trim(),
+    encrypted_removable_media_action: z.enum(MEDIA_ACTION_VALUES),
+    encrypted_removable_media_remount_flags: z.string().trim(),
+    event_detail_url: z.string().trim(),
+    event_detail_text: z.string().trim(),
   })
-  .refine((value) => value.action !== "remount" || splitWords(value.flags).length > 0, {
-    message: "Remount requires at least one mount flag.",
-    path: ["flags"],
+  .superRefine((value, ctx) => {
+    if (value.removable_media_action === "remount" && splitWords(value.removable_media_remount_flags).length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Remount requires at least one mount flag.",
+        path: ["removable_media_remount_flags"],
+      });
+    }
+    if (
+      value.encrypted_removable_media_action === "remount" &&
+      splitWords(value.encrypted_removable_media_remount_flags).length === 0
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Remount requires at least one mount flag.",
+        path: ["encrypted_removable_media_remount_flags"],
+      });
+    }
   });
-
-const configurationFormSchema = z.object({
-  removable_media: mediaActionSchema,
-  encrypted_removable_media: mediaActionSchema,
-});
 
 // Santa client defaults sourced from upstream Santa. The form pre-fills these
 // so the backend never substitutes hidden defaults.
@@ -145,24 +172,16 @@ function ConfigurationForm({
       configuration.id === configurationId ? [] : (configuration.label_ids ?? []),
     );
   }, [configurationId, configurations.data?.items]);
-  const parsed = configurationFormSchema.safeParse({
-    removable_media: {
-      action: form.removable_media_action,
-      flags: form.removable_media_remount_flags,
-    },
-    encrypted_removable_media: {
-      action: form.encrypted_removable_media_action,
-      flags: form.encrypted_removable_media_remount_flags,
-    },
-  });
-  const mediaFlagsErrors = mediaFlagsErrorMap(parsed);
+  const parsed = configurationFormSchema.safeParse(form);
+  const errors = fieldErrors(parsed);
 
   async function submit() {
-    if (!parsed.success) {
+    const nextParsed = configurationFormSchema.safeParse(form);
+    if (!nextParsed.success) {
       setShowErrors(true);
       return;
     }
-    const body = configurationBody(form);
+    const body = configurationBody(nextParsed.data);
     if (mode === "create") await create.mutateAsync(body);
     else await update.mutateAsync({ id: configurationId ?? 0, body });
     void navigate({ to: "/santa/configurations" });
@@ -171,6 +190,7 @@ function ConfigurationForm({
   return (
     <PageShell asChild>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -179,14 +199,18 @@ function ConfigurationForm({
         <PageHeader title={mode === "create" ? "New Configuration" : "Edit Configuration"} />
 
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="santa-configuration-name">Name</FieldLabel>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
+            <FieldLabel htmlFor="santa-configuration-name" required>
+              Name
+            </FieldLabel>
             <Input
               id="santa-configuration-name"
               required
+              aria-invalid={showErrors && errors.name ? true : undefined}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-configuration-description">Description</FieldLabel>
@@ -208,7 +232,11 @@ function ConfigurationForm({
                 })
               }
             >
-              <SelectTrigger id="santa-client-mode" className="w-full">
+              <SelectTrigger
+                id="santa-client-mode"
+                className="w-full"
+                aria-invalid={showErrors && errors.client_mode ? true : undefined}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -247,12 +275,17 @@ function ConfigurationForm({
             value={form.enable_all_event_upload}
             onChange={(enable_all_event_upload) => setForm({ ...form, enable_all_event_upload })}
           />
-          <Field>
-            <FieldLabel htmlFor="santa-full-sync-interval">Full Sync Interval</FieldLabel>
+          <Field data-invalid={showErrors && errors.full_sync_interval_seconds ? true : undefined}>
+            <FieldLabel htmlFor="santa-full-sync-interval" required>
+              Full Sync Interval
+            </FieldLabel>
             <Input
               id="santa-full-sync-interval"
               type="number"
               min={60}
+              step={1}
+              required
+              aria-invalid={showErrors && errors.full_sync_interval_seconds ? true : undefined}
               inputMode="numeric"
               value={form.full_sync_interval_seconds}
               onChange={(event) => setForm({ ...form, full_sync_interval_seconds: Number(event.target.value) })}
@@ -260,14 +293,22 @@ function ConfigurationForm({
             <FieldDescription>
               Maximum time, in seconds, before Santa performs a full sync. Santa enforces a 60 second minimum.
             </FieldDescription>
+            {showErrors && errors.full_sync_interval_seconds ? (
+              <FieldError>{errors.full_sync_interval_seconds}</FieldError>
+            ) : null}
           </Field>
-          <Field>
-            <FieldLabel htmlFor="santa-batch-size">Batch Size</FieldLabel>
+          <Field data-invalid={showErrors && errors.batch_size ? true : undefined}>
+            <FieldLabel htmlFor="santa-batch-size" required>
+              Batch Size
+            </FieldLabel>
             <Input
               id="santa-batch-size"
               type="number"
               min={5}
               max={100}
+              step={1}
+              required
+              aria-invalid={showErrors && errors.batch_size ? true : undefined}
               inputMode="numeric"
               value={form.batch_size}
               onChange={(event) => setForm({ ...form, batch_size: Number(event.target.value) })}
@@ -275,6 +316,7 @@ function ConfigurationForm({
             <FieldDescription>
               Rules downloaded or events uploaded per request. Santa makes another request when there is more work.
             </FieldDescription>
+            {showErrors && errors.batch_size ? <FieldError>{errors.batch_size}</FieldError> : null}
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-allowed-path-regex">Allowed Path Regex</FieldLabel>
@@ -320,7 +362,7 @@ function ConfigurationForm({
             description="Controls USB mass storage. Block prevents mounting; Remount mounts again with the flags below."
             action={form.removable_media_action}
             flags={form.removable_media_remount_flags}
-            flagsError={showErrors ? mediaFlagsErrors.removable_media : undefined}
+            flagsError={showErrors ? errors.removable_media_remount_flags : undefined}
             onActionChange={(removable_media_action) => setForm({ ...form, removable_media_action })}
             onFlagsChange={(removable_media_remount_flags) => setForm({ ...form, removable_media_remount_flags })}
           />
@@ -330,7 +372,7 @@ function ConfigurationForm({
             description="Controls encrypted USB mass storage separately from other removable media."
             action={form.encrypted_removable_media_action}
             flags={form.encrypted_removable_media_remount_flags}
-            flagsError={showErrors ? mediaFlagsErrors.encrypted_removable_media : undefined}
+            flagsError={showErrors ? errors.encrypted_removable_media_remount_flags : undefined}
             onActionChange={(encrypted_removable_media_action) =>
               setForm({ ...form, encrypted_removable_media_action })
             }
@@ -437,10 +479,14 @@ function MediaActionField({
       <FieldDescription>{description}</FieldDescription>
       {action === "remount" ? (
         <div className="flex flex-col gap-1">
+          <FieldLabel htmlFor={`${id}-flags`} required>
+            Mount Flags
+          </FieldLabel>
           <Input
             id={`${id}-flags`}
             placeholder="remount flags"
             required
+            aria-invalid={flagsError ? true : undefined}
             value={flags}
             onChange={(event) => onFlagsChange(event.target.value)}
           />
@@ -504,30 +550,9 @@ function removableMediaPolicyBody(action: MediaAction, flags: string) {
   return { action, remount_flags: splitWords(flags) };
 }
 
-function optionalText(value: string) {
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
-}
-
 function splitWords(value: string) {
   return value
     .split(/[\s,]+/)
     .map((part) => part.trim())
     .filter(Boolean);
-}
-
-function mediaFlagsErrorMap(result: ReturnType<typeof configurationFormSchema.safeParse>): {
-  removable_media?: string;
-  encrypted_removable_media?: string;
-} {
-  if (result.success) return {};
-  const out: { removable_media?: string; encrypted_removable_media?: string } = {};
-  for (const issue of result.error.issues) {
-    const key = issue.path[0];
-    if (key === "removable_media" && !out.removable_media) out.removable_media = issue.message;
-    if (key === "encrypted_removable_media" && !out.encrypted_removable_media) {
-      out.encrypted_removable_media = issue.message;
-    }
-  }
-  return out;
 }

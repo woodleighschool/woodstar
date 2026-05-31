@@ -2528,6 +2528,7 @@ components:
       required:
         - rule_type
         - identifier
+        - name
       type: object
     RuleReference:
       additionalProperties: false

@@ -25,13 +25,24 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		name   string
 		params rules.RuleMutation
 	}{
-		{name: "missing type", params: rules.RuleMutation{Identifier: binaryIdentifier}},
-		{name: "missing identifier", params: rules.RuleMutation{RuleType: rules.RuleTypeBinary}},
+		{name: "missing type", params: rules.RuleMutation{Name: "Missing Type", Identifier: binaryIdentifier}},
+		{
+			name:   "missing identifier",
+			params: rules.RuleMutation{Name: "Missing Identifier", RuleType: rules.RuleTypeBinary},
+		},
+		{
+			name: "missing name",
+			params: rules.RuleMutation{
+				RuleType:   rules.RuleTypeBinary,
+				Identifier: binaryIdentifier,
+			},
+		},
 		{
 			name: "cel without expression",
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
+				Name:       "CEL Without Expression",
 				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyCEL, LabelID: labelID}},
 			},
 		},
@@ -40,6 +51,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
+				Name:       "Non CEL With Expression",
 				Includes: []rules.RuleIncludeWrite{{
 					Policy:        rules.PolicyAllowlist,
 					CELExpression: "target.path == '/Applications'",
@@ -52,6 +64,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
+				Name:       "Include Without Label",
 				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist}},
 			},
 		},
@@ -60,6 +73,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
+				Name:       "Duplicate Include Label",
 				Includes: []rules.RuleIncludeWrite{
 					{Policy: rules.PolicyAllowlist, LabelID: labelID},
 					{Policy: rules.PolicyBlocklist, LabelID: labelID},
@@ -71,6 +85,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:        rules.RuleTypeBinary,
 				Identifier:      binaryIdentifier,
+				Name:            "Include Exclude Overlap",
 				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
 				ExcludeLabelIDs: []int64{labelID},
 			},
@@ -80,6 +95,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			params: rules.RuleMutation{
 				RuleType:        rules.RuleTypeBinary,
 				Identifier:      binaryIdentifier,
+				Name:            "Builtin Exclude",
 				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
 				ExcludeLabelIDs: []int64{allHostsLabelID},
 			},
@@ -121,6 +137,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	_, err = store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: binaryIdentifier,
+		Name:       "Duplicate",
 	})
 	if !errors.Is(err, dbutil.ErrAlreadyExists) {
 		t.Fatalf("duplicate CreateRule error = %v, want ErrAlreadyExists", err)
@@ -161,6 +178,7 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 	base := rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("a", 64),
+		Name:       "CEL Rule",
 		Includes: []rules.RuleIncludeWrite{{
 			Policy:        rules.PolicyCEL,
 			CELExpression: "target.signing_id == 'ABCDE12345:com.example.app'",
@@ -198,6 +216,20 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 			name: "non cel with expression",
 			mutate: func(params *rules.RuleMutation) {
 				params.Includes[0].Policy = rules.PolicyAllowlist
+			},
+		},
+		{
+			name: "bad signing id identifier",
+			mutate: func(params *rules.RuleMutation) {
+				params.RuleType = rules.RuleTypeSigningID
+				params.Identifier = "not-a-signing-id"
+			},
+		},
+		{
+			name: "bad cdhash identifier",
+			mutate: func(params *rules.RuleMutation) {
+				params.RuleType = rules.RuleTypeCDHash
+				params.Identifier = strings.Repeat("a", 39)
 			},
 		},
 	}
@@ -251,6 +283,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	excludedRule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:        rules.RuleTypeTeamID,
 		Identifier:      "TEAMID1234",
+		Name:            "Excluded Team",
 		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: secondLabelID}},
 		ExcludeLabelIDs: []int64{excludeLabelID},
 	})
@@ -294,6 +327,7 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 	rule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeTeamID,
 		Identifier: "ALLHOST123",
+		Name:       "All Hosts Team",
 		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: allHostsLabelID}},
 	})
 	if err != nil {
@@ -373,6 +407,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	rule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBundle,
 		Identifier: bundleHash,
+		Name:       "Bundle Rule",
 		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyBlocklist, LabelID: labelID}},
 	})
 	if err != nil {
@@ -469,6 +504,7 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	_, err = store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBundle,
 		Identifier: incompleteBundleHash,
+		Name:       "Incomplete Bundle",
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("incomplete bundle CreateRule error = %v, want ErrInvalidInput", err)
@@ -610,6 +646,7 @@ func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
 	rule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeCertificate,
 		Identifier: strings.Repeat("2", 64),
+		Name:       "Reorder Certificate",
 		Includes: []rules.RuleIncludeWrite{
 			{Policy: rules.PolicyAllowlist, LabelID: firstLabelID},
 			{Policy: rules.PolicyBlocklist, LabelID: secondLabelID},
@@ -645,12 +682,16 @@ func TestRuleStoreBulkDeleteIgnoresMissingIDs(t *testing.T) {
 
 	first, err := store.CreateRule(
 		ctx,
-		rules.RuleMutation{RuleType: rules.RuleTypeBinary, Identifier: strings.Repeat("3", 64)},
+		rules.RuleMutation{RuleType: rules.RuleTypeBinary, Identifier: strings.Repeat("3", 64), Name: "Bulk Binary"},
 	)
 	if err != nil {
 		t.Fatalf("create first rule: %v", err)
 	}
-	second, err := store.CreateRule(ctx, rules.RuleMutation{RuleType: rules.RuleTypeTeamID, Identifier: "BULKTEAM12"})
+	second, err := store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:   rules.RuleTypeTeamID,
+		Identifier: "BULKTEAM12",
+		Name:       "Bulk Team",
+	})
 	if err != nil {
 		t.Fatalf("create second rule: %v", err)
 	}

@@ -2,7 +2,6 @@ package checks
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -36,10 +35,10 @@ type CheckMutation struct {
 }
 
 func (p CheckMutation) Validate() error {
-	if strings.TrimSpace(p.Name) == "" {
+	if p.Name == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
-	if strings.TrimSpace(p.Query) == "" {
+	if p.Query == "" {
 		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
 	}
 	return nil

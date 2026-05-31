@@ -29,7 +29,7 @@ import {
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors } from "@/lib/form-validation";
+import { fieldErrors, positiveIntegerArray, requiredString } from "@/lib/form-validation";
 import { sqlSyntaxError } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 import {
@@ -67,16 +67,16 @@ const empty: FormState = {
   label_membership_type: "dynamic",
 };
 
-const queryRequiredSchema = z.string().trim().min(1, "Query is required.");
+const queryRequiredSchema = requiredString("Query");
 
 const labelFormSchema = z
   .object({
-    name: z.string().trim().min(1, "Name is required."),
+    name: requiredString("Name"),
     description: z.string().trim(),
     query: z.string().trim(),
-    host_ids: z.array(z.number().int().positive()),
+    host_ids: positiveIntegerArray("Host"),
     derived_attribute: z.enum(["directory_department", "directory_group", "directory_user"]),
-    derived_values: z.array(z.string().trim().min(1)),
+    derived_values: z.array(requiredString("Derived value")),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
   .superRefine((value, ctx) => {
@@ -234,6 +234,7 @@ function LabelEditForm({
       className={cn("h-full transition-[padding] duration-200 ease-out", isDynamic && schemaOpen && "pr-[21rem]")}
     >
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -243,10 +244,13 @@ function LabelEditForm({
 
         <FieldGroup className="max-w-5xl">
           <Field data-invalid={showErrors && errors.name ? true : undefined}>
-            <FieldLabel htmlFor="label-name">Name</FieldLabel>
+            <FieldLabel htmlFor="label-name" required>
+              Name
+            </FieldLabel>
             <Input
               id="label-name"
               required
+              aria-invalid={showErrors && errors.name ? true : undefined}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
@@ -318,7 +322,7 @@ function LabelEditForm({
                 </Select>
               </Field>
               <Field data-invalid={showErrors && errors.derived_values ? true : undefined}>
-                <FieldLabel>{derivedSelectorLabel(form.derived_attribute)}</FieldLabel>
+                <FieldLabel required>{derivedSelectorLabel(form.derived_attribute)}</FieldLabel>
                 <DerivedSelector
                   attribute={form.derived_attribute}
                   value={form.derived_values}
@@ -333,13 +337,14 @@ function LabelEditForm({
 
         {isDynamic ? (
           <Field data-invalid={showErrors && errors.query ? true : undefined} className="max-w-3xl">
-            <FieldLabel>Query</FieldLabel>
+            <FieldLabel required>Query</FieldLabel>
             <SQLEditor
               ref={editorRef}
               value={form.query}
               onChange={(query) => setForm({ ...form, query })}
               onTableMetaClick={selectSchemaTable}
               placeholder="SELECT ..."
+              invalid={showErrors && errors.query ? true : undefined}
             />
             {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
           </Field>

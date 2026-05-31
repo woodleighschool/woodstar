@@ -25,7 +25,12 @@ func TestReportMutationValidate(t *testing.T) {
 		},
 		{
 			name:    "missing query",
-			in:      ReportMutation{Name: "No query", Query: "\n\t"},
+			in:      ReportMutation{Name: "No query"},
+			wantErr: true,
+		},
+		{
+			name:    "negative schedule interval",
+			in:      ReportMutation{Name: "Bad schedule", Query: "select 1;", ScheduleInterval: -1},
 			wantErr: true,
 		},
 	}

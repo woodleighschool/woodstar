@@ -49,7 +49,9 @@ export function LoginPage() {
           >
             <FieldGroup className="gap-4">
               <Field>
-                <FieldLabel htmlFor="login-email">Email</FieldLabel>
+                <FieldLabel htmlFor="login-email" required>
+                  Email
+                </FieldLabel>
                 <Input
                   id="login-email"
                   name="email"
@@ -60,7 +62,9 @@ export function LoginPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="login-password">Password</FieldLabel>
+                <FieldLabel htmlFor="login-password" required>
+                  Password
+                </FieldLabel>
                 <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
               </Field>
 

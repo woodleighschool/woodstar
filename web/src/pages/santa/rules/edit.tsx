@@ -35,6 +35,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleTarget,
 } from "@/hooks/use-santa";
+import { fieldErrors, optionalText, positiveIntegerArray, requiredString } from "@/lib/form-validation";
 import { santaCELExpressionError } from "@/lib/santa-cel";
 
 import {
@@ -74,16 +75,15 @@ const includeSchema = z
 const ruleFormSchema = z
   .object({
     rule_type: z.enum(RULE_TYPE_VALUES),
-    identifier: z.string().trim(),
-    name: z.string().trim(),
+    identifier: requiredString("Target"),
+    name: requiredString("Name"),
     description: z.string().trim(),
     custom_message: z.string().trim(),
     custom_url: z.string().trim(),
-    exclude_label_ids: z.array(z.number().int().positive()),
+    exclude_label_ids: positiveIntegerArray("Label"),
     includes: z.array(includeSchema),
   })
   .superRefine((value, ctx) => {
-    // Empty identifier is the HTML `required` attribute's job; only check pattern when filled.
     if (value.identifier === "") return;
     const rule = RULE_IDENTIFIER_RULES[value.rule_type];
     if (!rule.pattern.test(value.identifier)) {
@@ -172,11 +172,12 @@ function RuleForm({
   const [celDialogID, setCELDialogID] = useState<number | null>(null);
   const pending = create.isPending || update.isPending;
   const parsed = useMemo(() => ruleFormSchema.safeParse(form), [form]);
+  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
   const identifierError = identifierErrorFor(parsed);
-  const identifierInvalid = form.identifier.trim() !== "" && identifierError !== undefined;
+  const identifierInvalid = identifierError !== undefined && (showErrors || form.identifier.trim() !== "");
   const includeErrors = useMemo(() => includeErrorMap(parsed, form.includes), [parsed, form.includes]);
   const includeLabelIDs = useMemo(() => selectedIncludeLabelIDs(form.includes), [form.includes]);
-  const canSave = parsed.success && form.identifier.trim() !== "";
+  const canSave = parsed.success;
 
   async function submit() {
     if (!canSave) {
@@ -201,6 +202,7 @@ function RuleForm({
   return (
     <PageShell asChild>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -209,13 +211,18 @@ function RuleForm({
         <PageHeader title={mode === "create" ? "New Rule" : "Edit Rule"} />
 
         <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="santa-rule-name">Name</FieldLabel>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
+            <FieldLabel htmlFor="santa-rule-name" required>
+              Name
+            </FieldLabel>
             <Input
               id="santa-rule-name"
+              required
+              aria-invalid={showErrors && errors.name ? true : undefined}
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
           <Field>
             <FieldLabel htmlFor="santa-rule-description">Description</FieldLabel>
@@ -386,7 +393,9 @@ function RuleTargetPicker({
 
   return (
     <Field data-invalid={identifierInvalid}>
-      <FieldLabel htmlFor="santa-rule-target">Target</FieldLabel>
+      <FieldLabel htmlFor="santa-rule-target" required>
+        Target
+      </FieldLabel>
       <Combobox
         items={items}
         value={selected}
@@ -408,6 +417,7 @@ function RuleTargetPicker({
         <ComboboxInput
           id="santa-rule-target"
           required
+          aria-invalid={identifierInvalid ? true : undefined}
           showClear
           disabled={targets.isLoading}
           placeholder={targets.isLoading ? "Loading Targets" : "Select Target"}
@@ -419,7 +429,8 @@ function RuleTargetPicker({
           <ComboboxList>{ruleTargetItem}</ComboboxList>
         </ComboboxContent>
       </Combobox>
-      <FieldDescription>{identifierError ?? ruleTargetDescription(selected, form.rule_type)}</FieldDescription>
+      <FieldDescription>{ruleTargetDescription(selected, form.rule_type)}</FieldDescription>
+      {identifierInvalid && identifierError ? <FieldError>{identifierError}</FieldError> : null}
     </Field>
   );
 }
@@ -585,7 +596,14 @@ function IncludeTargetsTable({
       },
       {
         id: "labels",
-        header: "Labels",
+        header: () => (
+          <span className="inline-flex items-center gap-1">
+            Labels
+            <span aria-hidden="true" className="text-destructive">
+              *
+            </span>
+          </span>
+        ),
         enableSorting: false,
         cell: ({ row }) => {
           const error = showErrors ? includeErrors[row.original.id]?.label_id : undefined;
@@ -602,8 +620,10 @@ function IncludeTargetsTable({
                 placeholder="Select Label"
                 emptyMessage="No Unused Labels Available."
                 emptyPlaceholder="No Unused Labels"
+                invalid={error ? true : undefined}
                 onChange={(label_ids) => onUpdate(row.original.id, { label_id: label_ids[0] ?? null })}
               />
+              {error ? <FieldError>{error}</FieldError> : null}
             </Field>
           );
         },
@@ -666,13 +686,14 @@ function CELDialog({
 
         {include ? (
           <Field data-invalid={visibleError ? true : undefined} className="gap-2">
-            <FieldLabel>Expression</FieldLabel>
+            <FieldLabel required>Expression</FieldLabel>
             <CodeEditor
               value={include.cel_expression}
               onChange={onChange}
               placeholder="target.signing_time >= timestamp('2025-05-31T00:00:00Z')"
               lineNumbers={false}
               highlightActiveLine={false}
+              invalid={visibleError ? true : undefined}
               className="[&_.cm-content]:min-h-28 [&_.cm-scroller]:max-h-48 [&_.cm-scroller]:overflow-auto"
             />
             {visibleError ? <FieldError>{visibleError}</FieldError> : null}
@@ -732,7 +753,7 @@ function ruleBody(form: RuleFormState): SantaRuleMutation {
   return {
     rule_type: form.rule_type,
     identifier: form.identifier.trim(),
-    name: optionalText(form.name),
+    name: form.name.trim(),
     description: optionalText(form.description),
     custom_message: optionalText(form.custom_message),
     custom_url: optionalText(form.custom_url),
@@ -783,11 +804,6 @@ function unavailableIncludeLabelIDs(includes: RuleIncludeForm[], excludeLabelIDs
       include.id === currentIncludeID || include.label_id === null ? [] : [include.label_id],
     ),
   ];
-}
-
-function optionalText(value: string) {
-  const trimmed = value.trim();
-  return trimmed === "" ? undefined : trimmed;
 }
 
 function ruleIdentifierHint(ruleType: RuleType) {

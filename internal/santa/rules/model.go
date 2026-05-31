@@ -64,7 +64,7 @@ type RuleListParams struct {
 type RuleMutation struct {
 	RuleType        RuleType           `json:"rule_type"`
 	Identifier      string             `json:"identifier"`
-	Name            string             `json:"name,omitempty"`
+	Name            string             `json:"name"`
 	Description     string             `json:"description,omitempty"`
 	CustomMessage   string             `json:"custom_message,omitempty"`
 	CustomURL       string             `json:"custom_url,omitempty"`

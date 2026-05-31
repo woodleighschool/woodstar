@@ -25,7 +25,7 @@ func TestCheckMutationValidate(t *testing.T) {
 		},
 		{
 			name:    "missing query",
-			in:      CheckMutation{Name: "No query", Query: " "},
+			in:      CheckMutation{Name: "No query"},
 			wantErr: true,
 		},
 	}

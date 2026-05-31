@@ -44,6 +44,14 @@ func TestLabelMutationValidate(t *testing.T) {
 			wantErr: "query is required for dynamic labels",
 		},
 		{
+			name: "dynamic label without name is invalid",
+			in: LabelMutation{
+				Query:               &query,
+				LabelMembershipType: LabelMembershipTypeDynamic,
+			},
+			wantErr: "name is required",
+		},
+		{
 			name: "manual label with query is invalid",
 			in: LabelMutation{
 				Name:                "Manual",
