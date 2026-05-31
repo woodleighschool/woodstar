@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -25,14 +26,27 @@ type softwareStore interface {
 	ReplaceHostSoftware(context.Context, int64, []software.HostSoftwareEntry) error
 }
 
+type munkiStore interface {
+	UpsertHostStatus(context.Context, munki.HostStatusObservation) error
+	ClearHostStatus(context.Context, int64) error
+	ReplaceHostItems(context.Context, int64, []munki.HostItem) error
+}
+
 type Projector struct {
 	hostStore     hostStore
 	softwareStore softwareStore
+	munkiStore    munkiStore
 	logger        *slog.Logger
 }
 
 func NewProjector(hostStore hostStore, softwareStore softwareStore, logger *slog.Logger) *Projector {
 	return &Projector{hostStore: hostStore, softwareStore: softwareStore, logger: logger}
+}
+
+// WithMunkiStore attaches the optional Munki observation sink to the projector.
+func (p *Projector) WithMunkiStore(store munkiStore) *Projector {
+	p.munkiStore = store
+	return p
 }
 
 func (p *Projector) MarkFresh(ctx context.Context, hostID int64) error {
@@ -60,6 +74,10 @@ func (p *Projector) IngestDetail(
 		return ingestBatteries(ctx, p, hostID, rows)
 	case catalog.IngestCertificates:
 		return ingestCertificates(ctx, p, hostID, name, rows)
+	case catalog.IngestMunkiInfo:
+		return ingestMunkiInfo(ctx, p, hostID, rows)
+	case catalog.IngestMunkiInstalls:
+		return ingestMunkiInstalls(ctx, p, hostID, rows)
 	default:
 		return nil
 	}
@@ -172,6 +190,24 @@ func ingestCertificates(
 	rows []map[string]string,
 ) error {
 	return projector.hostStore.ReplaceCertificates(ctx, hostID, parseHostCertificates(name, rows))
+}
+
+func ingestMunkiInfo(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	if projector.munkiStore == nil {
+		return nil
+	}
+	status, ok := munki.HostStatusFromInfoRows(hostID, rows)
+	if !ok {
+		return projector.munkiStore.ClearHostStatus(ctx, hostID)
+	}
+	return projector.munkiStore.UpsertHostStatus(ctx, status)
+}
+
+func ingestMunkiInstalls(ctx context.Context, projector *Projector, hostID int64, rows []map[string]string) error {
+	if projector.munkiStore == nil {
+		return nil
+	}
+	return projector.munkiStore.ReplaceHostItems(ctx, hostID, munki.HostItemsFromInstallRows(hostID, rows))
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {

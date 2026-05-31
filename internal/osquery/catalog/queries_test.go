@@ -20,6 +20,8 @@ func TestDetailQueryRegistryIsComplete(t *testing.T) {
 		"users",
 		"batteries",
 		"certificates_darwin",
+		"munki_info",
+		"munki_installs",
 		"software_macos",
 		"software_vscode_extensions",
 		"software_jetbrains_plugins",
@@ -68,7 +70,9 @@ func TestDetailQueriesDue(t *testing.T) {
 		got.Discovery["software_python_packages"] == "" ||
 		got.Discovery["software_python_packages_legacy"] == "" ||
 		got.Discovery["software_macos_codesign"] == "" ||
-		got.Discovery["software_macos_executable_sha256"] == "" {
+		got.Discovery["software_macos_executable_sha256"] == "" ||
+		got.Discovery["munki_info"] == "" ||
+		got.Discovery["munki_installs"] == "" {
 		t.Fatalf("missing optional detail query discovery: %#v", got.Discovery)
 	}
 }
@@ -79,6 +83,8 @@ func TestDetailQueriesDueDiscoversOsqueryVirtualTables(t *testing.T) {
 		QueryBatteries,
 		QueryCertificatesDarwin,
 		QueryRootDiskDarwin,
+		QueryMunkiInfo,
+		QueryMunkiInstalls,
 		QuerySoftwareMacOSCodesign,
 	} {
 		discovery := got.Discovery[name]
@@ -169,6 +175,32 @@ func TestSoftwareEnrichmentQueriesProjectIngestShape(t *testing.T) {
 	for _, want := range []string{"path", "executable_path", "executable_sha256"} {
 		if !strings.Contains(hashSQL, want) {
 			t.Fatalf("executable hash SQL missing %q: %s", want, hashSQL)
+		}
+	}
+}
+
+func TestMunkiQueriesProjectStatusShape(t *testing.T) {
+	infoSQL := DetailQueries()[QueryMunkiInfo].SQL
+	for _, want := range []string{
+		"version",
+		"errors",
+		"warnings",
+		"problem_installs",
+		"success",
+		"start_time",
+		"end_time",
+		"manifest_name",
+		"console_user",
+	} {
+		if !strings.Contains(infoSQL, want) {
+			t.Fatalf("munki_info SQL missing %q: %s", want, infoSQL)
+		}
+	}
+
+	installsSQL := DetailQueries()[QueryMunkiInstalls].SQL
+	for _, want := range []string{"name", "installed", "installed_version", "end_time"} {
+		if !strings.Contains(installsSQL, want) {
+			t.Fatalf("munki_installs SQL missing %q: %s", want, installsSQL)
 		}
 	}
 }

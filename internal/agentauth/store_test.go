@@ -24,6 +24,13 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create santa agent secret: %v", err)
 	}
+	munkiSecret, err := store.Create(ctx, AgentSecretCreate{
+		Agent: AgentMunki,
+		Value: "munki-secret-value-long-enough-32",
+	})
+	if err != nil {
+		t.Fatalf("create munki agent secret: %v", err)
+	}
 
 	secrets, err := store.List(ctx)
 	if err != nil {
@@ -34,6 +41,9 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	}
 	if !containsAgentSecret(secrets, santaSecret.ID, AgentSanta, santaSecret.Value) {
 		t.Fatalf("santa secret not listed: %+v", secrets)
+	}
+	if !containsAgentSecret(secrets, munkiSecret.ID, AgentMunki, munkiSecret.Value) {
+		t.Fatalf("munki secret not listed: %+v", secrets)
 	}
 
 	ok, err := store.Verify(ctx, AgentOrbit, orbitSecret.Value)
@@ -50,6 +60,14 @@ func TestAgentSecretLifecycle(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("orbit secret verified for santa")
+	}
+
+	ok, err = store.Verify(ctx, AgentMunki, munkiSecret.Value)
+	if err != nil {
+		t.Fatalf("verify munki secret: %v", err)
+	}
+	if !ok {
+		t.Fatal("created munki secret did not verify")
 	}
 
 	ok, err = store.Verify(ctx, AgentOrbit, "")
@@ -102,8 +120,8 @@ func TestCreateRejectsUnknownAgent(t *testing.T) {
 	store := NewStore(database)
 
 	if _, err := store.Create(ctx, AgentSecretCreate{
-		Agent: Agent("osquery"),
-		Value: "raw-osquery-secret-value-long-32",
+		Agent: Agent("mdm"),
+		Value: "raw-mdm-secret-value-long-enough-32",
 	}); err == nil {
 		t.Fatal("Create accepted unknown agent")
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -59,6 +60,7 @@ func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
 	}
 	assertProjectedHostDetails(t, host)
 	assertProjectedCertificates(t, ctx, stores.hosts, host.ID)
+	assertProjectedMunki(t, ctx, stores.munki, host.ID)
 	assertProjectedSoftware(t, ctx, stores.software, host.ID, softwareName, bundleID)
 }
 
@@ -196,6 +198,7 @@ type osqueryContractStores struct {
 	reports      *reports.Store
 	checks       *checks.Store
 	live         *livequery.Manager
+	munki        *munki.Store
 	software     *software.Store
 }
 
@@ -207,6 +210,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		reports:      reports.NewStore(database),
 		checks:       checks.NewStore(database),
 		live:         livequery.NewManager(),
+		munki:        munki.NewStore(database),
 		software:     software.NewStore(database),
 	}
 }
@@ -214,7 +218,11 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 	logger := slog.New(slog.DiscardHandler)
 	router := chi.NewRouter()
-	projector := ingest.NewProjector(stores.hosts, stores.software, logger.With("component", "inventory"))
+	projector := ingest.NewProjector(
+		stores.hosts,
+		stores.software,
+		logger.With("component", "inventory"),
+	).WithMunkiStore(stores.munki)
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	RegisterOsqueryRoutes(
 		router,
@@ -357,6 +365,23 @@ func writeOsqueryContractDetails(
 			"executable_sha256": "executable-hash",
 			"executable_path":   "/Applications/Example App.app/Contents/MacOS/Example",
 		}},
+		prefix + "munki_info": {{
+			"version":          "7.1.2.5700",
+			"manifest_name":    "site_default",
+			"console_user":     "contract",
+			"success":          "true",
+			"errors":           "first error; second error",
+			"warnings":         "first warning",
+			"problem_installs": "Broken App",
+			"start_time":       "2026-05-31 19:23:00 +1000",
+			"end_time":         "2026-05-31 19:24:14 +1000",
+		}},
+		prefix + "munki_installs": {{
+			"name":              "GoogleChrome",
+			"installed":         "true",
+			"installed_version": "148.0",
+			"end_time":          "2026-05-31 19:24:14 +1000",
+		}},
 		prefix + "certificates_darwin": {{
 			"sha1":              "certificate-sha1",
 			"common_name":       "Example Root CA",
@@ -405,6 +430,35 @@ func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
 	}
 	if host.Storage.BootVolume.TotalBytes == nil || *host.Storage.BootVolume.TotalBytes != 4294967296 {
 		t.Fatalf("host storage.boot_volume.total_bytes = %v, want 4294967296", host.Storage.BootVolume.TotalBytes)
+	}
+}
+
+func assertProjectedMunki(t *testing.T, ctx context.Context, store *munki.Store, hostID int64) {
+	t.Helper()
+	state, err := store.LoadHostState(ctx, hostID)
+	if err != nil {
+		t.Fatalf("load munki state: %v", err)
+	}
+	if state == nil {
+		t.Fatal("munki state is nil")
+	}
+	if state.Version != "7.1.2.5700" || state.ManifestName != "site_default" {
+		t.Fatalf("munki state = %+v, want version and manifest", state)
+	}
+	if state.Success == nil || !*state.Success {
+		t.Fatalf("munki success = %v, want true", state.Success)
+	}
+	if len(state.Errors) != 2 || len(state.Warnings) != 1 || len(state.ProblemInstalls) != 1 {
+		t.Fatalf(
+			"munki problems = errors %#v warnings %#v installs %#v",
+			state.Errors,
+			state.Warnings,
+			state.ProblemInstalls,
+		)
+	}
+	if len(state.Items) != 1 || state.Items[0].Name != "GoogleChrome" ||
+		!state.Items[0].Installed || state.Items[0].InstalledVersion != "148.0" {
+		t.Fatalf("munki items = %+v, want GoogleChrome installed", state.Items)
 	}
 }
 

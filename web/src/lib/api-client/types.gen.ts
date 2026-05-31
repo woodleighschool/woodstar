@@ -28,7 +28,7 @@ export type AgentSecret = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    agent: 'orbit' | 'santa';
+    agent: 'orbit' | 'munki' | 'santa';
     created_at: string;
     id: number;
     value: string;
@@ -39,7 +39,7 @@ export type AgentSecretCreate = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    agent: 'orbit' | 'santa';
+    agent: 'orbit' | 'munki' | 'santa';
     value: string;
 };
 
@@ -443,6 +443,7 @@ export type HostDetail = {
     hostname: string;
     id: number;
     labels: Array<Label> | null;
+    munki?: HostMunkiState;
     network: HostNetwork;
     os: HostOs;
     santa?: HostState;
@@ -465,6 +466,28 @@ export type HostHardware = {
     serial: string;
     uuid: string;
     vendor: string;
+};
+
+export type HostItem = {
+    installed: boolean;
+    installed_version: string;
+    last_seen_at: string;
+    name: string;
+    run_ended_at?: string;
+};
+
+export type HostMunkiState = {
+    console_user?: string;
+    errors: Array<string> | null;
+    items: Array<HostItem> | null;
+    last_seen_at: string;
+    manifest_name: string;
+    problem_installs: Array<string> | null;
+    run_ended_at?: string;
+    run_started_at?: string;
+    success?: boolean;
+    version: string;
+    warnings: Array<string> | null;
 };
 
 export type HostNetwork = {
@@ -1140,14 +1163,14 @@ export type AccountMutationWritable = {
 };
 
 export type AgentSecretWritable = {
-    agent: 'orbit' | 'santa';
+    agent: 'orbit' | 'munki' | 'santa';
     created_at: string;
     id: number;
     value: string;
 };
 
 export type AgentSecretCreateWritable = {
-    agent: 'orbit' | 'santa';
+    agent: 'orbit' | 'munki' | 'santa';
     value: string;
 };
 
@@ -1295,6 +1318,7 @@ export type HostDetailWritable = {
     hostname: string;
     id: number;
     labels: Array<LabelWritable> | null;
+    munki?: HostMunkiState;
     network: HostNetwork;
     os: HostOs;
     santa?: HostState;

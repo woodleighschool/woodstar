@@ -1,8 +1,12 @@
 package ingest
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
 func TestParseSoftwareRows(t *testing.T) {
@@ -121,4 +125,83 @@ func TestParseSoftwareRowsEnrichesInstalledPaths(t *testing.T) {
 		got[0].ExecutablePath != "/Applications/Example.app/Contents/MacOS/Example" {
 		t.Fatalf("enrichment parsed incorrectly: %#v", got[0])
 	}
+}
+
+func TestIngestMunkiDetailRows(t *testing.T) {
+	store := &fakeMunkiStore{}
+	projector := (&Projector{}).WithMunkiStore(store)
+	ctx := context.Background()
+
+	if err := projector.IngestDetail(
+		ctx,
+		catalog.DetailQueries()[catalog.QueryMunkiInfo],
+		catalog.QueryMunkiInfo,
+		42,
+		[]map[string]string{{
+			"version":       "7.1.2.5700",
+			"manifest_name": "site_default",
+			"success":       "true",
+			"errors":        "first; second",
+		}},
+	); err != nil {
+		t.Fatalf("ingest munki info: %v", err)
+	}
+	if store.status.HostID != 42 || store.status.Version != "7.1.2.5700" ||
+		store.status.ManifestName != "site_default" {
+		t.Fatalf("status = %+v, want parsed munki info", store.status)
+	}
+	if len(store.status.Errors) != 2 {
+		t.Fatalf("errors = %#v, want two entries", store.status.Errors)
+	}
+
+	if err := projector.IngestDetail(
+		ctx,
+		catalog.DetailQueries()[catalog.QueryMunkiInstalls],
+		catalog.QueryMunkiInstalls,
+		42,
+		[]map[string]string{{
+			"name":              "GoogleChrome",
+			"installed":         "true",
+			"installed_version": "148.0",
+		}},
+	); err != nil {
+		t.Fatalf("ingest munki installs: %v", err)
+	}
+	if len(store.items) != 1 || store.items[0].Name != "GoogleChrome" || !store.items[0].Installed {
+		t.Fatalf("items = %+v, want parsed munki item", store.items)
+	}
+
+	if err := projector.IngestDetail(
+		ctx,
+		catalog.DetailQueries()[catalog.QueryMunkiInfo],
+		catalog.QueryMunkiInfo,
+		42,
+		nil,
+	); err != nil {
+		t.Fatalf("ingest missing munki info: %v", err)
+	}
+	if store.clearedHostID != 42 {
+		t.Fatalf("clearedHostID = %d, want 42", store.clearedHostID)
+	}
+}
+
+type fakeMunkiStore struct {
+	status        munki.HostStatusObservation
+	items         []munki.HostItem
+	clearedHostID int64
+}
+
+func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status munki.HostStatusObservation) error {
+	s.status = status
+	return nil
+}
+
+func (s *fakeMunkiStore) ClearHostStatus(_ context.Context, hostID int64) error {
+	s.clearedHostID = hostID
+	return nil
+}
+
+func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []munki.HostItem) error {
+	s.items = items
+	return nil
 }

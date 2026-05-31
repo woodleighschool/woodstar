@@ -21,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
@@ -196,7 +197,7 @@ func TestAgentSecretsRejectBadAgent(t *testing.T) {
 		context.Background(),
 		http.MethodPost,
 		"/api/agent-secrets",
-		strings.NewReader(`{"agent":"munki","value":"invalid-agent-secret-value-long-32"}`),
+		strings.NewReader(`{"agent":"mdm","value":"invalid-agent-secret-value-long-32"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
@@ -394,6 +395,50 @@ func TestOrbitProtocolRoutesBypassBrowserAuth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	deps := testDependencies(testConfig())
+	deps.AgentAuth.Store = agentauth.NewStore(database)
+	deps.Munki.Repository = munki.NewService()
+	server := NewServer(deps)
+
+	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{
+		Agent: agentauth.AgentMunki,
+		Value: "munki-protocol-secret-value-long-32",
+	})
+	if err != nil {
+		t.Fatalf("create munki secret: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/site_default", nil)
+	req.Header.Set("Authorization", "Bearer "+secret.Value)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/x-plist" {
+		t.Fatalf("Content-Type = %q, want application/x-plist", got)
+	}
+
+	wrongAgent, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{
+		Agent: agentauth.AgentSanta,
+		Value: "santa-protocol-secret-value-long-32",
+	})
+	if err != nil {
+		t.Fatalf("create santa secret: %v", err)
+	}
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/site_default", nil)
+	req.Header.Set("Authorization", "Bearer "+wrongAgent.Value)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong-agent status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 

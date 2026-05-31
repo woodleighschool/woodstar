@@ -1,9 +1,13 @@
 package osquery
 
 import (
+	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -66,4 +70,90 @@ func TestSawEveryRequiredDetailQueryRequiresPresenceAndStatus(t *testing.T) {
 	if !sawEveryRequiredDetailQuery(pass) {
 		t.Fatal("empty successful required query was not treated as complete")
 	}
+}
+
+func TestFinalizeDetailPassClearsMissingOrFailedMunkiDetails(t *testing.T) {
+	projector := &recordingInventoryProjector{}
+	pass := &detailDispatchPass{
+		registry: map[string]catalog.DetailQuery{
+			"required":                 {Ingest: catalog.IngestHostDetail},
+			catalog.QueryMunkiInfo:     {Optional: true, Ingest: catalog.IngestMunkiInfo},
+			catalog.QueryMunkiInstalls: {Optional: true, Ingest: catalog.IngestMunkiInstalls},
+		},
+		results: map[string]detailResult{
+			"required":             {},
+			catalog.QueryMunkiInfo: {status: json.RawMessage(`1`)},
+		},
+		allSucceeded: true,
+	}
+
+	if err := finalizeDetailPass(context.Background(), testLogger(), projector, testHost(42), pass); err != nil {
+		t.Fatalf("finalize detail pass: %v", err)
+	}
+	if len(projector.cleared) != 2 ||
+		projector.cleared[0] != catalog.QueryMunkiInfo ||
+		projector.cleared[1] != catalog.QueryMunkiInstalls {
+		t.Fatalf("cleared = %#v, want munki_info and munki_installs", projector.cleared)
+	}
+	if !projector.markedFresh {
+		t.Fatal("optional munki clear blocked freshness")
+	}
+}
+
+func TestFinalizeDetailPassDoesNotClearMunkiOnNonDetailWrite(t *testing.T) {
+	projector := &recordingInventoryProjector{}
+	pass := &detailDispatchPass{
+		registry: map[string]catalog.DetailQuery{
+			"required":             {Ingest: catalog.IngestHostDetail},
+			catalog.QueryMunkiInfo: {Optional: true, Ingest: catalog.IngestMunkiInfo},
+		},
+		results:      map[string]detailResult{},
+		allSucceeded: true,
+	}
+
+	if err := finalizeDetailPass(context.Background(), testLogger(), projector, testHost(42), pass); err != nil {
+		t.Fatalf("finalize detail pass: %v", err)
+	}
+	if len(projector.cleared) > 0 {
+		t.Fatalf("cleared = %#v, want none", projector.cleared)
+	}
+}
+
+type recordingInventoryProjector struct {
+	cleared     []string
+	markedFresh bool
+}
+
+func (p *recordingInventoryProjector) IngestDetail(
+	_ context.Context,
+	_ catalog.DetailQuery,
+	name string,
+	_ int64,
+	rows []map[string]string,
+) error {
+	if rows == nil {
+		p.cleared = append(p.cleared, name)
+	}
+	return nil
+}
+
+func (p *recordingInventoryProjector) IngestSoftware(
+	context.Context,
+	int64,
+	map[string][]map[string]string,
+) error {
+	return nil
+}
+
+func (p *recordingInventoryProjector) MarkFresh(context.Context, int64) error {
+	p.markedFresh = true
+	return nil
+}
+
+func testHost(id int64) *hosts.Host {
+	return &hosts.Host{ID: id}
+}
+
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

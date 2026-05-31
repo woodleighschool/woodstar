@@ -13,10 +13,11 @@ type Agent string
 
 const (
 	AgentOrbit Agent = "orbit"
+	AgentMunki Agent = "munki"
 	AgentSanta Agent = "santa"
 )
 
-var AgentValues = []Agent{AgentOrbit, AgentSanta}
+var AgentValues = []Agent{AgentOrbit, AgentMunki, AgentSanta}
 
 var (
 	ErrInvalidAgent  = errors.New("invalid agent")
@@ -47,6 +48,8 @@ func ParseAgent(value string) (Agent, error) {
 	switch Agent(value) {
 	case AgentOrbit:
 		return AgentOrbit, nil
+	case AgentMunki:
+		return AgentMunki, nil
 	case AgentSanta:
 		return AgentSanta, nil
 	default:
@@ -56,7 +59,7 @@ func ParseAgent(value string) (Agent, error) {
 
 func (a Agent) Valid() bool {
 	switch a {
-	case AgentOrbit, AgentSanta:
+	case AgentOrbit, AgentMunki, AgentSanta:
 		return true
 	default:
 		return false

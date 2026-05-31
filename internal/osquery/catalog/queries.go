@@ -25,6 +25,8 @@ const (
 	QueryUsers                        = "users"
 	QueryBatteries                    = "batteries"
 	QueryCertificatesDarwin           = "certificates_darwin"
+	QueryMunkiInfo                    = "munki_info"
+	QueryMunkiInstalls                = "munki_installs"
 	QuerySoftwareMacOS                = "software_macos"
 	QuerySoftwareVSCodeExtensions     = "software_vscode_extensions"
 	QuerySoftwareJetBrainsPlugins     = "software_jetbrains_plugins"
@@ -46,6 +48,8 @@ var tableDiscoverySQL = map[string]string{
 	"executable_hashes": tableDiscovery("executable_hashes"),
 	"go_binaries":       tableDiscovery("go_binaries"),
 	"jetbrains_plugins": tableDiscovery("jetbrains_plugins"),
+	"munki_info":        tableDiscovery("munki_info"),
+	"munki_installs":    tableDiscovery("munki_installs"),
 	"orbit_info":        tableDiscovery("orbit_info"),
 	"vscode_extensions": tableDiscovery("vscode_extensions"),
 }
@@ -72,6 +76,8 @@ const (
 	IngestUsers              DetailIngest = "users"
 	IngestBatteries          DetailIngest = "batteries"
 	IngestCertificates       DetailIngest = "certificates"
+	IngestMunkiInfo          DetailIngest = "munki_info"
+	IngestMunkiInstalls      DetailIngest = "munki_installs"
 	IngestSoftwareBase       DetailIngest = "software_base"
 	IngestSoftwareEnrichment DetailIngest = "software_enrichment"
 )
@@ -144,6 +150,18 @@ func buildDetailQueries() map[string]DetailQuery {
 			Discovery: tableExistsSQL("certificates"),
 			Optional:  true,
 			Ingest:    IngestCertificates,
+		},
+		QueryMunkiInfo: {
+			SQL:       mustQuery("queries/munki_info.sql"),
+			Discovery: tableExistsSQL("munki_info"),
+			Optional:  true,
+			Ingest:    IngestMunkiInfo,
+		},
+		QueryMunkiInstalls: {
+			SQL:       mustQuery("queries/munki_installs.sql"),
+			Discovery: tableExistsSQL("munki_installs"),
+			Optional:  true,
+			Ingest:    IngestMunkiInstalls,
 		},
 	}
 	maps.Copy(registry, softwareDetailQueries())

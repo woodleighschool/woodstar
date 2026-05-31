@@ -29,6 +29,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 		deps.Inventory.Hosts,
 		deps.Inventory.UserAffinities,
 		deps.Inventory.Software,
+		handlers.MunkiHostDetailContributor(deps.Munki.Status),
 		handlers.SantaHostDetailContributor(deps.Santa.HostState),
 	)
 	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)

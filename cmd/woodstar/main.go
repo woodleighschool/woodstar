@@ -26,6 +26,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -135,6 +136,7 @@ func newServer(
 
 	orbitDeps := newOrbit(stores)
 	osqueryDeps := newOsquery(stores, logger)
+	munkiDeps := newMunki(stores)
 	santaDeps, stopSanta := newSanta(ctx, cfg, stores, logger)
 
 	stopBackground := append([]func(){stopSanta}, startIntegrations(ctx, cfg, db, stores, logger)...)
@@ -167,6 +169,7 @@ func newServer(
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
 		Orbit:     orbitDeps,
 		Osquery:   osqueryDeps,
+		Munki:     munkiDeps,
 		Santa:     santaDeps,
 	})
 	return server, func() {
@@ -186,6 +189,7 @@ type appStores struct {
 	labels              *labels.Store
 	reports             *reports.Store
 	checks              *checks.Store
+	munki               *munki.Store
 	santa               *santa.Store
 	santaConfigurations *configurations.Store
 	santaEvents         *events.Store
@@ -205,6 +209,7 @@ func newStores(db *database.DB) appStores {
 		labels:              labels.NewStore(db),
 		reports:             reports.NewStore(db),
 		checks:              checks.NewStore(db),
+		munki:               munki.NewStore(db),
 		santa:               santa.NewStore(db),
 		santaConfigurations: configurations.NewStore(db),
 		santaEvents:         events.NewStore(db),
@@ -261,7 +266,7 @@ func newOsquery(
 		stores.hosts,
 		stores.software,
 		logger.With("component", "inventory"),
-	)
+	).WithMunkiStore(stores.munki)
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	osqueryService := osquery.NewService(osquery.Dependencies{
 		HostStore:          stores.hosts,
@@ -278,6 +283,14 @@ func newOsquery(
 		LiveQueries: liveQueries,
 		Reports:     stores.reports,
 		Checks:      stores.checks,
+	}
+}
+
+// newMunki builds the Munki capability's runtime dependencies.
+func newMunki(stores appStores) api.MunkiDependencies {
+	return api.MunkiDependencies{
+		Repository: munki.NewService(),
+		Status:     stores.munki,
 	}
 }
 

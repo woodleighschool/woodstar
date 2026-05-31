@@ -17,6 +17,7 @@ type Agent string
 
 const (
 	AgentOrbit Agent = "orbit"
+	AgentMunki Agent = "munki"
 	AgentSanta Agent = "santa"
 )
 
@@ -807,6 +808,31 @@ type LabelMembership struct {
 	HostID    int64     `json:"host_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type MunkiHostItem struct {
+	HostID           int64     `json:"host_id"`
+	Name             string    `json:"name"`
+	Installed        bool      `json:"installed"`
+	InstalledVersion string    `json:"installed_version"`
+	RunEndedAt       string    `json:"run_ended_at"`
+	LastSeenAt       time.Time `json:"last_seen_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type MunkiHostStatus struct {
+	HostID          int64     `json:"host_id"`
+	Version         string    `json:"version"`
+	ManifestName    string    `json:"manifest_name"`
+	ConsoleUser     string    `json:"console_user"`
+	Success         *bool     `json:"success"`
+	Errors          []string  `json:"errors"`
+	Warnings        []string  `json:"warnings"`
+	ProblemInstalls []string  `json:"problem_installs"`
+	RunStartedAt    string    `json:"run_started_at"`
+	RunEndedAt      string    `json:"run_ended_at"`
+	LastSeenAt      time.Time `json:"last_seen_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type Report struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -38,6 +39,7 @@ type Dependencies struct {
 	AgentAuth AgentAuthDependencies
 	Orbit     OrbitDependencies
 	Osquery   OsqueryDependencies
+	Munki     MunkiDependencies
 	Santa     SantaDependencies
 }
 
@@ -79,6 +81,11 @@ type OsqueryDependencies struct {
 	LiveQueries *livequery.Manager
 	Reports     *reports.Store
 	Checks      *checks.Store
+}
+
+type MunkiDependencies struct {
+	Repository *munki.Service
+	Status     *munki.Store
 }
 
 type SantaDependencies struct {

@@ -10,6 +10,7 @@ import {
   HostUsersCard,
 } from "@/components/hosts/host-detail-cards";
 import { HostHeader } from "@/components/hosts/host-header";
+import { HostMunkiTab } from "@/components/hosts/host-munki-tab";
 import { HostReportsTab } from "@/components/hosts/host-reports-tab";
 import { HostSantaTab } from "@/components/hosts/host-santa-tab";
 import { HostSoftwareTab } from "@/components/hosts/host-software-tab";
@@ -57,6 +58,7 @@ export function HostDetailPage() {
           <TabsTrigger value="software">Software</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="checks">Checks</TabsTrigger>
+          {host.munki ? <TabsTrigger value="munki">Munki</TabsTrigger> : null}
           {host.santa ? <TabsTrigger value="santa">Santa</TabsTrigger> : null}
         </TabsList>
 
@@ -83,6 +85,12 @@ export function HostDetailPage() {
         <TabsContent value="checks">
           <HostChecksTab hostId={hostID} />
         </TabsContent>
+
+        {host.munki ? (
+          <TabsContent value="munki">
+            <HostMunkiTab host={host} />
+          </TabsContent>
+        ) : null}
 
         {host.santa ? (
           <TabsContent value="santa">

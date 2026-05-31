@@ -10,6 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -23,7 +24,8 @@ const (
 // Capability packages contribute their slice through registered enrichers.
 type HostDetail struct {
 	hosts.HostDetail
-	Santa *santa.HostState `json:"santa,omitempty"`
+	Munki *munki.HostMunkiState `json:"munki,omitempty"`
+	Santa *santa.HostState      `json:"santa,omitempty"`
 }
 
 type hostListOutput struct {

@@ -1,7 +1,7 @@
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
-CREATE TYPE agent AS ENUM ('orbit', 'santa');
+CREATE TYPE agent AS ENUM ('orbit', 'munki', 'santa');
 CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
 CREATE TYPE host_directory_user_source AS ENUM ('manual', 'reported_user_affinity');
