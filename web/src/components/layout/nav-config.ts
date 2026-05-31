@@ -52,7 +52,16 @@ export const navSections: NavMenu[] = [
           { label: "Events", to: "/santa/events" },
         ],
       },
-      { label: "Munki", icon: PackageSearch, disabled: true },
+      {
+        label: "Munki",
+        icon: PackageSearch,
+        adminOnly: true,
+        items: [
+          { label: "Software", to: "/munki/software-titles" },
+          { label: "Releases", to: "/munki/releases" },
+          { label: "Assignments", to: "/munki/assignments" },
+        ],
+      },
     ],
   },
   {

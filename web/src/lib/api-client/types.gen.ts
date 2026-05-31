@@ -678,6 +678,46 @@ export type LoginInputBody = {
     password: string;
 };
 
+export type MunkiAssignment = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    all_hosts: boolean;
+    created_at: string;
+    exclude_host_ids: Array<number> | null;
+    exclude_label_ids: Array<number> | null;
+    id: number;
+    include_host_ids: Array<number> | null;
+    include_label_ids: Array<number> | null;
+    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
+    release_id: number;
+    updated_at: string;
+};
+
+export type MunkiAssignmentMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    all_hosts: boolean;
+    exclude_host_ids?: Array<number> | null;
+    exclude_label_ids?: Array<number> | null;
+    include_host_ids?: Array<number> | null;
+    include_label_ids?: Array<number> | null;
+    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
+    release_id: number;
+};
+
+export type MunkiAssignmentPage = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiAssignment> | null;
+};
+
 export type MunkiHostState = {
     errors: Array<string> | null;
     items: Array<HostItem> | null;
@@ -689,6 +729,84 @@ export type MunkiHostState = {
     success?: boolean;
     version: string;
     warnings: Array<string> | null;
+};
+
+export type MunkiRelease = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    created_at: string;
+    display_name: string;
+    eligible: boolean;
+    id: number;
+    name: string;
+    pkginfo: {
+        [key: string]: unknown;
+    };
+    software_id: number;
+    updated_at: string;
+    version: string;
+};
+
+export type MunkiReleaseMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    display_name?: string;
+    eligible: boolean;
+    name: string;
+    pkginfo: {
+        [key: string]: unknown;
+    };
+    software_id: number;
+    version: string;
+};
+
+export type MunkiReleasePage = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiRelease> | null;
+};
+
+export type MunkiSoftwareTitle = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    category: string;
+    created_at: string;
+    description: string;
+    developer: string;
+    display_name: string;
+    id: number;
+    name: string;
+    updated_at: string;
+};
+
+export type MunkiSoftwareTitleMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    category?: string;
+    description?: string;
+    developer?: string;
+    display_name?: string;
+    name: string;
+};
+
+export type MunkiSoftwareTitlePage = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiSoftwareTitle> | null;
 };
 
 export type PageCheck = {
@@ -1361,6 +1479,88 @@ export type LiveQueryTargetCountOutputBodyWritable = {
 export type LoginInputBodyWritable = {
     email: string;
     password: string;
+};
+
+export type MunkiAssignmentWritable = {
+    all_hosts: boolean;
+    created_at: string;
+    exclude_host_ids: Array<number> | null;
+    exclude_label_ids: Array<number> | null;
+    id: number;
+    include_host_ids: Array<number> | null;
+    include_label_ids: Array<number> | null;
+    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
+    release_id: number;
+    updated_at: string;
+};
+
+export type MunkiAssignmentMutationWritable = {
+    all_hosts: boolean;
+    exclude_host_ids?: Array<number> | null;
+    exclude_label_ids?: Array<number> | null;
+    include_host_ids?: Array<number> | null;
+    include_label_ids?: Array<number> | null;
+    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
+    release_id: number;
+};
+
+export type MunkiAssignmentPageWritable = {
+    count: number;
+    items: Array<MunkiAssignmentWritable> | null;
+};
+
+export type MunkiReleaseWritable = {
+    created_at: string;
+    display_name: string;
+    eligible: boolean;
+    id: number;
+    name: string;
+    pkginfo: {
+        [key: string]: unknown;
+    };
+    software_id: number;
+    updated_at: string;
+    version: string;
+};
+
+export type MunkiReleaseMutationWritable = {
+    display_name?: string;
+    eligible: boolean;
+    name: string;
+    pkginfo: {
+        [key: string]: unknown;
+    };
+    software_id: number;
+    version: string;
+};
+
+export type MunkiReleasePageWritable = {
+    count: number;
+    items: Array<MunkiReleaseWritable> | null;
+};
+
+export type MunkiSoftwareTitleWritable = {
+    category: string;
+    created_at: string;
+    description: string;
+    developer: string;
+    display_name: string;
+    id: number;
+    name: string;
+    updated_at: string;
+};
+
+export type MunkiSoftwareTitleMutationWritable = {
+    category?: string;
+    description?: string;
+    developer?: string;
+    display_name?: string;
+    name: string;
+};
+
+export type MunkiSoftwareTitlePageWritable = {
+    count: number;
+    items: Array<MunkiSoftwareTitleWritable> | null;
 };
 
 export type PageCheckWritable = {
@@ -2947,6 +3147,275 @@ export type StreamLiveQueryResponses = {
 };
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
+
+export type ListMunkiAssignmentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/munki/assignments';
+};
+
+export type ListMunkiAssignmentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiAssignmentsError = ListMunkiAssignmentsErrors[keyof ListMunkiAssignmentsErrors];
+
+export type ListMunkiAssignmentsResponses = {
+    /**
+     * OK
+     */
+    200: MunkiAssignmentPage;
+};
+
+export type ListMunkiAssignmentsResponse = ListMunkiAssignmentsResponses[keyof ListMunkiAssignmentsResponses];
+
+export type CreateMunkiAssignmentData = {
+    body: MunkiAssignmentMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/assignments';
+};
+
+export type CreateMunkiAssignmentErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiAssignmentError = CreateMunkiAssignmentErrors[keyof CreateMunkiAssignmentErrors];
+
+export type CreateMunkiAssignmentResponses = {
+    /**
+     * Created
+     */
+    201: MunkiAssignment;
+};
+
+export type CreateMunkiAssignmentResponse = CreateMunkiAssignmentResponses[keyof CreateMunkiAssignmentResponses];
+
+export type ListMunkiReleasesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/munki/releases';
+};
+
+export type ListMunkiReleasesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiReleasesError = ListMunkiReleasesErrors[keyof ListMunkiReleasesErrors];
+
+export type ListMunkiReleasesResponses = {
+    /**
+     * OK
+     */
+    200: MunkiReleasePage;
+};
+
+export type ListMunkiReleasesResponse = ListMunkiReleasesResponses[keyof ListMunkiReleasesResponses];
+
+export type CreateMunkiReleaseData = {
+    body: MunkiReleaseMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/releases';
+};
+
+export type CreateMunkiReleaseErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiReleaseError = CreateMunkiReleaseErrors[keyof CreateMunkiReleaseErrors];
+
+export type CreateMunkiReleaseResponses = {
+    /**
+     * Created
+     */
+    201: MunkiRelease;
+};
+
+export type CreateMunkiReleaseResponse = CreateMunkiReleaseResponses[keyof CreateMunkiReleaseResponses];
+
+export type ListMunkiSoftwareTitlesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/munki/software-titles';
+};
+
+export type ListMunkiSoftwareTitlesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiSoftwareTitlesError = ListMunkiSoftwareTitlesErrors[keyof ListMunkiSoftwareTitlesErrors];
+
+export type ListMunkiSoftwareTitlesResponses = {
+    /**
+     * OK
+     */
+    200: MunkiSoftwareTitlePage;
+};
+
+export type ListMunkiSoftwareTitlesResponse = ListMunkiSoftwareTitlesResponses[keyof ListMunkiSoftwareTitlesResponses];
+
+export type CreateMunkiSoftwareTitleData = {
+    body: MunkiSoftwareTitleMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/software-titles';
+};
+
+export type CreateMunkiSoftwareTitleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiSoftwareTitleError = CreateMunkiSoftwareTitleErrors[keyof CreateMunkiSoftwareTitleErrors];
+
+export type CreateMunkiSoftwareTitleResponses = {
+    /**
+     * Created
+     */
+    201: MunkiSoftwareTitle;
+};
+
+export type CreateMunkiSoftwareTitleResponse = CreateMunkiSoftwareTitleResponses[keyof CreateMunkiSoftwareTitleResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,56 @@ import (
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepository("C02MUNKI"),
+		newStaticRepositoryWithReleases("C02MUNKI", []munki.EffectiveRelease{
+			{
+				AssignmentID: 10,
+				Intent:       munki.IntentEnsureInstalled,
+				Release: munki.Release{
+					ID:      20,
+					Name:    "GoogleChrome",
+					Version: "148.0.0.1",
+					Pkginfo: json.RawMessage(
+						`{"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg"}`,
+					),
+				},
+			},
+			{
+				AssignmentID: 11,
+				Intent:       munki.IntentOptional,
+				Release: munki.Release{
+					ID:      21,
+					Name:    "Slack",
+					Version: "4.50.0",
+					Pkginfo: json.RawMessage(
+						`{"name":"Slack","version":"4.50.0","installer_type":"nopkg"}`,
+					),
+				},
+			},
+			{
+				AssignmentID: 12,
+				Intent:       munki.IntentEnsureAbsent,
+				Release: munki.Release{
+					ID:      22,
+					Name:    "LegacyVPN",
+					Version: "1.0",
+					Pkginfo: json.RawMessage(
+						`{"name":"LegacyVPN","version":"1.0","installer_type":"nopkg"}`,
+					),
+				},
+			},
+			{
+				AssignmentID: 13,
+				Intent:       munki.IntentFeatured,
+				Release: munki.Release{
+					ID:      23,
+					Name:    "SelfServiceApp",
+					Version: "3.2.1",
+					Pkginfo: json.RawMessage(
+						`{"name":"SelfServiceApp","version":"3.2.1","installer_type":"nopkg"}`,
+					),
+				},
+			},
+		}),
 	)
 
 	cases := []struct {
@@ -51,8 +101,12 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 func assertManifestPlist(t *testing.T, body []byte) {
 	t.Helper()
 	var decoded struct {
-		Catalogs    []string `plist:"catalogs"`
-		DisplayName string   `plist:"display_name"`
+		Catalogs          []string `plist:"catalogs"`
+		DisplayName       string   `plist:"display_name"`
+		ManagedInstalls   []string `plist:"managed_installs"`
+		ManagedUninstalls []string `plist:"managed_uninstalls"`
+		OptionalInstalls  []string `plist:"optional_installs"`
+		FeaturedItems     []string `plist:"featured_items"`
 	}
 	if _, err := plist.Unmarshal(body, &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
@@ -63,16 +117,99 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if decoded.DisplayName != "Test MacBook" {
 		t.Fatalf("display_name = %q, want Test MacBook", decoded.DisplayName)
 	}
+	if !sameStrings(decoded.ManagedInstalls, []string{"GoogleChrome"}) {
+		t.Fatalf("managed_installs = %v, want [GoogleChrome]", decoded.ManagedInstalls)
+	}
+	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "SelfServiceApp"}) {
+		t.Fatalf("optional_installs = %v, want [Slack SelfServiceApp]", decoded.OptionalInstalls)
+	}
+	if !sameStrings(decoded.ManagedUninstalls, []string{"LegacyVPN"}) {
+		t.Fatalf("managed_uninstalls = %v, want [LegacyVPN]", decoded.ManagedUninstalls)
+	}
+	if !sameStrings(decoded.FeaturedItems, []string{"SelfServiceApp"}) {
+		t.Fatalf("featured_items = %v, want [SelfServiceApp]", decoded.FeaturedItems)
+	}
 }
 
 func assertCatalogPlist(t *testing.T, body []byte) {
 	t.Helper()
-	var decoded []any
+	var decoded []map[string]any
 	if _, err := plist.Unmarshal(body, &decoded); err != nil {
 		t.Fatalf("response is not a catalog plist: %v", err)
 	}
-	if len(decoded) != 0 {
-		t.Fatalf("catalog items = %d, want 0", len(decoded))
+	if len(decoded) != 4 {
+		t.Fatalf("catalog items = %d, want 4", len(decoded))
+	}
+	if decoded[0]["name"] != "GoogleChrome" || decoded[0]["version"] != "148.0.0.1" {
+		t.Fatalf("first catalog item = %+v, want GoogleChrome 148.0.0.1", decoded[0])
+	}
+}
+
+func TestMunkiHTTPCollapsesOverlappingAssignments(t *testing.T) {
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		newStaticRepositoryWithReleases("C02MUNKI", []munki.EffectiveRelease{
+			{
+				AssignmentID: 10,
+				Intent:       munki.IntentEnsureInstalled,
+				Release: munki.Release{
+					ID:      20,
+					Name:    "OverlapApp",
+					Version: "1.0",
+					Pkginfo: json.RawMessage(
+						`{"name":"OverlapApp","version":"1.0","installer_type":"nopkg"}`,
+					),
+				},
+			},
+			{
+				AssignmentID: 11,
+				Intent:       munki.IntentOptional,
+				Release: munki.Release{
+					ID:      21,
+					Name:    "OverlapApp",
+					Version: "1.1",
+					Pkginfo: json.RawMessage(
+						`{"name":"OverlapApp","version":"1.1","installer_type":"nopkg"}`,
+					),
+				},
+			},
+			{
+				AssignmentID: 12,
+				Intent:       munki.IntentEnsureAbsent,
+				Release: munki.Release{
+					ID:      22,
+					Name:    "OverlapApp",
+					Version: "1.2",
+					Pkginfo: json.RawMessage(
+						`{"name":"OverlapApp","version":"1.2","installer_type":"nopkg"}`,
+					),
+				},
+			},
+		}),
+	)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var decoded struct {
+		ManagedInstalls   []string `plist:"managed_installs"`
+		ManagedUninstalls []string `plist:"managed_uninstalls"`
+		OptionalInstalls  []string `plist:"optional_installs"`
+	}
+	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+		t.Fatalf("response is not a manifest plist: %v", err)
+	}
+	if !sameStrings(decoded.ManagedUninstalls, []string{"OverlapApp"}) {
+		t.Fatalf("managed_uninstalls = %v, want [OverlapApp]", decoded.ManagedUninstalls)
+	}
+	if len(decoded.ManagedInstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
+		t.Fatalf("manifest still has conflicting installs: %+v", decoded)
 	}
 }
 
@@ -234,7 +371,14 @@ type staticRepository struct {
 }
 
 func newStaticRepository(serial string) *staticRepository {
-	return &staticRepository{service: munki.NewService(nil), want: serial}
+	return newStaticRepositoryWithReleases(serial, nil)
+}
+
+func newStaticRepositoryWithReleases(serial string, releases []munki.EffectiveRelease) *staticRepository {
+	return &staticRepository{
+		service: munki.NewService(nil, staticReleaseResolver{releases: releases}),
+		want:    serial,
+	}
 }
 
 func (r *staticRepository) ResolveClient(_ context.Context, serial string) (munki.ClientHost, error) {
@@ -251,4 +395,24 @@ func (r *staticRepository) Manifest(ctx context.Context, client munki.ClientHost
 
 func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
 	return r.service.Catalog(ctx, client, name)
+}
+
+type staticReleaseResolver struct {
+	releases []munki.EffectiveRelease
+}
+
+func (r staticReleaseResolver) EffectiveReleasesForHost(_ context.Context, _ int64) ([]munki.EffectiveRelease, error) {
+	return r.releases, nil
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

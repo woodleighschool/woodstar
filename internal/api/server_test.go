@@ -239,6 +239,70 @@ func TestAgentSecretsRequireAdmin(t *testing.T) {
 	}
 }
 
+func TestMunkiAdminAPI(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.UserCreate{
+		Email:    "admin@example.test",
+		Name:     "Munki Admin",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Munki.Store = munki.NewStore(database)
+	server := NewServer(deps)
+	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
+
+	title := postMunkiJSON[munki.SoftwareTitle](
+		t,
+		server,
+		cookie,
+		"/api/munki/software-titles",
+		`{"name":"GoogleChrome","display_name":"Google Chrome"}`,
+	)
+	release := postMunkiJSON[munki.Release](
+		t,
+		server,
+		cookie,
+		"/api/munki/releases",
+		fmt.Sprintf(
+			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","pkginfo":{"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg"},"eligible":true}`,
+			title.ID,
+		),
+	)
+	assignment := postMunkiJSON[munki.Assignment](
+		t,
+		server,
+		cookie,
+		"/api/munki/assignments",
+		fmt.Sprintf(`{"release_id":%d,"intent":"ensure_installed","all_hosts":true}`, release.ID),
+	)
+
+	listRec := httptest.NewRecorder()
+	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/assignments", nil)
+	listReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list assignments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var listed struct {
+		Items []munki.Assignment `json:"items"`
+		Count int                `json:"count"`
+	}
+	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode assignments page: %v", err)
+	}
+	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
+		t.Fatalf("assignments page = %+v, want created assignment", listed)
+	}
+}
+
 func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
 	for _, secret := range secrets {
 		if secret.ID == id && secret.Agent == agent && secret.Value == value {
@@ -246,6 +310,24 @@ func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agenta
 		}
 	}
 	return false
+}
+
+func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST %s status = %d, want %d; body = %q", path, rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	var decoded T
+	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode POST %s: %v", path, err)
+	}
+	return decoded
 }
 
 func TestLiveQueryStreamRequiresSession(t *testing.T) {
@@ -413,7 +495,7 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
-	deps.Munki.Repository = munki.NewService(hostStore)
+	deps.Munki.Repository = munki.NewService(hostStore, munki.NewStore(database))
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{

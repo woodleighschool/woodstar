@@ -289,8 +289,8 @@ func newOsquery(
 // newMunki builds the Munki capability's runtime dependencies.
 func newMunki(stores appStores) api.MunkiDependencies {
 	return api.MunkiDependencies{
-		Repository: munki.NewService(stores.hosts),
-		Status:     stores.munki,
+		Repository: munki.NewService(stores.hosts, stores.munki),
+		Store:      stores.munki,
 	}
 }
 

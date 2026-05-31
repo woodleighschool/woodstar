@@ -185,6 +185,51 @@ func (ns NullLabelScopeMode) Value() (driver.Value, error) {
 	return string(ns.LabelScopeMode), nil
 }
 
+type MunkiAssignmentIntent string
+
+const (
+	MunkiAssignmentIntentEnsureInstalled MunkiAssignmentIntent = "ensure_installed"
+	MunkiAssignmentIntentEnsureAbsent    MunkiAssignmentIntent = "ensure_absent"
+	MunkiAssignmentIntentUpdateIfPresent MunkiAssignmentIntent = "update_if_present"
+	MunkiAssignmentIntentOptional        MunkiAssignmentIntent = "optional"
+	MunkiAssignmentIntentFeatured        MunkiAssignmentIntent = "featured"
+)
+
+func (e *MunkiAssignmentIntent) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiAssignmentIntent(s)
+	case string:
+		*e = MunkiAssignmentIntent(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiAssignmentIntent: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiAssignmentIntent struct {
+	MunkiAssignmentIntent MunkiAssignmentIntent `json:"munki_assignment_intent"`
+	Valid                 bool                  `json:"valid"` // Valid is true if MunkiAssignmentIntent is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiAssignmentIntent) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiAssignmentIntent, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiAssignmentIntent.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiAssignmentIntent) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiAssignmentIntent), nil
+}
+
 type SantaClientMode string
 
 const (
@@ -810,6 +855,35 @@ type LabelMembership struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type MunkiAssignment struct {
+	ID        int64                 `json:"id"`
+	ReleaseID int64                 `json:"release_id"`
+	Intent    MunkiAssignmentIntent `json:"intent"`
+	AllHosts  bool                  `json:"all_hosts"`
+	CreatedAt time.Time             `json:"created_at"`
+	UpdatedAt time.Time             `json:"updated_at"`
+}
+
+type MunkiAssignmentExcludeHost struct {
+	AssignmentID int64 `json:"assignment_id"`
+	HostID       int64 `json:"host_id"`
+}
+
+type MunkiAssignmentExcludeLabel struct {
+	AssignmentID int64 `json:"assignment_id"`
+	LabelID      int64 `json:"label_id"`
+}
+
+type MunkiAssignmentIncludeHost struct {
+	AssignmentID int64 `json:"assignment_id"`
+	HostID       int64 `json:"host_id"`
+}
+
+type MunkiAssignmentIncludeLabel struct {
+	AssignmentID int64 `json:"assignment_id"`
+	LabelID      int64 `json:"label_id"`
+}
+
 type MunkiHostItem struct {
 	HostID           int64     `json:"host_id"`
 	Name             string    `json:"name"`
@@ -832,6 +906,29 @@ type MunkiHostStatus struct {
 	RunEndedAt      string    `json:"run_ended_at"`
 	LastSeenAt      time.Time `json:"last_seen_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type MunkiRelease struct {
+	ID          int64     `json:"id"`
+	SoftwareID  int64     `json:"software_id"`
+	Name        string    `json:"name"`
+	Version     string    `json:"version"`
+	DisplayName string    `json:"display_name"`
+	Pkginfo     []byte    `json:"pkginfo"`
+	Eligible    bool      `json:"eligible"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type MunkiSoftwareTitle struct {
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"display_name"`
+	Description string    `json:"description"`
+	Category    string    `json:"category"`
+	Developer   string    `json:"developer"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type Report struct {
