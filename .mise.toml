@@ -8,7 +8,6 @@ air = "1.65.3"
 [settings]
 pin = true
 lockfile = true
-lockfile_platforms = ["macos-arm64", "linux-x64"]
 
 [tasks.deps]
 description = "Install Go and frontend dependencies"
