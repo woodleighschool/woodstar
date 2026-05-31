@@ -400,9 +400,20 @@ func TestOrbitProtocolRoutesBypassBrowserAuth(t *testing.T) {
 
 func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 	database, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(database)
+	if _, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware: hosts.HostHardware{
+			UUID:   "munki-protocol-host-uuid",
+			Serial: "C02MUNKI",
+		},
+		Hostname: "test-macbook",
+	}); err != nil {
+		t.Fatalf("create munki protocol host: %v", err)
+	}
+
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
-	deps.Munki.Repository = munki.NewService()
+	deps.Munki.Repository = munki.NewService(hostStore)
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{
@@ -414,8 +425,9 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 	}
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/site_default", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer "+secret.Value)
+	req.Header.Set("Serial", "C02MUNKI")
 	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -433,8 +445,9 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 		t.Fatalf("create santa secret: %v", err)
 	}
 	rec = httptest.NewRecorder()
-	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/site_default", nil)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/munki/manifests/C02MUNKI", nil)
 	req.Header.Set("Authorization", "Bearer "+wrongAgent.Value)
+	req.Header.Set("Serial", "C02MUNKI")
 	server.httpServer.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -120,6 +121,26 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Host, error) {
 		return nil, err
 	}
 	return new(hostFromSQLC(row)), nil
+}
+
+// GetByHardwareSerial returns the existing host with serial.
+func (s *Store) GetByHardwareSerial(ctx context.Context, serial string) (*Host, error) {
+	serial = strings.TrimSpace(serial)
+	if serial == "" {
+		return nil, dbutil.ErrNotFound
+	}
+	rows, err := s.q.ListHostsByHardwareSerial(ctx, sqlc.ListHostsByHardwareSerialParams{HardwareSerial: serial})
+	if err != nil {
+		return nil, err
+	}
+	switch len(rows) {
+	case 0:
+		return nil, dbutil.ErrNotFound
+	case 1:
+		return new(hostFromSQLC(rows[0])), nil
+	default:
+		return nil, fmt.Errorf("multiple hosts have hardware serial %q", serial)
+	}
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {

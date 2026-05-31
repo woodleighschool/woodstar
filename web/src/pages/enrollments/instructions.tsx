@@ -21,6 +21,9 @@ export function DeploymentInstructions({ integration, publicURL }: { integration
   if (integration === "orbit") {
     return <OrbitDeploymentInstructions publicURL={publicURL} />;
   }
+  if (integration === "munki") {
+    return <MunkiDeploymentInstructions publicURL={publicURL} />;
+  }
 
   return <SantaDeploymentInstructions publicURL={publicURL} />;
 }
@@ -71,6 +74,24 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
         title="Santa Configuration Profile"
         description="Replace the bearer secret with an active Santa enrollment secret before deployment."
         value={santaProfileTemplate(publicURL)}
+        extensions={xmlExtensions}
+        multiline
+      />
+    </section>
+  );
+}
+
+function MunkiDeploymentInstructions({ publicURL }: { publicURL?: string }) {
+  return (
+    <section className="grid gap-6">
+      <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
+        <p>Deploy Munki with a configuration profile that points ManagedInstalls at Woodstar.</p>
+      </div>
+
+      <DeploymentArtifact
+        title="Munki Configuration Profile"
+        description="Replace the bearer secret before deployment. The serial header should use the MDM-expanded device serial."
+        value={munkiProfileTemplate(publicURL)}
         extensions={xmlExtensions}
         multiline
       />
@@ -271,6 +292,69 @@ function santaProfileTemplate(publicURL: string | undefined) {
   <string>Configuration</string>
   <key>PayloadUUID</key>
   <string>7CE340DE-AAB6-448B-A558-EB3C49A3A687</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>`;
+}
+
+function munkiProfileTemplate(publicURL: string | undefined) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadContent</key>
+      <dict>
+        <key>ManagedInstalls</key>
+        <dict>
+          <key>Forced</key>
+          <array>
+            <dict>
+              <key>mcx_preference_settings</key>
+              <dict>
+                <key>SoftwareRepoURL</key>
+                <string>${publicURL ? `${publicURL}/munki` : `${PUBLIC_URL_PLACEHOLDER}/munki`}</string>
+                <key>ClientIdentifier</key>
+                <string>$SERIALNUMBER</string>
+                <key>FollowHTTPRedirects</key>
+                <string>all</string>
+                <key>AdditionalHttpHeaders</key>
+                <array>
+                  <string>Authorization: Bearer REPLACE_WITH_SECRET</string>
+                  <string>Serial: $SERIALNUMBER</string>
+                </array>
+              </dict>
+            </dict>
+          </array>
+        </dict>
+      </dict>
+      <key>PayloadDisplayName</key>
+      <string>Munki ManagedInstalls</string>
+      <key>PayloadIdentifier</key>
+      <string>au.vic.edu.woodleigh.woodstar.munki.managedinstalls</string>
+      <key>PayloadType</key>
+      <string>com.apple.ManagedClient.preferences</string>
+      <key>PayloadUUID</key>
+      <string>EF6B0B39-B2BE-44F7-A2B5-5F49282B221D</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Woodstar - Munki</string>
+  <key>PayloadIdentifier</key>
+  <string>au.vic.edu.woodleigh.woodstar.munki</string>
+  <key>PayloadOrganization</key>
+  <string>Woodleigh School</string>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>56E74DA2-6F02-4E85-8C95-BA51C34F88F0</string>
   <key>PayloadVersion</key>
   <integer>1</integer>
 </dict>

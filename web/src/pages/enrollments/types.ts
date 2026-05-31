@@ -4,6 +4,7 @@ export type Integration = Agent;
 
 export function integrationLabel(integration?: Integration) {
   if (integration === "santa") return "Santa";
+  if (integration === "munki") return "Munki";
   if (integration === "orbit") return "Orbit";
   return "Integration";
 }
@@ -16,6 +17,9 @@ export function enrollmentDescription(integration: Integration) {
   if (integration === "orbit") {
     return "Orbit package, configuration profile, and enroll secrets.";
   }
+  if (integration === "munki") {
+    return "Configuration profile and bearer secrets for Munki clients.";
+  }
   return "Configuration profile and bearer secrets for Santa clients.";
 }
 
@@ -23,12 +27,18 @@ export function secretUsageDescription(integration: Integration) {
   if (integration === "orbit") {
     return "Use these secrets to enroll Orbit and osquery hosts.";
   }
+  if (integration === "munki") {
+    return "Use these bearer secrets to authenticate Munki repository fetches.";
+  }
   return "Use these bearer secrets to authenticate Santa sync clients.";
 }
 
 export function deleteDescription(integration: Integration) {
   if (integration === "orbit") {
     return "Future Orbit and osquery enrollments using this secret will fail. Existing hosts keep their issued node keys.";
+  }
+  if (integration === "munki") {
+    return "Munki clients using this bearer secret will be rejected until they receive another active secret.";
   }
   return "Santa clients using this bearer secret will be rejected until they receive another active secret.";
 }

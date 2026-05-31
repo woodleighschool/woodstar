@@ -177,6 +177,32 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 	}
 }
 
+func TestGetByHardwareSerialRequiresUniqueRealSerial(t *testing.T) {
+	store, ctx := newIntegrationHostStore(t)
+
+	host, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-serial-identity-1", Serial: "C02SERIAL"},
+		OrbitNodeKey: "orbit-key-serial-1",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	got, err := store.GetByHardwareSerial(ctx, " C02SERIAL ")
+	if err != nil {
+		t.Fatalf("get by hardware serial: %v", err)
+	}
+	if got.ID != host.ID {
+		t.Fatalf("host id = %d, want %d", got.ID, host.ID)
+	}
+
+	if _, err := store.UpsertOnOrbitEnroll(ctx, InventoryUpdate{
+		Hardware:     HostHardware{UUID: "test-serial-identity-2", Serial: "C02SERIAL"},
+		OrbitNodeKey: "orbit-key-serial-2",
+	}); err == nil {
+		t.Fatal("duplicate hardware serial insert succeeded")
+	}
+}
+
 func TestResolveSelectedTargetsMergesDirectHostsAndLabels(t *testing.T) {
 	store, ctx := newIntegrationHostStore(t)
 	labelStore := labels.NewStore(store.db)

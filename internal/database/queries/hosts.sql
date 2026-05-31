@@ -122,6 +122,14 @@ SELECT *
 FROM hosts
 WHERE id = @id;
 
+-- name: ListHostsByHardwareSerial :many
+SELECT *
+FROM hosts
+WHERE hardware_serial = @hardware_serial
+    AND hardware_serial <> ''
+ORDER BY updated_at DESC, id DESC
+LIMIT 2;
+
 -- name: DeleteHost :one
 DELETE FROM hosts
 WHERE id = @id

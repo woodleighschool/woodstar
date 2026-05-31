@@ -785,6 +785,78 @@ func (q *Queries) ListHostUsers(ctx context.Context, arg ListHostUsersParams) ([
 	return items, nil
 }
 
+const listHostsByHardwareSerial = `-- name: ListHostsByHardwareSerial :many
+SELECT id, hardware_uuid, display_name, hostname, computer_name, hardware_serial, hardware_model_identifier, hardware_vendor, os_name, os_version, os_build, os_platform, osquery_version, orbit_version, orbit_node_key, osquery_node_key, enrollment_agent, cpu_type, cpu_subtype, cpu_brand, cpu_logical_cores, cpu_physical_cores, memory_bytes, os_kernel_version, last_restarted_at, boot_volume_available_bytes, boot_volume_total_bytes, last_remote_ip, primary_ip, primary_mac, osquery_distributed_interval_seconds, osquery_config_refresh_seconds, inventory_query_hash, enrolled_at, last_seen_at, inventory_updated_at, created_at, updated_at
+FROM hosts
+WHERE hardware_serial = $1
+    AND hardware_serial <> ''
+ORDER BY updated_at DESC, id DESC
+LIMIT 2
+`
+
+type ListHostsByHardwareSerialParams struct {
+	HardwareSerial string `json:"hardware_serial"`
+}
+
+func (q *Queries) ListHostsByHardwareSerial(ctx context.Context, arg ListHostsByHardwareSerialParams) ([]Host, error) {
+	rows, err := q.db.Query(ctx, listHostsByHardwareSerial, arg.HardwareSerial)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Host{}
+	for rows.Next() {
+		var i Host
+		if err := rows.Scan(
+			&i.ID,
+			&i.HardwareUUID,
+			&i.DisplayName,
+			&i.Hostname,
+			&i.ComputerName,
+			&i.HardwareSerial,
+			&i.HardwareModelIdentifier,
+			&i.HardwareVendor,
+			&i.OSName,
+			&i.OSVersion,
+			&i.OSBuild,
+			&i.OSPlatform,
+			&i.OsqueryVersion,
+			&i.OrbitVersion,
+			&i.OrbitNodeKey,
+			&i.OsqueryNodeKey,
+			&i.EnrollmentAgent,
+			&i.CPUType,
+			&i.CPUSubtype,
+			&i.CPUBrand,
+			&i.CPULogicalCores,
+			&i.CPUPhysicalCores,
+			&i.MemoryBytes,
+			&i.OSKernelVersion,
+			&i.LastRestartedAt,
+			&i.BootVolumeAvailableBytes,
+			&i.BootVolumeTotalBytes,
+			&i.LastRemoteIP,
+			&i.PrimaryIP,
+			&i.PrimaryMAC,
+			&i.OsqueryDistributedIntervalSeconds,
+			&i.OsqueryConfigRefreshSeconds,
+			&i.InventoryQueryHash,
+			&i.EnrolledAt,
+			&i.LastSeenAt,
+			&i.InventoryUpdatedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOnlineSelectedHostIDs = `-- name: ListOnlineSelectedHostIDs :many
 SELECT id
 FROM hosts

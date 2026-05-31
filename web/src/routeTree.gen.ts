@@ -37,6 +37,7 @@ import { Route as AuthenticatedLabelsNewRouteImport } from './routes/_authentica
 import { Route as AuthenticatedHostsHostIdRouteImport } from './routes/_authenticated/hosts.$hostId'
 import { Route as AuthenticatedEnrollmentsSantaRouteImport } from './routes/_authenticated/enrollments.santa'
 import { Route as AuthenticatedEnrollmentsOrbitRouteImport } from './routes/_authenticated/enrollments.orbit'
+import { Route as AuthenticatedEnrollmentsMunkiRouteImport } from './routes/_authenticated/enrollments.munki'
 import { Route as AuthenticatedSantaRulesIndexRouteImport } from './routes/_authenticated/santa.rules.index'
 import { Route as AuthenticatedSantaEventsIndexRouteImport } from './routes/_authenticated/santa.events.index'
 import { Route as AuthenticatedSantaConfigurationsIndexRouteImport } from './routes/_authenticated/santa.configurations.index'
@@ -215,6 +216,12 @@ const AuthenticatedEnrollmentsOrbitRoute =
     path: '/orbit',
     getParentRoute: () => AuthenticatedEnrollmentsRoute,
   } as any)
+const AuthenticatedEnrollmentsMunkiRoute =
+  AuthenticatedEnrollmentsMunkiRouteImport.update({
+    id: '/munki',
+    path: '/munki',
+    getParentRoute: () => AuthenticatedEnrollmentsRoute,
+  } as any)
 const AuthenticatedSantaRulesIndexRoute =
   AuthenticatedSantaRulesIndexRouteImport.update({
     id: '/',
@@ -384,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/santa': typeof AuthenticatedSantaRouteWithChildren
   '/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/users': typeof AuthenticatedUsersRouteWithChildren
+  '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
@@ -481,6 +490,7 @@ export interface FileRoutesById {
   '/_authenticated/santa': typeof AuthenticatedSantaRouteWithChildren
   '/_authenticated/software': typeof AuthenticatedSoftwareRouteWithChildren
   '/_authenticated/users': typeof AuthenticatedUsersRouteWithChildren
+  '/_authenticated/enrollments/munki': typeof AuthenticatedEnrollmentsMunkiRoute
   '/_authenticated/enrollments/orbit': typeof AuthenticatedEnrollmentsOrbitRoute
   '/_authenticated/enrollments/santa': typeof AuthenticatedEnrollmentsSantaRoute
   '/_authenticated/hosts/$hostId': typeof AuthenticatedHostsHostIdRoute
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
     | '/santa'
     | '/software'
     | '/users'
+    | '/enrollments/munki'
     | '/enrollments/orbit'
     | '/enrollments/santa'
     | '/hosts/$hostId'
@@ -586,6 +597,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/account'
+    | '/enrollments/munki'
     | '/enrollments/orbit'
     | '/enrollments/santa'
     | '/hosts/$hostId'
@@ -634,6 +646,7 @@ export interface FileRouteTypes {
     | '/_authenticated/santa'
     | '/_authenticated/software'
     | '/_authenticated/users'
+    | '/_authenticated/enrollments/munki'
     | '/_authenticated/enrollments/orbit'
     | '/_authenticated/enrollments/santa'
     | '/_authenticated/hosts/$hostId'
@@ -883,6 +896,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEnrollmentsOrbitRouteImport
       parentRoute: typeof AuthenticatedEnrollmentsRoute
     }
+    '/_authenticated/enrollments/munki': {
+      id: '/_authenticated/enrollments/munki'
+      path: '/munki'
+      fullPath: '/enrollments/munki'
+      preLoaderRoute: typeof AuthenticatedEnrollmentsMunkiRouteImport
+      parentRoute: typeof AuthenticatedEnrollmentsRoute
+    }
     '/_authenticated/santa/rules/': {
       id: '/_authenticated/santa/rules/'
       path: '/'
@@ -1069,6 +1089,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedEnrollmentsRouteChildren {
+  AuthenticatedEnrollmentsMunkiRoute: typeof AuthenticatedEnrollmentsMunkiRoute
   AuthenticatedEnrollmentsOrbitRoute: typeof AuthenticatedEnrollmentsOrbitRoute
   AuthenticatedEnrollmentsSantaRoute: typeof AuthenticatedEnrollmentsSantaRoute
   AuthenticatedEnrollmentsIndexRoute: typeof AuthenticatedEnrollmentsIndexRoute
@@ -1076,6 +1097,7 @@ interface AuthenticatedEnrollmentsRouteChildren {
 
 const AuthenticatedEnrollmentsRouteChildren: AuthenticatedEnrollmentsRouteChildren =
   {
+    AuthenticatedEnrollmentsMunkiRoute: AuthenticatedEnrollmentsMunkiRoute,
     AuthenticatedEnrollmentsOrbitRoute: AuthenticatedEnrollmentsOrbitRoute,
     AuthenticatedEnrollmentsSantaRoute: AuthenticatedEnrollmentsSantaRoute,
     AuthenticatedEnrollmentsIndexRoute: AuthenticatedEnrollmentsIndexRoute,

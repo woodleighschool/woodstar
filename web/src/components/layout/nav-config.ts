@@ -64,6 +64,7 @@ export const navSections: NavMenu[] = [
         adminOnly: true,
         items: [
           { label: "Orbit", to: "/enrollments/orbit" },
+          { label: "Munki", to: "/enrollments/munki" },
           { label: "Santa", to: "/enrollments/santa" },
         ],
       },

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,8 +23,9 @@ type AgentSecretVerifier interface {
 
 // Repository loads raw Munki repository objects.
 type Repository interface {
-	Manifest(context.Context, string) ([]byte, error)
-	Catalog(context.Context, string) ([]byte, error)
+	ResolveClient(context.Context, string) (munki.ClientHost, error)
+	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
+	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
 }
 
 type handler struct {
@@ -49,20 +51,20 @@ func RegisterMunkiRoutes(
 }
 
 func (h handler) manifest(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "manifest", func(ctx context.Context, name string) ([]byte, error) {
+	h.writePlist(w, r, "manifest", func(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
 		if h.repository == nil {
 			return nil, munki.ErrNotFound
 		}
-		return h.repository.Manifest(ctx, name)
+		return h.repository.Manifest(ctx, client, name)
 	})
 }
 
 func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
-	h.writePlist(w, r, "catalog", func(ctx context.Context, name string) ([]byte, error) {
+	h.writePlist(w, r, "catalog", func(ctx context.Context, client munki.ClientHost, name string) ([]byte, error) {
 		if h.repository == nil {
 			return nil, munki.ErrNotFound
 		}
-		return h.repository.Catalog(ctx, name)
+		return h.repository.Catalog(ctx, client, name)
 	})
 }
 
@@ -70,7 +72,7 @@ func (h handler) writePlist(
 	w http.ResponseWriter,
 	r *http.Request,
 	operation string,
-	load func(context.Context, string) ([]byte, error),
+	load func(context.Context, munki.ClientHost, string) ([]byte, error),
 ) {
 	authorized, err := h.authorized(r)
 	if err != nil {
@@ -82,7 +84,17 @@ func (h handler) writePlist(
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	body, err := load(r.Context(), chi.URLParam(r, "name"))
+	client, err := h.clientHost(r)
+	if errors.Is(err, munki.ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.log(r, http.StatusInternalServerError, operation, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	body, err := load(r.Context(), client, chi.URLParam(r, "name"))
 	if errors.Is(err, munki.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -109,6 +121,17 @@ func (h handler) authorized(r *http.Request) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+func (h handler) clientHost(r *http.Request) (munki.ClientHost, error) {
+	if h.repository == nil {
+		return munki.ClientHost{}, munki.ErrNotFound
+	}
+	serial := strings.TrimSpace(r.Header.Get("Serial"))
+	if serial == "" {
+		return munki.ClientHost{}, munki.ErrNotFound
+	}
+	return h.repository.ResolveClient(r.Context(), serial)
 }
 
 func (h handler) log(r *http.Request, statusCode int, operation string, err error) {
