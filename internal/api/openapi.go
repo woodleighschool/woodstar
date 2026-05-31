@@ -1,6 +1,8 @@
 package api
 
 import (
+	"reflect"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -16,6 +18,7 @@ func humaConfig(version string) huma.Config {
 	cfg.SchemasPath = "/api/schemas"
 
 	cfg.Components = &huma.Components{
+		Schemas: huma.NewMapRegistry("#/components/schemas/", woodstarSchemaNamer),
 		SecuritySchemes: map[string]*huma.SecurityScheme{
 			"cookieAuth": {
 				Type: "apiKey",
@@ -26,6 +29,21 @@ func humaConfig(version string) huma.Config {
 	}
 
 	return cfg
+}
+
+func woodstarSchemaNamer(t reflect.Type, hint string) string {
+	t = derefType(t)
+	if t.Name() == "HostState" && t.PkgPath() == "github.com/woodleighschool/woodstar/internal/munki" {
+		return "MunkiHostState"
+	}
+	return huma.DefaultSchemaNamer(t, hint)
+}
+
+func derefType(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t
 }
 
 // BuildSchemaAPI builds the admin API for OpenAPI schema generation only.

@@ -824,7 +824,6 @@ type MunkiHostStatus struct {
 	HostID          int64     `json:"host_id"`
 	Version         string    `json:"version"`
 	ManifestName    string    `json:"manifest_name"`
-	ConsoleUser     string    `json:"console_user"`
 	Success         *bool     `json:"success"`
 	Errors          []string  `json:"errors"`
 	Warnings        []string  `json:"warnings"`

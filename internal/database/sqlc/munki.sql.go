@@ -38,7 +38,7 @@ func (q *Queries) DeleteMunkiHostItems(ctx context.Context, arg DeleteMunkiHostI
 }
 
 const getMunkiHostStatus = `-- name: GetMunkiHostStatus :one
-SELECT host_id, version, manifest_name, console_user, success, errors, warnings, problem_installs, run_started_at, run_ended_at, last_seen_at, updated_at
+SELECT host_id, version, manifest_name, success, errors, warnings, problem_installs, run_started_at, run_ended_at, last_seen_at, updated_at
 FROM munki_host_status
 WHERE host_id = $1
 `
@@ -54,7 +54,6 @@ func (q *Queries) GetMunkiHostStatus(ctx context.Context, arg GetMunkiHostStatus
 		&i.HostID,
 		&i.Version,
 		&i.ManifestName,
-		&i.ConsoleUser,
 		&i.Success,
 		&i.Errors,
 		&i.Warnings,
@@ -155,7 +154,6 @@ INSERT INTO munki_host_status (
     host_id,
     version,
     manifest_name,
-    console_user,
     success,
     errors,
     warnings,
@@ -168,19 +166,17 @@ VALUES (
     $1,
     $2,
     $3,
-    $4,
-    $5::boolean,
+    $4::boolean,
+    $5,
     $6,
     $7,
     $8,
     $9,
-    $10,
     now()
 )
 ON CONFLICT (host_id) DO UPDATE SET
     version = EXCLUDED.version,
     manifest_name = EXCLUDED.manifest_name,
-    console_user = EXCLUDED.console_user,
     success = EXCLUDED.success,
     errors = EXCLUDED.errors,
     warnings = EXCLUDED.warnings,
@@ -195,7 +191,6 @@ type UpsertMunkiHostStatusParams struct {
 	HostID          int64    `json:"host_id"`
 	Version         string   `json:"version"`
 	ManifestName    string   `json:"manifest_name"`
-	ConsoleUser     string   `json:"console_user"`
 	Success         *bool    `json:"success"`
 	Errors          []string `json:"errors"`
 	Warnings        []string `json:"warnings"`
@@ -209,7 +204,6 @@ func (q *Queries) UpsertMunkiHostStatus(ctx context.Context, arg UpsertMunkiHost
 		arg.HostID,
 		arg.Version,
 		arg.ManifestName,
-		arg.ConsoleUser,
 		arg.Success,
 		arg.Errors,
 		arg.Warnings,

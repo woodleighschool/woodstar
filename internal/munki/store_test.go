@@ -32,7 +32,6 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 		HostID:          host.ID,
 		Version:         "7.1.2.5700",
 		ManifestName:    "site_default",
-		ConsoleUser:     "alice",
 		Success:         &success,
 		Errors:          []string{"first error"},
 		Warnings:        []string{"first warning"},

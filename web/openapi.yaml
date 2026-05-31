@@ -1158,7 +1158,7 @@ components:
             - array
             - "null"
         munki:
-          $ref: "#/components/schemas/HostMunkiState"
+          $ref: "#/components/schemas/MunkiHostState"
         network:
           $ref: "#/components/schemas/HostNetwork"
         os:
@@ -1252,57 +1252,6 @@ components:
         - installed
         - installed_version
         - last_seen_at
-      type: object
-    HostMunkiState:
-      additionalProperties: false
-      properties:
-        console_user:
-          type: string
-        errors:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-        items:
-          items:
-            $ref: "#/components/schemas/HostItem"
-          type:
-            - array
-            - "null"
-        last_seen_at:
-          format: date-time
-          type: string
-        manifest_name:
-          type: string
-        problem_installs:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-        run_ended_at:
-          type: string
-        run_started_at:
-          type: string
-        success:
-          type: boolean
-        version:
-          type: string
-        warnings:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-      required:
-        - version
-        - manifest_name
-        - errors
-        - warnings
-        - problem_installs
-        - last_seen_at
-        - items
       type: object
     HostNetwork:
       additionalProperties: false
@@ -1931,6 +1880,55 @@ components:
       required:
         - email
         - password
+      type: object
+    MunkiHostState:
+      additionalProperties: false
+      properties:
+        errors:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        items:
+          items:
+            $ref: "#/components/schemas/HostItem"
+          type:
+            - array
+            - "null"
+        last_seen_at:
+          format: date-time
+          type: string
+        manifest_name:
+          type: string
+        problem_installs:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        run_ended_at:
+          type: string
+        run_started_at:
+          type: string
+        success:
+          type: boolean
+        version:
+          type: string
+        warnings:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - version
+        - manifest_name
+        - errors
+        - warnings
+        - problem_installs
+        - last_seen_at
+        - items
       type: object
     PageCheck:
       additionalProperties: false

@@ -24,8 +24,8 @@ const (
 // Capability packages contribute their slice through registered enrichers.
 type HostDetail struct {
 	hosts.HostDetail
-	Munki *munki.HostMunkiState `json:"munki,omitempty"`
-	Santa *santa.HostState      `json:"santa,omitempty"`
+	Munki *munki.HostState `json:"munki,omitempty"`
+	Santa *santa.HostState `json:"santa,omitempty"`
 }
 
 type hostListOutput struct {

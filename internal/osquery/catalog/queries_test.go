@@ -190,7 +190,6 @@ func TestMunkiQueriesProjectStatusShape(t *testing.T) {
 		"start_time",
 		"end_time",
 		"manifest_name",
-		"console_user",
 	} {
 		if !strings.Contains(infoSQL, want) {
 			t.Fatalf("munki_info SQL missing %q: %s", want, infoSQL)

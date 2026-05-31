@@ -443,7 +443,7 @@ export type HostDetail = {
     hostname: string;
     id: number;
     labels: Array<Label> | null;
-    munki?: HostMunkiState;
+    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     santa?: HostState;
@@ -474,20 +474,6 @@ export type HostItem = {
     last_seen_at: string;
     name: string;
     run_ended_at?: string;
-};
-
-export type HostMunkiState = {
-    console_user?: string;
-    errors: Array<string> | null;
-    items: Array<HostItem> | null;
-    last_seen_at: string;
-    manifest_name: string;
-    problem_installs: Array<string> | null;
-    run_ended_at?: string;
-    run_started_at?: string;
-    success?: boolean;
-    version: string;
-    warnings: Array<string> | null;
 };
 
 export type HostNetwork = {
@@ -724,6 +710,19 @@ export type LoginInputBody = {
     readonly $schema?: string;
     email: string;
     password: string;
+};
+
+export type MunkiHostState = {
+    errors: Array<string> | null;
+    items: Array<HostItem> | null;
+    last_seen_at: string;
+    manifest_name: string;
+    problem_installs: Array<string> | null;
+    run_ended_at?: string;
+    run_started_at?: string;
+    success?: boolean;
+    version: string;
+    warnings: Array<string> | null;
 };
 
 export type PageCheck = {
@@ -1318,7 +1317,7 @@ export type HostDetailWritable = {
     hostname: string;
     id: number;
     labels: Array<LabelWritable> | null;
-    munki?: HostMunkiState;
+    munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
     santa?: HostState;

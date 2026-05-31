@@ -3,7 +3,6 @@ INSERT INTO munki_host_status (
     host_id,
     version,
     manifest_name,
-    console_user,
     success,
     errors,
     warnings,
@@ -16,7 +15,6 @@ VALUES (
     @host_id,
     @version,
     @manifest_name,
-    @console_user,
     sqlc.narg(success)::boolean,
     @errors,
     @warnings,
@@ -28,7 +26,6 @@ VALUES (
 ON CONFLICT (host_id) DO UPDATE SET
     version = EXCLUDED.version,
     manifest_name = EXCLUDED.manifest_name,
-    console_user = EXCLUDED.console_user,
     success = EXCLUDED.success,
     errors = EXCLUDED.errors,
     warnings = EXCLUDED.warnings,

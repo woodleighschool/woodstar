@@ -7,7 +7,6 @@ type HostStatusObservation struct {
 	HostID          int64
 	Version         string
 	ManifestName    string
-	ConsoleUser     string
 	Success         *bool
 	Errors          []string
 	Warnings        []string
@@ -26,11 +25,10 @@ type HostItem struct {
 	LastSeenAt       time.Time `json:"last_seen_at"`
 }
 
-// HostMunkiState is the Munki sub-object attached to host detail responses.
-type HostMunkiState struct {
+// HostState is the Munki sub-object attached to host detail responses.
+type HostState struct {
 	Version         string     `json:"version"`
 	ManifestName    string     `json:"manifest_name"`
-	ConsoleUser     string     `json:"console_user,omitempty"`
 	Success         *bool      `json:"success,omitempty"`
 	Errors          []string   `json:"errors"`
 	Warnings        []string   `json:"warnings"`

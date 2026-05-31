@@ -6,7 +6,6 @@ CREATE TABLE munki_host_status (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
     version TEXT NOT NULL DEFAULT '',
     manifest_name TEXT NOT NULL DEFAULT '',
-    console_user TEXT NOT NULL DEFAULT '',
     success BOOLEAN,
     errors TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     warnings TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],

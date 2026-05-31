@@ -6,7 +6,6 @@ func TestHostStatusFromInfoRows(t *testing.T) {
 	status, ok := HostStatusFromInfoRows(42, []map[string]string{{
 		"version":          "7.1.2.5700",
 		"manifest_name":    "site_default",
-		"console_user":     "alice",
 		"success":          "true",
 		"errors":           "first error; second error",
 		"warnings":         "first warning\nsecond warning",

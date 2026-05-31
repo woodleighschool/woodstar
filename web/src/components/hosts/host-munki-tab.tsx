@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { HostDetail } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
-type HostMunkiState = NonNullable<HostDetail["munki"]>;
+type HostState = NonNullable<HostDetail["munki"]>;
 
 interface Tile {
   label: string;
@@ -31,7 +31,6 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
     { label: "Last Seen", value: formatRelative(munki.last_seen_at) },
     { label: "Last Run Started", value: formatRelative(munki.run_started_at) },
     { label: "Last Run Ended", value: formatRelative(munki.run_ended_at) },
-    { label: "Console User", value: munki.console_user ?? "-" },
   ];
 
   return (
@@ -104,7 +103,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
   );
 }
 
-function MunkiStatusBadge({ munki }: { munki: HostMunkiState }) {
+function MunkiStatusBadge({ munki }: { munki: HostState }) {
   if (munki.success === false) {
     return <Badge variant="destructive">Failed</Badge>;
   }

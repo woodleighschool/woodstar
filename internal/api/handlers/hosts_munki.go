@@ -11,7 +11,7 @@ type munkiHostDetailContributor struct {
 }
 
 type munkiHostStateLoader interface {
-	LoadHostState(context.Context, int64) (*munki.HostMunkiState, error)
+	LoadHostState(context.Context, int64) (*munki.HostState, error)
 }
 
 // MunkiHostDetailContributor returns a host detail contributor backed by Munki state.

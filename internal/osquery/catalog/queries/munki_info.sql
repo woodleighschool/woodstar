@@ -6,6 +6,5 @@ SELECT
     success,
     start_time,
     end_time,
-    manifest_name,
-    console_user
+    manifest_name
 FROM munki_info;

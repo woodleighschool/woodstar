@@ -368,7 +368,6 @@ func writeOsqueryContractDetails(
 		prefix + "munki_info": {{
 			"version":          "7.1.2.5700",
 			"manifest_name":    "site_default",
-			"console_user":     "contract",
 			"success":          "true",
 			"errors":           "first error; second error",
 			"warnings":         "first warning",
