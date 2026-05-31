@@ -21,9 +21,17 @@ interface SchemaSidebarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onInsertColumn?: (columnName: string) => void;
+  selectedTable?: string | null;
+  onSelectedTableChange?: (tableName: string) => void;
 }
 
-export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSidebarProps) {
+export function SchemaSidebar({
+  open,
+  onOpenChange,
+  onInsertColumn,
+  selectedTable,
+  onSelectedTableChange,
+}: SchemaSidebarProps) {
   const Icon = open ? PanelRightClose : PanelRightOpen;
 
   return (
@@ -40,15 +48,36 @@ export function SchemaSidebar({ open, onOpenChange, onInsertColumn }: SchemaSide
       >
         <Icon className="size-4" />
       </button>
-      <SchemaPanel open={open} onInsertColumn={onInsertColumn} />
+      <SchemaPanel
+        open={open}
+        onInsertColumn={onInsertColumn}
+        selectedTable={selectedTable}
+        onSelectedTableChange={onSelectedTableChange}
+      />
     </TooltipProvider>
   );
 }
 
-function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?: (columnName: string) => void }) {
+function SchemaPanel({
+  open,
+  onInsertColumn,
+  selectedTable,
+  onSelectedTableChange,
+}: {
+  open: boolean;
+  onInsertColumn?: (columnName: string) => void;
+  selectedTable?: string | null;
+  onSelectedTableChange?: (tableName: string) => void;
+}) {
   const schema = useOsquerySchema();
   const tables = schema.data ?? [];
-  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [localSelectedName, setLocalSelectedName] = useState<string | null>(null);
+  const selectedName = selectedTable ?? localSelectedName;
+
+  function selectTable(tableName: string) {
+    setLocalSelectedName(tableName);
+    onSelectedTableChange?.(tableName);
+  }
 
   const selected = selectedName ? tables.find((candidate) => candidate.name === selectedName) : undefined;
   const table =
@@ -72,7 +101,7 @@ function SchemaPanel({ open, onInsertColumn }: { open: boolean; onInsertColumn?:
       </div>
 
       <div className="p-4">
-        <TableSelector tables={tables} value={table?.name ?? null} onChange={setSelectedName} />
+        <TableSelector tables={tables} value={table?.name ?? null} onChange={selectTable} />
       </div>
 
       <div className="flex-1 overflow-y-auto">

@@ -1,6 +1,6 @@
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Code2, Loader2, Plus, Trash2 } from "lucide-react";
+import { Code2, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 
@@ -19,14 +19,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,6 +35,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleTarget,
 } from "@/hooks/use-santa";
+import { santaCELExpressionError } from "@/lib/santa-cel";
 
 import {
   POLICY_OPTIONS,
@@ -54,6 +48,29 @@ import {
   type RuleType,
 } from "./shared";
 
+const includeSchema = z
+  .object({
+    id: z.number(),
+    policy: z.enum(POLICY_VALUES),
+    cel_expression: z.string().trim(),
+    label_id: z.number().int().positive("Pick a label.").nullable(),
+  })
+  .refine((value) => value.label_id !== null, {
+    message: "Pick a label.",
+    path: ["label_id"],
+  })
+  .superRefine((value, ctx) => {
+    if (value.policy !== "cel") return;
+    if (value.cel_expression === "") {
+      ctx.addIssue({ code: "custom", message: "CEL policy requires an expression.", path: ["cel_expression"] });
+      return;
+    }
+    const error = santaCELExpressionError(value.cel_expression);
+    if (error) {
+      ctx.addIssue({ code: "custom", message: error, path: ["cel_expression"] });
+    }
+  });
+
 const ruleFormSchema = z
   .object({
     rule_type: z.enum(RULE_TYPE_VALUES),
@@ -63,23 +80,7 @@ const ruleFormSchema = z
     custom_message: z.string().trim(),
     custom_url: z.string().trim(),
     exclude_label_ids: z.array(z.number().int().positive()),
-    includes: z.array(
-      z
-        .object({
-          id: z.number(),
-          policy: z.enum(POLICY_VALUES),
-          cel_expression: z.string().trim(),
-          label_id: z.number().int().positive("Pick a label.").nullable(),
-        })
-        .refine((value) => value.label_id !== null, {
-          message: "Pick a label.",
-          path: ["label_id"],
-        })
-        .refine((value) => value.policy !== "cel" || value.cel_expression !== "", {
-          message: "CEL policy requires an expression.",
-          path: ["cel_expression"],
-        }),
-    ),
+    includes: z.array(includeSchema),
   })
   .superRefine((value, ctx) => {
     // Empty identifier is the HTML `required` attribute's job; only check pattern when filled.
@@ -188,6 +189,9 @@ function RuleForm({
   }
 
   function updateInclude(id: number, next: Partial<RuleIncludeForm>) {
+    if (next.policy && next.policy !== "cel" && celDialogID === id) {
+      setCELDialogID(null);
+    }
     setForm({
       ...form,
       includes: form.includes.map((include) => (include.id === id ? { ...include, ...next } : include)),
@@ -312,7 +316,10 @@ function RuleForm({
                   onChange={(includes) => setForm({ ...form, includes })}
                   onUpdate={updateInclude}
                   onEditCEL={setCELDialogID}
-                  onDelete={(id) => setForm({ ...form, includes: form.includes.filter((item) => item.id !== id) })}
+                  onDelete={(id) => {
+                    if (celDialogID === id) setCELDialogID(null);
+                    setForm({ ...form, includes: form.includes.filter((item) => item.id !== id) });
+                  }}
                 />
               )}
             </Field>
@@ -341,7 +348,8 @@ function RuleForm({
 
         <CELDialog
           include={form.includes.find((include) => include.id === celDialogID)}
-          error={celDialogID !== null && showErrors ? includeErrors[celDialogID]?.cel_expression : undefined}
+          error={celDialogID !== null ? includeErrors[celDialogID]?.cel_expression : undefined}
+          showRequiredError={showErrors}
           onOpenChange={(open) => {
             if (!open) setCELDialogID(null);
           }}
@@ -523,7 +531,8 @@ function IncludeTargetsTable({
         cell: ({ row }) => {
           const hasExpression = row.original.cel_expression.trim() !== "";
           const celLabel = hasExpression ? "Edit CEL Expression" : "Add CEL Expression";
-          const celInvalid = row.original.policy === "cel" && !hasExpression;
+          const error = showErrors ? includeErrors[row.original.id]?.cel_expression : undefined;
+          const celInvalid = row.original.policy === "cel" && (!hasExpression || error !== undefined);
 
           return (
             <Field className="min-w-56 gap-1">
@@ -556,8 +565,10 @@ function IncludeTargetsTable({
                     <TooltipTrigger asChild>
                       <Button
                         type="button"
-                        variant={celInvalid ? "destructive" : "outline"}
+                        variant="outline"
                         size="icon-sm"
+                        data-invalid={celInvalid ? true : undefined}
+                        className={celInvalid ? "text-destructive hover:text-destructive" : undefined}
                         onClick={() => onEditCEL(row.original.id)}
                       >
                         <Code2 />
@@ -567,6 +578,7 @@ function IncludeTargetsTable({
                   </Tooltip>
                 ) : null}
               </div>
+              {error ? <FieldError>{error}</FieldError> : null}
             </Field>
           );
         },
@@ -634,36 +646,46 @@ function IncludeTargetsTable({
 function CELDialog({
   include,
   error,
+  showRequiredError,
   onOpenChange,
   onChange,
 }: {
   include?: RuleIncludeForm;
   error?: string;
+  showRequiredError: boolean;
   onOpenChange: (open: boolean) => void;
   onChange: (cel_expression: string) => void;
 }) {
+  const visibleError = include && (showRequiredError || include.cel_expression.trim() !== "") ? error : undefined;
   return (
     <Dialog open={include !== undefined} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>CEL Expression</DialogTitle>
-          <DialogDescription>Edit the CEL predicate for this include assignment.</DialogDescription>
+          <DialogTitle>CEL</DialogTitle>
         </DialogHeader>
 
         {include ? (
-          <Field data-invalid={error ? true : undefined}>
+          <Field data-invalid={visibleError ? true : undefined} className="gap-2">
             <FieldLabel>Expression</FieldLabel>
             <CodeEditor
               value={include.cel_expression}
               onChange={onChange}
               placeholder="target.signing_time >= timestamp('2025-05-31T00:00:00Z')"
-              className="[&_.cm-content]:min-h-40"
+              lineNumbers={false}
+              highlightActiveLine={false}
+              className="[&_.cm-content]:min-h-28 [&_.cm-scroller]:max-h-48 [&_.cm-scroller]:overflow-auto"
             />
-            {error ? <FieldError>{error}</FieldError> : null}
+            {visibleError ? <FieldError>{visibleError}</FieldError> : null}
           </Field>
         ) : null}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button asChild type="button" variant="outline" size="sm">
+            <a href="https://northpole.dev/features/binary-authorization/#cel" target="_blank" rel="noreferrer">
+              <ExternalLink data-icon="inline-start" />
+              Northpole CEL
+            </a>
+          </Button>
           <Button type="button" size="sm" onClick={() => onOpenChange(false)}>
             Done
           </Button>

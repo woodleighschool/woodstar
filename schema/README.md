@@ -1,8 +1,20 @@
-Fleet osquery schema
-====================
+Schema reference data
+=====================
 
-`osquery_fleet_schema.json` is vendored from Fleet at commit
-`0147f6cde21505e5d84d166480e6341272206f71`.
+`osquery_fleet_schema.json` is vendored from Fleet and backs the osquery editor
+schema browser and autocomplete.
+
+Refresh it with:
+
+```sh
+./schema/sync.sh
+```
+
+To fetch a specific Fleet ref:
+
+```sh
+./schema/sync.sh <ref>
+```
 
 Fleet source: https://github.com/fleetdm/fleet
 

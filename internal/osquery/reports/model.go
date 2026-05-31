@@ -1,6 +1,8 @@
 package reports
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -30,6 +32,16 @@ type ReportMutation struct {
 	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
 	LabelScope        scope.LabelScope `json:"label_scope"`
 	CreatedByUserID   *int64           `json:"-"`
+}
+
+func (p ReportMutation) Validate() error {
+	if strings.TrimSpace(p.Name) == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	if strings.TrimSpace(p.Query) == "" {
+		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 // ReportListParams filters reports.

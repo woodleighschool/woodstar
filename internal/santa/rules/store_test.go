@@ -157,6 +157,65 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 }
 
+func TestRuleMutationValidatesCELSyntax(t *testing.T) {
+	base := rules.RuleMutation{
+		RuleType:   rules.RuleTypeBinary,
+		Identifier: strings.Repeat("a", 64),
+		Includes: []rules.RuleIncludeWrite{{
+			Policy:        rules.PolicyCEL,
+			CELExpression: "target.signing_id == 'ABCDE12345:com.example.app'",
+			LabelID:       1,
+		}},
+	}
+
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid CEL expression error = %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(*rules.RuleMutation)
+	}{
+		{
+			name: "malformed cel",
+			mutate: func(params *rules.RuleMutation) {
+				params.Includes[0].CELExpression = "target.signing_id =="
+			},
+		},
+		{
+			name: "empty cel",
+			mutate: func(params *rules.RuleMutation) {
+				params.Includes[0].CELExpression = ""
+			},
+		},
+		{
+			name: "blank cel",
+			mutate: func(params *rules.RuleMutation) {
+				params.Includes[0].CELExpression = "  "
+			},
+		},
+		{
+			name: "non cel with expression",
+			mutate: func(params *rules.RuleMutation) {
+				params.Includes[0].Policy = rules.PolicyAllowlist
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			params := base
+			params.Includes = append([]rules.RuleIncludeWrite(nil), base.Includes...)
+			tt.mutate(&params)
+
+			err := params.Validate()
+			if !errors.Is(err, dbutil.ErrInvalidInput) {
+				t.Fatalf("Validate error = %v, want ErrInvalidInput", err)
+			}
+		})
+	}
+}
+
 func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)

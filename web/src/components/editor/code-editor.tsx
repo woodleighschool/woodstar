@@ -53,6 +53,7 @@ const surfaceTheme = EditorView.theme({
     color: "var(--popover-foreground)",
     border: "1px solid var(--border)",
     borderRadius: "0.375rem",
+    zIndex: "50",
   },
 });
 
@@ -103,7 +104,7 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
   );
 
   return (
-    <div className={cn("border-input bg-card overflow-hidden rounded-md border", className)}>
+    <div className={cn("border-input bg-card overflow-visible rounded-md border", className)}>
       <CodeMirror
         ref={ref}
         value={value}

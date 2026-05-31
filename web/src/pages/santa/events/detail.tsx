@@ -355,9 +355,8 @@ function EntitlementValue({ value }: { value: unknown }) {
   }
 
   if (typeof normalized === "boolean") {
-    const label = normalized ? "True" : "False";
     const Icon = normalized ? Check : X;
-    return <Icon aria-label={label} className="size-4" />;
+    return <Icon className="size-4" />;
   }
 
   if (Array.isArray(normalized)) {

@@ -3,7 +3,7 @@ import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-t
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2, ServerCog, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 import { DataTable, DataTableColumnHeader, DataTableSearch } from "@/components/data-table";
@@ -29,6 +29,8 @@ import {
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { fieldErrors } from "@/lib/form-validation";
+import { sqlSyntaxError } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 import {
   LABEL_MEMBERSHIP_OPTIONS,
@@ -65,6 +67,8 @@ const empty: FormState = {
   label_membership_type: "dynamic",
 };
 
+const queryRequiredSchema = z.string().trim().min(1, "Query is required.");
+
 const labelFormSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required."),
@@ -75,16 +79,26 @@ const labelFormSchema = z
     derived_values: z.array(z.string().trim().min(1)),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
-  .refine((value) => value.label_membership_type !== "dynamic" || value.query !== "", {
-    message: "Dynamic labels need a query.",
-    path: ["query"],
-  })
-  .refine((value) => value.label_membership_type !== "derived" || value.derived_values.length > 0, {
-    message: "Derived labels need at least one selected item.",
-    path: ["derived_values"],
+  .superRefine((value, ctx) => {
+    if (value.label_membership_type === "dynamic") {
+      const query = queryRequiredSchema.safeParse(value.query);
+      if (!query.success) {
+        ctx.addIssue({ code: "custom", message: query.error.issues[0]?.message ?? "Invalid query.", path: ["query"] });
+      } else {
+        const syntaxError = sqlSyntaxError(value.query);
+        if (syntaxError) {
+          ctx.addIssue({ code: "custom", message: syntaxError, path: ["query"] });
+        }
+      }
+    }
+    if (value.label_membership_type === "derived" && value.derived_values.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Derived labels need at least one selected item.",
+        path: ["derived_values"],
+      });
+    }
   });
-
-type LabelFormParse = ReturnType<typeof labelFormSchema.safeParse>;
 
 export function LabelMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -161,6 +175,7 @@ function LabelEditForm({
   const [form, setForm] = useState<FormState>(initial);
   const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
   const pending = createLabel.isPending || updateLabel.isPending;
@@ -205,6 +220,14 @@ function LabelEditForm({
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
   }
 
+  const selectSchemaTable = useCallback(
+    (tableName: string) => {
+      setSelectedSchemaTable(tableName);
+      setSchemaOpen(true);
+    },
+    [setSchemaOpen],
+  );
+
   return (
     <PageShell
       asChild
@@ -219,7 +242,7 @@ function LabelEditForm({
         <PageHeader title={mode === "create" ? "New Label" : "Edit Label"} />
 
         <FieldGroup className="max-w-5xl">
-          <Field>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
             <FieldLabel htmlFor="label-name">Name</FieldLabel>
             <Input
               id="label-name"
@@ -227,6 +250,7 @@ function LabelEditForm({
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field>
@@ -308,19 +332,27 @@ function LabelEditForm({
         </FieldGroup>
 
         {isDynamic ? (
-          <div className="max-w-3xl">
+          <Field data-invalid={showErrors && errors.query ? true : undefined} className="max-w-3xl">
+            <FieldLabel>Query</FieldLabel>
             <SQLEditor
               ref={editorRef}
               value={form.query}
               onChange={(query) => setForm({ ...form, query })}
+              onTableMetaClick={selectSchemaTable}
               placeholder="SELECT ..."
             />
-            {showErrors && errors.query ? <FieldError className="mt-2">{errors.query}</FieldError> : null}
-          </div>
+            {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
+          </Field>
         ) : null}
 
         {isDynamic ? (
-          <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+          <SchemaSidebar
+            open={schemaOpen}
+            onOpenChange={setSchemaOpen}
+            onInsertColumn={insertAtCursor}
+            selectedTable={selectedSchemaTable}
+            onSelectedTableChange={setSelectedSchemaTable}
+          />
         ) : null}
 
         <div className="flex max-w-5xl items-center gap-2 border-t pt-4">
@@ -743,16 +775,6 @@ function derivedSelectorLabel(attribute: DerivedAttribute) {
     default:
       return "Departments";
   }
-}
-
-function fieldErrors(result: LabelFormParse): Record<string, string> {
-  if (result.success) return {};
-  const out: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const key = issue.path[0];
-    if (typeof key === "string" && !out[key]) out[key] = issue.message;
-  }
-  return out;
 }
 
 function membershipFromString(value: string | undefined): LabelMembershipType {

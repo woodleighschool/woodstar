@@ -1,7 +1,8 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -10,12 +11,13 @@ import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { fieldErrors } from "@/lib/form-validation";
+import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 
 const emptyCheck: CheckMutation = {
@@ -24,6 +26,11 @@ const emptyCheck: CheckMutation = {
   query: "select 1;",
   label_scope: {},
 };
+
+const checkFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  query: z.string().trim().min(1, "Query is required.").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
+});
 
 export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -87,13 +94,22 @@ function CheckEditForm({
   const createCheck = useCreateCheck();
   const updateCheck = useUpdateCheck(checkId);
   const [form, setForm] = useState<CheckMutation>(initial);
+  const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
   const pending = createCheck.isPending || updateCheck.isPending;
+  const parsed = useMemo(() => checkFormSchema.safeParse(form), [form]);
+  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
   async function submit() {
     const payload = trimCheck(form);
+    const nextParsed = checkFormSchema.safeParse(payload);
+    if (!nextParsed.success) {
+      setShowErrors(true);
+      return;
+    }
     const saved = mode === "create" ? await createCheck.mutateAsync(payload) : await updateCheck.mutateAsync(payload);
     void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
   }
@@ -107,6 +123,14 @@ function CheckEditForm({
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
   }
 
+  const selectSchemaTable = useCallback(
+    (tableName: string) => {
+      setSelectedSchemaTable(tableName);
+      setSchemaOpen(true);
+    },
+    [setSchemaOpen],
+  );
+
   return (
     <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
       <form
@@ -117,7 +141,7 @@ function CheckEditForm({
       >
         <PageHeader title={mode === "create" ? "New Check" : "Edit Check"} />
         <FieldGroup>
-          <Field>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
             <FieldLabel htmlFor="check-name">Name</FieldLabel>
             <Input
               id="check-name"
@@ -125,6 +149,7 @@ function CheckEditForm({
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field>
@@ -145,15 +170,17 @@ function CheckEditForm({
           onChange={(label_scope) => setForm({ ...form, label_scope })}
         />
 
-        <div className="grid gap-2">
-          <Label>Query</Label>
+        <Field data-invalid={showErrors && errors.query ? true : undefined}>
+          <FieldLabel>Query</FieldLabel>
           <SQLEditor
             ref={editorRef}
             value={form.query}
             onChange={(query) => setForm({ ...form, query })}
+            onTableMetaClick={selectSchemaTable}
             placeholder="SELECT ..."
           />
-        </div>
+          {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
+        </Field>
         <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
@@ -162,7 +189,13 @@ function CheckEditForm({
             <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
           ) : null}
         </div>
-        <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+        <SchemaSidebar
+          open={schemaOpen}
+          onOpenChange={setSchemaOpen}
+          onInsertColumn={insertAtCursor}
+          selectedTable={selectedSchemaTable}
+          onSelectedTableChange={setSelectedSchemaTable}
+        />
       </form>
     </PageShell>
   );

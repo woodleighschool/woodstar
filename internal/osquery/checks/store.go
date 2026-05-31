@@ -96,6 +96,9 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 }
 
 func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
 	labelScope := storedLabelScope(params.LabelScope)
 	var created *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
@@ -123,6 +126,9 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Check, error) {
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
 	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {

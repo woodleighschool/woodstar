@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -429,8 +430,13 @@ func (p RuleMutation) Validate() error {
 		if !validPolicy(include.Policy) {
 			return fmt.Errorf("%w: include policy is required", dbutil.ErrInvalidInput)
 		}
-		if include.Policy == PolicyCEL && include.CELExpression == "" {
+		if include.Policy == PolicyCEL && strings.TrimSpace(include.CELExpression) == "" {
 			return fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
+		}
+		if include.Policy == PolicyCEL {
+			if err := validateCELSyntax(include.CELExpression); err != nil {
+				return err
+			}
 		}
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
 			return fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)

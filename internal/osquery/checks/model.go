@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -31,6 +33,16 @@ type CheckMutation struct {
 	Query           string           `json:"query"`
 	LabelScope      scope.LabelScope `json:"label_scope"`
 	CreatedByUserID *int64           `json:"-"`
+}
+
+func (p CheckMutation) Validate() error {
+	if strings.TrimSpace(p.Name) == "" {
+		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	if strings.TrimSpace(p.Query) == "" {
+		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 // CheckListParams filters checks.

@@ -13,6 +13,7 @@ import (
 func TestLabelMutationValidate(t *testing.T) {
 	t.Parallel()
 	query := "select 1;"
+	unknownTableQuery := "select * from osquery_info;"
 	tests := []struct {
 		name    string
 		in      LabelMutation
@@ -23,6 +24,14 @@ func TestLabelMutationValidate(t *testing.T) {
 			in: LabelMutation{
 				Name:                "Macs",
 				Query:               &query,
+				LabelMembershipType: LabelMembershipTypeDynamic,
+			},
+		},
+		{
+			name: "dynamic label with unknown osquery table is valid",
+			in: LabelMutation{
+				Name:                "Osquery info",
+				Query:               &unknownTableQuery,
 				LabelMembershipType: LabelMembershipTypeDynamic,
 			},
 		},

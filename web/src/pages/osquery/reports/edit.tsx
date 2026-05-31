@@ -1,7 +1,8 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -10,13 +11,14 @@ import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateReport, useReport, useUpdateReport, type ReportMutation } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { fieldErrors } from "@/lib/form-validation";
+import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -39,6 +41,11 @@ const emptyReport: ReportMutation = {
   schedule_interval: 0,
   label_scope: {},
 };
+
+const reportFormSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  query: z.string().trim().min(1, "Query is required.").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
+});
 
 export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -106,14 +113,23 @@ function ReportEditForm({
   const createReport = useCreateReport();
   const updateReport = useUpdateReport(reportId);
   const [form, setForm] = useState<ReportMutation>(initial);
+  const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
+  const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
 
   const pending = createReport.isPending || updateReport.isPending;
+  const parsed = useMemo(() => reportFormSchema.safeParse(form), [form]);
+  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
   async function submit() {
     const payload = trimReport(form);
+    const nextParsed = reportFormSchema.safeParse(payload);
+    if (!nextParsed.success) {
+      setShowErrors(true);
+      return;
+    }
     const saved = mode === "create" ? await createReport.mutateAsync(payload) : await updateReport.mutateAsync(payload);
     void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
   }
@@ -127,6 +143,14 @@ function ReportEditForm({
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
   }
 
+  const selectSchemaTable = useCallback(
+    (tableName: string) => {
+      setSelectedSchemaTable(tableName);
+      setSchemaOpen(true);
+    },
+    [setSchemaOpen],
+  );
+
   return (
     <PageShell asChild className={cn("h-full transition-[padding] duration-200 ease-out", schemaOpen && "pr-[21rem]")}>
       <form
@@ -137,7 +161,7 @@ function ReportEditForm({
       >
         <PageHeader title={mode === "create" ? "New Report" : "Edit Report"} />
         <FieldGroup>
-          <Field>
+          <Field data-invalid={showErrors && errors.name ? true : undefined}>
             <FieldLabel htmlFor="report-name">Name</FieldLabel>
             <Input
               id="report-name"
@@ -145,6 +169,7 @@ function ReportEditForm({
               value={form.name}
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
+            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
           </Field>
 
           <Field>
@@ -183,15 +208,17 @@ function ReportEditForm({
 
         <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
 
-        <div className="grid gap-2">
-          <Label>Query</Label>
+        <Field data-invalid={showErrors && errors.query ? true : undefined}>
+          <FieldLabel>Query</FieldLabel>
           <SQLEditor
             ref={editorRef}
             value={form.query}
             onChange={(query) => setForm({ ...form, query })}
+            onTableMetaClick={selectSchemaTable}
             placeholder="SELECT ..."
           />
-        </div>
+          {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
+        </Field>
 
         <FieldGroup>
           <Button
@@ -225,7 +252,13 @@ function ReportEditForm({
             <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId: reportParam }} />
           ) : null}
         </div>
-        <SchemaSidebar open={schemaOpen} onOpenChange={setSchemaOpen} onInsertColumn={insertAtCursor} />
+        <SchemaSidebar
+          open={schemaOpen}
+          onOpenChange={setSchemaOpen}
+          onInsertColumn={insertAtCursor}
+          selectedTable={selectedSchemaTable}
+          onSelectedTableChange={setSelectedSchemaTable}
+        />
       </form>
     </PageShell>
   );
