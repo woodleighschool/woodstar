@@ -1,6 +1,7 @@
+import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import type { Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { Prec, type Extension } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useTheme } from "next-themes";
@@ -22,6 +23,20 @@ interface CodeEditorProps {
 }
 
 const EMPTY_EXTENSIONS: Extension[] = [];
+
+const editorCompletionKeymap = Prec.highest(
+  keymap.of([
+    {
+      key: "Tab",
+      run(view) {
+        if (view.state.readOnly) return false;
+        if (acceptCompletion(view)) return true;
+        startCompletion(view);
+        return true;
+      },
+    },
+  ]),
+);
 
 const surfaceTheme = EditorView.theme({
   "&": {
@@ -97,6 +112,7 @@ export const CodeEditor = forwardRef<ReactCodeMirrorRef, CodeEditorProps>(functi
   const isDark = resolvedTheme === "dark";
   const editorExtensions = useMemo(
     () => [
+      editorCompletionKeymap,
       ...extensions,
       ...(lineWrapping ? [EditorView.lineWrapping] : []),
       surfaceTheme,
