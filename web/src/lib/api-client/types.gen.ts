@@ -127,32 +127,6 @@ export type CheckMutation = {
     query: string;
 };
 
-export type Configuration = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    created_at: string;
-    description: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    id: number;
-    label_ids: Array<number> | null;
-    name: string;
-    position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    updated_at: string;
-};
-
 export type ConfigurationMatch = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -446,7 +420,7 @@ export type HostDetail = {
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
-    santa?: HostState;
+    santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
@@ -538,14 +512,6 @@ export type HostSoftwareRow = {
     installed_versions: Array<HostSoftwareInstalledVersion> | null;
     name: string;
     source: string;
-};
-
-export type HostState = {
-    client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
-    configuration?: ConfigurationMatch;
-    last_sync_at?: string;
-    rule_sync: RuleSyncSummary;
-    version: string;
 };
 
 export type HostStorage = {
@@ -740,7 +706,7 @@ export type PageConfiguration = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Configuration> | null;
+    items: Array<SantaConfiguration> | null;
 };
 
 export type PageDepartment = {
@@ -830,7 +796,7 @@ export type PageRule = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Rule> | null;
+    items: Array<SantaRule> | null;
 };
 
 export type PageRuleStatus = {
@@ -928,24 +894,6 @@ export type ReportResult = {
     report_name: string;
 };
 
-export type Rule = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    created_at: string;
-    custom_message: string;
-    custom_url: string;
-    description: string;
-    exclude_label_ids: Array<number> | null;
-    id: number;
-    identifier: string;
-    includes: Array<RuleInclude> | null;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    updated_at: string;
-};
-
 export type RuleInclude = {
     cel_expression?: string;
     id: number;
@@ -1024,12 +972,64 @@ export type RuleTarget = {
     version?: string;
 };
 
+export type SantaConfiguration = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    created_at: string;
+    description: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: RemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    id: number;
+    label_ids: Array<number> | null;
+    name: string;
+    position: number;
+    removable_media_policy?: RemovableMediaPolicy;
+    updated_at: string;
+};
+
 export type SantaConfigurationReorderBody = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     ordered_ids: Array<number> | null;
+};
+
+export type SantaHostState = {
+    client_mode_reported: 'unknown' | 'monitor' | 'lockdown' | 'standalone';
+    configuration?: ConfigurationMatch;
+    last_sync_at?: string;
+    rule_sync: RuleSyncSummary;
+    version: string;
+};
+
+export type SantaRule = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    created_at: string;
+    custom_message: string;
+    custom_url: string;
+    description: string;
+    exclude_label_ids: Array<number> | null;
+    id: number;
+    identifier: string;
+    includes: Array<RuleInclude> | null;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    updated_at: string;
 };
 
 export type SantaRuleReorderIncludesBody = {
@@ -1201,28 +1201,6 @@ export type CheckMutationWritable = {
     query: string;
 };
 
-export type ConfigurationWritable = {
-    allowed_path_regex?: string;
-    batch_size: number;
-    blocked_path_regex?: string;
-    client_mode: 'monitor' | 'lockdown' | 'standalone';
-    created_at: string;
-    description: string;
-    enable_all_event_upload: boolean;
-    enable_bundles: boolean;
-    enable_transitive_rules: boolean;
-    encrypted_removable_media_policy?: RemovableMediaPolicy;
-    event_detail_text?: string;
-    event_detail_url?: string;
-    full_sync_interval_seconds: number;
-    id: number;
-    label_ids: Array<number> | null;
-    name: string;
-    position: number;
-    removable_media_policy?: RemovableMediaPolicy;
-    updated_at: string;
-};
-
 export type ConfigurationMutationWritable = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -1320,7 +1298,7 @@ export type HostDetailWritable = {
     munki?: MunkiHostState;
     network: HostNetwork;
     os: HostOs;
-    santa?: HostState;
+    santa?: SantaHostState;
     status: string;
     storage: HostStorage;
     timestamps: HostTimestamps;
@@ -1392,7 +1370,7 @@ export type PageCheckWritable = {
 
 export type PageConfigurationWritable = {
     count: number;
-    items: Array<ConfigurationWritable> | null;
+    items: Array<SantaConfigurationWritable> | null;
 };
 
 export type PageDepartmentWritable = {
@@ -1442,7 +1420,7 @@ export type PageReportWritable = {
 
 export type PageRuleWritable = {
     count: number;
-    items: Array<RuleWritable> | null;
+    items: Array<SantaRuleWritable> | null;
 };
 
 export type PageRuleStatusWritable = {
@@ -1482,20 +1460,6 @@ export type ReportMutationWritable = {
     schedule_interval?: number;
 };
 
-export type RuleWritable = {
-    created_at: string;
-    custom_message: string;
-    custom_url: string;
-    description: string;
-    exclude_label_ids: Array<number> | null;
-    id: number;
-    identifier: string;
-    includes: Array<RuleInclude> | null;
-    name: string;
-    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    updated_at: string;
-};
-
 export type RuleMutationWritable = {
     custom_message?: string;
     custom_url?: string;
@@ -1507,8 +1471,44 @@ export type RuleMutationWritable = {
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
+export type SantaConfigurationWritable = {
+    allowed_path_regex?: string;
+    batch_size: number;
+    blocked_path_regex?: string;
+    client_mode: 'monitor' | 'lockdown' | 'standalone';
+    created_at: string;
+    description: string;
+    enable_all_event_upload: boolean;
+    enable_bundles: boolean;
+    enable_transitive_rules: boolean;
+    encrypted_removable_media_policy?: RemovableMediaPolicy;
+    event_detail_text?: string;
+    event_detail_url?: string;
+    full_sync_interval_seconds: number;
+    id: number;
+    label_ids: Array<number> | null;
+    name: string;
+    position: number;
+    removable_media_policy?: RemovableMediaPolicy;
+    updated_at: string;
+};
+
 export type SantaConfigurationReorderBodyWritable = {
     ordered_ids: Array<number> | null;
+};
+
+export type SantaRuleWritable = {
+    created_at: string;
+    custom_message: string;
+    custom_url: string;
+    description: string;
+    exclude_label_ids: Array<number> | null;
+    id: number;
+    identifier: string;
+    includes: Array<RuleInclude> | null;
+    name: string;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    updated_at: string;
 };
 
 export type SantaRuleReorderIncludesBodyWritable = {
@@ -3598,7 +3598,7 @@ export type CreateSantaConfigurationResponses = {
     /**
      * Created
      */
-    201: Configuration;
+    201: SantaConfiguration;
 };
 
 export type CreateSantaConfigurationResponse = CreateSantaConfigurationResponses[keyof CreateSantaConfigurationResponses];
@@ -3766,7 +3766,7 @@ export type GetSantaConfigurationResponses = {
     /**
      * OK
      */
-    200: Configuration;
+    200: SantaConfiguration;
 };
 
 export type GetSantaConfigurationResponse = GetSantaConfigurationResponses[keyof GetSantaConfigurationResponses];
@@ -3817,7 +3817,7 @@ export type UpdateSantaConfigurationResponses = {
     /**
      * OK
      */
-    200: Configuration;
+    200: SantaConfiguration;
 };
 
 export type UpdateSantaConfigurationResponse = UpdateSantaConfigurationResponses[keyof UpdateSantaConfigurationResponses];
@@ -4147,7 +4147,7 @@ export type CreateSantaRuleResponses = {
     /**
      * Created
      */
-    201: Rule;
+    201: SantaRule;
 };
 
 export type CreateSantaRuleResponse = CreateSantaRuleResponses[keyof CreateSantaRuleResponses];
@@ -4274,7 +4274,7 @@ export type GetSantaRuleResponses = {
     /**
      * OK
      */
-    200: Rule;
+    200: SantaRule;
 };
 
 export type GetSantaRuleResponse = GetSantaRuleResponses[keyof GetSantaRuleResponses];
@@ -4325,7 +4325,7 @@ export type UpdateSantaRuleResponses = {
     /**
      * OK
      */
-    200: Rule;
+    200: SantaRule;
 };
 
 export type UpdateSantaRuleResponse = UpdateSantaRuleResponses[keyof UpdateSantaRuleResponses];

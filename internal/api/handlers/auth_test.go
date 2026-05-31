@@ -84,7 +84,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	}
 
 	router := chi.NewRouter()
-	api := humachi.New(router, huma.DefaultConfig("test", "test"))
+	api := humachi.New(router, testHumaConfig())
 	RegisterPublicAuth(api, auth.NewService(userService, testSessionManager()))
 
 	body := strings.NewReader(`{"email":"admin@example.test","password":"wrong-password"}`)

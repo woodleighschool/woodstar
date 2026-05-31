@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { HostDetail } from "@/hooks/use-hosts";
 import { formatRelative } from "@/lib/utils";
 
-type HostState = NonNullable<HostDetail["munki"]>;
+type MunkiHostState = NonNullable<HostDetail["munki"]>;
 
 interface Tile {
   label: string;
@@ -103,7 +103,7 @@ export function HostMunkiTab({ host }: { host: HostDetail }) {
   );
 }
 
-function MunkiStatusBadge({ munki }: { munki: HostState }) {
+function MunkiStatusBadge({ munki }: { munki: MunkiHostState }) {
   if (munki.success === false) {
     return <Badge variant="destructive">Failed</Badge>;
   }

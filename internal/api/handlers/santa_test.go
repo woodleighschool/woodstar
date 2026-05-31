@@ -422,7 +422,7 @@ func santaTestAPIWith(
 	authService := auth.NewService(userService, sessionManager)
 	router := chi.NewRouter()
 	router.Use(sessionManager.LoadAndSave)
-	api := humachi.New(router, huma.DefaultConfig("test", "test"))
+	api := humachi.New(router, testHumaConfig())
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(RequireAuth(api, authService))
 	if requireAdminGroup {

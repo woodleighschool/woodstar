@@ -308,84 +308,6 @@ components:
         - query
         - label_scope
       type: object
-    Configuration:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Configuration.json
-          format: uri
-          readOnly: true
-          type: string
-        allowed_path_regex:
-          type: string
-        batch_size:
-          format: int32
-          type: integer
-        blocked_path_regex:
-          type: string
-        client_mode:
-          enum:
-            - monitor
-            - lockdown
-            - standalone
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        description:
-          type: string
-        enable_all_event_upload:
-          type: boolean
-        enable_bundles:
-          type: boolean
-        enable_transitive_rules:
-          type: boolean
-        encrypted_removable_media_policy:
-          $ref: "#/components/schemas/RemovableMediaPolicy"
-        event_detail_text:
-          type: string
-        event_detail_url:
-          type: string
-        full_sync_interval_seconds:
-          format: int32
-          type: integer
-        id:
-          format: int64
-          type: integer
-        label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-        name:
-          type: string
-        position:
-          format: int32
-          type: integer
-        removable_media_policy:
-          $ref: "#/components/schemas/RemovableMediaPolicy"
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - name
-        - description
-        - position
-        - client_mode
-        - enable_bundles
-        - enable_transitive_rules
-        - enable_all_event_upload
-        - full_sync_interval_seconds
-        - batch_size
-        - label_ids
-        - created_at
-        - updated_at
-      type: object
     ConfigurationMatch:
       additionalProperties: false
       properties:
@@ -1164,7 +1086,7 @@ components:
         os:
           $ref: "#/components/schemas/HostOS"
         santa:
-          $ref: "#/components/schemas/HostState"
+          $ref: "#/components/schemas/SantaHostState"
         status:
           type: string
         storage:
@@ -1423,30 +1345,6 @@ components:
         - source
         - extension_for
         - installed_versions
-      type: object
-    HostState:
-      additionalProperties: false
-      properties:
-        client_mode_reported:
-          enum:
-            - unknown
-            - monitor
-            - lockdown
-            - standalone
-          type: string
-        configuration:
-          $ref: "#/components/schemas/ConfigurationMatch"
-        last_sync_at:
-          format: date-time
-          type: string
-        rule_sync:
-          $ref: "#/components/schemas/RuleSyncSummary"
-        version:
-          type: string
-      required:
-        - version
-        - client_mode_reported
-        - rule_sync
       type: object
     HostStorage:
       additionalProperties: false
@@ -1968,7 +1866,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Configuration"
+            $ref: "#/components/schemas/SantaConfiguration"
           type:
             - array
             - "null"
@@ -2198,7 +2096,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Rule"
+            $ref: "#/components/schemas/SantaRule"
           type:
             - array
             - "null"
@@ -2443,70 +2341,6 @@ components:
         - host_id
         - host_name
         - columns
-      type: object
-    Rule:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Rule.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        custom_message:
-          type: string
-        custom_url:
-          type: string
-        description:
-          type: string
-        exclude_label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
-        id:
-          format: int64
-          type: integer
-        identifier:
-          type: string
-        includes:
-          items:
-            $ref: "#/components/schemas/RuleInclude"
-          type:
-            - array
-            - "null"
-        name:
-          type: string
-        rule_type:
-          enum:
-            - binary
-            - certificate
-            - teamid
-            - signingid
-            - cdhash
-            - bundle
-          type: string
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - rule_type
-        - identifier
-        - name
-        - description
-        - custom_message
-        - custom_url
-        - includes
-        - exclude_label_ids
-        - created_at
-        - updated_at
       type: object
     RuleInclude:
       additionalProperties: false
@@ -2756,6 +2590,84 @@ components:
         - rule_count
         - complete
       type: object
+    SantaConfiguration:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/SantaConfiguration.json
+          format: uri
+          readOnly: true
+          type: string
+        allowed_path_regex:
+          type: string
+        batch_size:
+          format: int32
+          type: integer
+        blocked_path_regex:
+          type: string
+        client_mode:
+          enum:
+            - monitor
+            - lockdown
+            - standalone
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        enable_all_event_upload:
+          type: boolean
+        enable_bundles:
+          type: boolean
+        enable_transitive_rules:
+          type: boolean
+        encrypted_removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        event_detail_text:
+          type: string
+        event_detail_url:
+          type: string
+        full_sync_interval_seconds:
+          format: int32
+          type: integer
+        id:
+          format: int64
+          type: integer
+        label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        name:
+          type: string
+        position:
+          format: int32
+          type: integer
+        removable_media_policy:
+          $ref: "#/components/schemas/RemovableMediaPolicy"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - position
+        - client_mode
+        - enable_bundles
+        - enable_transitive_rules
+        - enable_all_event_upload
+        - full_sync_interval_seconds
+        - batch_size
+        - label_ids
+        - created_at
+        - updated_at
+      type: object
     SantaConfigurationReorderBody:
       additionalProperties: false
       properties:
@@ -2775,6 +2687,94 @@ components:
             - "null"
       required:
         - ordered_ids
+      type: object
+    SantaHostState:
+      additionalProperties: false
+      properties:
+        client_mode_reported:
+          enum:
+            - unknown
+            - monitor
+            - lockdown
+            - standalone
+          type: string
+        configuration:
+          $ref: "#/components/schemas/ConfigurationMatch"
+        last_sync_at:
+          format: date-time
+          type: string
+        rule_sync:
+          $ref: "#/components/schemas/RuleSyncSummary"
+        version:
+          type: string
+      required:
+        - version
+        - client_mode_reported
+        - rule_sync
+      type: object
+    SantaRule:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/SantaRule.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        custom_message:
+          type: string
+        custom_url:
+          type: string
+        description:
+          type: string
+        exclude_label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+        id:
+          format: int64
+          type: integer
+        identifier:
+          type: string
+        includes:
+          items:
+            $ref: "#/components/schemas/RuleInclude"
+          type:
+            - array
+            - "null"
+        name:
+          type: string
+        rule_type:
+          enum:
+            - binary
+            - certificate
+            - teamid
+            - signingid
+            - cdhash
+            - bundle
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - rule_type
+        - identifier
+        - name
+        - description
+        - custom_message
+        - custom_url
+        - includes
+        - exclude_label_ids
+        - created_at
+        - updated_at
       type: object
     SantaRuleReorderIncludesBody:
       additionalProperties: false
@@ -5640,7 +5640,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Configuration"
+                $ref: "#/components/schemas/SantaConfiguration"
           description: Created
         "400":
           content:
@@ -5831,7 +5831,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Configuration"
+                $ref: "#/components/schemas/SantaConfiguration"
           description: OK
         "401":
           content:
@@ -5886,7 +5886,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Configuration"
+                $ref: "#/components/schemas/SantaConfiguration"
           description: OK
         "400":
           content:
@@ -6427,7 +6427,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Rule"
+                $ref: "#/components/schemas/SantaRule"
           description: Created
         "400":
           content:
@@ -6573,7 +6573,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Rule"
+                $ref: "#/components/schemas/SantaRule"
           description: OK
         "401":
           content:
@@ -6628,7 +6628,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Rule"
+                $ref: "#/components/schemas/SantaRule"
           description: OK
         "400":
           content:

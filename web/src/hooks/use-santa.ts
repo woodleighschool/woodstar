@@ -6,12 +6,12 @@ import type {
   ConfigurationMutation,
   ExecutionEvent,
   FileAccessEvent,
-  HostState,
   HostSummary,
   Page,
   Rule,
   RuleMutation,
   RuleTarget,
+  SantaHostState,
 } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import type {
@@ -37,7 +37,7 @@ export type SantaRuleMutation = RuleMutation;
 export type SantaRuleListResult = Page<SantaRule>;
 export type SantaRuleTarget = RuleTarget;
 export type SantaRuleTargetListResult = SantaRuleTarget[];
-export type SantaClientMode = HostState["client_mode_reported"] | SantaConfiguration["client_mode"];
+export type SantaClientMode = SantaHostState["client_mode_reported"] | SantaConfiguration["client_mode"];
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 export type SantaRuleType = SantaRule["rule_type"];
