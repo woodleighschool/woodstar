@@ -1,15 +1,21 @@
-.git
+.git/
 .gitignore
 .dockerignore
+Dockerfile.dockerignore
+deploy/docker/*.dockerignore
 
-.*.md
 .env
 .env.*
+!.env.example
 
-woodstar
-build/
-dist/
-
-web/node_modules/
-tmp/
+/woodstar
+/bin/
+/build/
+/tmp/
+/.gocache/
 *.log
+
+**/node_modules/
+web/.vite/
+web/*.tsbuildinfo
+web/vite.config.js

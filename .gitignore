@@ -1,32 +1,36 @@
-# Go
+# Go binaries and test artifacts
 *.exe
 *.dll
 *.dylib
 *.test
 *.out
 
-# Go build / tooling
+# Build and tool outputs
 /bin/
-/vendor/
-/.gocache/
 /woodstar
 /tmp/
+/.gocache/
 build-errors.log
+
+# Go workspace overrides
 go.work
 go.work.sum
+/vendor/
 
-# Node / Frontend
+# Frontend dependencies and build outputs
 node_modules/
-dist/
 *.tsbuildinfo
 vite.config.js
+.vite/
+vite.config.d.ts
+dist/
 !web/dist/
 web/dist/*
 !web/dist/.gitkeep
-.vite/
 
-# Vite / tooling outputs
-vite.config.d.ts
+# Local mise overrides
+.mise.local.toml
+.mise.local.lock
 
 # Env files
 .env

@@ -98,8 +98,8 @@ linters:
     staticcheck:
       checks:
         - all
-        - -ST1000  # package comments are optional in internal product packages
-        - -QF1008  # omit embedded fields from selector
+        - -ST1000 # package comments are optional in internal product packages
+        - -QF1008 # omit embedded fields from selector
 
     usetesting:
       os-temp-dir: true

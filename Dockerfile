@@ -1,15 +1,14 @@
-FROM --platform=$BUILDPLATFORM node:24-alpine AS web
+FROM --platform=$BUILDPLATFORM node:24.16.0-alpine AS web
 
 WORKDIR /workspace/web
-RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN corepack prepare --activate
+RUN corepack enable && corepack prepare "$(node -p 'require("./package.json").packageManager')" --activate
 RUN pnpm install --frozen-lockfile
 COPY web/ ./
 COPY schema/ ../schema/
 RUN pnpm build
 
-FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH

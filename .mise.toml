@@ -1,0 +1,154 @@
+[tools]
+go = "1.26.3"
+node = "26.2.0"
+pnpm = "11.5.0"
+golangci-lint = "2.12.2"
+air = "1.65.3"
+
+[settings]
+pin = true
+lockfile = true
+lockfile_platforms = ["macos-arm64", "linux-x64"]
+
+[tasks.deps]
+description = "Install Go and frontend dependencies"
+run = """
+go mod download
+cd web && pnpm install
+"""
+
+[tasks.dev]
+description = "Run backend and frontend development servers"
+depends = ["dev-backend", "dev-frontend"]
+
+[tasks.dev-backend]
+description = "Run backend development server"
+run = """
+set -a
+[ ! -f .env ] || . ./.env
+set +a
+air -c .air.toml
+"""
+
+[tasks.dev-frontend]
+description = "Run frontend development server"
+run = "cd web && pnpm dev"
+
+[tasks.build]
+description = "Build frontend and backend"
+depends = ["frontend"]
+run = "go build -o woodstar ./cmd/woodstar"
+
+[tasks.backend]
+description = "Build backend binary"
+run = "go build -o woodstar ./cmd/woodstar"
+
+[tasks.frontend]
+description = "Build frontend bundle"
+run = "cd web && pnpm install && pnpm build"
+
+[tasks.test]
+description = "Run fast Go suite"
+run = "env -u WOODSTAR_TEST_DATABASE_URL go test -race -count=1 -v ./..."
+
+[tasks.full-test]
+description = "Run DB-backed Go suite"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go test -race -count=1 -v ./...
+"""
+
+[tasks.test-integration]
+description = "Run DB-backed protocol/auth integration tests"
+run = """
+WOODSTAR_TEST_DATABASE_URL="${WOODSTAR_TEST_DATABASE_URL:-postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable}" \
+  go test -race -count=1 -v ./internal/agentauth ./internal/users ./internal/orbit/protocol ./internal/osquery/protocol ./internal/santa/protocol
+"""
+
+[tasks.openapi]
+description = "Generate OpenAPI schema"
+run = "go run ./cmd/woodstar openapi --output web/openapi.yaml"
+
+[tasks.openapi-types]
+description = "Generate OpenAPI schema and frontend types"
+run = """
+mise run openapi
+cd web && pnpm openapi:types
+"""
+
+[tasks.test-openapi]
+description = "Check OpenAPI schema is current"
+run = """
+tmp=$(mktemp)
+go run ./cmd/woodstar openapi --output "$tmp"
+if ! diff -q web/openapi.yaml "$tmp" >/dev/null; then
+  echo "ERROR: web/openapi.yaml is out of date. Run 'mise run openapi-types' and commit the result."
+  diff -u web/openapi.yaml "$tmp"
+  rm -f "$tmp"
+  exit 1
+fi
+rm -f "$tmp"
+"""
+
+[tasks.sqlc]
+description = "Generate sqlc database code"
+run = "go tool github.com/sqlc-dev/sqlc/cmd/sqlc generate"
+
+[tasks.generate]
+description = "Regenerate checked-in generated artifacts"
+run = """
+mise run sqlc
+mise run openapi-types
+"""
+
+[tasks.backend-lint]
+description = "Run backend linters"
+run = """
+golangci-lint run
+deadcode_output="$(go tool golang.org/x/tools/cmd/deadcode -test ./...)"
+if [ -n "$deadcode_output" ]; then
+  printf '%s\n' "$deadcode_output"
+  exit 1
+fi
+"""
+
+[tasks.frontend-lint]
+description = "Run frontend lint and typecheck"
+run = "cd web && pnpm run lint"
+
+[tasks.lint]
+description = "Run backend and frontend linters"
+depends = ["backend-lint", "frontend-lint"]
+
+[tasks.backend-format]
+description = "Format backend code"
+run = "golangci-lint fmt"
+
+[tasks.frontend-format]
+description = "Format frontend code"
+run = "cd web && pnpm run format"
+
+[tasks.format]
+description = "Format backend and frontend code"
+depends = ["frontend-format", "backend-format"]
+
+[tasks.fmt]
+description = "Alias for format"
+depends = ["format"]
+
+[tasks.precommit]
+description = "Run the full local gate"
+run = """
+mise run format
+mise run lint
+mise run full-test
+mise run test-openapi
+"""
+
+[tasks.clean]
+description = "Remove local build outputs"
+run = "rm -rf woodstar build tmp web/dist"
+
+[tasks.schema-sync]
+description = "Refresh the osquery schema snapshot"
+run = "./schema/sync.sh"

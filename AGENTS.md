@@ -86,43 +86,42 @@ The full target tree lives in the Architecture Quick Reference at the end of thi
 
 ## Build, Test, And Development Commands
 
-Use the Makefile targets as the repo contract. Prefer these repo-wide commands over bespoke shell commands or per-file lint/format runs unless you are narrowing a specific failure.
+Use mise tasks as the repo contract. Prefer these repo-wide commands over bespoke shell commands or per-file lint/format runs unless you are narrowing a specific failure.
 
 ```bash
 # Build
-make build              # Frontend bundle + Go binary
-make backend            # Go binary only
-make frontend           # Frontend bundle only
+mise run build              # Frontend bundle + Go binary
+mise run backend            # Go binary only
+mise run frontend           # Frontend bundle only
 
 # Development
-make dev                # Backend + frontend development loop
-make dev-backend        # Backend only
-make dev-frontend       # Frontend only
+mise run dev                # Backend + frontend development loop
+mise run dev-backend        # Backend only
+mise run dev-frontend       # Frontend only
 
 # Testing
-make test               # Fast Go suite; DB tests skip because WOODSTAR_TEST_DATABASE_URL is unset
-make full-test          # Full/e2e Go suite against real Postgres via WOODSTAR_TEST_DATABASE_URL
-make test-integration   # DB-backed protocol/auth integration slice
-make test-openapi       # Validate OpenAPI after API contract changes
+mise run test               # Fast Go suite; DB tests skip because WOODSTAR_TEST_DATABASE_URL is unset
+mise run full-test          # Full/e2e Go suite against real Postgres via WOODSTAR_TEST_DATABASE_URL
+mise run test-integration   # DB-backed protocol/auth integration slice
+mise run test-openapi       # Validate OpenAPI after API contract changes
 
 # Linting
-make lint               # Backend + frontend lint
-make backend-lint       # golangci-lint run + deadcode -test ./...
-make frontend-lint      # pnpm run lint
+mise run lint               # Backend + frontend lint
+mise run backend-lint       # golangci-lint run + deadcode -test ./...
+mise run frontend-lint      # pnpm run lint
 
 # Formatting
-make format             # Frontend + backend formatting
-make backend-format     # golangci-lint fmt
-make frontend-format    # pnpm run format
-make fmt                # Alias for make format
+mise run format             # Frontend + backend formatting
+mise run backend-format     # golangci-lint fmt
+mise run frontend-format    # pnpm run format
 
 # Pre-commit
-make precommit          # format + lint + full-test + OpenAPI check
+mise run precommit          # format + lint + full-test + OpenAPI check
 ```
 
-`WOODSTAR_TEST_DATABASE_URL` is intentionally implied by `make full-test` and `make test-integration`. If Postgres is not reachable at that URL, the test should fail with the real Go/database error. Empty or unset `WOODSTAR_TEST_DATABASE_URL` means DB-backed `dbtest` tests skip.
+`WOODSTAR_TEST_DATABASE_URL` is intentionally implied by `mise run full-test` and `mise run test-integration`. If Postgres is not reachable at that URL, the test should fail with the real Go/database error. Empty or unset `WOODSTAR_TEST_DATABASE_URL` means DB-backed `dbtest` tests skip.
 
-If a command becomes routine, add a Make target rather than teaching the repo one-off commands.
+If a command becomes routine, add a mise task rather than teaching the repo one-off commands.
 
 ## Linting Strategy
 
@@ -139,8 +138,8 @@ Use strict linting to catch common AI-generated slop early. Keep the configurati
 
 Workflow:
 
-1. During implementation, targeted tests are fine for diagnosis, but use `make format` and `make lint` for the lint/format pass.
-2. Before handoff, run `make precommit` when practical. For database, protocol, Santa, osquery, or API changes, strongly prefer `make full-test` over the lightweight `make test`.
+1. During implementation, targeted tests are fine for diagnosis, but use `mise run format` and `mise run lint` for the lint/format pass.
+2. Before handoff, run `mise run precommit` when practical. For database, protocol, Santa, osquery, or API changes, strongly prefer `mise run full-test` over the lightweight `mise run test`.
 3. Fix lint issues in touched files. If repo-wide lint exposes unrelated inflight work, do not paper over it; report the blocker and keep the requested change focused.
 
 ## Coding Style & Naming Conventions
@@ -190,14 +189,14 @@ General:
 
 Backend tests should live beside implementations as `*_test.go`. Prefer table-driven tests.
 
-When running Go tests, prefer the Make targets:
+When running Go tests, prefer the mise tasks:
 
 ```bash
-make test       # Fast suite without DB-backed tests
-make full-test  # Full/e2e suite with real Postgres
+mise run test       # Fast suite without DB-backed tests
+mise run full-test  # Full/e2e suite with real Postgres
 ```
 
-Use targeted `go test` commands during iteration when they shorten the loop, then run the broadest relevant Make target before handoff. For DB-backed behavior, protocol surfaces, and Santa/osquery ingestion, that usually means `make full-test`.
+Use targeted `go test` commands during iteration when they shorten the loop, then run the broadest relevant mise task before handoff. For DB-backed behavior, protocol surfaces, and Santa/osquery ingestion, that usually means `mise run full-test`.
 
 For protocol-facing code, test the actual request/response behavior, not just internal helpers.
 
