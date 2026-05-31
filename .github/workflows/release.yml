@@ -52,7 +52,11 @@ jobs:
           WOODSTAR_TEST_DATABASE_URL: postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable
 
       - name: OpenAPI up to date
-        run: mise run test-openapi
+        run: |
+          tmp="$(mktemp)"
+          go run ./cmd/woodstar openapi --output "$tmp"
+          diff -u web/openapi.yaml "$tmp"
+          rm -f "$tmp"
 
       - name: Ensure generated files are committed
         run: git diff --exit-code
@@ -142,12 +146,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download web production build
-        uses: actions/download-artifact@v8
-        with:
-          name: web-dist
-          path: web/dist
-
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
@@ -174,7 +172,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./deploy/docker/ci.Dockerfile
+          file: ./Dockerfile
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           labels: ${{ steps.meta.outputs.labels }}

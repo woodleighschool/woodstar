@@ -44,7 +44,11 @@ jobs:
           WOODSTAR_TEST_DATABASE_URL: postgres://woodstar:woodstar@127.0.0.1:5432/postgres?sslmode=disable
 
       - name: OpenAPI up to date
-        run: mise run test-openapi
+        run: |
+          tmp="$(mktemp)"
+          go run ./cmd/woodstar openapi --output "$tmp"
+          diff -u web/openapi.yaml "$tmp"
+          rm -f "$tmp"
 
       - name: Ensure generated files are committed
         run: git diff --exit-code
