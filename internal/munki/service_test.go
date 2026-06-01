@@ -28,6 +28,10 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 		},
 		packages: []munki.EffectivePackage{
 			{
+				DeploymentID:     1,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:                        10,
 					Name:                      "GoogleChrome",

@@ -102,36 +102,63 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(restartActionValues...)
 }
 
-// DeploymentIntent describes how Munki should enforce or present a deployed package.
-type DeploymentIntent string
+// DeploymentAction describes the automatic Munki manifest section for an assignment.
+type DeploymentAction string
 
 const (
-	// IntentEnsureInstalled puts the package in managed_installs.
-	IntentEnsureInstalled DeploymentIntent = "ensure_installed"
-
-	// IntentEnsureAbsent puts the package in managed_uninstalls.
-	IntentEnsureAbsent DeploymentIntent = "ensure_absent"
-
-	// IntentUpdateIfPresent puts the package in managed_updates.
-	IntentUpdateIfPresent DeploymentIntent = "update_if_present"
-
-	// IntentOptional puts the package in optional_installs.
-	IntentOptional DeploymentIntent = "optional"
-
-	// IntentFeatured puts the package in optional_installs and featured_items.
-	IntentFeatured DeploymentIntent = "featured"
+	DeploymentActionInstall         DeploymentAction = "install"
+	DeploymentActionRemove          DeploymentAction = "remove"
+	DeploymentActionUpdateIfPresent DeploymentAction = "update_if_present"
+	DeploymentActionNone            DeploymentAction = "none"
 )
 
-var deploymentIntentValues = []DeploymentIntent{
-	IntentEnsureInstalled,
-	IntentEnsureAbsent,
-	IntentUpdateIfPresent,
-	IntentOptional,
-	IntentFeatured,
+var deploymentActionValues = []DeploymentAction{
+	DeploymentActionInstall,
+	DeploymentActionRemove,
+	DeploymentActionUpdateIfPresent,
+	DeploymentActionNone,
 }
 
-func (DeploymentIntent) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(deploymentIntentValues...)
+func (DeploymentAction) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(deploymentActionValues...)
+}
+
+// SelfServiceMode describes how Munki should present an assignment in Managed Software Center.
+type SelfServiceMode string
+
+const (
+	SelfServiceHidden    SelfServiceMode = "hidden"
+	SelfServiceAvailable SelfServiceMode = "available"
+	SelfServiceFeatured  SelfServiceMode = "featured"
+	SelfServiceDefault   SelfServiceMode = "default"
+)
+
+var selfServiceModeValues = []SelfServiceMode{
+	SelfServiceHidden,
+	SelfServiceAvailable,
+	SelfServiceFeatured,
+	SelfServiceDefault,
+}
+
+func (SelfServiceMode) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(selfServiceModeValues...)
+}
+
+// PackageSelection describes whether an assignment follows latest compatible pkginfos or pins one pkginfo.
+type PackageSelection string
+
+const (
+	PackageSelectionLatestEligible PackageSelection = "latest_eligible"
+	PackageSelectionSpecific       PackageSelection = "specific_package"
+)
+
+var packageSelectionValues = []PackageSelection{
+	PackageSelectionLatestEligible,
+	PackageSelectionSpecific,
+}
+
+func (PackageSelection) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(packageSelectionValues...)
 }
 
 // SoftwareTitleMutation is the input shape for creating or updating a Munki software title.
@@ -276,43 +303,52 @@ type Artifact struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// DeploymentMutation is the input shape for applying a package to a concrete Munki scope.
+// DeploymentMutation is the input shape for applying software to a concrete Munki scope.
 type DeploymentMutation struct {
-	PackageID       int64            `json:"package_id"`
-	Intent          DeploymentIntent `json:"intent"`
-	AllHosts        bool             `json:"all_hosts"`
-	IncludeLabelIDs []int64          `json:"include_label_ids,omitempty"`
-	ExcludeLabelIDs []int64          `json:"exclude_label_ids,omitempty"`
-	IncludeHostIDs  []int64          `json:"include_host_ids,omitempty"`
-	ExcludeHostIDs  []int64          `json:"exclude_host_ids,omitempty"`
+	SoftwareID       int64            `json:"software_id"`
+	Action           DeploymentAction `json:"action"`
+	SelfService      SelfServiceMode  `json:"self_service"`
+	PackageSelection PackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64           `json:"pinned_package_id,omitempty"`
+	AllHosts         bool             `json:"all_hosts"`
+	IncludeLabelIDs  []int64          `json:"include_label_ids,omitempty"`
+	ExcludeLabelIDs  []int64          `json:"exclude_label_ids,omitempty"`
+	IncludeHostIDs   []int64          `json:"include_host_ids,omitempty"`
+	ExcludeHostIDs   []int64          `json:"exclude_host_ids,omitempty"`
 }
 
-// Deployment links one Munki package, one intent, and concrete include/exclude scope.
+// Deployment links one Munki software title, assignment behavior, and concrete include/exclude scope.
 type Deployment struct {
-	ID                  int64            `json:"id"`
-	PackageID           int64            `json:"package_id"`
-	PackageName         string           `json:"package_name"`
-	PackageVersion      string           `json:"package_version"`
-	SoftwareID          int64            `json:"software_id"`
-	SoftwareDisplayName string           `json:"software_display_name"`
-	Intent              DeploymentIntent `json:"intent"`
-	Position            int32            `json:"position"`
-	AllHosts            bool             `json:"all_hosts"`
-	IncludeLabelIDs     []int64          `json:"include_label_ids"`
-	ExcludeLabelIDs     []int64          `json:"exclude_label_ids"`
-	IncludeHostIDs      []int64          `json:"include_host_ids"`
-	ExcludeHostIDs      []int64          `json:"exclude_host_ids"`
-	CreatedAt           time.Time        `json:"created_at"`
-	UpdatedAt           time.Time        `json:"updated_at"`
+	ID                   int64            `json:"id"`
+	SoftwareID           int64            `json:"software_id"`
+	SoftwareDisplayName  string           `json:"software_display_name"`
+	Action               DeploymentAction `json:"action"`
+	SelfService          SelfServiceMode  `json:"self_service"`
+	PackageSelection     PackageSelection `json:"package_selection"`
+	PinnedPackageID      *int64           `json:"pinned_package_id,omitempty"`
+	PinnedPackageName    string           `json:"pinned_package_name,omitempty"`
+	PinnedPackageVersion string           `json:"pinned_package_version,omitempty"`
+	Position             int32            `json:"position"`
+	AllHosts             bool             `json:"all_hosts"`
+	IncludeLabelIDs      []int64          `json:"include_label_ids"`
+	ExcludeLabelIDs      []int64          `json:"exclude_label_ids"`
+	IncludeHostIDs       []int64          `json:"include_host_ids"`
+	ExcludeHostIDs       []int64          `json:"exclude_host_ids"`
+	CreatedAt            time.Time        `json:"created_at"`
+	UpdatedAt            time.Time        `json:"updated_at"`
 }
 
 // EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
 type EffectivePackage struct {
-	DeploymentID int64
-	Intent       DeploymentIntent
-	Position     int32
-	Package      Package
-	scopeRank    int
+	DeploymentID     int64
+	SoftwareID       int64
+	Action           DeploymentAction
+	SelfService      SelfServiceMode
+	PackageSelection PackageSelection
+	PinnedPackageID  *int64
+	Position         int32
+	Package          Package
+	scopeRank        int
 }
 
 type SoftwareTitleDetail struct {
@@ -466,11 +502,37 @@ func (m ArtifactMutation) Validate() error {
 }
 
 func (m DeploymentMutation) Validate() error {
-	if m.PackageID <= 0 {
-		return fmt.Errorf("%w: package_id is required", dbutil.ErrInvalidInput)
+	if m.SoftwareID <= 0 {
+		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	if !validDeploymentIntent(m.Intent) {
-		return fmt.Errorf("%w: unsupported deployment intent %q", dbutil.ErrInvalidInput, m.Intent)
+	if !validDeploymentAction(m.Action) {
+		return fmt.Errorf("%w: unsupported deployment action %q", dbutil.ErrInvalidInput, m.Action)
+	}
+	if !validSelfServiceMode(m.SelfService) {
+		return fmt.Errorf("%w: unsupported self_service %q", dbutil.ErrInvalidInput, m.SelfService)
+	}
+	if !validPackageSelection(m.PackageSelection) {
+		return fmt.Errorf(
+			"%w: unsupported package_selection %q",
+			dbutil.ErrInvalidInput,
+			m.PackageSelection,
+		)
+	}
+	switch m.PackageSelection {
+	case PackageSelectionLatestEligible:
+		if m.PinnedPackageID != nil {
+			return fmt.Errorf(
+				"%w: pinned_package_id must be empty for latest_eligible selection",
+				dbutil.ErrInvalidInput,
+			)
+		}
+	case PackageSelectionSpecific:
+		if m.PinnedPackageID == nil || *m.PinnedPackageID <= 0 {
+			return fmt.Errorf("%w: pinned_package_id is required", dbutil.ErrInvalidInput)
+		}
+	}
+	if m.Action == DeploymentActionRemove && m.SelfService != SelfServiceHidden {
+		return fmt.Errorf("%w: remove assignments cannot be shown in Self Service", dbutil.ErrInvalidInput)
 	}
 	if !m.AllHosts && len(m.IncludeLabelIDs) == 0 && len(m.IncludeHostIDs) == 0 {
 		return fmt.Errorf("%w: deployment scope is required", dbutil.ErrInvalidInput)
@@ -478,8 +540,16 @@ func (m DeploymentMutation) Validate() error {
 	return nil
 }
 
-func validDeploymentIntent(intent DeploymentIntent) bool {
-	return slices.Contains(deploymentIntentValues, intent)
+func validDeploymentAction(action DeploymentAction) bool {
+	return slices.Contains(deploymentActionValues, action)
+}
+
+func validSelfServiceMode(mode SelfServiceMode) bool {
+	return slices.Contains(selfServiceModeValues, mode)
+}
+
+func validPackageSelection(selection PackageSelection) bool {
+	return slices.Contains(packageSelectionValues, selection)
 }
 
 func validInstallerType(installerType InstallerType) bool {

@@ -227,49 +227,134 @@ func (ns NullMunkiArtifactKind) Value() (driver.Value, error) {
 	return string(ns.MunkiArtifactKind), nil
 }
 
-type MunkiDeploymentIntent string
+type MunkiDeploymentAction string
 
 const (
-	MunkiDeploymentIntentEnsureInstalled MunkiDeploymentIntent = "ensure_installed"
-	MunkiDeploymentIntentEnsureAbsent    MunkiDeploymentIntent = "ensure_absent"
-	MunkiDeploymentIntentUpdateIfPresent MunkiDeploymentIntent = "update_if_present"
-	MunkiDeploymentIntentOptional        MunkiDeploymentIntent = "optional"
-	MunkiDeploymentIntentFeatured        MunkiDeploymentIntent = "featured"
+	MunkiDeploymentActionInstall         MunkiDeploymentAction = "install"
+	MunkiDeploymentActionRemove          MunkiDeploymentAction = "remove"
+	MunkiDeploymentActionUpdateIfPresent MunkiDeploymentAction = "update_if_present"
+	MunkiDeploymentActionNone            MunkiDeploymentAction = "none"
 )
 
-func (e *MunkiDeploymentIntent) Scan(src interface{}) error {
+func (e *MunkiDeploymentAction) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MunkiDeploymentIntent(s)
+		*e = MunkiDeploymentAction(s)
 	case string:
-		*e = MunkiDeploymentIntent(s)
+		*e = MunkiDeploymentAction(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MunkiDeploymentIntent: %T", src)
+		return fmt.Errorf("unsupported scan type for MunkiDeploymentAction: %T", src)
 	}
 	return nil
 }
 
-type NullMunkiDeploymentIntent struct {
-	MunkiDeploymentIntent MunkiDeploymentIntent `json:"munki_deployment_intent"`
-	Valid                 bool                  `json:"valid"` // Valid is true if MunkiDeploymentIntent is not NULL
+type NullMunkiDeploymentAction struct {
+	MunkiDeploymentAction MunkiDeploymentAction `json:"munki_deployment_action"`
+	Valid                 bool                  `json:"valid"` // Valid is true if MunkiDeploymentAction is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMunkiDeploymentIntent) Scan(value interface{}) error {
+func (ns *NullMunkiDeploymentAction) Scan(value interface{}) error {
 	if value == nil {
-		ns.MunkiDeploymentIntent, ns.Valid = "", false
+		ns.MunkiDeploymentAction, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MunkiDeploymentIntent.Scan(value)
+	return ns.MunkiDeploymentAction.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMunkiDeploymentIntent) Value() (driver.Value, error) {
+func (ns NullMunkiDeploymentAction) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MunkiDeploymentIntent), nil
+	return string(ns.MunkiDeploymentAction), nil
+}
+
+type MunkiPackageSelection string
+
+const (
+	MunkiPackageSelectionLatestEligible  MunkiPackageSelection = "latest_eligible"
+	MunkiPackageSelectionSpecificPackage MunkiPackageSelection = "specific_package"
+)
+
+func (e *MunkiPackageSelection) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiPackageSelection(s)
+	case string:
+		*e = MunkiPackageSelection(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiPackageSelection: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiPackageSelection struct {
+	MunkiPackageSelection MunkiPackageSelection `json:"munki_package_selection"`
+	Valid                 bool                  `json:"valid"` // Valid is true if MunkiPackageSelection is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiPackageSelection) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiPackageSelection, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiPackageSelection.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiPackageSelection) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiPackageSelection), nil
+}
+
+type MunkiSelfServiceMode string
+
+const (
+	MunkiSelfServiceModeHidden    MunkiSelfServiceMode = "hidden"
+	MunkiSelfServiceModeAvailable MunkiSelfServiceMode = "available"
+	MunkiSelfServiceModeFeatured  MunkiSelfServiceMode = "featured"
+	MunkiSelfServiceModeDefault   MunkiSelfServiceMode = "default"
+)
+
+func (e *MunkiSelfServiceMode) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiSelfServiceMode(s)
+	case string:
+		*e = MunkiSelfServiceMode(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiSelfServiceMode: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiSelfServiceMode struct {
+	MunkiSelfServiceMode MunkiSelfServiceMode `json:"munki_self_service_mode"`
+	Valid                bool                 `json:"valid"` // Valid is true if MunkiSelfServiceMode is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiSelfServiceMode) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiSelfServiceMode, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiSelfServiceMode.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiSelfServiceMode) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiSelfServiceMode), nil
 }
 
 type SantaClientMode string
@@ -911,13 +996,16 @@ type MunkiArtifact struct {
 }
 
 type MunkiDeployment struct {
-	ID        int64                 `json:"id"`
-	PackageID int64                 `json:"package_id"`
-	Intent    MunkiDeploymentIntent `json:"intent"`
-	Position  int32                 `json:"position"`
-	AllHosts  bool                  `json:"all_hosts"`
-	CreatedAt time.Time             `json:"created_at"`
-	UpdatedAt time.Time             `json:"updated_at"`
+	ID               int64                 `json:"id"`
+	Position         int32                 `json:"position"`
+	AllHosts         bool                  `json:"all_hosts"`
+	CreatedAt        time.Time             `json:"created_at"`
+	UpdatedAt        time.Time             `json:"updated_at"`
+	SoftwareID       int64                 `json:"software_id"`
+	Action           MunkiDeploymentAction `json:"action"`
+	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
 }
 
 type MunkiDeploymentExcludeHost struct {

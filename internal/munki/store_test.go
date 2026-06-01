@@ -51,7 +51,7 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software title: %v", err)
 	}
-	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
+	_, err = store.CreatePackage(ctx, munki.PackageMutation{
 		SoftwareID:    title.ID,
 		Name:          "GoogleChrome",
 		Version:       "148.0.0.1",
@@ -62,10 +62,11 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("create pkg: %v", err)
 	}
 	deployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID:       pkg.ID,
-		Intent:          munki.IntentEnsureInstalled,
-		IncludeLabelIDs: []int64{label.ID},
-		ExcludeHostIDs:  []int64{excludedHost.ID},
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionLatestEligible,
+		IncludeLabelIDs:  []int64{label.ID},
+		ExcludeHostIDs:   []int64{excludedHost.ID},
 	})
 	if err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -104,7 +105,7 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("resolve included host: %v", err)
 	}
 	if len(included) != 1 || included[0].Package.Name != "GoogleChrome" ||
-		included[0].Intent != munki.IntentEnsureInstalled {
+		included[0].Action != munki.DeploymentActionInstall {
 		t.Fatalf("included effective packages = %+v, want GoogleChrome install", included)
 	}
 	excluded, err := store.EffectivePackagesForHost(ctx, excludedHost.ID)
@@ -183,9 +184,10 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerArtifactID, artifact.ID)
 	}
 	if _, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID: pkg.ID,
-		Intent:    munki.IntentEnsureInstalled,
-		AllHosts:  true,
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionLatestEligible,
+		AllHosts:         true,
 	}); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
@@ -196,6 +198,45 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	}
 	if len(effective) != 1 || effective[0].Package.InstallerArtifactLocation != "apps/ArtifactApp.pkg" {
 		t.Fatalf("effective packages = %+v, want artifact location", effective)
+	}
+}
+
+func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	store := munki.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "munki-latest-host-uuid", Serial: "C02MUNKILATEST"},
+		OrbitNodeKey: "munki-latest-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "LatestApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	createMunkiPackage(t, ctx, store, title.ID, "LatestApp", "1.0")
+	createMunkiPackage(t, ctx, store, title.ID, "LatestApp", "2.0")
+	if _, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionLatestEligible,
+		AllHosts:         true,
+	}); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve effective packages: %v", err)
+	}
+	if len(effective) != 2 {
+		t.Fatalf("effective packages = %+v, want two latest candidates", effective)
+	}
+	if effective[0].Package.Name != "LatestApp" || effective[1].Package.Name != "LatestApp" {
+		t.Fatalf("effective packages = %+v, want LatestApp candidates", effective)
 	}
 }
 
@@ -260,25 +301,32 @@ func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	absentPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "3.0")
 
 	optionalDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID: optionalPackage.ID,
-		Intent:    munki.IntentOptional,
-		AllHosts:  true,
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionNone,
+		SelfService:      munki.SelfServiceAvailable,
+		PackageSelection: munki.PackageSelectionSpecific,
+		PinnedPackageID:  &optionalPackage.ID,
+		AllHosts:         true,
 	})
 	if err != nil {
 		t.Fatalf("create all-host optional deployment: %v", err)
 	}
 	installDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID:       installPackage.ID,
-		Intent:          munki.IntentEnsureInstalled,
-		IncludeLabelIDs: []int64{label.ID},
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionSpecific,
+		PinnedPackageID:  &installPackage.ID,
+		IncludeLabelIDs:  []int64{label.ID},
 	})
 	if err != nil {
 		t.Fatalf("create label install deployment: %v", err)
 	}
 	absentDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID:      absentPackage.ID,
-		Intent:         munki.IntentEnsureAbsent,
-		IncludeHostIDs: []int64{host.ID},
+		SoftwareID:       title.ID,
+		Action:           munki.DeploymentActionRemove,
+		PackageSelection: munki.PackageSelectionSpecific,
+		PinnedPackageID:  &absentPackage.ID,
+		IncludeHostIDs:   []int64{host.ID},
 	})
 	if err != nil {
 		t.Fatalf("create host removal deployment: %v", err)
@@ -298,7 +346,7 @@ func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if effective[0].Intent != munki.IntentEnsureAbsent || effective[0].Package.Version != "3.0" {
+	if effective[0].Action != munki.DeploymentActionRemove || effective[0].Package.Version != "3.0" {
 		t.Fatalf("effective pkg = %+v, want removal of OverlapApp 3.0", effective[0])
 	}
 }
@@ -434,16 +482,139 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	}
 }
 
+func TestUpdatePackagePreservesImportedPkginfo(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	pkg, err := store.ImportPackage(ctx, munki.PackageImportMutation{
+		Pkginfo: []byte(`{
+			"name": "ImportedEditApp",
+			"version": "1.2.3",
+			"display_name": "Imported Edit App",
+			"installer_type": "nopkg",
+			"minimum_munki_version": "6.6",
+			"blocking_applications": ["Safari"],
+			"requires": ["Python"],
+			"installs": [{"path": "/Applications/Imported Edit App.app"}]
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("import package: %v", err)
+	}
+
+	updated, err := store.UpdatePackage(ctx, pkg.ID, munki.PackageMutation{
+		SoftwareID:             pkg.SoftwareID,
+		Name:                   pkg.Name,
+		Version:                "1.2.4",
+		DisplayName:            "Imported Edit App Updated",
+		InstallerType:          pkg.InstallerType,
+		UnattendedInstall:      pkg.UnattendedInstall,
+		UnattendedUninstall:    pkg.UnattendedUninstall,
+		Uninstallable:          pkg.Uninstallable,
+		UninstallMethod:        pkg.UninstallMethod,
+		RestartAction:          pkg.RestartAction,
+		MinimumOSVersion:       pkg.MinimumOSVersion,
+		MaximumOSVersion:       pkg.MaximumOSVersion,
+		SupportedArchitectures: pkg.SupportedArchitectures,
+		OnDemand:               pkg.OnDemand,
+		Precache:               pkg.Precache,
+		Eligible:               pkg.Eligible,
+	})
+	if err != nil {
+		t.Fatalf("update package: %v", err)
+	}
+	if updated.MinimumMunkiVersion != "6.6" {
+		t.Fatalf("minimum munki version = %q, want preserved", updated.MinimumMunkiVersion)
+	}
+	if !sameStrings(updated.BlockingApplications, []string{"Safari"}) {
+		t.Fatalf("blocking applications = %v, want preserved", updated.BlockingApplications)
+	}
+	if !sameStrings(updated.Requires, []string{"Python"}) {
+		t.Fatalf("requires = %v, want preserved", updated.Requires)
+	}
+	if !strings.Contains(string(updated.ExtraPkginfo), `"installs"`) {
+		t.Fatalf("extra pkginfo = %s, want installs preserved", updated.ExtraPkginfo)
+	}
+	if !strings.Contains(string(updated.Pkginfo), `"requires":["Python"]`) ||
+		!strings.Contains(string(updated.Pkginfo), `"installs"`) {
+		t.Fatalf("pkginfo = %s, want preserved requires and installs", updated.Pkginfo)
+	}
+}
+
+func TestUpdatePackageRejectsSoftwareMove(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	first, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "FirstApp"})
+	if err != nil {
+		t.Fatalf("create first title: %v", err)
+	}
+	second, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "SecondApp"})
+	if err != nil {
+		t.Fatalf("create second title: %v", err)
+	}
+	pkg := createMunkiPackage(t, ctx, store, first.ID, "FirstApp", "1.0")
+
+	_, err = store.UpdatePackage(ctx, pkg.ID, munki.PackageMutation{
+		SoftwareID:    second.ID,
+		Name:          pkg.Name,
+		Version:       pkg.Version,
+		InstallerType: pkg.InstallerType,
+		Eligible:      pkg.Eligible,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("UpdatePackage error = %v, want invalid input", err)
+	}
+}
+
 func TestCreateDeploymentRejectsEmptyScope(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
 	_, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		PackageID: 1,
-		Intent:    munki.IntentEnsureInstalled,
+		SoftwareID:       1,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionLatestEligible,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreateDeployment error = %v, want invalid input", err)
+	}
+}
+
+func TestUpdateDeploymentRejectsSoftwareMove(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	first, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "FirstAssignedApp"})
+	if err != nil {
+		t.Fatalf("create first title: %v", err)
+	}
+	second, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "SecondAssignedApp"})
+	if err != nil {
+		t.Fatalf("create second title: %v", err)
+	}
+	pkg := createMunkiPackage(t, ctx, store, first.ID, "FirstAssignedApp", "1.0")
+	deployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		SoftwareID:       first.ID,
+		Action:           munki.DeploymentActionInstall,
+		PackageSelection: munki.PackageSelectionSpecific,
+		PinnedPackageID:  &pkg.ID,
+		AllHosts:         true,
+	})
+	if err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	_, err = store.UpdateDeployment(ctx, deployment.ID, munki.DeploymentMutation{
+		SoftwareID:       second.ID,
+		Action:           deployment.Action,
+		SelfService:      deployment.SelfService,
+		PackageSelection: deployment.PackageSelection,
+		PinnedPackageID:  deployment.PinnedPackageID,
+		AllHosts:         deployment.AllHosts,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("UpdateDeployment error = %v, want invalid input", err)
 	}
 }
 

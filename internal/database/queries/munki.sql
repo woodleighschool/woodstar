@@ -249,6 +249,40 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     updated_at = now()
 RETURNING *;
 
+-- name: UpdateMunkiPackage :one
+UPDATE munki_packages
+SET
+    name = @name,
+    version = @version,
+    display_name = @display_name,
+    description = @description,
+    category = @category,
+    developer = @developer,
+    installer_type = @installer_type,
+    uninstall_method = @uninstall_method,
+    restart_action = @restart_action,
+    minimum_munki_version = @minimum_munki_version,
+    minimum_os_version = @minimum_os_version,
+    maximum_os_version = @maximum_os_version,
+    supported_architectures = @supported_architectures::text[],
+    blocking_applications = @blocking_applications::text[],
+    requires = @requires::text[],
+    update_for = @update_for::text[],
+    unattended_install = @unattended_install,
+    unattended_uninstall = @unattended_uninstall,
+    uninstallable = @uninstallable,
+    on_demand = @on_demand,
+    precache = @precache,
+    icon_name = @icon_name,
+    icon_hash = @icon_hash,
+    extra_pkginfo = @extra_pkginfo::jsonb,
+    installer_artifact_id = sqlc.narg(installer_artifact_id)::bigint,
+    icon_artifact_id = sqlc.narg(icon_artifact_id)::bigint,
+    eligible = @eligible,
+    updated_at = now()
+WHERE id = @id
+RETURNING *;
+
 -- name: GetMunkiPackageByID :one
 SELECT
     p.*,
@@ -264,27 +298,56 @@ WHERE p.id = @id;
 
 -- name: CreateMunkiDeployment :one
 INSERT INTO munki_deployments (
-    package_id,
-    intent,
+    software_id,
+    action,
+    self_service,
+    package_selection,
+    pinned_package_id,
     position,
     all_hosts
 )
 VALUES (
-    @package_id,
-    @intent::munki_deployment_intent,
+    @software_id,
+    @action::munki_deployment_action,
+    @self_service::munki_self_service_mode,
+    @package_selection::munki_package_selection,
+    sqlc.narg(pinned_package_id)::bigint,
     (
         SELECT COALESCE(MAX(d.position) + 1, 0)
         FROM munki_deployments d
-        JOIN munki_packages p ON p.id = d.package_id
-        WHERE p.software_id = (
-            SELECT software_id
-            FROM munki_packages
-            WHERE id = @package_id
-        )
+        WHERE d.software_id = @software_id
     ),
     @all_hosts
 )
 RETURNING *;
+
+-- name: UpdateMunkiDeployment :one
+UPDATE munki_deployments
+SET
+    action = @action::munki_deployment_action,
+    self_service = @self_service::munki_self_service_mode,
+    package_selection = @package_selection::munki_package_selection,
+    pinned_package_id = sqlc.narg(pinned_package_id)::bigint,
+    all_hosts = @all_hosts,
+    updated_at = now()
+WHERE id = @id
+RETURNING *;
+
+-- name: DeleteMunkiDeploymentIncludeLabels :exec
+DELETE FROM munki_deployment_include_labels
+WHERE deployment_id = @deployment_id;
+
+-- name: DeleteMunkiDeploymentExcludeLabels :exec
+DELETE FROM munki_deployment_exclude_labels
+WHERE deployment_id = @deployment_id;
+
+-- name: DeleteMunkiDeploymentIncludeHosts :exec
+DELETE FROM munki_deployment_include_hosts
+WHERE deployment_id = @deployment_id;
+
+-- name: DeleteMunkiDeploymentExcludeHosts :exec
+DELETE FROM munki_deployment_exclude_hosts
+WHERE deployment_id = @deployment_id;
 
 -- name: InsertMunkiDeploymentIncludeLabels :exec
 INSERT INTO munki_deployment_include_labels (
@@ -359,32 +422,34 @@ ORDER BY deployment_id, scope, id;
 -- name: ListMunkiDeploymentIDsBySoftware :many
 SELECT d.id
 FROM munki_deployments d
-JOIN munki_packages p ON p.id = d.package_id
-WHERE p.software_id = @software_id
+WHERE d.software_id = @software_id
 ORDER BY d.position, d.id;
 
 -- name: SetMunkiDeploymentPositions :exec
 UPDATE munki_deployments d
 SET position = -ordered.position
 FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, position)
-JOIN munki_packages p ON TRUE
 WHERE d.id = ordered.id
-  AND p.id = d.package_id
-  AND p.software_id = @software_id;
+  AND d.software_id = @software_id;
 
 -- name: NormalizeMunkiDeploymentPositions :exec
 UPDATE munki_deployments d
 SET position = -position - 1
-FROM munki_packages p
-WHERE p.id = d.package_id AND p.software_id = @software_id;
+WHERE d.software_id = @software_id;
 
 -- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
     d.id AS deployment_id,
-    d.intent,
+    d.software_id AS deployment_software_id,
+    d.action,
+    d.self_service,
+    d.package_selection,
+    d.pinned_package_id,
     d.position,
     p.id AS package_id,
     p.software_id,
+    s.name AS software_name,
+    COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
     p.name,
     p.version,
     p.display_name,
@@ -429,7 +494,12 @@ SELECT
         ELSE 0
     END AS scope_rank
 FROM munki_deployments d
-JOIN munki_packages p ON p.id = d.package_id
+JOIN munki_software_titles s ON s.id = d.software_id
+JOIN munki_packages p ON p.software_id = d.software_id
+    AND (
+        (d.package_selection = 'latest_eligible' AND d.pinned_package_id IS NULL)
+        OR (d.package_selection = 'specific_package' AND p.id = d.pinned_package_id)
+    )
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.eligible
@@ -458,7 +528,7 @@ WHERE p.eligible
     JOIN label_membership lm ON lm.label_id = el.label_id
     WHERE el.deployment_id = d.id AND lm.host_id = @host_id
   )
-ORDER BY lower(p.name), d.position, d.id;
+ORDER BY d.position, d.id, lower(p.name), p.id;
 
 -- name: UpsertMunkiHostStatus :exec
 INSERT INTO munki_host_status (

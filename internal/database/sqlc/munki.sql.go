@@ -50,46 +50,60 @@ func (q *Queries) CountMunkiSoftwareTitles(ctx context.Context) (int32, error) {
 
 const createMunkiDeployment = `-- name: CreateMunkiDeployment :one
 INSERT INTO munki_deployments (
-    package_id,
-    intent,
+    software_id,
+    action,
+    self_service,
+    package_selection,
+    pinned_package_id,
     position,
     all_hosts
 )
 VALUES (
     $1,
-    $2::munki_deployment_intent,
+    $2::munki_deployment_action,
+    $3::munki_self_service_mode,
+    $4::munki_package_selection,
+    $5::bigint,
     (
         SELECT COALESCE(MAX(d.position) + 1, 0)
         FROM munki_deployments d
-        JOIN munki_packages p ON p.id = d.package_id
-        WHERE p.software_id = (
-            SELECT software_id
-            FROM munki_packages
-            WHERE id = $1
-        )
+        WHERE d.software_id = $1
     ),
-    $3
+    $6
 )
-RETURNING id, package_id, intent, position, all_hosts, created_at, updated_at
+RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, self_service, package_selection, pinned_package_id
 `
 
 type CreateMunkiDeploymentParams struct {
-	PackageID int64                 `json:"package_id"`
-	Intent    MunkiDeploymentIntent `json:"intent"`
-	AllHosts  bool                  `json:"all_hosts"`
+	SoftwareID       int64                 `json:"software_id"`
+	Action           MunkiDeploymentAction `json:"action"`
+	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
+	AllHosts         bool                  `json:"all_hosts"`
 }
 
 func (q *Queries) CreateMunkiDeployment(ctx context.Context, arg CreateMunkiDeploymentParams) (MunkiDeployment, error) {
-	row := q.db.QueryRow(ctx, createMunkiDeployment, arg.PackageID, arg.Intent, arg.AllHosts)
+	row := q.db.QueryRow(ctx, createMunkiDeployment,
+		arg.SoftwareID,
+		arg.Action,
+		arg.SelfService,
+		arg.PackageSelection,
+		arg.PinnedPackageID,
+		arg.AllHosts,
+	)
 	var i MunkiDeployment
 	err := row.Scan(
 		&i.ID,
-		&i.PackageID,
-		&i.Intent,
 		&i.Position,
 		&i.AllHosts,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SoftwareID,
+		&i.Action,
+		&i.SelfService,
+		&i.PackageSelection,
+		&i.PinnedPackageID,
 	)
 	return i, err
 }
@@ -303,6 +317,62 @@ func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiS
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteMunkiDeploymentExcludeHosts = `-- name: DeleteMunkiDeploymentExcludeHosts :exec
+DELETE FROM munki_deployment_exclude_hosts
+WHERE deployment_id = $1
+`
+
+type DeleteMunkiDeploymentExcludeHostsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
+}
+
+func (q *Queries) DeleteMunkiDeploymentExcludeHosts(ctx context.Context, arg DeleteMunkiDeploymentExcludeHostsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiDeploymentExcludeHosts, arg.DeploymentID)
+	return err
+}
+
+const deleteMunkiDeploymentExcludeLabels = `-- name: DeleteMunkiDeploymentExcludeLabels :exec
+DELETE FROM munki_deployment_exclude_labels
+WHERE deployment_id = $1
+`
+
+type DeleteMunkiDeploymentExcludeLabelsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
+}
+
+func (q *Queries) DeleteMunkiDeploymentExcludeLabels(ctx context.Context, arg DeleteMunkiDeploymentExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiDeploymentExcludeLabels, arg.DeploymentID)
+	return err
+}
+
+const deleteMunkiDeploymentIncludeHosts = `-- name: DeleteMunkiDeploymentIncludeHosts :exec
+DELETE FROM munki_deployment_include_hosts
+WHERE deployment_id = $1
+`
+
+type DeleteMunkiDeploymentIncludeHostsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
+}
+
+func (q *Queries) DeleteMunkiDeploymentIncludeHosts(ctx context.Context, arg DeleteMunkiDeploymentIncludeHostsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiDeploymentIncludeHosts, arg.DeploymentID)
+	return err
+}
+
+const deleteMunkiDeploymentIncludeLabels = `-- name: DeleteMunkiDeploymentIncludeLabels :exec
+DELETE FROM munki_deployment_include_labels
+WHERE deployment_id = $1
+`
+
+type DeleteMunkiDeploymentIncludeLabelsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
+}
+
+func (q *Queries) DeleteMunkiDeploymentIncludeLabels(ctx context.Context, arg DeleteMunkiDeploymentIncludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiDeploymentIncludeLabels, arg.DeploymentID)
+	return err
 }
 
 const deleteMunkiHostItems = `-- name: DeleteMunkiHostItems :exec
@@ -676,10 +746,16 @@ func (q *Queries) InsertMunkiHostItem(ctx context.Context, arg InsertMunkiHostIt
 const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
     d.id AS deployment_id,
-    d.intent,
+    d.software_id AS deployment_software_id,
+    d.action,
+    d.self_service,
+    d.package_selection,
+    d.pinned_package_id,
     d.position,
     p.id AS package_id,
     p.software_id,
+    s.name AS software_name,
+    COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
     p.name,
     p.version,
     p.display_name,
@@ -724,7 +800,12 @@ SELECT
         ELSE 0
     END AS scope_rank
 FROM munki_deployments d
-JOIN munki_packages p ON p.id = d.package_id
+JOIN munki_software_titles s ON s.id = d.software_id
+JOIN munki_packages p ON p.software_id = d.software_id
+    AND (
+        (d.package_selection = 'latest_eligible' AND d.pinned_package_id IS NULL)
+        OR (d.package_selection = 'specific_package' AND p.id = d.pinned_package_id)
+    )
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.eligible
@@ -753,7 +834,7 @@ WHERE p.eligible
     JOIN label_membership lm ON lm.label_id = el.label_id
     WHERE el.deployment_id = d.id AND lm.host_id = $1
   )
-ORDER BY lower(p.name), d.position, d.id
+ORDER BY d.position, d.id, lower(p.name), p.id
 `
 
 type ListEffectiveMunkiPackagesForHostParams struct {
@@ -762,10 +843,16 @@ type ListEffectiveMunkiPackagesForHostParams struct {
 
 type ListEffectiveMunkiPackagesForHostRow struct {
 	DeploymentID              int64                 `json:"deployment_id"`
-	Intent                    MunkiDeploymentIntent `json:"intent"`
+	DeploymentSoftwareID      int64                 `json:"deployment_software_id"`
+	Action                    MunkiDeploymentAction `json:"action"`
+	SelfService               MunkiSelfServiceMode  `json:"self_service"`
+	PackageSelection          MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID           *int64                `json:"pinned_package_id"`
 	Position                  int32                 `json:"position"`
 	PackageID                 int64                 `json:"package_id"`
 	SoftwareID                int64                 `json:"software_id"`
+	SoftwareName              string                `json:"software_name"`
+	SoftwareDisplayName       string                `json:"software_display_name"`
 	Name                      string                `json:"name"`
 	Version                   string                `json:"version"`
 	DisplayName               string                `json:"display_name"`
@@ -808,10 +895,16 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 		var i ListEffectiveMunkiPackagesForHostRow
 		if err := rows.Scan(
 			&i.DeploymentID,
-			&i.Intent,
+			&i.DeploymentSoftwareID,
+			&i.Action,
+			&i.SelfService,
+			&i.PackageSelection,
+			&i.PinnedPackageID,
 			&i.Position,
 			&i.PackageID,
 			&i.SoftwareID,
+			&i.SoftwareName,
+			&i.SoftwareDisplayName,
 			&i.Name,
 			&i.Version,
 			&i.DisplayName,
@@ -960,8 +1053,7 @@ func (q *Queries) ListMunkiDeploymentExcludeLabelIDs(ctx context.Context, arg Li
 const listMunkiDeploymentIDsBySoftware = `-- name: ListMunkiDeploymentIDsBySoftware :many
 SELECT d.id
 FROM munki_deployments d
-JOIN munki_packages p ON p.id = d.package_id
-WHERE p.software_id = $1
+WHERE d.software_id = $1
 ORDER BY d.position, d.id
 `
 
@@ -1183,8 +1275,7 @@ func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoft
 const normalizeMunkiDeploymentPositions = `-- name: NormalizeMunkiDeploymentPositions :exec
 UPDATE munki_deployments d
 SET position = -position - 1
-FROM munki_packages p
-WHERE p.id = d.package_id AND p.software_id = $1
+WHERE d.software_id = $1
 `
 
 type NormalizeMunkiDeploymentPositionsParams struct {
@@ -1200,10 +1291,8 @@ const setMunkiDeploymentPositions = `-- name: SetMunkiDeploymentPositions :exec
 UPDATE munki_deployments d
 SET position = -ordered.position
 FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, position)
-JOIN munki_packages p ON TRUE
 WHERE d.id = ordered.id
-  AND p.id = d.package_id
-  AND p.software_id = $1
+  AND d.software_id = $1
 `
 
 type SetMunkiDeploymentPositionsParams struct {
@@ -1214,6 +1303,187 @@ type SetMunkiDeploymentPositionsParams struct {
 func (q *Queries) SetMunkiDeploymentPositions(ctx context.Context, arg SetMunkiDeploymentPositionsParams) error {
 	_, err := q.db.Exec(ctx, setMunkiDeploymentPositions, arg.SoftwareID, arg.OrderedIds)
 	return err
+}
+
+const updateMunkiDeployment = `-- name: UpdateMunkiDeployment :one
+UPDATE munki_deployments
+SET
+    action = $1::munki_deployment_action,
+    self_service = $2::munki_self_service_mode,
+    package_selection = $3::munki_package_selection,
+    pinned_package_id = $4::bigint,
+    all_hosts = $5,
+    updated_at = now()
+WHERE id = $6
+RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, self_service, package_selection, pinned_package_id
+`
+
+type UpdateMunkiDeploymentParams struct {
+	Action           MunkiDeploymentAction `json:"action"`
+	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
+	AllHosts         bool                  `json:"all_hosts"`
+	ID               int64                 `json:"id"`
+}
+
+func (q *Queries) UpdateMunkiDeployment(ctx context.Context, arg UpdateMunkiDeploymentParams) (MunkiDeployment, error) {
+	row := q.db.QueryRow(ctx, updateMunkiDeployment,
+		arg.Action,
+		arg.SelfService,
+		arg.PackageSelection,
+		arg.PinnedPackageID,
+		arg.AllHosts,
+		arg.ID,
+	)
+	var i MunkiDeployment
+	err := row.Scan(
+		&i.ID,
+		&i.Position,
+		&i.AllHosts,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SoftwareID,
+		&i.Action,
+		&i.SelfService,
+		&i.PackageSelection,
+		&i.PinnedPackageID,
+	)
+	return i, err
+}
+
+const updateMunkiPackage = `-- name: UpdateMunkiPackage :one
+UPDATE munki_packages
+SET
+    name = $1,
+    version = $2,
+    display_name = $3,
+    description = $4,
+    category = $5,
+    developer = $6,
+    installer_type = $7,
+    uninstall_method = $8,
+    restart_action = $9,
+    minimum_munki_version = $10,
+    minimum_os_version = $11,
+    maximum_os_version = $12,
+    supported_architectures = $13::text[],
+    blocking_applications = $14::text[],
+    requires = $15::text[],
+    update_for = $16::text[],
+    unattended_install = $17,
+    unattended_uninstall = $18,
+    uninstallable = $19,
+    on_demand = $20,
+    precache = $21,
+    icon_name = $22,
+    icon_hash = $23,
+    extra_pkginfo = $24::jsonb,
+    installer_artifact_id = $25::bigint,
+    icon_artifact_id = $26::bigint,
+    eligible = $27,
+    updated_at = now()
+WHERE id = $28
+RETURNING id, software_id, name, version, display_name, description, category, developer, eligible, created_at, updated_at, installer_artifact_id, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, requires, update_for, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, icon_name, icon_hash, icon_artifact_id, extra_pkginfo
+`
+
+type UpdateMunkiPackageParams struct {
+	Name                   string   `json:"name"`
+	Version                string   `json:"version"`
+	DisplayName            string   `json:"display_name"`
+	Description            string   `json:"description"`
+	Category               string   `json:"category"`
+	Developer              string   `json:"developer"`
+	InstallerType          string   `json:"installer_type"`
+	UninstallMethod        string   `json:"uninstall_method"`
+	RestartAction          string   `json:"restart_action"`
+	MinimumMunkiVersion    string   `json:"minimum_munki_version"`
+	MinimumOSVersion       string   `json:"minimum_os_version"`
+	MaximumOSVersion       string   `json:"maximum_os_version"`
+	SupportedArchitectures []string `json:"supported_architectures"`
+	BlockingApplications   []string `json:"blocking_applications"`
+	Requires               []string `json:"requires"`
+	UpdateFor              []string `json:"update_for"`
+	UnattendedInstall      bool     `json:"unattended_install"`
+	UnattendedUninstall    bool     `json:"unattended_uninstall"`
+	Uninstallable          bool     `json:"uninstallable"`
+	OnDemand               bool     `json:"on_demand"`
+	Precache               bool     `json:"precache"`
+	IconName               string   `json:"icon_name"`
+	IconHash               string   `json:"icon_hash"`
+	ExtraPkginfo           []byte   `json:"extra_pkginfo"`
+	InstallerArtifactID    *int64   `json:"installer_artifact_id"`
+	IconArtifactID         *int64   `json:"icon_artifact_id"`
+	Eligible               bool     `json:"eligible"`
+	ID                     int64    `json:"id"`
+}
+
+func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackageParams) (MunkiPackage, error) {
+	row := q.db.QueryRow(ctx, updateMunkiPackage,
+		arg.Name,
+		arg.Version,
+		arg.DisplayName,
+		arg.Description,
+		arg.Category,
+		arg.Developer,
+		arg.InstallerType,
+		arg.UninstallMethod,
+		arg.RestartAction,
+		arg.MinimumMunkiVersion,
+		arg.MinimumOSVersion,
+		arg.MaximumOSVersion,
+		arg.SupportedArchitectures,
+		arg.BlockingApplications,
+		arg.Requires,
+		arg.UpdateFor,
+		arg.UnattendedInstall,
+		arg.UnattendedUninstall,
+		arg.Uninstallable,
+		arg.OnDemand,
+		arg.Precache,
+		arg.IconName,
+		arg.IconHash,
+		arg.ExtraPkginfo,
+		arg.InstallerArtifactID,
+		arg.IconArtifactID,
+		arg.Eligible,
+		arg.ID,
+	)
+	var i MunkiPackage
+	err := row.Scan(
+		&i.ID,
+		&i.SoftwareID,
+		&i.Name,
+		&i.Version,
+		&i.DisplayName,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.Eligible,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.InstallerArtifactID,
+		&i.InstallerType,
+		&i.UninstallMethod,
+		&i.RestartAction,
+		&i.MinimumMunkiVersion,
+		&i.MinimumOSVersion,
+		&i.MaximumOSVersion,
+		&i.SupportedArchitectures,
+		&i.BlockingApplications,
+		&i.Requires,
+		&i.UpdateFor,
+		&i.UnattendedInstall,
+		&i.UnattendedUninstall,
+		&i.Uninstallable,
+		&i.OnDemand,
+		&i.Precache,
+		&i.IconName,
+		&i.IconHash,
+		&i.IconArtifactID,
+		&i.ExtraPkginfo,
+	)
+	return i, err
 }
 
 const updateMunkiSoftwareTitle = `-- name: UpdateMunkiSoftwareTitle :one

@@ -128,6 +128,7 @@ func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) 
 		ManagedUninstalls: []string{},
 		ManagedUpdates:    []string{},
 		OptionalInstalls:  []string{},
+		DefaultInstalls:   []string{},
 		FeaturedItems:     []string{},
 	}
 	for _, pkg := range packages {
@@ -223,74 +224,107 @@ func (s *Service) effectivePackages(ctx context.Context, hostID int64) ([]Effect
 }
 
 func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
-	name := strings.TrimSpace(pkg.Package.Name)
+	name := manifestItemName(pkg)
 	if name == "" {
 		return
 	}
-	switch pkg.Intent {
-	case IntentEnsureInstalled:
+	switch pkg.Action {
+	case DeploymentActionInstall:
 		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-	case IntentEnsureAbsent:
+	case DeploymentActionRemove:
 		manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-	case IntentUpdateIfPresent:
+	case DeploymentActionUpdateIfPresent:
 		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-	case IntentOptional:
+	case DeploymentActionNone:
+	}
+	switch pkg.SelfService {
+	case SelfServiceHidden:
+	case SelfServiceAvailable:
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
-	case IntentFeatured:
+	case SelfServiceDefault:
+		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
+		manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
+	case SelfServiceFeatured:
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 		manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 	}
 }
 
-func resolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
-	resolved := make([]EffectivePackage, 0, len(packages))
-	positions := make(map[string]int, len(packages))
-	for _, pkg := range packages {
-		name := strings.TrimSpace(pkg.Package.Name)
-		if name == "" {
-			continue
-		}
-		key := strings.ToLower(name)
-		position, exists := positions[key]
-		if !exists {
-			positions[key] = len(resolved)
-			resolved = append(resolved, pkg)
-			continue
-		}
-		if betterEffectivePackage(pkg, resolved[position]) {
-			resolved[position] = pkg
-		}
+func manifestItemName(pkg EffectivePackage) string {
+	name := strings.TrimSpace(pkg.Package.Name)
+	if name == "" {
+		return ""
 	}
-	return resolved
+	if pkg.PackageSelection != PackageSelectionSpecific {
+		return name
+	}
+	version := strings.TrimSpace(pkg.Package.Version)
+	if version == "" {
+		return name
+	}
+	return name + "--" + version
 }
 
-func betterEffectivePackage(candidate, current EffectivePackage) bool {
+func resolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
+	resolved := make([][]EffectivePackage, 0, len(packages))
+	positions := make(map[int64]int, len(packages))
+	for _, pkg := range packages {
+		if pkg.SoftwareID <= 0 || strings.TrimSpace(pkg.Package.Name) == "" {
+			continue
+		}
+		position, exists := positions[pkg.SoftwareID]
+		if !exists {
+			positions[pkg.SoftwareID] = len(resolved)
+			resolved = append(resolved, []EffectivePackage{pkg})
+			continue
+		}
+		current := resolved[position][0]
+		if current.DeploymentID == pkg.DeploymentID {
+			resolved[position] = appendUniqueEffectivePackage(resolved[position], pkg)
+			continue
+		}
+		if betterEffectiveDeployment(pkg, current) {
+			resolved[position] = []EffectivePackage{pkg}
+		}
+	}
+	out := make([]EffectivePackage, 0, len(packages))
+	for _, group := range resolved {
+		out = append(out, group...)
+	}
+	return out
+}
+
+func appendUniqueEffectivePackage(packages []EffectivePackage, pkg EffectivePackage) []EffectivePackage {
+	for _, existing := range packages {
+		if existing.Package.ID == pkg.Package.ID {
+			return packages
+		}
+	}
+	return append(packages, pkg)
+}
+
+func betterEffectiveDeployment(candidate, current EffectivePackage) bool {
 	if candidate.Position != current.Position {
 		return candidate.Position < current.Position
 	}
 	if candidate.scopeRank != current.scopeRank {
 		return candidate.scopeRank > current.scopeRank
 	}
-	if candidate.Intent != current.Intent {
-		return deploymentIntentRank(candidate.Intent) > deploymentIntentRank(current.Intent)
-	}
-	if candidate.Package.ID != current.Package.ID {
-		return candidate.Package.ID > current.Package.ID
+	if candidate.Action != current.Action {
+		return deploymentActionRank(candidate.Action) > deploymentActionRank(current.Action)
 	}
 	return candidate.DeploymentID > current.DeploymentID
 }
 
-func deploymentIntentRank(intent DeploymentIntent) int {
-	switch intent {
-	case IntentEnsureAbsent:
+func deploymentActionRank(action DeploymentAction) int {
+	switch action {
+	case DeploymentActionRemove:
 		return 50
-	case IntentEnsureInstalled:
+	case DeploymentActionInstall:
 		return 40
-	case IntentUpdateIfPresent:
+	case DeploymentActionUpdateIfPresent:
 		return 30
-	case IntentFeatured:
-		return 20
-	case IntentOptional:
+	case DeploymentActionNone:
 		return 10
 	default:
 		return 0
@@ -386,5 +420,6 @@ type renderedManifest struct {
 	ManagedUninstalls []string `plist:"managed_uninstalls"`
 	ManagedUpdates    []string `plist:"managed_updates"`
 	OptionalInstalls  []string `plist:"optional_installs"`
+	DefaultInstalls   []string `plist:"default_installs"`
 	FeaturedItems     []string `plist:"featured_items"`
 }

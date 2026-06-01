@@ -83,6 +83,11 @@ type munkiPackageCreateInput struct {
 	Body munkiPackageMutation
 }
 
+type munkiPackagePatchInput struct {
+	ID   int64 `path:"id"`
+	Body munkiPackageMutation
+}
+
 type munkiPackageImportInput struct {
 	Body munkiPackageImportMutation
 }
@@ -97,6 +102,11 @@ type munkiDeploymentGetInput struct {
 }
 
 type munkiDeploymentCreateInput struct {
+	Body munkiDeploymentMutation
+}
+
+type munkiDeploymentPatchInput struct {
+	ID   int64 `path:"id"`
 	Body munkiDeploymentMutation
 }
 
@@ -300,31 +310,36 @@ type munkiPackageImportMutation struct {
 }
 
 type munkiDeploymentMutation struct {
-	PackageID       int64                  `json:"package_id"`
-	Intent          munki.DeploymentIntent `json:"intent"`
-	AllHosts        bool                   `json:"all_hosts"`
-	IncludeLabelIDs []int64                `json:"include_label_ids,omitempty"`
-	ExcludeLabelIDs []int64                `json:"exclude_label_ids,omitempty"`
-	IncludeHostIDs  []int64                `json:"include_host_ids,omitempty"`
-	ExcludeHostIDs  []int64                `json:"exclude_host_ids,omitempty"`
+	SoftwareID       int64                  `json:"software_id"`
+	Action           munki.DeploymentAction `json:"action"`
+	SelfService      munki.SelfServiceMode  `json:"self_service"`
+	PackageSelection munki.PackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                 `json:"pinned_package_id,omitempty"`
+	AllHosts         bool                   `json:"all_hosts"`
+	IncludeLabelIDs  []int64                `json:"include_label_ids,omitempty"`
+	ExcludeLabelIDs  []int64                `json:"exclude_label_ids,omitempty"`
+	IncludeHostIDs   []int64                `json:"include_host_ids,omitempty"`
+	ExcludeHostIDs   []int64                `json:"exclude_host_ids,omitempty"`
 }
 
 type munkiDeployment struct {
-	ID                  int64                  `json:"id"`
-	PackageID           int64                  `json:"package_id"`
-	PackageName         string                 `json:"package_name"`
-	PackageVersion      string                 `json:"package_version"`
-	SoftwareID          int64                  `json:"software_id"`
-	SoftwareDisplayName string                 `json:"software_display_name"`
-	Intent              munki.DeploymentIntent `json:"intent"`
-	Position            int32                  `json:"position"`
-	AllHosts            bool                   `json:"all_hosts"`
-	IncludeLabelIDs     []int64                `json:"include_label_ids"`
-	ExcludeLabelIDs     []int64                `json:"exclude_label_ids"`
-	IncludeHostIDs      []int64                `json:"include_host_ids"`
-	ExcludeHostIDs      []int64                `json:"exclude_host_ids"`
-	CreatedAt           time.Time              `json:"created_at"`
-	UpdatedAt           time.Time              `json:"updated_at"`
+	ID                   int64                  `json:"id"`
+	SoftwareID           int64                  `json:"software_id"`
+	SoftwareDisplayName  string                 `json:"software_display_name"`
+	Action               munki.DeploymentAction `json:"action"`
+	SelfService          munki.SelfServiceMode  `json:"self_service"`
+	PackageSelection     munki.PackageSelection `json:"package_selection"`
+	PinnedPackageID      *int64                 `json:"pinned_package_id,omitempty"`
+	PinnedPackageName    string                 `json:"pinned_package_name,omitempty"`
+	PinnedPackageVersion string                 `json:"pinned_package_version,omitempty"`
+	Position             int32                  `json:"position"`
+	AllHosts             bool                   `json:"all_hosts"`
+	IncludeLabelIDs      []int64                `json:"include_label_ids"`
+	ExcludeLabelIDs      []int64                `json:"exclude_label_ids"`
+	IncludeHostIDs       []int64                `json:"include_host_ids"`
+	ExcludeHostIDs       []int64                `json:"exclude_host_ids"`
+	CreatedAt            time.Time              `json:"created_at"`
+	UpdatedAt            time.Time              `json:"updated_at"`
 }
 
 func (input munkiPackageListInput) params() munki.PackageListParams {
@@ -354,9 +369,11 @@ func RegisterMunki(api huma.API, store *munki.Store, artifactStorage munkiArtifa
 	registerCreateMunkiPackage(api, store)
 	registerImportMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
+	registerPatchMunkiPackage(api, store)
 	registerListMunkiDeployments(api, store)
 	registerCreateMunkiDeployment(api, store)
 	registerGetMunkiDeployment(api, store)
+	registerPatchMunkiDeployment(api, store)
 	registerReorderMunkiDeployments(api, store)
 }
 
@@ -619,6 +636,29 @@ func registerGetMunkiPackage(api huma.API, store *munki.Store) {
 	})
 }
 
+func registerPatchMunkiPackage(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "update-munki-package",
+		Method:      http.MethodPatch,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Update a Munki package",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiPackagePatchInput) (*munkiPackageOutput, error) {
+		pkg, err := store.UpdatePackage(ctx, input.ID, input.Body.domain())
+		if err != nil {
+			return nil, resourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+	})
+}
+
 func registerListMunkiDeployments(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-deployments",
@@ -672,6 +712,29 @@ func registerGetMunkiDeployment(api huma.API, store *munki.Store) {
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiDeploymentGetInput) (*munkiDeploymentOutput, error) {
 		deployment, err := store.GetDeployment(ctx, input.ID)
+		if err != nil {
+			return nil, resourceMutationError(munkiDeploymentLabel, err)
+		}
+		return &munkiDeploymentOutput{Body: munkiDeploymentFromDomain(*deployment)}, nil
+	})
+}
+
+func registerPatchMunkiDeployment(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "update-munki-deployment",
+		Method:      http.MethodPatch,
+		Path:        munkiDeploymentIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Update a Munki deployment",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiDeploymentPatchInput) (*munkiDeploymentOutput, error) {
+		deployment, err := store.UpdateDeployment(ctx, input.ID, input.Body.domain())
 		if err != nil {
 			return nil, resourceMutationError(munkiDeploymentLabel, err)
 		}
@@ -969,21 +1032,23 @@ func munkiPackageIconURL(pkg munki.Package) string {
 
 func munkiDeploymentFromDomain(deployment munki.Deployment) munkiDeployment {
 	return munkiDeployment{
-		ID:                  deployment.ID,
-		PackageID:           deployment.PackageID,
-		PackageName:         deployment.PackageName,
-		PackageVersion:      deployment.PackageVersion,
-		SoftwareID:          deployment.SoftwareID,
-		SoftwareDisplayName: deployment.SoftwareDisplayName,
-		Intent:              deployment.Intent,
-		Position:            deployment.Position,
-		AllHosts:            deployment.AllHosts,
-		IncludeLabelIDs:     deployment.IncludeLabelIDs,
-		ExcludeLabelIDs:     deployment.ExcludeLabelIDs,
-		IncludeHostIDs:      deployment.IncludeHostIDs,
-		ExcludeHostIDs:      deployment.ExcludeHostIDs,
-		CreatedAt:           deployment.CreatedAt,
-		UpdatedAt:           deployment.UpdatedAt,
+		ID:                   deployment.ID,
+		SoftwareID:           deployment.SoftwareID,
+		SoftwareDisplayName:  deployment.SoftwareDisplayName,
+		Action:               deployment.Action,
+		SelfService:          deployment.SelfService,
+		PackageSelection:     deployment.PackageSelection,
+		PinnedPackageID:      deployment.PinnedPackageID,
+		PinnedPackageName:    deployment.PinnedPackageName,
+		PinnedPackageVersion: deployment.PinnedPackageVersion,
+		Position:             deployment.Position,
+		AllHosts:             deployment.AllHosts,
+		IncludeLabelIDs:      deployment.IncludeLabelIDs,
+		ExcludeLabelIDs:      deployment.ExcludeLabelIDs,
+		IncludeHostIDs:       deployment.IncludeHostIDs,
+		ExcludeHostIDs:       deployment.ExcludeHostIDs,
+		CreatedAt:            deployment.CreatedAt,
+		UpdatedAt:            deployment.UpdatedAt,
 	}
 }
 
@@ -997,12 +1062,15 @@ func munkiDeploymentsFromDomain(rows []munki.Deployment) []munkiDeployment {
 
 func (body munkiDeploymentMutation) domain() munki.DeploymentMutation {
 	return munki.DeploymentMutation{
-		PackageID:       body.PackageID,
-		Intent:          body.Intent,
-		AllHosts:        body.AllHosts,
-		IncludeLabelIDs: body.IncludeLabelIDs,
-		ExcludeLabelIDs: body.ExcludeLabelIDs,
-		IncludeHostIDs:  body.IncludeHostIDs,
-		ExcludeHostIDs:  body.ExcludeHostIDs,
+		SoftwareID:       body.SoftwareID,
+		Action:           body.Action,
+		SelfService:      body.SelfService,
+		PackageSelection: body.PackageSelection,
+		PinnedPackageID:  body.PinnedPackageID,
+		AllHosts:         body.AllHosts,
+		IncludeLabelIDs:  body.IncludeLabelIDs,
+		ExcludeLabelIDs:  body.ExcludeLabelIDs,
+		IncludeHostIDs:   body.IncludeHostIDs,
+		ExcludeHostIDs:   body.ExcludeHostIDs,
 	}
 }

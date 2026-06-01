@@ -739,6 +739,7 @@ export type MunkiDeployment = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     all_hosts: boolean;
     created_at: string;
     exclude_host_ids: Array<number> | null;
@@ -746,11 +747,12 @@ export type MunkiDeployment = {
     id: number;
     include_host_ids: Array<number> | null;
     include_label_ids: Array<number> | null;
-    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
-    package_id: number;
-    package_name: string;
-    package_version: string;
+    package_selection: 'latest_eligible' | 'specific_package';
+    pinned_package_id?: number;
+    pinned_package_name?: string;
+    pinned_package_version?: string;
     position: number;
+    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_display_name: string;
     software_id: number;
     updated_at: string;
@@ -761,13 +763,16 @@ export type MunkiDeploymentMutation = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     all_hosts: boolean;
     exclude_host_ids?: Array<number> | null;
     exclude_label_ids?: Array<number> | null;
     include_host_ids?: Array<number> | null;
     include_label_ids?: Array<number> | null;
-    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
-    package_id: number;
+    package_selection: 'latest_eligible' | 'specific_package';
+    pinned_package_id?: number;
+    self_service: 'hidden' | 'available' | 'featured' | 'default';
+    software_id: number;
 };
 
 export type MunkiDeploymentReorderBody = {
@@ -1666,6 +1671,7 @@ export type MunkiArtifactUploadMutationWritable = {
 };
 
 export type MunkiDeploymentWritable = {
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     all_hosts: boolean;
     created_at: string;
     exclude_host_ids: Array<number> | null;
@@ -1673,24 +1679,28 @@ export type MunkiDeploymentWritable = {
     id: number;
     include_host_ids: Array<number> | null;
     include_label_ids: Array<number> | null;
-    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
-    package_id: number;
-    package_name: string;
-    package_version: string;
+    package_selection: 'latest_eligible' | 'specific_package';
+    pinned_package_id?: number;
+    pinned_package_name?: string;
+    pinned_package_version?: string;
     position: number;
+    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_display_name: string;
     software_id: number;
     updated_at: string;
 };
 
 export type MunkiDeploymentMutationWritable = {
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     all_hosts: boolean;
     exclude_host_ids?: Array<number> | null;
     exclude_label_ids?: Array<number> | null;
     include_host_ids?: Array<number> | null;
     include_label_ids?: Array<number> | null;
-    intent: 'ensure_installed' | 'ensure_absent' | 'update_if_present' | 'optional' | 'featured';
-    package_id: number;
+    package_selection: 'latest_eligible' | 'specific_package';
+    pinned_package_id?: number;
+    self_service: 'hidden' | 'available' | 'featured' | 'default';
+    software_id: number;
 };
 
 export type MunkiDeploymentReorderBodyWritable = {
@@ -3684,6 +3694,57 @@ export type GetMunkiDeploymentResponses = {
 
 export type GetMunkiDeploymentResponse = GetMunkiDeploymentResponses[keyof GetMunkiDeploymentResponses];
 
+export type UpdateMunkiDeploymentData = {
+    body: MunkiDeploymentMutationWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/deployments/{id}';
+};
+
+export type UpdateMunkiDeploymentErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateMunkiDeploymentError = UpdateMunkiDeploymentErrors[keyof UpdateMunkiDeploymentErrors];
+
+export type UpdateMunkiDeploymentResponses = {
+    /**
+     * OK
+     */
+    200: MunkiDeployment;
+};
+
+export type UpdateMunkiDeploymentResponse = UpdateMunkiDeploymentResponses[keyof UpdateMunkiDeploymentResponses];
+
 export type ListMunkiPackagesData = {
     body?: never;
     path?: never;
@@ -3867,6 +3928,57 @@ export type GetMunkiPackageResponses = {
 };
 
 export type GetMunkiPackageResponse = GetMunkiPackageResponses[keyof GetMunkiPackageResponses];
+
+export type UpdateMunkiPackageData = {
+    body: MunkiPackageMutationWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{id}';
+};
+
+export type UpdateMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateMunkiPackageError = UpdateMunkiPackageErrors[keyof UpdateMunkiPackageErrors];
+
+export type UpdateMunkiPackageResponses = {
+    /**
+     * OK
+     */
+    200: MunkiPackage;
+};
+
+export type UpdateMunkiPackageResponse = UpdateMunkiPackageResponses[keyof UpdateMunkiPackageResponses];
 
 export type ListMunkiSoftwareTitlesData = {
     body?: never;

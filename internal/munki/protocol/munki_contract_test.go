@@ -20,8 +20,10 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				DeploymentID: 10,
-				Intent:       munki.IntentEnsureInstalled,
+				DeploymentID:     10,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
 					Name:    "GoogleChrome",
@@ -32,8 +34,11 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID: 11,
-				Intent:       munki.IntentOptional,
+				DeploymentID:     11,
+				SoftwareID:       2,
+				Action:           munki.DeploymentActionNone,
+				SelfService:      munki.SelfServiceAvailable,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      21,
 					Name:    "Slack",
@@ -44,8 +49,10 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID: 12,
-				Intent:       munki.IntentEnsureAbsent,
+				DeploymentID:     12,
+				SoftwareID:       3,
+				Action:           munki.DeploymentActionRemove,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      22,
 					Name:    "LegacyVPN",
@@ -56,8 +63,11 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID: 13,
-				Intent:       munki.IntentFeatured,
+				DeploymentID:     13,
+				SoftwareID:       4,
+				Action:           munki.DeploymentActionNone,
+				SelfService:      munki.SelfServiceFeatured,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      23,
 					Name:    "SelfServiceApp",
@@ -104,8 +114,10 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 		nil,
 		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				DeploymentID: 10,
-				Intent:       munki.IntentEnsureInstalled,
+				DeploymentID:     10,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
 					Name:    "GoogleChrome",
@@ -149,8 +161,10 @@ func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
 		nil,
 		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				DeploymentID: 10,
-				Intent:       munki.IntentEnsureInstalled,
+				DeploymentID:     10,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
 					Name:    "ExternalURLApp",
@@ -236,8 +250,10 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				DeploymentID: 10,
-				Intent:       munki.IntentEnsureInstalled,
+				DeploymentID:     10,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
 					Name:    "OverlapApp",
@@ -248,8 +264,11 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID: 11,
-				Intent:       munki.IntentOptional,
+				DeploymentID:     11,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionNone,
+				SelfService:      munki.SelfServiceAvailable,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      21,
 					Name:    "OverlapApp",
@@ -260,8 +279,10 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID: 12,
-				Intent:       munki.IntentEnsureAbsent,
+				DeploymentID:     12,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionRemove,
+				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      22,
 					Name:    "OverlapApp",
@@ -296,6 +317,47 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 	}
 	if len(decoded.ManagedInstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
 		t.Fatalf("manifest still has conflicting installs: %+v", decoded)
+	}
+}
+
+func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
+			{
+				DeploymentID:     10,
+				SoftwareID:       1,
+				Action:           munki.DeploymentActionInstall,
+				PackageSelection: munki.PackageSelectionSpecific,
+				Package: munki.Package{
+					ID:      20,
+					Name:    "PinnedApp",
+					Version: "1.0",
+					Pkginfo: json.RawMessage(
+						`{"name":"PinnedApp","version":"1.0","installer_type":"nopkg"}`,
+					),
+				},
+			},
+		}),
+	)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/manifests/C02MUNKI", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var decoded struct {
+		ManagedInstalls []string `plist:"managed_installs"`
+	}
+	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
+		t.Fatalf("response is not a manifest plist: %v", err)
+	}
+	if !sameStrings(decoded.ManagedInstalls, []string{"PinnedApp--1.0"}) {
+		t.Fatalf("managed_installs = %v, want [PinnedApp--1.0]", decoded.ManagedInstalls)
 	}
 }
 

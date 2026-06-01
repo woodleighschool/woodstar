@@ -296,6 +296,67 @@ func (s *Store) CreatePackage(ctx context.Context, params PackageMutation) (*Pac
 	return s.GetPackage(ctx, row.ID)
 }
 
+func (s *Store) UpdatePackage(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
+	existing, err := s.GetPackage(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if params.SoftwareID != 0 && params.SoftwareID != existing.SoftwareID {
+		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
+	}
+	params = mergePackageUpdate(*existing, params)
+	params = cleanPackageMutation(params)
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
+	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	if err != nil {
+		return nil, err
+	}
+	params = fillPackageDefaults(params, *title)
+	params, err = s.normalizePackageArtifacts(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.UpdateMunkiPackage(ctx, sqlc.UpdateMunkiPackageParams{
+		ID:                     id,
+		Name:                   params.Name,
+		Version:                params.Version,
+		DisplayName:            params.DisplayName,
+		Description:            params.Description,
+		Category:               params.Category,
+		Developer:              params.Developer,
+		InstallerType:          sqlcString(params.InstallerType),
+		UninstallMethod:        params.UninstallMethod,
+		RestartAction:          sqlcString(params.RestartAction),
+		MinimumMunkiVersion:    params.MinimumMunkiVersion,
+		MinimumOSVersion:       params.MinimumOSVersion,
+		MaximumOSVersion:       params.MaximumOSVersion,
+		SupportedArchitectures: params.SupportedArchitectures,
+		BlockingApplications:   params.BlockingApplications,
+		Requires:               params.Requires,
+		UpdateFor:              params.UpdateFor,
+		UnattendedInstall:      params.UnattendedInstall,
+		UnattendedUninstall:    params.UnattendedUninstall,
+		Uninstallable:          params.Uninstallable,
+		OnDemand:               params.OnDemand,
+		Precache:               params.Precache,
+		IconName:               params.IconName,
+		IconHash:               params.IconHash,
+		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
+		InstallerArtifactID:    params.InstallerArtifactID,
+		IconArtifactID:         params.IconArtifactID,
+		Eligible:               params.Eligible,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	return s.GetPackage(ctx, row.ID)
+}
+
 func (s *Store) UpsertPackage(ctx context.Context, params PackageMutation) (*Package, error) {
 	params = cleanPackageMutation(params)
 	if err := params.Validate(); err != nil {
@@ -404,23 +465,70 @@ func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]P
 }
 
 func (s *Store) CreateDeployment(ctx context.Context, params DeploymentMutation) (*Deployment, error) {
-	if err := params.Validate(); err != nil {
+	var err error
+	params, err = s.normalizeDeploymentMutation(ctx, params)
+	if err != nil {
 		return nil, err
 	}
 	var row sqlc.MunkiDeployment
-	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		var err error
 		row, err = q.CreateMunkiDeployment(ctx, sqlc.CreateMunkiDeploymentParams{
-			PackageID: params.PackageID,
-			Intent:    sqlc.MunkiDeploymentIntent(params.Intent),
-			AllHosts:  params.AllHosts,
+			SoftwareID:       params.SoftwareID,
+			Action:           sqlc.MunkiDeploymentAction(params.Action),
+			SelfService:      sqlc.MunkiSelfServiceMode(params.SelfService),
+			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
+			PinnedPackageID:  params.PinnedPackageID,
+			AllHosts:         params.AllHosts,
 		})
 		if err != nil {
 			return err
 		}
 		return insertDeploymentScope(ctx, q, row.ID, params)
 	})
+	if err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	return s.GetDeployment(ctx, row.ID)
+}
+
+func (s *Store) UpdateDeployment(ctx context.Context, id int64, params DeploymentMutation) (*Deployment, error) {
+	existing, err := s.GetDeployment(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if params.SoftwareID != 0 && params.SoftwareID != existing.SoftwareID {
+		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
+	}
+	params.SoftwareID = existing.SoftwareID
+	params, err = s.normalizeDeploymentMutation(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	var row sqlc.MunkiDeployment
+	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		var err error
+		row, err = q.UpdateMunkiDeployment(ctx, sqlc.UpdateMunkiDeploymentParams{
+			ID:               id,
+			Action:           sqlc.MunkiDeploymentAction(params.Action),
+			SelfService:      sqlc.MunkiSelfServiceMode(params.SelfService),
+			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
+			PinnedPackageID:  params.PinnedPackageID,
+			AllHosts:         params.AllHosts,
+		})
+		if err != nil {
+			return err
+		}
+		if err := deleteDeploymentScope(ctx, q, row.ID); err != nil {
+			return err
+		}
+		return insertDeploymentScope(ctx, q, row.ID, params)
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
 	}
@@ -530,11 +638,15 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			return nil, err
 		}
 		packages[i] = EffectivePackage{
-			DeploymentID: row.DeploymentID,
-			Intent:       DeploymentIntent(row.Intent),
-			Position:     row.Position,
-			Package:      pkg,
-			scopeRank:    int(row.ScopeRank),
+			DeploymentID:     row.DeploymentID,
+			SoftwareID:       row.DeploymentSoftwareID,
+			Action:           DeploymentAction(row.Action),
+			SelfService:      SelfServiceMode(row.SelfService),
+			PackageSelection: PackageSelection(row.PackageSelection),
+			PinnedPackageID:  row.PinnedPackageID,
+			Position:         row.Position,
+			Package:          pkg,
+			scopeRank:        int(row.ScopeRank),
 		}
 	}
 	return resolveEffectivePackages(packages), nil
@@ -707,6 +819,38 @@ func cleanPackageMutation(params PackageMutation) PackageMutation {
 	return params
 }
 
+func mergePackageUpdate(existing Package, params PackageMutation) PackageMutation {
+	params.SoftwareID = existing.SoftwareID
+	if params.MinimumMunkiVersion == "" {
+		params.MinimumMunkiVersion = existing.MinimumMunkiVersion
+	}
+	if params.BlockingApplications == nil {
+		params.BlockingApplications = existing.BlockingApplications
+	}
+	if params.Requires == nil {
+		params.Requires = existing.Requires
+	}
+	if params.UpdateFor == nil {
+		params.UpdateFor = existing.UpdateFor
+	}
+	if len(params.ExtraPkginfo) == 0 {
+		params.ExtraPkginfo = existing.ExtraPkginfo
+	}
+	if params.InstallerArtifactID == nil {
+		params.InstallerArtifactID = existing.InstallerArtifactID
+	}
+	if params.IconArtifactID == nil {
+		params.IconArtifactID = existing.IconArtifactID
+	}
+	if params.IconName == "" {
+		params.IconName = existing.IconName
+	}
+	if params.IconHash == "" {
+		params.IconHash = existing.IconHash
+	}
+	return params
+}
+
 func fillPackageDefaults(params PackageMutation, title SoftwareTitle) PackageMutation {
 	if params.DisplayName == "" {
 		params.DisplayName = title.DisplayName
@@ -733,6 +877,69 @@ func cleanArtifactMutation(params ArtifactMutation) ArtifactMutation {
 	params.SHA256 = strings.TrimSpace(params.SHA256)
 	params.StorageKey = strings.TrimSpace(params.StorageKey)
 	return params
+}
+
+func cleanDeploymentMutation(params DeploymentMutation) DeploymentMutation {
+	params.Action = DeploymentAction(strings.TrimSpace(string(params.Action)))
+	if params.Action == "" {
+		params.Action = DeploymentActionInstall
+	}
+	params.SelfService = SelfServiceMode(strings.TrimSpace(string(params.SelfService)))
+	if params.SelfService == "" {
+		params.SelfService = SelfServiceHidden
+	}
+	params.PackageSelection = PackageSelection(strings.TrimSpace(string(params.PackageSelection)))
+	if params.PackageSelection == "" {
+		params.PackageSelection = PackageSelectionLatestEligible
+	}
+	params.IncludeLabelIDs = cleanInt64List(params.IncludeLabelIDs)
+	params.ExcludeLabelIDs = cleanInt64List(params.ExcludeLabelIDs)
+	params.IncludeHostIDs = cleanInt64List(params.IncludeHostIDs)
+	params.ExcludeHostIDs = cleanInt64List(params.ExcludeHostIDs)
+	return params
+}
+
+func (s *Store) normalizeDeploymentMutation(
+	ctx context.Context,
+	params DeploymentMutation,
+) (DeploymentMutation, error) {
+	params = cleanDeploymentMutation(params)
+	if err := params.Validate(); err != nil {
+		return params, err
+	}
+	if _, err := s.GetSoftwareTitle(ctx, params.SoftwareID); err != nil {
+		return params, err
+	}
+	if params.PackageSelection != PackageSelectionSpecific {
+		return params, nil
+	}
+	pkg, err := s.GetPackage(ctx, *params.PinnedPackageID)
+	if err != nil {
+		return params, err
+	}
+	if pkg.SoftwareID != params.SoftwareID {
+		return params, fmt.Errorf(
+			"%w: pinned_package_id must belong to software_id",
+			dbutil.ErrInvalidInput,
+		)
+	}
+	return params, nil
+}
+
+func cleanInt64List(values []int64) []int64 {
+	out := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func softwareTitleFromSQLC(row sqlc.MunkiSoftwareTitle) SoftwareTitle {
@@ -823,18 +1030,45 @@ func packagesFromRecords(records []packageRecord) ([]Package, error) {
 
 func deploymentFromRecord(row deploymentRecord) Deployment {
 	return Deployment{
-		ID:                  row.ID,
-		PackageID:           row.PackageID,
-		PackageName:         row.PackageName,
-		PackageVersion:      row.PackageVersion,
-		SoftwareID:          row.SoftwareID,
-		SoftwareDisplayName: row.SoftwareDisplayName,
-		Intent:              DeploymentIntent(row.Intent),
-		Position:            row.Position,
-		AllHosts:            row.AllHosts,
-		CreatedAt:           row.CreatedAt,
-		UpdatedAt:           row.UpdatedAt,
+		ID:                   row.ID,
+		SoftwareID:           row.SoftwareID,
+		SoftwareDisplayName:  row.SoftwareDisplayName,
+		Action:               DeploymentAction(row.Action),
+		SelfService:          SelfServiceMode(row.SelfService),
+		PackageSelection:     PackageSelection(row.PackageSelection),
+		PinnedPackageID:      row.PinnedPackageID,
+		PinnedPackageName:    stringPtrValue(row.PinnedPackageName),
+		PinnedPackageVersion: stringPtrValue(row.PinnedPackageVersion),
+		Position:             row.Position,
+		AllHosts:             row.AllHosts,
+		CreatedAt:            row.CreatedAt,
+		UpdatedAt:            row.UpdatedAt,
 	}
+}
+
+func deleteDeploymentScope(ctx context.Context, q *sqlc.Queries, deploymentID int64) error {
+	if err := q.DeleteMunkiDeploymentIncludeLabels(
+		ctx,
+		sqlc.DeleteMunkiDeploymentIncludeLabelsParams{DeploymentID: deploymentID},
+	); err != nil {
+		return err
+	}
+	if err := q.DeleteMunkiDeploymentExcludeLabels(
+		ctx,
+		sqlc.DeleteMunkiDeploymentExcludeLabelsParams{DeploymentID: deploymentID},
+	); err != nil {
+		return err
+	}
+	if err := q.DeleteMunkiDeploymentIncludeHosts(
+		ctx,
+		sqlc.DeleteMunkiDeploymentIncludeHostsParams{DeploymentID: deploymentID},
+	); err != nil {
+		return err
+	}
+	return q.DeleteMunkiDeploymentExcludeHosts(
+		ctx,
+		sqlc.DeleteMunkiDeploymentExcludeHostsParams{DeploymentID: deploymentID},
+	)
 }
 
 func insertDeploymentScope(
@@ -984,7 +1218,7 @@ func packageListWhere(params PackageListParams) (string, []any) {
 func deploymentListWhere(params DeploymentListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.SoftwareID > 0 {
-		where.Add("p.software_id = " + where.Arg(params.SoftwareID))
+		where.Add("d.software_id = " + where.Arg(params.SoftwareID))
 	}
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -994,7 +1228,9 @@ func deploymentListWhere(params DeploymentListParams) (string, []any) {
 			OR p.display_name ILIKE ` + search + `
 			OR s.name ILIKE ` + search + `
 			OR s.display_name ILIKE ` + search + `
-			OR d.intent::text ILIKE ` + search + `
+			OR d.action::text ILIKE ` + search + `
+			OR d.self_service::text ILIKE ` + search + `
+			OR d.package_selection::text ILIKE ` + search + `
 		)`)
 	}
 	return where.Build()
@@ -1011,10 +1247,11 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 
 func deploymentOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"position":   {SQL: "d.position"},
-		"name":       {SQL: "lower(COALESCE(NULLIF(p.display_name, ''), p.name))"},
-		"intent":     {SQL: "d.intent"},
-		"updated_at": {SQL: "d.updated_at"},
+		"position":     {SQL: "d.position"},
+		"name":         {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
+		"action":       {SQL: "d.action"},
+		"self_service": {SQL: "d.self_service"},
+		"updated_at":   {SQL: "d.updated_at"},
 	}
 }
 
@@ -1057,17 +1294,19 @@ type packageRecord struct {
 }
 
 type deploymentRecord struct {
-	ID                  int64
-	PackageID           int64
-	PackageName         string
-	PackageVersion      string
-	SoftwareID          int64
-	SoftwareDisplayName string
-	Intent              sqlc.MunkiDeploymentIntent
-	Position            int32
-	AllHosts            bool
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                   int64
+	SoftwareID           int64
+	SoftwareDisplayName  string
+	Action               sqlc.MunkiDeploymentAction
+	SelfService          sqlc.MunkiSelfServiceMode
+	PackageSelection     sqlc.MunkiPackageSelection
+	PinnedPackageID      *int64
+	PinnedPackageName    *string
+	PinnedPackageVersion *string
+	Position             int32
+	AllHosts             bool
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
@@ -1114,6 +1353,8 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 	return packageRecord{
 		ID:                        row.PackageID,
 		SoftwareID:                row.SoftwareID,
+		SoftwareName:              row.SoftwareName,
+		SoftwareDisplayName:       row.SoftwareDisplayName,
 		Name:                      row.Name,
 		Version:                   row.Version,
 		DisplayName:               row.DisplayName,
@@ -1203,16 +1444,18 @@ LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id`
 const deploymentSelectSQL = `
 SELECT
 	d.id,
-	d.package_id,
-	p.name AS package_name,
-	p.version AS package_version,
-	p.software_id,
+	d.software_id,
 	COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
-	d.intent,
+	d.action,
+	d.self_service,
+	d.package_selection,
+	d.pinned_package_id,
+	p.name AS pinned_package_name,
+	p.version AS pinned_package_version,
 	d.position,
 	d.all_hosts,
 	d.created_at,
 	d.updated_at
 FROM munki_deployments d
-JOIN munki_packages p ON p.id = d.package_id
-JOIN munki_software_titles s ON s.id = p.software_id`
+JOIN munki_software_titles s ON s.id = d.software_id
+LEFT JOIN munki_packages p ON p.id = d.pinned_package_id`

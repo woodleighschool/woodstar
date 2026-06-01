@@ -279,13 +279,44 @@ func TestMunkiAdminAPI(t *testing.T) {
 	if pkg.Name != "GoogleChrome" || pkg.Version != "148.0.0.1" {
 		t.Fatalf("pkg = %+v, want GoogleChrome 148.0.0.1", pkg)
 	}
+	pkg = patchMunkiJSON[munki.Package](
+		t,
+		server,
+		cookie,
+		fmt.Sprintf("/api/munki/packages/%d", pkg.ID),
+		fmt.Sprintf(
+			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.2","installer_type":"nopkg","eligible":true}`,
+			title.ID,
+		),
+	)
+	if pkg.Version != "148.0.0.2" {
+		t.Fatalf("updated pkg = %+v, want version 148.0.0.2", pkg)
+	}
 	deployment := postMunkiJSON[munki.Deployment](
 		t,
 		server,
 		cookie,
 		"/api/munki/deployments",
-		fmt.Sprintf(`{"package_id":%d,"intent":"ensure_installed","all_hosts":true}`, pkg.ID),
+		fmt.Sprintf(
+			`{"software_id":%d,"action":"install","self_service":"hidden","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			title.ID,
+			pkg.ID,
+		),
 	)
+	deployment = patchMunkiJSON[munki.Deployment](
+		t,
+		server,
+		cookie,
+		fmt.Sprintf("/api/munki/deployments/%d", deployment.ID),
+		fmt.Sprintf(
+			`{"software_id":%d,"action":"install","self_service":"featured","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			title.ID,
+			pkg.ID,
+		),
+	)
+	if deployment.SelfService != munki.SelfServiceFeatured {
+		t.Fatalf("updated deployment = %+v, want featured self service", deployment)
+	}
 
 	listRec := httptest.NewRecorder()
 	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/deployments", nil)
@@ -442,6 +473,24 @@ func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, pat
 	var decoded T
 	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
 		t.Fatalf("decode POST %s: %v", path, err)
+	}
+	return decoded
+}
+
+func patchMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPatch, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PATCH %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var decoded T
+	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode PATCH %s: %v", path, err)
 	}
 	return decoded
 }

@@ -21,12 +21,23 @@ import {
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-const intentLabels: Record<string, string> = {
-  ensure_installed: "Install and update",
-  ensure_absent: "Remove",
+const actionLabels: Record<string, string> = {
+  install: "Install",
+  remove: "Remove",
   update_if_present: "Update if present",
-  optional: "Self Service",
+  none: "No automatic action",
+};
+
+const selfServiceLabels: Record<string, string> = {
+  hidden: "Hidden",
+  available: "Available",
   featured: "Featured",
+  default: "Default",
+};
+
+const packageSelectionLabels: Record<string, string> = {
+  latest_eligible: "Latest compatible",
+  specific_package: "Pinned package",
 };
 
 export function MunkiSoftwareTitleDetailPage() {
@@ -75,7 +86,13 @@ export function MunkiSoftwareTitleDetailPage() {
         <div className="flex min-w-0 items-center gap-3">
           <PackageIconView pkg={row.original} />
           <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.version}</div>
+            <Link
+              to="/munki/software-titles/$softwareId/packages/$packageId/edit"
+              params={{ softwareId: String(row.original.software_id), packageId: String(row.original.id) }}
+              className="hover:text-foreground truncate font-medium underline-offset-4 hover:underline"
+            >
+              {row.original.version}
+            </Link>
             <div className="text-muted-foreground truncate text-xs">
               {row.original.display_name || row.original.name}
             </div>
@@ -132,18 +149,33 @@ export function MunkiSoftwareTitleDetailPage() {
       meta: { headClassName: "w-20", cellClassName: "w-20" },
     },
     {
-      id: "package",
-      accessorKey: "package_version",
+      id: "selection",
+      accessorKey: "package_selection",
       header: "Package",
       enableSorting: false,
-      cell: ({ row }) => row.original.package_version,
+      cell: ({ row }) => (
+        <Link
+          to="/munki/software-titles/$softwareId/deployments/$deploymentId/edit"
+          params={{ softwareId: String(row.original.software_id), deploymentId: String(row.original.id) }}
+          className="hover:text-foreground underline-offset-4 hover:underline"
+        >
+          {deploymentPackageLabel(row.original)}
+        </Link>
+      ),
     },
     {
-      id: "intent",
-      accessorKey: "intent",
-      header: "Intent",
+      id: "action",
+      accessorKey: "action",
+      header: "Action",
       enableSorting: false,
-      cell: ({ row }) => intentLabels[row.original.intent] ?? row.original.intent,
+      cell: ({ row }) => actionLabels[row.original.action] ?? row.original.action,
+    },
+    {
+      id: "self_service",
+      accessorKey: "self_service",
+      header: "Self Service",
+      enableSorting: false,
+      cell: ({ row }) => selfServiceLabels[row.original.self_service] ?? row.original.self_service,
     },
     {
       id: "targets",
@@ -173,7 +205,7 @@ export function MunkiSoftwareTitleDetailPage() {
     <PageShell>
       <PageHeader
         title={title}
-        description="Packages define the versioned Munki metadata. Deployments decide which package and intent each device receives."
+        description="Software is targeted once. Pkginfos provide the versioned Munki candidates each assignment can render."
         actions={
           software ? (
             <>
@@ -189,7 +221,7 @@ export function MunkiSoftwareTitleDetailPage() {
                   params={{ softwareId: String(software.id) }}
                 >
                   <Plus data-icon="inline-start" />
-                  Deployment
+                  Assignment
                 </Link>
               </Button>
             </>
@@ -209,7 +241,7 @@ export function MunkiSoftwareTitleDetailPage() {
               <div className="flex flex-col gap-1">
                 <h2 className="text-lg font-semibold">Packages</h2>
                 <p className="text-muted-foreground max-w-3xl text-sm">
-                  Package rows are typed pkginfo inputs. Woodstar renders them into Munki catalogs.
+                  Each row is one pkginfo. Multiple versions can share the same Munki name.
                 </p>
               </div>
             </div>
@@ -227,7 +259,7 @@ export function MunkiSoftwareTitleDetailPage() {
                 <DataTableEmptyState
                   icon={<PackageCheck />}
                   title="No Packages"
-                  description="Add a package version before deploying this software."
+                  description="Add at least one pkginfo before assigning this software."
                 />
               }
             />
@@ -236,10 +268,10 @@ export function MunkiSoftwareTitleDetailPage() {
           <section className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold">Deployments</h2>
+                <h2 className="text-lg font-semibold">Assignments</h2>
                 <p className="text-muted-foreground max-w-3xl text-sm">
-                  Woodstar resolves this list top to bottom for each device. Put narrow removals above broad installs
-                  when they should win.
+                  Woodstar resolves this list top to bottom for each device. Latest-compatible assignments render the
+                  Munki name and let the client choose from eligible pkginfos.
                 </p>
               </div>
               <ButtonGroup>
@@ -280,8 +312,8 @@ export function MunkiSoftwareTitleDetailPage() {
               empty={
                 <DataTableEmptyState
                   icon={<PackageCheck />}
-                  title="No Deployments"
-                  description="Add a deployment to put this package into a host manifest."
+                  title="No Assignments"
+                  description="Add an assignment to put this software into matching host manifests."
                 />
               }
             />
@@ -290,6 +322,15 @@ export function MunkiSoftwareTitleDetailPage() {
       )}
     </PageShell>
   );
+}
+
+function deploymentPackageLabel(deployment: MunkiDeployment) {
+  if (deployment.package_selection === "specific_package") {
+    return deployment.pinned_package_version
+      ? `${deployment.pinned_package_name ?? "Pinned"} ${deployment.pinned_package_version}`
+      : "Pinned package";
+  }
+  return packageSelectionLabels[deployment.package_selection] ?? deployment.package_selection;
 }
 
 function PackageIconView({ pkg }: { pkg: MunkiPackage }) {

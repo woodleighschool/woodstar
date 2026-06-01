@@ -72,6 +72,8 @@ import { Route as AuthenticatedOsqueryChecksCheckIdLiveRouteImport } from './rou
 import { Route as AuthenticatedOsqueryChecksCheckIdEditRouteImport } from './routes/_authenticated/osquery.checks.$checkId.edit'
 import { Route as AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRouteImport } from './routes/_authenticated/munki.software-titles.$softwareId_.packages.new'
 import { Route as AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRouteImport } from './routes/_authenticated/munki.software-titles.$softwareId_.deployments.new'
+import { Route as AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRouteImport } from './routes/_authenticated/munki.software-titles.$softwareId_.packages.$packageId.edit'
+import { Route as AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRouteImport } from './routes/_authenticated/munki.software-titles.$softwareId_.deployments.$deploymentId.edit'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -432,6 +434,22 @@ const AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute =
     path: '/$softwareId/deployments/new',
     getParentRoute: () => AuthenticatedMunkiSoftwareTitlesRoute,
   } as any)
+const AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute =
+  AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRouteImport.update(
+    {
+      id: '/$softwareId_/packages/$packageId/edit',
+      path: '/$softwareId/packages/$packageId/edit',
+      getParentRoute: () => AuthenticatedMunkiSoftwareTitlesRoute,
+    } as any,
+  )
+const AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute =
+  AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRouteImport.update(
+    {
+      id: '/$softwareId_/deployments/$deploymentId/edit',
+      path: '/$softwareId/deployments/$deploymentId/edit',
+      getParentRoute: () => AuthenticatedMunkiSoftwareTitlesRoute,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -496,6 +514,8 @@ export interface FileRoutesByFullPath {
   '/santa/events/file-access/': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/munki/software-titles/$softwareId/deployments/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute
   '/munki/software-titles/$softwareId/packages/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute
+  '/munki/software-titles/$softwareId/deployments/$deploymentId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute
+  '/munki/software-titles/$softwareId/packages/$packageId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -543,6 +563,8 @@ export interface FileRoutesByTo {
   '/santa/events/file-access': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/munki/software-titles/$softwareId/deployments/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute
   '/munki/software-titles/$softwareId/packages/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute
+  '/munki/software-titles/$softwareId/deployments/$deploymentId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute
+  '/munki/software-titles/$softwareId/packages/$packageId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -609,6 +631,8 @@ export interface FileRoutesById {
   '/_authenticated/santa/events/file-access/': typeof AuthenticatedSantaEventsFileAccessIndexRoute
   '/_authenticated/munki/software-titles/$softwareId_/deployments/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute
   '/_authenticated/munki/software-titles/$softwareId_/packages/new': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute
+  '/_authenticated/munki/software-titles/$softwareId_/deployments/$deploymentId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute
+  '/_authenticated/munki/software-titles/$softwareId_/packages/$packageId/edit': typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -675,6 +699,8 @@ export interface FileRouteTypes {
     | '/santa/events/file-access/'
     | '/munki/software-titles/$softwareId/deployments/new'
     | '/munki/software-titles/$softwareId/packages/new'
+    | '/munki/software-titles/$softwareId/deployments/$deploymentId/edit'
+    | '/munki/software-titles/$softwareId/packages/$packageId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -722,6 +748,8 @@ export interface FileRouteTypes {
     | '/santa/events/file-access'
     | '/munki/software-titles/$softwareId/deployments/new'
     | '/munki/software-titles/$softwareId/packages/new'
+    | '/munki/software-titles/$softwareId/deployments/$deploymentId/edit'
+    | '/munki/software-titles/$softwareId/packages/$packageId/edit'
   id:
     | '__root__'
     | '/'
@@ -787,6 +815,8 @@ export interface FileRouteTypes {
     | '/_authenticated/santa/events/file-access/'
     | '/_authenticated/munki/software-titles/$softwareId_/deployments/new'
     | '/_authenticated/munki/software-titles/$softwareId_/packages/new'
+    | '/_authenticated/munki/software-titles/$softwareId_/deployments/$deploymentId/edit'
+    | '/_authenticated/munki/software-titles/$softwareId_/packages/$packageId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1239,6 +1269,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRouteImport
       parentRoute: typeof AuthenticatedMunkiSoftwareTitlesRoute
     }
+    '/_authenticated/munki/software-titles/$softwareId_/packages/$packageId/edit': {
+      id: '/_authenticated/munki/software-titles/$softwareId_/packages/$packageId/edit'
+      path: '/$softwareId/packages/$packageId/edit'
+      fullPath: '/munki/software-titles/$softwareId/packages/$packageId/edit'
+      preLoaderRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRouteImport
+      parentRoute: typeof AuthenticatedMunkiSoftwareTitlesRoute
+    }
+    '/_authenticated/munki/software-titles/$softwareId_/deployments/$deploymentId/edit': {
+      id: '/_authenticated/munki/software-titles/$softwareId_/deployments/$deploymentId/edit'
+      path: '/$softwareId/deployments/$deploymentId/edit'
+      fullPath: '/munki/software-titles/$softwareId/deployments/$deploymentId/edit'
+      preLoaderRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRouteImport
+      parentRoute: typeof AuthenticatedMunkiSoftwareTitlesRoute
+    }
   }
 }
 
@@ -1296,6 +1340,8 @@ interface AuthenticatedMunkiSoftwareTitlesRouteChildren {
   AuthenticatedMunkiSoftwareTitlesIndexRoute: typeof AuthenticatedMunkiSoftwareTitlesIndexRoute
   AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute
   AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute
+  AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute
+  AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute: typeof AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute
 }
 
 const AuthenticatedMunkiSoftwareTitlesRouteChildren: AuthenticatedMunkiSoftwareTitlesRouteChildren =
@@ -1310,6 +1356,10 @@ const AuthenticatedMunkiSoftwareTitlesRouteChildren: AuthenticatedMunkiSoftwareT
       AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsNewRoute,
     AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute:
       AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesNewRoute,
+    AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute:
+      AuthenticatedMunkiSoftwareTitlesSoftwareIdDeploymentsDeploymentIdEditRoute,
+    AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute:
+      AuthenticatedMunkiSoftwareTitlesSoftwareIdPackagesPackageIdEditRoute,
   }
 
 const AuthenticatedMunkiSoftwareTitlesRouteWithChildren =
