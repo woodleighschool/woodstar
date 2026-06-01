@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
+import { useMunkiSoftwareTitle } from "@/hooks/use-munki";
 import { useReport } from "@/hooks/use-reports";
 import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
 import { useSoftwareTitle } from "@/hooks/use-software";
@@ -154,6 +155,44 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: `report-${params.reportId}-live`, label: "Live" },
       ];
 
+    // Munki
+    case "/_authenticated/munki/software-titles/new":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/software-titles" },
+        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: "munki-software-new", label: "New" },
+      ];
+    case "/_authenticated/munki/software-titles/$softwareId":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/software-titles" },
+        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
+      ];
+    case "/_authenticated/munki/software-titles/$softwareId_/packages/new":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/software-titles" },
+        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        {
+          key: `munki-software-${params.softwareId}`,
+          label: <MunkiSoftwareCrumb id={params.softwareId} />,
+          to: "/munki/software-titles/$softwareId",
+          params: { softwareId: params.softwareId },
+        },
+        { key: `munki-software-${params.softwareId}-package-new`, label: "New Package" },
+      ];
+    case "/_authenticated/munki/software-titles/$softwareId_/deployments/new":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/software-titles" },
+        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        {
+          key: `munki-software-${params.softwareId}`,
+          label: <MunkiSoftwareCrumb id={params.softwareId} />,
+          to: "/munki/software-titles/$softwareId",
+          params: { softwareId: params.softwareId },
+        },
+        { key: `munki-software-${params.softwareId}-deployment-new`, label: "New Deployment" },
+      ];
+
     // Santa
     case "/_authenticated/santa/configurations/new":
       return [
@@ -203,6 +242,8 @@ const sidebarRouteIDs = new Set([
   "/_authenticated/enrollments/santa",
   "/_authenticated/hosts/",
   "/_authenticated/labels/",
+  "/_authenticated/munki/software-titles",
+  "/_authenticated/munki/software-titles/",
   "/_authenticated/osquery/reports/",
   "/_authenticated/santa/configurations",
   "/_authenticated/santa/configurations/",
@@ -224,6 +265,12 @@ function HostCrumb({ id }: { id: string }) {
 
 function SoftwareCrumb({ id }: { id: string }) {
   const { data, isLoading } = useSoftwareTitle(Number(id));
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{data.display_name || data.name || id}</span>;
+}
+
+function MunkiSoftwareCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useMunkiSoftwareTitle(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.display_name || data.name || id}</span>;
 }

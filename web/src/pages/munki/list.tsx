@@ -59,7 +59,8 @@ export function MunkiSoftwareTitlesPage() {
   return (
     <PageShell>
       <PageHeader
-        title="Munki Software"
+        title="Software"
+        description="Author software titles, package versions, and label-scoped deployments. Woodstar renders the Munki repository view from this model."
         actions={
           <Button asChild size="sm">
             <Link to="/munki/software-titles/new">
@@ -93,7 +94,7 @@ export function MunkiSoftwareTitlesPage() {
           empty={
             <DataTableEmptyState
               icon={<PackageSearch />}
-              title={hasFilters ? "No Matching Software" : "No Munki Software"}
+              title={hasFilters ? "No Matching Software" : "No Software"}
               description={hasFilters ? "Try a different search." : "Create software to manage Munki packages."}
             />
           }

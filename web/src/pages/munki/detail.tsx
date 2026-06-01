@@ -43,7 +43,7 @@ export function MunkiSoftwareTitleDetailPage() {
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
   );
-  let title = "Munki Software";
+  let title = "Software";
   if (software?.name) title = software.name;
   if (software?.display_name) title = software.display_name;
 
@@ -160,6 +160,7 @@ export function MunkiSoftwareTitleDetailPage() {
     <PageShell>
       <PageHeader
         title={title}
+        description="Packages define the versioned Munki metadata. Deployments decide which package and intent each device receives."
         actions={
           software ? (
             <>
@@ -189,10 +190,15 @@ export function MunkiSoftwareTitleDetailPage() {
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="space-y-8">
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Packages</h2>
+        <div className="flex flex-col gap-8">
+          <section className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-lg font-semibold">Packages</h2>
+                <p className="text-muted-foreground max-w-3xl text-sm">
+                  Package rows are typed pkginfo inputs. Woodstar renders them into Munki catalogs.
+                </p>
+              </div>
             </div>
             <DataTable
               columns={packageColumns}
@@ -204,13 +210,25 @@ export function MunkiSoftwareTitleDetailPage() {
               onSortingChange={() => undefined}
               isLoading={query.isLoading}
               clientSort
-              empty={<DataTableEmptyState icon={<PackageCheck />} title="No Packages" description="No packages yet." />}
+              empty={
+                <DataTableEmptyState
+                  icon={<PackageCheck />}
+                  title="No Packages"
+                  description="Add a package version before deploying this software."
+                />
+              }
             />
           </section>
 
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Deployments</h2>
+          <section className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-lg font-semibold">Deployments</h2>
+                <p className="text-muted-foreground max-w-3xl text-sm">
+                  Woodstar resolves this list top to bottom for each device. Put narrow removals above broad installs
+                  when they should win.
+                </p>
+              </div>
               <ButtonGroup>
                 <Button
                   type="button"
@@ -247,7 +265,11 @@ export function MunkiSoftwareTitleDetailPage() {
               rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedDeployments.length <= 1}
               onRowReorder={moveDeployments}
               empty={
-                <DataTableEmptyState icon={<PackageCheck />} title="No Deployments" description="No deployments yet." />
+                <DataTableEmptyState
+                  icon={<PackageCheck />}
+                  title="No Deployments"
+                  description="Add a deployment to put this package into a host manifest."
+                />
               }
             />
           </section>

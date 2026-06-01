@@ -8,9 +8,18 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateMunkiDeployment,
@@ -127,13 +136,17 @@ export function MunkiSoftwareTitleNewPage() {
   return (
     <PageShell asChild>
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
-        <PageHeader title="New Munki Software" />
+        <PageHeader
+          title="New Software"
+          description="Create the software title admins target. Add package versions and deployments after the title exists."
+        />
         <MutationError title="Failed to Create Software" message={create.error?.message} />
         <FieldGroup className="max-w-3xl">
           <TextField
             id="munki-software-name"
             label="Name"
             required
+            description="Stable Munki item name. Use Display Name for spaces, punctuation, and nicer casing."
             value={form.name}
             error={showErrors ? errors.name : undefined}
             onChange={(name) => setForm({ ...form, name })}
@@ -234,23 +247,28 @@ export function MunkiPackageNewPage() {
   return (
     <PageShell asChild>
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
-        <PageHeader title="New Package" />
+        <PageHeader
+          title="New Package"
+          description="Add versioned package metadata. Installer upload/import is a separate step."
+        />
         <MutationError title="Failed to Create Package" message={create.error?.message ?? software.error?.message} />
         <FieldGroup className="max-w-3xl">
           <TextField
             id="munki-package-name"
             label="Name"
             required
+            description="Stable Munki item name used in manifests. Keep it consistent across versions."
             value={form.name}
             error={showErrors ? errors.name : undefined}
             placeholder={software.data?.name}
             onChange={(name) => setForm({ ...form, name })}
           />
-          <div className="grid gap-4 md:grid-cols-2">
+          <FieldGroup className="grid gap-4 md:grid-cols-2">
             <TextField
               id="munki-package-version"
               label="Version"
               required
+              description="Rendered into pkginfo and shown when choosing a deployment package."
               value={form.version}
               error={showErrors ? errors.version : undefined}
               onChange={(version) => setForm({ ...form, version })}
@@ -262,7 +280,7 @@ export function MunkiPackageNewPage() {
               placeholder={software.data?.display_name}
               onChange={(display_name) => setForm({ ...form, display_name })}
             />
-          </div>
+          </FieldGroup>
           <TextAreaField
             id="munki-package-description"
             label="Description"
@@ -270,7 +288,7 @@ export function MunkiPackageNewPage() {
             placeholder={software.data?.description}
             onChange={(description) => setForm({ ...form, description })}
           />
-          <div className="grid gap-4 md:grid-cols-3">
+          <FieldGroup className="grid gap-4 md:grid-cols-3">
             <TextField
               id="munki-package-category"
               label="Category"
@@ -288,36 +306,47 @@ export function MunkiPackageNewPage() {
             <TextField
               id="munki-package-installer-type"
               label="Installer Type"
+              description="Rendered as Munki installer_type. Use pkg for ordinary flat packages."
               value={form.installer_type}
               onChange={(installer_type) => setForm({ ...form, installer_type })}
             />
-          </div>
-          <CheckboxField
-            id="munki-package-eligible"
-            label="Available for deployment"
-            checked={form.eligible}
-            onChange={(eligible) => setForm({ ...form, eligible })}
-          />
-          <div className="grid gap-3 md:grid-cols-3">
+          </FieldGroup>
+          <FieldSet>
+            <FieldLegend>Package Behavior</FieldLegend>
+            <FieldDescription>
+              These values are rendered into pkginfo. They do not inspect the installer bytes.
+            </FieldDescription>
             <CheckboxField
-              id="munki-package-unattended-install"
-              label="Unattended install"
-              checked={form.unattended_install}
-              onChange={(unattended_install) => setForm({ ...form, unattended_install })}
+              id="munki-package-eligible"
+              label="Available for deployment"
+              description="Ineligible packages stay stored but are skipped when manifests and catalogs are rendered."
+              checked={form.eligible}
+              onChange={(eligible) => setForm({ ...form, eligible })}
             />
-            <CheckboxField
-              id="munki-package-unattended-uninstall"
-              label="Unattended uninstall"
-              checked={form.unattended_uninstall}
-              onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
-            />
-            <CheckboxField
-              id="munki-package-uninstallable"
-              label="Uninstallable"
-              checked={form.uninstallable}
-              onChange={(uninstallable) => setForm({ ...form, uninstallable })}
-            />
-          </div>
+            <FieldGroup className="grid gap-4 md:grid-cols-3">
+              <CheckboxField
+                id="munki-package-unattended-install"
+                label="Unattended install"
+                description="Allows Munki to install this item without Self Service interaction."
+                checked={form.unattended_install}
+                onChange={(unattended_install) => setForm({ ...form, unattended_install })}
+              />
+              <CheckboxField
+                id="munki-package-unattended-uninstall"
+                label="Unattended uninstall"
+                description="Allows Munki to remove this item without Self Service interaction."
+                checked={form.unattended_uninstall}
+                onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
+              />
+              <CheckboxField
+                id="munki-package-uninstallable"
+                label="Uninstallable"
+                description="Marks the item as removable when Munki has a valid uninstall method."
+                checked={form.uninstallable}
+                onChange={(uninstallable) => setForm({ ...form, uninstallable })}
+              />
+            </FieldGroup>
+          </FieldSet>
           <FormActions
             pending={create.isPending}
             cancelTo="/munki/software-titles/$softwareId"
@@ -379,7 +408,10 @@ export function MunkiDeploymentNewPage() {
   return (
     <PageShell asChild>
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
-        <PageHeader title="New Deployment" />
+        <PageHeader
+          title="New Deployment"
+          description="Attach a package version to a Munki intent and a label scope. Deployment order is edited on the software page."
+        />
         <MutationError title="Failed to Create Deployment" message={create.error?.message ?? software.error?.message} />
         <FieldGroup className="max-w-3xl">
           <Field data-invalid={showErrors && errors.package_id ? true : undefined}>
@@ -391,13 +423,18 @@ export function MunkiDeploymentNewPage() {
                 <SelectValue placeholder={software.isLoading ? "Loading..." : "Select Package"} />
               </SelectTrigger>
               <SelectContent>
-                {packages.map((pkg) => (
-                  <SelectItem key={pkg.id} value={String(pkg.id)}>
-                    {pkg.version}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {packages.map((pkg) => (
+                    <SelectItem key={pkg.id} value={String(pkg.id)}>
+                      {pkg.version}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldDescription>
+              The chosen package is rendered only when it is still available for deployment.
+            </FieldDescription>
             {showErrors && errors.package_id ? <FieldError>{errors.package_id}</FieldError> : null}
           </Field>
 
@@ -410,18 +447,26 @@ export function MunkiDeploymentNewPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {intentOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {intentOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldDescription>
+              Install and update writes managed_installs. Remove writes managed_uninstalls. Update if present writes
+              managed_updates. Self Service writes optional_installs. Featured writes optional_installs and
+              featured_items.
+            </FieldDescription>
           </Field>
 
           <CheckboxField
             id="munki-deployment-all-hosts"
             label="All devices"
+            description="Targets every known host unless an excluded label removes it."
             checked={form.all_hosts}
             onChange={(all_hosts) => setForm({ ...form, all_hosts })}
           />
@@ -437,6 +482,7 @@ export function MunkiDeploymentNewPage() {
                 invalid={showErrors && errors.include_label_ids ? true : undefined}
                 onChange={(include_label_ids) => setForm({ ...form, include_label_ids })}
               />
+              <FieldDescription>When All devices is off, a host must match at least one target label.</FieldDescription>
               {showErrors && errors.include_label_ids ? <FieldError>{errors.include_label_ids}</FieldError> : null}
             </Field>
           )}
@@ -450,6 +496,9 @@ export function MunkiDeploymentNewPage() {
               unavailableLabelIDs={form.include_label_ids}
               onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
             />
+            <FieldDescription>
+              Matching hosts are removed from this deployment, even when they match All devices or a target label.
+            </FieldDescription>
           </Field>
 
           <FormActions
@@ -476,6 +525,7 @@ function TextField({
   value,
   error,
   placeholder,
+  description,
   onChange,
 }: {
   id: string;
@@ -484,6 +534,7 @@ function TextField({
   value: string;
   error?: string;
   placeholder?: string;
+  description?: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -492,6 +543,7 @@ function TextField({
         {label}
       </FieldLabel>
       <Input id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      {description ? <FieldDescription>{description}</FieldDescription> : null}
       {error ? <FieldError>{error}</FieldError> : null}
     </Field>
   );
@@ -521,18 +573,23 @@ function TextAreaField({
 function CheckboxField({
   id,
   label,
+  description,
   checked,
   onChange,
 }: {
   id: string;
   label: string;
+  description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
     <Field orientation="horizontal">
       <Checkbox id={id} checked={checked} onCheckedChange={(value) => onChange(value === true)} />
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldContent>
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
+      </FieldContent>
     </Field>
   );
 }
