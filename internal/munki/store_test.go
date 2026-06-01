@@ -271,6 +271,82 @@ func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	}
 }
 
+func TestPackageInheritsSoftwareIcon(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	icon := createMunkiIconArtifact(t, ctx, store, "icons/SharedApp.png", "d")
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{
+		Name:           "SharedIconApp",
+		IconArtifactID: &icon.ID,
+	})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	if title.IconArtifactID == nil || *title.IconArtifactID != icon.ID {
+		t.Fatalf("title icon artifact id = %v, want %d", title.IconArtifactID, icon.ID)
+	}
+
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID: title.ID,
+		Name:       "SharedIconApp",
+		Version:    "1.0",
+		Eligible:   true,
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if pkg.IconArtifactID != nil || pkg.IconName != "" || pkg.IconHash != "" {
+		t.Fatalf(
+			"package icon override = id %v name %q hash %q, want empty override",
+			pkg.IconArtifactID,
+			pkg.IconName,
+			pkg.IconHash,
+		)
+	}
+	if pkg.EffectiveIconArtifactID() == nil || *pkg.EffectiveIconArtifactID() != icon.ID {
+		t.Fatalf("effective icon id = %v, want %d", pkg.EffectiveIconArtifactID(), icon.ID)
+	}
+	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"icons/SharedApp.png"`) {
+		t.Fatalf("pkginfo = %s, want inherited software icon", pkg.Pkginfo)
+	}
+}
+
+func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	softwareIcon := createMunkiIconArtifact(t, ctx, store, "icons/DefaultApp.png", "e")
+	packageIcon := createMunkiIconArtifact(t, ctx, store, "icons/SpecialApp.png", "f")
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{
+		Name:           "OverrideIconApp",
+		IconArtifactID: &softwareIcon.ID,
+	})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID:     title.ID,
+		Name:           "OverrideIconApp",
+		Version:        "1.0",
+		IconArtifactID: &packageIcon.ID,
+		Eligible:       true,
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+	if pkg.EffectiveIconArtifactID() == nil || *pkg.EffectiveIconArtifactID() != packageIcon.ID {
+		t.Fatalf("effective icon id = %v, want package override %d", pkg.EffectiveIconArtifactID(), packageIcon.ID)
+	}
+	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"icons/SpecialApp.png"`) {
+		t.Fatalf("pkginfo = %s, want package icon override", pkg.Pkginfo)
+	}
+	if strings.Contains(string(pkg.Pkginfo), "icons/DefaultApp.png") {
+		t.Fatalf("pkginfo = %s, should not render inherited icon when package overrides it", pkg.Pkginfo)
+	}
+}
+
 func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
@@ -745,4 +821,25 @@ func createMunkiPackage(
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
 	return *pkg
+}
+
+func createMunkiIconArtifact(
+	t *testing.T,
+	ctx context.Context,
+	store *munki.Store,
+	location string,
+	hashChar string,
+) *munki.Artifact {
+	t.Helper()
+	artifact, err := store.CreateArtifact(ctx, munki.ArtifactMutation{
+		Kind:       munki.ArtifactKindIcon,
+		Location:   location,
+		SizeBytes:  256,
+		SHA256:     strings.Repeat(hashChar, 64),
+		StorageKey: location,
+	})
+	if err != nil {
+		t.Fatalf("create icon artifact: %v", err)
+	}
+	return artifact
 }

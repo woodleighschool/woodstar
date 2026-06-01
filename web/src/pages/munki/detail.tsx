@@ -79,13 +79,7 @@ export function MunkiSoftwareTitleDetailPage() {
         <div className="flex min-w-0 items-center gap-3">
           <PackageIconView pkg={row.original} />
           <div className="min-w-0">
-            <Link
-              to="/munki/software-titles/$softwareId/packages/$packageId/edit"
-              params={{ softwareId: String(row.original.software_id), packageId: String(row.original.id) }}
-              className="hover:text-foreground truncate font-medium underline-offset-4 hover:underline"
-            >
-              {row.original.version}
-            </Link>
+            <div className="truncate font-medium">{row.original.version}</div>
             <div className="text-muted-foreground truncate text-xs">
               {row.original.display_name || row.original.name}
             </div>
@@ -146,15 +140,7 @@ export function MunkiSoftwareTitleDetailPage() {
       accessorKey: "package_selection",
       header: "Package",
       enableSorting: false,
-      cell: ({ row }) => (
-        <Link
-          to="/munki/software-titles/$softwareId/deployments/$deploymentId/edit"
-          params={{ softwareId: String(row.original.software_id), deploymentId: String(row.original.id) }}
-          className="hover:text-foreground underline-offset-4 hover:underline"
-        >
-          {deploymentPackageLabel(row.original)}
-        </Link>
-      ),
+      cell: ({ row }) => deploymentPackageLabel(row.original),
     },
     {
       id: "action",
@@ -247,6 +233,10 @@ export function MunkiSoftwareTitleDetailPage() {
               onSortingChange={() => undefined}
               isLoading={query.isLoading}
               clientSort
+              rowHref={(row) => ({
+                to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
+                params: { softwareId: String(row.software_id), packageId: String(row.id) },
+              })}
               empty={
                 <DataTableEmptyState
                   icon={<PackageCheck />}
@@ -299,6 +289,14 @@ export function MunkiSoftwareTitleDetailPage() {
               onSortingChange={() => undefined}
               isLoading={query.isLoading}
               clientSort
+              rowHref={
+                reorderEnabled
+                  ? undefined
+                  : (row) => ({
+                      to: "/munki/software-titles/$softwareId/deployments/$deploymentId/edit",
+                      params: { softwareId: String(row.software_id), deploymentId: String(row.id) },
+                    })
+              }
               rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedDeployments.length <= 1}
               onRowReorder={moveDeployments}
               empty={

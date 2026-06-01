@@ -4,14 +4,20 @@ INSERT INTO munki_software_titles (
     display_name,
     description,
     category,
-    developer
+    developer,
+    icon_name,
+    icon_hash,
+    icon_artifact_id
 )
 VALUES (
     @name,
     @display_name,
     @description,
     @category,
-    @developer
+    @developer,
+    @icon_name,
+    @icon_hash,
+    sqlc.narg(icon_artifact_id)::bigint
 )
 RETURNING *;
 
@@ -43,6 +49,9 @@ SET
     description = @description,
     category = @category,
     developer = @developer,
+    icon_name = @icon_name,
+    icon_hash = @icon_hash,
+    icon_artifact_id = sqlc.narg(icon_artifact_id)::bigint,
     updated_at = now()
 WHERE id = @id
 RETURNING *;
@@ -288,12 +297,17 @@ SELECT
     p.*,
     s.name AS software_name,
     s.display_name AS software_display_name,
+    s.icon_name AS software_icon_name,
+    s.icon_hash AS software_icon_hash,
+    s.icon_artifact_id AS software_icon_artifact_id,
     art.location AS installer_artifact_location,
-    icon.location AS icon_artifact_location
+    icon.location AS icon_artifact_location,
+    software_icon.location AS software_icon_artifact_location
 FROM munki_packages p
 JOIN munki_software_titles s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
+LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = @id;
 
 -- name: CreateMunkiDeployment :one
@@ -454,6 +468,9 @@ SELECT
     p.software_id,
     s.name AS software_name,
     COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
+    s.icon_name AS software_icon_name,
+    s.icon_hash AS software_icon_hash,
+    s.icon_artifact_id AS software_icon_artifact_id,
     p.name,
     p.version,
     p.display_name,
@@ -482,6 +499,7 @@ SELECT
     art.location AS installer_artifact_location,
     p.icon_artifact_id,
     icon.location AS icon_artifact_location,
+    software_icon.location AS software_icon_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -506,6 +524,7 @@ JOIN munki_packages p ON p.software_id = d.software_id
     )
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
+LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.eligible
   AND (
     d.all_hosts

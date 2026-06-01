@@ -142,23 +142,30 @@ func (PackageSelection) Schema(_ huma.Registry) *huma.Schema {
 
 // SoftwareTitleMutation is the input shape for creating or updating a Munki software title.
 type SoftwareTitleMutation struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Developer   string `json:"developer,omitempty"`
+	Name           string `json:"name"`
+	DisplayName    string `json:"display_name,omitempty"`
+	Description    string `json:"description,omitempty"`
+	Category       string `json:"category,omitempty"`
+	Developer      string `json:"developer,omitempty"`
+	IconName       string `json:"icon_name,omitempty"`
+	IconHash       string `json:"icon_hash,omitempty"`
+	IconArtifactID *int64 `json:"icon_artifact_id,omitempty"`
 }
 
 // SoftwareTitle is Woodstar-managed metadata for a Munki software item.
 type SoftwareTitle struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Category    string    `json:"category"`
-	Developer   string    `json:"developer"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	DisplayName          string    `json:"display_name"`
+	Description          string    `json:"description"`
+	Category             string    `json:"category"`
+	Developer            string    `json:"developer"`
+	IconName             string    `json:"icon_name"`
+	IconHash             string    `json:"icon_hash"`
+	IconArtifactID       *int64    `json:"icon_artifact_id,omitempty"`
+	IconArtifactLocation string    `json:"icon_artifact_location,omitempty"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 // PackageMutation is the editable shape for a Munki package version.
@@ -205,43 +212,55 @@ type PackageImportMutation struct {
 
 // Package is one Munki pkginfo item available for deployment.
 type Package struct {
-	ID                        int64           `json:"id"`
-	SoftwareID                int64           `json:"software_id"`
-	SoftwareName              string          `json:"software_name"`
-	SoftwareDisplayName       string          `json:"software_display_name"`
-	Name                      string          `json:"name"`
-	Version                   string          `json:"version"`
-	DisplayName               string          `json:"display_name"`
-	Description               string          `json:"description"`
-	Category                  string          `json:"category"`
-	Developer                 string          `json:"developer"`
-	InstallerType             InstallerType   `json:"installer_type"`
-	UnattendedInstall         bool            `json:"unattended_install"`
-	UnattendedUninstall       bool            `json:"unattended_uninstall"`
-	Uninstallable             bool            `json:"uninstallable"`
-	UninstallMethod           string          `json:"uninstall_method"`
-	RestartAction             RestartAction   `json:"restart_action,omitempty"`
-	MinimumMunkiVersion       string          `json:"minimum_munki_version"`
-	MinimumOSVersion          string          `json:"minimum_os_version"`
-	MaximumOSVersion          string          `json:"maximum_os_version"`
-	SupportedArchitectures    []string        `json:"supported_architectures"`
-	BlockingApplications      []string        `json:"blocking_applications"`
-	Requires                  []string        `json:"requires"`
-	UpdateFor                 []string        `json:"update_for"`
-	OnDemand                  bool            `json:"on_demand"`
-	Precache                  bool            `json:"precache"`
-	IconName                  string          `json:"icon_name"`
-	IconHash                  string          `json:"icon_hash"`
-	ExtraPkginfo              json.RawMessage `json:"extra_pkginfo,omitempty"`
-	Pkginfo                   json.RawMessage `json:"pkginfo,omitempty"`
-	InstallerArtifactID       *int64          `json:"installer_artifact_id,omitempty"`
-	InstallerArtifactLocation string          `json:"installer_artifact_location,omitempty"`
-	IconArtifactID            *int64          `json:"icon_artifact_id,omitempty"`
-	IconArtifactLocation      string          `json:"icon_artifact_location,omitempty"`
-	IconURL                   string          `json:"icon_url,omitempty"`
-	Eligible                  bool            `json:"eligible"`
-	CreatedAt                 time.Time       `json:"created_at"`
-	UpdatedAt                 time.Time       `json:"updated_at"`
+	ID                           int64           `json:"id"`
+	SoftwareID                   int64           `json:"software_id"`
+	SoftwareName                 string          `json:"software_name"`
+	SoftwareDisplayName          string          `json:"software_display_name"`
+	Name                         string          `json:"name"`
+	Version                      string          `json:"version"`
+	DisplayName                  string          `json:"display_name"`
+	Description                  string          `json:"description"`
+	Category                     string          `json:"category"`
+	Developer                    string          `json:"developer"`
+	InstallerType                InstallerType   `json:"installer_type"`
+	UnattendedInstall            bool            `json:"unattended_install"`
+	UnattendedUninstall          bool            `json:"unattended_uninstall"`
+	Uninstallable                bool            `json:"uninstallable"`
+	UninstallMethod              string          `json:"uninstall_method"`
+	RestartAction                RestartAction   `json:"restart_action,omitempty"`
+	MinimumMunkiVersion          string          `json:"minimum_munki_version"`
+	MinimumOSVersion             string          `json:"minimum_os_version"`
+	MaximumOSVersion             string          `json:"maximum_os_version"`
+	SupportedArchitectures       []string        `json:"supported_architectures"`
+	BlockingApplications         []string        `json:"blocking_applications"`
+	Requires                     []string        `json:"requires"`
+	UpdateFor                    []string        `json:"update_for"`
+	OnDemand                     bool            `json:"on_demand"`
+	Precache                     bool            `json:"precache"`
+	IconName                     string          `json:"icon_name"`
+	IconHash                     string          `json:"icon_hash"`
+	ExtraPkginfo                 json.RawMessage `json:"extra_pkginfo,omitempty"`
+	Pkginfo                      json.RawMessage `json:"pkginfo,omitempty"`
+	InstallerArtifactID          *int64          `json:"installer_artifact_id,omitempty"`
+	InstallerArtifactLocation    string          `json:"installer_artifact_location,omitempty"`
+	IconArtifactID               *int64          `json:"icon_artifact_id,omitempty"`
+	IconArtifactLocation         string          `json:"icon_artifact_location,omitempty"`
+	SoftwareIconName             string          `json:"software_icon_name,omitempty"`
+	SoftwareIconHash             string          `json:"software_icon_hash,omitempty"`
+	SoftwareIconArtifactID       *int64          `json:"software_icon_artifact_id,omitempty"`
+	SoftwareIconArtifactLocation string          `json:"software_icon_artifact_location,omitempty"`
+	Eligible                     bool            `json:"eligible"`
+	CreatedAt                    time.Time       `json:"created_at"`
+	UpdatedAt                    time.Time       `json:"updated_at"`
+}
+
+// EffectiveIconArtifactID returns the package icon override, or the software
+// title icon when the package does not override it.
+func (p Package) EffectiveIconArtifactID() *int64 {
+	if p.IconArtifactID != nil || p.IconName != "" || p.IconHash != "" {
+		return p.IconArtifactID
+	}
+	return p.SoftwareIconArtifactID
 }
 
 // ArtifactMutation is the input shape for registering an existing Munki artifact.
@@ -389,6 +408,9 @@ type HostState struct {
 func (m SoftwareTitleMutation) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
+	}
+	if m.IconArtifactID != nil && *m.IconArtifactID <= 0 {
+		return fmt.Errorf("%w: icon_artifact_id must be positive", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
@@ -605,14 +627,22 @@ func packagePkginfo(pkg Package) (json.RawMessage, error) {
 	addPkginfoBool(item, "uninstallable", pkg.Uninstallable)
 	addPkginfoBool(item, "OnDemand", pkg.OnDemand)
 	addPkginfoBool(item, "precache", pkg.Precache)
-	addPkginfoString(item, "icon_name", pkg.IconName)
-	addPkginfoString(item, "icon_hash", pkg.IconHash)
+	iconName, iconHash := packageIconFields(pkg)
+	addPkginfoString(item, "icon_name", iconName)
+	addPkginfoString(item, "icon_hash", iconHash)
 
 	raw, err := json.Marshal(item)
 	if err != nil {
 		return nil, err
 	}
 	return raw, nil
+}
+
+func packageIconFields(pkg Package) (string, string) {
+	if pkg.IconArtifactID != nil || pkg.IconName != "" || pkg.IconHash != "" {
+		return pkg.IconName, pkg.IconHash
+	}
+	return pkg.SoftwareIconName, pkg.SoftwareIconHash
 }
 
 func packageExtraPkginfo(raw json.RawMessage) (map[string]any, error) {

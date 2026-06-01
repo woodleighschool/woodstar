@@ -201,6 +201,8 @@ interface DeploymentFormState {
 export function MunkiSoftwareTitleNewPage() {
   const navigate = useNavigate();
   const create = useCreateMunkiSoftwareTitle();
+  const createUpload = useCreateMunkiArtifactUpload();
+  const createArtifact = useCreateMunkiArtifact();
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
@@ -217,6 +219,7 @@ export function MunkiSoftwareTitleNewPage() {
     category: "",
     developer: "",
   });
+  const [iconFile, setIconFile] = useState<File | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const parsed = useMemo(() => softwareTitleSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
@@ -227,7 +230,13 @@ export function MunkiSoftwareTitleNewPage() {
       setShowErrors(true);
       return;
     }
-    const body: MunkiSoftwareTitleMutation = next.data;
+    const iconArtifact = iconFile
+      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const body: MunkiSoftwareTitleMutation = {
+      ...next.data,
+      icon_artifact_id: iconArtifact?.id,
+    };
     const title = await create.mutateAsync(body);
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(title.id) } });
   }
@@ -239,7 +248,10 @@ export function MunkiSoftwareTitleNewPage() {
           title="New Software"
           description="Create the software title admins target. Add package versions and deployments after the title exists."
         />
-        <MutationError title="Failed to Create Software" message={create.error?.message} />
+        <MutationError
+          title="Failed to Create Software"
+          message={create.error?.message ?? createUpload.error?.message ?? createArtifact.error?.message}
+        />
         <FieldGroup className="max-w-3xl">
           <TextField
             id="munki-software-name"
@@ -278,7 +290,19 @@ export function MunkiSoftwareTitleNewPage() {
               onChange={(developer) => setForm({ ...form, developer })}
             />
           </div>
-          <FormActions pending={create.isPending} cancelTo="/munki/software-titles" />
+          <FileField
+            id="munki-software-icon-file"
+            label="Icon"
+            description="Optional app icon used by this software and inherited by packages unless a package overrides it."
+            accept="image/png,image/jpeg,image/webp,image/icns,.icns"
+            icon={<ImageIcon className="size-4" />}
+            file={iconFile}
+            onChange={setIconFile}
+          />
+          <FormActions
+            pending={create.isPending || createUpload.isPending || createArtifact.isPending}
+            cancelTo="/munki/software-titles"
+          />
         </FieldGroup>
       </form>
     </PageShell>
@@ -374,8 +398,6 @@ export function MunkiPackageNewPage() {
       precache: next.data.precache,
       installer_artifact_id: installerArtifact?.id,
       icon_artifact_id: iconArtifact?.id,
-      icon_name: iconArtifact?.location,
-      icon_hash: iconArtifact?.sha256,
     };
     await create.mutateAsync(body);
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareId) } });
@@ -476,8 +498,8 @@ export function MunkiPackageNewPage() {
               />
               <FileField
                 id="munki-package-icon-file"
-                label="Icon"
-                description="Optional app icon. If unset, Woodstar shows a package icon in the admin UI."
+                label="Icon Override"
+                description="Optional package-specific icon. If unset, this package inherits the software icon."
                 accept="image/png,image/jpeg,image/webp,image/icns,.icns"
                 icon={<ImageIcon className="size-4" />}
                 file={iconFile}
@@ -695,8 +717,6 @@ export function MunkiPackageEditPage() {
       precache: next.data.precache,
       installer_artifact_id: pkg.data?.installer_artifact_id,
       icon_artifact_id: pkg.data?.icon_artifact_id,
-      icon_name: pkg.data?.icon_name,
-      icon_hash: pkg.data?.icon_hash,
     };
     await update.mutateAsync({ id: packageId, body });
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareId) } });

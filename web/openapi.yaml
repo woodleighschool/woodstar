@@ -2186,10 +2186,6 @@ components:
           type: integer
         icon_artifact_location:
           type: string
-        icon_hash:
-          type: string
-        icon_name:
-          type: string
         icon_url:
           type: string
         id:
@@ -2302,8 +2298,6 @@ components:
         - update_for
         - on_demand
         - precache
-        - icon_name
-        - icon_hash
         - eligible
         - created_at
         - updated_at
@@ -2363,10 +2357,6 @@ components:
         icon_artifact_id:
           format: int64
           type: integer
-        icon_hash:
-          type: string
-        icon_name:
-          type: string
         installer_artifact_id:
           format: int64
           type: integer
@@ -2466,6 +2456,11 @@ components:
           type: string
         display_name:
           type: string
+        icon_artifact_id:
+          format: int64
+          type: integer
+        icon_url:
+          type: string
         id:
           format: int64
           type: integer
@@ -2511,6 +2506,11 @@ components:
           type: string
         display_name:
           type: string
+        icon_artifact_id:
+          format: int64
+          type: integer
+        icon_url:
+          type: string
         id:
           format: int64
           type: integer
@@ -2555,6 +2555,9 @@ components:
           type: string
         display_name:
           type: string
+        icon_artifact_id:
+          format: int64
+          type: integer
         name:
           type: string
       required:

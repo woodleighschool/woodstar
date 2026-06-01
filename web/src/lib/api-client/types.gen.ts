@@ -813,8 +813,6 @@ export type MunkiPackage = {
     extra_pkginfo?: unknown;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_url?: string;
     id: number;
     installer_artifact_id?: number;
@@ -867,8 +865,6 @@ export type MunkiPackageMutation = {
     eligible: boolean;
     extra_pkginfo?: unknown;
     icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
     installer_artifact_id?: number;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
     maximum_os_version?: string;
@@ -899,6 +895,8 @@ export type MunkiSoftwareTitle = {
     description: string;
     developer: string;
     display_name: string;
+    icon_artifact_id?: number;
+    icon_url?: string;
     id: number;
     name: string;
     updated_at: string;
@@ -915,6 +913,8 @@ export type MunkiSoftwareTitleDetail = {
     description: string;
     developer: string;
     display_name: string;
+    icon_artifact_id?: number;
+    icon_url?: string;
     id: number;
     name: string;
     packages: Array<MunkiPackage> | null;
@@ -930,6 +930,7 @@ export type MunkiSoftwareTitleMutation = {
     description?: string;
     developer?: string;
     display_name?: string;
+    icon_artifact_id?: number;
     name: string;
 };
 
@@ -1722,8 +1723,6 @@ export type MunkiPackageWritable = {
     extra_pkginfo?: unknown;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_url?: string;
     id: number;
     installer_artifact_id?: number;
@@ -1768,8 +1767,6 @@ export type MunkiPackageMutationWritable = {
     eligible: boolean;
     extra_pkginfo?: unknown;
     icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
     installer_artifact_id?: number;
     installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
     maximum_os_version?: string;
@@ -1796,6 +1793,8 @@ export type MunkiSoftwareTitleWritable = {
     description: string;
     developer: string;
     display_name: string;
+    icon_artifact_id?: number;
+    icon_url?: string;
     id: number;
     name: string;
     updated_at: string;
@@ -1808,6 +1807,8 @@ export type MunkiSoftwareTitleDetailWritable = {
     description: string;
     developer: string;
     display_name: string;
+    icon_artifact_id?: number;
+    icon_url?: string;
     id: number;
     name: string;
     packages: Array<MunkiPackageWritable> | null;
@@ -1819,6 +1820,7 @@ export type MunkiSoftwareTitleMutationWritable = {
     description?: string;
     developer?: string;
     display_name?: string;
+    icon_artifact_id?: number;
     name: string;
 };
 

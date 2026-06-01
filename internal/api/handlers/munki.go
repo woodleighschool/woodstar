@@ -161,35 +161,40 @@ type munkiDeploymentOutput struct {
 }
 
 type munkiSoftwareTitleMutation struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Developer   string `json:"developer,omitempty"`
+	Name           string `json:"name"`
+	DisplayName    string `json:"display_name,omitempty"`
+	Description    string `json:"description,omitempty"`
+	Category       string `json:"category,omitempty"`
+	Developer      string `json:"developer,omitempty"`
+	IconArtifactID *int64 `json:"icon_artifact_id,omitempty"`
 }
 
 type munkiSoftwareTitleDetail struct {
-	ID          int64             `json:"id"`
-	Name        string            `json:"name"`
-	DisplayName string            `json:"display_name"`
-	Description string            `json:"description"`
-	Category    string            `json:"category"`
-	Developer   string            `json:"developer"`
-	Packages    []munkiPackage    `json:"packages"`
-	Deployments []munkiDeployment `json:"deployments"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID             int64             `json:"id"`
+	Name           string            `json:"name"`
+	DisplayName    string            `json:"display_name"`
+	Description    string            `json:"description"`
+	Category       string            `json:"category"`
+	Developer      string            `json:"developer"`
+	IconArtifactID *int64            `json:"icon_artifact_id,omitempty"`
+	IconURL        string            `json:"icon_url,omitempty"`
+	Packages       []munkiPackage    `json:"packages"`
+	Deployments    []munkiDeployment `json:"deployments"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 type munkiSoftwareTitle struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Category    string    `json:"category"`
-	Developer   string    `json:"developer"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	DisplayName    string    `json:"display_name"`
+	Description    string    `json:"description"`
+	Category       string    `json:"category"`
+	Developer      string    `json:"developer"`
+	IconArtifactID *int64    `json:"icon_artifact_id,omitempty"`
+	IconURL        string    `json:"icon_url,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type munkiArtifact struct {
@@ -256,8 +261,6 @@ type munkiPackage struct {
 	UpdateFor                 []string            `json:"update_for"`
 	OnDemand                  bool                `json:"on_demand"`
 	Precache                  bool                `json:"precache"`
-	IconName                  string              `json:"icon_name"`
-	IconHash                  string              `json:"icon_hash"`
 	ExtraPkginfo              json.RawMessage     `json:"extra_pkginfo,omitempty"`
 	Pkginfo                   json.RawMessage     `json:"pkginfo,omitempty"`
 	InstallerArtifactID       *int64              `json:"installer_artifact_id,omitempty"`
@@ -293,8 +296,6 @@ type munkiPackageMutation struct {
 	UpdateFor              []string            `json:"update_for,omitempty"`
 	OnDemand               bool                `json:"on_demand,omitempty"`
 	Precache               bool                `json:"precache,omitempty"`
-	IconName               string              `json:"icon_name,omitempty"`
-	IconHash               string              `json:"icon_hash,omitempty"`
 	ExtraPkginfo           json.RawMessage     `json:"extra_pkginfo,omitempty"`
 	InstallerArtifactID    *int64              `json:"installer_artifact_id,omitempty"`
 	IconArtifactID         *int64              `json:"icon_artifact_id,omitempty"`
@@ -766,39 +767,44 @@ func (input munkiListInput) params() dbutil.ListParams {
 
 func munkiSoftwareTitleDetailFromDomain(detail munki.SoftwareTitleDetail) munkiSoftwareTitleDetail {
 	return munkiSoftwareTitleDetail{
-		ID:          detail.ID,
-		Name:        detail.Name,
-		DisplayName: detail.DisplayName,
-		Description: detail.Description,
-		Category:    detail.Category,
-		Developer:   detail.Developer,
-		Packages:    munkiPackagesFromDomain(detail.Packages),
-		Deployments: munkiDeploymentsFromDomain(detail.Deployments),
-		CreatedAt:   detail.CreatedAt,
-		UpdatedAt:   detail.UpdatedAt,
+		ID:             detail.ID,
+		Name:           detail.Name,
+		DisplayName:    detail.DisplayName,
+		Description:    detail.Description,
+		Category:       detail.Category,
+		Developer:      detail.Developer,
+		IconArtifactID: detail.IconArtifactID,
+		IconURL:        munkiSoftwareIconURL(detail.SoftwareTitle),
+		Packages:       munkiPackagesFromDomain(detail.Packages),
+		Deployments:    munkiDeploymentsFromDomain(detail.Deployments),
+		CreatedAt:      detail.CreatedAt,
+		UpdatedAt:      detail.UpdatedAt,
 	}
 }
 
 func (body munkiSoftwareTitleMutation) domain() munki.SoftwareTitleMutation {
 	return munki.SoftwareTitleMutation{
-		Name:        body.Name,
-		DisplayName: body.DisplayName,
-		Description: body.Description,
-		Category:    body.Category,
-		Developer:   body.Developer,
+		Name:           body.Name,
+		DisplayName:    body.DisplayName,
+		Description:    body.Description,
+		Category:       body.Category,
+		Developer:      body.Developer,
+		IconArtifactID: body.IconArtifactID,
 	}
 }
 
 func munkiSoftwareTitleFromDomain(title munki.SoftwareTitle) munkiSoftwareTitle {
 	return munkiSoftwareTitle{
-		ID:          title.ID,
-		Name:        title.Name,
-		DisplayName: title.DisplayName,
-		Description: title.Description,
-		Category:    title.Category,
-		Developer:   title.Developer,
-		CreatedAt:   title.CreatedAt,
-		UpdatedAt:   title.UpdatedAt,
+		ID:             title.ID,
+		Name:           title.Name,
+		DisplayName:    title.DisplayName,
+		Description:    title.Description,
+		Category:       title.Category,
+		Developer:      title.Developer,
+		IconArtifactID: title.IconArtifactID,
+		IconURL:        munkiSoftwareIconURL(title),
+		CreatedAt:      title.CreatedAt,
+		UpdatedAt:      title.UpdatedAt,
 	}
 }
 
@@ -924,8 +930,6 @@ func munkiPackageFromDomain(pkg munki.Package) munkiPackage {
 		UpdateFor:                 pkg.UpdateFor,
 		OnDemand:                  pkg.OnDemand,
 		Precache:                  pkg.Precache,
-		IconName:                  pkg.IconName,
-		IconHash:                  pkg.IconHash,
 		ExtraPkginfo:              pkg.ExtraPkginfo,
 		Pkginfo:                   pkg.Pkginfo,
 		InstallerArtifactID:       pkg.InstallerArtifactID,
@@ -971,8 +975,6 @@ func (body munkiPackageMutation) domain() munki.PackageMutation {
 		UpdateFor:              body.UpdateFor,
 		OnDemand:               body.OnDemand,
 		Precache:               body.Precache,
-		IconName:               body.IconName,
-		IconHash:               body.IconHash,
 		ExtraPkginfo:           body.ExtraPkginfo,
 		InstallerArtifactID:    body.InstallerArtifactID,
 		IconArtifactID:         body.IconArtifactID,
@@ -1026,10 +1028,18 @@ func artifactContentType(filename string) string {
 }
 
 func munkiPackageIconURL(pkg munki.Package) string {
-	if pkg.IconArtifactID == nil {
+	artifactID := pkg.EffectiveIconArtifactID()
+	if artifactID == nil {
 		return ""
 	}
-	return fmt.Sprintf("/api/munki/artifacts/%d/content", *pkg.IconArtifactID)
+	return fmt.Sprintf("/api/munki/artifacts/%d/content", *artifactID)
+}
+
+func munkiSoftwareIconURL(title munki.SoftwareTitle) string {
+	if title.IconArtifactID == nil {
+		return ""
+	}
+	return fmt.Sprintf("/api/munki/artifacts/%d/content", *title.IconArtifactID)
 }
 
 func munkiDeploymentFromDomain(deployment munki.Deployment) munkiDeployment {

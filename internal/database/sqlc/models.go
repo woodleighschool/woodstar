@@ -953,16 +953,16 @@ type MunkiArtifact struct {
 
 type MunkiDeployment struct {
 	ID               int64                 `json:"id"`
-	Position         int32                 `json:"position"`
-	AllHosts         bool                  `json:"all_hosts"`
-	CreatedAt        time.Time             `json:"created_at"`
-	UpdatedAt        time.Time             `json:"updated_at"`
 	SoftwareID       int64                 `json:"software_id"`
 	Action           MunkiDeploymentAction `json:"action"`
 	OptionalInstall  bool                  `json:"optional_install"`
 	FeaturedItem     bool                  `json:"featured_item"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
+	Position         int32                 `json:"position"`
+	AllHosts         bool                  `json:"all_hosts"`
+	CreatedAt        time.Time             `json:"created_at"`
+	UpdatedAt        time.Time             `json:"updated_at"`
 }
 
 type MunkiDeploymentExcludeHost struct {
@@ -1018,10 +1018,6 @@ type MunkiPackage struct {
 	Description            string    `json:"description"`
 	Category               string    `json:"category"`
 	Developer              string    `json:"developer"`
-	Eligible               bool      `json:"eligible"`
-	CreatedAt              time.Time `json:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at"`
-	InstallerArtifactID    *int64    `json:"installer_artifact_id"`
 	InstallerType          string    `json:"installer_type"`
 	UninstallMethod        string    `json:"uninstall_method"`
 	RestartAction          string    `json:"restart_action"`
@@ -1039,19 +1035,26 @@ type MunkiPackage struct {
 	Precache               bool      `json:"precache"`
 	IconName               string    `json:"icon_name"`
 	IconHash               string    `json:"icon_hash"`
-	IconArtifactID         *int64    `json:"icon_artifact_id"`
 	ExtraPkginfo           []byte    `json:"extra_pkginfo"`
+	InstallerArtifactID    *int64    `json:"installer_artifact_id"`
+	IconArtifactID         *int64    `json:"icon_artifact_id"`
+	Eligible               bool      `json:"eligible"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 type MunkiSoftwareTitle struct {
-	ID          int64     `json:"id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Category    string    `json:"category"`
-	Developer   string    `json:"developer"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	DisplayName    string    `json:"display_name"`
+	Description    string    `json:"description"`
+	Category       string    `json:"category"`
+	Developer      string    `json:"developer"`
+	IconName       string    `json:"icon_name"`
+	IconHash       string    `json:"icon_hash"`
+	IconArtifactID *int64    `json:"icon_artifact_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type Report struct {
