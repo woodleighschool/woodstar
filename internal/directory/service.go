@@ -84,6 +84,9 @@ func (s *Service) StartScheduler(ctx context.Context, interval time.Duration) fu
 
 func (s *Service) runOnce(ctx context.Context) {
 	if err := s.Sync(ctx); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return
+		}
 		s.logger.ErrorContext(ctx, "directory sync failed",
 			"component", "directory",
 			"operation", "sync",

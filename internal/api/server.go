@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -38,8 +39,13 @@ func NewServer(deps Dependencies) *Server {
 	return server
 }
 
-// ListenAndServe starts the HTTP listener and blocks until shutdown or failure.
-func (s *Server) ListenAndServe() error {
+// Addr returns the configured HTTP listen address.
+func (s *Server) Addr() string {
+	return s.httpServer.Addr
+}
+
+// Serve starts the HTTP server on listener and blocks until shutdown or failure.
+func (s *Server) Serve(listener net.Listener) error {
 	s.logger.Info(
 		"starting woodstar",
 		"component", "server",
@@ -48,7 +54,7 @@ func (s *Server) ListenAndServe() error {
 		"public_url", s.config.PublicURL,
 		"version", s.version,
 	)
-	if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := s.httpServer.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

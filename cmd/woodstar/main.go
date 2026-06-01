@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,7 +15,6 @@ import (
 	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api"
@@ -48,8 +48,10 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "woodstar",
-		Short: "Woodstar macOS observability and admin server",
+		Use:           "woodstar",
+		Short:         "Woodstar macOS observability and admin server",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 	rootCmd.Version = buildinfo.Version
 	rootCmd.AddCommand(serveCommand())
@@ -105,23 +107,40 @@ func serve(parent context.Context, cfg config.Config) error {
 	// cleanup goroutine talks to the pool, which must still be open when it stops.
 	defer sessionStore.StopCleanup()
 
-	server, stopBackground := newServer(ctx, cfg, db, sessionManager, logger)
+	server, background := newServer(ctx, cfg, db, sessionManager, logger)
+	listenConfig := net.ListenConfig{}
+	listener, err := listenConfig.Listen(ctx, "tcp", server.Addr())
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", server.Addr(), err)
+	}
+
+	stopBackground := background.start(ctx)
 	defer stopBackground()
-	return runServer(ctx, server, time.Duration(cfg.ShutdownTimeoutSeconds)*time.Second)
+	return runServer(ctx, server, listener, time.Duration(cfg.ShutdownTimeoutSeconds)*time.Second)
 }
 
-func runServer(ctx context.Context, server *api.Server, shutdownTimeout time.Duration) error {
-	group, ctx := errgroup.WithContext(ctx)
+func runServer(
+	ctx context.Context,
+	server *api.Server,
+	listener net.Listener,
+	shutdownTimeout time.Duration,
+) error {
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- server.Serve(listener)
+	}()
 
-	group.Go(server.ListenAndServe)
-	group.Go(func() error {
-		<-ctx.Done()
+	select {
+	case err := <-serveErr:
+		return err
+	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		return server.Shutdown(shutdownCtx)
-	})
-
-	return group.Wait()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		return <-serveErr
+	}
 }
 
 func newServer(
@@ -130,7 +149,7 @@ func newServer(
 	db *database.DB,
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
-) (*api.Server, func()) {
+) (*api.Server, backgroundServices) {
 	stores := newStores(db)
 	userService := users.NewService(stores.users)
 	authService := newAuthService(ctx, cfg, userService, sessionManager, logger)
@@ -138,9 +157,8 @@ func newServer(
 	orbitDeps := newOrbit(stores)
 	osqueryDeps := newOsquery(stores, logger)
 	munkiDeps := newMunki(ctx, cfg, stores, logger)
-	santaDeps, stopSanta := newSanta(ctx, cfg, stores, logger)
-
-	stopBackground := append([]func(){stopSanta}, startIntegrations(ctx, cfg, db, stores, logger)...)
+	santaDeps, santaBackground := newSanta(cfg, stores, logger)
+	background := append(backgroundServices{santaBackground}, newIntegrationBackgrounds(cfg, stores, logger)...)
 
 	server := api.NewServer(api.Dependencies{
 		Runtime: api.RuntimeDependencies{
@@ -173,9 +191,27 @@ func newServer(
 		Munki:     munkiDeps,
 		Santa:     santaDeps,
 	})
-	return server, func() {
-		for _, v := range slices.Backward(stopBackground) {
-			v()
+	return server, background
+}
+
+type backgroundService func(context.Context) func()
+
+type backgroundServices []backgroundService
+
+func (services backgroundServices) start(ctx context.Context) func() {
+	stops := make([]func(), 0, len(services))
+	for _, start := range services {
+		if start == nil {
+			continue
+		}
+		stop := start(ctx)
+		if stop != nil {
+			stops = append(stops, stop)
+		}
+	}
+	return func() {
+		for _, stop := range slices.Backward(stops) {
+			stop()
 		}
 	}
 }
@@ -324,14 +360,12 @@ func newMunki(ctx context.Context, cfg config.Config, stores appStores, logger *
 	}
 }
 
-// newSanta builds the Santa capability's runtime dependencies and starts its
-// background loops. Event retention cleanup is owned here.
+// newSanta builds Santa dependencies and returns the event cleanup starter.
 func newSanta(
-	ctx context.Context,
 	cfg config.Config,
 	stores appStores,
 	logger *slog.Logger,
-) (api.SantaDependencies, func()) {
+) (api.SantaDependencies, backgroundService) {
 	santaService := santa.NewService(santa.Dependencies{
 		HostStore:      stores.santa,
 		Configurations: stores.santaConfigurations,
@@ -341,10 +375,16 @@ func newSanta(
 		Sync:           stores.santaSync,
 	})
 	santaHostState := santa.NewHostStateService(stores.santa, stores.santaConfigurations)
-	eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
-		RetentionDays: cfg.SantaEventRetentionDays,
-		SweepInterval: cfg.SantaEventSweepInterval,
-	}, logger.With("component", "santa"))
+	startCleanup := func(ctx context.Context) func() {
+		eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
+			RetentionDays: cfg.SantaEventRetentionDays,
+			SweepInterval: cfg.SantaEventSweepInterval,
+		}, logger.With("component", "santa"))
+		if eventCleanup == nil {
+			return nil
+		}
+		return eventCleanup.Stop
+	}
 	return api.SantaDependencies{
 		Sync:           santaService,
 		HostState:      santaHostState,
@@ -352,16 +392,14 @@ func newSanta(
 		Rules:          stores.santaRules,
 		Events:         stores.santaEvents,
 		References:     stores.santaReferences,
-	}, eventCleanup.Stop
+	}, startCleanup
 }
 
-func startIntegrations(
-	ctx context.Context,
+func newIntegrationBackgrounds(
 	cfg config.Config,
-	db *database.DB,
 	stores appStores,
 	logger *slog.Logger,
-) []func() {
+) backgroundServices {
 	if !cfg.EntraEnabled() {
 		return nil
 	}
@@ -377,7 +415,11 @@ func startIntegrations(
 		logger.With("component", "directory"),
 		stores.labels,
 	)
-	return []func(){directorySvc.StartScheduler(ctx, cfg.EntraSyncInterval)}
+	return backgroundServices{
+		func(ctx context.Context) func() {
+			return directorySvc.StartScheduler(ctx, cfg.EntraSyncInterval)
+		},
+	}
 }
 
 func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
