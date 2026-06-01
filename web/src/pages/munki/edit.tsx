@@ -44,7 +44,6 @@ import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 type DeploymentAction = MunkiDeploymentMutation["action"];
-type SelfServiceMode = MunkiDeploymentMutation["self_service"];
 type PackageSelection = MunkiDeploymentMutation["package_selection"];
 type InstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 type RestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
@@ -69,17 +68,18 @@ const restartActionOptions: { value: RestartAction; label: string }[] = [
 ];
 
 const actionOptions: { value: DeploymentAction; label: string; description: string }[] = [
-  { value: "install", label: "Install", description: "Writes managed_installs." },
-  { value: "remove", label: "Remove", description: "Writes managed_uninstalls." },
-  { value: "update_if_present", label: "Update if present", description: "Writes managed_updates." },
-  { value: "none", label: "No automatic action", description: "Only Self Service presentation is rendered." },
-];
-
-const selfServiceOptions: { value: SelfServiceMode; label: string }[] = [
-  { value: "hidden", label: "Hidden" },
-  { value: "available", label: "Available" },
-  { value: "featured", label: "Featured" },
-  { value: "default", label: "Default" },
+  { value: "install", label: "Managed Installs", description: "Forces installation by writing managed_installs." },
+  { value: "remove", label: "Managed Uninstalls", description: "Forces removal by writing managed_uninstalls." },
+  {
+    value: "update_if_present",
+    label: "Managed Updates",
+    description: "Updates installed items by writing managed_updates.",
+  },
+  {
+    value: "none",
+    label: "No managed section",
+    description: "Only Optional Installs and Featured Items section membership is rendered.",
+  },
 ];
 
 const packageSelectionOptions: { value: PackageSelection; label: string; description: string }[] = [
@@ -129,7 +129,8 @@ const deploymentSchema = z
     package_selection: z.enum(["latest_eligible", "specific_package"]),
     pinned_package_id: z.string().trim(),
     action: z.enum(["install", "remove", "update_if_present", "none"]),
-    self_service: z.enum(["hidden", "available", "featured", "default"]),
+    optional_install: z.boolean(),
+    featured_item: z.boolean(),
     all_hosts: z.boolean(),
     include_label_ids: z.array(z.number().int().positive()),
     exclude_label_ids: z.array(z.number().int().positive()),
@@ -138,11 +139,18 @@ const deploymentSchema = z
     if (value.package_selection === "specific_package" && !Number(value.pinned_package_id)) {
       ctx.addIssue({ code: "custom", message: "Package is required.", path: ["pinned_package_id"] });
     }
-    if (value.action === "remove" && value.self_service !== "hidden") {
+    if (value.featured_item && !value.optional_install) {
       ctx.addIssue({
         code: "custom",
-        message: "Remove assignments cannot be shown in Self Service.",
-        path: ["self_service"],
+        message: "Featured Items must also be Optional Installs.",
+        path: ["featured_item"],
+      });
+    }
+    if (value.action === "remove" && (value.optional_install || value.featured_item)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Managed Uninstalls cannot also be Optional Installs or Featured Items.",
+        path: ["optional_install"],
       });
     }
     if (!value.all_hosts && value.include_label_ids.length === 0) {
@@ -183,7 +191,8 @@ interface DeploymentFormState {
   package_selection: PackageSelection;
   pinned_package_id: string;
   action: DeploymentAction;
-  self_service: SelfServiceMode;
+  optional_install: boolean;
+  featured_item: boolean;
   all_hosts: boolean;
   include_label_ids: number[];
   exclude_label_ids: number[];
@@ -492,14 +501,14 @@ export function MunkiPackageNewPage() {
               <CheckboxField
                 id="munki-package-unattended-install"
                 label="Unattended install"
-                description="Allows Munki to install this item without Self Service interaction."
+                description="Allows Munki to install this item without MSC interaction."
                 checked={form.unattended_install}
                 onChange={(unattended_install) => setForm({ ...form, unattended_install })}
               />
               <CheckboxField
                 id="munki-package-unattended-uninstall"
                 label="Unattended uninstall"
-                description="Allows Munki to remove this item without Self Service interaction."
+                description="Allows Munki to remove this item without MSC interaction."
                 checked={form.unattended_uninstall}
                 onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
               />
@@ -882,7 +891,8 @@ export function MunkiDeploymentNewPage() {
     package_selection: "latest_eligible",
     pinned_package_id: "",
     action: "install",
-    self_service: "hidden",
+    optional_install: false,
+    featured_item: false,
     all_hosts: true,
     include_label_ids: [],
     exclude_label_ids: [],
@@ -909,7 +919,8 @@ export function MunkiDeploymentNewPage() {
     const body: MunkiDeploymentMutation = {
       software_id: softwareId,
       action: next.data.action,
-      self_service: next.data.self_service,
+      optional_install: next.data.optional_install,
+      featured_item: next.data.featured_item,
       package_selection: next.data.package_selection,
       pinned_package_id: pinnedPackageID,
       all_hosts: next.data.all_hosts,
@@ -925,7 +936,7 @@ export function MunkiDeploymentNewPage() {
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
         <PageHeader
           title="New Assignment"
-          description="Target this software and choose whether Munki should follow the latest eligible pkginfo or a pinned version."
+          description="Target this software and choose the Munki manifest sections Woodstar renders."
         />
         <MutationError title="Failed to Create Assignment" message={create.error?.message ?? software.error?.message} />
         <FieldGroup className="max-w-3xl">
@@ -988,11 +999,18 @@ export function MunkiDeploymentNewPage() {
 
           <Field>
             <FieldLabel htmlFor="munki-deployment-action" required>
-              Action
+              Managed Section
             </FieldLabel>
             <Select
               value={form.action}
-              onValueChange={(action) => setForm({ ...form, action: action as DeploymentAction })}
+              onValueChange={(action) =>
+                setForm({
+                  ...form,
+                  action: action as DeploymentAction,
+                  optional_install: action === "remove" ? false : form.optional_install,
+                  featured_item: action === "remove" ? false : form.featured_item,
+                })
+              }
             >
               <SelectTrigger id="munki-deployment-action" className="w-full">
                 <SelectValue />
@@ -1010,32 +1028,40 @@ export function MunkiDeploymentNewPage() {
             <FieldDescription>{actionDescription(form.action)}</FieldDescription>
           </Field>
 
-          <Field data-invalid={showErrors && errors.self_service ? true : undefined}>
-            <FieldLabel htmlFor="munki-deployment-self-service" required>
-              Self Service
-            </FieldLabel>
-            <Select
-              value={form.self_service}
-              onValueChange={(self_service) => setForm({ ...form, self_service: self_service as SelfServiceMode })}
-            >
-              <SelectTrigger id="munki-deployment-self-service" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {selfServiceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              Hidden keeps the item out of Self Service. Featured and Default also write their Munki manifest sections.
-            </FieldDescription>
-            {showErrors && errors.self_service ? <FieldError>{errors.self_service}</FieldError> : null}
-          </Field>
+          <FieldSet>
+            <FieldLegend>Managed Software Centre</FieldLegend>
+            <FieldDescription>These write the optional_installs and featured_items manifest sections.</FieldDescription>
+            <CheckboxField
+              id="munki-deployment-optional-install"
+              label="Optional Installs"
+              description="Adds this item to optional_installs so it appears in MSC."
+              checked={form.optional_install}
+              disabled={form.action === "remove"}
+              onChange={(optional_install) =>
+                setForm({
+                  ...form,
+                  optional_install,
+                  featured_item: optional_install ? form.featured_item : false,
+                })
+              }
+            />
+            <CheckboxField
+              id="munki-deployment-featured-item"
+              label="Featured Items"
+              description="Also adds this item to featured_items. Munki expects featured items to also be optional installs."
+              checked={form.featured_item}
+              disabled={form.action === "remove"}
+              onChange={(featured_item) =>
+                setForm({
+                  ...form,
+                  optional_install: featured_item ? true : form.optional_install,
+                  featured_item,
+                })
+              }
+            />
+            {showErrors && errors.optional_install ? <FieldError>{errors.optional_install}</FieldError> : null}
+            {showErrors && errors.featured_item ? <FieldError>{errors.featured_item}</FieldError> : null}
+          </FieldSet>
 
           <CheckboxField
             id="munki-deployment-all-hosts"
@@ -1098,7 +1124,8 @@ export function MunkiDeploymentEditPage() {
     package_selection: "latest_eligible",
     pinned_package_id: "",
     action: "install",
-    self_service: "hidden",
+    optional_install: false,
+    featured_item: false,
     all_hosts: true,
     include_label_ids: [],
     exclude_label_ids: [],
@@ -1113,7 +1140,8 @@ export function MunkiDeploymentEditPage() {
       package_selection: deployment.data.package_selection,
       pinned_package_id: deployment.data.pinned_package_id ? String(deployment.data.pinned_package_id) : "",
       action: deployment.data.action,
-      self_service: deployment.data.self_service,
+      optional_install: deployment.data.optional_install,
+      featured_item: deployment.data.featured_item,
       all_hosts: deployment.data.all_hosts,
       include_label_ids: deployment.data.include_label_ids ?? [],
       exclude_label_ids: deployment.data.exclude_label_ids ?? [],
@@ -1129,7 +1157,8 @@ export function MunkiDeploymentEditPage() {
     const body: MunkiDeploymentMutation = {
       software_id: softwareId,
       action: next.data.action,
-      self_service: next.data.self_service,
+      optional_install: next.data.optional_install,
+      featured_item: next.data.featured_item,
       package_selection: next.data.package_selection,
       pinned_package_id:
         next.data.package_selection === "specific_package" ? Number(next.data.pinned_package_id) : undefined,
@@ -1146,7 +1175,7 @@ export function MunkiDeploymentEditPage() {
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
         <PageHeader
           title="Edit Assignment"
-          description="Adjust targeting, automatic action, Self Service presentation, and package selection."
+          description="Adjust targeting, managed action, Optional Installs, Featured Items, and package selection."
         />
         <MutationError
           title="Failed to Update Assignment"
@@ -1212,11 +1241,18 @@ export function MunkiDeploymentEditPage() {
 
           <Field>
             <FieldLabel htmlFor="munki-deployment-action" required>
-              Action
+              Managed Section
             </FieldLabel>
             <Select
               value={form.action}
-              onValueChange={(action) => setForm({ ...form, action: action as DeploymentAction })}
+              onValueChange={(action) =>
+                setForm({
+                  ...form,
+                  action: action as DeploymentAction,
+                  optional_install: action === "remove" ? false : form.optional_install,
+                  featured_item: action === "remove" ? false : form.featured_item,
+                })
+              }
             >
               <SelectTrigger id="munki-deployment-action" className="w-full">
                 <SelectValue />
@@ -1234,32 +1270,40 @@ export function MunkiDeploymentEditPage() {
             <FieldDescription>{actionDescription(form.action)}</FieldDescription>
           </Field>
 
-          <Field data-invalid={showErrors && errors.self_service ? true : undefined}>
-            <FieldLabel htmlFor="munki-deployment-self-service" required>
-              Self Service
-            </FieldLabel>
-            <Select
-              value={form.self_service}
-              onValueChange={(self_service) => setForm({ ...form, self_service: self_service as SelfServiceMode })}
-            >
-              <SelectTrigger id="munki-deployment-self-service" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {selfServiceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              Hidden keeps the item out of Self Service. Featured and Default also write their Munki manifest sections.
-            </FieldDescription>
-            {showErrors && errors.self_service ? <FieldError>{errors.self_service}</FieldError> : null}
-          </Field>
+          <FieldSet>
+            <FieldLegend>Managed Software Centre</FieldLegend>
+            <FieldDescription>These write the optional_installs and featured_items manifest sections.</FieldDescription>
+            <CheckboxField
+              id="munki-deployment-optional-install"
+              label="Optional Installs"
+              description="Adds this item to optional_installs so it appears in MSC."
+              checked={form.optional_install}
+              disabled={form.action === "remove"}
+              onChange={(optional_install) =>
+                setForm({
+                  ...form,
+                  optional_install,
+                  featured_item: optional_install ? form.featured_item : false,
+                })
+              }
+            />
+            <CheckboxField
+              id="munki-deployment-featured-item"
+              label="Featured Items"
+              description="Also adds this item to featured_items. Munki expects featured items to also be optional installs."
+              checked={form.featured_item}
+              disabled={form.action === "remove"}
+              onChange={(featured_item) =>
+                setForm({
+                  ...form,
+                  optional_install: featured_item ? true : form.optional_install,
+                  featured_item,
+                })
+              }
+            />
+            {showErrors && errors.optional_install ? <FieldError>{errors.optional_install}</FieldError> : null}
+            {showErrors && errors.featured_item ? <FieldError>{errors.featured_item}</FieldError> : null}
+          </FieldSet>
 
           <CheckboxField
             id="munki-deployment-all-hosts"
@@ -1498,17 +1542,19 @@ function CheckboxField({
   label,
   description,
   checked,
+  disabled,
   onChange,
 }: {
   id: string;
   label: string;
   description?: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <Field orientation="horizontal">
-      <Checkbox id={id} checked={checked} onCheckedChange={(value) => onChange(value === true)} />
+    <Field orientation="horizontal" className={disabled ? "opacity-60" : undefined}>
+      <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(value) => onChange(value === true)} />
       <FieldContent>
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
         {description ? <FieldDescription>{description}</FieldDescription> : null}

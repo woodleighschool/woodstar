@@ -303,7 +303,7 @@ func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	optionalDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
 		SoftwareID:       title.ID,
 		Action:           munki.DeploymentActionNone,
-		SelfService:      munki.SelfServiceAvailable,
+		OptionalInstall:  true,
 		PackageSelection: munki.PackageSelectionSpecific,
 		PinnedPackageID:  &optionalPackage.ID,
 		AllHosts:         true,
@@ -608,7 +608,8 @@ func TestUpdateDeploymentRejectsSoftwareMove(t *testing.T) {
 	_, err = store.UpdateDeployment(ctx, deployment.ID, munki.DeploymentMutation{
 		SoftwareID:       second.ID,
 		Action:           deployment.Action,
-		SelfService:      deployment.SelfService,
+		OptionalInstall:  deployment.OptionalInstall,
+		FeaturedItem:     deployment.FeaturedItem,
 		PackageSelection: deployment.PackageSelection,
 		PinnedPackageID:  deployment.PinnedPackageID,
 		AllHosts:         deployment.AllHosts,

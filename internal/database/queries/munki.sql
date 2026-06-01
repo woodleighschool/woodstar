@@ -300,7 +300,8 @@ WHERE p.id = @id;
 INSERT INTO munki_deployments (
     software_id,
     action,
-    self_service,
+    optional_install,
+    featured_item,
     package_selection,
     pinned_package_id,
     position,
@@ -309,7 +310,8 @@ INSERT INTO munki_deployments (
 VALUES (
     @software_id,
     @action::munki_deployment_action,
-    @self_service::munki_self_service_mode,
+    @optional_install,
+    @featured_item,
     @package_selection::munki_package_selection,
     sqlc.narg(pinned_package_id)::bigint,
     (
@@ -325,7 +327,8 @@ RETURNING *;
 UPDATE munki_deployments
 SET
     action = @action::munki_deployment_action,
-    self_service = @self_service::munki_self_service_mode,
+    optional_install = @optional_install,
+    featured_item = @featured_item,
     package_selection = @package_selection::munki_package_selection,
     pinned_package_id = sqlc.narg(pinned_package_id)::bigint,
     all_hosts = @all_hosts,
@@ -442,7 +445,8 @@ SELECT
     d.id AS deployment_id,
     d.software_id AS deployment_software_id,
     d.action,
-    d.self_service,
+    d.optional_install,
+    d.featured_item,
     d.package_selection,
     d.pinned_package_id,
     d.position,

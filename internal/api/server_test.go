@@ -298,7 +298,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		"/api/munki/deployments",
 		fmt.Sprintf(
-			`{"software_id":%d,"action":"install","self_service":"hidden","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			`{"software_id":%d,"action":"install","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
 			title.ID,
 			pkg.ID,
 		),
@@ -309,13 +309,13 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		fmt.Sprintf("/api/munki/deployments/%d", deployment.ID),
 		fmt.Sprintf(
-			`{"software_id":%d,"action":"install","self_service":"featured","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			`{"software_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
 			title.ID,
 			pkg.ID,
 		),
 	)
-	if deployment.SelfService != munki.SelfServiceFeatured {
-		t.Fatalf("updated deployment = %+v, want featured self service", deployment)
+	if !deployment.OptionalInstall || !deployment.FeaturedItem {
+		t.Fatalf("updated deployment = %+v, want optional_install and featured_item", deployment)
 	}
 
 	listRec := httptest.NewRecorder()

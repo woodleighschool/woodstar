@@ -37,7 +37,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				DeploymentID:     11,
 				SoftwareID:       2,
 				Action:           munki.DeploymentActionNone,
-				SelfService:      munki.SelfServiceAvailable,
+				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      21,
@@ -66,14 +66,15 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				DeploymentID:     13,
 				SoftwareID:       4,
 				Action:           munki.DeploymentActionNone,
-				SelfService:      munki.SelfServiceFeatured,
+				OptionalInstall:  true,
+				FeaturedItem:     true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      23,
-					Name:    "SelfServiceApp",
+					Name:    "FeaturedApp",
 					Version: "3.2.1",
 					Pkginfo: json.RawMessage(
-						`{"name":"SelfServiceApp","version":"3.2.1","installer_type":"nopkg"}`,
+						`{"name":"FeaturedApp","version":"3.2.1","installer_type":"nopkg"}`,
 					),
 				},
 			},
@@ -220,14 +221,14 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if !sameStrings(decoded.ManagedInstalls, []string{"GoogleChrome"}) {
 		t.Fatalf("managed_installs = %v, want [GoogleChrome]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "SelfServiceApp"}) {
-		t.Fatalf("optional_installs = %v, want [Slack SelfServiceApp]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "FeaturedApp"}) {
+		t.Fatalf("optional_installs = %v, want [Slack FeaturedApp]", decoded.OptionalInstalls)
 	}
 	if !sameStrings(decoded.ManagedUninstalls, []string{"LegacyVPN"}) {
 		t.Fatalf("managed_uninstalls = %v, want [LegacyVPN]", decoded.ManagedUninstalls)
 	}
-	if !sameStrings(decoded.FeaturedItems, []string{"SelfServiceApp"}) {
-		t.Fatalf("featured_items = %v, want [SelfServiceApp]", decoded.FeaturedItems)
+	if !sameStrings(decoded.FeaturedItems, []string{"FeaturedApp"}) {
+		t.Fatalf("featured_items = %v, want [FeaturedApp]", decoded.FeaturedItems)
 	}
 }
 
@@ -267,7 +268,7 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 				DeploymentID:     11,
 				SoftwareID:       1,
 				Action:           munki.DeploymentActionNone,
-				SelfService:      munki.SelfServiceAvailable,
+				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      21,

@@ -7,13 +7,6 @@ CREATE TYPE munki_deployment_action AS ENUM (
     'none'
 );
 
-CREATE TYPE munki_self_service_mode AS ENUM (
-    'hidden',
-    'available',
-    'featured',
-    'default'
-);
-
 CREATE TYPE munki_package_selection AS ENUM (
     'latest_eligible',
     'specific_package'
@@ -22,7 +15,8 @@ CREATE TYPE munki_package_selection AS ENUM (
 ALTER TABLE munki_deployments
     ADD COLUMN software_id BIGINT REFERENCES munki_software_titles (id) ON DELETE CASCADE,
     ADD COLUMN action munki_deployment_action,
-    ADD COLUMN self_service munki_self_service_mode,
+    ADD COLUMN optional_install BOOLEAN,
+    ADD COLUMN featured_item BOOLEAN,
     ADD COLUMN package_selection munki_package_selection,
     ADD COLUMN pinned_package_id BIGINT;
 
@@ -35,11 +29,8 @@ SET
         WHEN 'update_if_present' THEN 'update_if_present'::munki_deployment_action
         ELSE 'none'::munki_deployment_action
     END,
-    self_service = CASE d.intent
-        WHEN 'optional' THEN 'available'::munki_self_service_mode
-        WHEN 'featured' THEN 'featured'::munki_self_service_mode
-        ELSE 'hidden'::munki_self_service_mode
-    END,
+    optional_install = d.intent IN ('optional', 'featured'),
+    featured_item = d.intent = 'featured',
     package_selection = 'specific_package'::munki_package_selection,
     pinned_package_id = d.package_id
 FROM munki_packages p
@@ -49,8 +40,10 @@ ALTER TABLE munki_deployments
     ALTER COLUMN software_id SET NOT NULL,
     ALTER COLUMN action SET NOT NULL,
     ALTER COLUMN action SET DEFAULT 'install',
-    ALTER COLUMN self_service SET NOT NULL,
-    ALTER COLUMN self_service SET DEFAULT 'hidden',
+    ALTER COLUMN optional_install SET NOT NULL,
+    ALTER COLUMN optional_install SET DEFAULT false,
+    ALTER COLUMN featured_item SET NOT NULL,
+    ALTER COLUMN featured_item SET DEFAULT false,
     ALTER COLUMN package_selection SET NOT NULL,
     ALTER COLUMN package_selection SET DEFAULT 'latest_eligible';
 
@@ -113,8 +106,8 @@ SET
         )
     ),
     intent = CASE
-        WHEN d.self_service = 'featured' THEN 'featured'::munki_deployment_intent
-        WHEN d.self_service IN ('available', 'default') THEN 'optional'::munki_deployment_intent
+        WHEN d.featured_item THEN 'featured'::munki_deployment_intent
+        WHEN d.optional_install THEN 'optional'::munki_deployment_intent
         WHEN d.action = 'install' THEN 'ensure_installed'::munki_deployment_intent
         WHEN d.action = 'remove' THEN 'ensure_absent'::munki_deployment_intent
         WHEN d.action = 'update_if_present' THEN 'update_if_present'::munki_deployment_intent
@@ -137,7 +130,8 @@ ALTER TABLE munki_deployments
     DROP CONSTRAINT IF EXISTS munki_deployments_pinned_package_software_fkey,
     DROP COLUMN software_id,
     DROP COLUMN action,
-    DROP COLUMN self_service,
+    DROP COLUMN optional_install,
+    DROP COLUMN featured_item,
     DROP COLUMN package_selection,
     DROP COLUMN pinned_package_id;
 
@@ -145,7 +139,6 @@ ALTER TABLE munki_packages
     DROP CONSTRAINT IF EXISTS munki_packages_software_id_id_key;
 
 DROP TYPE munki_deployment_action;
-DROP TYPE munki_self_service_mode;
 DROP TYPE munki_package_selection;
 
 CREATE INDEX munki_deployments_package_idx

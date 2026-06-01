@@ -237,15 +237,10 @@ func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
 		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
 	case DeploymentActionNone:
 	}
-	switch pkg.SelfService {
-	case SelfServiceHidden:
-	case SelfServiceAvailable:
+	if pkg.OptionalInstall {
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
-	case SelfServiceDefault:
-		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
-		manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
-	case SelfServiceFeatured:
-		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
+	}
+	if pkg.FeaturedItem {
 		manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 	}
 }

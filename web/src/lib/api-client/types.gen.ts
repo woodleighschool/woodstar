@@ -744,15 +744,16 @@ export type MunkiDeployment = {
     created_at: string;
     exclude_host_ids: Array<number> | null;
     exclude_label_ids: Array<number> | null;
+    featured_item: boolean;
     id: number;
     include_host_ids: Array<number> | null;
     include_label_ids: Array<number> | null;
+    optional_install: boolean;
     package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
     position: number;
-    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_display_name: string;
     software_id: number;
     updated_at: string;
@@ -767,11 +768,12 @@ export type MunkiDeploymentMutation = {
     all_hosts: boolean;
     exclude_host_ids?: Array<number> | null;
     exclude_label_ids?: Array<number> | null;
+    featured_item?: boolean;
     include_host_ids?: Array<number> | null;
     include_label_ids?: Array<number> | null;
+    optional_install?: boolean;
     package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
-    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_id: number;
 };
 
@@ -1676,15 +1678,16 @@ export type MunkiDeploymentWritable = {
     created_at: string;
     exclude_host_ids: Array<number> | null;
     exclude_label_ids: Array<number> | null;
+    featured_item: boolean;
     id: number;
     include_host_ids: Array<number> | null;
     include_label_ids: Array<number> | null;
+    optional_install: boolean;
     package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
     position: number;
-    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_display_name: string;
     software_id: number;
     updated_at: string;
@@ -1695,11 +1698,12 @@ export type MunkiDeploymentMutationWritable = {
     all_hosts: boolean;
     exclude_host_ids?: Array<number> | null;
     exclude_label_ids?: Array<number> | null;
+    featured_item?: boolean;
     include_host_ids?: Array<number> | null;
     include_label_ids?: Array<number> | null;
+    optional_install?: boolean;
     package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
-    self_service: 'hidden' | 'available' | 'featured' | 'default';
     software_id: number;
 };
 

@@ -1953,6 +1953,8 @@ components:
           type:
             - array
             - "null"
+        featured_item:
+          type: boolean
         id:
           format: int64
           type: integer
@@ -1970,6 +1972,8 @@ components:
           type:
             - array
             - "null"
+        optional_install:
+          type: boolean
         package_selection:
           enum:
             - latest_eligible
@@ -1985,13 +1989,6 @@ components:
         position:
           format: int32
           type: integer
-        self_service:
-          enum:
-            - hidden
-            - available
-            - featured
-            - default
-          type: string
         software_display_name:
           type: string
         software_id:
@@ -2005,7 +2002,8 @@ components:
         - software_id
         - software_display_name
         - action
-        - self_service
+        - optional_install
+        - featured_item
         - package_selection
         - position
         - all_hosts
@@ -2049,6 +2047,8 @@ components:
           type:
             - array
             - "null"
+        featured_item:
+          type: boolean
         include_host_ids:
           items:
             format: int64
@@ -2063,6 +2063,8 @@ components:
           type:
             - array
             - "null"
+        optional_install:
+          type: boolean
         package_selection:
           enum:
             - latest_eligible
@@ -2071,20 +2073,12 @@ components:
         pinned_package_id:
           format: int64
           type: integer
-        self_service:
-          enum:
-            - hidden
-            - available
-            - featured
-            - default
-          type: string
         software_id:
           format: int64
           type: integer
       required:
         - software_id
         - action
-        - self_service
         - package_selection
         - all_hosts
       type: object

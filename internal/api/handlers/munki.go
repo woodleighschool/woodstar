@@ -312,7 +312,8 @@ type munkiPackageImportMutation struct {
 type munkiDeploymentMutation struct {
 	SoftwareID       int64                  `json:"software_id"`
 	Action           munki.DeploymentAction `json:"action"`
-	SelfService      munki.SelfServiceMode  `json:"self_service"`
+	OptionalInstall  bool                   `json:"optional_install,omitempty"`
+	FeaturedItem     bool                   `json:"featured_item,omitempty"`
 	PackageSelection munki.PackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                 `json:"pinned_package_id,omitempty"`
 	AllHosts         bool                   `json:"all_hosts"`
@@ -327,7 +328,8 @@ type munkiDeployment struct {
 	SoftwareID           int64                  `json:"software_id"`
 	SoftwareDisplayName  string                 `json:"software_display_name"`
 	Action               munki.DeploymentAction `json:"action"`
-	SelfService          munki.SelfServiceMode  `json:"self_service"`
+	OptionalInstall      bool                   `json:"optional_install"`
+	FeaturedItem         bool                   `json:"featured_item"`
 	PackageSelection     munki.PackageSelection `json:"package_selection"`
 	PinnedPackageID      *int64                 `json:"pinned_package_id,omitempty"`
 	PinnedPackageName    string                 `json:"pinned_package_name,omitempty"`
@@ -1036,7 +1038,8 @@ func munkiDeploymentFromDomain(deployment munki.Deployment) munkiDeployment {
 		SoftwareID:           deployment.SoftwareID,
 		SoftwareDisplayName:  deployment.SoftwareDisplayName,
 		Action:               deployment.Action,
-		SelfService:          deployment.SelfService,
+		OptionalInstall:      deployment.OptionalInstall,
+		FeaturedItem:         deployment.FeaturedItem,
 		PackageSelection:     deployment.PackageSelection,
 		PinnedPackageID:      deployment.PinnedPackageID,
 		PinnedPackageName:    deployment.PinnedPackageName,
@@ -1064,7 +1067,8 @@ func (body munkiDeploymentMutation) domain() munki.DeploymentMutation {
 	return munki.DeploymentMutation{
 		SoftwareID:       body.SoftwareID,
 		Action:           body.Action,
-		SelfService:      body.SelfService,
+		OptionalInstall:  body.OptionalInstall,
+		FeaturedItem:     body.FeaturedItem,
 		PackageSelection: body.PackageSelection,
 		PinnedPackageID:  body.PinnedPackageID,
 		AllHosts:         body.AllHosts,

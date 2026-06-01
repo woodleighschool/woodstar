@@ -52,7 +52,8 @@ const createMunkiDeployment = `-- name: CreateMunkiDeployment :one
 INSERT INTO munki_deployments (
     software_id,
     action,
-    self_service,
+    optional_install,
+    featured_item,
     package_selection,
     pinned_package_id,
     position,
@@ -61,23 +62,25 @@ INSERT INTO munki_deployments (
 VALUES (
     $1,
     $2::munki_deployment_action,
-    $3::munki_self_service_mode,
-    $4::munki_package_selection,
-    $5::bigint,
+    $3,
+    $4,
+    $5::munki_package_selection,
+    $6::bigint,
     (
         SELECT COALESCE(MAX(d.position) + 1, 0)
         FROM munki_deployments d
         WHERE d.software_id = $1
     ),
-    $6
+    $7
 )
-RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, self_service, package_selection, pinned_package_id
+RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, optional_install, featured_item, package_selection, pinned_package_id
 `
 
 type CreateMunkiDeploymentParams struct {
 	SoftwareID       int64                 `json:"software_id"`
 	Action           MunkiDeploymentAction `json:"action"`
-	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
 	AllHosts         bool                  `json:"all_hosts"`
@@ -87,7 +90,8 @@ func (q *Queries) CreateMunkiDeployment(ctx context.Context, arg CreateMunkiDepl
 	row := q.db.QueryRow(ctx, createMunkiDeployment,
 		arg.SoftwareID,
 		arg.Action,
-		arg.SelfService,
+		arg.OptionalInstall,
+		arg.FeaturedItem,
 		arg.PackageSelection,
 		arg.PinnedPackageID,
 		arg.AllHosts,
@@ -101,7 +105,8 @@ func (q *Queries) CreateMunkiDeployment(ctx context.Context, arg CreateMunkiDepl
 		&i.UpdatedAt,
 		&i.SoftwareID,
 		&i.Action,
-		&i.SelfService,
+		&i.OptionalInstall,
+		&i.FeaturedItem,
 		&i.PackageSelection,
 		&i.PinnedPackageID,
 	)
@@ -748,7 +753,8 @@ SELECT
     d.id AS deployment_id,
     d.software_id AS deployment_software_id,
     d.action,
-    d.self_service,
+    d.optional_install,
+    d.featured_item,
     d.package_selection,
     d.pinned_package_id,
     d.position,
@@ -845,7 +851,8 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	DeploymentID              int64                 `json:"deployment_id"`
 	DeploymentSoftwareID      int64                 `json:"deployment_software_id"`
 	Action                    MunkiDeploymentAction `json:"action"`
-	SelfService               MunkiSelfServiceMode  `json:"self_service"`
+	OptionalInstall           bool                  `json:"optional_install"`
+	FeaturedItem              bool                  `json:"featured_item"`
 	PackageSelection          MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID           *int64                `json:"pinned_package_id"`
 	Position                  int32                 `json:"position"`
@@ -897,7 +904,8 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.DeploymentID,
 			&i.DeploymentSoftwareID,
 			&i.Action,
-			&i.SelfService,
+			&i.OptionalInstall,
+			&i.FeaturedItem,
 			&i.PackageSelection,
 			&i.PinnedPackageID,
 			&i.Position,
@@ -1309,18 +1317,20 @@ const updateMunkiDeployment = `-- name: UpdateMunkiDeployment :one
 UPDATE munki_deployments
 SET
     action = $1::munki_deployment_action,
-    self_service = $2::munki_self_service_mode,
-    package_selection = $3::munki_package_selection,
-    pinned_package_id = $4::bigint,
-    all_hosts = $5,
+    optional_install = $2,
+    featured_item = $3,
+    package_selection = $4::munki_package_selection,
+    pinned_package_id = $5::bigint,
+    all_hosts = $6,
     updated_at = now()
-WHERE id = $6
-RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, self_service, package_selection, pinned_package_id
+WHERE id = $7
+RETURNING id, position, all_hosts, created_at, updated_at, software_id, action, optional_install, featured_item, package_selection, pinned_package_id
 `
 
 type UpdateMunkiDeploymentParams struct {
 	Action           MunkiDeploymentAction `json:"action"`
-	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
 	AllHosts         bool                  `json:"all_hosts"`
@@ -1330,7 +1340,8 @@ type UpdateMunkiDeploymentParams struct {
 func (q *Queries) UpdateMunkiDeployment(ctx context.Context, arg UpdateMunkiDeploymentParams) (MunkiDeployment, error) {
 	row := q.db.QueryRow(ctx, updateMunkiDeployment,
 		arg.Action,
-		arg.SelfService,
+		arg.OptionalInstall,
+		arg.FeaturedItem,
 		arg.PackageSelection,
 		arg.PinnedPackageID,
 		arg.AllHosts,
@@ -1345,7 +1356,8 @@ func (q *Queries) UpdateMunkiDeployment(ctx context.Context, arg UpdateMunkiDepl
 		&i.UpdatedAt,
 		&i.SoftwareID,
 		&i.Action,
-		&i.SelfService,
+		&i.OptionalInstall,
+		&i.FeaturedItem,
 		&i.PackageSelection,
 		&i.PinnedPackageID,
 	)

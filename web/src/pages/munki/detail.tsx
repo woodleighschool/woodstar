@@ -22,17 +22,10 @@ import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
 const actionLabels: Record<string, string> = {
-  install: "Install",
-  remove: "Remove",
-  update_if_present: "Update if present",
-  none: "No automatic action",
-};
-
-const selfServiceLabels: Record<string, string> = {
-  hidden: "Hidden",
-  available: "Available",
-  featured: "Featured",
-  default: "Default",
+  install: "Managed Installs",
+  remove: "Managed Uninstalls",
+  update_if_present: "Managed Updates",
+  none: "None",
 };
 
 const packageSelectionLabels: Record<string, string> = {
@@ -166,16 +159,15 @@ export function MunkiSoftwareTitleDetailPage() {
     {
       id: "action",
       accessorKey: "action",
-      header: "Action",
+      header: "Managed",
       enableSorting: false,
       cell: ({ row }) => actionLabels[row.original.action] ?? row.original.action,
     },
     {
-      id: "self_service",
-      accessorKey: "self_service",
-      header: "Self Service",
+      id: "msc",
+      header: "MSC",
       enableSorting: false,
-      cell: ({ row }) => selfServiceLabels[row.original.self_service] ?? row.original.self_service,
+      cell: ({ row }) => deploymentMSCSections(row.original).join(", ") || "None",
     },
     {
       id: "targets",
@@ -331,6 +323,13 @@ function deploymentPackageLabel(deployment: MunkiDeployment) {
       : "Pinned package";
   }
   return packageSelectionLabels[deployment.package_selection] ?? deployment.package_selection;
+}
+
+function deploymentMSCSections(deployment: MunkiDeployment) {
+  const sections: string[] = [];
+  if (deployment.optional_install) sections.push("Optional Installs");
+  if (deployment.featured_item) sections.push("Featured Items");
+  return sections;
 }
 
 function PackageIconView({ pkg }: { pkg: MunkiPackage }) {

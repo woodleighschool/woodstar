@@ -102,7 +102,7 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(restartActionValues...)
 }
 
-// DeploymentAction describes the automatic Munki manifest section for an assignment.
+// DeploymentAction describes the managed Munki manifest section for an assignment.
 type DeploymentAction string
 
 const (
@@ -121,27 +121,6 @@ var deploymentActionValues = []DeploymentAction{
 
 func (DeploymentAction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(deploymentActionValues...)
-}
-
-// SelfServiceMode describes how Munki should present an assignment in Managed Software Center.
-type SelfServiceMode string
-
-const (
-	SelfServiceHidden    SelfServiceMode = "hidden"
-	SelfServiceAvailable SelfServiceMode = "available"
-	SelfServiceFeatured  SelfServiceMode = "featured"
-	SelfServiceDefault   SelfServiceMode = "default"
-)
-
-var selfServiceModeValues = []SelfServiceMode{
-	SelfServiceHidden,
-	SelfServiceAvailable,
-	SelfServiceFeatured,
-	SelfServiceDefault,
-}
-
-func (SelfServiceMode) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(selfServiceModeValues...)
 }
 
 // PackageSelection describes whether an assignment follows latest compatible pkginfos or pins one pkginfo.
@@ -307,7 +286,8 @@ type Artifact struct {
 type DeploymentMutation struct {
 	SoftwareID       int64            `json:"software_id"`
 	Action           DeploymentAction `json:"action"`
-	SelfService      SelfServiceMode  `json:"self_service"`
+	OptionalInstall  bool             `json:"optional_install,omitempty"`
+	FeaturedItem     bool             `json:"featured_item,omitempty"`
 	PackageSelection PackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64           `json:"pinned_package_id,omitempty"`
 	AllHosts         bool             `json:"all_hosts"`
@@ -323,7 +303,8 @@ type Deployment struct {
 	SoftwareID           int64            `json:"software_id"`
 	SoftwareDisplayName  string           `json:"software_display_name"`
 	Action               DeploymentAction `json:"action"`
-	SelfService          SelfServiceMode  `json:"self_service"`
+	OptionalInstall      bool             `json:"optional_install"`
+	FeaturedItem         bool             `json:"featured_item"`
 	PackageSelection     PackageSelection `json:"package_selection"`
 	PinnedPackageID      *int64           `json:"pinned_package_id,omitempty"`
 	PinnedPackageName    string           `json:"pinned_package_name,omitempty"`
@@ -343,7 +324,8 @@ type EffectivePackage struct {
 	DeploymentID     int64
 	SoftwareID       int64
 	Action           DeploymentAction
-	SelfService      SelfServiceMode
+	OptionalInstall  bool
+	FeaturedItem     bool
 	PackageSelection PackageSelection
 	PinnedPackageID  *int64
 	Position         int32
@@ -508,9 +490,6 @@ func (m DeploymentMutation) Validate() error {
 	if !validDeploymentAction(m.Action) {
 		return fmt.Errorf("%w: unsupported deployment action %q", dbutil.ErrInvalidInput, m.Action)
 	}
-	if !validSelfServiceMode(m.SelfService) {
-		return fmt.Errorf("%w: unsupported self_service %q", dbutil.ErrInvalidInput, m.SelfService)
-	}
 	if !validPackageSelection(m.PackageSelection) {
 		return fmt.Errorf(
 			"%w: unsupported package_selection %q",
@@ -531,8 +510,14 @@ func (m DeploymentMutation) Validate() error {
 			return fmt.Errorf("%w: pinned_package_id is required", dbutil.ErrInvalidInput)
 		}
 	}
-	if m.Action == DeploymentActionRemove && m.SelfService != SelfServiceHidden {
-		return fmt.Errorf("%w: remove assignments cannot be shown in Self Service", dbutil.ErrInvalidInput)
+	if m.FeaturedItem && !m.OptionalInstall {
+		return fmt.Errorf("%w: featured_item requires optional_install", dbutil.ErrInvalidInput)
+	}
+	if m.Action == DeploymentActionRemove && (m.OptionalInstall || m.FeaturedItem) {
+		return fmt.Errorf(
+			"%w: remove assignments cannot be optional_installs or featured_items",
+			dbutil.ErrInvalidInput,
+		)
 	}
 	if !m.AllHosts && len(m.IncludeLabelIDs) == 0 && len(m.IncludeHostIDs) == 0 {
 		return fmt.Errorf("%w: deployment scope is required", dbutil.ErrInvalidInput)
@@ -542,10 +527,6 @@ func (m DeploymentMutation) Validate() error {
 
 func validDeploymentAction(action DeploymentAction) bool {
 	return slices.Contains(deploymentActionValues, action)
-}
-
-func validSelfServiceMode(mode SelfServiceMode) bool {
-	return slices.Contains(selfServiceModeValues, mode)
 }
 
 func validPackageSelection(selection PackageSelection) bool {

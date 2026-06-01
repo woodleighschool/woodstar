@@ -313,50 +313,6 @@ func (ns NullMunkiPackageSelection) Value() (driver.Value, error) {
 	return string(ns.MunkiPackageSelection), nil
 }
 
-type MunkiSelfServiceMode string
-
-const (
-	MunkiSelfServiceModeHidden    MunkiSelfServiceMode = "hidden"
-	MunkiSelfServiceModeAvailable MunkiSelfServiceMode = "available"
-	MunkiSelfServiceModeFeatured  MunkiSelfServiceMode = "featured"
-	MunkiSelfServiceModeDefault   MunkiSelfServiceMode = "default"
-)
-
-func (e *MunkiSelfServiceMode) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MunkiSelfServiceMode(s)
-	case string:
-		*e = MunkiSelfServiceMode(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MunkiSelfServiceMode: %T", src)
-	}
-	return nil
-}
-
-type NullMunkiSelfServiceMode struct {
-	MunkiSelfServiceMode MunkiSelfServiceMode `json:"munki_self_service_mode"`
-	Valid                bool                 `json:"valid"` // Valid is true if MunkiSelfServiceMode is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMunkiSelfServiceMode) Scan(value interface{}) error {
-	if value == nil {
-		ns.MunkiSelfServiceMode, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MunkiSelfServiceMode.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMunkiSelfServiceMode) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MunkiSelfServiceMode), nil
-}
-
 type SantaClientMode string
 
 const (
@@ -1003,7 +959,8 @@ type MunkiDeployment struct {
 	UpdatedAt        time.Time             `json:"updated_at"`
 	SoftwareID       int64                 `json:"software_id"`
 	Action           MunkiDeploymentAction `json:"action"`
-	SelfService      MunkiSelfServiceMode  `json:"self_service"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
 }

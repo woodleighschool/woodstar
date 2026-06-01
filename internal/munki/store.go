@@ -477,7 +477,8 @@ func (s *Store) CreateDeployment(ctx context.Context, params DeploymentMutation)
 		row, err = q.CreateMunkiDeployment(ctx, sqlc.CreateMunkiDeploymentParams{
 			SoftwareID:       params.SoftwareID,
 			Action:           sqlc.MunkiDeploymentAction(params.Action),
-			SelfService:      sqlc.MunkiSelfServiceMode(params.SelfService),
+			OptionalInstall:  params.OptionalInstall,
+			FeaturedItem:     params.FeaturedItem,
 			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
 			PinnedPackageID:  params.PinnedPackageID,
 			AllHosts:         params.AllHosts,
@@ -513,7 +514,8 @@ func (s *Store) UpdateDeployment(ctx context.Context, id int64, params Deploymen
 		row, err = q.UpdateMunkiDeployment(ctx, sqlc.UpdateMunkiDeploymentParams{
 			ID:               id,
 			Action:           sqlc.MunkiDeploymentAction(params.Action),
-			SelfService:      sqlc.MunkiSelfServiceMode(params.SelfService),
+			OptionalInstall:  params.OptionalInstall,
+			FeaturedItem:     params.FeaturedItem,
 			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
 			PinnedPackageID:  params.PinnedPackageID,
 			AllHosts:         params.AllHosts,
@@ -641,7 +643,8 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			DeploymentID:     row.DeploymentID,
 			SoftwareID:       row.DeploymentSoftwareID,
 			Action:           DeploymentAction(row.Action),
-			SelfService:      SelfServiceMode(row.SelfService),
+			OptionalInstall:  row.OptionalInstall,
+			FeaturedItem:     row.FeaturedItem,
 			PackageSelection: PackageSelection(row.PackageSelection),
 			PinnedPackageID:  row.PinnedPackageID,
 			Position:         row.Position,
@@ -884,10 +887,6 @@ func cleanDeploymentMutation(params DeploymentMutation) DeploymentMutation {
 	if params.Action == "" {
 		params.Action = DeploymentActionInstall
 	}
-	params.SelfService = SelfServiceMode(strings.TrimSpace(string(params.SelfService)))
-	if params.SelfService == "" {
-		params.SelfService = SelfServiceHidden
-	}
 	params.PackageSelection = PackageSelection(strings.TrimSpace(string(params.PackageSelection)))
 	if params.PackageSelection == "" {
 		params.PackageSelection = PackageSelectionLatestEligible
@@ -1034,7 +1033,8 @@ func deploymentFromRecord(row deploymentRecord) Deployment {
 		SoftwareID:           row.SoftwareID,
 		SoftwareDisplayName:  row.SoftwareDisplayName,
 		Action:               DeploymentAction(row.Action),
-		SelfService:          SelfServiceMode(row.SelfService),
+		OptionalInstall:      row.OptionalInstall,
+		FeaturedItem:         row.FeaturedItem,
 		PackageSelection:     PackageSelection(row.PackageSelection),
 		PinnedPackageID:      row.PinnedPackageID,
 		PinnedPackageName:    stringPtrValue(row.PinnedPackageName),
@@ -1229,7 +1229,6 @@ func deploymentListWhere(params DeploymentListParams) (string, []any) {
 			OR s.name ILIKE ` + search + `
 			OR s.display_name ILIKE ` + search + `
 			OR d.action::text ILIKE ` + search + `
-			OR d.self_service::text ILIKE ` + search + `
 			OR d.package_selection::text ILIKE ` + search + `
 		)`)
 	}
@@ -1247,11 +1246,12 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 
 func deploymentOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"position":     {SQL: "d.position"},
-		"name":         {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
-		"action":       {SQL: "d.action"},
-		"self_service": {SQL: "d.self_service"},
-		"updated_at":   {SQL: "d.updated_at"},
+		"position":   {SQL: "d.position"},
+		"name":       {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
+		"action":     {SQL: "d.action"},
+		"optional":   {SQL: "d.optional_install"},
+		"featured":   {SQL: "d.featured_item"},
+		"updated_at": {SQL: "d.updated_at"},
 	}
 }
 
@@ -1298,7 +1298,8 @@ type deploymentRecord struct {
 	SoftwareID           int64
 	SoftwareDisplayName  string
 	Action               sqlc.MunkiDeploymentAction
-	SelfService          sqlc.MunkiSelfServiceMode
+	OptionalInstall      bool
+	FeaturedItem         bool
 	PackageSelection     sqlc.MunkiPackageSelection
 	PinnedPackageID      *int64
 	PinnedPackageName    *string
@@ -1447,7 +1448,8 @@ SELECT
 	d.software_id,
 	COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
 	d.action,
-	d.self_service,
+	d.optional_install,
+	d.featured_item,
 	d.package_selection,
 	d.pinned_package_id,
 	p.name AS pinned_package_name,
