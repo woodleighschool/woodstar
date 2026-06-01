@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 const clearMunkiHostStatus = `-- name: ClearMunkiHostStatus :exec
@@ -30,30 +31,6 @@ FROM munki_artifacts
 
 func (q *Queries) CountMunkiArtifacts(ctx context.Context) (int32, error) {
 	row := q.db.QueryRow(ctx, countMunkiArtifacts)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
-const countMunkiAssignments = `-- name: CountMunkiAssignments :one
-SELECT COUNT(*)::integer
-FROM munki_assignments
-`
-
-func (q *Queries) CountMunkiAssignments(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, countMunkiAssignments)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
-const countMunkiReleases = `-- name: CountMunkiReleases :one
-SELECT COUNT(*)::integer
-FROM munki_releases
-`
-
-func (q *Queries) CountMunkiReleases(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, countMunkiReleases)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -129,33 +106,45 @@ func (q *Queries) CreateMunkiArtifact(ctx context.Context, arg CreateMunkiArtifa
 	return i, err
 }
 
-const createMunkiAssignment = `-- name: CreateMunkiAssignment :one
-INSERT INTO munki_assignments (
-    release_id,
+const createMunkiDeployment = `-- name: CreateMunkiDeployment :one
+INSERT INTO munki_deployments (
+    package_id,
     intent,
+    position,
     all_hosts
 )
 VALUES (
     $1,
-    $2::munki_assignment_intent,
+    $2::munki_deployment_intent,
+    (
+        SELECT COALESCE(MAX(d.position) + 1, 0)
+        FROM munki_deployments d
+        JOIN munki_packages p ON p.id = d.package_id
+        WHERE p.software_id = (
+            SELECT software_id
+            FROM munki_packages
+            WHERE id = $1
+        )
+    ),
     $3
 )
-RETURNING id, release_id, intent, all_hosts, created_at, updated_at
+RETURNING id, package_id, intent, position, all_hosts, created_at, updated_at
 `
 
-type CreateMunkiAssignmentParams struct {
-	ReleaseID int64                 `json:"release_id"`
-	Intent    MunkiAssignmentIntent `json:"intent"`
+type CreateMunkiDeploymentParams struct {
+	PackageID int64                 `json:"package_id"`
+	Intent    MunkiDeploymentIntent `json:"intent"`
 	AllHosts  bool                  `json:"all_hosts"`
 }
 
-func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssignmentParams) (MunkiAssignment, error) {
-	row := q.db.QueryRow(ctx, createMunkiAssignment, arg.ReleaseID, arg.Intent, arg.AllHosts)
-	var i MunkiAssignment
+func (q *Queries) CreateMunkiDeployment(ctx context.Context, arg CreateMunkiDeploymentParams) (MunkiDeployment, error) {
+	row := q.db.QueryRow(ctx, createMunkiDeployment, arg.PackageID, arg.Intent, arg.AllHosts)
+	var i MunkiDeployment
 	err := row.Scan(
 		&i.ID,
-		&i.ReleaseID,
+		&i.PackageID,
 		&i.Intent,
+		&i.Position,
 		&i.AllHosts,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -163,13 +152,16 @@ func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssi
 	return i, err
 }
 
-const createMunkiRelease = `-- name: CreateMunkiRelease :one
-INSERT INTO munki_releases (
+const createMunkiPackage = `-- name: CreateMunkiPackage :one
+INSERT INTO munki_packages (
     software_id,
     name,
     version,
     display_name,
-    pkginfo,
+    description,
+    category,
+    developer,
+    metadata,
     installer_artifact_id,
     eligible
 )
@@ -178,41 +170,53 @@ VALUES (
     $2,
     $3,
     $4,
-    $5::jsonb,
-    $6::bigint,
-    $7
+    $5,
+    $6,
+    $7,
+    $8::jsonb,
+    $9::bigint,
+    $10
 )
-RETURNING id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
+RETURNING id, software_id, name, version, display_name, description, category, developer, metadata, eligible, created_at, updated_at, installer_artifact_id
 `
 
-type CreateMunkiReleaseParams struct {
+type CreateMunkiPackageParams struct {
 	SoftwareID          int64  `json:"software_id"`
 	Name                string `json:"name"`
 	Version             string `json:"version"`
 	DisplayName         string `json:"display_name"`
-	Pkginfo             []byte `json:"pkginfo"`
+	Description         string `json:"description"`
+	Category            string `json:"category"`
+	Developer           string `json:"developer"`
+	Metadata            []byte `json:"metadata"`
 	InstallerArtifactID *int64 `json:"installer_artifact_id"`
 	Eligible            bool   `json:"eligible"`
 }
 
-func (q *Queries) CreateMunkiRelease(ctx context.Context, arg CreateMunkiReleaseParams) (MunkiRelease, error) {
-	row := q.db.QueryRow(ctx, createMunkiRelease,
+func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackageParams) (MunkiPackage, error) {
+	row := q.db.QueryRow(ctx, createMunkiPackage,
 		arg.SoftwareID,
 		arg.Name,
 		arg.Version,
 		arg.DisplayName,
-		arg.Pkginfo,
+		arg.Description,
+		arg.Category,
+		arg.Developer,
+		arg.Metadata,
 		arg.InstallerArtifactID,
 		arg.Eligible,
 	)
-	var i MunkiRelease
+	var i MunkiPackage
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
 		&i.Name,
 		&i.Version,
 		&i.DisplayName,
-		&i.Pkginfo,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.Metadata,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -370,30 +374,61 @@ func (q *Queries) GetMunkiHostStatus(ctx context.Context, arg GetMunkiHostStatus
 	return i, err
 }
 
-const getMunkiReleaseByID = `-- name: GetMunkiReleaseByID :one
-SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
-FROM munki_releases
-WHERE id = $1
+const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
+SELECT
+    p.id, p.software_id, p.name, p.version, p.display_name, p.description, p.category, p.developer, p.metadata, p.eligible, p.created_at, p.updated_at, p.installer_artifact_id,
+    s.name AS software_name,
+    s.display_name AS software_display_name,
+    art.location AS installer_artifact_location
+FROM munki_packages p
+JOIN munki_software_titles s ON s.id = p.software_id
+LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+WHERE p.id = $1
 `
 
-type GetMunkiReleaseByIDParams struct {
+type GetMunkiPackageByIDParams struct {
 	ID int64 `json:"id"`
 }
 
-func (q *Queries) GetMunkiReleaseByID(ctx context.Context, arg GetMunkiReleaseByIDParams) (MunkiRelease, error) {
-	row := q.db.QueryRow(ctx, getMunkiReleaseByID, arg.ID)
-	var i MunkiRelease
+type GetMunkiPackageByIDRow struct {
+	ID                        int64     `json:"id"`
+	SoftwareID                int64     `json:"software_id"`
+	Name                      string    `json:"name"`
+	Version                   string    `json:"version"`
+	DisplayName               string    `json:"display_name"`
+	Description               string    `json:"description"`
+	Category                  string    `json:"category"`
+	Developer                 string    `json:"developer"`
+	Metadata                  []byte    `json:"metadata"`
+	Eligible                  bool      `json:"eligible"`
+	CreatedAt                 time.Time `json:"created_at"`
+	UpdatedAt                 time.Time `json:"updated_at"`
+	InstallerArtifactID       *int64    `json:"installer_artifact_id"`
+	SoftwareName              string    `json:"software_name"`
+	SoftwareDisplayName       string    `json:"software_display_name"`
+	InstallerArtifactLocation *string   `json:"installer_artifact_location"`
+}
+
+func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageByIDParams) (GetMunkiPackageByIDRow, error) {
+	row := q.db.QueryRow(ctx, getMunkiPackageByID, arg.ID)
+	var i GetMunkiPackageByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
 		&i.Name,
 		&i.Version,
 		&i.DisplayName,
-		&i.Pkginfo,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.Metadata,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.InstallerArtifactID,
+		&i.SoftwareName,
+		&i.SoftwareDisplayName,
+		&i.InstallerArtifactLocation,
 	)
 	return i, err
 }
@@ -424,75 +459,75 @@ func (q *Queries) GetMunkiSoftwareTitleByID(ctx context.Context, arg GetMunkiSof
 	return i, err
 }
 
-const insertMunkiAssignmentExcludeHosts = `-- name: InsertMunkiAssignmentExcludeHosts :exec
-INSERT INTO munki_assignment_exclude_hosts (
-    assignment_id,
+const insertMunkiDeploymentExcludeHosts = `-- name: InsertMunkiDeploymentExcludeHosts :exec
+INSERT INTO munki_deployment_exclude_hosts (
+    deployment_id,
     host_id
 )
 SELECT $1, unnest($2::bigint[])
 `
 
-type InsertMunkiAssignmentExcludeHostsParams struct {
-	AssignmentID int64   `json:"assignment_id"`
+type InsertMunkiDeploymentExcludeHostsParams struct {
+	DeploymentID int64   `json:"deployment_id"`
 	HostIds      []int64 `json:"host_ids"`
 }
 
-func (q *Queries) InsertMunkiAssignmentExcludeHosts(ctx context.Context, arg InsertMunkiAssignmentExcludeHostsParams) error {
-	_, err := q.db.Exec(ctx, insertMunkiAssignmentExcludeHosts, arg.AssignmentID, arg.HostIds)
+func (q *Queries) InsertMunkiDeploymentExcludeHosts(ctx context.Context, arg InsertMunkiDeploymentExcludeHostsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiDeploymentExcludeHosts, arg.DeploymentID, arg.HostIds)
 	return err
 }
 
-const insertMunkiAssignmentExcludeLabels = `-- name: InsertMunkiAssignmentExcludeLabels :exec
-INSERT INTO munki_assignment_exclude_labels (
-    assignment_id,
+const insertMunkiDeploymentExcludeLabels = `-- name: InsertMunkiDeploymentExcludeLabels :exec
+INSERT INTO munki_deployment_exclude_labels (
+    deployment_id,
     label_id
 )
 SELECT $1, unnest($2::bigint[])
 `
 
-type InsertMunkiAssignmentExcludeLabelsParams struct {
-	AssignmentID int64   `json:"assignment_id"`
+type InsertMunkiDeploymentExcludeLabelsParams struct {
+	DeploymentID int64   `json:"deployment_id"`
 	LabelIds     []int64 `json:"label_ids"`
 }
 
-func (q *Queries) InsertMunkiAssignmentExcludeLabels(ctx context.Context, arg InsertMunkiAssignmentExcludeLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertMunkiAssignmentExcludeLabels, arg.AssignmentID, arg.LabelIds)
+func (q *Queries) InsertMunkiDeploymentExcludeLabels(ctx context.Context, arg InsertMunkiDeploymentExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiDeploymentExcludeLabels, arg.DeploymentID, arg.LabelIds)
 	return err
 }
 
-const insertMunkiAssignmentIncludeHosts = `-- name: InsertMunkiAssignmentIncludeHosts :exec
-INSERT INTO munki_assignment_include_hosts (
-    assignment_id,
+const insertMunkiDeploymentIncludeHosts = `-- name: InsertMunkiDeploymentIncludeHosts :exec
+INSERT INTO munki_deployment_include_hosts (
+    deployment_id,
     host_id
 )
 SELECT $1, unnest($2::bigint[])
 `
 
-type InsertMunkiAssignmentIncludeHostsParams struct {
-	AssignmentID int64   `json:"assignment_id"`
+type InsertMunkiDeploymentIncludeHostsParams struct {
+	DeploymentID int64   `json:"deployment_id"`
 	HostIds      []int64 `json:"host_ids"`
 }
 
-func (q *Queries) InsertMunkiAssignmentIncludeHosts(ctx context.Context, arg InsertMunkiAssignmentIncludeHostsParams) error {
-	_, err := q.db.Exec(ctx, insertMunkiAssignmentIncludeHosts, arg.AssignmentID, arg.HostIds)
+func (q *Queries) InsertMunkiDeploymentIncludeHosts(ctx context.Context, arg InsertMunkiDeploymentIncludeHostsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiDeploymentIncludeHosts, arg.DeploymentID, arg.HostIds)
 	return err
 }
 
-const insertMunkiAssignmentIncludeLabels = `-- name: InsertMunkiAssignmentIncludeLabels :exec
-INSERT INTO munki_assignment_include_labels (
-    assignment_id,
+const insertMunkiDeploymentIncludeLabels = `-- name: InsertMunkiDeploymentIncludeLabels :exec
+INSERT INTO munki_deployment_include_labels (
+    deployment_id,
     label_id
 )
 SELECT $1, unnest($2::bigint[])
 `
 
-type InsertMunkiAssignmentIncludeLabelsParams struct {
-	AssignmentID int64   `json:"assignment_id"`
+type InsertMunkiDeploymentIncludeLabelsParams struct {
+	DeploymentID int64   `json:"deployment_id"`
 	LabelIds     []int64 `json:"label_ids"`
 }
 
-func (q *Queries) InsertMunkiAssignmentIncludeLabels(ctx context.Context, arg InsertMunkiAssignmentIncludeLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertMunkiAssignmentIncludeLabels, arg.AssignmentID, arg.LabelIds)
+func (q *Queries) InsertMunkiDeploymentIncludeLabels(ctx context.Context, arg InsertMunkiDeploymentIncludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiDeploymentIncludeLabels, arg.DeploymentID, arg.LabelIds)
 	return err
 }
 
@@ -540,101 +575,113 @@ func (q *Queries) InsertMunkiHostItem(ctx context.Context, arg InsertMunkiHostIt
 	return err
 }
 
-const listEffectiveMunkiReleasesForHost = `-- name: ListEffectiveMunkiReleasesForHost :many
+const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
-    a.id AS assignment_id,
-    a.intent,
-    r.id AS release_id,
-    r.software_id,
-    r.name,
-    r.version,
-    r.display_name,
-    r.pkginfo,
-    r.installer_artifact_id,
+    d.id AS deployment_id,
+    d.intent,
+    d.position,
+    p.id AS package_id,
+    p.software_id,
+    p.name,
+    p.version,
+    p.display_name,
+    p.description,
+    p.category,
+    p.developer,
+    p.metadata,
+    p.installer_artifact_id,
     art.location AS installer_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
-            FROM munki_assignment_include_hosts ih
-            WHERE ih.assignment_id = a.id AND ih.host_id = $1
+            FROM munki_deployment_include_hosts ih
+            WHERE ih.deployment_id = d.id AND ih.host_id = $1
         ) THEN 30
         WHEN EXISTS (
             SELECT 1
-            FROM munki_assignment_include_labels il
+            FROM munki_deployment_include_labels il
             JOIN label_membership lm ON lm.label_id = il.label_id
-            WHERE il.assignment_id = a.id AND lm.host_id = $1
+            WHERE il.deployment_id = d.id AND lm.host_id = $1
         ) THEN 20
-        WHEN a.all_hosts THEN 10
+        WHEN d.all_hosts THEN 10
         ELSE 0
     END AS scope_rank
-FROM munki_assignments a
-JOIN munki_releases r ON r.id = a.release_id
-LEFT JOIN munki_artifacts art ON art.id = r.installer_artifact_id
-WHERE r.eligible
+FROM munki_deployments d
+JOIN munki_packages p ON p.id = d.package_id
+LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+WHERE p.eligible
   AND (
-    a.all_hosts
+    d.all_hosts
     OR EXISTS (
       SELECT 1
-      FROM munki_assignment_include_hosts ih
-      WHERE ih.assignment_id = a.id AND ih.host_id = $1
+      FROM munki_deployment_include_hosts ih
+      WHERE ih.deployment_id = d.id AND ih.host_id = $1
     )
     OR EXISTS (
       SELECT 1
-      FROM munki_assignment_include_labels il
+      FROM munki_deployment_include_labels il
       JOIN label_membership lm ON lm.label_id = il.label_id
-      WHERE il.assignment_id = a.id AND lm.host_id = $1
+      WHERE il.deployment_id = d.id AND lm.host_id = $1
     )
   )
   AND NOT EXISTS (
     SELECT 1
-    FROM munki_assignment_exclude_hosts eh
-    WHERE eh.assignment_id = a.id AND eh.host_id = $1
+    FROM munki_deployment_exclude_hosts eh
+    WHERE eh.deployment_id = d.id AND eh.host_id = $1
   )
   AND NOT EXISTS (
     SELECT 1
-    FROM munki_assignment_exclude_labels el
+    FROM munki_deployment_exclude_labels el
     JOIN label_membership lm ON lm.label_id = el.label_id
-    WHERE el.assignment_id = a.id AND lm.host_id = $1
+    WHERE el.deployment_id = d.id AND lm.host_id = $1
   )
-ORDER BY lower(r.name), r.id, a.id
+ORDER BY lower(p.name), d.position, d.id
 `
 
-type ListEffectiveMunkiReleasesForHostParams struct {
+type ListEffectiveMunkiPackagesForHostParams struct {
 	HostID int64 `json:"host_id"`
 }
 
-type ListEffectiveMunkiReleasesForHostRow struct {
-	AssignmentID              int64                 `json:"assignment_id"`
-	Intent                    MunkiAssignmentIntent `json:"intent"`
-	ReleaseID                 int64                 `json:"release_id"`
+type ListEffectiveMunkiPackagesForHostRow struct {
+	DeploymentID              int64                 `json:"deployment_id"`
+	Intent                    MunkiDeploymentIntent `json:"intent"`
+	Position                  int32                 `json:"position"`
+	PackageID                 int64                 `json:"package_id"`
 	SoftwareID                int64                 `json:"software_id"`
 	Name                      string                `json:"name"`
 	Version                   string                `json:"version"`
 	DisplayName               string                `json:"display_name"`
-	Pkginfo                   []byte                `json:"pkginfo"`
+	Description               string                `json:"description"`
+	Category                  string                `json:"category"`
+	Developer                 string                `json:"developer"`
+	Metadata                  []byte                `json:"metadata"`
 	InstallerArtifactID       *int64                `json:"installer_artifact_id"`
 	InstallerArtifactLocation *string               `json:"installer_artifact_location"`
 	ScopeRank                 int32                 `json:"scope_rank"`
 }
 
-func (q *Queries) ListEffectiveMunkiReleasesForHost(ctx context.Context, arg ListEffectiveMunkiReleasesForHostParams) ([]ListEffectiveMunkiReleasesForHostRow, error) {
-	rows, err := q.db.Query(ctx, listEffectiveMunkiReleasesForHost, arg.HostID)
+func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg ListEffectiveMunkiPackagesForHostParams) ([]ListEffectiveMunkiPackagesForHostRow, error) {
+	rows, err := q.db.Query(ctx, listEffectiveMunkiPackagesForHost, arg.HostID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListEffectiveMunkiReleasesForHostRow{}
+	items := []ListEffectiveMunkiPackagesForHostRow{}
 	for rows.Next() {
-		var i ListEffectiveMunkiReleasesForHostRow
+		var i ListEffectiveMunkiPackagesForHostRow
 		if err := rows.Scan(
-			&i.AssignmentID,
+			&i.DeploymentID,
 			&i.Intent,
-			&i.ReleaseID,
+			&i.Position,
+			&i.PackageID,
 			&i.SoftwareID,
 			&i.Name,
 			&i.Version,
 			&i.DisplayName,
-			&i.Pkginfo,
+			&i.Description,
+			&i.Category,
+			&i.Developer,
+			&i.Metadata,
 			&i.InstallerArtifactID,
 			&i.InstallerArtifactLocation,
 			&i.ScopeRank,
@@ -692,19 +739,19 @@ func (q *Queries) ListMunkiArtifacts(ctx context.Context, arg ListMunkiArtifacts
 	return items, nil
 }
 
-const listMunkiAssignmentExcludeHostIDs = `-- name: ListMunkiAssignmentExcludeHostIDs :many
+const listMunkiDeploymentExcludeHostIDs = `-- name: ListMunkiDeploymentExcludeHostIDs :many
 SELECT host_id
-FROM munki_assignment_exclude_hosts
-WHERE assignment_id = $1
+FROM munki_deployment_exclude_hosts
+WHERE deployment_id = $1
 ORDER BY host_id
 `
 
-type ListMunkiAssignmentExcludeHostIDsParams struct {
-	AssignmentID int64 `json:"assignment_id"`
+type ListMunkiDeploymentExcludeHostIDsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
 }
 
-func (q *Queries) ListMunkiAssignmentExcludeHostIDs(ctx context.Context, arg ListMunkiAssignmentExcludeHostIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentExcludeHostIDs, arg.AssignmentID)
+func (q *Queries) ListMunkiDeploymentExcludeHostIDs(ctx context.Context, arg ListMunkiDeploymentExcludeHostIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentExcludeHostIDs, arg.DeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -723,19 +770,19 @@ func (q *Queries) ListMunkiAssignmentExcludeHostIDs(ctx context.Context, arg Lis
 	return items, nil
 }
 
-const listMunkiAssignmentExcludeLabelIDs = `-- name: ListMunkiAssignmentExcludeLabelIDs :many
+const listMunkiDeploymentExcludeLabelIDs = `-- name: ListMunkiDeploymentExcludeLabelIDs :many
 SELECT label_id
-FROM munki_assignment_exclude_labels
-WHERE assignment_id = $1
+FROM munki_deployment_exclude_labels
+WHERE deployment_id = $1
 ORDER BY label_id
 `
 
-type ListMunkiAssignmentExcludeLabelIDsParams struct {
-	AssignmentID int64 `json:"assignment_id"`
+type ListMunkiDeploymentExcludeLabelIDsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
 }
 
-func (q *Queries) ListMunkiAssignmentExcludeLabelIDs(ctx context.Context, arg ListMunkiAssignmentExcludeLabelIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentExcludeLabelIDs, arg.AssignmentID)
+func (q *Queries) ListMunkiDeploymentExcludeLabelIDs(ctx context.Context, arg ListMunkiDeploymentExcludeLabelIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentExcludeLabelIDs, arg.DeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -754,19 +801,51 @@ func (q *Queries) ListMunkiAssignmentExcludeLabelIDs(ctx context.Context, arg Li
 	return items, nil
 }
 
-const listMunkiAssignmentIncludeHostIDs = `-- name: ListMunkiAssignmentIncludeHostIDs :many
+const listMunkiDeploymentIDsBySoftware = `-- name: ListMunkiDeploymentIDsBySoftware :many
+SELECT d.id
+FROM munki_deployments d
+JOIN munki_packages p ON p.id = d.package_id
+WHERE p.software_id = $1
+ORDER BY d.position, d.id
+`
+
+type ListMunkiDeploymentIDsBySoftwareParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+func (q *Queries) ListMunkiDeploymentIDsBySoftware(ctx context.Context, arg ListMunkiDeploymentIDsBySoftwareParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentIDsBySoftware, arg.SoftwareID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMunkiDeploymentIncludeHostIDs = `-- name: ListMunkiDeploymentIncludeHostIDs :many
 SELECT host_id
-FROM munki_assignment_include_hosts
-WHERE assignment_id = $1
+FROM munki_deployment_include_hosts
+WHERE deployment_id = $1
 ORDER BY host_id
 `
 
-type ListMunkiAssignmentIncludeHostIDsParams struct {
-	AssignmentID int64 `json:"assignment_id"`
+type ListMunkiDeploymentIncludeHostIDsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
 }
 
-func (q *Queries) ListMunkiAssignmentIncludeHostIDs(ctx context.Context, arg ListMunkiAssignmentIncludeHostIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentIncludeHostIDs, arg.AssignmentID)
+func (q *Queries) ListMunkiDeploymentIncludeHostIDs(ctx context.Context, arg ListMunkiDeploymentIncludeHostIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentIncludeHostIDs, arg.DeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -785,19 +864,19 @@ func (q *Queries) ListMunkiAssignmentIncludeHostIDs(ctx context.Context, arg Lis
 	return items, nil
 }
 
-const listMunkiAssignmentIncludeLabelIDs = `-- name: ListMunkiAssignmentIncludeLabelIDs :many
+const listMunkiDeploymentIncludeLabelIDs = `-- name: ListMunkiDeploymentIncludeLabelIDs :many
 SELECT label_id
-FROM munki_assignment_include_labels
-WHERE assignment_id = $1
+FROM munki_deployment_include_labels
+WHERE deployment_id = $1
 ORDER BY label_id
 `
 
-type ListMunkiAssignmentIncludeLabelIDsParams struct {
-	AssignmentID int64 `json:"assignment_id"`
+type ListMunkiDeploymentIncludeLabelIDsParams struct {
+	DeploymentID int64 `json:"deployment_id"`
 }
 
-func (q *Queries) ListMunkiAssignmentIncludeLabelIDs(ctx context.Context, arg ListMunkiAssignmentIncludeLabelIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentIncludeLabelIDs, arg.AssignmentID)
+func (q *Queries) ListMunkiDeploymentIncludeLabelIDs(ctx context.Context, arg ListMunkiDeploymentIncludeLabelIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentIncludeLabelIDs, arg.DeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -816,35 +895,45 @@ func (q *Queries) ListMunkiAssignmentIncludeLabelIDs(ctx context.Context, arg Li
 	return items, nil
 }
 
-const listMunkiAssignments = `-- name: ListMunkiAssignments :many
-SELECT id, release_id, intent, all_hosts, created_at, updated_at
-FROM munki_assignments
-ORDER BY id
-LIMIT $2 OFFSET $1
+const listMunkiDeploymentScopeIDs = `-- name: ListMunkiDeploymentScopeIDs :many
+SELECT deployment_id, 'include_label' AS scope, label_id AS id
+FROM munki_deployment_include_labels
+WHERE deployment_id = ANY($1::bigint[])
+UNION ALL
+SELECT deployment_id, 'exclude_label' AS scope, label_id AS id
+FROM munki_deployment_exclude_labels
+WHERE deployment_id = ANY($1::bigint[])
+UNION ALL
+SELECT deployment_id, 'include_host' AS scope, host_id AS id
+FROM munki_deployment_include_hosts
+WHERE deployment_id = ANY($1::bigint[])
+UNION ALL
+SELECT deployment_id, 'exclude_host' AS scope, host_id AS id
+FROM munki_deployment_exclude_hosts
+WHERE deployment_id = ANY($1::bigint[])
+ORDER BY deployment_id, scope, id
 `
 
-type ListMunkiAssignmentsParams struct {
-	OffsetRows int32 `json:"offset_rows"`
-	LimitRows  int32 `json:"limit_rows"`
+type ListMunkiDeploymentScopeIDsParams struct {
+	DeploymentIds []int64 `json:"deployment_ids"`
 }
 
-func (q *Queries) ListMunkiAssignments(ctx context.Context, arg ListMunkiAssignmentsParams) ([]MunkiAssignment, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignments, arg.OffsetRows, arg.LimitRows)
+type ListMunkiDeploymentScopeIDsRow struct {
+	DeploymentID int64  `json:"deployment_id"`
+	Scope        string `json:"scope"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) ListMunkiDeploymentScopeIDs(ctx context.Context, arg ListMunkiDeploymentScopeIDsParams) ([]ListMunkiDeploymentScopeIDsRow, error) {
+	rows, err := q.db.Query(ctx, listMunkiDeploymentScopeIDs, arg.DeploymentIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []MunkiAssignment{}
+	items := []ListMunkiDeploymentScopeIDsRow{}
 	for rows.Next() {
-		var i MunkiAssignment
-		if err := rows.Scan(
-			&i.ID,
-			&i.ReleaseID,
-			&i.Intent,
-			&i.AllHosts,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i ListMunkiDeploymentScopeIDsRow
+		if err := rows.Scan(&i.DeploymentID, &i.Scope, &i.ID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -883,49 +972,6 @@ func (q *Queries) ListMunkiHostItems(ctx context.Context, arg ListMunkiHostItems
 			&i.RunEndedAt,
 			&i.LastSeenAt,
 			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listMunkiReleases = `-- name: ListMunkiReleases :many
-SELECT id, software_id, name, version, display_name, pkginfo, eligible, created_at, updated_at, installer_artifact_id
-FROM munki_releases
-ORDER BY lower(COALESCE(NULLIF(display_name, ''), name)), lower(name), lower(version), id
-LIMIT $2 OFFSET $1
-`
-
-type ListMunkiReleasesParams struct {
-	OffsetRows int32 `json:"offset_rows"`
-	LimitRows  int32 `json:"limit_rows"`
-}
-
-func (q *Queries) ListMunkiReleases(ctx context.Context, arg ListMunkiReleasesParams) ([]MunkiRelease, error) {
-	rows, err := q.db.Query(ctx, listMunkiReleases, arg.OffsetRows, arg.LimitRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []MunkiRelease{}
-	for rows.Next() {
-		var i MunkiRelease
-		if err := rows.Scan(
-			&i.ID,
-			&i.SoftwareID,
-			&i.Name,
-			&i.Version,
-			&i.DisplayName,
-			&i.Pkginfo,
-			&i.Eligible,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.InstallerArtifactID,
 		); err != nil {
 			return nil, err
 		}
@@ -976,6 +1022,87 @@ func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoft
 		return nil, err
 	}
 	return items, nil
+}
+
+const normalizeMunkiDeploymentPositions = `-- name: NormalizeMunkiDeploymentPositions :exec
+UPDATE munki_deployments d
+SET position = -position - 1
+FROM munki_packages p
+WHERE p.id = d.package_id AND p.software_id = $1
+`
+
+type NormalizeMunkiDeploymentPositionsParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+func (q *Queries) NormalizeMunkiDeploymentPositions(ctx context.Context, arg NormalizeMunkiDeploymentPositionsParams) error {
+	_, err := q.db.Exec(ctx, normalizeMunkiDeploymentPositions, arg.SoftwareID)
+	return err
+}
+
+const setMunkiDeploymentPositions = `-- name: SetMunkiDeploymentPositions :exec
+UPDATE munki_deployments d
+SET position = -ordered.position
+FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, position)
+JOIN munki_packages p ON TRUE
+WHERE d.id = ordered.id
+  AND p.id = d.package_id
+  AND p.software_id = $1
+`
+
+type SetMunkiDeploymentPositionsParams struct {
+	SoftwareID int64   `json:"software_id"`
+	OrderedIds []int64 `json:"ordered_ids"`
+}
+
+func (q *Queries) SetMunkiDeploymentPositions(ctx context.Context, arg SetMunkiDeploymentPositionsParams) error {
+	_, err := q.db.Exec(ctx, setMunkiDeploymentPositions, arg.SoftwareID, arg.OrderedIds)
+	return err
+}
+
+const updateMunkiSoftwareTitle = `-- name: UpdateMunkiSoftwareTitle :one
+UPDATE munki_software_titles
+SET
+    name = $1,
+    display_name = $2,
+    description = $3,
+    category = $4,
+    developer = $5,
+    updated_at = now()
+WHERE id = $6
+RETURNING id, name, display_name, description, category, developer, created_at, updated_at
+`
+
+type UpdateMunkiSoftwareTitleParams struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Developer   string `json:"developer"`
+	ID          int64  `json:"id"`
+}
+
+func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiSoftwareTitleParams) (MunkiSoftwareTitle, error) {
+	row := q.db.QueryRow(ctx, updateMunkiSoftwareTitle,
+		arg.Name,
+		arg.DisplayName,
+		arg.Description,
+		arg.Category,
+		arg.Developer,
+		arg.ID,
+	)
+	var i MunkiSoftwareTitle
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertMunkiHostStatus = `-- name: UpsertMunkiHostStatus :exec

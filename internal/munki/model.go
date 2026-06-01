@@ -33,27 +33,27 @@ func (ArtifactKind) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(artifactKindValues...)
 }
 
-// AssignmentIntent describes how Munki should enforce or present an assigned release.
-type AssignmentIntent string
+// DeploymentIntent describes how Munki should enforce or present a deployed package.
+type DeploymentIntent string
 
 const (
-	// IntentEnsureInstalled puts the release in managed_installs.
-	IntentEnsureInstalled AssignmentIntent = "ensure_installed"
+	// IntentEnsureInstalled puts the package in managed_installs.
+	IntentEnsureInstalled DeploymentIntent = "ensure_installed"
 
-	// IntentEnsureAbsent puts the release in managed_uninstalls.
-	IntentEnsureAbsent AssignmentIntent = "ensure_absent"
+	// IntentEnsureAbsent puts the package in managed_uninstalls.
+	IntentEnsureAbsent DeploymentIntent = "ensure_absent"
 
-	// IntentUpdateIfPresent puts the release in managed_updates.
-	IntentUpdateIfPresent AssignmentIntent = "update_if_present"
+	// IntentUpdateIfPresent puts the package in managed_updates.
+	IntentUpdateIfPresent DeploymentIntent = "update_if_present"
 
-	// IntentOptional puts the release in optional_installs.
-	IntentOptional AssignmentIntent = "optional"
+	// IntentOptional puts the package in optional_installs.
+	IntentOptional DeploymentIntent = "optional"
 
-	// IntentFeatured puts the release in optional_installs and featured_items.
-	IntentFeatured AssignmentIntent = "featured"
+	// IntentFeatured puts the package in optional_installs and featured_items.
+	IntentFeatured DeploymentIntent = "featured"
 )
 
-var assignmentIntentValues = []AssignmentIntent{
+var deploymentIntentValues = []DeploymentIntent{
 	IntentEnsureInstalled,
 	IntentEnsureAbsent,
 	IntentUpdateIfPresent,
@@ -61,8 +61,8 @@ var assignmentIntentValues = []AssignmentIntent{
 	IntentFeatured,
 }
 
-func (AssignmentIntent) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(assignmentIntentValues...)
+func (DeploymentIntent) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(deploymentIntentValues...)
 }
 
 // SoftwareTitleMutation is the input shape for creating or updating a Munki software title.
@@ -86,25 +86,54 @@ type SoftwareTitle struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// ReleaseMutation is the input shape for a Munki release backed by one pkginfo object.
-type ReleaseMutation struct {
+// PackageMetadata holds editable Munki pkginfo fields that are not Woodstar
+// software identity or deployment state.
+type PackageMetadata struct {
+	InstallerType          string   `json:"installer_type,omitempty"`
+	UnattendedInstall      bool     `json:"unattended_install,omitempty"`
+	UnattendedUninstall    bool     `json:"unattended_uninstall,omitempty"`
+	Uninstallable          bool     `json:"uninstallable,omitempty"`
+	UninstallMethod        string   `json:"uninstall_method,omitempty"`
+	RestartAction          string   `json:"restart_action,omitempty"`
+	MinimumMunkiVersion    string   `json:"minimum_munki_version,omitempty"`
+	MinimumOSVersion       string   `json:"minimum_os_version,omitempty"`
+	MaximumOSVersion       string   `json:"maximum_os_version,omitempty"`
+	SupportedArchitectures []string `json:"supported_architectures,omitempty"`
+	BlockingApplications   []string `json:"blocking_applications,omitempty"`
+	Requires               []string `json:"requires,omitempty"`
+	UpdateFor              []string `json:"update_for,omitempty"`
+	OnDemand               bool     `json:"on_demand,omitempty"`
+	Precache               bool     `json:"precache,omitempty"`
+}
+
+// PackageMutation is the editable shape for a Munki package version.
+type PackageMutation struct {
 	SoftwareID          int64           `json:"software_id"`
 	Name                string          `json:"name"`
 	Version             string          `json:"version"`
 	DisplayName         string          `json:"display_name,omitempty"`
-	Pkginfo             json.RawMessage `json:"pkginfo"`
+	Description         string          `json:"description,omitempty"`
+	Category            string          `json:"category,omitempty"`
+	Developer           string          `json:"developer,omitempty"`
+	Metadata            PackageMetadata `json:"metadata"`
 	InstallerArtifactID *int64          `json:"installer_artifact_id,omitempty"`
 	Eligible            bool            `json:"eligible"`
 }
 
-// Release is one Munki pkginfo version available for assignment.
-type Release struct {
+// Package is one Munki pkginfo item available for deployment.
+type Package struct {
 	ID                        int64           `json:"id"`
 	SoftwareID                int64           `json:"software_id"`
+	SoftwareName              string          `json:"software_name"`
+	SoftwareDisplayName       string          `json:"software_display_name"`
 	Name                      string          `json:"name"`
 	Version                   string          `json:"version"`
 	DisplayName               string          `json:"display_name"`
-	Pkginfo                   json.RawMessage `json:"pkginfo"`
+	Description               string          `json:"description"`
+	Category                  string          `json:"category"`
+	Developer                 string          `json:"developer"`
+	Metadata                  PackageMetadata `json:"metadata"`
+	Pkginfo                   json.RawMessage `json:"pkginfo,omitempty"`
 	InstallerArtifactID       *int64          `json:"installer_artifact_id,omitempty"`
 	InstallerArtifactLocation string          `json:"installer_artifact_location,omitempty"`
 	Eligible                  bool            `json:"eligible"`
@@ -137,10 +166,10 @@ type Artifact struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// AssignmentMutation is the input shape for assigning a release to a concrete Munki scope.
-type AssignmentMutation struct {
-	ReleaseID       int64            `json:"release_id"`
-	Intent          AssignmentIntent `json:"intent"`
+// DeploymentMutation is the input shape for applying a package to a concrete Munki scope.
+type DeploymentMutation struct {
+	PackageID       int64            `json:"package_id"`
+	Intent          DeploymentIntent `json:"intent"`
 	AllHosts        bool             `json:"all_hosts"`
 	IncludeLabelIDs []int64          `json:"include_label_ids,omitempty"`
 	ExcludeLabelIDs []int64          `json:"exclude_label_ids,omitempty"`
@@ -148,26 +177,48 @@ type AssignmentMutation struct {
 	ExcludeHostIDs  []int64          `json:"exclude_host_ids,omitempty"`
 }
 
-// Assignment links one Munki release, one intent, and concrete include/exclude scope.
-type Assignment struct {
-	ID              int64            `json:"id"`
-	ReleaseID       int64            `json:"release_id"`
-	Intent          AssignmentIntent `json:"intent"`
-	AllHosts        bool             `json:"all_hosts"`
-	IncludeLabelIDs []int64          `json:"include_label_ids"`
-	ExcludeLabelIDs []int64          `json:"exclude_label_ids"`
-	IncludeHostIDs  []int64          `json:"include_host_ids"`
-	ExcludeHostIDs  []int64          `json:"exclude_host_ids"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
+// Deployment links one Munki package, one intent, and concrete include/exclude scope.
+type Deployment struct {
+	ID                  int64            `json:"id"`
+	PackageID           int64            `json:"package_id"`
+	PackageName         string           `json:"package_name"`
+	PackageVersion      string           `json:"package_version"`
+	SoftwareID          int64            `json:"software_id"`
+	SoftwareDisplayName string           `json:"software_display_name"`
+	Intent              DeploymentIntent `json:"intent"`
+	Position            int32            `json:"position"`
+	AllHosts            bool             `json:"all_hosts"`
+	IncludeLabelIDs     []int64          `json:"include_label_ids"`
+	ExcludeLabelIDs     []int64          `json:"exclude_label_ids"`
+	IncludeHostIDs      []int64          `json:"include_host_ids"`
+	ExcludeHostIDs      []int64          `json:"exclude_host_ids"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
-// EffectiveRelease is a host-resolved Munki release ready for manifest/catalog rendering.
-type EffectiveRelease struct {
-	AssignmentID int64
-	Intent       AssignmentIntent
-	Release      Release
+// EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
+type EffectivePackage struct {
+	DeploymentID int64
+	Intent       DeploymentIntent
+	Position     int32
+	Package      Package
 	scopeRank    int
+}
+
+type SoftwareTitleDetail struct {
+	SoftwareTitle
+	Packages    []Package    `json:"packages"`
+	Deployments []Deployment `json:"deployments"`
+}
+
+type PackageListParams struct {
+	dbutil.ListParams
+	SoftwareID int64
+}
+
+type DeploymentListParams struct {
+	dbutil.ListParams
+	SoftwareID int64
 }
 
 // HostStatusObservation is Munki state observed for an existing host.
@@ -214,7 +265,7 @@ func (m SoftwareTitleMutation) Validate() error {
 	return nil
 }
 
-func (m ReleaseMutation) Validate() error {
+func (m PackageMutation) Validate() error {
 	if m.SoftwareID <= 0 {
 		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
@@ -227,15 +278,20 @@ func (m ReleaseMutation) Validate() error {
 	if m.InstallerArtifactID != nil && *m.InstallerArtifactID <= 0 {
 		return fmt.Errorf("%w: installer_artifact_id must be positive", dbutil.ErrInvalidInput)
 	}
-	fields, err := parsePkginfoFields(m.Pkginfo)
-	if err != nil {
-		return err
-	}
-	if fields.name != strings.TrimSpace(m.Name) {
-		return fmt.Errorf("%w: pkginfo name must match release name", dbutil.ErrInvalidInput)
-	}
-	if fields.version != strings.TrimSpace(m.Version) {
-		return fmt.Errorf("%w: pkginfo version must match release version", dbutil.ErrInvalidInput)
+	return m.Metadata.Validate()
+}
+
+func (m PackageMetadata) Validate() error {
+	for _, arch := range m.SupportedArchitectures {
+		switch strings.TrimSpace(arch) {
+		case "arm64", "x86_64":
+		default:
+			return fmt.Errorf(
+				"%w: supported_architectures contains unsupported architecture %q",
+				dbutil.ErrInvalidInput,
+				arch,
+			)
+		}
 	}
 	return nil
 }
@@ -259,21 +315,21 @@ func (m ArtifactMutation) Validate() error {
 	return nil
 }
 
-func (m AssignmentMutation) Validate() error {
-	if m.ReleaseID <= 0 {
-		return fmt.Errorf("%w: release_id is required", dbutil.ErrInvalidInput)
+func (m DeploymentMutation) Validate() error {
+	if m.PackageID <= 0 {
+		return fmt.Errorf("%w: package_id is required", dbutil.ErrInvalidInput)
 	}
-	if !validAssignmentIntent(m.Intent) {
-		return fmt.Errorf("%w: unsupported assignment intent %q", dbutil.ErrInvalidInput, m.Intent)
+	if !validDeploymentIntent(m.Intent) {
+		return fmt.Errorf("%w: unsupported deployment intent %q", dbutil.ErrInvalidInput, m.Intent)
 	}
 	if !m.AllHosts && len(m.IncludeLabelIDs) == 0 && len(m.IncludeHostIDs) == 0 {
-		return fmt.Errorf("%w: assignment scope is required", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: deployment scope is required", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
 
-func validAssignmentIntent(intent AssignmentIntent) bool {
-	return slices.Contains(assignmentIntentValues, intent)
+func validDeploymentIntent(intent DeploymentIntent) bool {
+	return slices.Contains(deploymentIntentValues, intent)
 }
 
 func validArtifactKind(kind ArtifactKind) bool {
@@ -305,26 +361,71 @@ func validSHA256(value string) bool {
 	return true
 }
 
-type pkginfoFields struct {
-	name    string
-	version string
+func packagePkginfo(pkg Package) (json.RawMessage, error) {
+	item := map[string]any{
+		"name":    pkg.Name,
+		"version": pkg.Version,
+	}
+	addPkginfoString(item, "display_name", pkg.DisplayName)
+	addPkginfoString(item, "description", pkg.Description)
+	addPkginfoString(item, "category", pkg.Category)
+	addPkginfoString(item, "developer", pkg.Developer)
+	addPkginfoString(item, "installer_type", pkg.Metadata.InstallerType)
+	addPkginfoString(item, "uninstall_method", pkg.Metadata.UninstallMethod)
+	addPkginfoString(item, "RestartAction", pkg.Metadata.RestartAction)
+	addPkginfoString(item, "minimum_munki_version", pkg.Metadata.MinimumMunkiVersion)
+	addPkginfoString(item, "minimum_os_version", pkg.Metadata.MinimumOSVersion)
+	addPkginfoString(item, "maximum_os_version", pkg.Metadata.MaximumOSVersion)
+	addPkginfoStrings(item, "supported_architectures", pkg.Metadata.SupportedArchitectures)
+	addPkginfoStrings(item, "blocking_applications", pkg.Metadata.BlockingApplications)
+	addPkginfoStrings(item, "requires", pkg.Metadata.Requires)
+	addPkginfoStrings(item, "update_for", pkg.Metadata.UpdateFor)
+	addPkginfoBool(item, "unattended_install", pkg.Metadata.UnattendedInstall)
+	addPkginfoBool(item, "unattended_uninstall", pkg.Metadata.UnattendedUninstall)
+	addPkginfoBool(item, "uninstallable", pkg.Metadata.Uninstallable)
+	addPkginfoBool(item, "OnDemand", pkg.Metadata.OnDemand)
+	addPkginfoBool(item, "precache", pkg.Metadata.Precache)
+
+	raw, err := json.Marshal(item)
+	if err != nil {
+		return nil, err
+	}
+	return raw, nil
 }
 
-func parsePkginfoFields(raw json.RawMessage) (pkginfoFields, error) {
-	if !json.Valid(raw) {
-		return pkginfoFields{}, fmt.Errorf("%w: pkginfo must be valid JSON", dbutil.ErrInvalidInput)
+func addPkginfoString(item map[string]any, key string, value string) {
+	value = strings.TrimSpace(value)
+	if value != "" {
+		item[key] = value
 	}
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return pkginfoFields{}, fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
+}
+
+func addPkginfoStrings(item map[string]any, key string, values []string) {
+	values = cleanStringList(values)
+	if len(values) > 0 {
+		item[key] = values
 	}
-	name, ok := object["name"].(string)
-	if !ok || strings.TrimSpace(name) == "" {
-		return pkginfoFields{}, fmt.Errorf("%w: pkginfo.name is required", dbutil.ErrInvalidInput)
+}
+
+func addPkginfoBool(item map[string]any, key string, value bool) {
+	if value {
+		item[key] = true
 	}
-	version, ok := object["version"].(string)
-	if !ok || strings.TrimSpace(version) == "" {
-		return pkginfoFields{}, fmt.Errorf("%w: pkginfo.version is required", dbutil.ErrInvalidInput)
+}
+
+func cleanStringList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
 	}
-	return pkginfoFields{name: strings.TrimSpace(name), version: strings.TrimSpace(version)}, nil
+	return out
 }

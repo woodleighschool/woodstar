@@ -19,19 +19,19 @@ CREATE TABLE munki_artifacts (
     UNIQUE (kind, location)
 );
 
-ALTER TABLE munki_releases
+ALTER TABLE munki_packages
 ADD COLUMN installer_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE SET NULL;
 
 CREATE INDEX munki_artifacts_kind_idx
     ON munki_artifacts (kind, lower(location), id);
-CREATE INDEX munki_releases_installer_artifact_idx
-    ON munki_releases (installer_artifact_id);
+CREATE INDEX munki_packages_installer_artifact_idx
+    ON munki_packages (installer_artifact_id);
 
 -- +goose Down
 
-DROP INDEX IF EXISTS munki_releases_installer_artifact_idx;
+DROP INDEX IF EXISTS munki_packages_installer_artifact_idx;
 DROP INDEX IF EXISTS munki_artifacts_kind_idx;
-ALTER TABLE munki_releases
+ALTER TABLE munki_packages
 DROP COLUMN IF EXISTS installer_artifact_id;
 DROP TABLE IF EXISTS munki_artifacts;
 DROP TYPE IF EXISTS munki_artifact_kind;

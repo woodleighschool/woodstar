@@ -1,70 +1,51 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ClipboardList, Package, PackageCheck, PackageSearch, Plus } from "lucide-react";
-import type { ComponentProps } from "react";
+import { PackageSearch, Plus } from "lucide-react";
 
-import { DataTable, DataTableEmptyState } from "@/components/data-table";
+import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  useMunkiArtifacts,
-  useMunkiAssignments,
-  useMunkiReleases,
-  useMunkiSoftwareTitles,
-  type MunkiArtifact,
-  type MunkiAssignment,
-  type MunkiRelease,
-  type MunkiSoftwareTitle,
-} from "@/hooks/use-munki";
+import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useMunkiSoftwareTitles, type MunkiSoftwareTitle } from "@/hooks/use-munki";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { formatBytes, formatRelative } from "@/lib/utils";
-
-type BadgeVariant = ComponentProps<typeof Badge>["variant"];
-
-const intentLabels: Record<MunkiAssignment["intent"], string> = {
-  ensure_installed: "Install",
-  ensure_absent: "Remove",
-  update_if_present: "Update",
-  optional: "Optional",
-  featured: "Featured",
-};
-
-const intentVariants: Record<MunkiAssignment["intent"], BadgeVariant> = {
-  ensure_installed: "success",
-  ensure_absent: "destructive",
-  update_if_present: "info",
-  optional: "secondary",
-  featured: "warning",
-};
+import { formatRelative } from "@/lib/utils";
 
 export function MunkiSoftwareTitlesPage() {
+  const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
-  const query = useMunkiSoftwareTitles(tableQueryParams(state));
+  const [draft, setDraft] = useDebouncedSearchParam("q");
+  const query = useMunkiSoftwareTitles({
+    q: typeof search.q === "string" ? search.q : undefined,
+    ...tableQueryParams(state),
+  });
   const rows = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = !!search.q;
 
   const columns: ColumnDef<MunkiSoftwareTitle>[] = [
     {
       id: "name",
-      accessorFn: (row) => row.display_name || row.name,
-      header: "Name",
-      enableSorting: false,
-      cell: ({ row }) => row.original.display_name || row.original.name,
+      accessorKey: "display_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Software" />,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <div className="truncate font-medium">{row.original.display_name || row.original.name}</div>
+          <div className="text-muted-foreground truncate text-xs">{row.original.name}</div>
+        </div>
+      ),
     },
     {
       id: "category",
       accessorKey: "category",
-      header: "Category",
-      enableSorting: false,
-      cell: ({ row }) => row.original.category || "-",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
+      cell: ({ row }) => row.original.category || "Uncategorised",
     },
     {
       id: "developer",
       accessorKey: "developer",
-      header: "Developer",
-      enableSorting: false,
-      cell: ({ row }) => row.original.developer || "-",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Developer" />,
+      cell: ({ row }) => row.original.developer || "Unknown",
     },
     {
       id: "updated_at",
@@ -79,283 +60,45 @@ export function MunkiSoftwareTitlesPage() {
     <PageShell>
       <PageHeader
         title="Munki Software"
-        description="Desired software titles managed by Munki."
-        actions={<NewButton to="/munki/software-titles/new" />}
+        actions={
+          <Button asChild size="sm">
+            <Link to="/munki/software-titles/new">
+              <Plus data-icon="inline-start" />
+              Create
+            </Link>
+          </Button>
+        }
       />
-      <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
-      {!query.error ? (
+
+      {query.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to Load Software</AlertTitle>
+          <AlertDescription>{query.error.message}</AlertDescription>
+        </Alert>
+      ) : (
         <DataTable
           columns={columns}
           data={rows}
-          totalCount={query.data?.count ?? 0}
+          totalCount={totalCount}
           pagination={state.pagination}
           sorting={state.sorting}
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          rowHref={(row) => ({
+            to: "/munki/software-titles/$softwareId",
+            params: { softwareId: String(row.id) },
+          })}
+          toolbar={<DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />}
           empty={
             <DataTableEmptyState
               icon={<PackageSearch />}
-              title="No Munki Software"
-              description="No desired software titles yet."
+              title={hasFilters ? "No Matching Software" : "No Munki Software"}
+              description={hasFilters ? "Try a different search." : "Create software to manage Munki packages."}
             />
           }
         />
-      ) : null}
+      )}
     </PageShell>
-  );
-}
-
-export function MunkiArtifactsPage() {
-  const { state, setters } = useTablePaginationParams();
-  const query = useMunkiArtifacts(tableQueryParams(state));
-  const rows = query.data?.items ?? [];
-
-  const columns: ColumnDef<MunkiArtifact>[] = [
-    {
-      id: "display_name",
-      accessorFn: (row) => row.display_name || row.location,
-      header: "Name",
-      enableSorting: false,
-      cell: ({ row }) => row.original.display_name || row.original.location,
-    },
-    {
-      id: "kind",
-      accessorKey: "kind",
-      header: "Kind",
-      enableSorting: false,
-      cell: ({ row }) => <Badge variant="secondary">{row.original.kind === "package" ? "Package" : "Icon"}</Badge>,
-    },
-    {
-      id: "location",
-      accessorKey: "location",
-      header: "Location",
-      enableSorting: false,
-    },
-    {
-      id: "size_bytes",
-      accessorKey: "size_bytes",
-      header: "Size",
-      enableSorting: false,
-      cell: ({ row }) => formatBytes(row.original.size_bytes),
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
-
-  return (
-    <PageShell>
-      <PageHeader
-        title="Munki Artifacts"
-        description="Installer and icon objects referenced by Munki metadata."
-        actions={<NewButton to="/munki/artifacts/new" />}
-      />
-      <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
-      {!query.error ? (
-        <DataTable
-          columns={columns}
-          data={rows}
-          totalCount={query.data?.count ?? 0}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          empty={<DataTableEmptyState icon={<Package />} title="No Munki Artifacts" description="No artifacts yet." />}
-        />
-      ) : null}
-    </PageShell>
-  );
-}
-
-export function MunkiReleasesPage() {
-  const { state, setters } = useTablePaginationParams();
-  const query = useMunkiReleases(tableQueryParams(state));
-  const rows = query.data?.items ?? [];
-
-  const columns: ColumnDef<MunkiRelease>[] = [
-    {
-      id: "name",
-      accessorKey: "name",
-      header: "Name",
-      enableSorting: false,
-    },
-    {
-      id: "version",
-      accessorKey: "version",
-      header: "Version",
-      enableSorting: false,
-    },
-    {
-      id: "software_id",
-      accessorKey: "software_id",
-      header: "Software ID",
-      enableSorting: false,
-    },
-    {
-      id: "installer_artifact_id",
-      accessorKey: "installer_artifact_id",
-      header: "Artifact",
-      enableSorting: false,
-      cell: ({ row }) => row.original.installer_artifact_id ?? "-",
-    },
-    {
-      id: "eligible",
-      accessorKey: "eligible",
-      header: "Eligible",
-      enableSorting: false,
-      cell: ({ row }) => (
-        <Badge variant={row.original.eligible ? "success" : "secondary"}>{row.original.eligible ? "Yes" : "No"}</Badge>
-      ),
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
-
-  return (
-    <PageShell>
-      <PageHeader
-        title="Munki Releases"
-        description="Pkginfo-backed releases available to assignments."
-        actions={<NewButton to="/munki/releases/new" />}
-      />
-      <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
-      {!query.error ? (
-        <DataTable
-          columns={columns}
-          data={rows}
-          totalCount={query.data?.count ?? 0}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          empty={
-            <DataTableEmptyState icon={<PackageCheck />} title="No Munki Releases" description="No releases yet." />
-          }
-        />
-      ) : null}
-    </PageShell>
-  );
-}
-
-export function MunkiAssignmentsPage() {
-  const { state, setters } = useTablePaginationParams();
-  const query = useMunkiAssignments(tableQueryParams(state));
-  const rows = query.data?.items ?? [];
-
-  const columns: ColumnDef<MunkiAssignment>[] = [
-    {
-      id: "release_id",
-      accessorKey: "release_id",
-      header: "Release ID",
-      enableSorting: false,
-    },
-    {
-      id: "intent",
-      accessorKey: "intent",
-      header: "Intent",
-      enableSorting: false,
-      cell: ({ row }) => <IntentBadge intent={row.original.intent} />,
-    },
-    {
-      id: "scope",
-      header: "Scope",
-      enableSorting: false,
-      cell: ({ row }) => assignmentScope(row.original),
-    },
-    {
-      id: "updated_at",
-      accessorKey: "updated_at",
-      header: "Updated",
-      enableSorting: false,
-      cell: ({ row }) => formatRelative(row.original.updated_at),
-    },
-  ];
-
-  return (
-    <PageShell>
-      <PageHeader
-        title="Munki Assignments"
-        description="Desired state resolved by host and label scope."
-        actions={<NewButton to="/munki/assignments/new" />}
-      />
-      <MunkiTableError message={query.error?.message} onRetry={() => void query.refetch()} />
-      {!query.error ? (
-        <DataTable
-          columns={columns}
-          data={rows}
-          totalCount={query.data?.count ?? 0}
-          pagination={state.pagination}
-          sorting={state.sorting}
-          onPaginationChange={setters.setPagination}
-          onSortingChange={setters.setSorting}
-          isLoading={query.isLoading}
-          empty={
-            <DataTableEmptyState
-              icon={<ClipboardList />}
-              title="No Munki Assignments"
-              description="No assignments yet."
-            />
-          }
-        />
-      ) : null}
-    </PageShell>
-  );
-}
-
-function NewButton({ to }: { to: string }) {
-  return (
-    <Button asChild size="sm">
-      <Link to={to}>
-        <Plus className="size-4" />
-        New
-      </Link>
-    </Button>
-  );
-}
-
-function IntentBadge({ intent }: { intent: MunkiAssignment["intent"] }) {
-  return <Badge variant={intentVariants[intent]}>{intentLabels[intent]}</Badge>;
-}
-
-function assignmentScope(assignment: MunkiAssignment) {
-  const include = scopePart(
-    assignment.all_hosts,
-    assignment.include_label_ids?.length ?? 0,
-    assignment.include_host_ids?.length ?? 0,
-  );
-  const excludes = (assignment.exclude_label_ids?.length ?? 0) + (assignment.exclude_host_ids?.length ?? 0);
-  return excludes > 0 ? `${include}; ${excludes} excluded` : include;
-}
-
-function scopePart(allHosts: boolean, labelCount: number, hostCount: number) {
-  if (allHosts) return "All Hosts";
-  const parts: string[] = [];
-  if (labelCount > 0) parts.push(`${labelCount} label${labelCount === 1 ? "" : "s"}`);
-  if (hostCount > 0) parts.push(`${hostCount} host${hostCount === 1 ? "" : "s"}`);
-  return parts.length > 0 ? parts.join(", ") : "-";
-}
-
-function MunkiTableError({ message, onRetry }: { message?: string; onRetry: () => void }) {
-  if (!message) return null;
-  return (
-    <Alert variant="destructive">
-      <AlertTitle>Failed to Load Munki Data</AlertTitle>
-      <AlertDescription>{message}</AlertDescription>
-      <Button variant="outline" size="sm" onClick={onRetry} className="mt-2 w-fit">
-        Retry
-      </Button>
-    </Alert>
   );
 }

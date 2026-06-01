@@ -2,9 +2,7 @@ package munki_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -52,24 +50,24 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software title: %v", err)
 	}
-	release, err := store.CreateRelease(ctx, munki.ReleaseMutation{
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
 		SoftwareID: title.ID,
 		Name:       "GoogleChrome",
 		Version:    "148.0.0.1",
-		Pkginfo:    json.RawMessage(`{"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg"}`),
+		Metadata:   munki.PackageMetadata{InstallerType: "nopkg"},
 		Eligible:   true,
 	})
 	if err != nil {
-		t.Fatalf("create release: %v", err)
+		t.Fatalf("create pkg: %v", err)
 	}
-	assignment, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID:       release.ID,
+	deployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID:       pkg.ID,
 		Intent:          munki.IntentEnsureInstalled,
 		IncludeLabelIDs: []int64{label.ID},
 		ExcludeHostIDs:  []int64{excludedHost.ID},
 	})
 	if err != nil {
-		t.Fatalf("create assignment: %v", err)
+		t.Fatalf("create deployment: %v", err)
 	}
 
 	titles, titleCount, err := store.ListSoftwareTitles(ctx, dbutil.ListParams{})
@@ -79,45 +77,45 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if titleCount != 1 || len(titles) != 1 || titles[0].Name != "GoogleChrome" {
 		t.Fatalf("titles = %+v count = %d, want GoogleChrome", titles, titleCount)
 	}
-	releases, releaseCount, err := store.ListReleases(ctx, dbutil.ListParams{})
+	packages, pkgCount, err := store.ListPackages(ctx, munki.PackageListParams{})
 	if err != nil {
-		t.Fatalf("list releases: %v", err)
+		t.Fatalf("list packages: %v", err)
 	}
-	if releaseCount != 1 || len(releases) != 1 || releases[0].Version != "148.0.0.1" {
-		t.Fatalf("releases = %+v count = %d, want version 148.0.0.1", releases, releaseCount)
+	if pkgCount != 1 || len(packages) != 1 || packages[0].Version != "148.0.0.1" {
+		t.Fatalf("packages = %+v count = %d, want version 148.0.0.1", packages, pkgCount)
 	}
-	assignments, assignmentCount, err := store.ListAssignments(ctx, dbutil.ListParams{})
+	deployments, deploymentCount, err := store.ListDeployments(ctx, munki.DeploymentListParams{})
 	if err != nil {
-		t.Fatalf("list assignments: %v", err)
+		t.Fatalf("list deployments: %v", err)
 	}
-	if assignmentCount != 1 || len(assignments) != 1 || assignments[0].ID != assignment.ID {
-		t.Fatalf("assignments = %+v count = %d, want created assignment", assignments, assignmentCount)
+	if deploymentCount != 1 || len(deployments) != 1 || deployments[0].ID != deployment.ID {
+		t.Fatalf("deployments = %+v count = %d, want created deployment", deployments, deploymentCount)
 	}
-	if !sameInt64s(assignments[0].IncludeLabelIDs, []int64{label.ID}) {
-		t.Fatalf("include label ids = %v, want %v", assignments[0].IncludeLabelIDs, []int64{label.ID})
+	if !sameInt64s(deployments[0].IncludeLabelIDs, []int64{label.ID}) {
+		t.Fatalf("include label ids = %v, want %v", deployments[0].IncludeLabelIDs, []int64{label.ID})
 	}
-	if !sameInt64s(assignments[0].ExcludeHostIDs, []int64{excludedHost.ID}) {
-		t.Fatalf("exclude host ids = %v, want %v", assignments[0].ExcludeHostIDs, []int64{excludedHost.ID})
+	if !sameInt64s(deployments[0].ExcludeHostIDs, []int64{excludedHost.ID}) {
+		t.Fatalf("exclude host ids = %v, want %v", deployments[0].ExcludeHostIDs, []int64{excludedHost.ID})
 	}
 
-	included, err := store.EffectiveReleasesForHost(ctx, includedHost.ID)
+	included, err := store.EffectivePackagesForHost(ctx, includedHost.ID)
 	if err != nil {
 		t.Fatalf("resolve included host: %v", err)
 	}
-	if len(included) != 1 || included[0].Release.Name != "GoogleChrome" ||
+	if len(included) != 1 || included[0].Package.Name != "GoogleChrome" ||
 		included[0].Intent != munki.IntentEnsureInstalled {
-		t.Fatalf("included effective releases = %+v, want GoogleChrome install", included)
+		t.Fatalf("included effective packages = %+v, want GoogleChrome install", included)
 	}
-	excluded, err := store.EffectiveReleasesForHost(ctx, excludedHost.ID)
+	excluded, err := store.EffectivePackagesForHost(ctx, excludedHost.ID)
 	if err != nil {
 		t.Fatalf("resolve excluded host: %v", err)
 	}
 	if len(excluded) != 0 {
-		t.Fatalf("excluded effective releases = %+v, want none", excluded)
+		t.Fatalf("excluded effective packages = %+v, want none", excluded)
 	}
 }
 
-func TestArtifactsCreateListAndBindRelease(t *testing.T) {
+func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := munki.NewStore(db)
@@ -170,38 +168,37 @@ func TestArtifactsCreateListAndBindRelease(t *testing.T) {
 		t.Fatalf("artifacts = %+v count = %d, want created artifact", artifacts, artifactCount)
 	}
 
-	release, err := store.CreateRelease(ctx, munki.ReleaseMutation{
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
 		SoftwareID:          title.ID,
 		Name:                "ArtifactApp",
 		Version:             "1.0",
-		Pkginfo:             json.RawMessage(`{"name":"ArtifactApp","version":"1.0"}`),
 		InstallerArtifactID: &artifact.ID,
 		Eligible:            true,
 	})
 	if err != nil {
-		t.Fatalf("create release: %v", err)
+		t.Fatalf("create pkg: %v", err)
 	}
-	if release.InstallerArtifactID == nil || *release.InstallerArtifactID != artifact.ID {
-		t.Fatalf("release installer artifact id = %v, want %d", release.InstallerArtifactID, artifact.ID)
+	if pkg.InstallerArtifactID == nil || *pkg.InstallerArtifactID != artifact.ID {
+		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerArtifactID, artifact.ID)
 	}
-	if _, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID: release.ID,
+	if _, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID: pkg.ID,
 		Intent:    munki.IntentEnsureInstalled,
 		AllHosts:  true,
 	}); err != nil {
-		t.Fatalf("create assignment: %v", err)
+		t.Fatalf("create deployment: %v", err)
 	}
 
-	effective, err := store.EffectiveReleasesForHost(ctx, host.ID)
+	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
-		t.Fatalf("resolve effective releases: %v", err)
+		t.Fatalf("resolve effective packages: %v", err)
 	}
-	if len(effective) != 1 || effective[0].Release.InstallerArtifactLocation != "apps/ArtifactApp.pkg" {
-		t.Fatalf("effective releases = %+v, want artifact location", effective)
+	if len(effective) != 1 || effective[0].Package.InstallerArtifactLocation != "apps/ArtifactApp.pkg" {
+		t.Fatalf("effective packages = %+v, want artifact location", effective)
 	}
 }
 
-func TestCreateReleaseRejectsIconArtifactAsInstaller(t *testing.T) {
+func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
@@ -220,20 +217,19 @@ func TestCreateReleaseRejectsIconArtifactAsInstaller(t *testing.T) {
 		t.Fatalf("create icon artifact: %v", err)
 	}
 
-	_, err = store.CreateRelease(ctx, munki.ReleaseMutation{
+	_, err = store.CreatePackage(ctx, munki.PackageMutation{
 		SoftwareID:          title.ID,
 		Name:                "IconApp",
 		Version:             "1.0",
-		Pkginfo:             json.RawMessage(`{"name":"IconApp","version":"1.0"}`),
 		InstallerArtifactID: &artifact.ID,
 		Eligible:            true,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("CreateRelease error = %v, want invalid input", err)
+		t.Fatalf("CreatePackage error = %v, want invalid input", err)
 	}
 }
 
-func TestEffectiveReleasesForHostResolvesOverlappingAssignments(t *testing.T) {
+func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
@@ -258,82 +254,87 @@ func TestEffectiveReleasesForHostResolvesOverlappingAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software title: %v", err)
 	}
-	optionalRelease := createMunkiRelease(t, ctx, store, title.ID, "OverlapApp", "1.0")
-	installRelease := createMunkiRelease(t, ctx, store, title.ID, "OverlapApp", "2.0")
-	absentRelease := createMunkiRelease(t, ctx, store, title.ID, "OverlapApp", "3.0")
+	optionalPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "1.0")
+	installPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "2.0")
+	absentPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "3.0")
 
-	if _, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID: optionalRelease.ID,
+	optionalDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID: optionalPackage.ID,
 		Intent:    munki.IntentOptional,
 		AllHosts:  true,
-	}); err != nil {
-		t.Fatalf("create all-host optional assignment: %v", err)
+	})
+	if err != nil {
+		t.Fatalf("create all-host optional deployment: %v", err)
 	}
-	if _, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID:       installRelease.ID,
+	installDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID:       installPackage.ID,
 		Intent:          munki.IntentEnsureInstalled,
 		IncludeLabelIDs: []int64{label.ID},
-	}); err != nil {
-		t.Fatalf("create label install assignment: %v", err)
+	})
+	if err != nil {
+		t.Fatalf("create label install deployment: %v", err)
 	}
-	if _, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID:      absentRelease.ID,
+	absentDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID:      absentPackage.ID,
 		Intent:         munki.IntentEnsureAbsent,
 		IncludeHostIDs: []int64{host.ID},
+	})
+	if err != nil {
+		t.Fatalf("create host removal deployment: %v", err)
+	}
+	if err := store.ReorderDeployments(ctx, title.ID, []int64{
+		absentDeployment.ID,
+		installDeployment.ID,
+		optionalDeployment.ID,
 	}); err != nil {
-		t.Fatalf("create host removal assignment: %v", err)
+		t.Fatalf("reorder deployments: %v", err)
 	}
 
-	effective, err := store.EffectiveReleasesForHost(ctx, host.ID)
+	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
-		t.Fatalf("resolve effective releases: %v", err)
+		t.Fatalf("resolve effective packages: %v", err)
 	}
 	if len(effective) != 1 {
-		t.Fatalf("effective releases = %+v, want one resolved item", effective)
+		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if effective[0].Intent != munki.IntentEnsureAbsent || effective[0].Release.Version != "3.0" {
-		t.Fatalf("effective release = %+v, want removal of OverlapApp 3.0", effective[0])
-	}
-}
-
-func TestCreateReleaseRejectsInvalidPkginfo(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := munki.NewStore(db)
-
-	cases := []struct {
-		name    string
-		pkginfo json.RawMessage
-	}{
-		{name: "array", pkginfo: json.RawMessage(`[]`)},
-		{name: "missing version", pkginfo: json.RawMessage(`{"name":"Broken"}`)},
-		{name: "version mismatch", pkginfo: json.RawMessage(`{"name":"Broken","version":"2.0"}`)},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := store.CreateRelease(ctx, munki.ReleaseMutation{
-				SoftwareID: 1,
-				Name:       "Broken",
-				Version:    "1.0",
-				Pkginfo:    tc.pkginfo,
-				Eligible:   true,
-			})
-			if !errors.Is(err, dbutil.ErrInvalidInput) {
-				t.Fatalf("CreateRelease error = %v, want invalid input", err)
-			}
-		})
+	if effective[0].Intent != munki.IntentEnsureAbsent || effective[0].Package.Version != "3.0" {
+		t.Fatalf("effective pkg = %+v, want removal of OverlapApp 3.0", effective[0])
 	}
 }
 
-func TestCreateAssignmentRejectsEmptyScope(t *testing.T) {
+func TestCreatePackageRejectsInvalidMetadata(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
-	_, err := store.CreateAssignment(ctx, munki.AssignmentMutation{
-		ReleaseID: 1,
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "Broken"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+
+	_, err = store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID: title.ID,
+		Name:       "Broken",
+		Version:    "1.0",
+		Metadata: munki.PackageMetadata{
+			SupportedArchitectures: []string{"ppc"},
+		},
+		Eligible: true,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("CreatePackage error = %v, want invalid input", err)
+	}
+}
+
+func TestCreateDeploymentRejectsEmptyScope(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	_, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
+		PackageID: 1,
 		Intent:    munki.IntentEnsureInstalled,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("CreateAssignment error = %v, want invalid input", err)
+		t.Fatalf("CreateDeployment error = %v, want invalid input", err)
 	}
 }
 
@@ -431,29 +432,24 @@ func sameInt64s(a, b []int64) bool {
 	return true
 }
 
-func createMunkiRelease(
+func createMunkiPackage(
 	t *testing.T,
 	ctx context.Context,
 	store *munki.Store,
 	softwareID int64,
 	name string,
 	version string,
-) munki.Release {
+) munki.Package {
 	t.Helper()
-	pkginfo := json.RawMessage(fmt.Sprintf(
-		`{"name":%q,"version":%q,"installer_type":"nopkg"}`,
-		name,
-		version,
-	))
-	release, err := store.CreateRelease(ctx, munki.ReleaseMutation{
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
 		SoftwareID: softwareID,
 		Name:       name,
 		Version:    version,
-		Pkginfo:    pkginfo,
+		Metadata:   munki.PackageMetadata{InstallerType: "nopkg"},
 		Eligible:   true,
 	})
 	if err != nil {
-		t.Fatalf("create release %s %s: %v", name, version, err)
+		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
-	return *release
+	return *pkg
 }

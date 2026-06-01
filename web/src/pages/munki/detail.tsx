@@ -1,0 +1,258 @@
+import { Link, useParams } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2, PackageCheck, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+
+import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableRowDragHandle } from "@/components/data-table";
+import type { LabelChip } from "@/components/labels/label-chip-utils";
+import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { useLabels } from "@/hooks/use-labels";
+import {
+  useMunkiSoftwareTitle,
+  useReorderMunkiDeployments,
+  type MunkiDeployment,
+  type MunkiPackage,
+} from "@/hooks/use-munki";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { formatRelative } from "@/lib/utils";
+
+const intentLabels: Record<string, string> = {
+  ensure_installed: "Install and update",
+  ensure_absent: "Remove",
+  update_if_present: "Update if present",
+  optional: "Self Service",
+  featured: "Featured",
+};
+
+export function MunkiSoftwareTitleDetailPage() {
+  const params = useParams({ strict: false });
+  const softwareId = Number(params.softwareId);
+  const query = useMunkiSoftwareTitle(Number.isFinite(softwareId) ? softwareId : null);
+  const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const reorder = useReorderMunkiDeployments();
+  const [reorderEnabled, setReorderEnabled] = useState(false);
+  const [orderedDeployments, setOrderedDeployments] = useState<MunkiDeployment[]>([]);
+  const software = query.data;
+  const packages = software?.packages ?? [];
+  const deployments = useMemo(() => software?.deployments ?? [], [software?.deployments]);
+  const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
+    () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
+    [labels.data?.items],
+  );
+  let title = "Munki Software";
+  if (software?.name) title = software.name;
+  if (software?.display_name) title = software.display_name;
+
+  useEffect(() => {
+    setOrderedDeployments(deployments);
+  }, [deployments]);
+
+  function moveDeployments(next: MunkiDeployment[]) {
+    setOrderedDeployments(next.map((deployment, position) => ({ ...deployment, position })));
+  }
+
+  function saveOrder() {
+    reorder.mutate(
+      { softwareId, orderedIds: orderedDeployments.map((deployment) => deployment.id) },
+      {
+        onSuccess: () => setReorderEnabled(false),
+        onError: () => setOrderedDeployments(deployments),
+      },
+    );
+  }
+
+  const packageColumns: ColumnDef<MunkiPackage>[] = [
+    {
+      id: "version",
+      accessorKey: "version",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
+      cell: ({ row }) => row.original.version,
+    },
+    {
+      id: "installer_type",
+      header: "Installer",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const installerType = row.original.metadata.installer_type?.trim() ?? "pkg";
+        if (installerType === "") return "pkg";
+        return installerType;
+      },
+    },
+    {
+      id: "eligible",
+      accessorKey: "eligible",
+      header: "Available",
+      enableSorting: false,
+      cell: ({ row }) => (row.original.eligible ? "Yes" : "No"),
+    },
+    {
+      id: "updated_at",
+      accessorKey: "updated_at",
+      header: "Updated",
+      enableSorting: false,
+      cell: ({ row }) => formatRelative(row.original.updated_at),
+    },
+  ];
+
+  const deploymentColumns: ColumnDef<MunkiDeployment>[] = [
+    ...(reorderEnabled
+      ? ([
+          {
+            id: "drag",
+            header: () => null,
+            enableSorting: false,
+            enableHiding: false,
+            cell: () => <DataTableRowDragHandle />,
+            meta: { headClassName: "w-10", cellClassName: "w-10" },
+          },
+        ] satisfies ColumnDef<MunkiDeployment>[])
+      : []),
+    {
+      id: "position",
+      accessorKey: "position",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
+      cell: ({ row }) => row.original.position + 1,
+      meta: { headClassName: "w-20", cellClassName: "w-20" },
+    },
+    {
+      id: "package",
+      accessorKey: "package_version",
+      header: "Package",
+      enableSorting: false,
+      cell: ({ row }) => row.original.package_version,
+    },
+    {
+      id: "intent",
+      accessorKey: "intent",
+      header: "Intent",
+      enableSorting: false,
+      cell: ({ row }) => intentLabels[row.original.intent] ?? row.original.intent,
+    },
+    {
+      id: "targets",
+      header: "Targets",
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.all_hosts ? (
+          "All devices"
+        ) : (
+          <TargetLabelsCell labelIDs={row.original.include_label_ids ?? []} labelsByID={labelsByID} />
+        ),
+    },
+    {
+      id: "exclusions",
+      header: "Exclusions",
+      enableSorting: false,
+      cell: ({ row }) =>
+        (row.original.exclude_label_ids ?? []).length === 0 ? (
+          "None"
+        ) : (
+          <TargetLabelsCell labelIDs={row.original.exclude_label_ids ?? []} labelsByID={labelsByID} />
+        ),
+    },
+  ];
+
+  return (
+    <PageShell>
+      <PageHeader
+        title={title}
+        actions={
+          software ? (
+            <>
+              <Button asChild size="sm" variant="outline">
+                <Link to="/munki/software-titles/$softwareId/packages/new" params={{ softwareId: String(software.id) }}>
+                  <Plus data-icon="inline-start" />
+                  Package
+                </Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link
+                  to="/munki/software-titles/$softwareId/deployments/new"
+                  params={{ softwareId: String(software.id) }}
+                >
+                  <Plus data-icon="inline-start" />
+                  Deployment
+                </Link>
+              </Button>
+            </>
+          ) : null
+        }
+      />
+
+      {query.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Failed to Load Software</AlertTitle>
+          <AlertDescription>{query.error.message}</AlertDescription>
+        </Alert>
+      ) : (
+        <div className="space-y-8">
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Packages</h2>
+            </div>
+            <DataTable
+              columns={packageColumns}
+              data={packages}
+              totalCount={packages.length}
+              pagination={{ pageIndex: 0, pageSize: Math.max(packages.length, 1) }}
+              sorting={[]}
+              onPaginationChange={() => undefined}
+              onSortingChange={() => undefined}
+              isLoading={query.isLoading}
+              clientSort
+              empty={<DataTableEmptyState icon={<PackageCheck />} title="No Packages" description="No packages yet." />}
+            />
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Deployments</h2>
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={reorderEnabled || orderedDeployments.length < 2 || query.isLoading}
+                  onClick={() => setReorderEnabled(true)}
+                >
+                  Edit Order
+                </Button>
+                {reorderEnabled ? (
+                  <>
+                    <Button type="button" size="sm" disabled={reorder.isPending} onClick={saveOrder}>
+                      {reorder.isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                      Save
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setReorderEnabled(false)}>
+                      Cancel
+                    </Button>
+                  </>
+                ) : null}
+              </ButtonGroup>
+            </div>
+            <DataTable
+              columns={deploymentColumns}
+              data={reorderEnabled ? orderedDeployments : deployments}
+              totalCount={deployments.length}
+              pagination={{ pageIndex: 0, pageSize: Math.max(deployments.length, 1) }}
+              sorting={[]}
+              onPaginationChange={() => undefined}
+              onSortingChange={() => undefined}
+              isLoading={query.isLoading}
+              clientSort
+              rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedDeployments.length <= 1}
+              onRowReorder={moveDeployments}
+              empty={
+                <DataTableEmptyState icon={<PackageCheck />} title="No Deployments" description="No deployments yet." />
+              }
+            />
+          </section>
+        </div>
+      )}
+    </PageShell>
+  );
+}

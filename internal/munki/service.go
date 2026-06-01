@@ -25,8 +25,8 @@ type hostResolver interface {
 	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
 }
 
-type releaseResolver interface {
-	EffectiveReleasesForHost(context.Context, int64) ([]EffectiveRelease, error)
+type packageResolver interface {
+	EffectivePackagesForHost(context.Context, int64) ([]EffectivePackage, error)
 }
 
 type artifactResolver interface {
@@ -47,7 +47,7 @@ type ClientHost struct {
 // Service renders the Munki client-facing repository surface.
 type Service struct {
 	hosts     hostResolver
-	releases  releaseResolver
+	packages  packageResolver
 	artifacts artifactResolver
 	presigner artifactPresigner
 	publicURL string
@@ -78,9 +78,9 @@ func WithPublicURL(publicURL string) ServiceOption {
 }
 
 // NewService returns the default Munki repository renderer.
-func NewService(hosts hostResolver, releases releaseResolver, options ...ServiceOption) *Service {
-	s := &Service{hosts: hosts, releases: releases}
-	if artifacts, ok := releases.(artifactResolver); ok {
+func NewService(hosts hostResolver, packages packageResolver, options ...ServiceOption) *Service {
+	s := &Service{hosts: hosts, packages: packages}
+	if artifacts, ok := packages.(artifactResolver); ok {
 		s.artifacts = artifacts
 	}
 	for _, option := range options {
@@ -117,7 +117,7 @@ func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) 
 	if displayName == "" {
 		displayName = client.Serial
 	}
-	releases, err := s.effectiveReleases(ctx, client.ID)
+	packages, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +130,8 @@ func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) 
 		OptionalInstalls:  []string{},
 		FeaturedItems:     []string{},
 	}
-	for _, release := range releases {
-		addManifestRelease(&manifest, release)
+	for _, pkg := range packages {
+		addManifestPackage(&manifest, pkg)
 	}
 	return encodePlist(manifest)
 }
@@ -141,11 +141,11 @@ func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) (
 	if name != "production" || !validResourceName(name) {
 		return nil, ErrNotFound
 	}
-	releases, err := s.effectiveReleases(ctx, client.ID)
+	packages, err := s.effectivePackages(ctx, client.ID)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.catalogItems(releases)
+	items, err := s.catalogItems(packages)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) (
 // ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
 func (s *Service) ArtifactRedirect(
 	ctx context.Context,
-	_ ClientHost,
+	client ClientHost,
 	kind ArtifactKind,
 	location string,
 ) (string, error) {
@@ -173,6 +173,15 @@ func (s *Service) ArtifactRedirect(
 	if err != nil {
 		return "", err
 	}
+	if kind == ArtifactKindPackage {
+		ok, err := s.clientCanFetchPackageArtifact(ctx, client.ID, *artifact)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return "", ErrNotFound
+		}
+	}
 	if s.presigner == nil {
 		return "", ErrStorageUnavailable
 	}
@@ -186,23 +195,39 @@ func (s *Service) ArtifactRedirect(
 	return storageURL, nil
 }
 
-func (s *Service) effectiveReleases(ctx context.Context, hostID int64) ([]EffectiveRelease, error) {
-	if s.releases == nil {
+func (s *Service) clientCanFetchPackageArtifact(ctx context.Context, hostID int64, artifact Artifact) (bool, error) {
+	packages, err := s.effectivePackages(ctx, hostID)
+	if err != nil {
+		return false, err
+	}
+	for _, pkg := range packages {
+		if pkg.Package.InstallerArtifactID == nil || *pkg.Package.InstallerArtifactID != artifact.ID {
+			continue
+		}
+		if pkg.Package.InstallerArtifactLocation == artifact.Location {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Service) effectivePackages(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
+	if s.packages == nil {
 		return nil, nil
 	}
-	releases, err := s.releases.EffectiveReleasesForHost(ctx, hostID)
+	packages, err := s.packages.EffectivePackagesForHost(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}
-	return resolveEffectiveReleases(releases), nil
+	return resolveEffectivePackages(packages), nil
 }
 
-func addManifestRelease(manifest *renderedManifest, release EffectiveRelease) {
-	name := strings.TrimSpace(release.Release.Name)
+func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
+	name := strings.TrimSpace(pkg.Package.Name)
 	if name == "" {
 		return
 	}
-	switch release.Intent {
+	switch pkg.Intent {
 	case IntentEnsureInstalled:
 		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
 	case IntentEnsureAbsent:
@@ -217,11 +242,11 @@ func addManifestRelease(manifest *renderedManifest, release EffectiveRelease) {
 	}
 }
 
-func resolveEffectiveReleases(releases []EffectiveRelease) []EffectiveRelease {
-	resolved := make([]EffectiveRelease, 0, len(releases))
-	positions := make(map[string]int, len(releases))
-	for _, release := range releases {
-		name := strings.TrimSpace(release.Release.Name)
+func resolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
+	resolved := make([]EffectivePackage, 0, len(packages))
+	positions := make(map[string]int, len(packages))
+	for _, pkg := range packages {
+		name := strings.TrimSpace(pkg.Package.Name)
 		if name == "" {
 			continue
 		}
@@ -229,30 +254,33 @@ func resolveEffectiveReleases(releases []EffectiveRelease) []EffectiveRelease {
 		position, exists := positions[key]
 		if !exists {
 			positions[key] = len(resolved)
-			resolved = append(resolved, release)
+			resolved = append(resolved, pkg)
 			continue
 		}
-		if betterEffectiveRelease(release, resolved[position]) {
-			resolved[position] = release
+		if betterEffectivePackage(pkg, resolved[position]) {
+			resolved[position] = pkg
 		}
 	}
 	return resolved
 }
 
-func betterEffectiveRelease(candidate, current EffectiveRelease) bool {
-	if candidate.Intent != current.Intent {
-		return assignmentIntentRank(candidate.Intent) > assignmentIntentRank(current.Intent)
+func betterEffectivePackage(candidate, current EffectivePackage) bool {
+	if candidate.Position != current.Position {
+		return candidate.Position < current.Position
 	}
 	if candidate.scopeRank != current.scopeRank {
 		return candidate.scopeRank > current.scopeRank
 	}
-	if candidate.Release.ID != current.Release.ID {
-		return candidate.Release.ID > current.Release.ID
+	if candidate.Intent != current.Intent {
+		return deploymentIntentRank(candidate.Intent) > deploymentIntentRank(current.Intent)
 	}
-	return candidate.AssignmentID > current.AssignmentID
+	if candidate.Package.ID != current.Package.ID {
+		return candidate.Package.ID > current.Package.ID
+	}
+	return candidate.DeploymentID > current.DeploymentID
 }
 
-func assignmentIntentRank(intent AssignmentIntent) int {
+func deploymentIntentRank(intent DeploymentIntent) int {
 	switch intent {
 	case IntentEnsureAbsent:
 		return 50
@@ -269,26 +297,26 @@ func assignmentIntentRank(intent AssignmentIntent) int {
 	}
 }
 
-func (s *Service) catalogItems(releases []EffectiveRelease) ([]map[string]any, error) {
-	items := make([]map[string]any, 0, len(releases))
-	seen := make(map[int64]bool, len(releases))
-	for _, release := range releases {
-		if seen[release.Release.ID] {
+func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, error) {
+	items := make([]map[string]any, 0, len(packages))
+	seen := make(map[int64]bool, len(packages))
+	for _, pkg := range packages {
+		if seen[pkg.Package.ID] {
 			continue
 		}
-		seen[release.Release.ID] = true
+		seen[pkg.Package.ID] = true
 		var item map[string]any
-		if err := json.Unmarshal(release.Release.Pkginfo, &item); err != nil {
-			return nil, fmt.Errorf("render munki pkginfo %d: %w", release.Release.ID, err)
+		if err := json.Unmarshal(pkg.Package.Pkginfo, &item); err != nil {
+			return nil, fmt.Errorf("render munki pkginfo %d: %w", pkg.Package.ID, err)
 		}
 		delete(item, "PackageCompleteURL")
 		delete(item, "PackageURL")
-		if release.Release.InstallerArtifactID != nil {
-			if release.Release.InstallerArtifactLocation != "" {
-				item["installer_item_location"] = release.Release.InstallerArtifactLocation
+		if pkg.Package.InstallerArtifactID != nil {
+			if pkg.Package.InstallerArtifactLocation != "" {
+				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation
 				item["PackageCompleteURL"] = s.artifactURL(
 					ArtifactKindPackage,
-					release.Release.InstallerArtifactLocation,
+					pkg.Package.InstallerArtifactLocation,
 				)
 			}
 		}

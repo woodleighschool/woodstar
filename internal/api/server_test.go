@@ -266,74 +266,61 @@ func TestMunkiAdminAPI(t *testing.T) {
 		"/api/munki/software-titles",
 		`{"name":"GoogleChrome","display_name":"Google Chrome"}`,
 	)
-	artifact := postMunkiJSON[munki.Artifact](
+	pkg := postMunkiJSON[munki.Package](
 		t,
 		server,
 		cookie,
-		"/api/munki/artifacts",
-		`{"kind":"package","display_name":"Google Chrome Installer","location":"apps/GoogleChrome.pkg","content_type":"application/octet-stream","size_bytes":2048,"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","storage_key":"pkgs/GoogleChrome.pkg"}`,
-	)
-	release := postMunkiJSON[munki.Release](
-		t,
-		server,
-		cookie,
-		"/api/munki/releases",
+		"/api/munki/packages",
 		fmt.Sprintf(
-			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","installer_artifact_id":%d,"pkginfo":{"name":"GoogleChrome","version":"148.0.0.1"},"eligible":true}`,
+			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","metadata":{"installer_type":"nopkg"},"eligible":true}`,
 			title.ID,
-			artifact.ID,
 		),
 	)
-	if release.InstallerArtifactID == nil || *release.InstallerArtifactID != artifact.ID {
-		t.Fatalf("release installer artifact id = %v, want %d", release.InstallerArtifactID, artifact.ID)
+	if pkg.Name != "GoogleChrome" || pkg.Version != "148.0.0.1" {
+		t.Fatalf("pkg = %+v, want GoogleChrome 148.0.0.1", pkg)
 	}
-	assignment := postMunkiJSON[munki.Assignment](
+	deployment := postMunkiJSON[munki.Deployment](
 		t,
 		server,
 		cookie,
-		"/api/munki/assignments",
-		fmt.Sprintf(`{"release_id":%d,"intent":"ensure_installed","all_hosts":true}`, release.ID),
+		"/api/munki/deployments",
+		fmt.Sprintf(`{"package_id":%d,"intent":"ensure_installed","all_hosts":true}`, pkg.ID),
 	)
 
 	listRec := httptest.NewRecorder()
-	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/assignments", nil)
+	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/deployments", nil)
 	listReq.AddCookie(cookie)
 	server.httpServer.Handler.ServeHTTP(listRec, listReq)
 	if listRec.Code != http.StatusOK {
-		t.Fatalf("list assignments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
+		t.Fatalf("list deployments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
 	}
 	var listed struct {
-		Items []munki.Assignment `json:"items"`
+		Items []munki.Deployment `json:"items"`
 		Count int                `json:"count"`
 	}
 	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
-		t.Fatalf("decode assignments page: %v", err)
+		t.Fatalf("decode deployments page: %v", err)
 	}
-	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
-		t.Fatalf("assignments page = %+v, want created assignment", listed)
+	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != deployment.ID {
+		t.Fatalf("deployments page = %+v, want created deployment", listed)
 	}
 
-	artifactListRec := httptest.NewRecorder()
-	artifactListReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/artifacts", nil)
-	artifactListReq.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(artifactListRec, artifactListReq)
-	if artifactListRec.Code != http.StatusOK {
+	detailRec := httptest.NewRecorder()
+	detailReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		fmt.Sprintf("/api/munki/software-titles/%d", title.ID),
+		nil,
+	)
+	detailReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
 		t.Fatalf(
-			"list artifacts status = %d, want %d; body = %q",
-			artifactListRec.Code,
+			"software detail status = %d, want %d; body = %q",
+			detailRec.Code,
 			http.StatusOK,
-			artifactListRec.Body.String(),
+			detailRec.Body.String(),
 		)
-	}
-	var artifactPage struct {
-		Items []munki.Artifact `json:"items"`
-		Count int              `json:"count"`
-	}
-	if err := json.NewDecoder(artifactListRec.Body).Decode(&artifactPage); err != nil {
-		t.Fatalf("decode artifacts page: %v", err)
-	}
-	if artifactPage.Count != 1 || len(artifactPage.Items) != 1 || artifactPage.Items[0].ID != artifact.ID {
-		t.Fatalf("artifacts page = %+v, want created artifact", artifactPage)
 	}
 }
 

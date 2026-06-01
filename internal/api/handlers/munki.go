@@ -2,97 +2,106 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
 )
 
 const (
-	munkiTag                = "Munki"
-	munkiSoftwareTitlePath  = "/api/munki/software-titles"
-	munkiArtifactPath       = "/api/munki/artifacts"
-	munkiReleasePath        = "/api/munki/releases"
-	munkiAssignmentPath     = "/api/munki/assignments"
-	munkiSoftwareTitleLabel = "Munki software title"
-	munkiArtifactLabel      = "Munki artifact"
-	munkiReleaseLabel       = "Munki release"
-	munkiAssignmentLabel    = "Munki assignment"
+	munkiTag                 = "Munki"
+	munkiSoftwareTitlePath   = "/api/munki/software-titles"
+	munkiSoftwareTitleIDPath = "/api/munki/software-titles/{id}"
+	munkiPackagePath         = "/api/munki/packages"
+	munkiPackageIDPath       = "/api/munki/packages/{id}"
+	munkiDeploymentPath      = "/api/munki/deployments"
+	munkiDeploymentIDPath    = "/api/munki/deployments/{id}"
+	munkiSoftwareTitleLabel  = "Munki software title"
+	munkiPackageLabel        = "Munki package"
+	munkiDeploymentLabel     = "Munki deployment"
 )
 
 type munkiListInput struct {
 	ListQueryInput
 }
 
-type munkiSoftwareTitleListOutput struct {
-	Body munkiSoftwareTitlePage
+type munkiSoftwareTitleGetInput struct {
+	ID int64 `path:"id"`
 }
 
 type munkiSoftwareTitleCreateInput struct {
 	Body munkiSoftwareTitleMutation
 }
 
+type munkiSoftwareTitlePatchInput struct {
+	ID   int64 `path:"id"`
+	Body munkiSoftwareTitleMutation
+}
+
+type munkiPackageListInput struct {
+	ListQueryInput
+	SoftwareID int64 `query:"software_id,omitempty"`
+}
+
+type munkiPackageGetInput struct {
+	ID int64 `path:"id"`
+}
+
+type munkiPackageCreateInput struct {
+	Body munkiPackageMutation
+}
+
+type munkiDeploymentListInput struct {
+	ListQueryInput
+	SoftwareID int64 `query:"software_id,omitempty"`
+}
+
+type munkiDeploymentGetInput struct {
+	ID int64 `path:"id"`
+}
+
+type munkiDeploymentCreateInput struct {
+	Body munkiDeploymentMutation
+}
+
+type munkiDeploymentReorderInput struct {
+	ID   int64 `path:"id"`
+	Body munkiDeploymentReorderBody
+}
+
+type munkiDeploymentReorderBody struct {
+	OrderedIDs []int64 `json:"ordered_ids"`
+}
+
+type munkiSoftwareTitleListOutput struct {
+	Body Page[munkiSoftwareTitle]
+}
+
 type munkiSoftwareTitleOutput struct {
 	Body munkiSoftwareTitle
 }
 
-type munkiReleaseListOutput struct {
-	Body munkiReleasePage
+type munkiSoftwareTitleDetailOutput struct {
+	Body munkiSoftwareTitleDetail
 }
 
-type munkiArtifactListOutput struct {
-	Body munkiArtifactPage
+type munkiPackageListOutput struct {
+	Body Page[munkiPackage]
 }
 
-type munkiArtifactCreateInput struct {
-	Body munkiArtifactMutation
+type munkiPackageOutput struct {
+	Body munkiPackage
 }
 
-type munkiArtifactOutput struct {
-	Body munkiArtifact
+type munkiDeploymentListOutput struct {
+	Body Page[munkiDeployment]
 }
 
-type munkiReleaseCreateInput struct {
-	Body munkiReleaseMutation
-}
-
-type munkiReleaseOutput struct {
-	Body munkiRelease
-}
-
-type munkiAssignmentListOutput struct {
-	Body munkiAssignmentPage
-}
-
-type munkiAssignmentCreateInput struct {
-	Body munkiAssignmentMutation
-}
-
-type munkiAssignmentOutput struct {
-	Body munkiAssignment
-}
-
-type munkiSoftwareTitlePage struct {
-	Items []munkiSoftwareTitle `json:"items"`
-	Count int                  `json:"count"`
-}
-
-type munkiReleasePage struct {
-	Items []munkiRelease `json:"items"`
-	Count int            `json:"count"`
-}
-
-type munkiArtifactPage struct {
-	Items []munkiArtifact `json:"items"`
-	Count int             `json:"count"`
-}
-
-type munkiAssignmentPage struct {
-	Items []munkiAssignment `json:"items"`
-	Count int               `json:"count"`
+type munkiDeploymentOutput struct {
+	Body munkiDeployment
 }
 
 type munkiSoftwareTitleMutation struct {
@@ -103,14 +112,17 @@ type munkiSoftwareTitleMutation struct {
 	Developer   string `json:"developer,omitempty"`
 }
 
-func (m munkiSoftwareTitleMutation) domain() munki.SoftwareTitleMutation {
-	return munki.SoftwareTitleMutation{
-		Name:        m.Name,
-		DisplayName: m.DisplayName,
-		Description: m.Description,
-		Category:    m.Category,
-		Developer:   m.Developer,
-	}
+type munkiSoftwareTitleDetail struct {
+	ID          int64             `json:"id"`
+	Name        string            `json:"name"`
+	DisplayName string            `json:"display_name"`
+	Description string            `json:"description"`
+	Category    string            `json:"category"`
+	Developer   string            `json:"developer"`
+	Packages    []munkiPackage    `json:"packages"`
+	Deployments []munkiDeployment `json:"deployments"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 type munkiSoftwareTitle struct {
@@ -124,79 +136,38 @@ type munkiSoftwareTitle struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func munkiSoftwareTitleFromDomain(title munki.SoftwareTitle) munkiSoftwareTitle {
-	return munkiSoftwareTitle{
-		ID:          title.ID,
-		Name:        title.Name,
-		DisplayName: title.DisplayName,
-		Description: title.Description,
-		Category:    title.Category,
-		Developer:   title.Developer,
-		CreatedAt:   title.CreatedAt,
-		UpdatedAt:   title.UpdatedAt,
-	}
+type munkiPackage struct {
+	ID                  int64                 `json:"id"`
+	SoftwareID          int64                 `json:"software_id"`
+	SoftwareName        string                `json:"software_name"`
+	SoftwareDisplayName string                `json:"software_display_name"`
+	Name                string                `json:"name"`
+	Version             string                `json:"version"`
+	DisplayName         string                `json:"display_name"`
+	Description         string                `json:"description"`
+	Category            string                `json:"category"`
+	Developer           string                `json:"developer"`
+	Metadata            munki.PackageMetadata `json:"metadata"`
+	Eligible            bool                  `json:"eligible"`
+	CreatedAt           time.Time             `json:"created_at"`
+	UpdatedAt           time.Time             `json:"updated_at"`
 }
 
-type munkiReleaseMutation struct {
-	SoftwareID                int64          `json:"software_id"`
-	Name                      string         `json:"name"`
-	Version                   string         `json:"version"`
-	DisplayName               string         `json:"display_name,omitempty"`
-	Pkginfo                   map[string]any `json:"pkginfo"`
-	InstallerArtifactID       *int64         `json:"installer_artifact_id,omitempty"`
-	InstallerArtifactLocation string         `json:"installer_artifact_location,omitempty"`
-	Eligible                  bool           `json:"eligible"`
+type munkiPackageMutation struct {
+	SoftwareID  int64                 `json:"software_id"`
+	Name        string                `json:"name"`
+	Version     string                `json:"version"`
+	DisplayName string                `json:"display_name,omitempty"`
+	Description string                `json:"description,omitempty"`
+	Category    string                `json:"category,omitempty"`
+	Developer   string                `json:"developer,omitempty"`
+	Metadata    munki.PackageMetadata `json:"metadata"`
+	Eligible    bool                  `json:"eligible"`
 }
 
-func (m munkiReleaseMutation) domain() (munki.ReleaseMutation, error) {
-	pkginfo, err := json.Marshal(m.Pkginfo)
-	if err != nil {
-		return munki.ReleaseMutation{}, huma.Error400BadRequest("pkginfo must be a JSON object")
-	}
-	return munki.ReleaseMutation{
-		SoftwareID:          m.SoftwareID,
-		Name:                m.Name,
-		Version:             m.Version,
-		DisplayName:         m.DisplayName,
-		Pkginfo:             pkginfo,
-		InstallerArtifactID: m.InstallerArtifactID,
-		Eligible:            m.Eligible,
-	}, nil
-}
-
-type munkiRelease struct {
-	ID                        int64          `json:"id"`
-	SoftwareID                int64          `json:"software_id"`
-	Name                      string         `json:"name"`
-	Version                   string         `json:"version"`
-	DisplayName               string         `json:"display_name"`
-	Pkginfo                   map[string]any `json:"pkginfo"`
-	InstallerArtifactID       *int64         `json:"installer_artifact_id,omitempty"`
-	InstallerArtifactLocation string         `json:"installer_artifact_location,omitempty"`
-	Eligible                  bool           `json:"eligible"`
-	CreatedAt                 time.Time      `json:"created_at"`
-	UpdatedAt                 time.Time      `json:"updated_at"`
-}
-
-func munkiReleaseFromDomain(release munki.Release) munkiRelease {
-	return munkiRelease{
-		ID:                        release.ID,
-		SoftwareID:                release.SoftwareID,
-		Name:                      release.Name,
-		Version:                   release.Version,
-		DisplayName:               release.DisplayName,
-		Pkginfo:                   munkiPkginfoObject(release.Pkginfo),
-		InstallerArtifactID:       release.InstallerArtifactID,
-		InstallerArtifactLocation: release.InstallerArtifactLocation,
-		Eligible:                  release.Eligible,
-		CreatedAt:                 release.CreatedAt,
-		UpdatedAt:                 release.UpdatedAt,
-	}
-}
-
-type munkiAssignmentMutation struct {
-	ReleaseID       int64                  `json:"release_id"`
-	Intent          munki.AssignmentIntent `json:"intent"`
+type munkiDeploymentMutation struct {
+	PackageID       int64                  `json:"package_id"`
+	Intent          munki.DeploymentIntent `json:"intent"`
 	AllHosts        bool                   `json:"all_hosts"`
 	IncludeLabelIDs []int64                `json:"include_label_ids,omitempty"`
 	ExcludeLabelIDs []int64                `json:"exclude_label_ids,omitempty"`
@@ -204,55 +175,51 @@ type munkiAssignmentMutation struct {
 	ExcludeHostIDs  []int64                `json:"exclude_host_ids,omitempty"`
 }
 
-func (m munkiAssignmentMutation) domain() munki.AssignmentMutation {
-	return munki.AssignmentMutation{
-		ReleaseID:       m.ReleaseID,
-		Intent:          m.Intent,
-		AllHosts:        m.AllHosts,
-		IncludeLabelIDs: m.IncludeLabelIDs,
-		ExcludeLabelIDs: m.ExcludeLabelIDs,
-		IncludeHostIDs:  m.IncludeHostIDs,
-		ExcludeHostIDs:  m.ExcludeHostIDs,
+type munkiDeployment struct {
+	ID                  int64                  `json:"id"`
+	PackageID           int64                  `json:"package_id"`
+	PackageName         string                 `json:"package_name"`
+	PackageVersion      string                 `json:"package_version"`
+	SoftwareID          int64                  `json:"software_id"`
+	SoftwareDisplayName string                 `json:"software_display_name"`
+	Intent              munki.DeploymentIntent `json:"intent"`
+	Position            int32                  `json:"position"`
+	AllHosts            bool                   `json:"all_hosts"`
+	IncludeLabelIDs     []int64                `json:"include_label_ids"`
+	ExcludeLabelIDs     []int64                `json:"exclude_label_ids"`
+	IncludeHostIDs      []int64                `json:"include_host_ids"`
+	ExcludeHostIDs      []int64                `json:"exclude_host_ids"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
+}
+
+func (input munkiPackageListInput) params() munki.PackageListParams {
+	return munki.PackageListParams{
+		ListParams: input.ListQueryInput.params(),
+		SoftwareID: input.SoftwareID,
 	}
 }
 
-type munkiAssignment struct {
-	ID              int64                  `json:"id"`
-	ReleaseID       int64                  `json:"release_id"`
-	Intent          munki.AssignmentIntent `json:"intent"`
-	AllHosts        bool                   `json:"all_hosts"`
-	IncludeLabelIDs []int64                `json:"include_label_ids"`
-	ExcludeLabelIDs []int64                `json:"exclude_label_ids"`
-	IncludeHostIDs  []int64                `json:"include_host_ids"`
-	ExcludeHostIDs  []int64                `json:"exclude_host_ids"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
-}
-
-func munkiAssignmentFromDomain(assignment munki.Assignment) munkiAssignment {
-	return munkiAssignment{
-		ID:              assignment.ID,
-		ReleaseID:       assignment.ReleaseID,
-		Intent:          assignment.Intent,
-		AllHosts:        assignment.AllHosts,
-		IncludeLabelIDs: assignment.IncludeLabelIDs,
-		ExcludeLabelIDs: assignment.ExcludeLabelIDs,
-		IncludeHostIDs:  assignment.IncludeHostIDs,
-		ExcludeHostIDs:  assignment.ExcludeHostIDs,
-		CreatedAt:       assignment.CreatedAt,
-		UpdatedAt:       assignment.UpdatedAt,
+func (input munkiDeploymentListInput) params() munki.DeploymentListParams {
+	return munki.DeploymentListParams{
+		ListParams: input.ListQueryInput.params(),
+		SoftwareID: input.SoftwareID,
 	}
 }
 
+// RegisterMunki registers admin endpoints for Munki-managed software.
 func RegisterMunki(api huma.API, store *munki.Store) {
 	registerListMunkiSoftwareTitles(api, store)
 	registerCreateMunkiSoftwareTitle(api, store)
-	registerListMunkiArtifacts(api, store)
-	registerCreateMunkiArtifact(api, store)
-	registerListMunkiReleases(api, store)
-	registerCreateMunkiRelease(api, store)
-	registerListMunkiAssignments(api, store)
-	registerCreateMunkiAssignment(api, store)
+	registerGetMunkiSoftwareTitle(api, store)
+	registerPatchMunkiSoftwareTitle(api, store)
+	registerListMunkiPackages(api, store)
+	registerCreateMunkiPackage(api, store)
+	registerGetMunkiPackage(api, store)
+	registerListMunkiDeployments(api, store)
+	registerCreateMunkiDeployment(api, store)
+	registerGetMunkiDeployment(api, store)
+	registerReorderMunkiDeployments(api, store)
 }
 
 func registerListMunkiSoftwareTitles(api huma.API, store *munki.Store) {
@@ -269,7 +236,7 @@ func registerListMunkiSoftwareTitles(api huma.API, store *munki.Store) {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
 		return &munkiSoftwareTitleListOutput{
-			Body: munkiSoftwareTitlePage{Items: munkiSoftwareTitlesFromDomain(rows), Count: count},
+			Body: Page[munkiSoftwareTitle]{Items: munkiSoftwareTitlesFromDomain(rows), Count: count},
 		}, nil
 	})
 }
@@ -286,7 +253,6 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusForbidden,
-			http.StatusNotFound,
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareTitleCreateInput) (*munkiSoftwareTitleOutput, error) {
@@ -298,30 +264,72 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	})
 }
 
-func registerListMunkiReleases(api huma.API, store *munki.Store) {
+func registerGetMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-munki-releases",
+		OperationID: "get-munki-software-title",
 		Method:      http.MethodGet,
-		Path:        munkiReleasePath,
+		Path:        munkiSoftwareTitleIDPath,
 		Tags:        []string{munkiTag},
-		Summary:     "List Munki releases",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, input *munkiListInput) (*munkiReleaseListOutput, error) {
-		rows, count, err := store.ListReleases(ctx, input.params())
+		Summary:     "Get a Munki software title",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiSoftwareTitleGetInput) (*munkiSoftwareTitleDetailOutput, error) {
+		detail, err := store.LoadSoftwareTitleDetail(ctx, input.ID)
 		if err != nil {
-			return nil, resourceMutationError(munkiReleaseLabel, err)
+			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
-		return &munkiReleaseListOutput{Body: munkiReleasePage{Items: munkiReleasesFromDomain(rows), Count: count}}, nil
+		return &munkiSoftwareTitleDetailOutput{Body: munkiSoftwareTitleDetailFromDomain(*detail)}, nil
 	})
 }
 
-func registerCreateMunkiRelease(api huma.API, store *munki.Store) {
+func registerPatchMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "create-munki-release",
+		OperationID: "update-munki-software-title",
+		Method:      http.MethodPatch,
+		Path:        munkiSoftwareTitleIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Update a Munki software title",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiSoftwareTitlePatchInput) (*munkiSoftwareTitleOutput, error) {
+		title, err := store.UpdateSoftwareTitle(ctx, input.ID, input.Body.domain())
+		if err != nil {
+			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
+		}
+		return &munkiSoftwareTitleOutput{Body: munkiSoftwareTitleFromDomain(*title)}, nil
+	})
+}
+
+func registerListMunkiPackages(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-munki-packages",
+		Method:      http.MethodGet,
+		Path:        munkiPackagePath,
+		Tags:        []string{munkiTag},
+		Summary:     "List Munki packages",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
+		rows, count, err := store.ListPackages(ctx, input.params())
+		if err != nil {
+			return nil, resourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageListOutput{
+			Body: Page[munkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
+		}, nil
+	})
+}
+
+func registerCreateMunkiPackage(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
-		Path:          munkiReleasePath,
+		Path:          munkiPackagePath,
 		Tags:          []string{munkiTag},
-		Summary:       "Create a Munki release",
+		Summary:       "Create a Munki package",
 		DefaultStatus: http.StatusCreated,
 		Errors: []int{
 			http.StatusBadRequest,
@@ -330,54 +338,148 @@ func registerCreateMunkiRelease(api huma.API, store *munki.Store) {
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *munkiReleaseCreateInput) (*munkiReleaseOutput, error) {
-		params, err := input.Body.domain()
+	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
+		pkg, err := store.CreatePackage(ctx, input.Body.domain())
 		if err != nil {
-			return nil, err
+			return nil, resourceMutationError(munkiPackageLabel, err)
 		}
-		release, err := store.CreateRelease(ctx, params)
-		if err != nil {
-			return nil, resourceMutationError(munkiReleaseLabel, err)
-		}
-		return &munkiReleaseOutput{Body: munkiReleaseFromDomain(*release)}, nil
+		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
 	})
 }
 
-func registerListMunkiAssignments(api huma.API, store *munki.Store) {
+func registerGetMunkiPackage(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-munki-assignments",
+		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
-		Path:        munkiAssignmentPath,
+		Path:        munkiPackageIDPath,
 		Tags:        []string{munkiTag},
-		Summary:     "List Munki assignments",
-		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, input *munkiListInput) (*munkiAssignmentListOutput, error) {
-		rows, count, err := store.ListAssignments(ctx, input.params())
+		Summary:     "Get a Munki package",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
+		pkg, err := store.GetPackage(ctx, input.ID)
 		if err != nil {
-			return nil, resourceMutationError(munkiAssignmentLabel, err)
+			return nil, resourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiAssignmentListOutput{
-			Body: munkiAssignmentPage{Items: munkiAssignmentsFromDomain(rows), Count: count},
+		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+	})
+}
+
+func registerListMunkiDeployments(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-munki-deployments",
+		Method:      http.MethodGet,
+		Path:        munkiDeploymentPath,
+		Tags:        []string{munkiTag},
+		Summary:     "List Munki deployments",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *munkiDeploymentListInput) (*munkiDeploymentListOutput, error) {
+		rows, count, err := store.ListDeployments(ctx, input.params())
+		if err != nil {
+			return nil, resourceMutationError(munkiDeploymentLabel, err)
+		}
+		return &munkiDeploymentListOutput{
+			Body: Page[munkiDeployment]{Items: munkiDeploymentsFromDomain(rows), Count: count},
 		}, nil
 	})
 }
 
-func registerCreateMunkiAssignment(api huma.API, store *munki.Store) {
+func registerCreateMunkiDeployment(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID:   "create-munki-assignment",
+		OperationID:   "create-munki-deployment",
 		Method:        http.MethodPost,
-		Path:          munkiAssignmentPath,
+		Path:          munkiDeploymentPath,
 		Tags:          []string{munkiTag},
-		Summary:       "Create a Munki assignment",
+		Summary:       "Create a Munki deployment",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
-	}, func(ctx context.Context, input *munkiAssignmentCreateInput) (*munkiAssignmentOutput, error) {
-		assignment, err := store.CreateAssignment(ctx, input.Body.domain())
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiDeploymentCreateInput) (*munkiDeploymentOutput, error) {
+		deployment, err := store.CreateDeployment(ctx, input.Body.domain())
 		if err != nil {
-			return nil, resourceMutationError(munkiAssignmentLabel, err)
+			return nil, resourceMutationError(munkiDeploymentLabel, err)
 		}
-		return &munkiAssignmentOutput{Body: munkiAssignmentFromDomain(*assignment)}, nil
+		return &munkiDeploymentOutput{Body: munkiDeploymentFromDomain(*deployment)}, nil
 	})
+}
+
+func registerGetMunkiDeployment(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-munki-deployment",
+		Method:      http.MethodGet,
+		Path:        munkiDeploymentIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Get a Munki deployment",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiDeploymentGetInput) (*munkiDeploymentOutput, error) {
+		deployment, err := store.GetDeployment(ctx, input.ID)
+		if err != nil {
+			return nil, resourceMutationError(munkiDeploymentLabel, err)
+		}
+		return &munkiDeploymentOutput{Body: munkiDeploymentFromDomain(*deployment)}, nil
+	})
+}
+
+func registerReorderMunkiDeployments(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "reorder-munki-deployments",
+		Method:      http.MethodPut,
+		Path:        "/api/munki/software-titles/{id}/deployments/order",
+		Tags:        []string{munkiTag},
+		Summary:     "Reorder Munki deployments",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *munkiDeploymentReorderInput) (*struct{}, error) {
+		if err := store.ReorderDeployments(ctx, input.ID, input.Body.OrderedIDs); err != nil {
+			return nil, resourceMutationError(munkiDeploymentLabel, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func (input munkiListInput) params() dbutil.ListParams {
+	return input.ListQueryInput.params()
+}
+
+func munkiSoftwareTitleDetailFromDomain(detail munki.SoftwareTitleDetail) munkiSoftwareTitleDetail {
+	return munkiSoftwareTitleDetail{
+		ID:          detail.ID,
+		Name:        detail.Name,
+		DisplayName: detail.DisplayName,
+		Description: detail.Description,
+		Category:    detail.Category,
+		Developer:   detail.Developer,
+		Packages:    munkiPackagesFromDomain(detail.Packages),
+		Deployments: munkiDeploymentsFromDomain(detail.Deployments),
+		CreatedAt:   detail.CreatedAt,
+		UpdatedAt:   detail.UpdatedAt,
+	}
+}
+
+func (body munkiSoftwareTitleMutation) domain() munki.SoftwareTitleMutation {
+	return munki.SoftwareTitleMutation{
+		Name:        body.Name,
+		DisplayName: body.DisplayName,
+		Description: body.Description,
+		Category:    body.Category,
+		Developer:   body.Developer,
+	}
+}
+
+func munkiSoftwareTitleFromDomain(title munki.SoftwareTitle) munkiSoftwareTitle {
+	return munkiSoftwareTitle{
+		ID:          title.ID,
+		Name:        title.Name,
+		DisplayName: title.DisplayName,
+		Description: title.Description,
+		Category:    title.Category,
+		Developer:   title.Developer,
+		CreatedAt:   title.CreatedAt,
+		UpdatedAt:   title.UpdatedAt,
+	}
 }
 
 func munkiSoftwareTitlesFromDomain(rows []munki.SoftwareTitle) []munkiSoftwareTitle {
@@ -388,26 +490,83 @@ func munkiSoftwareTitlesFromDomain(rows []munki.SoftwareTitle) []munkiSoftwareTi
 	return items
 }
 
-func munkiReleasesFromDomain(rows []munki.Release) []munkiRelease {
-	items := make([]munkiRelease, len(rows))
+func munkiPackageFromDomain(pkg munki.Package) munkiPackage {
+	return munkiPackage{
+		ID:                  pkg.ID,
+		SoftwareID:          pkg.SoftwareID,
+		SoftwareName:        pkg.SoftwareName,
+		SoftwareDisplayName: pkg.SoftwareDisplayName,
+		Name:                pkg.Name,
+		Version:             pkg.Version,
+		DisplayName:         pkg.DisplayName,
+		Description:         pkg.Description,
+		Category:            pkg.Category,
+		Developer:           pkg.Developer,
+		Metadata:            pkg.Metadata,
+		Eligible:            pkg.Eligible,
+		CreatedAt:           pkg.CreatedAt,
+		UpdatedAt:           pkg.UpdatedAt,
+	}
+}
+
+func munkiPackagesFromDomain(rows []munki.Package) []munkiPackage {
+	items := make([]munkiPackage, len(rows))
 	for i, row := range rows {
-		items[i] = munkiReleaseFromDomain(row)
+		items[i] = munkiPackageFromDomain(row)
 	}
 	return items
 }
 
-func munkiAssignmentsFromDomain(rows []munki.Assignment) []munkiAssignment {
-	items := make([]munkiAssignment, len(rows))
+func (body munkiPackageMutation) domain() munki.PackageMutation {
+	return munki.PackageMutation{
+		SoftwareID:  body.SoftwareID,
+		Name:        body.Name,
+		Version:     body.Version,
+		DisplayName: body.DisplayName,
+		Description: body.Description,
+		Category:    body.Category,
+		Developer:   body.Developer,
+		Metadata:    body.Metadata,
+		Eligible:    body.Eligible,
+	}
+}
+
+func munkiDeploymentFromDomain(deployment munki.Deployment) munkiDeployment {
+	return munkiDeployment{
+		ID:                  deployment.ID,
+		PackageID:           deployment.PackageID,
+		PackageName:         deployment.PackageName,
+		PackageVersion:      deployment.PackageVersion,
+		SoftwareID:          deployment.SoftwareID,
+		SoftwareDisplayName: deployment.SoftwareDisplayName,
+		Intent:              deployment.Intent,
+		Position:            deployment.Position,
+		AllHosts:            deployment.AllHosts,
+		IncludeLabelIDs:     deployment.IncludeLabelIDs,
+		ExcludeLabelIDs:     deployment.ExcludeLabelIDs,
+		IncludeHostIDs:      deployment.IncludeHostIDs,
+		ExcludeHostIDs:      deployment.ExcludeHostIDs,
+		CreatedAt:           deployment.CreatedAt,
+		UpdatedAt:           deployment.UpdatedAt,
+	}
+}
+
+func munkiDeploymentsFromDomain(rows []munki.Deployment) []munkiDeployment {
+	items := make([]munkiDeployment, len(rows))
 	for i, row := range rows {
-		items[i] = munkiAssignmentFromDomain(row)
+		items[i] = munkiDeploymentFromDomain(row)
 	}
 	return items
 }
 
-func munkiPkginfoObject(raw []byte) map[string]any {
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return map[string]any{}
+func (body munkiDeploymentMutation) domain() munki.DeploymentMutation {
+	return munki.DeploymentMutation{
+		PackageID:       body.PackageID,
+		Intent:          body.Intent,
+		AllHosts:        body.AllHosts,
+		IncludeLabelIDs: body.IncludeLabelIDs,
+		ExcludeLabelIDs: body.ExcludeLabelIDs,
+		IncludeHostIDs:  body.IncludeHostIDs,
+		ExcludeHostIDs:  body.ExcludeHostIDs,
 	}
-	return object
 }

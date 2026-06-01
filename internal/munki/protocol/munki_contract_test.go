@@ -18,11 +18,11 @@ import (
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithReleases("C02MUNKI", []munki.EffectiveRelease{
+		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				AssignmentID: 10,
+				DeploymentID: 10,
 				Intent:       munki.IntentEnsureInstalled,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      20,
 					Name:    "GoogleChrome",
 					Version: "148.0.0.1",
@@ -32,9 +32,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				AssignmentID: 11,
+				DeploymentID: 11,
 				Intent:       munki.IntentOptional,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      21,
 					Name:    "Slack",
 					Version: "4.50.0",
@@ -44,9 +44,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				AssignmentID: 12,
+				DeploymentID: 12,
 				Intent:       munki.IntentEnsureAbsent,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      22,
 					Name:    "LegacyVPN",
 					Version: "1.0",
@@ -56,9 +56,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				AssignmentID: 13,
+				DeploymentID: 13,
 				Intent:       munki.IntentFeatured,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      23,
 					Name:    "SelfServiceApp",
 					Version: "3.2.1",
@@ -102,11 +102,11 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 	artifactID := int64(42)
 	service := munki.NewService(
 		nil,
-		staticReleaseResolver{releases: []munki.EffectiveRelease{
+		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				AssignmentID: 10,
+				DeploymentID: 10,
 				Intent:       munki.IntentEnsureInstalled,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      20,
 					Name:    "GoogleChrome",
 					Version: "148.0.0.1",
@@ -147,11 +147,11 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
 	service := munki.NewService(
 		nil,
-		staticReleaseResolver{releases: []munki.EffectiveRelease{
+		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				AssignmentID: 10,
+				DeploymentID: 10,
 				Intent:       munki.IntentEnsureInstalled,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      20,
 					Name:    "ExternalURLApp",
 					Version: "1.0",
@@ -231,14 +231,14 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 	}
 }
 
-func TestMunkiHTTPCollapsesOverlappingAssignments(t *testing.T) {
+func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithReleases("C02MUNKI", []munki.EffectiveRelease{
+		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				AssignmentID: 10,
+				DeploymentID: 10,
 				Intent:       munki.IntentEnsureInstalled,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      20,
 					Name:    "OverlapApp",
 					Version: "1.0",
@@ -248,9 +248,9 @@ func TestMunkiHTTPCollapsesOverlappingAssignments(t *testing.T) {
 				},
 			},
 			{
-				AssignmentID: 11,
+				DeploymentID: 11,
 				Intent:       munki.IntentOptional,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      21,
 					Name:    "OverlapApp",
 					Version: "1.1",
@@ -260,9 +260,9 @@ func TestMunkiHTTPCollapsesOverlappingAssignments(t *testing.T) {
 				},
 			},
 			{
-				AssignmentID: 12,
+				DeploymentID: 12,
 				Intent:       munki.IntentEnsureAbsent,
-				Release: munki.Release{
+				Package: munki.Package{
 					ID:      22,
 					Name:    "OverlapApp",
 					Version: "1.2",
@@ -510,12 +510,12 @@ type staticRepository struct {
 }
 
 func newStaticRepository(serial string) *staticRepository {
-	return newStaticRepositoryWithReleases(serial, nil)
+	return newStaticRepositoryWithPackages(serial, nil)
 }
 
-func newStaticRepositoryWithReleases(serial string, releases []munki.EffectiveRelease) *staticRepository {
+func newStaticRepositoryWithPackages(serial string, packages []munki.EffectivePackage) *staticRepository {
 	return &staticRepository{
-		service: munki.NewService(nil, staticReleaseResolver{releases: releases}),
+		service: munki.NewService(nil, staticPackageResolver{packages: packages}),
 		want:    serial,
 	}
 }
@@ -553,12 +553,12 @@ func (r *staticRepository) ArtifactRedirect(
 	return r.artifactURL, nil
 }
 
-type staticReleaseResolver struct {
-	releases []munki.EffectiveRelease
+type staticPackageResolver struct {
+	packages []munki.EffectivePackage
 }
 
-func (r staticReleaseResolver) EffectiveReleasesForHost(_ context.Context, _ int64) ([]munki.EffectiveRelease, error) {
-	return r.releases, nil
+func (r staticPackageResolver) EffectivePackagesForHost(_ context.Context, _ int64) ([]munki.EffectivePackage, error) {
+	return r.packages, nil
 }
 
 func sameStrings(a, b []string) bool {

@@ -2,36 +2,31 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type {
   ApiError,
-  MunkiArtifact,
-  MunkiArtifactMutation,
-  MunkiArtifactPage,
-  MunkiAssignment,
-  MunkiAssignmentMutation,
-  MunkiAssignmentPage,
-  MunkiRelease,
-  MunkiReleaseMutation,
-  MunkiReleasePage,
+  MunkiDeployment,
+  MunkiDeploymentMutation,
+  MunkiDeploymentPage,
+  MunkiPackage,
+  MunkiPackageMutation,
+  MunkiPackagePage,
   MunkiSoftwareTitle,
+  MunkiSoftwareTitleDetail,
   MunkiSoftwareTitleMutation,
   MunkiSoftwareTitlePage,
+  PackageMetadata,
 } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type {
-  MunkiArtifact,
-  MunkiArtifactMutation,
-  MunkiAssignment,
-  MunkiAssignmentMutation,
-  MunkiRelease,
-  MunkiReleaseMutation,
+  MunkiDeployment,
+  MunkiDeploymentMutation,
+  MunkiPackage,
+  MunkiPackageMutation,
   MunkiSoftwareTitle,
+  MunkiSoftwareTitleDetail,
   MunkiSoftwareTitleMutation,
-};
-export type MunkiListResult<T> = {
-  items: T[] | null;
-  count: number;
+  PackageMetadata,
 };
 
 export interface MunkiListParams {
@@ -41,12 +36,23 @@ export interface MunkiListParams {
   sort?: string;
 }
 
+export interface MunkiScopedListParams extends MunkiListParams {
+  software_id?: number;
+}
+
 function queryParams(params: MunkiListParams) {
   return {
     q: nonEmpty(params.q),
     page_index: params.page_index ?? 0,
     page_size: params.page_size ?? 50,
     sort: nonEmpty(params.sort),
+  };
+}
+
+function scopedQueryParams(params: MunkiScopedListParams) {
+  return {
+    ...queryParams(params),
+    software_id: params.software_id === 0 ? undefined : params.software_id,
   };
 }
 
@@ -65,13 +71,27 @@ export function useMunkiSoftwareTitles(params: MunkiListParams = {}) {
   });
 }
 
-export function useMunkiArtifacts(params: MunkiListParams = {}) {
-  const query = queryParams(params);
-  return useQuery<MunkiArtifactPage, ApiError>({
-    queryKey: queryKeys.munkiArtifacts(query),
+export function useMunkiSoftwareTitle(id: number | null) {
+  return useQuery<MunkiSoftwareTitleDetail, ApiError>({
+    queryKey: queryKeys.munkiSoftwareTitle(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/munki/artifacts", {
+        apiClient.GET("/api/munki/software-titles/{id}", {
+          params: { path: { id } },
+          signal,
+        }),
+      ),
+    enabled: id !== null,
+  });
+}
+
+export function useMunkiPackages(params: MunkiScopedListParams = {}) {
+  const query = scopedQueryParams(params);
+  return useQuery<MunkiPackagePage, ApiError>({
+    queryKey: queryKeys.munkiPackages(query),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/munki/packages", {
           params: { query },
           signal,
         }),
@@ -80,28 +100,13 @@ export function useMunkiArtifacts(params: MunkiListParams = {}) {
   });
 }
 
-export function useMunkiReleases(params: MunkiListParams = {}) {
-  const query = queryParams(params);
-  return useQuery<MunkiReleasePage, ApiError>({
-    queryKey: queryKeys.munkiReleases(query),
+export function useMunkiDeployments(params: MunkiScopedListParams = {}) {
+  const query = scopedQueryParams(params);
+  return useQuery<MunkiDeploymentPage, ApiError>({
+    queryKey: queryKeys.munkiDeployments(query),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/munki/releases", {
-          params: { query },
-          signal,
-        }),
-      ),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useMunkiAssignments(params: MunkiListParams = {}) {
-  const query = queryParams(params);
-  return useQuery<MunkiAssignmentPage, ApiError>({
-    queryKey: queryKeys.munkiAssignments(query),
-    queryFn: ({ signal }) =>
-      unwrap(
-        apiClient.GET("/api/munki/assignments", {
+        apiClient.GET("/api/munki/deployments", {
           params: { query },
           signal,
         }),
@@ -120,32 +125,53 @@ export function useCreateMunkiSoftwareTitle() {
   });
 }
 
-export function useCreateMunkiArtifact() {
+export function useUpdateMunkiSoftwareTitle() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiArtifact, ApiError, MunkiArtifactMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/artifacts", { body })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["munki", "artifacts"] });
+  return useMutation<MunkiSoftwareTitle, ApiError, { id: number; body: MunkiSoftwareTitleMutation }>({
+    mutationFn: ({ id, body }) =>
+      unwrap(apiClient.PATCH("/api/munki/software-titles/{id}", { params: { path: { id } }, body })),
+    onSuccess: (title) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "software-titles"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(title.id) });
     },
   });
 }
 
-export function useCreateMunkiRelease() {
+export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiRelease, ApiError, MunkiReleaseMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/releases", { body })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["munki", "releases"] });
+  return useMutation<MunkiPackage, ApiError, MunkiPackageMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages", { body })),
+    onSuccess: (pkg) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
     },
   });
 }
 
-export function useCreateMunkiAssignment() {
+export function useCreateMunkiDeployment() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiAssignment, ApiError, MunkiAssignmentMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/assignments", { body })),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["munki", "assignments"] });
+  return useMutation<MunkiDeployment, ApiError, MunkiDeploymentMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/deployments", { body })),
+    onSuccess: (deployment) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "deployments"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(deployment.software_id) });
+    },
+  });
+}
+
+export function useReorderMunkiDeployments() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, { softwareId: number; orderedIds: number[] }>({
+    mutationFn: ({ softwareId, orderedIds }) =>
+      unwrap(
+        apiClient.PUT("/api/munki/software-titles/{id}/deployments/order", {
+          params: { path: { id: softwareId } },
+          body: { ordered_ids: orderedIds },
+        }),
+      ),
+    onSuccess: (_result, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "deployments"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(variables.softwareId) });
     },
   });
 }
