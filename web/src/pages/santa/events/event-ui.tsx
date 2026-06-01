@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
-import { EnumBadge } from "@/components/ui/enum-badge";
+import { EnumBadge } from "@/components/enum-badge";
 import type { SantaExecutionDecision, SantaFileAccessDecision, SantaHostSummary } from "@/hooks/use-santa";
 import { formatRelative } from "@/lib/utils";
 

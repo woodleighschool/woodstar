@@ -1,9 +1,7 @@
 import { xml } from "@codemirror/lang-xml";
 import type { Extension } from "@codemirror/state";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 import { CodeEditor } from "@/components/editor/code-editor";
 import { Button } from "@/components/ui/button";
@@ -127,12 +125,12 @@ function DeploymentArtifact({
         </div>
         {action}
       </div>
-      <CopyableExample value={value} extensions={extensions} multiline={multiline} />
+      <DeploymentExample value={value} extensions={extensions} multiline={multiline} />
     </Card>
   );
 }
 
-function CopyableExample({
+function DeploymentExample({
   value,
   extensions,
   multiline = false,
@@ -141,45 +139,21 @@ function CopyableExample({
   extensions?: Extension[];
   multiline?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
-    } catch {
-      toast.error("Could not copy to clipboard.");
-    }
-  }
-
   return (
-    <div className="relative min-w-0">
-      <CodeEditor
-        value={value}
-        onChange={() => null}
-        extensions={extensions}
-        readOnly
-        lineNumbers={false}
-        lineWrapping={false}
-        highlightActiveLine={false}
-        className={cn(
-          "[&_.cm-line]:pr-12",
-          multiline
-            ? "max-h-96 min-h-56 overflow-auto [&_.cm-content]:py-1.5"
-            : "min-h-9 [&_.cm-content]:py-2 [&_.cm-scroller]:overflow-x-auto [&_.cm-line]:whitespace-pre",
-        )}
-      />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="absolute right-1 top-1"
-        onClick={() => void copy()}
-      >
-        {copied ? <Check /> : <Copy />}
-      </Button>
-    </div>
+    <CodeEditor
+      value={value}
+      onChange={() => null}
+      extensions={extensions}
+      readOnly
+      lineNumbers={false}
+      lineWrapping={false}
+      highlightActiveLine={false}
+      className={cn(
+        multiline
+          ? "max-h-96 min-h-56 overflow-auto [&_.cm-content]:py-1.5"
+          : "min-h-9 [&_.cm-content]:py-2 [&_.cm-scroller]:overflow-x-auto [&_.cm-line]:whitespace-pre",
+      )}
+    />
   );
 }
 

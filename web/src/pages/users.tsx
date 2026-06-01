@@ -4,6 +4,7 @@ import { MoreHorizontal, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
+import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EnumBadge } from "@/components/ui/enum-badge";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
 import { USER_ROLES } from "@/components/users/user-role";

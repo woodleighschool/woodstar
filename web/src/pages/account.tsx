@@ -3,11 +3,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { APIKeyCard } from "@/components/account/api-key-card";
+import { EnumBadge } from "@/components/enum-badge";
 import { PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { EnumBadge } from "@/components/ui/enum-badge";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
