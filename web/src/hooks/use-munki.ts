@@ -2,31 +2,39 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import type {
   ApiError,
+  MunkiArtifact,
+  MunkiArtifactMutation,
+  MunkiArtifactUpload,
+  MunkiArtifactUploadMutation,
   MunkiDeployment,
   MunkiDeploymentMutation,
   MunkiDeploymentPage,
   MunkiPackage,
+  MunkiPackageImportMutation,
   MunkiPackageMutation,
   MunkiPackagePage,
   MunkiSoftwareTitle,
   MunkiSoftwareTitleDetail,
   MunkiSoftwareTitleMutation,
   MunkiSoftwareTitlePage,
-  PackageMetadata,
 } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
 
 export type {
+  MunkiArtifact,
+  MunkiArtifactMutation,
+  MunkiArtifactUpload,
+  MunkiArtifactUploadMutation,
   MunkiDeployment,
   MunkiDeploymentMutation,
   MunkiPackage,
+  MunkiPackageImportMutation,
   MunkiPackageMutation,
   MunkiSoftwareTitle,
   MunkiSoftwareTitleDetail,
   MunkiSoftwareTitleMutation,
-  PackageMetadata,
 };
 
 export interface MunkiListParams {
@@ -145,6 +153,29 @@ export function useCreateMunkiPackage() {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
     },
+  });
+}
+
+export function useImportMunkiPackage() {
+  const queryClient = useQueryClient();
+  return useMutation<MunkiPackage, ApiError, MunkiPackageImportMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages/import", { body })),
+    onSuccess: (pkg) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
+    },
+  });
+}
+
+export function useCreateMunkiArtifactUpload() {
+  return useMutation<MunkiArtifactUpload, ApiError, MunkiArtifactUploadMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/artifact-uploads", { body })),
+  });
+}
+
+export function useCreateMunkiArtifact() {
+  return useMutation<MunkiArtifact, ApiError, MunkiArtifactMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/artifacts", { body })),
   });
 }
 

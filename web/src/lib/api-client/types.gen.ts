@@ -678,6 +678,62 @@ export type LoginInputBody = {
     password: string;
 };
 
+export type MunkiArtifact = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content_type: string;
+    created_at: string;
+    display_name: string;
+    id: number;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+    updated_at: string;
+};
+
+export type MunkiArtifactMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content_type?: string;
+    display_name?: string;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+};
+
+export type MunkiArtifactUpload = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    artifact: MunkiArtifactMutation;
+    headers?: {
+        [key: string]: string;
+    };
+    upload_url: string;
+};
+
+export type MunkiArtifactUploadMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    content_type?: string;
+    display_name?: string;
+    filename: string;
+    kind: 'package' | 'icon';
+    sha256: string;
+    size_bytes: number;
+};
+
 export type MunkiDeployment = {
     /**
      * A URL to the JSON Schema for this object.
@@ -740,20 +796,55 @@ export type MunkiPackage = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    blocking_applications: Array<string> | null;
     category: string;
     created_at: string;
     description: string;
     developer: string;
     display_name: string;
     eligible: boolean;
+    extra_pkginfo?: unknown;
+    icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
+    icon_url?: string;
     id: number;
-    metadata: PackageMetadata;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    maximum_os_version: string;
+    minimum_munki_version: string;
+    minimum_os_version: string;
     name: string;
+    on_demand: boolean;
+    pkginfo?: unknown;
+    precache: boolean;
+    requires: Array<string> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
     software_id: number;
     software_name: string;
+    supported_architectures: Array<string> | null;
+    unattended_install: boolean;
+    unattended_uninstall: boolean;
+    uninstall_method: string;
+    uninstallable: boolean;
+    update_for: Array<string> | null;
     updated_at: string;
     version: string;
+};
+
+export type MunkiPackageImportMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    eligible?: boolean;
+    icon_artifact_id?: number;
+    installer_artifact_id?: number;
+    pkginfo: unknown;
+    software_id?: number;
 };
 
 export type MunkiPackageMutation = {
@@ -761,14 +852,33 @@ export type MunkiPackageMutation = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    blocking_applications?: Array<string> | null;
     category?: string;
     description?: string;
     developer?: string;
     display_name?: string;
     eligible: boolean;
-    metadata: PackageMetadata;
+    extra_pkginfo?: unknown;
+    icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
+    installer_artifact_id?: number;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    maximum_os_version?: string;
+    minimum_munki_version?: string;
+    minimum_os_version?: string;
     name: string;
+    on_demand?: boolean;
+    precache?: boolean;
+    requires?: Array<string> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
+    supported_architectures?: Array<string> | null;
+    unattended_install?: boolean;
+    unattended_uninstall?: boolean;
+    uninstall_method?: string;
+    uninstallable?: boolean;
+    update_for?: Array<string> | null;
     version: string;
 };
 
@@ -814,24 +924,6 @@ export type MunkiSoftwareTitleMutation = {
     developer?: string;
     display_name?: string;
     name: string;
-};
-
-export type PackageMetadata = {
-    blocking_applications?: Array<string> | null;
-    installer_type?: string;
-    maximum_os_version?: string;
-    minimum_munki_version?: string;
-    minimum_os_version?: string;
-    on_demand?: boolean;
-    precache?: boolean;
-    requires?: Array<string> | null;
-    restart_action?: string;
-    supported_architectures?: Array<string> | null;
-    unattended_install?: boolean;
-    unattended_uninstall?: boolean;
-    uninstall_method?: string;
-    uninstallable?: boolean;
-    update_for?: Array<string> | null;
 };
 
 export type PageCheck = {
@@ -1533,6 +1625,46 @@ export type LoginInputBodyWritable = {
     password: string;
 };
 
+export type MunkiArtifactWritable = {
+    content_type: string;
+    created_at: string;
+    display_name: string;
+    id: number;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+    updated_at: string;
+};
+
+export type MunkiArtifactMutationWritable = {
+    content_type?: string;
+    display_name?: string;
+    kind: 'package' | 'icon';
+    location: string;
+    sha256: string;
+    size_bytes: number;
+    storage_key: string;
+};
+
+export type MunkiArtifactUploadWritable = {
+    artifact: MunkiArtifactMutationWritable;
+    headers?: {
+        [key: string]: string;
+    };
+    upload_url: string;
+};
+
+export type MunkiArtifactUploadMutationWritable = {
+    content_type?: string;
+    display_name?: string;
+    filename: string;
+    kind: 'package' | 'icon';
+    sha256: string;
+    size_bytes: number;
+};
+
 export type MunkiDeploymentWritable = {
     all_hosts: boolean;
     created_at: string;
@@ -1566,31 +1698,81 @@ export type MunkiDeploymentReorderBodyWritable = {
 };
 
 export type MunkiPackageWritable = {
+    blocking_applications: Array<string> | null;
     category: string;
     created_at: string;
     description: string;
     developer: string;
     display_name: string;
     eligible: boolean;
+    extra_pkginfo?: unknown;
+    icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
+    icon_url?: string;
     id: number;
-    metadata: PackageMetadata;
+    installer_artifact_id?: number;
+    installer_artifact_location?: string;
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    maximum_os_version: string;
+    minimum_munki_version: string;
+    minimum_os_version: string;
     name: string;
+    on_demand: boolean;
+    pkginfo?: unknown;
+    precache: boolean;
+    requires: Array<string> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
     software_id: number;
     software_name: string;
+    supported_architectures: Array<string> | null;
+    unattended_install: boolean;
+    unattended_uninstall: boolean;
+    uninstall_method: string;
+    uninstallable: boolean;
+    update_for: Array<string> | null;
     updated_at: string;
     version: string;
 };
 
+export type MunkiPackageImportMutationWritable = {
+    eligible?: boolean;
+    icon_artifact_id?: number;
+    installer_artifact_id?: number;
+    pkginfo: unknown;
+    software_id?: number;
+};
+
 export type MunkiPackageMutationWritable = {
+    blocking_applications?: Array<string> | null;
     category?: string;
     description?: string;
     developer?: string;
     display_name?: string;
     eligible: boolean;
-    metadata: PackageMetadata;
+    extra_pkginfo?: unknown;
+    icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
+    installer_artifact_id?: number;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    maximum_os_version?: string;
+    minimum_munki_version?: string;
+    minimum_os_version?: string;
     name: string;
+    on_demand?: boolean;
+    precache?: boolean;
+    requires?: Array<string> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
+    supported_architectures?: Array<string> | null;
+    unattended_install?: boolean;
+    unattended_uninstall?: boolean;
+    uninstall_method?: string;
+    uninstallable?: boolean;
+    update_for?: Array<string> | null;
     version: string;
 };
 
@@ -3226,6 +3408,147 @@ export type StreamLiveQueryResponses = {
 
 export type StreamLiveQueryResponse = StreamLiveQueryResponses[keyof StreamLiveQueryResponses];
 
+export type CreateMunkiArtifactUploadData = {
+    body: MunkiArtifactUploadMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/artifact-uploads';
+};
+
+export type CreateMunkiArtifactUploadErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+    /**
+     * Service Unavailable
+     */
+    503: ErrorModel;
+};
+
+export type CreateMunkiArtifactUploadError = CreateMunkiArtifactUploadErrors[keyof CreateMunkiArtifactUploadErrors];
+
+export type CreateMunkiArtifactUploadResponses = {
+    /**
+     * Created
+     */
+    201: MunkiArtifactUpload;
+};
+
+export type CreateMunkiArtifactUploadResponse = CreateMunkiArtifactUploadResponses[keyof CreateMunkiArtifactUploadResponses];
+
+export type CreateMunkiArtifactData = {
+    body: MunkiArtifactMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/artifacts';
+};
+
+export type CreateMunkiArtifactErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+    /**
+     * Service Unavailable
+     */
+    503: ErrorModel;
+};
+
+export type CreateMunkiArtifactError = CreateMunkiArtifactErrors[keyof CreateMunkiArtifactErrors];
+
+export type CreateMunkiArtifactResponses = {
+    /**
+     * Created
+     */
+    201: MunkiArtifact;
+};
+
+export type CreateMunkiArtifactResponse = CreateMunkiArtifactResponses[keyof CreateMunkiArtifactResponses];
+
+export type GetMunkiArtifactContentData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/artifacts/{id}/content';
+};
+
+export type GetMunkiArtifactContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+    /**
+     * Service Unavailable
+     */
+    503: ErrorModel;
+};
+
+export type GetMunkiArtifactContentError = GetMunkiArtifactContentErrors[keyof GetMunkiArtifactContentErrors];
+
+export type GetMunkiArtifactContentResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type GetMunkiArtifactContentResponse = GetMunkiArtifactContentResponses[keyof GetMunkiArtifactContentResponses];
+
 export type ListMunkiDeploymentsData = {
     body?: never;
     path?: never;
@@ -3452,6 +3775,55 @@ export type CreateMunkiPackageResponses = {
 };
 
 export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
+
+export type ImportMunkiPackageData = {
+    body: MunkiPackageImportMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/packages/import';
+};
+
+export type ImportMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ImportMunkiPackageError = ImportMunkiPackageErrors[keyof ImportMunkiPackageErrors];
+
+export type ImportMunkiPackageResponses = {
+    /**
+     * Created
+     */
+    201: MunkiPackage;
+};
+
+export type ImportMunkiPackageResponse = ImportMunkiPackageResponses[keyof ImportMunkiPackageResponses];
 
 export type GetMunkiPackageData = {
     body?: never;

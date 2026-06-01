@@ -434,6 +434,30 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	}
 }
 
+func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
+	repository := newStaticRepository("C02MUNKI")
+	repository.artifactURL = "https://storage.example/icons/aaaaaaaaaaaa/GoogleChrome.png?signature=test"
+	router := newMunkiContractRouter(
+		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
+		repository,
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/munki/icons/aaaaaaaaaaaa/GoogleChrome.png", nil)
+	req.Header.Set("Authorization", "Bearer munki-secret")
+	req.Header.Set("Serial", "C02MUNKI")
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
+	}
+	if repository.artifactKind != munki.ArtifactKindIcon ||
+		repository.artifactLocation != "aaaaaaaaaaaa/GoogleChrome.png" {
+		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
+	}
+}
+
 func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
 	repository := newStaticRepository("C02MUNKI")
 	repository.artifactErr = munki.ErrStorageUnavailable

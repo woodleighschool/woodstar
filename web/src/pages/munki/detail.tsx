@@ -1,6 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Loader2, PackageCheck, Plus } from "lucide-react";
+import { Loader2, PackageCheck, Package as PackageIcon, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableRowDragHandle } from "@/components/data-table";
@@ -8,6 +8,7 @@ import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useLabels } from "@/hooks/use-labels";
@@ -70,17 +71,29 @@ export function MunkiSoftwareTitleDetailPage() {
       id: "version",
       accessorKey: "version",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
-      cell: ({ row }) => row.original.version,
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <PackageIconView pkg={row.original} />
+          <div className="min-w-0">
+            <div className="truncate font-medium">{row.original.version}</div>
+            <div className="text-muted-foreground truncate text-xs">
+              {row.original.display_name || row.original.name}
+            </div>
+          </div>
+        </div>
+      ),
     },
     {
       id: "installer_type",
       header: "Installer",
       enableSorting: false,
-      cell: ({ row }) => {
-        const installerType = row.original.metadata.installer_type?.trim() ?? "pkg";
-        if (installerType === "") return "pkg";
-        return installerType;
-      },
+      cell: ({ row }) => installerTypeLabel(row.original.installer_type),
+    },
+    {
+      id: "behavior",
+      header: "Behavior",
+      enableSorting: false,
+      cell: ({ row }) => <PackageBehavior pkg={row.original} />,
     },
     {
       id: "eligible",
@@ -277,4 +290,49 @@ export function MunkiSoftwareTitleDetailPage() {
       )}
     </PageShell>
   );
+}
+
+function PackageIconView({ pkg }: { pkg: MunkiPackage }) {
+  const label = pkg.display_name || pkg.name;
+  if (pkg.icon_url) {
+    return (
+      <img
+        src={pkg.icon_url}
+        alt=""
+        className="bg-muted size-9 shrink-0 rounded-md border object-contain p-1"
+        loading="lazy"
+      />
+    );
+  }
+  return (
+    <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border">
+      <PackageIcon aria-label={`${label} package`} className="size-4" />
+    </div>
+  );
+}
+
+function PackageBehavior({ pkg }: { pkg: MunkiPackage }) {
+  const values = [
+    pkg.unattended_install ? "Unattended" : "",
+    pkg.uninstallable ? "Uninstallable" : "",
+    pkg.on_demand ? "On demand" : "",
+    pkg.restart_action && pkg.restart_action !== "None" ? pkg.restart_action : "",
+  ].filter(Boolean);
+  if (values.length === 0) {
+    return <span className="text-muted-foreground">Standard</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {values.map((value) => (
+        <Badge key={value} variant="secondary" className="font-normal">
+          {value}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function installerTypeLabel(value: MunkiPackage["installer_type"]) {
+  if (value === "pkg") return "Package";
+  return value;
 }

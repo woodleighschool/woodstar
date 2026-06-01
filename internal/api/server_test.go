@@ -272,7 +272,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		"/api/munki/packages",
 		fmt.Sprintf(
-			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","metadata":{"installer_type":"nopkg"},"eligible":true}`,
+			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg","eligible":true}`,
 			title.ID,
 		),
 	)
@@ -324,6 +324,79 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 }
 
+func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := users.NewService(users.NewStore(database))
+	if _, err := userService.Create(ctx, users.UserCreate{
+		Email:    "munki-upload@example.test",
+		Name:     "Munki Upload",
+		Password: testUserPassword,
+		Role:     users.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Munki.Store = munki.NewStore(database)
+	deps.Munki.ArtifactStorage = fakeMunkiStorage{}
+	server := NewServer(deps)
+	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "munki-upload@example.test")
+	sha := strings.Repeat("a", 64)
+
+	upload := postMunkiJSON[struct {
+		UploadURL string                 `json:"upload_url"`
+		Headers   map[string]string      `json:"headers"`
+		Artifact  munki.ArtifactMutation `json:"artifact"`
+	}](
+		t,
+		server,
+		cookie,
+		"/api/munki/artifact-uploads",
+		fmt.Sprintf(
+			`{"kind":"icon","filename":"GoogleChrome.png","content_type":"image/png","size_bytes":123,"sha256":%q}`,
+			sha,
+		),
+	)
+	if upload.UploadURL == "" || upload.Artifact.StorageKey == "" {
+		t.Fatalf("upload = %+v, want presigned URL and finalize payload", upload)
+	}
+	if upload.Artifact.Location != "aaaaaaaaaaaa/GoogleChrome.png" {
+		t.Fatalf("artifact location = %q", upload.Artifact.Location)
+	}
+
+	body, err := json.Marshal(upload.Artifact)
+	if err != nil {
+		t.Fatalf("marshal artifact: %v", err)
+	}
+	artifact := postMunkiJSON[munki.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
+	if artifact.Kind != munki.ArtifactKindIcon || artifact.SHA256 != sha {
+		t.Fatalf("artifact = %+v, want finalized icon artifact", artifact)
+	}
+	again := postMunkiJSON[munki.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
+	if again.ID != artifact.ID {
+		t.Fatalf("repeat artifact finalize id = %d, want %d", again.ID, artifact.ID)
+	}
+
+	contentRec := httptest.NewRecorder()
+	contentReq := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		fmt.Sprintf("/api/munki/artifacts/%d/content", artifact.ID),
+		nil,
+	)
+	contentReq.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(contentRec, contentReq)
+	if contentRec.Code != http.StatusFound {
+		t.Fatalf("content status = %d, want %d; body = %q", contentRec.Code, http.StatusFound, contentRec.Body.String())
+	}
+	if location := contentRec.Header().Get("Location"); location != "https://storage.example/"+artifact.StorageKey {
+		t.Fatalf("content location = %q, want fake storage URL", location)
+	}
+}
+
 func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
 	for _, secret := range secrets {
 		if secret.ID == id && secret.Agent == agent && secret.Value == value {
@@ -331,6 +404,28 @@ func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agenta
 		}
 	}
 	return false
+}
+
+type fakeMunkiStorage struct{}
+
+func (fakeMunkiStorage) PresignGet(_ context.Context, artifact munki.Artifact) (string, error) {
+	return "https://storage.example/" + artifact.StorageKey, nil
+}
+
+func (fakeMunkiStorage) PresignPut(
+	_ context.Context,
+	storageKey string,
+	contentType string,
+	sha256 string,
+) (munki.ArtifactUploadURL, error) {
+	return munki.ArtifactUploadURL{
+		URL:     "https://storage.example/" + storageKey,
+		Headers: map[string]string{"Content-Type": contentType, "x-amz-meta-woodstar-sha256": sha256},
+	}, nil
+}
+
+func (fakeMunkiStorage) Stat(_ context.Context, _ string) (munki.ArtifactObject, error) {
+	return munki.ArtifactObject{ContentType: "image/png", SizeBytes: 123, SHA256: strings.Repeat("a", 64)}, nil
 }
 
 func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {

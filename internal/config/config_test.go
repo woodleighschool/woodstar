@@ -104,6 +104,7 @@ func TestApplyEnvironmentReadsMunkiS3Config(t *testing.T) {
 	t.Setenv("WOODSTAR_MUNKI_S3_BUCKET", "woodstar-munki")
 	t.Setenv("WOODSTAR_MUNKI_S3_REGION", "ap-southeast-2")
 	t.Setenv("WOODSTAR_MUNKI_S3_ENDPOINT", " https://storage.example ")
+	t.Setenv("WOODSTAR_MUNKI_S3_PUBLIC_ENDPOINT", " https://downloads.example ")
 	t.Setenv("WOODSTAR_MUNKI_S3_ACCESS_KEY", "access")
 	t.Setenv("WOODSTAR_MUNKI_S3_SECRET_KEY", "secret")
 	t.Setenv("WOODSTAR_MUNKI_S3_PATH_STYLE", "true")
@@ -119,6 +120,9 @@ func TestApplyEnvironmentReadsMunkiS3Config(t *testing.T) {
 	}
 	if cfg.MunkiS3Endpoint != "https://storage.example" {
 		t.Fatalf("MunkiS3Endpoint = %q", cfg.MunkiS3Endpoint)
+	}
+	if cfg.MunkiS3PublicEndpoint != "https://downloads.example" {
+		t.Fatalf("MunkiS3PublicEndpoint = %q", cfg.MunkiS3PublicEndpoint)
 	}
 	if cfg.MunkiS3PresignTTL.String() != "10m0s" {
 		t.Fatalf("MunkiS3PresignTTL = %s", cfg.MunkiS3PresignTTL)

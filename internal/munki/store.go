@@ -2,7 +2,6 @@ package munki
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -77,6 +76,22 @@ func (s *Store) GetSoftwareTitle(ctx context.Context, id int64) (*SoftwareTitle,
 		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.GetMunkiSoftwareTitleByID(ctx, sqlc.GetMunkiSoftwareTitleByIDParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	title := softwareTitleFromSQLC(row)
+	return &title, nil
+}
+
+func (s *Store) GetSoftwareTitleByName(ctx context.Context, name string) (*SoftwareTitle, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, dbutil.ErrNotFound
+	}
+	row, err := s.q.GetMunkiSoftwareTitleByName(ctx, sqlc.GetMunkiSoftwareTitleByNameParams{Name: name})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
@@ -162,7 +177,7 @@ func (s *Store) CreateArtifact(ctx context.Context, params ArtifactMutation) (*A
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	row, err := s.q.CreateMunkiArtifact(ctx, sqlc.CreateMunkiArtifactParams{
+	row, err := s.q.UpsertMunkiArtifact(ctx, sqlc.UpsertMunkiArtifactParams{
 		Kind:        sqlc.MunkiArtifactKind(params.Kind),
 		DisplayName: params.DisplayName,
 		Location:    params.Location,
@@ -241,33 +256,89 @@ func (s *Store) CreatePackage(ctx context.Context, params PackageMutation) (*Pac
 		return nil, err
 	}
 	params = fillPackageDefaults(params, *title)
-	if params.InstallerArtifactID != nil {
-		artifact, err := s.GetArtifact(ctx, *params.InstallerArtifactID)
-		if err != nil {
-			return nil, err
-		}
-		if artifact.Kind != ArtifactKindPackage {
-			return nil, fmt.Errorf(
-				"%w: installer_artifact_id must reference a package artifact",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	}
-	metadata, err := json.Marshal(params.Metadata)
+	params, err = s.normalizePackageArtifacts(ctx, params)
 	if err != nil {
 		return nil, err
 	}
 	row, err := s.q.CreateMunkiPackage(ctx, sqlc.CreateMunkiPackageParams{
-		SoftwareID:          params.SoftwareID,
-		Name:                params.Name,
-		Version:             params.Version,
-		DisplayName:         params.DisplayName,
-		Description:         params.Description,
-		Category:            params.Category,
-		Developer:           params.Developer,
-		Metadata:            metadata,
-		InstallerArtifactID: params.InstallerArtifactID,
-		Eligible:            params.Eligible,
+		SoftwareID:             params.SoftwareID,
+		Name:                   params.Name,
+		Version:                params.Version,
+		DisplayName:            params.DisplayName,
+		Description:            params.Description,
+		Category:               params.Category,
+		Developer:              params.Developer,
+		InstallerType:          sqlcString(params.InstallerType),
+		UninstallMethod:        params.UninstallMethod,
+		RestartAction:          sqlcString(params.RestartAction),
+		MinimumMunkiVersion:    params.MinimumMunkiVersion,
+		MinimumOSVersion:       params.MinimumOSVersion,
+		MaximumOSVersion:       params.MaximumOSVersion,
+		SupportedArchitectures: params.SupportedArchitectures,
+		BlockingApplications:   params.BlockingApplications,
+		Requires:               params.Requires,
+		UpdateFor:              params.UpdateFor,
+		UnattendedInstall:      params.UnattendedInstall,
+		UnattendedUninstall:    params.UnattendedUninstall,
+		Uninstallable:          params.Uninstallable,
+		OnDemand:               params.OnDemand,
+		Precache:               params.Precache,
+		IconName:               params.IconName,
+		IconHash:               params.IconHash,
+		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
+		InstallerArtifactID:    params.InstallerArtifactID,
+		IconArtifactID:         params.IconArtifactID,
+		Eligible:               params.Eligible,
+	})
+	if err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	return s.GetPackage(ctx, row.ID)
+}
+
+func (s *Store) UpsertPackage(ctx context.Context, params PackageMutation) (*Package, error) {
+	params = cleanPackageMutation(params)
+	if err := params.Validate(); err != nil {
+		return nil, err
+	}
+	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	if err != nil {
+		return nil, err
+	}
+	params = fillPackageDefaults(params, *title)
+	params, err = s.normalizePackageArtifacts(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	row, err := s.q.UpsertMunkiPackage(ctx, sqlc.UpsertMunkiPackageParams{
+		SoftwareID:             params.SoftwareID,
+		Name:                   params.Name,
+		Version:                params.Version,
+		DisplayName:            params.DisplayName,
+		Description:            params.Description,
+		Category:               params.Category,
+		Developer:              params.Developer,
+		InstallerType:          sqlcString(params.InstallerType),
+		UninstallMethod:        params.UninstallMethod,
+		RestartAction:          sqlcString(params.RestartAction),
+		MinimumMunkiVersion:    params.MinimumMunkiVersion,
+		MinimumOSVersion:       params.MinimumOSVersion,
+		MaximumOSVersion:       params.MaximumOSVersion,
+		SupportedArchitectures: params.SupportedArchitectures,
+		BlockingApplications:   params.BlockingApplications,
+		Requires:               params.Requires,
+		UpdateFor:              params.UpdateFor,
+		UnattendedInstall:      params.UnattendedInstall,
+		UnattendedUninstall:    params.UnattendedUninstall,
+		Uninstallable:          params.Uninstallable,
+		OnDemand:               params.OnDemand,
+		Precache:               params.Precache,
+		IconName:               params.IconName,
+		IconHash:               params.IconHash,
+		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
+		InstallerArtifactID:    params.InstallerArtifactID,
+		IconArtifactID:         params.IconArtifactID,
+		Eligible:               params.Eligible,
 	})
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
@@ -547,6 +618,36 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	}, nil
 }
 
+func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMutation) (PackageMutation, error) {
+	if params.InstallerArtifactID != nil {
+		artifact, err := s.GetArtifact(ctx, *params.InstallerArtifactID)
+		if err != nil {
+			return params, err
+		}
+		if artifact.Kind != ArtifactKindPackage {
+			return params, fmt.Errorf(
+				"%w: installer_artifact_id must reference a package artifact",
+				dbutil.ErrInvalidInput,
+			)
+		}
+	}
+	if params.IconArtifactID != nil {
+		artifact, err := s.GetArtifact(ctx, *params.IconArtifactID)
+		if err != nil {
+			return params, err
+		}
+		if artifact.Kind != ArtifactKindIcon {
+			return params, fmt.Errorf(
+				"%w: icon_artifact_id must reference an icon artifact",
+				dbutil.ErrInvalidInput,
+			)
+		}
+		params.IconName = artifact.Location
+		params.IconHash = artifact.SHA256
+	}
+	return params, nil
+}
+
 func hostItemFromRecord(row sqlc.MunkiHostItem) HostItem {
 	return HostItem{
 		HostID:           row.HostID,
@@ -587,7 +688,22 @@ func cleanPackageMutation(params PackageMutation) PackageMutation {
 	params.Description = strings.TrimSpace(params.Description)
 	params.Category = strings.TrimSpace(params.Category)
 	params.Developer = strings.TrimSpace(params.Developer)
-	params.Metadata = cleanPackageMetadata(params.Metadata)
+	params.InstallerType = InstallerType(strings.TrimSpace(string(params.InstallerType)))
+	if params.InstallerType == "" {
+		params.InstallerType = InstallerTypePkg
+	}
+	params.UninstallMethod = strings.TrimSpace(params.UninstallMethod)
+	params.RestartAction = RestartAction(strings.TrimSpace(string(params.RestartAction)))
+	params.MinimumMunkiVersion = strings.TrimSpace(params.MinimumMunkiVersion)
+	params.MinimumOSVersion = strings.TrimSpace(params.MinimumOSVersion)
+	params.MaximumOSVersion = strings.TrimSpace(params.MaximumOSVersion)
+	params.SupportedArchitectures = cleanStringList(params.SupportedArchitectures)
+	params.BlockingApplications = cleanStringList(params.BlockingApplications)
+	params.Requires = cleanStringList(params.Requires)
+	params.UpdateFor = cleanStringList(params.UpdateFor)
+	params.IconName = strings.TrimSpace(params.IconName)
+	params.IconHash = strings.TrimSpace(params.IconHash)
+	params.ExtraPkginfo = cleanExtraPkginfo(params.ExtraPkginfo)
 	return params
 }
 
@@ -605,20 +721,6 @@ func fillPackageDefaults(params PackageMutation, title SoftwareTitle) PackageMut
 		params.Developer = title.Developer
 	}
 	return params
-}
-
-func cleanPackageMetadata(metadata PackageMetadata) PackageMetadata {
-	metadata.InstallerType = strings.TrimSpace(metadata.InstallerType)
-	metadata.UninstallMethod = strings.TrimSpace(metadata.UninstallMethod)
-	metadata.RestartAction = strings.TrimSpace(metadata.RestartAction)
-	metadata.MinimumMunkiVersion = strings.TrimSpace(metadata.MinimumMunkiVersion)
-	metadata.MinimumOSVersion = strings.TrimSpace(metadata.MinimumOSVersion)
-	metadata.MaximumOSVersion = strings.TrimSpace(metadata.MaximumOSVersion)
-	metadata.SupportedArchitectures = cleanStringList(metadata.SupportedArchitectures)
-	metadata.BlockingApplications = cleanStringList(metadata.BlockingApplications)
-	metadata.Requires = cleanStringList(metadata.Requires)
-	metadata.UpdateFor = cleanStringList(metadata.UpdateFor)
-	return metadata
 }
 
 func cleanArtifactMutation(params ArtifactMutation) ArtifactMutation {
@@ -662,13 +764,6 @@ func artifactFromSQLC(row sqlc.MunkiArtifact) Artifact {
 }
 
 func packageFromRecord(row packageRecord) (Package, error) {
-	var metadata PackageMetadata
-	if len(row.Metadata) > 0 {
-		if err := json.Unmarshal(row.Metadata, &metadata); err != nil {
-			return Package{}, fmt.Errorf("decode munki package metadata %d: %w", row.ID, err)
-		}
-	}
-	metadata = cleanPackageMetadata(metadata)
 	pkg := Package{
 		ID:                        row.ID,
 		SoftwareID:                row.SoftwareID,
@@ -680,9 +775,28 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		Description:               row.Description,
 		Category:                  row.Category,
 		Developer:                 row.Developer,
-		Metadata:                  metadata,
+		InstallerType:             InstallerType(row.InstallerType),
+		UnattendedInstall:         row.UnattendedInstall,
+		UnattendedUninstall:       row.UnattendedUninstall,
+		Uninstallable:             row.Uninstallable,
+		UninstallMethod:           row.UninstallMethod,
+		RestartAction:             RestartAction(row.RestartAction),
+		MinimumMunkiVersion:       row.MinimumMunkiVersion,
+		MinimumOSVersion:          row.MinimumOSVersion,
+		MaximumOSVersion:          row.MaximumOSVersion,
+		SupportedArchitectures:    nonNilStrings(row.SupportedArchitectures),
+		BlockingApplications:      nonNilStrings(row.BlockingApplications),
+		Requires:                  nonNilStrings(row.Requires),
+		UpdateFor:                 nonNilStrings(row.UpdateFor),
+		OnDemand:                  row.OnDemand,
+		Precache:                  row.Precache,
+		IconName:                  row.IconName,
+		IconHash:                  row.IconHash,
+		ExtraPkginfo:              cleanExtraPkginfo(row.ExtraPkginfo),
 		InstallerArtifactID:       row.InstallerArtifactID,
 		InstallerArtifactLocation: stringPtrValue(row.InstallerArtifactLocation),
+		IconArtifactID:            row.IconArtifactID,
+		IconArtifactLocation:      stringPtrValue(row.IconArtifactLocation),
 		Eligible:                  row.Eligible,
 		CreatedAt:                 row.CreatedAt,
 		UpdatedAt:                 row.UpdatedAt,
@@ -825,6 +939,10 @@ func stringPtrValue(value *string) string {
 	return *value
 }
 
+func sqlcString[S ~string](value S) string {
+	return string(value)
+}
+
 func softwareTitleListWhere(params dbutil.ListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
@@ -854,6 +972,8 @@ func packageListWhere(params PackageListParams) (string, []any) {
 			OR p.description ILIKE ` + search + `
 			OR p.category ILIKE ` + search + `
 			OR p.developer ILIKE ` + search + `
+			OR p.installer_type ILIKE ` + search + `
+			OR p.icon_name ILIKE ` + search + `
 			OR s.name ILIKE ` + search + `
 			OR s.display_name ILIKE ` + search + `
 		)`)
@@ -909,9 +1029,28 @@ type packageRecord struct {
 	Description               string
 	Category                  string
 	Developer                 string
-	Metadata                  []byte
+	InstallerType             string
+	UninstallMethod           string
+	RestartAction             string
+	MinimumMunkiVersion       string
+	MinimumOSVersion          string
+	MaximumOSVersion          string
+	SupportedArchitectures    []string
+	BlockingApplications      []string
+	Requires                  []string
+	UpdateFor                 []string
+	UnattendedInstall         bool
+	UnattendedUninstall       bool
+	Uninstallable             bool
+	OnDemand                  bool
+	Precache                  bool
+	IconName                  string
+	IconHash                  string
+	ExtraPkginfo              []byte
 	InstallerArtifactID       *int64
 	InstallerArtifactLocation *string
+	IconArtifactID            *int64
+	IconArtifactLocation      *string
 	Eligible                  bool
 	CreatedAt                 time.Time
 	UpdatedAt                 time.Time
@@ -943,9 +1082,28 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		Description:               row.Description,
 		Category:                  row.Category,
 		Developer:                 row.Developer,
-		Metadata:                  row.Metadata,
+		InstallerType:             row.InstallerType,
+		UninstallMethod:           row.UninstallMethod,
+		RestartAction:             row.RestartAction,
+		MinimumMunkiVersion:       row.MinimumMunkiVersion,
+		MinimumOSVersion:          row.MinimumOSVersion,
+		MaximumOSVersion:          row.MaximumOSVersion,
+		SupportedArchitectures:    row.SupportedArchitectures,
+		BlockingApplications:      row.BlockingApplications,
+		Requires:                  row.Requires,
+		UpdateFor:                 row.UpdateFor,
+		UnattendedInstall:         row.UnattendedInstall,
+		UnattendedUninstall:       row.UnattendedUninstall,
+		Uninstallable:             row.Uninstallable,
+		OnDemand:                  row.OnDemand,
+		Precache:                  row.Precache,
+		IconName:                  row.IconName,
+		IconHash:                  row.IconHash,
+		ExtraPkginfo:              row.ExtraPkginfo,
 		InstallerArtifactID:       row.InstallerArtifactID,
 		InstallerArtifactLocation: row.InstallerArtifactLocation,
+		IconArtifactID:            row.IconArtifactID,
+		IconArtifactLocation:      row.IconArtifactLocation,
 		Eligible:                  row.Eligible,
 		CreatedAt:                 row.CreatedAt,
 		UpdatedAt:                 row.UpdatedAt,
@@ -962,9 +1120,28 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		Description:               row.Description,
 		Category:                  row.Category,
 		Developer:                 row.Developer,
-		Metadata:                  row.Metadata,
+		InstallerType:             row.InstallerType,
+		UninstallMethod:           row.UninstallMethod,
+		RestartAction:             row.RestartAction,
+		MinimumMunkiVersion:       row.MinimumMunkiVersion,
+		MinimumOSVersion:          row.MinimumOSVersion,
+		MaximumOSVersion:          row.MaximumOSVersion,
+		SupportedArchitectures:    row.SupportedArchitectures,
+		BlockingApplications:      row.BlockingApplications,
+		Requires:                  row.Requires,
+		UpdateFor:                 row.UpdateFor,
+		UnattendedInstall:         row.UnattendedInstall,
+		UnattendedUninstall:       row.UnattendedUninstall,
+		Uninstallable:             row.Uninstallable,
+		OnDemand:                  row.OnDemand,
+		Precache:                  row.Precache,
+		IconName:                  row.IconName,
+		IconHash:                  row.IconHash,
+		ExtraPkginfo:              row.ExtraPkginfo,
 		InstallerArtifactID:       row.InstallerArtifactID,
 		InstallerArtifactLocation: row.InstallerArtifactLocation,
+		IconArtifactID:            row.IconArtifactID,
+		IconArtifactLocation:      row.IconArtifactLocation,
 		Eligible:                  true,
 	}
 }
@@ -993,15 +1170,35 @@ SELECT
 	p.description,
 	p.category,
 	p.developer,
-	p.metadata,
+	p.installer_type,
+	p.uninstall_method,
+	p.restart_action,
+	p.minimum_munki_version,
+	p.minimum_os_version,
+	p.maximum_os_version,
+	p.supported_architectures,
+	p.blocking_applications,
+	p.requires,
+	p.update_for,
+	p.unattended_install,
+	p.unattended_uninstall,
+	p.uninstallable,
+	p.on_demand,
+	p.precache,
+	p.icon_name,
+	p.icon_hash,
+	p.extra_pkginfo,
 	p.installer_artifact_id,
 	art.location AS installer_artifact_location,
+	p.icon_artifact_id,
+	icon.location AS icon_artifact_location,
 	p.eligible,
 	p.created_at,
 	p.updated_at
 FROM munki_packages p
 JOIN munki_software_titles s ON s.id = p.software_id
-LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id`
+LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id`
 
 const deploymentSelectSQL = `
 SELECT

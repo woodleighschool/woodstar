@@ -48,13 +48,14 @@ type Config struct {
 	EntraTransitiveGroups bool          `env:"ENTRA_TRANSITIVE_GROUPS"`
 	EntraSyncInterval     time.Duration `env:"ENTRA_SYNC_INTERVAL"     envDefault:"1h"`
 
-	MunkiS3Bucket     string        `env:"MUNKI_S3_BUCKET"`
-	MunkiS3Region     string        `env:"MUNKI_S3_REGION"`
-	MunkiS3Endpoint   string        `env:"MUNKI_S3_ENDPOINT"`
-	MunkiS3AccessKey  string        `env:"MUNKI_S3_ACCESS_KEY"`
-	MunkiS3SecretKey  string        `env:"MUNKI_S3_SECRET_KEY"`
-	MunkiS3PathStyle  bool          `env:"MUNKI_S3_PATH_STYLE"`
-	MunkiS3PresignTTL time.Duration `env:"MUNKI_S3_PRESIGN_TTL" envDefault:"15m"`
+	MunkiS3Bucket         string        `env:"MUNKI_S3_BUCKET"`
+	MunkiS3Region         string        `env:"MUNKI_S3_REGION"`
+	MunkiS3Endpoint       string        `env:"MUNKI_S3_ENDPOINT"`
+	MunkiS3PublicEndpoint string        `env:"MUNKI_S3_PUBLIC_ENDPOINT"`
+	MunkiS3AccessKey      string        `env:"MUNKI_S3_ACCESS_KEY"`
+	MunkiS3SecretKey      string        `env:"MUNKI_S3_SECRET_KEY"`
+	MunkiS3PathStyle      bool          `env:"MUNKI_S3_PATH_STYLE"`
+	MunkiS3PresignTTL     time.Duration `env:"MUNKI_S3_PRESIGN_TTL"     envDefault:"15m"`
 
 	publicURLScheme string
 }
@@ -136,6 +137,7 @@ func (cfg *Config) normalizeMunkiS3() error {
 	cfg.MunkiS3Bucket = strings.TrimSpace(cfg.MunkiS3Bucket)
 	cfg.MunkiS3Region = strings.TrimSpace(cfg.MunkiS3Region)
 	cfg.MunkiS3Endpoint = strings.TrimSpace(cfg.MunkiS3Endpoint)
+	cfg.MunkiS3PublicEndpoint = strings.TrimSpace(cfg.MunkiS3PublicEndpoint)
 	cfg.MunkiS3AccessKey = strings.TrimSpace(cfg.MunkiS3AccessKey)
 	cfg.MunkiS3SecretKey = strings.TrimSpace(cfg.MunkiS3SecretKey)
 	if !cfg.munkiS3Configured() {
@@ -154,6 +156,7 @@ func (cfg *Config) munkiS3Configured() bool {
 	return cfg.MunkiS3Bucket != "" ||
 		cfg.MunkiS3Region != "" ||
 		cfg.MunkiS3Endpoint != "" ||
+		cfg.MunkiS3PublicEndpoint != "" ||
 		cfg.MunkiS3AccessKey != "" ||
 		cfg.MunkiS3SecretKey != ""
 }

@@ -311,6 +311,7 @@ func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, e
 		}
 		delete(item, "PackageCompleteURL")
 		delete(item, "PackageURL")
+		delete(item, "installer_item_location")
 		if pkg.Package.InstallerArtifactID != nil {
 			if pkg.Package.InstallerArtifactLocation != "" {
 				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation

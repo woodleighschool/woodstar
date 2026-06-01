@@ -48,64 +48,6 @@ func (q *Queries) CountMunkiSoftwareTitles(ctx context.Context) (int32, error) {
 	return column_1, err
 }
 
-const createMunkiArtifact = `-- name: CreateMunkiArtifact :one
-INSERT INTO munki_artifacts (
-    kind,
-    display_name,
-    location,
-    content_type,
-    size_bytes,
-    sha256,
-    storage_key
-)
-VALUES (
-    $1::munki_artifact_kind,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7
-)
-RETURNING id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
-`
-
-type CreateMunkiArtifactParams struct {
-	Kind        MunkiArtifactKind `json:"kind"`
-	DisplayName string            `json:"display_name"`
-	Location    string            `json:"location"`
-	ContentType string            `json:"content_type"`
-	SizeBytes   int64             `json:"size_bytes"`
-	Sha256      string            `json:"sha256"`
-	StorageKey  string            `json:"storage_key"`
-}
-
-func (q *Queries) CreateMunkiArtifact(ctx context.Context, arg CreateMunkiArtifactParams) (MunkiArtifact, error) {
-	row := q.db.QueryRow(ctx, createMunkiArtifact,
-		arg.Kind,
-		arg.DisplayName,
-		arg.Location,
-		arg.ContentType,
-		arg.SizeBytes,
-		arg.Sha256,
-		arg.StorageKey,
-	)
-	var i MunkiArtifact
-	err := row.Scan(
-		&i.ID,
-		&i.Kind,
-		&i.DisplayName,
-		&i.Location,
-		&i.ContentType,
-		&i.SizeBytes,
-		&i.Sha256,
-		&i.StorageKey,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const createMunkiDeployment = `-- name: CreateMunkiDeployment :one
 INSERT INTO munki_deployments (
     package_id,
@@ -161,8 +103,26 @@ INSERT INTO munki_packages (
     description,
     category,
     developer,
-    metadata,
+    installer_type,
+    uninstall_method,
+    restart_action,
+    minimum_munki_version,
+    minimum_os_version,
+    maximum_os_version,
+    supported_architectures,
+    blocking_applications,
+    requires,
+    update_for,
+    unattended_install,
+    unattended_uninstall,
+    uninstallable,
+    on_demand,
+    precache,
+    icon_name,
+    icon_hash,
+    extra_pkginfo,
     installer_artifact_id,
+    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -173,24 +133,60 @@ VALUES (
     $5,
     $6,
     $7,
-    $8::jsonb,
-    $9::bigint,
-    $10
+    $8,
+    $9,
+    $10,
+    $11,
+    $12,
+    $13,
+    $14::text[],
+    $15::text[],
+    $16::text[],
+    $17::text[],
+    $18,
+    $19,
+    $20,
+    $21,
+    $22,
+    $23,
+    $24,
+    $25::jsonb,
+    $26::bigint,
+    $27::bigint,
+    $28
 )
-RETURNING id, software_id, name, version, display_name, description, category, developer, metadata, eligible, created_at, updated_at, installer_artifact_id
+RETURNING id, software_id, name, version, display_name, description, category, developer, eligible, created_at, updated_at, installer_artifact_id, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, requires, update_for, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, icon_name, icon_hash, icon_artifact_id, extra_pkginfo
 `
 
 type CreateMunkiPackageParams struct {
-	SoftwareID          int64  `json:"software_id"`
-	Name                string `json:"name"`
-	Version             string `json:"version"`
-	DisplayName         string `json:"display_name"`
-	Description         string `json:"description"`
-	Category            string `json:"category"`
-	Developer           string `json:"developer"`
-	Metadata            []byte `json:"metadata"`
-	InstallerArtifactID *int64 `json:"installer_artifact_id"`
-	Eligible            bool   `json:"eligible"`
+	SoftwareID             int64    `json:"software_id"`
+	Name                   string   `json:"name"`
+	Version                string   `json:"version"`
+	DisplayName            string   `json:"display_name"`
+	Description            string   `json:"description"`
+	Category               string   `json:"category"`
+	Developer              string   `json:"developer"`
+	InstallerType          string   `json:"installer_type"`
+	UninstallMethod        string   `json:"uninstall_method"`
+	RestartAction          string   `json:"restart_action"`
+	MinimumMunkiVersion    string   `json:"minimum_munki_version"`
+	MinimumOSVersion       string   `json:"minimum_os_version"`
+	MaximumOSVersion       string   `json:"maximum_os_version"`
+	SupportedArchitectures []string `json:"supported_architectures"`
+	BlockingApplications   []string `json:"blocking_applications"`
+	Requires               []string `json:"requires"`
+	UpdateFor              []string `json:"update_for"`
+	UnattendedInstall      bool     `json:"unattended_install"`
+	UnattendedUninstall    bool     `json:"unattended_uninstall"`
+	Uninstallable          bool     `json:"uninstallable"`
+	OnDemand               bool     `json:"on_demand"`
+	Precache               bool     `json:"precache"`
+	IconName               string   `json:"icon_name"`
+	IconHash               string   `json:"icon_hash"`
+	ExtraPkginfo           []byte   `json:"extra_pkginfo"`
+	InstallerArtifactID    *int64   `json:"installer_artifact_id"`
+	IconArtifactID         *int64   `json:"icon_artifact_id"`
+	Eligible               bool     `json:"eligible"`
 }
 
 func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackageParams) (MunkiPackage, error) {
@@ -202,8 +198,26 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.Description,
 		arg.Category,
 		arg.Developer,
-		arg.Metadata,
+		arg.InstallerType,
+		arg.UninstallMethod,
+		arg.RestartAction,
+		arg.MinimumMunkiVersion,
+		arg.MinimumOSVersion,
+		arg.MaximumOSVersion,
+		arg.SupportedArchitectures,
+		arg.BlockingApplications,
+		arg.Requires,
+		arg.UpdateFor,
+		arg.UnattendedInstall,
+		arg.UnattendedUninstall,
+		arg.Uninstallable,
+		arg.OnDemand,
+		arg.Precache,
+		arg.IconName,
+		arg.IconHash,
+		arg.ExtraPkginfo,
 		arg.InstallerArtifactID,
+		arg.IconArtifactID,
 		arg.Eligible,
 	)
 	var i MunkiPackage
@@ -216,11 +230,29 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.Description,
 		&i.Category,
 		&i.Developer,
-		&i.Metadata,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.InstallerArtifactID,
+		&i.InstallerType,
+		&i.UninstallMethod,
+		&i.RestartAction,
+		&i.MinimumMunkiVersion,
+		&i.MinimumOSVersion,
+		&i.MaximumOSVersion,
+		&i.SupportedArchitectures,
+		&i.BlockingApplications,
+		&i.Requires,
+		&i.UpdateFor,
+		&i.UnattendedInstall,
+		&i.UnattendedUninstall,
+		&i.Uninstallable,
+		&i.OnDemand,
+		&i.Precache,
+		&i.IconName,
+		&i.IconHash,
+		&i.IconArtifactID,
+		&i.ExtraPkginfo,
 	)
 	return i, err
 }
@@ -376,13 +408,15 @@ func (q *Queries) GetMunkiHostStatus(ctx context.Context, arg GetMunkiHostStatus
 
 const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
 SELECT
-    p.id, p.software_id, p.name, p.version, p.display_name, p.description, p.category, p.developer, p.metadata, p.eligible, p.created_at, p.updated_at, p.installer_artifact_id,
+    p.id, p.software_id, p.name, p.version, p.display_name, p.description, p.category, p.developer, p.eligible, p.created_at, p.updated_at, p.installer_artifact_id, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.requires, p.update_for, p.unattended_install, p.unattended_uninstall, p.uninstallable, p.on_demand, p.precache, p.icon_name, p.icon_hash, p.icon_artifact_id, p.extra_pkginfo,
     s.name AS software_name,
     s.display_name AS software_display_name,
-    art.location AS installer_artifact_location
+    art.location AS installer_artifact_location,
+    icon.location AS icon_artifact_location
 FROM munki_packages p
 JOIN munki_software_titles s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.id = $1
 `
 
@@ -399,14 +433,33 @@ type GetMunkiPackageByIDRow struct {
 	Description               string    `json:"description"`
 	Category                  string    `json:"category"`
 	Developer                 string    `json:"developer"`
-	Metadata                  []byte    `json:"metadata"`
 	Eligible                  bool      `json:"eligible"`
 	CreatedAt                 time.Time `json:"created_at"`
 	UpdatedAt                 time.Time `json:"updated_at"`
 	InstallerArtifactID       *int64    `json:"installer_artifact_id"`
+	InstallerType             string    `json:"installer_type"`
+	UninstallMethod           string    `json:"uninstall_method"`
+	RestartAction             string    `json:"restart_action"`
+	MinimumMunkiVersion       string    `json:"minimum_munki_version"`
+	MinimumOSVersion          string    `json:"minimum_os_version"`
+	MaximumOSVersion          string    `json:"maximum_os_version"`
+	SupportedArchitectures    []string  `json:"supported_architectures"`
+	BlockingApplications      []string  `json:"blocking_applications"`
+	Requires                  []string  `json:"requires"`
+	UpdateFor                 []string  `json:"update_for"`
+	UnattendedInstall         bool      `json:"unattended_install"`
+	UnattendedUninstall       bool      `json:"unattended_uninstall"`
+	Uninstallable             bool      `json:"uninstallable"`
+	OnDemand                  bool      `json:"on_demand"`
+	Precache                  bool      `json:"precache"`
+	IconName                  string    `json:"icon_name"`
+	IconHash                  string    `json:"icon_hash"`
+	IconArtifactID            *int64    `json:"icon_artifact_id"`
+	ExtraPkginfo              []byte    `json:"extra_pkginfo"`
 	SoftwareName              string    `json:"software_name"`
 	SoftwareDisplayName       string    `json:"software_display_name"`
 	InstallerArtifactLocation *string   `json:"installer_artifact_location"`
+	IconArtifactLocation      *string   `json:"icon_artifact_location"`
 }
 
 func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageByIDParams) (GetMunkiPackageByIDRow, error) {
@@ -421,14 +474,33 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.Description,
 		&i.Category,
 		&i.Developer,
-		&i.Metadata,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.InstallerArtifactID,
+		&i.InstallerType,
+		&i.UninstallMethod,
+		&i.RestartAction,
+		&i.MinimumMunkiVersion,
+		&i.MinimumOSVersion,
+		&i.MaximumOSVersion,
+		&i.SupportedArchitectures,
+		&i.BlockingApplications,
+		&i.Requires,
+		&i.UpdateFor,
+		&i.UnattendedInstall,
+		&i.UnattendedUninstall,
+		&i.Uninstallable,
+		&i.OnDemand,
+		&i.Precache,
+		&i.IconName,
+		&i.IconHash,
+		&i.IconArtifactID,
+		&i.ExtraPkginfo,
 		&i.SoftwareName,
 		&i.SoftwareDisplayName,
 		&i.InstallerArtifactLocation,
+		&i.IconArtifactLocation,
 	)
 	return i, err
 }
@@ -445,6 +517,32 @@ type GetMunkiSoftwareTitleByIDParams struct {
 
 func (q *Queries) GetMunkiSoftwareTitleByID(ctx context.Context, arg GetMunkiSoftwareTitleByIDParams) (MunkiSoftwareTitle, error) {
 	row := q.db.QueryRow(ctx, getMunkiSoftwareTitleByID, arg.ID)
+	var i MunkiSoftwareTitle
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMunkiSoftwareTitleByName = `-- name: GetMunkiSoftwareTitleByName :one
+SELECT id, name, display_name, description, category, developer, created_at, updated_at
+FROM munki_software_titles
+WHERE name = $1
+`
+
+type GetMunkiSoftwareTitleByNameParams struct {
+	Name string `json:"name"`
+}
+
+func (q *Queries) GetMunkiSoftwareTitleByName(ctx context.Context, arg GetMunkiSoftwareTitleByNameParams) (MunkiSoftwareTitle, error) {
+	row := q.db.QueryRow(ctx, getMunkiSoftwareTitleByName, arg.Name)
 	var i MunkiSoftwareTitle
 	err := row.Scan(
 		&i.ID,
@@ -588,9 +686,28 @@ SELECT
     p.description,
     p.category,
     p.developer,
-    p.metadata,
+    p.installer_type,
+    p.uninstall_method,
+    p.restart_action,
+    p.minimum_munki_version,
+    p.minimum_os_version,
+    p.maximum_os_version,
+    p.supported_architectures,
+    p.blocking_applications,
+    p.requires,
+    p.update_for,
+    p.unattended_install,
+    p.unattended_uninstall,
+    p.uninstallable,
+    p.on_demand,
+    p.precache,
+    p.icon_name,
+    p.icon_hash,
+    p.extra_pkginfo,
     p.installer_artifact_id,
     art.location AS installer_artifact_location,
+    p.icon_artifact_id,
+    icon.location AS icon_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -609,6 +726,7 @@ SELECT
 FROM munki_deployments d
 JOIN munki_packages p ON p.id = d.package_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.eligible
   AND (
     d.all_hosts
@@ -654,9 +772,28 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	Description               string                `json:"description"`
 	Category                  string                `json:"category"`
 	Developer                 string                `json:"developer"`
-	Metadata                  []byte                `json:"metadata"`
+	InstallerType             string                `json:"installer_type"`
+	UninstallMethod           string                `json:"uninstall_method"`
+	RestartAction             string                `json:"restart_action"`
+	MinimumMunkiVersion       string                `json:"minimum_munki_version"`
+	MinimumOSVersion          string                `json:"minimum_os_version"`
+	MaximumOSVersion          string                `json:"maximum_os_version"`
+	SupportedArchitectures    []string              `json:"supported_architectures"`
+	BlockingApplications      []string              `json:"blocking_applications"`
+	Requires                  []string              `json:"requires"`
+	UpdateFor                 []string              `json:"update_for"`
+	UnattendedInstall         bool                  `json:"unattended_install"`
+	UnattendedUninstall       bool                  `json:"unattended_uninstall"`
+	Uninstallable             bool                  `json:"uninstallable"`
+	OnDemand                  bool                  `json:"on_demand"`
+	Precache                  bool                  `json:"precache"`
+	IconName                  string                `json:"icon_name"`
+	IconHash                  string                `json:"icon_hash"`
+	ExtraPkginfo              []byte                `json:"extra_pkginfo"`
 	InstallerArtifactID       *int64                `json:"installer_artifact_id"`
 	InstallerArtifactLocation *string               `json:"installer_artifact_location"`
+	IconArtifactID            *int64                `json:"icon_artifact_id"`
+	IconArtifactLocation      *string               `json:"icon_artifact_location"`
 	ScopeRank                 int32                 `json:"scope_rank"`
 }
 
@@ -681,9 +818,28 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.Description,
 			&i.Category,
 			&i.Developer,
-			&i.Metadata,
+			&i.InstallerType,
+			&i.UninstallMethod,
+			&i.RestartAction,
+			&i.MinimumMunkiVersion,
+			&i.MinimumOSVersion,
+			&i.MaximumOSVersion,
+			&i.SupportedArchitectures,
+			&i.BlockingApplications,
+			&i.Requires,
+			&i.UpdateFor,
+			&i.UnattendedInstall,
+			&i.UnattendedUninstall,
+			&i.Uninstallable,
+			&i.OnDemand,
+			&i.Precache,
+			&i.IconName,
+			&i.IconHash,
+			&i.ExtraPkginfo,
 			&i.InstallerArtifactID,
 			&i.InstallerArtifactLocation,
+			&i.IconArtifactID,
+			&i.IconArtifactLocation,
 			&i.ScopeRank,
 		); err != nil {
 			return nil, err
@@ -1105,6 +1261,71 @@ func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiS
 	return i, err
 }
 
+const upsertMunkiArtifact = `-- name: UpsertMunkiArtifact :one
+INSERT INTO munki_artifacts (
+    kind,
+    display_name,
+    location,
+    content_type,
+    size_bytes,
+    sha256,
+    storage_key
+)
+VALUES (
+    $1::munki_artifact_kind,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7
+)
+ON CONFLICT (kind, location) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    content_type = EXCLUDED.content_type,
+    size_bytes = EXCLUDED.size_bytes,
+    sha256 = EXCLUDED.sha256,
+    storage_key = EXCLUDED.storage_key,
+    updated_at = now()
+RETURNING id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
+`
+
+type UpsertMunkiArtifactParams struct {
+	Kind        MunkiArtifactKind `json:"kind"`
+	DisplayName string            `json:"display_name"`
+	Location    string            `json:"location"`
+	ContentType string            `json:"content_type"`
+	SizeBytes   int64             `json:"size_bytes"`
+	Sha256      string            `json:"sha256"`
+	StorageKey  string            `json:"storage_key"`
+}
+
+func (q *Queries) UpsertMunkiArtifact(ctx context.Context, arg UpsertMunkiArtifactParams) (MunkiArtifact, error) {
+	row := q.db.QueryRow(ctx, upsertMunkiArtifact,
+		arg.Kind,
+		arg.DisplayName,
+		arg.Location,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.Sha256,
+		arg.StorageKey,
+	)
+	var i MunkiArtifact
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.DisplayName,
+		&i.Location,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const upsertMunkiHostStatus = `-- name: UpsertMunkiHostStatus :exec
 INSERT INTO munki_host_status (
     host_id,
@@ -1168,4 +1389,194 @@ func (q *Queries) UpsertMunkiHostStatus(ctx context.Context, arg UpsertMunkiHost
 		arg.RunEndedAt,
 	)
 	return err
+}
+
+const upsertMunkiPackage = `-- name: UpsertMunkiPackage :one
+INSERT INTO munki_packages (
+    software_id,
+    name,
+    version,
+    display_name,
+    description,
+    category,
+    developer,
+    installer_type,
+    uninstall_method,
+    restart_action,
+    minimum_munki_version,
+    minimum_os_version,
+    maximum_os_version,
+    supported_architectures,
+    blocking_applications,
+    requires,
+    update_for,
+    unattended_install,
+    unattended_uninstall,
+    uninstallable,
+    on_demand,
+    precache,
+    icon_name,
+    icon_hash,
+    extra_pkginfo,
+    installer_artifact_id,
+    icon_artifact_id,
+    eligible
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11,
+    $12,
+    $13,
+    $14::text[],
+    $15::text[],
+    $16::text[],
+    $17::text[],
+    $18,
+    $19,
+    $20,
+    $21,
+    $22,
+    $23,
+    $24,
+    $25::jsonb,
+    $26::bigint,
+    $27::bigint,
+    $28
+)
+ON CONFLICT (software_id, name, version) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    developer = EXCLUDED.developer,
+    installer_type = EXCLUDED.installer_type,
+    uninstall_method = EXCLUDED.uninstall_method,
+    restart_action = EXCLUDED.restart_action,
+    minimum_munki_version = EXCLUDED.minimum_munki_version,
+    minimum_os_version = EXCLUDED.minimum_os_version,
+    maximum_os_version = EXCLUDED.maximum_os_version,
+    supported_architectures = EXCLUDED.supported_architectures,
+    blocking_applications = EXCLUDED.blocking_applications,
+    requires = EXCLUDED.requires,
+    update_for = EXCLUDED.update_for,
+    unattended_install = EXCLUDED.unattended_install,
+    unattended_uninstall = EXCLUDED.unattended_uninstall,
+    uninstallable = EXCLUDED.uninstallable,
+    on_demand = EXCLUDED.on_demand,
+    precache = EXCLUDED.precache,
+    icon_name = EXCLUDED.icon_name,
+    icon_hash = EXCLUDED.icon_hash,
+    extra_pkginfo = EXCLUDED.extra_pkginfo,
+    installer_artifact_id = EXCLUDED.installer_artifact_id,
+    icon_artifact_id = EXCLUDED.icon_artifact_id,
+    eligible = EXCLUDED.eligible,
+    updated_at = now()
+RETURNING id, software_id, name, version, display_name, description, category, developer, eligible, created_at, updated_at, installer_artifact_id, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, requires, update_for, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, icon_name, icon_hash, icon_artifact_id, extra_pkginfo
+`
+
+type UpsertMunkiPackageParams struct {
+	SoftwareID             int64    `json:"software_id"`
+	Name                   string   `json:"name"`
+	Version                string   `json:"version"`
+	DisplayName            string   `json:"display_name"`
+	Description            string   `json:"description"`
+	Category               string   `json:"category"`
+	Developer              string   `json:"developer"`
+	InstallerType          string   `json:"installer_type"`
+	UninstallMethod        string   `json:"uninstall_method"`
+	RestartAction          string   `json:"restart_action"`
+	MinimumMunkiVersion    string   `json:"minimum_munki_version"`
+	MinimumOSVersion       string   `json:"minimum_os_version"`
+	MaximumOSVersion       string   `json:"maximum_os_version"`
+	SupportedArchitectures []string `json:"supported_architectures"`
+	BlockingApplications   []string `json:"blocking_applications"`
+	Requires               []string `json:"requires"`
+	UpdateFor              []string `json:"update_for"`
+	UnattendedInstall      bool     `json:"unattended_install"`
+	UnattendedUninstall    bool     `json:"unattended_uninstall"`
+	Uninstallable          bool     `json:"uninstallable"`
+	OnDemand               bool     `json:"on_demand"`
+	Precache               bool     `json:"precache"`
+	IconName               string   `json:"icon_name"`
+	IconHash               string   `json:"icon_hash"`
+	ExtraPkginfo           []byte   `json:"extra_pkginfo"`
+	InstallerArtifactID    *int64   `json:"installer_artifact_id"`
+	IconArtifactID         *int64   `json:"icon_artifact_id"`
+	Eligible               bool     `json:"eligible"`
+}
+
+func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackageParams) (MunkiPackage, error) {
+	row := q.db.QueryRow(ctx, upsertMunkiPackage,
+		arg.SoftwareID,
+		arg.Name,
+		arg.Version,
+		arg.DisplayName,
+		arg.Description,
+		arg.Category,
+		arg.Developer,
+		arg.InstallerType,
+		arg.UninstallMethod,
+		arg.RestartAction,
+		arg.MinimumMunkiVersion,
+		arg.MinimumOSVersion,
+		arg.MaximumOSVersion,
+		arg.SupportedArchitectures,
+		arg.BlockingApplications,
+		arg.Requires,
+		arg.UpdateFor,
+		arg.UnattendedInstall,
+		arg.UnattendedUninstall,
+		arg.Uninstallable,
+		arg.OnDemand,
+		arg.Precache,
+		arg.IconName,
+		arg.IconHash,
+		arg.ExtraPkginfo,
+		arg.InstallerArtifactID,
+		arg.IconArtifactID,
+		arg.Eligible,
+	)
+	var i MunkiPackage
+	err := row.Scan(
+		&i.ID,
+		&i.SoftwareID,
+		&i.Name,
+		&i.Version,
+		&i.DisplayName,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.Eligible,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.InstallerArtifactID,
+		&i.InstallerType,
+		&i.UninstallMethod,
+		&i.RestartAction,
+		&i.MinimumMunkiVersion,
+		&i.MinimumOSVersion,
+		&i.MaximumOSVersion,
+		&i.SupportedArchitectures,
+		&i.BlockingApplications,
+		&i.Requires,
+		&i.UpdateFor,
+		&i.UnattendedInstall,
+		&i.UnattendedUninstall,
+		&i.Uninstallable,
+		&i.OnDemand,
+		&i.Precache,
+		&i.IconName,
+		&i.IconHash,
+		&i.IconArtifactID,
+		&i.ExtraPkginfo,
+	)
+	return i, err
 }

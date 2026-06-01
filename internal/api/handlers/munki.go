@@ -2,7 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"mime"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -15,14 +21,25 @@ const (
 	munkiTag                 = "Munki"
 	munkiSoftwareTitlePath   = "/api/munki/software-titles"
 	munkiSoftwareTitleIDPath = "/api/munki/software-titles/{id}"
+	munkiArtifactPath        = "/api/munki/artifacts"
+	munkiArtifactContentPath = "/api/munki/artifacts/{id}/content"
+	munkiArtifactUploadPath  = "/api/munki/artifact-uploads"
 	munkiPackagePath         = "/api/munki/packages"
+	munkiPackageImportPath   = "/api/munki/packages/import"
 	munkiPackageIDPath       = "/api/munki/packages/{id}"
 	munkiDeploymentPath      = "/api/munki/deployments"
 	munkiDeploymentIDPath    = "/api/munki/deployments/{id}"
 	munkiSoftwareTitleLabel  = "Munki software title"
+	munkiArtifactLabel       = "Munki artifact"
 	munkiPackageLabel        = "Munki package"
 	munkiDeploymentLabel     = "Munki deployment"
 )
+
+type munkiArtifactStorage interface {
+	PresignGet(context.Context, munki.Artifact) (string, error)
+	PresignPut(context.Context, string, string, string) (munki.ArtifactUploadURL, error)
+	Stat(context.Context, string) (munki.ArtifactObject, error)
+}
 
 type munkiListInput struct {
 	ListQueryInput
@@ -46,12 +63,28 @@ type munkiPackageListInput struct {
 	SoftwareID int64 `query:"software_id,omitempty"`
 }
 
+type munkiArtifactCreateInput struct {
+	Body munkiArtifactMutation
+}
+
+type munkiArtifactUploadInput struct {
+	Body munkiArtifactUploadMutation
+}
+
+type munkiArtifactContentInput struct {
+	ID int64 `path:"id"`
+}
+
 type munkiPackageGetInput struct {
 	ID int64 `path:"id"`
 }
 
 type munkiPackageCreateInput struct {
 	Body munkiPackageMutation
+}
+
+type munkiPackageImportInput struct {
+	Body munkiPackageImportMutation
 }
 
 type munkiDeploymentListInput struct {
@@ -90,6 +123,19 @@ type munkiSoftwareTitleDetailOutput struct {
 
 type munkiPackageListOutput struct {
 	Body Page[munkiPackage]
+}
+
+type munkiArtifactOutput struct {
+	Body munkiArtifact
+}
+
+type munkiArtifactUploadOutput struct {
+	Body munkiArtifactUpload
+}
+
+type munkiArtifactContentOutput struct {
+	Status   int    `json:"-" default:"302"`
+	Location string `                       header:"Location"`
 }
 
 type munkiPackageOutput struct {
@@ -136,33 +182,121 @@ type munkiSoftwareTitle struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type munkiArtifact struct {
+	ID          int64              `json:"id"`
+	Kind        munki.ArtifactKind `json:"kind"`
+	DisplayName string             `json:"display_name"`
+	Location    string             `json:"location"`
+	ContentType string             `json:"content_type"`
+	SizeBytes   int64              `json:"size_bytes"`
+	SHA256      string             `json:"sha256"`
+	StorageKey  string             `json:"storage_key"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+type munkiArtifactMutation struct {
+	Kind        munki.ArtifactKind `json:"kind"`
+	DisplayName string             `json:"display_name,omitempty"`
+	Location    string             `json:"location"`
+	ContentType string             `json:"content_type,omitempty"`
+	SizeBytes   int64              `json:"size_bytes"`
+	SHA256      string             `json:"sha256"`
+	StorageKey  string             `json:"storage_key"`
+}
+
+type munkiArtifactUploadMutation struct {
+	Kind        munki.ArtifactKind `json:"kind"`
+	Filename    string             `json:"filename"`
+	DisplayName string             `json:"display_name,omitempty"`
+	ContentType string             `json:"content_type,omitempty"`
+	SizeBytes   int64              `json:"size_bytes"`
+	SHA256      string             `json:"sha256"`
+}
+
+type munkiArtifactUpload struct {
+	UploadURL string                `json:"upload_url"`
+	Headers   map[string]string     `json:"headers,omitempty"`
+	Artifact  munkiArtifactMutation `json:"artifact"`
+}
+
 type munkiPackage struct {
-	ID                  int64                 `json:"id"`
-	SoftwareID          int64                 `json:"software_id"`
-	SoftwareName        string                `json:"software_name"`
-	SoftwareDisplayName string                `json:"software_display_name"`
-	Name                string                `json:"name"`
-	Version             string                `json:"version"`
-	DisplayName         string                `json:"display_name"`
-	Description         string                `json:"description"`
-	Category            string                `json:"category"`
-	Developer           string                `json:"developer"`
-	Metadata            munki.PackageMetadata `json:"metadata"`
-	Eligible            bool                  `json:"eligible"`
-	CreatedAt           time.Time             `json:"created_at"`
-	UpdatedAt           time.Time             `json:"updated_at"`
+	ID                        int64               `json:"id"`
+	SoftwareID                int64               `json:"software_id"`
+	SoftwareName              string              `json:"software_name"`
+	SoftwareDisplayName       string              `json:"software_display_name"`
+	Name                      string              `json:"name"`
+	Version                   string              `json:"version"`
+	DisplayName               string              `json:"display_name"`
+	Description               string              `json:"description"`
+	Category                  string              `json:"category"`
+	Developer                 string              `json:"developer"`
+	InstallerType             munki.InstallerType `json:"installer_type"`
+	UnattendedInstall         bool                `json:"unattended_install"`
+	UnattendedUninstall       bool                `json:"unattended_uninstall"`
+	Uninstallable             bool                `json:"uninstallable"`
+	UninstallMethod           string              `json:"uninstall_method"`
+	RestartAction             munki.RestartAction `json:"restart_action,omitempty"`
+	MinimumMunkiVersion       string              `json:"minimum_munki_version"`
+	MinimumOSVersion          string              `json:"minimum_os_version"`
+	MaximumOSVersion          string              `json:"maximum_os_version"`
+	SupportedArchitectures    []string            `json:"supported_architectures"`
+	BlockingApplications      []string            `json:"blocking_applications"`
+	Requires                  []string            `json:"requires"`
+	UpdateFor                 []string            `json:"update_for"`
+	OnDemand                  bool                `json:"on_demand"`
+	Precache                  bool                `json:"precache"`
+	IconName                  string              `json:"icon_name"`
+	IconHash                  string              `json:"icon_hash"`
+	ExtraPkginfo              json.RawMessage     `json:"extra_pkginfo,omitempty"`
+	Pkginfo                   json.RawMessage     `json:"pkginfo,omitempty"`
+	InstallerArtifactID       *int64              `json:"installer_artifact_id,omitempty"`
+	InstallerArtifactLocation string              `json:"installer_artifact_location,omitempty"`
+	IconArtifactID            *int64              `json:"icon_artifact_id,omitempty"`
+	IconArtifactLocation      string              `json:"icon_artifact_location,omitempty"`
+	IconURL                   string              `json:"icon_url,omitempty"`
+	Eligible                  bool                `json:"eligible"`
+	CreatedAt                 time.Time           `json:"created_at"`
+	UpdatedAt                 time.Time           `json:"updated_at"`
 }
 
 type munkiPackageMutation struct {
-	SoftwareID  int64                 `json:"software_id"`
-	Name        string                `json:"name"`
-	Version     string                `json:"version"`
-	DisplayName string                `json:"display_name,omitempty"`
-	Description string                `json:"description,omitempty"`
-	Category    string                `json:"category,omitempty"`
-	Developer   string                `json:"developer,omitempty"`
-	Metadata    munki.PackageMetadata `json:"metadata"`
-	Eligible    bool                  `json:"eligible"`
+	SoftwareID             int64               `json:"software_id"`
+	Name                   string              `json:"name"`
+	Version                string              `json:"version"`
+	DisplayName            string              `json:"display_name,omitempty"`
+	Description            string              `json:"description,omitempty"`
+	Category               string              `json:"category,omitempty"`
+	Developer              string              `json:"developer,omitempty"`
+	InstallerType          munki.InstallerType `json:"installer_type,omitempty"`
+	UnattendedInstall      bool                `json:"unattended_install,omitempty"`
+	UnattendedUninstall    bool                `json:"unattended_uninstall,omitempty"`
+	Uninstallable          bool                `json:"uninstallable,omitempty"`
+	UninstallMethod        string              `json:"uninstall_method,omitempty"`
+	RestartAction          munki.RestartAction `json:"restart_action,omitempty"`
+	MinimumMunkiVersion    string              `json:"minimum_munki_version,omitempty"`
+	MinimumOSVersion       string              `json:"minimum_os_version,omitempty"`
+	MaximumOSVersion       string              `json:"maximum_os_version,omitempty"`
+	SupportedArchitectures []string            `json:"supported_architectures,omitempty"`
+	BlockingApplications   []string            `json:"blocking_applications,omitempty"`
+	Requires               []string            `json:"requires,omitempty"`
+	UpdateFor              []string            `json:"update_for,omitempty"`
+	OnDemand               bool                `json:"on_demand,omitempty"`
+	Precache               bool                `json:"precache,omitempty"`
+	IconName               string              `json:"icon_name,omitempty"`
+	IconHash               string              `json:"icon_hash,omitempty"`
+	ExtraPkginfo           json.RawMessage     `json:"extra_pkginfo,omitempty"`
+	InstallerArtifactID    *int64              `json:"installer_artifact_id,omitempty"`
+	IconArtifactID         *int64              `json:"icon_artifact_id,omitempty"`
+	Eligible               bool                `json:"eligible"`
+}
+
+type munkiPackageImportMutation struct {
+	SoftwareID          int64           `json:"software_id,omitempty"`
+	Pkginfo             json.RawMessage `json:"pkginfo"`
+	InstallerArtifactID *int64          `json:"installer_artifact_id,omitempty"`
+	IconArtifactID      *int64          `json:"icon_artifact_id,omitempty"`
+	Eligible            *bool           `json:"eligible,omitempty"`
 }
 
 type munkiDeploymentMutation struct {
@@ -208,13 +342,17 @@ func (input munkiDeploymentListInput) params() munki.DeploymentListParams {
 }
 
 // RegisterMunki registers admin endpoints for Munki-managed software.
-func RegisterMunki(api huma.API, store *munki.Store) {
+func RegisterMunki(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
 	registerListMunkiSoftwareTitles(api, store)
 	registerCreateMunkiSoftwareTitle(api, store)
 	registerGetMunkiSoftwareTitle(api, store)
 	registerPatchMunkiSoftwareTitle(api, store)
+	registerCreateMunkiArtifact(api, store, artifactStorage)
+	registerCreateMunkiArtifactUpload(api, artifactStorage)
+	registerGetMunkiArtifactContent(api, store, artifactStorage)
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
+	registerImportMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
 	registerListMunkiDeployments(api, store)
 	registerCreateMunkiDeployment(api, store)
@@ -304,6 +442,99 @@ func registerPatchMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	})
 }
 
+func registerCreateMunkiArtifact(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-munki-artifact",
+		Method:        http.MethodPost,
+		Path:          munkiArtifactPath,
+		Tags:          []string{munkiTag},
+		Summary:       "Create a Munki artifact",
+		DefaultStatus: http.StatusCreated,
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusConflict,
+			http.StatusServiceUnavailable,
+		},
+	}, func(ctx context.Context, input *munkiArtifactCreateInput) (*munkiArtifactOutput, error) {
+		mutation := input.Body.domain()
+		if err := verifyMunkiArtifactObject(ctx, artifactStorage, mutation); err != nil {
+			return nil, err
+		}
+		artifact, err := store.CreateArtifact(ctx, mutation)
+		if err != nil {
+			return nil, resourceMutationError(munkiArtifactLabel, err)
+		}
+		return &munkiArtifactOutput{Body: munkiArtifactFromDomain(*artifact)}, nil
+	})
+}
+
+func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorage) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-munki-artifact-upload",
+		Method:        http.MethodPost,
+		Path:          munkiArtifactUploadPath,
+		Tags:          []string{munkiTag},
+		Summary:       "Create a Munki artifact upload URL",
+		DefaultStatus: http.StatusCreated,
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusServiceUnavailable,
+		},
+	}, func(ctx context.Context, input *munkiArtifactUploadInput) (*munkiArtifactUploadOutput, error) {
+		if uploads == nil {
+			return nil, huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+		}
+		target, err := input.Body.target()
+		if err != nil {
+			return nil, resourceMutationError(munkiArtifactLabel, err)
+		}
+		upload, err := uploads.PresignPut(ctx, target.StorageKey, target.ContentType, target.SHA256)
+		if err != nil {
+			return nil, err
+		}
+		return &munkiArtifactUploadOutput{
+			Body: munkiArtifactUpload{
+				UploadURL: upload.URL,
+				Headers:   upload.Headers,
+				Artifact:  target,
+			},
+		}, nil
+	})
+}
+
+func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-munki-artifact-content",
+		Method:      http.MethodGet,
+		Path:        munkiArtifactContentPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Get a Munki artifact content URL",
+		Errors: []int{
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusServiceUnavailable,
+		},
+	}, func(ctx context.Context, input *munkiArtifactContentInput) (*munkiArtifactContentOutput, error) {
+		if artifactStorage == nil {
+			return nil, huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+		}
+		artifact, err := store.GetArtifact(ctx, input.ID)
+		if err != nil {
+			return nil, resourceMutationError(munkiArtifactLabel, err)
+		}
+		location, err := artifactStorage.PresignGet(ctx, *artifact)
+		if err != nil {
+			return nil, err
+		}
+		return &munkiArtifactContentOutput{Status: http.StatusFound, Location: location}, nil
+	})
+}
+
 func registerListMunkiPackages(api huma.API, store *munki.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-packages",
@@ -340,6 +571,30 @@ func registerCreateMunkiPackage(api huma.API, store *munki.Store) {
 		},
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
 		pkg, err := store.CreatePackage(ctx, input.Body.domain())
+		if err != nil {
+			return nil, resourceMutationError(munkiPackageLabel, err)
+		}
+		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+	})
+}
+
+func registerImportMunkiPackage(api huma.API, store *munki.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID:   "import-munki-package",
+		Method:        http.MethodPost,
+		Path:          munkiPackageImportPath,
+		Tags:          []string{munkiTag},
+		Summary:       "Import a Munki pkginfo package",
+		DefaultStatus: http.StatusCreated,
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiPackageImportInput) (*munkiPackageOutput, error) {
+		pkg, err := store.ImportPackage(ctx, input.Body.domain())
 		if err != nil {
 			return nil, resourceMutationError(munkiPackageLabel, err)
 		}
@@ -490,22 +745,132 @@ func munkiSoftwareTitlesFromDomain(rows []munki.SoftwareTitle) []munkiSoftwareTi
 	return items
 }
 
+func munkiArtifactFromDomain(artifact munki.Artifact) munkiArtifact {
+	return munkiArtifact{
+		ID:          artifact.ID,
+		Kind:        artifact.Kind,
+		DisplayName: artifact.DisplayName,
+		Location:    artifact.Location,
+		ContentType: artifact.ContentType,
+		SizeBytes:   artifact.SizeBytes,
+		SHA256:      artifact.SHA256,
+		StorageKey:  artifact.StorageKey,
+		CreatedAt:   artifact.CreatedAt,
+		UpdatedAt:   artifact.UpdatedAt,
+	}
+}
+
+func verifyMunkiArtifactObject(
+	ctx context.Context,
+	artifactStorage munkiArtifactStorage,
+	mutation munki.ArtifactMutation,
+) error {
+	if artifactStorage == nil {
+		return huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+	}
+	object, err := artifactStorage.Stat(ctx, mutation.StorageKey)
+	if errors.Is(err, munki.ErrNotFound) {
+		return resourceMutationError(
+			munkiArtifactLabel,
+			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
+		)
+	}
+	if err != nil {
+		return err
+	}
+	if object.SizeBytes != mutation.SizeBytes {
+		return resourceMutationError(
+			munkiArtifactLabel,
+			fmt.Errorf("%w: uploaded object size does not match artifact metadata", dbutil.ErrInvalidInput),
+		)
+	}
+	if object.SHA256 != "" && object.SHA256 != mutation.SHA256 {
+		return resourceMutationError(
+			munkiArtifactLabel,
+			fmt.Errorf("%w: uploaded object checksum does not match artifact metadata", dbutil.ErrInvalidInput),
+		)
+	}
+	return nil
+}
+
+func (body munkiArtifactMutation) domain() munki.ArtifactMutation {
+	return munki.ArtifactMutation{
+		Kind:        body.Kind,
+		DisplayName: body.DisplayName,
+		Location:    body.Location,
+		ContentType: body.ContentType,
+		SizeBytes:   body.SizeBytes,
+		SHA256:      body.SHA256,
+		StorageKey:  body.StorageKey,
+	}
+}
+
+func (body munkiArtifactUploadMutation) target() (munkiArtifactMutation, error) {
+	filename := cleanArtifactFilename(body.Filename)
+	if filename == "" {
+		return munkiArtifactMutation{}, fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
+	}
+	contentType := strings.TrimSpace(body.ContentType)
+	if contentType == "" {
+		contentType = artifactContentType(filename)
+	}
+	target := munkiArtifactMutation{
+		Kind:        body.Kind,
+		DisplayName: body.DisplayName,
+		Location:    artifactUploadLocation(body.SHA256, filename),
+		ContentType: contentType,
+		SizeBytes:   body.SizeBytes,
+		SHA256:      strings.TrimSpace(body.SHA256),
+	}
+	target.StorageKey = artifactStorageKey(target.Kind, target.Location)
+	if target.DisplayName == "" {
+		target.DisplayName = filename
+	}
+	if err := target.domain().Validate(); err != nil {
+		return munkiArtifactMutation{}, err
+	}
+	return target, nil
+}
+
 func munkiPackageFromDomain(pkg munki.Package) munkiPackage {
 	return munkiPackage{
-		ID:                  pkg.ID,
-		SoftwareID:          pkg.SoftwareID,
-		SoftwareName:        pkg.SoftwareName,
-		SoftwareDisplayName: pkg.SoftwareDisplayName,
-		Name:                pkg.Name,
-		Version:             pkg.Version,
-		DisplayName:         pkg.DisplayName,
-		Description:         pkg.Description,
-		Category:            pkg.Category,
-		Developer:           pkg.Developer,
-		Metadata:            pkg.Metadata,
-		Eligible:            pkg.Eligible,
-		CreatedAt:           pkg.CreatedAt,
-		UpdatedAt:           pkg.UpdatedAt,
+		ID:                        pkg.ID,
+		SoftwareID:                pkg.SoftwareID,
+		SoftwareName:              pkg.SoftwareName,
+		SoftwareDisplayName:       pkg.SoftwareDisplayName,
+		Name:                      pkg.Name,
+		Version:                   pkg.Version,
+		DisplayName:               pkg.DisplayName,
+		Description:               pkg.Description,
+		Category:                  pkg.Category,
+		Developer:                 pkg.Developer,
+		InstallerType:             pkg.InstallerType,
+		UnattendedInstall:         pkg.UnattendedInstall,
+		UnattendedUninstall:       pkg.UnattendedUninstall,
+		Uninstallable:             pkg.Uninstallable,
+		UninstallMethod:           pkg.UninstallMethod,
+		RestartAction:             pkg.RestartAction,
+		MinimumMunkiVersion:       pkg.MinimumMunkiVersion,
+		MinimumOSVersion:          pkg.MinimumOSVersion,
+		MaximumOSVersion:          pkg.MaximumOSVersion,
+		SupportedArchitectures:    pkg.SupportedArchitectures,
+		BlockingApplications:      pkg.BlockingApplications,
+		Requires:                  pkg.Requires,
+		UpdateFor:                 pkg.UpdateFor,
+		OnDemand:                  pkg.OnDemand,
+		Precache:                  pkg.Precache,
+		IconName:                  pkg.IconName,
+		IconHash:                  pkg.IconHash,
+		ExtraPkginfo:              pkg.ExtraPkginfo,
+		Pkginfo:                   pkg.Pkginfo,
+		InstallerArtifactID:       pkg.InstallerArtifactID,
+		InstallerArtifactLocation: pkg.InstallerArtifactLocation,
+		IconArtifactID:            pkg.IconArtifactID,
+		IconArtifactLocation:      pkg.IconArtifactLocation,
+		IconURL:                   munkiPackageIconURL(pkg),
+		Eligible:                  pkg.Eligible,
+		CreatedAt:                 pkg.CreatedAt,
+		UpdatedAt:                 pkg.UpdatedAt,
 	}
 }
 
@@ -519,16 +884,87 @@ func munkiPackagesFromDomain(rows []munki.Package) []munkiPackage {
 
 func (body munkiPackageMutation) domain() munki.PackageMutation {
 	return munki.PackageMutation{
-		SoftwareID:  body.SoftwareID,
-		Name:        body.Name,
-		Version:     body.Version,
-		DisplayName: body.DisplayName,
-		Description: body.Description,
-		Category:    body.Category,
-		Developer:   body.Developer,
-		Metadata:    body.Metadata,
-		Eligible:    body.Eligible,
+		SoftwareID:             body.SoftwareID,
+		Name:                   body.Name,
+		Version:                body.Version,
+		DisplayName:            body.DisplayName,
+		Description:            body.Description,
+		Category:               body.Category,
+		Developer:              body.Developer,
+		InstallerType:          body.InstallerType,
+		UnattendedInstall:      body.UnattendedInstall,
+		UnattendedUninstall:    body.UnattendedUninstall,
+		Uninstallable:          body.Uninstallable,
+		UninstallMethod:        body.UninstallMethod,
+		RestartAction:          body.RestartAction,
+		MinimumMunkiVersion:    body.MinimumMunkiVersion,
+		MinimumOSVersion:       body.MinimumOSVersion,
+		MaximumOSVersion:       body.MaximumOSVersion,
+		SupportedArchitectures: body.SupportedArchitectures,
+		BlockingApplications:   body.BlockingApplications,
+		Requires:               body.Requires,
+		UpdateFor:              body.UpdateFor,
+		OnDemand:               body.OnDemand,
+		Precache:               body.Precache,
+		IconName:               body.IconName,
+		IconHash:               body.IconHash,
+		ExtraPkginfo:           body.ExtraPkginfo,
+		InstallerArtifactID:    body.InstallerArtifactID,
+		IconArtifactID:         body.IconArtifactID,
+		Eligible:               body.Eligible,
 	}
+}
+
+func (body munkiPackageImportMutation) domain() munki.PackageImportMutation {
+	return munki.PackageImportMutation{
+		SoftwareID:          body.SoftwareID,
+		Pkginfo:             body.Pkginfo,
+		InstallerArtifactID: body.InstallerArtifactID,
+		IconArtifactID:      body.IconArtifactID,
+		Eligible:            body.Eligible,
+	}
+}
+
+func cleanArtifactFilename(filename string) string {
+	filename = strings.TrimSpace(strings.ReplaceAll(filename, `\`, "/"))
+	filename = path.Base(filename)
+	if filename == "." || filename == "/" || filename == "" {
+		return ""
+	}
+	return filename
+}
+
+func artifactUploadLocation(sha256 string, filename string) string {
+	sha256 = strings.TrimSpace(sha256)
+	if len(sha256) >= 12 {
+		return sha256[:12] + "/" + filename
+	}
+	return filename
+}
+
+func artifactStorageKey(kind munki.ArtifactKind, location string) string {
+	switch kind {
+	case munki.ArtifactKindPackage:
+		return "pkgs/" + location
+	case munki.ArtifactKindIcon:
+		return "icons/" + location
+	default:
+		return string(kind) + "/" + location
+	}
+}
+
+func artifactContentType(filename string) string {
+	if contentType := mime.TypeByExtension(path.Ext(filename)); contentType != "" {
+		return contentType
+	}
+	return "application/octet-stream"
+}
+
+func munkiPackageIconURL(pkg munki.Package) string {
+	if pkg.IconArtifactID == nil {
+		return ""
+	}
+	return fmt.Sprintf("/api/munki/artifacts/%d/content", *pkg.IconArtifactID)
 }
 
 func munkiDeploymentFromDomain(deployment munki.Deployment) munkiDeployment {

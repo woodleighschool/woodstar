@@ -2,6 +2,7 @@ package munki_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -51,11 +52,11 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("create software title: %v", err)
 	}
 	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
-		SoftwareID: title.ID,
-		Name:       "GoogleChrome",
-		Version:    "148.0.0.1",
-		Metadata:   munki.PackageMetadata{InstallerType: "nopkg"},
-		Eligible:   true,
+		SoftwareID:    title.ID,
+		Name:          "GoogleChrome",
+		Version:       "148.0.0.1",
+		InstallerType: munki.InstallerTypeNoPkg,
+		Eligible:      true,
 	})
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
@@ -302,7 +303,7 @@ func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	}
 }
 
-func TestCreatePackageRejectsInvalidMetadata(t *testing.T) {
+func TestCreatePackageRejectsInvalidPkginfoFields(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
@@ -312,16 +313,124 @@ func TestCreatePackageRejectsInvalidMetadata(t *testing.T) {
 	}
 
 	_, err = store.CreatePackage(ctx, munki.PackageMutation{
-		SoftwareID: title.ID,
-		Name:       "Broken",
-		Version:    "1.0",
-		Metadata: munki.PackageMetadata{
-			SupportedArchitectures: []string{"ppc"},
-		},
-		Eligible: true,
+		SoftwareID:             title.ID,
+		Name:                   "Broken",
+		Version:                "1.0",
+		SupportedArchitectures: []string{"ppc"},
+		Eligible:               true,
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("CreatePackage error = %v, want invalid input", err)
+	}
+}
+
+func TestPackageExtraPkginfoCannotOverrideTypedFields(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "ExtraApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID:   title.ID,
+		Name:         "ExtraApp",
+		Version:      "1.0",
+		ExtraPkginfo: []byte(`{"installer_type":"nopkg","unattended_install":true,"custom_key":"kept"}`),
+		Eligible:     true,
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+
+	var rendered map[string]any
+	if err := json.Unmarshal(pkg.Pkginfo, &rendered); err != nil {
+		t.Fatalf("decode pkginfo: %v", err)
+	}
+	if _, ok := rendered["installer_type"]; ok {
+		t.Fatalf("pkginfo = %s, want typed default package to omit installer_type", pkg.Pkginfo)
+	}
+	if _, ok := rendered["unattended_install"]; ok {
+		t.Fatalf("pkginfo = %s, want typed false to omit unattended_install", pkg.Pkginfo)
+	}
+	if rendered["custom_key"] != "kept" {
+		t.Fatalf("pkginfo custom_key = %v, want preserved extra key", rendered["custom_key"])
+	}
+}
+
+func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	iconArtifact, err := store.CreateArtifact(ctx, munki.ArtifactMutation{
+		Kind:       munki.ArtifactKindIcon,
+		Location:   "cccccccccccc/ImportedApp.png",
+		SizeBytes:  256,
+		SHA256:     strings.Repeat("c", 64),
+		StorageKey: "icons/cccccccccccc/ImportedApp.png",
+	})
+	if err != nil {
+		t.Fatalf("create icon artifact: %v", err)
+	}
+
+	pkg, err := store.ImportPackage(ctx, munki.PackageImportMutation{
+		IconArtifactID: &iconArtifact.ID,
+		Pkginfo: []byte(`{
+			"name": "ImportedApp",
+			"version": "1.2.3",
+			"display_name": "Imported App",
+			"description": "Managed by AutoPkg",
+			"category": "Utilities",
+			"developer": "Example",
+			"installer_type": "nopkg",
+			"unattended_install": true,
+			"supported_architectures": ["arm64", "x86_64"],
+			"requires": ["Python"],
+			"icon_name": "ImportedApp.png",
+			"icon_hash": "stale",
+			"installs": [{"path": "/Applications/Imported App.app"}],
+			"installer_item_location": "pkgs/ImportedApp.pkg"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("import package: %v", err)
+	}
+	if pkg.Name != "ImportedApp" || pkg.SoftwareName != "ImportedApp" || pkg.InstallerType != munki.InstallerTypeNoPkg {
+		t.Fatalf("pkg = %+v, want imported typed package", pkg)
+	}
+	if !pkg.UnattendedInstall || !sameStrings(pkg.SupportedArchitectures, []string{"arm64", "x86_64"}) {
+		t.Fatalf("pkg typed fields = %+v", pkg)
+	}
+	if !strings.Contains(string(pkg.ExtraPkginfo), `"installs"`) {
+		t.Fatalf("extra pkginfo = %s, want installs preserved", pkg.ExtraPkginfo)
+	}
+	if pkg.IconName != "cccccccccccc/ImportedApp.png" || pkg.IconHash != strings.Repeat("c", 64) {
+		t.Fatalf("pkg icon fields = name %q hash %q, want artifact-backed icon", pkg.IconName, pkg.IconHash)
+	}
+	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"cccccccccccc/ImportedApp.png"`) {
+		t.Fatalf("pkginfo = %s, want artifact-backed icon_name", pkg.Pkginfo)
+	}
+	if strings.Contains(string(pkg.ExtraPkginfo), "installer_item_location") {
+		t.Fatalf("extra pkginfo = %s, want rendered URL fields owned by Woodstar", pkg.ExtraPkginfo)
+	}
+
+	updated, err := store.ImportPackage(ctx, munki.PackageImportMutation{
+		Pkginfo: []byte(`{
+			"name": "ImportedApp",
+			"version": "1.2.3",
+			"display_name": "Imported App",
+			"developer": "Example Updated",
+			"installer_type": "nopkg"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("import package update: %v", err)
+	}
+	if updated.ID != pkg.ID {
+		t.Fatalf("updated package id = %d, want upserted id %d", updated.ID, pkg.ID)
+	}
+	if updated.Developer != "Example Updated" {
+		t.Fatalf("updated developer = %q, want import update", updated.Developer)
 	}
 }
 
@@ -432,6 +541,18 @@ func sameInt64s(a, b []int64) bool {
 	return true
 }
 
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func createMunkiPackage(
 	t *testing.T,
 	ctx context.Context,
@@ -442,11 +563,11 @@ func createMunkiPackage(
 ) munki.Package {
 	t.Helper()
 	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
-		SoftwareID: softwareID,
-		Name:       name,
-		Version:    version,
-		Metadata:   munki.PackageMetadata{InstallerType: "nopkg"},
-		Eligible:   true,
+		SoftwareID:    softwareID,
+		Name:          name,
+		Version:       version,
+		InstallerType: munki.InstallerTypeNoPkg,
+		Eligible:      true,
 	})
 	if err != nil {
 		t.Fatalf("create pkg %s %s: %v", name, version, err)

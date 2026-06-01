@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/alexedwards/scs/v2"
@@ -84,8 +85,15 @@ type OsqueryDependencies struct {
 }
 
 type MunkiDependencies struct {
-	Repository *munki.Service
-	Store      *munki.Store
+	Repository      *munki.Service
+	Store           *munki.Store
+	ArtifactStorage MunkiArtifactStorage
+}
+
+type MunkiArtifactStorage interface {
+	PresignGet(context.Context, munki.Artifact) (string, error)
+	PresignPut(context.Context, string, string, string) (munki.ArtifactUploadURL, error)
+	Stat(context.Context, string) (munki.ArtifactObject, error)
 }
 
 type SantaDependencies struct {

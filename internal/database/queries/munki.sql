@@ -30,6 +30,11 @@ SELECT *
 FROM munki_software_titles
 WHERE id = @id;
 
+-- name: GetMunkiSoftwareTitleByName :one
+SELECT *
+FROM munki_software_titles
+WHERE name = @name;
+
 -- name: UpdateMunkiSoftwareTitle :one
 UPDATE munki_software_titles
 SET
@@ -42,7 +47,7 @@ SET
 WHERE id = @id
 RETURNING *;
 
--- name: CreateMunkiArtifact :one
+-- name: UpsertMunkiArtifact :one
 INSERT INTO munki_artifacts (
     kind,
     display_name,
@@ -61,6 +66,13 @@ VALUES (
     @sha256,
     @storage_key
 )
+ON CONFLICT (kind, location) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    content_type = EXCLUDED.content_type,
+    size_bytes = EXCLUDED.size_bytes,
+    sha256 = EXCLUDED.sha256,
+    storage_key = EXCLUDED.storage_key,
+    updated_at = now()
 RETURNING *;
 
 -- name: ListMunkiArtifacts :many
@@ -93,8 +105,26 @@ INSERT INTO munki_packages (
     description,
     category,
     developer,
-    metadata,
+    installer_type,
+    uninstall_method,
+    restart_action,
+    minimum_munki_version,
+    minimum_os_version,
+    maximum_os_version,
+    supported_architectures,
+    blocking_applications,
+    requires,
+    update_for,
+    unattended_install,
+    unattended_uninstall,
+    uninstallable,
+    on_demand,
+    precache,
+    icon_name,
+    icon_hash,
+    extra_pkginfo,
     installer_artifact_id,
+    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -105,10 +135,118 @@ VALUES (
     @description,
     @category,
     @developer,
-    @metadata::jsonb,
+    @installer_type,
+    @uninstall_method,
+    @restart_action,
+    @minimum_munki_version,
+    @minimum_os_version,
+    @maximum_os_version,
+    @supported_architectures::text[],
+    @blocking_applications::text[],
+    @requires::text[],
+    @update_for::text[],
+    @unattended_install,
+    @unattended_uninstall,
+    @uninstallable,
+    @on_demand,
+    @precache,
+    @icon_name,
+    @icon_hash,
+    @extra_pkginfo::jsonb,
     sqlc.narg(installer_artifact_id)::bigint,
+    sqlc.narg(icon_artifact_id)::bigint,
     @eligible
 )
+RETURNING *;
+
+-- name: UpsertMunkiPackage :one
+INSERT INTO munki_packages (
+    software_id,
+    name,
+    version,
+    display_name,
+    description,
+    category,
+    developer,
+    installer_type,
+    uninstall_method,
+    restart_action,
+    minimum_munki_version,
+    minimum_os_version,
+    maximum_os_version,
+    supported_architectures,
+    blocking_applications,
+    requires,
+    update_for,
+    unattended_install,
+    unattended_uninstall,
+    uninstallable,
+    on_demand,
+    precache,
+    icon_name,
+    icon_hash,
+    extra_pkginfo,
+    installer_artifact_id,
+    icon_artifact_id,
+    eligible
+)
+VALUES (
+    @software_id,
+    @name,
+    @version,
+    @display_name,
+    @description,
+    @category,
+    @developer,
+    @installer_type,
+    @uninstall_method,
+    @restart_action,
+    @minimum_munki_version,
+    @minimum_os_version,
+    @maximum_os_version,
+    @supported_architectures::text[],
+    @blocking_applications::text[],
+    @requires::text[],
+    @update_for::text[],
+    @unattended_install,
+    @unattended_uninstall,
+    @uninstallable,
+    @on_demand,
+    @precache,
+    @icon_name,
+    @icon_hash,
+    @extra_pkginfo::jsonb,
+    sqlc.narg(installer_artifact_id)::bigint,
+    sqlc.narg(icon_artifact_id)::bigint,
+    @eligible
+)
+ON CONFLICT (software_id, name, version) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    developer = EXCLUDED.developer,
+    installer_type = EXCLUDED.installer_type,
+    uninstall_method = EXCLUDED.uninstall_method,
+    restart_action = EXCLUDED.restart_action,
+    minimum_munki_version = EXCLUDED.minimum_munki_version,
+    minimum_os_version = EXCLUDED.minimum_os_version,
+    maximum_os_version = EXCLUDED.maximum_os_version,
+    supported_architectures = EXCLUDED.supported_architectures,
+    blocking_applications = EXCLUDED.blocking_applications,
+    requires = EXCLUDED.requires,
+    update_for = EXCLUDED.update_for,
+    unattended_install = EXCLUDED.unattended_install,
+    unattended_uninstall = EXCLUDED.unattended_uninstall,
+    uninstallable = EXCLUDED.uninstallable,
+    on_demand = EXCLUDED.on_demand,
+    precache = EXCLUDED.precache,
+    icon_name = EXCLUDED.icon_name,
+    icon_hash = EXCLUDED.icon_hash,
+    extra_pkginfo = EXCLUDED.extra_pkginfo,
+    installer_artifact_id = EXCLUDED.installer_artifact_id,
+    icon_artifact_id = EXCLUDED.icon_artifact_id,
+    eligible = EXCLUDED.eligible,
+    updated_at = now()
 RETURNING *;
 
 -- name: GetMunkiPackageByID :one
@@ -116,10 +254,12 @@ SELECT
     p.*,
     s.name AS software_name,
     s.display_name AS software_display_name,
-    art.location AS installer_artifact_location
+    art.location AS installer_artifact_location,
+    icon.location AS icon_artifact_location
 FROM munki_packages p
 JOIN munki_software_titles s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.id = @id;
 
 -- name: CreateMunkiDeployment :one
@@ -251,9 +391,28 @@ SELECT
     p.description,
     p.category,
     p.developer,
-    p.metadata,
+    p.installer_type,
+    p.uninstall_method,
+    p.restart_action,
+    p.minimum_munki_version,
+    p.minimum_os_version,
+    p.maximum_os_version,
+    p.supported_architectures,
+    p.blocking_applications,
+    p.requires,
+    p.update_for,
+    p.unattended_install,
+    p.unattended_uninstall,
+    p.uninstallable,
+    p.on_demand,
+    p.precache,
+    p.icon_name,
+    p.icon_hash,
+    p.extra_pkginfo,
     p.installer_artifact_id,
     art.location AS installer_artifact_location,
+    p.icon_artifact_id,
+    icon.location AS icon_artifact_location,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -272,6 +431,7 @@ SELECT
 FROM munki_deployments d
 JOIN munki_packages p ON p.id = d.package_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 WHERE p.eligible
   AND (
     d.all_hosts

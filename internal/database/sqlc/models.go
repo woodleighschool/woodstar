@@ -965,19 +965,37 @@ type MunkiHostStatus struct {
 }
 
 type MunkiPackage struct {
-	ID                  int64     `json:"id"`
-	SoftwareID          int64     `json:"software_id"`
-	Name                string    `json:"name"`
-	Version             string    `json:"version"`
-	DisplayName         string    `json:"display_name"`
-	Description         string    `json:"description"`
-	Category            string    `json:"category"`
-	Developer           string    `json:"developer"`
-	Metadata            []byte    `json:"metadata"`
-	Eligible            bool      `json:"eligible"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
-	InstallerArtifactID *int64    `json:"installer_artifact_id"`
+	ID                     int64     `json:"id"`
+	SoftwareID             int64     `json:"software_id"`
+	Name                   string    `json:"name"`
+	Version                string    `json:"version"`
+	DisplayName            string    `json:"display_name"`
+	Description            string    `json:"description"`
+	Category               string    `json:"category"`
+	Developer              string    `json:"developer"`
+	Eligible               bool      `json:"eligible"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
+	InstallerArtifactID    *int64    `json:"installer_artifact_id"`
+	InstallerType          string    `json:"installer_type"`
+	UninstallMethod        string    `json:"uninstall_method"`
+	RestartAction          string    `json:"restart_action"`
+	MinimumMunkiVersion    string    `json:"minimum_munki_version"`
+	MinimumOSVersion       string    `json:"minimum_os_version"`
+	MaximumOSVersion       string    `json:"maximum_os_version"`
+	SupportedArchitectures []string  `json:"supported_architectures"`
+	BlockingApplications   []string  `json:"blocking_applications"`
+	Requires               []string  `json:"requires"`
+	UpdateFor              []string  `json:"update_for"`
+	UnattendedInstall      bool      `json:"unattended_install"`
+	UnattendedUninstall    bool      `json:"unattended_uninstall"`
+	Uninstallable          bool      `json:"uninstallable"`
+	OnDemand               bool      `json:"on_demand"`
+	Precache               bool      `json:"precache"`
+	IconName               string    `json:"icon_name"`
+	IconHash               string    `json:"icon_hash"`
+	IconArtifactID         *int64    `json:"icon_artifact_id"`
+	ExtraPkginfo           []byte    `json:"extra_pkginfo"`
 }
 
 type MunkiSoftwareTitle struct {
