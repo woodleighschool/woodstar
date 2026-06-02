@@ -145,13 +145,18 @@ CREATE TABLE santa_configurations (
     )
 );
 
-CREATE TABLE santa_configuration_labels (
-    label_id BIGINT PRIMARY KEY REFERENCES labels (id) ON DELETE CASCADE,
-    configuration_id BIGINT NOT NULL REFERENCES santa_configurations (id) ON DELETE CASCADE
+CREATE TABLE santa_configuration_targets (
+    configuration_id BIGINT NOT NULL REFERENCES santa_configurations (id) ON DELETE CASCADE,
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
+    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
+    PRIMARY KEY (configuration_id, label_id, effect)
 );
 
-CREATE INDEX santa_configuration_labels_configuration_idx
-    ON santa_configuration_labels (configuration_id);
+CREATE INDEX santa_configuration_targets_configuration_idx
+    ON santa_configuration_targets (configuration_id);
+
+CREATE INDEX santa_configuration_targets_label_idx
+    ON santa_configuration_targets (label_id);
 
 -- Santa rules
 CREATE TABLE santa_rules (
@@ -256,7 +261,7 @@ DROP TABLE santa_executables;
 DROP TABLE santa_rule_exclude_labels;
 DROP TABLE santa_rule_includes;
 DROP TABLE santa_rules;
-DROP TABLE santa_configuration_labels;
+DROP TABLE santa_configuration_targets;
 DROP TABLE santa_configurations;
 DROP TABLE santa_sync_pending_rules;
 DROP TABLE santa_sync_targets;

@@ -55,12 +55,12 @@ func (s *Store) List(ctx context.Context, params ReportListParams) ([]Report, in
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	scopes, err := s.loadReportScopes(ctx, reportIDs)
+	targets, err := s.loadReportTargets(ctx, reportIDs)
 	if err != nil {
 		return nil, 0, err
 	}
 	for i := range reports {
-		reports[i].LabelScope = scopes[reports[i].ID]
+		reports[i].Targets = targets[reports[i].ID]
 	}
 	return reports, count, nil
 }
@@ -70,11 +70,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	labelScope, err := s.loadReportScope(ctx, report.ID)
+	targets, err := s.loadReportTarget(ctx, report.ID)
 	if err != nil {
 		return nil, err
 	}
-	report.LabelScope = labelScope
+	report.Targets = targets
 	return report, nil
 }
 
@@ -93,7 +93,6 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	labelScope := storedLabelScope(params.LabelScope)
 	var created *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateReport(ctx, sqlc.CreateReportParams{
@@ -111,10 +110,10 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := replaceReportScope(ctx, tx, report.ID, labelScope); err != nil {
+		if err := replaceReportTargets(ctx, tx, report.ID, params.Targets); err != nil {
 			return err
 		}
-		report.LabelScope = labelScope
+		report.Targets = params.Targets
 		created = report
 		return nil
 	})
@@ -125,7 +124,6 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Report
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateReport(ctx, sqlc.UpdateReportParams{
@@ -146,10 +144,10 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 			return err
 		}
 		report := reportFromSQLC(row)
-		if err := replaceReportScope(ctx, tx, report.ID, labelScope); err != nil {
+		if err := replaceReportTargets(ctx, tx, report.ID, params.Targets); err != nil {
 			return err
 		}
-		report.LabelScope = labelScope
+		report.Targets = params.Targets
 		updated = report
 		return nil
 	})

@@ -10,6 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // baseline returns a valid ConfigurationMutation using Santa's own defaults.
@@ -52,7 +53,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	}
 
 	invalidLabel := baseline("invalid label")
-	invalidLabel.LabelIDs = []int64{-1}
+	invalidLabel.Targets = []scope.TargetLabel{{LabelID: -1, Effect: scope.TargetLabelInclude}}
 	if _, err := store.CreateConfiguration(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("invalid label ID error = %v, want ErrInvalidInput", err)
 	}
@@ -74,7 +75,7 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		Action:       configurations.RemovableMediaActionRemount,
 		RemountFlags: []string{"rw", "nosuid"},
 	}
-	create.LabelIDs = []int64{firstLabelID}
+	create.Targets = []scope.TargetLabel{{LabelID: firstLabelID, Effect: scope.TargetLabelInclude}}
 
 	config, err := store.CreateConfiguration(ctx, create)
 	if err != nil {
@@ -87,25 +88,20 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	if !config.EnableBundles || len(config.RemovableMediaPolicy.RemountFlags) != 2 {
 		t.Fatalf("settings were not preserved: %+v", config)
 	}
-	if len(config.LabelIDs) != 1 || config.LabelIDs[0] != firstLabelID {
-		t.Fatalf("label IDs = %v, want [%d]", config.LabelIDs, firstLabelID)
+	if len(config.Targets) != 1 || config.Targets[0].LabelID != firstLabelID ||
+		config.Targets[0].Effect != scope.TargetLabelInclude {
+		t.Fatalf("targets = %v, want include label %d", config.Targets, firstLabelID)
 	}
 
-	conflictingCreate := baseline("Conflicting")
-	conflictingCreate.LabelIDs = []int64{firstLabelID}
-	_, err = store.CreateConfiguration(ctx, conflictingCreate)
-	var conflict *configurations.ConfigurationLabelConflictError
-	if !errors.As(err, &conflict) {
-		t.Fatalf("label conflict error = %v, want ConfigurationLabelConflictError", err)
-	}
-	if conflict.LabelID != firstLabelID || conflict.ConfigurationID != config.ID ||
-		conflict.ConfigurationName != "Baseline" {
-		t.Fatalf("conflict = %+v, want existing configuration details", conflict)
+	overlapping := baseline("Overlapping")
+	overlapping.Targets = []scope.TargetLabel{{LabelID: firstLabelID, Effect: scope.TargetLabelInclude}}
+	if _, err := store.CreateConfiguration(ctx, overlapping); err != nil {
+		t.Fatalf("overlapping configuration create error = %v, want allowed overlap", err)
 	}
 
 	update := baseline("Updated")
 	update.Description = "Updated policy"
-	update.LabelIDs = []int64{secondLabelID}
+	update.Targets = []scope.TargetLabel{{LabelID: secondLabelID, Effect: scope.TargetLabelInclude}}
 	updated, err := store.UpdateConfiguration(ctx, config.ID, update)
 	if err != nil {
 		t.Fatalf("update configuration: %v", err)
@@ -117,8 +113,9 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	if updated.EnableBundles || !updated.RemovableMediaPolicy.IsZero() {
 		t.Fatalf("update did not replace settings: %+v", updated)
 	}
-	if len(updated.LabelIDs) != 1 || updated.LabelIDs[0] != secondLabelID {
-		t.Fatalf("updated label IDs = %v, want [%d]", updated.LabelIDs, secondLabelID)
+	if len(updated.Targets) != 1 || updated.Targets[0].LabelID != secondLabelID ||
+		updated.Targets[0].Effect != scope.TargetLabelInclude {
+		t.Fatalf("updated targets = %v, want include label %d", updated.Targets, secondLabelID)
 	}
 }
 
@@ -145,13 +142,13 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	}
 
 	first := baseline("First")
-	first.LabelIDs = []int64{firstLabelID}
+	first.Targets = []scope.TargetLabel{{LabelID: firstLabelID, Effect: scope.TargetLabelInclude}}
 	firstConfig, err := store.CreateConfiguration(ctx, first)
 	if err != nil {
 		t.Fatalf("create first configuration: %v", err)
 	}
 	second := baseline("Second")
-	second.LabelIDs = []int64{secondLabelID}
+	second.Targets = []scope.TargetLabel{{LabelID: secondLabelID, Effect: scope.TargetLabelInclude}}
 	secondConfig, err := store.CreateConfiguration(ctx, second)
 	if err != nil {
 		t.Fatalf("create second configuration: %v", err)
@@ -189,6 +186,105 @@ func TestConfigurationResolverUsesFirstMatchingPosition(t *testing.T) {
 	}
 	if missing != nil {
 		t.Fatalf("missing host configuration = %+v, want nil", missing)
+	}
+}
+
+func TestConfigurationResolverUsesExclusions(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
+	store := configurations.NewStore(db)
+
+	studentHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-configuration-student-host"},
+		OrbitNodeKey: "santa-configuration-student-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll student host: %v", err)
+	}
+	sacHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-configuration-sac-host"},
+		OrbitNodeKey: "santa-configuration-sac-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll sac host: %v", err)
+	}
+
+	allStudentsID := createSantaConfigurationLabel(t, db, "Santa Configuration All Students")
+	sacID := createSantaConfigurationLabel(t, db, "Santa Configuration SAC")
+	if err := labelStore.SetMembership(ctx, allStudentsID, studentHost.ID, true); err != nil {
+		t.Fatalf("set student all-students membership: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, allStudentsID, sacHost.ID, true); err != nil {
+		t.Fatalf("set sac all-students membership: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, sacID, sacHost.ID, true); err != nil {
+		t.Fatalf("set sac membership: %v", err)
+	}
+
+	broad := baseline("All Students except SAC")
+	broad.Targets = []scope.TargetLabel{
+		{LabelID: allStudentsID, Effect: scope.TargetLabelInclude},
+		{LabelID: sacID, Effect: scope.TargetLabelExclude},
+	}
+	broadConfig, err := store.CreateConfiguration(ctx, broad)
+	if err != nil {
+		t.Fatalf("create broad configuration: %v", err)
+	}
+	narrow := baseline("SAC")
+	narrow.Targets = []scope.TargetLabel{{LabelID: sacID, Effect: scope.TargetLabelInclude}}
+	narrowConfig, err := store.CreateConfiguration(ctx, narrow)
+	if err != nil {
+		t.Fatalf("create narrow configuration: %v", err)
+	}
+
+	resolved, err := store.ResolveConfigurationForHost(ctx, studentHost.ID)
+	if err != nil {
+		t.Fatalf("resolve student configuration: %v", err)
+	}
+	if resolved == nil || resolved.ID != broadConfig.ID {
+		t.Fatalf("student resolved configuration = %+v, want broad config", resolved)
+	}
+
+	resolved, err = store.ResolveConfigurationForHost(ctx, sacHost.ID)
+	if err != nil {
+		t.Fatalf("resolve sac configuration: %v", err)
+	}
+	if resolved == nil || resolved.ID != narrowConfig.ID {
+		t.Fatalf("sac resolved configuration = %+v, want narrow config", resolved)
+	}
+}
+
+func TestConfigurationResolverRequiresIncludeTarget(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
+	store := configurations.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "santa-configuration-requires-include-host"},
+		OrbitNodeKey: "santa-configuration-requires-include-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	excludedID := createSantaConfigurationLabel(t, db, "Santa Configuration Exclude Only")
+	if err := labelStore.SetMembership(ctx, excludedID, host.ID, true); err != nil {
+		t.Fatalf("set excluded membership: %v", err)
+	}
+
+	excludeOnly := baseline("Exclude only")
+	excludeOnly.Targets = []scope.TargetLabel{{LabelID: excludedID, Effect: scope.TargetLabelExclude}}
+	if _, err := store.CreateConfiguration(ctx, excludeOnly); err != nil {
+		t.Fatalf("create exclude-only configuration: %v", err)
+	}
+
+	resolved, err := store.ResolveConfigurationForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve configuration: %v", err)
+	}
+	if resolved != nil {
+		t.Fatalf("resolved configuration = %+v, want nil", resolved)
 	}
 }
 

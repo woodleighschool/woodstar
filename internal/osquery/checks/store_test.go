@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-func TestListIncludesLabelScope(t *testing.T) {
+func TestListIncludesTargets(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Check A")
 	labelB := createManualLabel(t, ctx, labelStore, "Check B")
@@ -18,11 +18,11 @@ func TestListIncludesLabelScope(t *testing.T) {
 	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-list-failing-host", "5.22.1")
 
 	check, err := store.Create(ctx, CheckMutation{
-		Name:  "Scoped check",
+		Name:  "Targeted check",
 		Query: "select 1;",
-		LabelScope: scope.LabelScope{
-			Mode:     scope.ScopeExcludeAny,
-			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
+		Targets: []scope.TargetLabel{
+			{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
 		},
 	})
 	if err != nil {
@@ -44,37 +44,55 @@ func TestListIncludesLabelScope(t *testing.T) {
 	if count != 1 || len(got) != 1 {
 		t.Fatalf("List returned count=%d len=%d, want one check", count, len(got))
 	}
-	if got[0].LabelScope.Mode != scope.ScopeExcludeAny {
-		t.Fatalf("LabelScope.Mode = %q, want %q", got[0].LabelScope.Mode, scope.ScopeExcludeAny)
-	}
 	if got[0].PassingHostCount != 1 || got[0].FailingHostCount != 1 {
 		t.Fatalf("host counts = pass %d fail %d, want 1/1", got[0].PassingHostCount, got[0].FailingHostCount)
 	}
-	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
+	assertTargets(t, got[0].Targets, []scope.TargetLabel{
+		{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
+		{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+	})
 }
 
-func TestApplicableForHostUsesLabelScope(t *testing.T) {
+func TestApplicableForHostUsesTargetRows(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-scope-host", "5.22.1")
 	matching := createManualLabel(t, ctx, labelStore, "Check match")
 	other := createManualLabel(t, ctx, labelStore, "Check other")
+	excluded := createManualLabel(t, ctx, labelStore, "Check excluded")
 	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
 		t.Fatalf("set matching label membership: %v", err)
 	}
+	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
+		t.Fatalf("set excluded label membership: %v", err)
+	}
 
 	if _, err := store.Create(ctx, CheckMutation{
-		Name:       "Matching check",
-		Query:      "select 1;",
-		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
+		Name:  "Matching check",
+		Query: "select 1;",
+		Targets: []scope.TargetLabel{
+			{LabelID: matching.ID, Effect: scope.TargetLabelInclude},
+		},
 	}); err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
 	if _, err := store.Create(ctx, CheckMutation{
-		Name:       "Nonmatching check",
-		Query:      "select 2;",
-		LabelScope: scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
+		Name:  "Nonmatching check",
+		Query: "select 2;",
+		Targets: []scope.TargetLabel{
+			{LabelID: other.ID, Effect: scope.TargetLabelInclude},
+		},
 	}); err != nil {
 		t.Fatalf("create nonmatching check: %v", err)
+	}
+	if _, err := store.Create(ctx, CheckMutation{
+		Name:  "Excluded check",
+		Query: "select 3;",
+		Targets: []scope.TargetLabel{
+			{LabelID: matching.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: excluded.ID, Effect: scope.TargetLabelExclude},
+		},
+	}); err != nil {
+		t.Fatalf("create excluded check: %v", err)
 	}
 
 	got, err := store.ApplicableForHost(ctx, host)
@@ -86,13 +104,42 @@ func TestApplicableForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
+func TestApplicableForHostRequiresIncludeTarget(t *testing.T) {
+	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "check-requires-include-host", "5.22.1")
+	excluded := createManualLabel(t, ctx, labelStore, "Check requires include excluded")
+	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
+		t.Fatalf("set excluded label membership: %v", err)
+	}
+
+	if _, err := store.Create(ctx, CheckMutation{
+		Name:  "Exclude-only check",
+		Query: "select 1;",
+		Targets: []scope.TargetLabel{
+			{LabelID: excluded.ID, Effect: scope.TargetLabelExclude},
+		},
+	}); err != nil {
+		t.Fatalf("create exclude-only check: %v", err)
+	}
+
+	got, err := store.ApplicableForHost(ctx, host)
+	if err != nil {
+		t.Fatalf("applicable for host: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("ApplicableForHost returned %+v, want no checks", got)
+	}
+}
+
 func TestHostChecksIncludesMatchingChecks(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "5.22.1")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	matching, err := store.Create(ctx, CheckMutation{
-		Name:  "Matching check",
-		Query: "select 1;",
+		Name:    "Matching check",
+		Query:   "select 1;",
+		Targets: []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	})
 	if err != nil {
 		t.Fatalf("create matching check: %v", err)
@@ -112,26 +159,30 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 }
 
 func TestHostChecksIncludeMembershipState(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-status-host", "5.22.1")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	passing, err := store.Create(ctx, CheckMutation{
-		Name:  "Passing check",
-		Query: "select 1;",
+		Name:    "Passing check",
+		Query:   "select 1;",
+		Targets: []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	})
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
 	failing, err := store.Create(ctx, CheckMutation{
-		Name:  "Failing check",
-		Query: "select 0;",
+		Name:    "Failing check",
+		Query:   "select 0;",
+		Targets: []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	})
 	if err != nil {
 		t.Fatalf("create failing check: %v", err)
 	}
 	unevaluated, err := store.Create(ctx, CheckMutation{
-		Name:  "Unevaluated check",
-		Query: "select 2;",
+		Name:    "Unevaluated check",
+		Query:   "select 2;",
+		Targets: []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	})
 	if err != nil {
 		t.Fatalf("create unevaluated check: %v", err)
@@ -182,10 +233,12 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 }
 
 func TestHostStatusesIncludeMembershipState(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	check, err := store.Create(ctx, CheckMutation{
-		Name:  "Status list check",
-		Query: "select 1;",
+		Name:    "Status list check",
+		Query:   "select 1;",
+		Targets: []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	})
 	if err != nil {
 		t.Fatalf("create check: %v", err)
@@ -285,14 +338,29 @@ func enrollTestHostDetail(
 	return host
 }
 
-func assertInt64s(t *testing.T, name string, got []int64, want []int64) {
+func allHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int64 {
+	t.Helper()
+	rows, _, err := store.List(ctx, labels.ListParams{})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
+	}
+	for _, row := range rows {
+		if row.Name == "All Hosts" {
+			return row.ID
+		}
+	}
+	t.Fatalf("All Hosts label not found")
+	return 0
+}
+
+func assertTargets(t *testing.T, got []scope.TargetLabel, want []scope.TargetLabel) {
 	t.Helper()
 	if len(got) != len(want) {
-		t.Fatalf("%s = %#v, want %#v", name, got, want)
+		t.Fatalf("targets = %#v, want %#v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("%s = %#v, want %#v", name, got, want)
+			t.Fatalf("targets = %#v, want %#v", got, want)
 		}
 	}
 }

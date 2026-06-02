@@ -26,13 +26,14 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/software"
 	"github.com/woodleighschool/woodstar/internal/users"
 )
 
-func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
+func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
 	db, ctx := dbtest.Open(t)
-	router, protected, cookie := santaAdminTestAPI(t, db, "config-conflict-admin@example.test")
+	router, protected, cookie := santaAdminTestAPI(t, db, "config-overlap-admin@example.test")
 	RegisterSantaConfigurations(protected, configurations.NewStore(db))
 
 	label, err := labels.NewStore(db).Create(ctx, labels.LabelMutation{
@@ -55,13 +56,10 @@ func TestSantaConfigurationLabelConflictResponseShape(t *testing.T) {
 		t.Fatalf("seed configuration status = %d; body = %q", rec.Code, rec.Body.String())
 	}
 
-	conflictBody := santaConfigurationBody("Stealer", label.ID)
-	rec := santaAdminRequest(t, router, cookie, http.MethodPost, "/api/santa/configurations", conflictBody)
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("conflict status = %d, want %d; body = %q", rec.Code, http.StatusConflict, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"configuration_name":"Owner"`) {
-		t.Fatalf("conflict response = %q, want configuration_name=Owner", rec.Body.String())
+	overlapBody := santaConfigurationBody("Second", label.ID)
+	rec := santaAdminRequest(t, router, cookie, http.MethodPost, "/api/santa/configurations", overlapBody)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("overlap status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
 	}
 }
 
@@ -330,7 +328,10 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		ClientMode:              configurations.ClientModeMonitor,
 		FullSyncIntervalSeconds: 600,
 		BatchSize:               50,
-		LabelIDs:                []int64{label.ID},
+		Targets: []scope.TargetLabel{{
+			LabelID: label.ID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	})
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
@@ -389,7 +390,7 @@ func santaConfigurationBody(name string, labelID int64) string {
 		"enable_all_event_upload": false,
 		"full_sync_interval_seconds": 600,
 		"batch_size": 50,
-		"label_ids": [%d]
+		"targets": [{"label_id": %d, "effect": "include"}]
 	}`, name, labelID)
 }
 

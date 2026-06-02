@@ -8,7 +8,7 @@ tool (
 )
 
 require (
-	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260527183946-14f63aa75ed2.1
+	buf.build/gen/go/northpolesec/protos/protocolbuffers/go v1.36.11-20260601171526-ca214f536e96.1
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexedwards/scs/pgxstore v0.0.0-20251002162104-209de6e426de
@@ -27,7 +27,6 @@ require (
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.20.0
 	google.golang.org/protobuf v1.36.11
 	howett.net/plist v1.0.1
 )
@@ -89,6 +88,7 @@ require (
 	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6 // indirect
 	golang.org/x/text v0.37.0 // indirect

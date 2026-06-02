@@ -8,8 +8,6 @@ package sqlc
 import (
 	"context"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const createCheck = `-- name: CreateCheck :one
@@ -30,7 +28,6 @@ RETURNING
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -56,7 +53,6 @@ func (q *Queries) CreateCheck(ctx context.Context, arg CreateCheckParams) (Check
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -81,17 +77,17 @@ func (q *Queries) DeleteCheck(ctx context.Context, arg DeleteCheckParams) (int64
 	return id, err
 }
 
-const deleteCheckLabels = `-- name: DeleteCheckLabels :exec
-DELETE FROM check_labels
+const deleteCheckTargets = `-- name: DeleteCheckTargets :exec
+DELETE FROM check_targets
 WHERE check_id = $1
 `
 
-type DeleteCheckLabelsParams struct {
+type DeleteCheckTargetsParams struct {
 	CheckID int64 `json:"check_id"`
 }
 
-func (q *Queries) DeleteCheckLabels(ctx context.Context, arg DeleteCheckLabelsParams) error {
-	_, err := q.db.Exec(ctx, deleteCheckLabels, arg.CheckID)
+func (q *Queries) DeleteCheckTargets(ctx context.Context, arg DeleteCheckTargetsParams) error {
+	_, err := q.db.Exec(ctx, deleteCheckTargets, arg.CheckID)
 	return err
 }
 
@@ -131,7 +127,6 @@ SELECT
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -151,7 +146,6 @@ func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Che
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -159,18 +153,21 @@ func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Che
 	return i, err
 }
 
-const insertCheckLabels = `-- name: InsertCheckLabels :exec
-INSERT INTO check_labels (check_id, label_id)
-SELECT $1, unnest($2::bigint[])
+const insertCheckTargets = `-- name: InsertCheckTargets :exec
+INSERT INTO check_targets (check_id, label_id, effect)
+SELECT $1, labels.label_id, effects.effect
+FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
 `
 
-type InsertCheckLabelsParams struct {
-	CheckID  int64   `json:"check_id"`
-	LabelIds []int64 `json:"label_ids"`
+type InsertCheckTargetsParams struct {
+	CheckID  int64    `json:"check_id"`
+	LabelIds []int64  `json:"label_ids"`
+	Effects  []string `json:"effects"`
 }
 
-func (q *Queries) InsertCheckLabels(ctx context.Context, arg InsertCheckLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertCheckLabels, arg.CheckID, arg.LabelIds)
+func (q *Queries) InsertCheckTargets(ctx context.Context, arg InsertCheckTargetsParams) error {
+	_, err := q.db.Exec(ctx, insertCheckTargets, arg.CheckID, arg.LabelIds, arg.Effects)
 	return err
 }
 
@@ -185,45 +182,24 @@ SELECT
     c.name,
     c.description,
     c.query,
-    c.label_scope_mode,
     c.created_by_user_id,
     c.created_at,
     c.updated_at
 FROM checks c
 JOIN host_row h ON true
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY c.id
 `
@@ -246,7 +222,6 @@ func (q *Queries) ListApplicableChecksForHost(ctx context.Context, arg ListAppli
 			&i.Name,
 			&i.Description,
 			&i.Query,
-			&i.LabelScopeMode,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -303,7 +278,7 @@ func (q *Queries) ListCheckCounts(ctx context.Context, arg ListCheckCountsParams
 
 const listCheckHostStatuses = `-- name: ListCheckHostStatuses :many
 WITH check_row AS (
-    SELECT id, name, description, query, label_scope_mode, created_by_user_id, created_at, updated_at
+    SELECT id, name, description, query, created_by_user_id, created_at, updated_at
     FROM checks c
     WHERE c.id = $1
 ),
@@ -323,39 +298,19 @@ SELECT
 FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY
     CASE
@@ -407,62 +362,27 @@ func (q *Queries) ListCheckHostStatuses(ctx context.Context, arg ListCheckHostSt
 	return items, nil
 }
 
-const listCheckLabelIDs = `-- name: ListCheckLabelIDs :many
-SELECT check_id, label_id
-FROM check_labels
+const listCheckTargets = `-- name: ListCheckTargets :many
+SELECT check_id, label_id, effect
+FROM check_targets
 WHERE check_id = ANY($1::bigint[])
-ORDER BY check_id, label_id
+ORDER BY check_id, effect, label_id
 `
 
-type ListCheckLabelIDsParams struct {
+type ListCheckTargetsParams struct {
 	CheckIds []int64 `json:"check_ids"`
 }
 
-func (q *Queries) ListCheckLabelIDs(ctx context.Context, arg ListCheckLabelIDsParams) ([]CheckLabel, error) {
-	rows, err := q.db.Query(ctx, listCheckLabelIDs, arg.CheckIds)
+func (q *Queries) ListCheckTargets(ctx context.Context, arg ListCheckTargetsParams) ([]CheckTarget, error) {
+	rows, err := q.db.Query(ctx, listCheckTargets, arg.CheckIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []CheckLabel{}
+	items := []CheckTarget{}
 	for rows.Next() {
-		var i CheckLabel
-		if err := rows.Scan(&i.CheckID, &i.LabelID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listCheckScopes = `-- name: ListCheckScopes :many
-SELECT id, label_scope_mode
-FROM checks
-WHERE id = ANY($1::bigint[])
-`
-
-type ListCheckScopesParams struct {
-	CheckIds []int64 `json:"check_ids"`
-}
-
-type ListCheckScopesRow struct {
-	ID             int64                `json:"id"`
-	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
-}
-
-func (q *Queries) ListCheckScopes(ctx context.Context, arg ListCheckScopesParams) ([]ListCheckScopesRow, error) {
-	rows, err := q.db.Query(ctx, listCheckScopes, arg.CheckIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListCheckScopesRow{}
-	for rows.Next() {
-		var i ListCheckScopesRow
-		if err := rows.Scan(&i.ID, &i.LabelScopeMode); err != nil {
+		var i CheckTarget
+		if err := rows.Scan(&i.CheckID, &i.LabelID, &i.Effect); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -491,39 +411,19 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY
     CASE
@@ -575,22 +475,6 @@ func (q *Queries) ListHostCheckStatusesForHost(ctx context.Context, arg ListHost
 	return items, nil
 }
 
-const setCheckScopeMode = `-- name: SetCheckScopeMode :exec
-UPDATE checks
-SET label_scope_mode = $1
-WHERE id = $2
-`
-
-type SetCheckScopeModeParams struct {
-	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
-	ID             int64                `json:"id"`
-}
-
-func (q *Queries) SetCheckScopeMode(ctx context.Context, arg SetCheckScopeModeParams) error {
-	_, err := q.db.Exec(ctx, setCheckScopeMode, arg.LabelScopeMode, arg.ID)
-	return err
-}
-
 const updateCheck = `-- name: UpdateCheck :one
 UPDATE checks
 SET
@@ -604,7 +488,6 @@ RETURNING
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -630,7 +513,6 @@ func (q *Queries) UpdateCheck(ctx context.Context, arg UpdateCheckParams) (Check
 		&i.Name,
 		&i.Description,
 		&i.Query,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

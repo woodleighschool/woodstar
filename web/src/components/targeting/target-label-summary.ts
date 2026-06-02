@@ -1,6 +1,6 @@
-import type { TargetLabel } from "@/lib/api";
+import type { TargetLabelRow } from "@/components/targeting/target-label-row-editor";
 
-export function targetSummary(targets: TargetLabel[] | null | undefined) {
+export function targetLabelSummary(targets: TargetLabelRow[] | null | undefined) {
   const rows = targets ?? [];
   const includeCount = rows.filter((target) => target.effect === "include").length;
   const excludeCount = rows.filter((target) => target.effect === "exclude").length;

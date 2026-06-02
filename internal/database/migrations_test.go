@@ -44,15 +44,21 @@ func TestSantaMigrationEnforcesConfigurationAndRuleInvariants(t *testing.T) {
 		t.Fatalf("insert second configuration: %v", err)
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO santa_configuration_labels (label_id, configuration_id)
-		VALUES ($1, $2)
-	`, allHostsLabelID, firstConfigID); err != nil {
-		t.Fatalf("attach first configuration label: %v", err)
+		INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
+		VALUES ($1, $2, 'include')
+	`, firstConfigID, allHostsLabelID); err != nil {
+		t.Fatalf("attach first configuration target: %v", err)
 	}
-	expectPgError(t, tx, "duplicate_configuration_label", "23505", `
-		INSERT INTO santa_configuration_labels (label_id, configuration_id)
-		VALUES ($1, $2)
-	`, allHostsLabelID, secondConfigID)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
+		VALUES ($1, $2, 'include')
+	`, secondConfigID, allHostsLabelID); err != nil {
+		t.Fatalf("overlap configuration target: %v", err)
+	}
+	expectPgError(t, tx, "duplicate_configuration_target", "23505", `
+		INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
+		VALUES ($1, $2, 'include')
+	`, firstConfigID, allHostsLabelID)
 
 	expectPgError(t, tx, "remount_without_flags", "23514", `
 		INSERT INTO santa_configurations (

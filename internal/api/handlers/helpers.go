@@ -9,7 +9,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // resourceMutationError translates store errors into resource-shaped HTTP errors.
@@ -52,11 +51,6 @@ func (input ListQueryInput) params() dbutil.ListParams {
 		PageSize:  input.PageSize,
 		Sort:      input.Sort,
 	}
-}
-
-// normalizeLabelScope applies the scope normalisation rules.
-func normalizeLabelScope(s scope.LabelScope) scope.LabelScope {
-	return scope.NormalizeLabelScope(s)
 }
 
 // currentUserID returns the authenticated admin's user ID, or nil if anonymous.

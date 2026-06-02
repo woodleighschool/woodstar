@@ -229,13 +229,13 @@ func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
 		return
 	}
 	switch pkg.Action {
-	case DeploymentActionInstall:
+	case AssignmentActionInstall:
 		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-	case DeploymentActionRemove:
+	case AssignmentActionRemove:
 		manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-	case DeploymentActionUpdateIfPresent:
+	case AssignmentActionUpdateIfPresent:
 		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-	case DeploymentActionNone:
+	case AssignmentActionNone:
 	}
 	if pkg.OptionalInstall {
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
@@ -262,24 +262,26 @@ func manifestItemName(pkg EffectivePackage) string {
 
 func resolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
 	resolved := make([][]EffectivePackage, 0, len(packages))
-	positions := make(map[int64]int, len(packages))
+	selectedAssignments := make(map[int64]int64, len(packages))
+	selectedIndexes := make(map[int64]int, len(packages))
 	for _, pkg := range packages {
-		if pkg.SoftwareID <= 0 || strings.TrimSpace(pkg.Package.Name) == "" {
+		if pkg.SoftwareID <= 0 {
 			continue
 		}
-		position, exists := positions[pkg.SoftwareID]
+		assignmentID, exists := selectedAssignments[pkg.SoftwareID]
 		if !exists {
-			positions[pkg.SoftwareID] = len(resolved)
+			selectedAssignments[pkg.SoftwareID] = pkg.AssignmentID
+			if pkg.AssignmentEffect == AssignmentEffectExclude || strings.TrimSpace(pkg.Package.Name) == "" {
+				selectedIndexes[pkg.SoftwareID] = -1
+				continue
+			}
+			selectedIndexes[pkg.SoftwareID] = len(resolved)
 			resolved = append(resolved, []EffectivePackage{pkg})
 			continue
 		}
-		current := resolved[position][0]
-		if current.DeploymentID == pkg.DeploymentID {
-			resolved[position] = appendUniqueEffectivePackage(resolved[position], pkg)
-			continue
-		}
-		if betterEffectiveDeployment(pkg, current) {
-			resolved[position] = []EffectivePackage{pkg}
+		index := selectedIndexes[pkg.SoftwareID]
+		if assignmentID == pkg.AssignmentID && index >= 0 && pkg.AssignmentEffect == AssignmentEffectInclude {
+			resolved[index] = appendUniqueEffectivePackage(resolved[index], pkg)
 		}
 	}
 	out := make([]EffectivePackage, 0, len(packages))
@@ -296,34 +298,6 @@ func appendUniqueEffectivePackage(packages []EffectivePackage, pkg EffectivePack
 		}
 	}
 	return append(packages, pkg)
-}
-
-func betterEffectiveDeployment(candidate, current EffectivePackage) bool {
-	if candidate.Position != current.Position {
-		return candidate.Position < current.Position
-	}
-	if candidate.scopeRank != current.scopeRank {
-		return candidate.scopeRank > current.scopeRank
-	}
-	if candidate.Action != current.Action {
-		return deploymentActionRank(candidate.Action) > deploymentActionRank(current.Action)
-	}
-	return candidate.DeploymentID > current.DeploymentID
-}
-
-func deploymentActionRank(action DeploymentAction) int {
-	switch action {
-	case DeploymentActionRemove:
-		return 50
-	case DeploymentActionInstall:
-		return 40
-	case DeploymentActionUpdateIfPresent:
-		return 30
-	case DeploymentActionNone:
-		return 10
-	default:
-		return 0
-	}
 }
 
 func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, error) {

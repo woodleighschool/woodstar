@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -199,9 +198,5 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 }
 
 func santaConfigurationMutationError(err error) error {
-	var conflict *configurations.ConfigurationLabelConflictError
-	if errors.As(err, &conflict) {
-		return conflict
-	}
 	return resourceMutationError(santaConfigurationResource, err)
 }

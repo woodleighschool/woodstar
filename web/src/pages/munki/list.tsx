@@ -4,6 +4,7 @@ import { PackageSearch, Plus } from "lucide-react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
@@ -29,9 +30,12 @@ export function MunkiSoftwareTitlesPage() {
       accessorKey: "display_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Software" />,
       cell: ({ row }) => (
-        <div className="min-w-0">
-          <div className="truncate font-medium">{row.original.display_name || row.original.name}</div>
-          <div className="text-muted-foreground truncate text-xs">{row.original.name}</div>
+        <div className="flex min-w-0 items-center gap-2">
+          <MunkiIcon iconUrl={row.original.icon_url} />
+          <div className="min-w-0">
+            <div className="truncate font-medium">{row.original.display_name || row.original.name}</div>
+            <div className="text-muted-foreground truncate text-xs">{row.original.name}</div>
+          </div>
         </div>
       ),
     },
@@ -60,7 +64,7 @@ export function MunkiSoftwareTitlesPage() {
     <PageShell>
       <PageHeader
         title="Software"
-        description="Author software titles, package versions, and label-scoped deployments. Woodstar renders the Munki repository view from this model."
+        description="Author software titles, package versions, and label-scoped assignments. Woodstar renders the Munki repository view from this model."
         actions={
           <Button asChild size="sm">
             <Link to="/munki/software-titles/new">

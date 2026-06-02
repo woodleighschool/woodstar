@@ -102,25 +102,41 @@ func (RestartAction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(restartActionValues...)
 }
 
-// DeploymentAction describes the managed Munki manifest section for an assignment.
-type DeploymentAction string
+// AssignmentAction describes the managed Munki manifest section for an assignment.
+type AssignmentAction string
 
 const (
-	DeploymentActionInstall         DeploymentAction = "install"
-	DeploymentActionRemove          DeploymentAction = "remove"
-	DeploymentActionUpdateIfPresent DeploymentAction = "update_if_present"
-	DeploymentActionNone            DeploymentAction = "none"
+	AssignmentActionInstall         AssignmentAction = "install"
+	AssignmentActionRemove          AssignmentAction = "remove"
+	AssignmentActionUpdateIfPresent AssignmentAction = "update_if_present"
+	AssignmentActionNone            AssignmentAction = "none"
 )
 
-var deploymentActionValues = []DeploymentAction{
-	DeploymentActionInstall,
-	DeploymentActionRemove,
-	DeploymentActionUpdateIfPresent,
-	DeploymentActionNone,
+var assignmentActionValues = []AssignmentAction{
+	AssignmentActionInstall,
+	AssignmentActionRemove,
+	AssignmentActionUpdateIfPresent,
+	AssignmentActionNone,
 }
 
-func (DeploymentAction) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(deploymentActionValues...)
+func (AssignmentAction) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(assignmentActionValues...)
+}
+
+type AssignmentEffect string
+
+const (
+	AssignmentEffectInclude AssignmentEffect = "include"
+	AssignmentEffectExclude AssignmentEffect = "exclude"
+)
+
+var assignmentEffectValues = []AssignmentEffect{
+	AssignmentEffectInclude,
+	AssignmentEffectExclude,
+}
+
+func (AssignmentEffect) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(assignmentEffectValues...)
 }
 
 // PackageSelection describes whether an assignment follows latest compatible pkginfos or pins one pkginfo.
@@ -210,7 +226,7 @@ type PackageImportMutation struct {
 	Eligible            *bool           `json:"eligible,omitempty"`
 }
 
-// Package is one Munki pkginfo item available for deployment.
+// Package is one Munki pkginfo item available for assignment.
 type Package struct {
 	ID                           int64           `json:"id"`
 	SoftwareID                   int64           `json:"software_id"`
@@ -301,61 +317,56 @@ type Artifact struct {
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
-// DeploymentMutation is the input shape for applying software to a concrete Munki scope.
-type DeploymentMutation struct {
-	SoftwareID       int64            `json:"software_id"`
-	Action           DeploymentAction `json:"action"`
-	OptionalInstall  bool             `json:"optional_install,omitempty"`
-	FeaturedItem     bool             `json:"featured_item,omitempty"`
-	PackageSelection PackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64           `json:"pinned_package_id,omitempty"`
-	AllHosts         bool             `json:"all_hosts"`
-	IncludeLabelIDs  []int64          `json:"include_label_ids,omitempty"`
-	ExcludeLabelIDs  []int64          `json:"exclude_label_ids,omitempty"`
-	IncludeHostIDs   []int64          `json:"include_host_ids,omitempty"`
-	ExcludeHostIDs   []int64          `json:"exclude_host_ids,omitempty"`
+// AssignmentMutation is one ordered label row for Munki desired state.
+type AssignmentMutation struct {
+	SoftwareID       int64             `json:"software_id"`
+	Priority         int32             `json:"priority"`
+	LabelID          int64             `json:"label_id"`
+	Effect           AssignmentEffect  `json:"effect"`
+	Action           *AssignmentAction `json:"action,omitempty"`
+	OptionalInstall  bool              `json:"optional_install,omitempty"`
+	FeaturedItem     bool              `json:"featured_item,omitempty"`
+	PackageSelection *PackageSelection `json:"package_selection,omitempty"`
+	PinnedPackageID  *int64            `json:"pinned_package_id,omitempty"`
 }
 
-// Deployment links one Munki software title, assignment behavior, and concrete include/exclude scope.
-type Deployment struct {
-	ID                   int64            `json:"id"`
-	SoftwareID           int64            `json:"software_id"`
-	SoftwareDisplayName  string           `json:"software_display_name"`
-	Action               DeploymentAction `json:"action"`
-	OptionalInstall      bool             `json:"optional_install"`
-	FeaturedItem         bool             `json:"featured_item"`
-	PackageSelection     PackageSelection `json:"package_selection"`
-	PinnedPackageID      *int64           `json:"pinned_package_id,omitempty"`
-	PinnedPackageName    string           `json:"pinned_package_name,omitempty"`
-	PinnedPackageVersion string           `json:"pinned_package_version,omitempty"`
-	Position             int32            `json:"position"`
-	AllHosts             bool             `json:"all_hosts"`
-	IncludeLabelIDs      []int64          `json:"include_label_ids"`
-	ExcludeLabelIDs      []int64          `json:"exclude_label_ids"`
-	IncludeHostIDs       []int64          `json:"include_host_ids"`
-	ExcludeHostIDs       []int64          `json:"exclude_host_ids"`
-	CreatedAt            time.Time        `json:"created_at"`
-	UpdatedAt            time.Time        `json:"updated_at"`
+// Assignment links one Munki software title, one target label, and optional include payload.
+type Assignment struct {
+	ID                   int64             `json:"id"`
+	SoftwareID           int64             `json:"software_id"`
+	SoftwareDisplayName  string            `json:"software_display_name"`
+	Priority             int32             `json:"priority"`
+	LabelID              int64             `json:"label_id"`
+	Effect               AssignmentEffect  `json:"effect"`
+	Action               *AssignmentAction `json:"action,omitempty"`
+	OptionalInstall      bool              `json:"optional_install"`
+	FeaturedItem         bool              `json:"featured_item"`
+	PackageSelection     *PackageSelection `json:"package_selection,omitempty"`
+	PinnedPackageID      *int64            `json:"pinned_package_id,omitempty"`
+	PinnedPackageName    string            `json:"pinned_package_name,omitempty"`
+	PinnedPackageVersion string            `json:"pinned_package_version,omitempty"`
+	CreatedAt            time.Time         `json:"created_at"`
+	UpdatedAt            time.Time         `json:"updated_at"`
 }
 
 // EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
 type EffectivePackage struct {
-	DeploymentID     int64
+	AssignmentID     int64
 	SoftwareID       int64
-	Action           DeploymentAction
+	AssignmentEffect AssignmentEffect
+	Action           AssignmentAction
 	OptionalInstall  bool
 	FeaturedItem     bool
 	PackageSelection PackageSelection
 	PinnedPackageID  *int64
-	Position         int32
+	Priority         int32
 	Package          Package
-	scopeRank        int
 }
 
 type SoftwareTitleDetail struct {
 	SoftwareTitle
 	Packages    []Package    `json:"packages"`
-	Deployments []Deployment `json:"deployments"`
+	Assignments []Assignment `json:"assignments"`
 }
 
 type PackageListParams struct {
@@ -363,7 +374,7 @@ type PackageListParams struct {
 	SoftwareID int64
 }
 
-type DeploymentListParams struct {
+type AssignmentListParams struct {
 	dbutil.ListParams
 	SoftwareID int64
 }
@@ -505,21 +516,52 @@ func (m ArtifactMutation) Validate() error {
 	return nil
 }
 
-func (m DeploymentMutation) Validate() error {
+func (m AssignmentMutation) Validate() error {
 	if m.SoftwareID <= 0 {
 		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	if !validDeploymentAction(m.Action) {
-		return fmt.Errorf("%w: unsupported deployment action %q", dbutil.ErrInvalidInput, m.Action)
+	if m.Priority <= 0 {
+		return fmt.Errorf("%w: priority is required", dbutil.ErrInvalidInput)
 	}
-	if !validPackageSelection(m.PackageSelection) {
+	if m.LabelID <= 0 {
+		return fmt.Errorf("%w: label_id is required", dbutil.ErrInvalidInput)
+	}
+	switch m.Effect {
+	case AssignmentEffectInclude:
+		return m.validateIncludePayload()
+	case AssignmentEffectExclude:
+		return m.validateExcludePayload()
+	default:
+		return fmt.Errorf("%w: unsupported assignment effect %q", dbutil.ErrInvalidInput, m.Effect)
+	}
+}
+
+func validAssignmentAction(action AssignmentAction) bool {
+	return slices.Contains(assignmentActionValues, action)
+}
+
+func validPackageSelection(selection PackageSelection) bool {
+	return slices.Contains(packageSelectionValues, selection)
+}
+
+func (m AssignmentMutation) validateIncludePayload() error {
+	if m.Action == nil {
+		return fmt.Errorf("%w: action is required for include assignments", dbutil.ErrInvalidInput)
+	}
+	if !validAssignmentAction(*m.Action) {
+		return fmt.Errorf("%w: unsupported assignment action %q", dbutil.ErrInvalidInput, *m.Action)
+	}
+	if m.PackageSelection == nil {
+		return fmt.Errorf("%w: package_selection is required for include assignments", dbutil.ErrInvalidInput)
+	}
+	if !validPackageSelection(*m.PackageSelection) {
 		return fmt.Errorf(
 			"%w: unsupported package_selection %q",
 			dbutil.ErrInvalidInput,
-			m.PackageSelection,
+			*m.PackageSelection,
 		)
 	}
-	switch m.PackageSelection {
+	switch *m.PackageSelection {
 	case PackageSelectionLatestEligible:
 		if m.PinnedPackageID != nil {
 			return fmt.Errorf(
@@ -535,24 +577,20 @@ func (m DeploymentMutation) Validate() error {
 	if m.FeaturedItem && !m.OptionalInstall {
 		return fmt.Errorf("%w: featured_item requires optional_install", dbutil.ErrInvalidInput)
 	}
-	if m.Action == DeploymentActionRemove && (m.OptionalInstall || m.FeaturedItem) {
+	if *m.Action == AssignmentActionRemove && (m.OptionalInstall || m.FeaturedItem) {
 		return fmt.Errorf(
 			"%w: remove assignments cannot be optional_installs or featured_items",
 			dbutil.ErrInvalidInput,
 		)
 	}
-	if !m.AllHosts && len(m.IncludeLabelIDs) == 0 && len(m.IncludeHostIDs) == 0 {
-		return fmt.Errorf("%w: deployment scope is required", dbutil.ErrInvalidInput)
-	}
 	return nil
 }
 
-func validDeploymentAction(action DeploymentAction) bool {
-	return slices.Contains(deploymentActionValues, action)
-}
-
-func validPackageSelection(selection PackageSelection) bool {
-	return slices.Contains(packageSelectionValues, selection)
+func (m AssignmentMutation) validateExcludePayload() error {
+	if m.Action != nil || m.PackageSelection != nil || m.PinnedPackageID != nil || m.OptionalInstall || m.FeaturedItem {
+		return fmt.Errorf("%w: exclude assignments cannot carry Munki payload", dbutil.ErrInvalidInput)
+	}
+	return nil
 }
 
 func validInstallerType(installerType InstallerType) bool {

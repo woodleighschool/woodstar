@@ -100,10 +100,10 @@ export type Check = {
     description: string;
     failing_host_count: number;
     id: number;
-    label_scope?: LabelScope;
     name: string;
     passing_host_count: number;
     query: string;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
@@ -122,9 +122,9 @@ export type CheckMutation = {
      */
     readonly $schema?: string;
     description?: string;
-    label_scope: LabelScope;
     name: string;
     query: string;
+    targets: Array<TargetLabel> | null;
 };
 
 export type ConfigurationMatch = {
@@ -142,11 +142,11 @@ export type ConfigurationMatch = {
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     id: number;
-    label_ids: Array<number> | null;
     matched_via_label?: LabelMatch;
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
@@ -167,9 +167,9 @@ export type ConfigurationMutation = {
     event_detail_text?: string;
     event_detail_url?: string;
     full_sync_interval_seconds: number;
-    label_ids?: Array<number> | null;
     name: string;
     removable_media_policy?: RemovableMediaPolicy;
+    targets: Array<TargetLabel> | null;
 };
 
 export type Criteria = {
@@ -614,11 +614,6 @@ export type LabelMutation = {
     query?: string;
 };
 
-export type LabelScope = {
-    label_ids?: Array<number> | null;
-    mode?: 'include_any' | 'include_all' | 'exclude_any';
-};
-
 export type LiveQueryCompletedEvent = {
     status: 'completed';
 };
@@ -734,50 +729,45 @@ export type MunkiArtifactUploadMutation = {
     size_bytes: number;
 };
 
-export type MunkiDeployment = {
+export type MunkiAssignment = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    all_hosts: boolean;
+    action?: 'install' | 'remove' | 'update_if_present' | 'none';
     created_at: string;
-    exclude_host_ids: Array<number> | null;
-    exclude_label_ids: Array<number> | null;
+    effect: 'include' | 'exclude';
     featured_item: boolean;
     id: number;
-    include_host_ids: Array<number> | null;
-    include_label_ids: Array<number> | null;
+    label_id: number;
     optional_install: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
+    package_selection?: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
-    position: number;
+    priority: number;
     software_display_name: string;
     software_id: number;
     updated_at: string;
 };
 
-export type MunkiDeploymentMutation = {
+export type MunkiAssignmentMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    all_hosts: boolean;
-    exclude_host_ids?: Array<number> | null;
-    exclude_label_ids?: Array<number> | null;
+    action?: 'install' | 'remove' | 'update_if_present' | 'none';
+    effect: 'include' | 'exclude';
     featured_item?: boolean;
-    include_host_ids?: Array<number> | null;
-    include_label_ids?: Array<number> | null;
+    label_id: number;
     optional_install?: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
+    package_selection?: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
+    priority: number;
     software_id: number;
 };
 
-export type MunkiDeploymentReorderBody = {
+export type MunkiAssignmentReorderBody = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -907,9 +897,9 @@ export type MunkiSoftwareTitleDetail = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    assignments: Array<MunkiAssignment> | null;
     category: string;
     created_at: string;
-    deployments: Array<MunkiDeployment> | null;
     description: string;
     developer: string;
     display_name: string;
@@ -1024,13 +1014,13 @@ export type PageLabel = {
     items: Array<Label> | null;
 };
 
-export type PageMunkiDeployment = {
+export type PageMunkiAssignment = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<MunkiDeployment> | null;
+    items: Array<MunkiAssignment> | null;
 };
 
 export type PageMunkiPackage = {
@@ -1132,11 +1122,11 @@ export type Report = {
     created_by_user_id?: number;
     description: string;
     id: number;
-    label_scope?: LabelScope;
     min_osquery_version?: string;
     name: string;
     query: string;
     schedule_interval: number;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
@@ -1146,11 +1136,11 @@ export type ReportMutation = {
      */
     readonly $schema?: string;
     description?: string;
-    label_scope: LabelScope;
     min_osquery_version?: string;
     name: string;
     query: string;
     schedule_interval?: number;
+    targets: Array<TargetLabel> | null;
 };
 
 export type ReportResult = {
@@ -1261,10 +1251,10 @@ export type SantaConfiguration = {
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     id: number;
-    label_ids: Array<number> | null;
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
@@ -1386,6 +1376,11 @@ export type SoftwareVersion = {
     version: string;
 };
 
+export type TargetLabel = {
+    effect: 'include' | 'exclude';
+    label_id: number;
+};
+
 export type User = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1457,18 +1452,18 @@ export type CheckWritable = {
     description: string;
     failing_host_count: number;
     id: number;
-    label_scope?: LabelScope;
     name: string;
     passing_host_count: number;
     query: string;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
 export type CheckMutationWritable = {
     description?: string;
-    label_scope: LabelScope;
     name: string;
     query: string;
+    targets: Array<TargetLabel> | null;
 };
 
 export type ConfigurationMutationWritable = {
@@ -1484,9 +1479,9 @@ export type ConfigurationMutationWritable = {
     event_detail_text?: string;
     event_detail_url?: string;
     full_sync_interval_seconds: number;
-    label_ids?: Array<number> | null;
     name: string;
     removable_media_policy?: RemovableMediaPolicy;
+    targets: Array<TargetLabel> | null;
 };
 
 export type ErrorModelWritable = {
@@ -1673,42 +1668,37 @@ export type MunkiArtifactUploadMutationWritable = {
     size_bytes: number;
 };
 
-export type MunkiDeploymentWritable = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    all_hosts: boolean;
+export type MunkiAssignmentWritable = {
+    action?: 'install' | 'remove' | 'update_if_present' | 'none';
     created_at: string;
-    exclude_host_ids: Array<number> | null;
-    exclude_label_ids: Array<number> | null;
+    effect: 'include' | 'exclude';
     featured_item: boolean;
     id: number;
-    include_host_ids: Array<number> | null;
-    include_label_ids: Array<number> | null;
+    label_id: number;
     optional_install: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
+    package_selection?: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
-    position: number;
+    priority: number;
     software_display_name: string;
     software_id: number;
     updated_at: string;
 };
 
-export type MunkiDeploymentMutationWritable = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    all_hosts: boolean;
-    exclude_host_ids?: Array<number> | null;
-    exclude_label_ids?: Array<number> | null;
+export type MunkiAssignmentMutationWritable = {
+    action?: 'install' | 'remove' | 'update_if_present' | 'none';
+    effect: 'include' | 'exclude';
     featured_item?: boolean;
-    include_host_ids?: Array<number> | null;
-    include_label_ids?: Array<number> | null;
+    label_id: number;
     optional_install?: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
+    package_selection?: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
+    priority: number;
     software_id: number;
 };
 
-export type MunkiDeploymentReorderBodyWritable = {
+export type MunkiAssignmentReorderBodyWritable = {
     ordered_ids: Array<number> | null;
 };
 
@@ -1801,9 +1791,9 @@ export type MunkiSoftwareTitleWritable = {
 };
 
 export type MunkiSoftwareTitleDetailWritable = {
+    assignments: Array<MunkiAssignmentWritable> | null;
     category: string;
     created_at: string;
-    deployments: Array<MunkiDeploymentWritable> | null;
     description: string;
     developer: string;
     display_name: string;
@@ -1874,9 +1864,9 @@ export type PageLabelWritable = {
     items: Array<LabelWritable> | null;
 };
 
-export type PageMunkiDeploymentWritable = {
+export type PageMunkiAssignmentWritable = {
     count: number;
-    items: Array<MunkiDeploymentWritable> | null;
+    items: Array<MunkiAssignmentWritable> | null;
 };
 
 export type PageMunkiPackageWritable = {
@@ -1919,21 +1909,21 @@ export type ReportWritable = {
     created_by_user_id?: number;
     description: string;
     id: number;
-    label_scope?: LabelScope;
     min_osquery_version?: string;
     name: string;
     query: string;
     schedule_interval: number;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
 export type ReportMutationWritable = {
     description?: string;
-    label_scope: LabelScope;
     min_osquery_version?: string;
     name: string;
     query: string;
     schedule_interval?: number;
+    targets: Array<TargetLabel> | null;
 };
 
 export type RuleMutationWritable = {
@@ -1962,10 +1952,10 @@ export type SantaConfigurationWritable = {
     event_detail_url?: string;
     full_sync_interval_seconds: number;
     id: number;
-    label_ids: Array<number> | null;
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
+    targets: Array<TargetLabel> | null;
     updated_at: string;
 };
 
@@ -3565,7 +3555,7 @@ export type GetMunkiArtifactContentResponses = {
 
 export type GetMunkiArtifactContentResponse = GetMunkiArtifactContentResponses[keyof GetMunkiArtifactContentResponses];
 
-export type ListMunkiDeploymentsData = {
+export type ListMunkiAssignmentsData = {
     body?: never;
     path?: never;
     query?: {
@@ -3575,10 +3565,10 @@ export type ListMunkiDeploymentsData = {
         sort?: string;
         software_id?: number;
     };
-    url: '/api/munki/deployments';
+    url: '/api/munki/assignments';
 };
 
-export type ListMunkiDeploymentsErrors = {
+export type ListMunkiAssignmentsErrors = {
     /**
      * Unauthorized
      */
@@ -3597,25 +3587,25 @@ export type ListMunkiDeploymentsErrors = {
     500: ErrorModel;
 };
 
-export type ListMunkiDeploymentsError = ListMunkiDeploymentsErrors[keyof ListMunkiDeploymentsErrors];
+export type ListMunkiAssignmentsError = ListMunkiAssignmentsErrors[keyof ListMunkiAssignmentsErrors];
 
-export type ListMunkiDeploymentsResponses = {
+export type ListMunkiAssignmentsResponses = {
     /**
      * OK
      */
-    200: PageMunkiDeployment;
+    200: PageMunkiAssignment;
 };
 
-export type ListMunkiDeploymentsResponse = ListMunkiDeploymentsResponses[keyof ListMunkiDeploymentsResponses];
+export type ListMunkiAssignmentsResponse = ListMunkiAssignmentsResponses[keyof ListMunkiAssignmentsResponses];
 
-export type CreateMunkiDeploymentData = {
-    body: MunkiDeploymentMutationWritable;
+export type CreateMunkiAssignmentData = {
+    body: MunkiAssignmentMutationWritable;
     path?: never;
     query?: never;
-    url: '/api/munki/deployments';
+    url: '/api/munki/assignments';
 };
 
-export type CreateMunkiDeploymentErrors = {
+export type CreateMunkiAssignmentErrors = {
     /**
      * Bad Request
      */
@@ -3646,27 +3636,27 @@ export type CreateMunkiDeploymentErrors = {
     500: ErrorModel;
 };
 
-export type CreateMunkiDeploymentError = CreateMunkiDeploymentErrors[keyof CreateMunkiDeploymentErrors];
+export type CreateMunkiAssignmentError = CreateMunkiAssignmentErrors[keyof CreateMunkiAssignmentErrors];
 
-export type CreateMunkiDeploymentResponses = {
+export type CreateMunkiAssignmentResponses = {
     /**
      * Created
      */
-    201: MunkiDeployment;
+    201: MunkiAssignment;
 };
 
-export type CreateMunkiDeploymentResponse = CreateMunkiDeploymentResponses[keyof CreateMunkiDeploymentResponses];
+export type CreateMunkiAssignmentResponse = CreateMunkiAssignmentResponses[keyof CreateMunkiAssignmentResponses];
 
-export type GetMunkiDeploymentData = {
+export type GetMunkiAssignmentData = {
     body?: never;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/deployments/{id}';
+    url: '/api/munki/assignments/{id}';
 };
 
-export type GetMunkiDeploymentErrors = {
+export type GetMunkiAssignmentErrors = {
     /**
      * Unauthorized
      */
@@ -3689,27 +3679,27 @@ export type GetMunkiDeploymentErrors = {
     500: ErrorModel;
 };
 
-export type GetMunkiDeploymentError = GetMunkiDeploymentErrors[keyof GetMunkiDeploymentErrors];
+export type GetMunkiAssignmentError = GetMunkiAssignmentErrors[keyof GetMunkiAssignmentErrors];
 
-export type GetMunkiDeploymentResponses = {
+export type GetMunkiAssignmentResponses = {
     /**
      * OK
      */
-    200: MunkiDeployment;
+    200: MunkiAssignment;
 };
 
-export type GetMunkiDeploymentResponse = GetMunkiDeploymentResponses[keyof GetMunkiDeploymentResponses];
+export type GetMunkiAssignmentResponse = GetMunkiAssignmentResponses[keyof GetMunkiAssignmentResponses];
 
-export type UpdateMunkiDeploymentData = {
-    body: MunkiDeploymentMutationWritable;
+export type UpdateMunkiAssignmentData = {
+    body: MunkiAssignmentMutationWritable;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/deployments/{id}';
+    url: '/api/munki/assignments/{id}';
 };
 
-export type UpdateMunkiDeploymentErrors = {
+export type UpdateMunkiAssignmentErrors = {
     /**
      * Bad Request
      */
@@ -3740,16 +3730,16 @@ export type UpdateMunkiDeploymentErrors = {
     500: ErrorModel;
 };
 
-export type UpdateMunkiDeploymentError = UpdateMunkiDeploymentErrors[keyof UpdateMunkiDeploymentErrors];
+export type UpdateMunkiAssignmentError = UpdateMunkiAssignmentErrors[keyof UpdateMunkiAssignmentErrors];
 
-export type UpdateMunkiDeploymentResponses = {
+export type UpdateMunkiAssignmentResponses = {
     /**
      * OK
      */
-    200: MunkiDeployment;
+    200: MunkiAssignment;
 };
 
-export type UpdateMunkiDeploymentResponse = UpdateMunkiDeploymentResponses[keyof UpdateMunkiDeploymentResponses];
+export type UpdateMunkiAssignmentResponse = UpdateMunkiAssignmentResponses[keyof UpdateMunkiAssignmentResponses];
 
 export type ListMunkiPackagesData = {
     body?: never;
@@ -4167,16 +4157,16 @@ export type UpdateMunkiSoftwareTitleResponses = {
 
 export type UpdateMunkiSoftwareTitleResponse = UpdateMunkiSoftwareTitleResponses[keyof UpdateMunkiSoftwareTitleResponses];
 
-export type ReorderMunkiDeploymentsData = {
-    body: MunkiDeploymentReorderBodyWritable;
+export type ReorderMunkiAssignmentsData = {
+    body: MunkiAssignmentReorderBodyWritable;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/software-titles/{id}/deployments/order';
+    url: '/api/munki/software-titles/{id}/assignments/order';
 };
 
-export type ReorderMunkiDeploymentsErrors = {
+export type ReorderMunkiAssignmentsErrors = {
     /**
      * Bad Request
      */
@@ -4199,16 +4189,16 @@ export type ReorderMunkiDeploymentsErrors = {
     500: ErrorModel;
 };
 
-export type ReorderMunkiDeploymentsError = ReorderMunkiDeploymentsErrors[keyof ReorderMunkiDeploymentsErrors];
+export type ReorderMunkiAssignmentsError = ReorderMunkiAssignmentsErrors[keyof ReorderMunkiAssignmentsErrors];
 
-export type ReorderMunkiDeploymentsResponses = {
+export type ReorderMunkiAssignmentsResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type ReorderMunkiDeploymentsResponse = ReorderMunkiDeploymentsResponses[keyof ReorderMunkiDeploymentsResponses];
+export type ReorderMunkiAssignmentsResponse = ReorderMunkiAssignmentsResponses[keyof ReorderMunkiAssignmentsResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

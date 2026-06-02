@@ -5,7 +5,7 @@ CREATE TYPE munki_artifact_kind AS ENUM (
     'icon'
 );
 
-CREATE TYPE munki_deployment_action AS ENUM (
+CREATE TYPE munki_assignment_action AS ENUM (
     'install',
     'remove',
     'update_if_present',
@@ -15,6 +15,11 @@ CREATE TYPE munki_deployment_action AS ENUM (
 CREATE TYPE munki_package_selection AS ENUM (
     'latest_eligible',
     'specific_package'
+);
+
+CREATE TYPE munki_assignment_effect AS ENUM (
+    'include',
+    'exclude'
 );
 
 CREATE TABLE munki_artifacts (
@@ -81,49 +86,41 @@ CREATE TABLE munki_packages (
     UNIQUE (software_id, id)
 );
 
-CREATE TABLE munki_deployments (
+CREATE TABLE munki_assignments (
     id BIGSERIAL PRIMARY KEY,
     software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
-    action munki_deployment_action NOT NULL DEFAULT 'install',
+    priority INTEGER NOT NULL DEFAULT 1 CHECK (priority >= 1),
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    effect munki_assignment_effect NOT NULL DEFAULT 'include',
+    action munki_assignment_action,
     optional_install BOOLEAN NOT NULL DEFAULT FALSE,
     featured_item BOOLEAN NOT NULL DEFAULT FALSE,
-    package_selection munki_package_selection NOT NULL DEFAULT 'latest_eligible',
+    package_selection munki_package_selection,
     pinned_package_id BIGINT,
-    position INTEGER NOT NULL DEFAULT 0,
-    all_hosts BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT munki_deployments_package_selection_check CHECK (
-        (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
-        OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
+    CONSTRAINT munki_assignments_include_payload_check CHECK (
+        (
+            effect = 'include'
+            AND action IS NOT NULL
+            AND package_selection IS NOT NULL
+            AND (
+                (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
+                OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
+            )
+        )
+        OR (
+            effect = 'exclude'
+            AND action IS NULL
+            AND optional_install IS FALSE
+            AND featured_item IS FALSE
+            AND package_selection IS NULL
+            AND pinned_package_id IS NULL
+        )
     ),
-    CONSTRAINT munki_deployments_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
+    CONSTRAINT munki_assignments_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
         REFERENCES munki_packages (software_id, id)
         ON DELETE RESTRICT
-);
-
-CREATE TABLE munki_deployment_include_labels (
-    deployment_id BIGINT NOT NULL REFERENCES munki_deployments (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (deployment_id, label_id)
-);
-
-CREATE TABLE munki_deployment_exclude_labels (
-    deployment_id BIGINT NOT NULL REFERENCES munki_deployments (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (deployment_id, label_id)
-);
-
-CREATE TABLE munki_deployment_include_hosts (
-    deployment_id BIGINT NOT NULL REFERENCES munki_deployments (id) ON DELETE CASCADE,
-    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
-    PRIMARY KEY (deployment_id, host_id)
-);
-
-CREATE TABLE munki_deployment_exclude_hosts (
-    deployment_id BIGINT NOT NULL REFERENCES munki_deployments (id) ON DELETE CASCADE,
-    host_id BIGINT NOT NULL REFERENCES hosts (id) ON DELETE CASCADE,
-    PRIMARY KEY (deployment_id, host_id)
 );
 
 CREATE INDEX munki_artifacts_kind_idx
@@ -136,23 +133,22 @@ CREATE INDEX munki_packages_installer_artifact_idx
     ON munki_packages (installer_artifact_id);
 CREATE INDEX munki_packages_icon_artifact_idx
     ON munki_packages (icon_artifact_id);
-CREATE INDEX munki_deployments_software_idx
-    ON munki_deployments (software_id);
-CREATE INDEX munki_deployments_pinned_package_idx
-    ON munki_deployments (pinned_package_id);
-CREATE INDEX munki_deployments_position_idx
-    ON munki_deployments (software_id, position, id);
+CREATE INDEX munki_assignments_software_idx
+    ON munki_assignments (software_id);
+CREATE INDEX munki_assignments_pinned_package_idx
+    ON munki_assignments (pinned_package_id);
+CREATE INDEX munki_assignments_priority_idx
+    ON munki_assignments (software_id, priority, id);
+CREATE INDEX munki_assignments_label_idx
+    ON munki_assignments (label_id);
 
 -- +goose Down
 
-DROP TABLE IF EXISTS munki_deployment_exclude_hosts;
-DROP TABLE IF EXISTS munki_deployment_include_hosts;
-DROP TABLE IF EXISTS munki_deployment_exclude_labels;
-DROP TABLE IF EXISTS munki_deployment_include_labels;
-DROP TABLE IF EXISTS munki_deployments;
+DROP TABLE IF EXISTS munki_assignments;
 DROP TABLE IF EXISTS munki_packages;
 DROP TABLE IF EXISTS munki_software_titles;
 DROP TABLE IF EXISTS munki_artifacts;
+DROP TYPE IF EXISTS munki_assignment_effect;
 DROP TYPE IF EXISTS munki_package_selection;
-DROP TYPE IF EXISTS munki_deployment_action;
+DROP TYPE IF EXISTS munki_assignment_action;
 DROP TYPE IF EXISTS munki_artifact_kind;

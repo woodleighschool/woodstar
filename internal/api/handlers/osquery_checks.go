@@ -91,7 +91,6 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
 		params := input.Body
 		params.CreatedByUserID = currentUserID(ctx)
-		params.LabelScope = normalizeLabelScope(params.LabelScope)
 		check, err := checkStore.Create(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)
@@ -127,7 +126,6 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
 		params := input.Body
-		params.LabelScope = normalizeLabelScope(params.LabelScope)
 		check, err := checkStore.Update(ctx, input.ID, params)
 		if err != nil {
 			return nil, resourceMutationError(checkResource, err)

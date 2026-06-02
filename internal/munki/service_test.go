@@ -28,9 +28,9 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 		},
 		packages: []munki.EffectivePackage{
 			{
-				DeploymentID:     1,
+				AssignmentID:     1,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:                        10,

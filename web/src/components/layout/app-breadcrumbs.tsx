@@ -168,6 +168,18 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "munki-software", label: "Software", to: "/munki/software-titles" },
         { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
       ];
+    case "/_authenticated/munki/software-titles/$softwareId_/edit":
+      return [
+        { key: "munki", label: "Munki", to: "/munki/software-titles" },
+        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        {
+          key: `munki-software-${params.softwareId}`,
+          label: <MunkiSoftwareCrumb id={params.softwareId} />,
+          to: "/munki/software-titles/$softwareId",
+          params: { softwareId: params.softwareId },
+        },
+        { key: `munki-software-${params.softwareId}-edit`, label: "Edit" },
+      ];
     case "/_authenticated/munki/software-titles/$softwareId_/packages/new":
       return [
         { key: "munki", label: "Munki", to: "/munki/software-titles" },
@@ -192,7 +204,7 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         },
         { key: `munki-package-${params.packageId}`, label: "Edit Package" },
       ];
-    case "/_authenticated/munki/software-titles/$softwareId_/deployments/new":
+    case "/_authenticated/munki/software-titles/$softwareId_/assignments/new":
       return [
         { key: "munki", label: "Munki", to: "/munki/software-titles" },
         { key: "munki-software", label: "Software", to: "/munki/software-titles" },
@@ -202,9 +214,9 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
           to: "/munki/software-titles/$softwareId",
           params: { softwareId: params.softwareId },
         },
-        { key: `munki-software-${params.softwareId}-deployment-new`, label: "New Assignment" },
+        { key: `munki-software-${params.softwareId}-assignment-new`, label: "New Assignment" },
       ];
-    case "/_authenticated/munki/software-titles/$softwareId_/deployments/$deploymentId/edit":
+    case "/_authenticated/munki/software-titles/$softwareId_/assignments/$assignmentId/edit":
       return [
         { key: "munki", label: "Munki", to: "/munki/software-titles" },
         { key: "munki-software", label: "Software", to: "/munki/software-titles" },
@@ -214,7 +226,7 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
           to: "/munki/software-titles/$softwareId",
           params: { softwareId: params.softwareId },
         },
-        { key: `munki-deployment-${params.deploymentId}`, label: "Edit Assignment" },
+        { key: `munki-assignment-${params.assignmentId}`, label: "Edit Assignment" },
       ];
 
     // Santa

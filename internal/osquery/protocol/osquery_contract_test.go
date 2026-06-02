@@ -24,6 +24,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
 
@@ -91,12 +92,17 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
+	allHostsID := allHostsLabelID(t, ctx, stores.labels)
 	minVersion := "6.0.0"
 	report, err := stores.reports.Create(ctx, reports.ReportMutation{
 		Name:              "Versioned report " + suffix,
 		Query:             "select 42;",
 		MinOsqueryVersion: &minVersion,
 		ScheduleInterval:  60,
+		Targets: []scope.TargetLabel{{
+			LabelID: allHostsID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
@@ -139,10 +145,15 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create orbit agent secret: %v", err)
 	}
+	allHostsID := allHostsLabelID(t, ctx, stores.labels)
 	report, err := stores.reports.Create(ctx, reports.ReportMutation{
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
 		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{{
+			LabelID: allHostsID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
@@ -213,6 +224,21 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		munki:        munki.NewStore(database),
 		software:     software.NewStore(database),
 	}
+}
+
+func allHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int64 {
+	t.Helper()
+	rows, _, err := store.List(ctx, labels.ListParams{})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
+	}
+	for _, row := range rows {
+		if row.Name == "All Hosts" {
+			return row.ID
+		}
+	}
+	t.Fatalf("All Hosts label not found")
+	return 0
 }
 
 func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {

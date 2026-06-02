@@ -21,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/users"
@@ -292,48 +293,51 @@ func TestMunkiAdminAPI(t *testing.T) {
 	if pkg.Version != "148.0.0.2" {
 		t.Fatalf("updated pkg = %+v, want version 148.0.0.2", pkg)
 	}
-	deployment := postMunkiJSON[munki.Deployment](
+	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
+	assignment := postMunkiJSON[munki.Assignment](
 		t,
 		server,
 		cookie,
-		"/api/munki/deployments",
+		"/api/munki/assignments",
 		fmt.Sprintf(
-			`{"software_id":%d,"action":"install","package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			`{"software_id":%d,"priority":1,"label_id":%d,"effect":"include","action":"install","package_selection":"specific_package","pinned_package_id":%d}`,
 			title.ID,
+			allHostsID,
 			pkg.ID,
 		),
 	)
-	deployment = patchMunkiJSON[munki.Deployment](
+	assignment = patchMunkiJSON[munki.Assignment](
 		t,
 		server,
 		cookie,
-		fmt.Sprintf("/api/munki/deployments/%d", deployment.ID),
+		fmt.Sprintf("/api/munki/assignments/%d", assignment.ID),
 		fmt.Sprintf(
-			`{"software_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d,"all_hosts":true}`,
+			`{"software_id":%d,"priority":1,"label_id":%d,"effect":"include","action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}`,
 			title.ID,
+			allHostsID,
 			pkg.ID,
 		),
 	)
-	if !deployment.OptionalInstall || !deployment.FeaturedItem {
-		t.Fatalf("updated deployment = %+v, want optional_install and featured_item", deployment)
+	if !assignment.OptionalInstall || !assignment.FeaturedItem {
+		t.Fatalf("updated assignment = %+v, want optional_install and featured_item", assignment)
 	}
 
 	listRec := httptest.NewRecorder()
-	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/deployments", nil)
+	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/assignments", nil)
 	listReq.AddCookie(cookie)
 	server.httpServer.Handler.ServeHTTP(listRec, listReq)
 	if listRec.Code != http.StatusOK {
-		t.Fatalf("list deployments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
+		t.Fatalf("list assignments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
 	}
 	var listed struct {
-		Items []munki.Deployment `json:"items"`
+		Items []munki.Assignment `json:"items"`
 		Count int                `json:"count"`
 	}
 	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
-		t.Fatalf("decode deployments page: %v", err)
+		t.Fatalf("decode assignments page: %v", err)
 	}
-	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != deployment.ID {
-		t.Fatalf("deployments page = %+v, want created deployment", listed)
+	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
+		t.Fatalf("assignments page = %+v, want created assignment", listed)
 	}
 
 	detailRec := httptest.NewRecorder()
@@ -856,6 +860,21 @@ func loginTestUserWithEmail(
 		t.Fatalf("commit session: %v", err)
 	}
 	return &http.Cookie{Name: sessionManager.Cookie.Name, Value: token}
+}
+
+func apiTestAllHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int64 {
+	t.Helper()
+	rows, _, err := store.List(ctx, labels.ListParams{})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
+	}
+	for _, row := range rows {
+		if row.Name == "All Hosts" {
+			return row.ID
+		}
+	}
+	t.Fatalf("All Hosts label not found")
+	return 0
 }
 
 func testConfig() config.Config {

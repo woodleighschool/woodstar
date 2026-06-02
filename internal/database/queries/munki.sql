@@ -310,248 +310,133 @@ LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = @id;
 
--- name: CreateMunkiDeployment :one
-INSERT INTO munki_deployments (
+-- name: CreateMunkiAssignment :one
+INSERT INTO munki_assignments (
     software_id,
+    priority,
+    label_id,
+    effect,
     action,
     optional_install,
     featured_item,
     package_selection,
-    pinned_package_id,
-    position,
-    all_hosts
+    pinned_package_id
 )
 VALUES (
     @software_id,
-    @action::munki_deployment_action,
+    CASE
+        WHEN @priority::integer > 0 THEN @priority::integer
+        ELSE (
+            SELECT COALESCE(MAX(a.priority) + 1, 1)
+            FROM munki_assignments a
+            WHERE a.software_id = @software_id
+        )
+    END,
+    @label_id,
+    @effect::munki_assignment_effect,
+    sqlc.narg(action)::munki_assignment_action,
     @optional_install,
     @featured_item,
-    @package_selection::munki_package_selection,
-    sqlc.narg(pinned_package_id)::bigint,
-    (
-        SELECT COALESCE(MAX(d.position) + 1, 0)
-        FROM munki_deployments d
-        WHERE d.software_id = @software_id
-    ),
-    @all_hosts
+    sqlc.narg(package_selection)::munki_package_selection,
+    sqlc.narg(pinned_package_id)::bigint
 )
 RETURNING *;
 
--- name: UpdateMunkiDeployment :one
-UPDATE munki_deployments
+-- name: UpdateMunkiAssignment :one
+UPDATE munki_assignments
 SET
-    action = @action::munki_deployment_action,
+    priority = @priority::integer,
+    label_id = @label_id,
+    effect = @effect::munki_assignment_effect,
+    action = sqlc.narg(action)::munki_assignment_action,
     optional_install = @optional_install,
     featured_item = @featured_item,
-    package_selection = @package_selection::munki_package_selection,
+    package_selection = sqlc.narg(package_selection)::munki_package_selection,
     pinned_package_id = sqlc.narg(pinned_package_id)::bigint,
-    all_hosts = @all_hosts,
     updated_at = now()
 WHERE id = @id
 RETURNING *;
 
--- name: DeleteMunkiDeploymentIncludeLabels :exec
-DELETE FROM munki_deployment_include_labels
-WHERE deployment_id = @deployment_id;
+-- name: ListMunkiAssignmentIDsBySoftware :many
+SELECT a.id
+FROM munki_assignments a
+WHERE a.software_id = @software_id
+ORDER BY a.priority, a.id;
 
--- name: DeleteMunkiDeploymentExcludeLabels :exec
-DELETE FROM munki_deployment_exclude_labels
-WHERE deployment_id = @deployment_id;
+-- name: SetMunkiAssignmentPriorities :exec
+UPDATE munki_assignments a
+SET priority = -ordered.priority
+FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, priority)
+WHERE a.id = ordered.id
+  AND a.software_id = @software_id;
 
--- name: DeleteMunkiDeploymentIncludeHosts :exec
-DELETE FROM munki_deployment_include_hosts
-WHERE deployment_id = @deployment_id;
-
--- name: DeleteMunkiDeploymentExcludeHosts :exec
-DELETE FROM munki_deployment_exclude_hosts
-WHERE deployment_id = @deployment_id;
-
--- name: InsertMunkiDeploymentIncludeLabels :exec
-INSERT INTO munki_deployment_include_labels (
-    deployment_id,
-    label_id
-)
-SELECT @deployment_id, unnest(@label_ids::bigint[]);
-
--- name: InsertMunkiDeploymentExcludeLabels :exec
-INSERT INTO munki_deployment_exclude_labels (
-    deployment_id,
-    label_id
-)
-SELECT @deployment_id, unnest(@label_ids::bigint[]);
-
--- name: InsertMunkiDeploymentIncludeHosts :exec
-INSERT INTO munki_deployment_include_hosts (
-    deployment_id,
-    host_id
-)
-SELECT @deployment_id, unnest(@host_ids::bigint[]);
-
--- name: InsertMunkiDeploymentExcludeHosts :exec
-INSERT INTO munki_deployment_exclude_hosts (
-    deployment_id,
-    host_id
-)
-SELECT @deployment_id, unnest(@host_ids::bigint[]);
-
--- name: ListMunkiDeploymentIncludeLabelIDs :many
-SELECT label_id
-FROM munki_deployment_include_labels
-WHERE deployment_id = @deployment_id
-ORDER BY label_id;
-
--- name: ListMunkiDeploymentExcludeLabelIDs :many
-SELECT label_id
-FROM munki_deployment_exclude_labels
-WHERE deployment_id = @deployment_id
-ORDER BY label_id;
-
--- name: ListMunkiDeploymentIncludeHostIDs :many
-SELECT host_id
-FROM munki_deployment_include_hosts
-WHERE deployment_id = @deployment_id
-ORDER BY host_id;
-
--- name: ListMunkiDeploymentExcludeHostIDs :many
-SELECT host_id
-FROM munki_deployment_exclude_hosts
-WHERE deployment_id = @deployment_id
-ORDER BY host_id;
-
--- name: ListMunkiDeploymentScopeIDs :many
-SELECT deployment_id, 'include_label' AS scope, label_id AS id
-FROM munki_deployment_include_labels
-WHERE deployment_id = ANY(@deployment_ids::bigint[])
-UNION ALL
-SELECT deployment_id, 'exclude_label' AS scope, label_id AS id
-FROM munki_deployment_exclude_labels
-WHERE deployment_id = ANY(@deployment_ids::bigint[])
-UNION ALL
-SELECT deployment_id, 'include_host' AS scope, host_id AS id
-FROM munki_deployment_include_hosts
-WHERE deployment_id = ANY(@deployment_ids::bigint[])
-UNION ALL
-SELECT deployment_id, 'exclude_host' AS scope, host_id AS id
-FROM munki_deployment_exclude_hosts
-WHERE deployment_id = ANY(@deployment_ids::bigint[])
-ORDER BY deployment_id, scope, id;
-
--- name: ListMunkiDeploymentIDsBySoftware :many
-SELECT d.id
-FROM munki_deployments d
-WHERE d.software_id = @software_id
-ORDER BY d.position, d.id;
-
--- name: SetMunkiDeploymentPositions :exec
-UPDATE munki_deployments d
-SET position = -ordered.position
-FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, position)
-WHERE d.id = ordered.id
-  AND d.software_id = @software_id;
-
--- name: NormalizeMunkiDeploymentPositions :exec
-UPDATE munki_deployments d
-SET position = -position - 1
-WHERE d.software_id = @software_id;
+-- name: NormalizeMunkiAssignmentPriorities :exec
+UPDATE munki_assignments a
+SET priority = -priority
+WHERE a.software_id = @software_id;
 
 -- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
-    d.id AS deployment_id,
-    d.software_id AS deployment_software_id,
-    d.action,
-    d.optional_install,
-    d.featured_item,
-    d.package_selection,
-    d.pinned_package_id,
-    d.position,
-    p.id AS package_id,
-    p.software_id,
+    a.id AS assignment_id,
+    a.software_id AS assignment_software_id,
+    a.effect AS assignment_effect,
+    a.action,
+    a.optional_install,
+    a.featured_item,
+    a.package_selection,
+    a.pinned_package_id,
+    a.priority,
+    COALESCE(p.id, 0)::bigint AS package_id,
+    COALESCE(p.software_id, a.software_id)::bigint AS software_id,
     s.name AS software_name,
     COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
     s.icon_artifact_id AS software_icon_artifact_id,
-    p.name,
-    p.version,
-    p.display_name,
-    p.description,
-    p.category,
-    p.developer,
-    p.installer_type,
-    p.uninstall_method,
-    p.restart_action,
-    p.minimum_munki_version,
-    p.minimum_os_version,
-    p.maximum_os_version,
-    p.supported_architectures,
-    p.blocking_applications,
-    p.requires,
-    p.update_for,
-    p.unattended_install,
-    p.unattended_uninstall,
-    p.uninstallable,
-    p.on_demand,
-    p.precache,
-    p.icon_name,
-    p.icon_hash,
-    p.extra_pkginfo,
+    COALESCE(p.name, '') AS name,
+    COALESCE(p.version, '') AS version,
+    COALESCE(p.display_name, '') AS display_name,
+    COALESCE(p.description, '') AS description,
+    COALESCE(p.category, '') AS category,
+    COALESCE(p.developer, '') AS developer,
+    COALESCE(p.installer_type, 'pkg') AS installer_type,
+    COALESCE(p.uninstall_method, '') AS uninstall_method,
+    COALESCE(p.restart_action, '') AS restart_action,
+    COALESCE(p.minimum_munki_version, '') AS minimum_munki_version,
+    COALESCE(p.minimum_os_version, '') AS minimum_os_version,
+    COALESCE(p.maximum_os_version, '') AS maximum_os_version,
+    COALESCE(p.supported_architectures, ARRAY[]::text[]) AS supported_architectures,
+    COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
+    COALESCE(p.requires, ARRAY[]::text[]) AS requires,
+    COALESCE(p.update_for, ARRAY[]::text[]) AS update_for,
+    COALESCE(p.unattended_install, false) AS unattended_install,
+    COALESCE(p.unattended_uninstall, false) AS unattended_uninstall,
+    COALESCE(p.uninstallable, false) AS uninstallable,
+    COALESCE(p.on_demand, false) AS on_demand,
+    COALESCE(p.precache, false) AS precache,
+    COALESCE(p.icon_name, '') AS icon_name,
+    COALESCE(p.icon_hash, '') AS icon_hash,
+    COALESCE(p.extra_pkginfo, '{}'::jsonb) AS extra_pkginfo,
     p.installer_artifact_id,
     art.location AS installer_artifact_location,
     p.icon_artifact_id,
     icon.location AS icon_artifact_location,
-    software_icon.location AS software_icon_artifact_location,
-    CASE
-        WHEN EXISTS (
-            SELECT 1
-            FROM munki_deployment_include_hosts ih
-            WHERE ih.deployment_id = d.id AND ih.host_id = @host_id
-        ) THEN 30
-        WHEN EXISTS (
-            SELECT 1
-            FROM munki_deployment_include_labels il
-            JOIN label_membership lm ON lm.label_id = il.label_id
-            WHERE il.deployment_id = d.id AND lm.host_id = @host_id
-        ) THEN 20
-        WHEN d.all_hosts THEN 10
-        ELSE 0
-    END AS scope_rank
-FROM munki_deployments d
-JOIN munki_software_titles s ON s.id = d.software_id
-JOIN munki_packages p ON p.software_id = d.software_id
+    software_icon.location AS software_icon_artifact_location
+FROM munki_assignments a
+JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
+JOIN munki_software_titles s ON s.id = a.software_id
+LEFT JOIN munki_packages p ON p.software_id = a.software_id
+    AND a.effect = 'include'
     AND (
-        (d.package_selection = 'latest_eligible' AND d.pinned_package_id IS NULL)
-        OR (d.package_selection = 'specific_package' AND p.id = d.pinned_package_id)
+        (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
+        OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
     )
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
-WHERE p.eligible
-  AND (
-    d.all_hosts
-    OR EXISTS (
-      SELECT 1
-      FROM munki_deployment_include_hosts ih
-      WHERE ih.deployment_id = d.id AND ih.host_id = @host_id
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM munki_deployment_include_labels il
-      JOIN label_membership lm ON lm.label_id = il.label_id
-      WHERE il.deployment_id = d.id AND lm.host_id = @host_id
-    )
-  )
-  AND NOT EXISTS (
-    SELECT 1
-    FROM munki_deployment_exclude_hosts eh
-    WHERE eh.deployment_id = d.id AND eh.host_id = @host_id
-  )
-  AND NOT EXISTS (
-    SELECT 1
-    FROM munki_deployment_exclude_labels el
-    JOIN label_membership lm ON lm.label_id = el.label_id
-    WHERE el.deployment_id = d.id AND lm.host_id = @host_id
-  )
-ORDER BY d.position, d.id, lower(p.name), p.id;
+WHERE a.effect = 'exclude'
+   OR (a.effect = 'include' AND p.eligible)
+ORDER BY a.software_id, a.priority, a.id, lower(p.name), p.id;
 
 -- name: UpsertMunkiHostStatus :exec
 INSERT INTO munki_host_status (

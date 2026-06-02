@@ -6,7 +6,6 @@ SELECT
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -37,7 +36,6 @@ RETURNING
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at;
@@ -59,7 +57,6 @@ RETURNING
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at;
@@ -87,72 +84,43 @@ SELECT
     r.query,
     r.min_osquery_version,
     r.schedule_interval,
-    r.label_scope_mode,
     r.created_by_user_id,
     r.created_at,
     r.updated_at
 FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
-  AND (
-      r.label_scope_mode = 'none'
-      OR (
-          r.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
-              WHERE rl.report_id = r.id
-          )
-      )
-      OR (
-          r.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              WHERE rl.report_id = r.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = rl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          r.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
-              WHERE rl.report_id = r.id
-          )
-      )
+  AND EXISTS (
+      SELECT 1
+      FROM report_targets rt
+      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
+      WHERE rt.report_id = r.id
+        AND rt.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM report_targets rt
+      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
+      WHERE rt.report_id = r.id
+        AND rt.effect = 'exclude'
   )
 ORDER BY r.id;
 
--- name: ListReportScopes :many
-SELECT id, label_scope_mode
-FROM reports
-WHERE id = ANY(@report_ids::bigint[]);
-
--- name: ListReportLabelIDs :many
-SELECT report_id, label_id
-FROM report_labels
+-- name: ListReportTargets :many
+SELECT report_id, label_id, effect
+FROM report_targets
 WHERE report_id = ANY(@report_ids::bigint[])
-ORDER BY report_id, label_id;
+ORDER BY report_id, effect, label_id;
 
--- name: SetReportScopeMode :exec
-UPDATE reports
-SET label_scope_mode = @label_scope_mode
-WHERE id = @id;
-
--- name: DeleteReportLabels :exec
-DELETE FROM report_labels
+-- name: DeleteReportTargets :exec
+DELETE FROM report_targets
 WHERE report_id = @report_id;
 
--- name: InsertReportLabels :exec
-INSERT INTO report_labels (report_id, label_id)
-SELECT @report_id, unnest(@label_ids::bigint[]);
+-- name: InsertReportTargets :exec
+INSERT INTO report_targets (report_id, label_id, effect)
+SELECT @report_id, labels.label_id, effects.effect
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
 
 -- name: DeleteReportResults :exec
 DELETE FROM report_results

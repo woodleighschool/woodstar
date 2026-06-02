@@ -2,7 +2,6 @@
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE agent AS ENUM ('orbit', 'munki', 'santa');
-CREATE TYPE label_scope_mode AS ENUM ('none', 'include_any', 'include_all', 'exclude_any');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
 CREATE TYPE host_directory_user_source AS ENUM ('manual', 'reported_user_affinity');
 
@@ -364,7 +363,6 @@ CREATE TABLE reports (
     query TEXT NOT NULL,
     min_osquery_version TEXT,
     schedule_interval INTEGER NOT NULL DEFAULT 0,
-    label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -394,7 +392,6 @@ CREATE TABLE checks (
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL DEFAULT '',
     query TEXT NOT NULL,
-    label_scope_mode label_scope_mode NOT NULL DEFAULT 'none',
     created_by_user_id BIGINT REFERENCES users (id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -412,26 +409,30 @@ CREATE TABLE check_membership (
 CREATE INDEX check_membership_passes_idx
     ON check_membership (check_id, passes);
 
-CREATE TABLE report_labels (
+CREATE TABLE report_targets (
     report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (report_id, label_id)
+    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
+    PRIMARY KEY (report_id, label_id, effect)
 );
 
-CREATE INDEX report_labels_label_idx ON report_labels (label_id);
+CREATE INDEX report_targets_label_idx ON report_targets (label_id);
+CREATE INDEX report_targets_report_effect_idx ON report_targets (report_id, effect);
 
-CREATE TABLE check_labels (
+CREATE TABLE check_targets (
     check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (check_id, label_id)
+    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
+    PRIMARY KEY (check_id, label_id, effect)
 );
 
-CREATE INDEX check_labels_label_idx ON check_labels (label_id);
+CREATE INDEX check_targets_label_idx ON check_targets (label_id);
+CREATE INDEX check_targets_check_effect_idx ON check_targets (check_id, effect);
 
 -- +goose Down
 
-DROP TABLE check_labels;
-DROP TABLE report_labels;
+DROP TABLE check_targets;
+DROP TABLE report_targets;
 DROP TABLE check_membership;
 DROP TABLE checks;
 DROP TABLE report_results;
@@ -455,6 +456,5 @@ DROP TABLE sessions;
 DROP TABLE users;
 DROP TYPE IF EXISTS host_directory_user_source;
 DROP TYPE IF EXISTS host_user_affinity_source;
-DROP TYPE label_scope_mode;
 DROP TYPE agent;
 DROP TYPE user_role;

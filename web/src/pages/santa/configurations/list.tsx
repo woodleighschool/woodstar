@@ -144,7 +144,7 @@ export function SantaConfigurationsPage() {
       id: "labels",
       header: "Targets",
       enableSorting: false,
-      cell: ({ row }) => <TargetLabelsCell labelIDs={row.original.label_ids ?? []} labelsByID={labelsByID} />,
+      cell: ({ row }) => <TargetLabelsCell targets={row.original.targets} labelsByID={labelsByID} />,
     },
     {
       id: "updated_at",

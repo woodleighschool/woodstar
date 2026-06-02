@@ -10,27 +10,27 @@ import (
 
 // Report is a saved osquery snapshot query.
 type Report struct {
-	ID                int64            `json:"id"`
-	Name              string           `json:"name"`
-	Description       string           `json:"description"`
-	Query             string           `json:"query"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int32            `json:"schedule_interval"`
-	LabelScope        scope.LabelScope `json:"label_scope,omitzero"`
-	CreatedByUserID   *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID                int64               `json:"id"`
+	Name              string              `json:"name"`
+	Description       string              `json:"description"`
+	Query             string              `json:"query"`
+	MinOsqueryVersion *string             `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int32               `json:"schedule_interval"`
+	Targets           []scope.TargetLabel `json:"targets"`
+	CreatedByUserID   *int64              `json:"created_by_user_id,omitempty"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
 }
 
 // ReportMutation is the editable report state used by create and update.
 type ReportMutation struct {
-	Name              string           `json:"name"`
-	Description       string           `json:"description,omitempty"`
-	Query             string           `json:"query"`
-	MinOsqueryVersion *string          `json:"min_osquery_version,omitempty"`
-	ScheduleInterval  int32            `json:"schedule_interval,omitempty"`
-	LabelScope        scope.LabelScope `json:"label_scope"`
-	CreatedByUserID   *int64           `json:"-"`
+	Name              string              `json:"name"`
+	Description       string              `json:"description,omitempty"`
+	Query             string              `json:"query"`
+	MinOsqueryVersion *string             `json:"min_osquery_version,omitempty"`
+	ScheduleInterval  int32               `json:"schedule_interval,omitempty"`
+	Targets           []scope.TargetLabel `json:"targets"`
+	CreatedByUserID   *int64              `json:"-"`
 }
 
 func (p ReportMutation) Validate() error {

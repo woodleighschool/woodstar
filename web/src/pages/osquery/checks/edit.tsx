@@ -7,8 +7,8 @@ import { z } from "zod";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
+import { TargetLabelRowEditor } from "@/components/targeting/target-label-row-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -24,7 +24,7 @@ const emptyCheck: CheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
-  label_scope: {},
+  targets: [],
 };
 
 const checkFormSchema = z.object({
@@ -64,7 +64,7 @@ export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          label_scope: detail.data.label_scope ?? {},
+          targets: detail.data.targets ?? [],
         }
       : emptyCheck;
 
@@ -168,10 +168,10 @@ function CheckEditForm({
           </Field>
         </FieldGroup>
 
-        <LabelScopeSelector
-          entity="check"
-          value={form.label_scope}
-          onChange={(label_scope) => setForm({ ...form, label_scope })}
+        <TargetLabelRowEditor
+          value={form.targets ?? []}
+          onChange={(targets) => setForm({ ...form, targets })}
+          noun="check"
         />
 
         <Field data-invalid={showErrors && errors.query ? true : undefined}>

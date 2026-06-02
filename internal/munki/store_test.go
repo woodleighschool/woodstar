@@ -37,11 +37,12 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	label, err := labelStore.Create(ctx, labels.LabelMutation{
 		Name:                "Munki Desired Test",
 		LabelMembershipType: labels.LabelMembershipTypeManual,
-		HostIDs:             []int64{includedHost.ID, excludedHost.ID},
+		HostIDs:             []int64{excludedHost.ID},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
 	}
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{
 		Name:        "GoogleChrome",
 		DisplayName: "Google Chrome",
@@ -61,15 +62,18 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
-	deployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionLatestEligible,
-		IncludeLabelIDs:  []int64{label.ID},
-		ExcludeHostIDs:   []int64{excludedHost.ID},
-	})
+	exclude, err := store.CreateAssignment(ctx, excludeAssignment(title.ID, 1, label.ID))
 	if err != nil {
-		t.Fatalf("create deployment: %v", err)
+		t.Fatalf("create exclude assignment: %v", err)
+	}
+	include, err := store.CreateAssignment(ctx, includeAssignment(
+		title.ID,
+		2,
+		allHostsID,
+		munki.AssignmentActionInstall,
+	))
+	if err != nil {
+		t.Fatalf("create include assignment: %v", err)
 	}
 
 	titles, titleCount, err := store.ListSoftwareTitles(ctx, dbutil.ListParams{})
@@ -86,18 +90,17 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if pkgCount != 1 || len(packages) != 1 || packages[0].Version != "148.0.0.1" {
 		t.Fatalf("packages = %+v count = %d, want version 148.0.0.1", packages, pkgCount)
 	}
-	deployments, deploymentCount, err := store.ListDeployments(ctx, munki.DeploymentListParams{})
+	assignments, assignmentCount, err := store.ListAssignments(ctx, munki.AssignmentListParams{})
 	if err != nil {
-		t.Fatalf("list deployments: %v", err)
+		t.Fatalf("list assignments: %v", err)
 	}
-	if deploymentCount != 1 || len(deployments) != 1 || deployments[0].ID != deployment.ID {
-		t.Fatalf("deployments = %+v count = %d, want created deployment", deployments, deploymentCount)
+	if assignmentCount != 2 || len(assignments) != 2 || assignments[0].ID != exclude.ID ||
+		assignments[1].ID != include.ID {
+		t.Fatalf("assignments = %+v count = %d, want exclude then include", assignments, assignmentCount)
 	}
-	if !sameInt64s(deployments[0].IncludeLabelIDs, []int64{label.ID}) {
-		t.Fatalf("include label ids = %v, want %v", deployments[0].IncludeLabelIDs, []int64{label.ID})
-	}
-	if !sameInt64s(deployments[0].ExcludeHostIDs, []int64{excludedHost.ID}) {
-		t.Fatalf("exclude host ids = %v, want %v", deployments[0].ExcludeHostIDs, []int64{excludedHost.ID})
+	if assignments[0].Effect != munki.AssignmentEffectExclude ||
+		assignments[1].Effect != munki.AssignmentEffectInclude {
+		t.Fatalf("assignment effects = %+v, want exclude/include", assignments)
 	}
 
 	included, err := store.EffectivePackagesForHost(ctx, includedHost.ID)
@@ -105,7 +108,7 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("resolve included host: %v", err)
 	}
 	if len(included) != 1 || included[0].Package.Name != "GoogleChrome" ||
-		included[0].Action != munki.DeploymentActionInstall {
+		included[0].Action != munki.AssignmentActionInstall {
 		t.Fatalf("included effective packages = %+v, want GoogleChrome install", included)
 	}
 	excluded, err := store.EffectivePackagesForHost(ctx, excludedHost.ID)
@@ -120,6 +123,7 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
 	store := munki.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -183,13 +187,13 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 	if pkg.InstallerArtifactID == nil || *pkg.InstallerArtifactID != artifact.ID {
 		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerArtifactID, artifact.ID)
 	}
-	if _, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionLatestEligible,
-		AllHosts:         true,
-	}); err != nil {
-		t.Fatalf("create deployment: %v", err)
+	if _, err := store.CreateAssignment(ctx, includeAssignment(
+		title.ID,
+		1,
+		allHostsLabelID(t, ctx, labelStore),
+		munki.AssignmentActionInstall,
+	)); err != nil {
+		t.Fatalf("create assignment: %v", err)
 	}
 
 	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
@@ -204,6 +208,7 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
 	store := munki.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -219,13 +224,13 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	}
 	createMunkiPackage(t, ctx, store, title.ID, "LatestApp", "1.0")
 	createMunkiPackage(t, ctx, store, title.ID, "LatestApp", "2.0")
-	if _, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionLatestEligible,
-		AllHosts:         true,
-	}); err != nil {
-		t.Fatalf("create deployment: %v", err)
+	if _, err := store.CreateAssignment(ctx, includeAssignment(
+		title.ID,
+		1,
+		allHostsLabelID(t, ctx, labelStore),
+		munki.AssignmentActionInstall,
+	)); err != nil {
+		t.Fatalf("create assignment: %v", err)
 	}
 
 	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
@@ -347,72 +352,105 @@ func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
 	}
 }
 
-func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
+func TestUpdatePackageClearsIconOverrideToInheritSoftwareIcon(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	softwareIcon := createMunkiIconArtifact(t, ctx, store, "icons/DefaultApp.png", "7")
+	packageIcon := createMunkiIconArtifact(t, ctx, store, "icons/SpecialApp.png", "8")
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{
+		Name:           "ClearOverrideApp",
+		IconArtifactID: &softwareIcon.ID,
+	})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID:     title.ID,
+		Name:           "ClearOverrideApp",
+		Version:        "1.0",
+		IconArtifactID: &packageIcon.ID,
+		Eligible:       true,
+	})
+	if err != nil {
+		t.Fatalf("create package: %v", err)
+	}
+
+	updated, err := store.UpdatePackage(ctx, pkg.ID, munki.PackageMutation{
+		Name:     pkg.Name,
+		Version:  pkg.Version,
+		Eligible: pkg.Eligible,
+		OnDemand: pkg.OnDemand,
+		Precache: pkg.Precache,
+	})
+	if err != nil {
+		t.Fatalf("update package: %v", err)
+	}
+	if updated.IconArtifactID != nil || updated.IconName != "" || updated.IconHash != "" {
+		t.Fatalf(
+			"package icon override = id %v name %q hash %q, want empty override",
+			updated.IconArtifactID,
+			updated.IconName,
+			updated.IconHash,
+		)
+	}
+	if updated.EffectiveIconArtifactID() == nil || *updated.EffectiveIconArtifactID() != softwareIcon.ID {
+		t.Fatalf(
+			"effective icon id = %v, want inherited software icon %d",
+			updated.EffectiveIconArtifactID(),
+			softwareIcon.ID,
+		)
+	}
+	if !strings.Contains(string(updated.Pkginfo), `"icon_name":"icons/DefaultApp.png"`) {
+		t.Fatalf("pkginfo = %s, want inherited software icon", updated.Pkginfo)
+	}
+	if strings.Contains(string(updated.Pkginfo), "icons/SpecialApp.png") {
+		t.Fatalf("pkginfo = %s, should not render cleared package icon override", updated.Pkginfo)
+	}
+}
+
+func TestEffectivePackagesForHostUsesPriorityForSchoolAssignments(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	labelStore := labels.NewStore(db)
 	store := munki.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "munki-overlap-uuid", Serial: "C02MUNKIOL"},
-		OrbitNodeKey: "munki-overlap-orbit",
+		Hardware:     hosts.HostHardware{UUID: "munki-sac-student-uuid", Serial: "C02MUNKISAC"},
+		OrbitNodeKey: "munki-sac-student-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	label, err := labelStore.Create(ctx, labels.LabelMutation{
-		Name:                "Munki Overlap Test",
+	allStudents, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Azure - All Students",
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 		HostIDs:             []int64{host.ID},
 	})
 	if err != nil {
-		t.Fatalf("create label: %v", err)
+		t.Fatalf("create all students label: %v", err)
 	}
-	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "OverlapApp"})
+	sac, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "SAC",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		HostIDs:             []int64{host.ID},
+	})
+	if err != nil {
+		t.Fatalf("create SAC label: %v", err)
+	}
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "SchoolApp"})
 	if err != nil {
 		t.Fatalf("create software title: %v", err)
 	}
-	optionalPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "1.0")
-	installPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "2.0")
-	absentPackage := createMunkiPackage(t, ctx, store, title.ID, "OverlapApp", "3.0")
+	createMunkiPackage(t, ctx, store, title.ID, "SchoolApp", "1.0")
 
-	optionalDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionNone,
-		OptionalInstall:  true,
-		PackageSelection: munki.PackageSelectionSpecific,
-		PinnedPackageID:  &optionalPackage.ID,
-		AllHosts:         true,
-	})
+	_, err = store.CreateAssignment(ctx, includeAssignment(title.ID, 1, sac.ID, munki.AssignmentActionRemove))
 	if err != nil {
-		t.Fatalf("create all-host optional deployment: %v", err)
+		t.Fatalf("create SAC remove assignment: %v", err)
 	}
-	installDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionSpecific,
-		PinnedPackageID:  &installPackage.ID,
-		IncludeLabelIDs:  []int64{label.ID},
-	})
+	_, err = store.CreateAssignment(ctx, includeAssignment(title.ID, 2, allStudents.ID, munki.AssignmentActionInstall))
 	if err != nil {
-		t.Fatalf("create label install deployment: %v", err)
-	}
-	absentDeployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       title.ID,
-		Action:           munki.DeploymentActionRemove,
-		PackageSelection: munki.PackageSelectionSpecific,
-		PinnedPackageID:  &absentPackage.ID,
-		IncludeHostIDs:   []int64{host.ID},
-	})
-	if err != nil {
-		t.Fatalf("create host removal deployment: %v", err)
-	}
-	if err := store.ReorderDeployments(ctx, title.ID, []int64{
-		absentDeployment.ID,
-		installDeployment.ID,
-		optionalDeployment.ID,
-	}); err != nil {
-		t.Fatalf("reorder deployments: %v", err)
+		t.Fatalf("create all students install assignment: %v", err)
 	}
 
 	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
@@ -422,8 +460,69 @@ func TestEffectivePackagesForHostResolvesOverlappingDeployments(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if effective[0].Action != munki.DeploymentActionRemove || effective[0].Package.Version != "3.0" {
-		t.Fatalf("effective pkg = %+v, want removal of OverlapApp 3.0", effective[0])
+	if effective[0].Action != munki.AssignmentActionRemove || effective[0].Package.Name != "SchoolApp" {
+		t.Fatalf("effective pkg = %+v, want SAC removal of SchoolApp", effective[0])
+	}
+}
+
+func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
+	store := munki.NewStore(db)
+
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "munki-row-order-uuid", Serial: "C02MUNKIRO"},
+		OrbitNodeKey: "munki-row-order-orbit",
+	})
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Munki Row Order Test",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		HostIDs:             []int64{host.ID},
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "RowOrderApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	installPackage := createMunkiPackage(t, ctx, store, title.ID, "RowOrderApp", "1.0")
+	removePackage := createMunkiPackage(t, ctx, store, title.ID, "RowOrderApp", "2.0")
+
+	_, err = store.CreateAssignment(ctx, includeSpecificAssignment(
+		title.ID,
+		1,
+		label.ID,
+		munki.AssignmentActionInstall,
+		installPackage.ID,
+	))
+	if err != nil {
+		t.Fatalf("create install assignment: %v", err)
+	}
+	_, err = store.CreateAssignment(ctx, includeSpecificAssignment(
+		title.ID,
+		2,
+		label.ID,
+		munki.AssignmentActionRemove,
+		removePackage.ID,
+	))
+	if err != nil {
+		t.Fatalf("create remove assignment: %v", err)
+	}
+
+	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve effective packages: %v", err)
+	}
+	if len(effective) != 1 {
+		t.Fatalf("effective packages = %+v, want one resolved item", effective)
+	}
+	if effective[0].Action != munki.AssignmentActionInstall || effective[0].Package.Version != "1.0" {
+		t.Fatalf("effective pkg = %+v, want first row install of RowOrderApp 1.0", effective[0])
 	}
 }
 
@@ -643,22 +742,45 @@ func TestUpdatePackageRejectsSoftwareMove(t *testing.T) {
 	}
 }
 
-func TestCreateDeploymentRejectsEmptyScope(t *testing.T) {
+func TestCreateAssignmentTargetsAllHostsLabel(t *testing.T) {
 	db, ctx := dbtest.Open(t)
+	hostStore := hosts.NewStore(db)
+	labelStore := labels.NewStore(db)
 	store := munki.NewStore(db)
 
-	_, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       1,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionLatestEligible,
+	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
+		Hardware:     hosts.HostHardware{UUID: "munki-all-devices-uuid", Serial: "C02MUNKIALL"},
+		OrbitNodeKey: "munki-all-devices-orbit",
 	})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("CreateDeployment error = %v, want invalid input", err)
+	if err != nil {
+		t.Fatalf("enroll host: %v", err)
+	}
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "AllDevicesApp"})
+	if err != nil {
+		t.Fatalf("create title: %v", err)
+	}
+	createMunkiPackage(t, ctx, store, title.ID, "AllDevicesApp", "1.0")
+	_, err = store.CreateAssignment(ctx, includeAssignment(
+		title.ID,
+		1,
+		allHostsLabelID(t, ctx, labelStore),
+		munki.AssignmentActionInstall,
+	))
+	if err != nil {
+		t.Fatalf("create all-hosts assignment: %v", err)
+	}
+	effective, err := store.EffectivePackagesForHost(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("resolve effective packages: %v", err)
+	}
+	if len(effective) != 1 || effective[0].Package.Name != "AllDevicesApp" {
+		t.Fatalf("effective packages = %+v, want AllDevicesApp", effective)
 	}
 }
 
-func TestUpdateDeploymentRejectsSoftwareMove(t *testing.T) {
+func TestUpdateAssignmentRejectsSoftwareMove(t *testing.T) {
 	db, ctx := dbtest.Open(t)
+	labelStore := labels.NewStore(db)
 	store := munki.NewStore(db)
 
 	first, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "FirstAssignedApp"})
@@ -670,28 +792,27 @@ func TestUpdateDeploymentRejectsSoftwareMove(t *testing.T) {
 		t.Fatalf("create second title: %v", err)
 	}
 	pkg := createMunkiPackage(t, ctx, store, first.ID, "FirstAssignedApp", "1.0")
-	deployment, err := store.CreateDeployment(ctx, munki.DeploymentMutation{
-		SoftwareID:       first.ID,
-		Action:           munki.DeploymentActionInstall,
-		PackageSelection: munki.PackageSelectionSpecific,
-		PinnedPackageID:  &pkg.ID,
-		AllHosts:         true,
-	})
+	assignment, err := store.CreateAssignment(ctx, includeSpecificAssignment(
+		first.ID,
+		1,
+		allHostsLabelID(t, ctx, labelStore),
+		munki.AssignmentActionInstall,
+		pkg.ID,
+	))
 	if err != nil {
-		t.Fatalf("create deployment: %v", err)
+		t.Fatalf("create assignment: %v", err)
 	}
 
-	_, err = store.UpdateDeployment(ctx, deployment.ID, munki.DeploymentMutation{
-		SoftwareID:       second.ID,
-		Action:           deployment.Action,
-		OptionalInstall:  deployment.OptionalInstall,
-		FeaturedItem:     deployment.FeaturedItem,
-		PackageSelection: deployment.PackageSelection,
-		PinnedPackageID:  deployment.PinnedPackageID,
-		AllHosts:         deployment.AllHosts,
-	})
+	mutation := includeSpecificAssignment(
+		second.ID,
+		assignment.Priority,
+		assignment.LabelID,
+		*assignment.Action,
+		*assignment.PinnedPackageID,
+	)
+	_, err = store.UpdateAssignment(ctx, assignment.ID, mutation)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("UpdateDeployment error = %v, want invalid input", err)
+		t.Fatalf("UpdateAssignment error = %v, want invalid input", err)
 	}
 }
 
@@ -777,16 +898,64 @@ func TestHostStatusUpsertAndDetail(t *testing.T) {
 	}
 }
 
-func sameInt64s(a, b []int64) bool {
-	if len(a) != len(b) {
-		return false
+func allHostsLabelID(t *testing.T, ctx context.Context, labelStore *labels.Store) int64 {
+	t.Helper()
+	rows, _, err := labelStore.List(ctx, labels.ListParams{})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
 	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
+	for _, row := range rows {
+		if row.Name == "All Hosts" {
+			return row.ID
 		}
 	}
-	return true
+	t.Fatalf("All Hosts label not found")
+	return 0
+}
+
+func includeAssignment(
+	softwareID int64,
+	priority int32,
+	labelID int64,
+	action munki.AssignmentAction,
+) munki.AssignmentMutation {
+	selection := munki.PackageSelectionLatestEligible
+	return munki.AssignmentMutation{
+		SoftwareID:       softwareID,
+		Priority:         priority,
+		LabelID:          labelID,
+		Effect:           munki.AssignmentEffectInclude,
+		Action:           &action,
+		PackageSelection: &selection,
+	}
+}
+
+func includeSpecificAssignment(
+	softwareID int64,
+	priority int32,
+	labelID int64,
+	action munki.AssignmentAction,
+	pinnedPackageID int64,
+) munki.AssignmentMutation {
+	selection := munki.PackageSelectionSpecific
+	return munki.AssignmentMutation{
+		SoftwareID:       softwareID,
+		Priority:         priority,
+		LabelID:          labelID,
+		Effect:           munki.AssignmentEffectInclude,
+		Action:           &action,
+		PackageSelection: &selection,
+		PinnedPackageID:  &pinnedPackageID,
+	}
+}
+
+func excludeAssignment(softwareID int64, priority int32, labelID int64) munki.AssignmentMutation {
+	return munki.AssignmentMutation{
+		SoftwareID: softwareID,
+		Priority:   priority,
+		LabelID:    labelID,
+		Effect:     munki.AssignmentEffectExclude,
+	}
 }
 
 func sameStrings(a, b []string) bool {

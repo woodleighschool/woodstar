@@ -13,25 +13,25 @@ import (
 
 // Check is a query-backed pass/fail rule.
 type Check struct {
-	ID               int64            `json:"id"`
-	Name             string           `json:"name"`
-	Description      string           `json:"description"`
-	Query            string           `json:"query"`
-	LabelScope       scope.LabelScope `json:"label_scope,omitzero"`
-	PassingHostCount int32            `json:"passing_host_count"`
-	FailingHostCount int32            `json:"failing_host_count"`
-	CreatedByUserID  *int64           `json:"created_by_user_id,omitempty"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
+	ID               int64               `json:"id"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description"`
+	Query            string              `json:"query"`
+	Targets          []scope.TargetLabel `json:"targets"`
+	PassingHostCount int32               `json:"passing_host_count"`
+	FailingHostCount int32               `json:"failing_host_count"`
+	CreatedByUserID  *int64              `json:"created_by_user_id,omitempty"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
 }
 
 // CheckMutation is the editable check state used by create and update.
 type CheckMutation struct {
-	Name            string           `json:"name"`
-	Description     string           `json:"description,omitempty"`
-	Query           string           `json:"query"`
-	LabelScope      scope.LabelScope `json:"label_scope"`
-	CreatedByUserID *int64           `json:"-"`
+	Name            string              `json:"name"`
+	Description     string              `json:"description,omitempty"`
+	Query           string              `json:"query"`
+	Targets         []scope.TargetLabel `json:"targets"`
+	CreatedByUserID *int64              `json:"-"`
 }
 
 func (p CheckMutation) Validate() error {

@@ -4,7 +4,6 @@ SELECT
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -29,7 +28,6 @@ RETURNING
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at;
@@ -47,7 +45,6 @@ RETURNING
     name,
     description,
     query,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at;
@@ -73,45 +70,24 @@ SELECT
     c.name,
     c.description,
     c.query,
-    c.label_scope_mode,
     c.created_by_user_id,
     c.created_at,
     c.updated_at
 FROM checks c
 JOIN host_row h ON true
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY c.id;
 
@@ -154,39 +130,19 @@ SELECT
 FROM check_row c
 JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY
     CASE
@@ -215,39 +171,19 @@ SELECT
 FROM checks c
 JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
-WHERE (
-      c.label_scope_mode = 'none'
-      OR (
-          c.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
-      OR (
-          c.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              WHERE cl.check_id = c.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = cl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          c.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM check_labels cl
-              JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = h.id
-              WHERE cl.check_id = c.id
-          )
-      )
+WHERE EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM check_targets ct
+      JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
+      WHERE ct.check_id = c.id
+        AND ct.effect = 'exclude'
   )
 ORDER BY
     CASE
@@ -258,29 +194,21 @@ ORDER BY
     lower(c.name),
     c.id;
 
--- name: ListCheckScopes :many
-SELECT id, label_scope_mode
-FROM checks
-WHERE id = ANY(@check_ids::bigint[]);
-
--- name: ListCheckLabelIDs :many
-SELECT check_id, label_id
-FROM check_labels
+-- name: ListCheckTargets :many
+SELECT check_id, label_id, effect
+FROM check_targets
 WHERE check_id = ANY(@check_ids::bigint[])
-ORDER BY check_id, label_id;
+ORDER BY check_id, effect, label_id;
 
--- name: SetCheckScopeMode :exec
-UPDATE checks
-SET label_scope_mode = @label_scope_mode
-WHERE id = @id;
-
--- name: DeleteCheckLabels :exec
-DELETE FROM check_labels
+-- name: DeleteCheckTargets :exec
+DELETE FROM check_targets
 WHERE check_id = @check_id;
 
--- name: InsertCheckLabels :exec
-INSERT INTO check_labels (check_id, label_id)
-SELECT @check_id, unnest(@label_ids::bigint[]);
+-- name: InsertCheckTargets :exec
+INSERT INTO check_targets (check_id, label_id, effect)
+SELECT @check_id, labels.label_id, effects.effect
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
 
 -- name: ListCheckCounts :many
 SELECT

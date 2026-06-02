@@ -12,6 +12,7 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
@@ -55,7 +56,10 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		EnableBundles:           true,
 		FullSyncIntervalSeconds: 120,
 		BatchSize:               50,
-		LabelIDs:                []int64{labelID},
+		Targets: []scope.TargetLabel{{
+			LabelID: labelID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}

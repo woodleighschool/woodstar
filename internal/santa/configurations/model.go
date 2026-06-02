@@ -7,6 +7,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 type (
@@ -102,7 +103,7 @@ type ConfigurationMutation struct {
 	EncryptedRemovableMediaPolicy RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitzero"`
 	EventDetailURL                string               `json:"event_detail_url,omitempty"`
 	EventDetailText               string               `json:"event_detail_text,omitempty"`
-	LabelIDs                      []int64              `json:"label_ids,omitempty"`
+	Targets                       []scope.TargetLabel  `json:"targets"`
 }
 
 type Configuration struct {
@@ -122,7 +123,7 @@ type Configuration struct {
 	EncryptedRemovableMediaPolicy RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitzero"`
 	EventDetailURL                string               `json:"event_detail_url,omitempty"`
 	EventDetailText               string               `json:"event_detail_text,omitempty"`
-	LabelIDs                      []int64              `json:"label_ids"`
+	Targets                       []scope.TargetLabel  `json:"targets"`
 	CreatedAt                     time.Time            `json:"created_at"`
 	UpdatedAt                     time.Time            `json:"updated_at"`
 }
@@ -135,19 +136,4 @@ type ConfigurationMatch struct {
 type LabelMatch struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
-}
-
-type ConfigurationLabelConflictError struct {
-	LabelID           int64  `json:"label_id"`
-	ConfigurationID   int64  `json:"configuration_id"`
-	ConfigurationName string `json:"configuration_name"`
-}
-
-func (e *ConfigurationLabelConflictError) Error() string {
-	return "configuration label already belongs to another configuration"
-}
-
-// GetStatus lets Huma map the error to HTTP 409 without a parallel handler-layer type.
-func (e *ConfigurationLabelConflictError) GetStatus() int {
-	return 409
 }

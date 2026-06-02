@@ -56,7 +56,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	scopes, err := s.loadCheckScopes(ctx, checkIDs)
+	targets, err := s.loadCheckTargets(ctx, checkIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -65,7 +65,7 @@ func (s *Store) List(ctx context.Context, params CheckListParams) ([]Check, int,
 		return nil, 0, err
 	}
 	for i := range checks {
-		checks[i].LabelScope = scopes[checks[i].ID]
+		checks[i].Targets = targets[checks[i].ID]
 		checks[i].PassingHostCount = counts[checks[i].ID].Passing
 		checks[i].FailingHostCount = counts[checks[i].ID].Failing
 	}
@@ -81,11 +81,11 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 		return nil, err
 	}
 	check := checkFromSQLC(row)
-	labelScope, err := s.loadCheckScope(ctx, check.ID)
+	targets, err := s.loadCheckTarget(ctx, check.ID)
 	if err != nil {
 		return nil, err
 	}
-	check.LabelScope = labelScope
+	check.Targets = targets
 	counts, err := s.loadCheckCounts(ctx, []int64{check.ID})
 	if err != nil {
 		return nil, err
@@ -99,7 +99,6 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	labelScope := storedLabelScope(params.LabelScope)
 	var created *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).CreateCheck(ctx, sqlc.CreateCheckParams{
@@ -115,10 +114,10 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := replaceCheckScope(ctx, tx, check.ID, labelScope); err != nil {
+		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
 			return err
 		}
-		check.LabelScope = labelScope
+		check.Targets = params.Targets
 		created = check
 		return nil
 	})
@@ -129,7 +128,6 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	labelScope := storedLabelScope(params.LabelScope)
 	var updated *Check
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		row, err := s.q.WithTx(tx).UpdateCheck(ctx, sqlc.UpdateCheckParams{
@@ -148,10 +146,10 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 			return err
 		}
 		check := checkFromSQLC(row)
-		if err := replaceCheckScope(ctx, tx, check.ID, labelScope); err != nil {
+		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
 			return err
 		}
-		check.LabelScope = labelScope
+		check.Targets = params.Targets
 		updated = check
 		return nil
 	})

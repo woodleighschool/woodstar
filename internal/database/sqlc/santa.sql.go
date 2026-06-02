@@ -281,17 +281,17 @@ func (q *Queries) DeleteSantaConfiguration(ctx context.Context, arg DeleteSantaC
 	return id, err
 }
 
-const deleteSantaConfigurationLabels = `-- name: DeleteSantaConfigurationLabels :exec
-DELETE FROM santa_configuration_labels
+const deleteSantaConfigurationTargets = `-- name: DeleteSantaConfigurationTargets :exec
+DELETE FROM santa_configuration_targets
 WHERE configuration_id = $1
 `
 
-type DeleteSantaConfigurationLabelsParams struct {
+type DeleteSantaConfigurationTargetsParams struct {
 	ConfigurationID int64 `json:"configuration_id"`
 }
 
-func (q *Queries) DeleteSantaConfigurationLabels(ctx context.Context, arg DeleteSantaConfigurationLabelsParams) error {
-	_, err := q.db.Exec(ctx, deleteSantaConfigurationLabels, arg.ConfigurationID)
+func (q *Queries) DeleteSantaConfigurationTargets(ctx context.Context, arg DeleteSantaConfigurationTargetsParams) error {
+	_, err := q.db.Exec(ctx, deleteSantaConfigurationTargets, arg.ConfigurationID)
 	return err
 }
 
@@ -398,37 +398,6 @@ func (q *Queries) DeleteSantaRules(ctx context.Context, arg DeleteSantaRulesPara
 		return nil, err
 	}
 	return items, nil
-}
-
-const findSantaConfigurationLabelConflict = `-- name: FindSantaConfigurationLabelConflict :one
-SELECT
-    cl.label_id,
-    c.id AS configuration_id,
-    c.name AS configuration_name
-FROM santa_configuration_labels cl
-JOIN santa_configurations c ON c.id = cl.configuration_id
-WHERE cl.label_id = ANY($1::bigint[])
-  AND c.id <> $2
-ORDER BY cl.label_id
-LIMIT 1
-`
-
-type FindSantaConfigurationLabelConflictParams struct {
-	LabelIds        []int64 `json:"label_ids"`
-	ConfigurationID int64   `json:"configuration_id"`
-}
-
-type FindSantaConfigurationLabelConflictRow struct {
-	LabelID           int64  `json:"label_id"`
-	ConfigurationID   int64  `json:"configuration_id"`
-	ConfigurationName string `json:"configuration_name"`
-}
-
-func (q *Queries) FindSantaConfigurationLabelConflict(ctx context.Context, arg FindSantaConfigurationLabelConflictParams) (FindSantaConfigurationLabelConflictRow, error) {
-	row := q.db.QueryRow(ctx, findSantaConfigurationLabelConflict, arg.LabelIds, arg.ConfigurationID)
-	var i FindSantaConfigurationLabelConflictRow
-	err := row.Scan(&i.LabelID, &i.ConfigurationID, &i.ConfigurationName)
-	return i, err
 }
 
 const getHostIDByMachineID = `-- name: GetHostIDByMachineID :one
@@ -571,19 +540,21 @@ func (q *Queries) GetSantaSyncSummary(ctx context.Context, arg GetSantaSyncSumma
 	return i, err
 }
 
-const insertSantaConfigurationLabels = `-- name: InsertSantaConfigurationLabels :exec
-INSERT INTO santa_configuration_labels (label_id, configuration_id)
-SELECT label_id, $1
-FROM unnest($2::bigint[]) AS label_id
+const insertSantaConfigurationTargets = `-- name: InsertSantaConfigurationTargets :exec
+INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
+SELECT $1, labels.label_id, effects.effect
+FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
 `
 
-type InsertSantaConfigurationLabelsParams struct {
-	ConfigurationID int64   `json:"configuration_id"`
-	LabelIds        []int64 `json:"label_ids"`
+type InsertSantaConfigurationTargetsParams struct {
+	ConfigurationID int64    `json:"configuration_id"`
+	LabelIds        []int64  `json:"label_ids"`
+	Effects         []string `json:"effects"`
 }
 
-func (q *Queries) InsertSantaConfigurationLabels(ctx context.Context, arg InsertSantaConfigurationLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertSantaConfigurationLabels, arg.ConfigurationID, arg.LabelIds)
+func (q *Queries) InsertSantaConfigurationTargets(ctx context.Context, arg InsertSantaConfigurationTargetsParams) error {
+	_, err := q.db.Exec(ctx, insertSantaConfigurationTargets, arg.ConfigurationID, arg.LabelIds, arg.Effects)
 	return err
 }
 
@@ -773,32 +744,27 @@ func (q *Queries) ListSantaConfigurationIDsByPosition(ctx context.Context) ([]in
 	return items, nil
 }
 
-const listSantaConfigurationLabels = `-- name: ListSantaConfigurationLabels :many
-SELECT configuration_id, label_id
-FROM santa_configuration_labels
+const listSantaConfigurationTargets = `-- name: ListSantaConfigurationTargets :many
+SELECT configuration_id, label_id, effect
+FROM santa_configuration_targets
 WHERE configuration_id = ANY($1::bigint[])
-ORDER BY configuration_id, label_id
+ORDER BY configuration_id, effect, label_id
 `
 
-type ListSantaConfigurationLabelsParams struct {
+type ListSantaConfigurationTargetsParams struct {
 	ConfigurationIds []int64 `json:"configuration_ids"`
 }
 
-type ListSantaConfigurationLabelsRow struct {
-	ConfigurationID int64 `json:"configuration_id"`
-	LabelID         int64 `json:"label_id"`
-}
-
-func (q *Queries) ListSantaConfigurationLabels(ctx context.Context, arg ListSantaConfigurationLabelsParams) ([]ListSantaConfigurationLabelsRow, error) {
-	rows, err := q.db.Query(ctx, listSantaConfigurationLabels, arg.ConfigurationIds)
+func (q *Queries) ListSantaConfigurationTargets(ctx context.Context, arg ListSantaConfigurationTargetsParams) ([]SantaConfigurationTarget, error) {
+	rows, err := q.db.Query(ctx, listSantaConfigurationTargets, arg.ConfigurationIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSantaConfigurationLabelsRow{}
+	items := []SantaConfigurationTarget{}
 	for rows.Next() {
-		var i ListSantaConfigurationLabelsRow
-		if err := rows.Scan(&i.ConfigurationID, &i.LabelID); err != nil {
+		var i SantaConfigurationTarget
+		if err := rows.Scan(&i.ConfigurationID, &i.LabelID, &i.Effect); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1631,10 +1597,26 @@ SELECT
     l.id AS label_id,
     l.name AS label_name
 FROM santa_configurations c
-JOIN santa_configuration_labels cl ON cl.configuration_id = c.id
-JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = $1
-JOIN labels l ON l.id = cl.label_id
-ORDER BY c.position, c.id, l.name, l.id
+JOIN LATERAL (
+    SELECT
+        include_label.id,
+        include_label.name
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+    JOIN labels include_label ON include_label.id = t.label_id
+    WHERE t.configuration_id = c.id
+      AND t.effect = 'include'
+    ORDER BY include_label.name, include_label.id
+    LIMIT 1
+) l ON true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = $1
+    WHERE t.configuration_id = c.id
+      AND t.effect = 'exclude'
+)
+ORDER BY c.position, c.id
 LIMIT 1
 `
 

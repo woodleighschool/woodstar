@@ -11,7 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
-func TestListIncludesLabelScope(t *testing.T) {
+func TestListIncludesTargets(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationReportStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Report A")
 	labelB := createManualLabel(t, ctx, labelStore, "Report B")
@@ -20,9 +20,10 @@ func TestListIncludesLabelScope(t *testing.T) {
 		Name:             "Scoped report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		LabelScope: scope.LabelScope{
-			Mode:     scope.ScopeIncludeAll,
-			LabelIDs: []int64{labelB.ID, labelA.ID, labelA.ID},
+		Targets: []scope.TargetLabel{
+			{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
 		},
 	}); err != nil {
 		t.Fatalf("create report: %v", err)
@@ -35,26 +36,31 @@ func TestListIncludesLabelScope(t *testing.T) {
 	if count != 1 || len(got) != 1 {
 		t.Fatalf("List returned count=%d len=%d, want one report", count, len(got))
 	}
-	if got[0].LabelScope.Mode != scope.ScopeIncludeAll {
-		t.Fatalf("LabelScope.Mode = %q, want %q", got[0].LabelScope.Mode, scope.ScopeIncludeAll)
-	}
-	assertInt64s(t, "LabelScope.LabelIDs", got[0].LabelScope.LabelIDs, []int64{labelA.ID, labelB.ID})
+	assertTargets(t, got[0].Targets, []scope.TargetLabel{
+		{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
+		{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+		{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
+	})
 }
 
-func TestScheduledForHostUsesLabelScope(t *testing.T) {
+func TestScheduledForHostUsesTargetRows(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-scope-host", "5.22.1")
 	matching := createManualLabel(t, ctx, labelStore, "Report match")
 	other := createManualLabel(t, ctx, labelStore, "Report other")
+	excluded := createManualLabel(t, ctx, labelStore, "Report excluded")
 	if err := labelStore.SetMembership(ctx, matching.ID, host.ID, true); err != nil {
 		t.Fatalf("set matching label membership: %v", err)
+	}
+	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
+		t.Fatalf("set excluded label membership: %v", err)
 	}
 
 	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAny, LabelIDs: []int64{matching.ID}},
+		Targets:          []scope.TargetLabel{{LabelID: matching.ID, Effect: scope.TargetLabelInclude}},
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
@@ -62,9 +68,22 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
-		LabelScope:       scope.LabelScope{Mode: scope.ScopeIncludeAll, LabelIDs: []int64{matching.ID, other.ID}},
+		Targets: []scope.TargetLabel{
+			{LabelID: other.ID, Effect: scope.TargetLabelInclude},
+		},
 	}); err != nil {
 		t.Fatalf("create nonmatching report: %v", err)
+	}
+	if _, err := store.Create(ctx, ReportMutation{
+		Name:             "Excluded scheduled report",
+		Query:            "select 3;",
+		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{
+			{LabelID: matching.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: excluded.ID, Effect: scope.TargetLabelExclude},
+		},
+	}); err != nil {
+		t.Fatalf("create excluded report: %v", err)
 	}
 
 	got, err := store.ScheduledForHost(ctx, host)
@@ -76,15 +95,43 @@ func TestScheduledForHostUsesLabelScope(t *testing.T) {
 	}
 }
 
+func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
+	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-requires-include-host", "5.22.1")
+	excluded := createManualLabel(t, ctx, labelStore, "Report requires include excluded")
+	if err := labelStore.SetMembership(ctx, excluded.ID, host.ID, true); err != nil {
+		t.Fatalf("set excluded label membership: %v", err)
+	}
+
+	if _, err := store.Create(ctx, ReportMutation{
+		Name:             "Exclude-only scheduled report",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		Targets:          []scope.TargetLabel{{LabelID: excluded.ID, Effect: scope.TargetLabelExclude}},
+	}); err != nil {
+		t.Fatalf("create exclude-only report: %v", err)
+	}
+
+	got, err := store.ScheduledForHost(ctx, host)
+	if err != nil {
+		t.Fatalf("scheduled for host: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("ScheduledForHost returned %+v, want no reports", got)
+	}
+}
+
 func TestScheduledForHostUsesScheduleState(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-applicable-host", "5.22.1")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 
 	if _, err := store.Create(ctx, ReportMutation{
 		Name:              "Matching scheduled report",
 		Query:             "select 1;",
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
+		Targets:           []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
@@ -92,6 +139,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 0,
+		Targets:          []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
@@ -100,6 +148,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
+		Targets:           []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
 	}); err != nil {
 		t.Fatalf("create version-gated report: %v", err)
 	}
@@ -117,14 +166,19 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 }
 
 func TestHostReportsIncludeLatestHostState(t *testing.T) {
-	store, _, hostStore, ctx := newIntegrationReportStore(t)
+	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "report-host", "5.22.1")
+	allHostsID := allHostsLabelID(t, ctx, labelStore)
 	fetchedAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 
 	reportWithRows, err := store.Create(ctx, ReportMutation{
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{{
+			LabelID: allHostsID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	})
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
@@ -133,6 +187,10 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{{
+			LabelID: allHostsID,
+			Effect:  scope.TargetLabelInclude,
+		}},
 	})
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
@@ -285,14 +343,29 @@ func enrollTestHostDetail(
 	return host
 }
 
-func assertInt64s(t *testing.T, name string, got []int64, want []int64) {
+func allHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int64 {
+	t.Helper()
+	rows, _, err := store.List(ctx, labels.ListParams{})
+	if err != nil {
+		t.Fatalf("list labels: %v", err)
+	}
+	for _, row := range rows {
+		if row.Name == "All Hosts" {
+			return row.ID
+		}
+	}
+	t.Fatalf("All Hosts label not found")
+	return 0
+}
+
+func assertTargets(t *testing.T, got []scope.TargetLabel, want []scope.TargetLabel) {
 	t.Helper()
 	if len(got) != len(want) {
-		t.Fatalf("%s = %#v, want %#v", name, got, want)
+		t.Fatalf("targets = %#v, want %#v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("%s = %#v, want %#v", name, got, want)
+			t.Fatalf("targets = %#v, want %#v", got, want)
 		}
 	}
 }

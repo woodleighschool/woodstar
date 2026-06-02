@@ -11,6 +11,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 type Store struct {
@@ -53,7 +54,7 @@ func (s *Store) ListConfigurations(
 		configurations[i] = *configurationFromSQLC(record)
 		configurationIDs[i] = record.ID
 	}
-	if err := s.attachConfigurationLabels(ctx, configurations, configurationIDs); err != nil {
+	if err := s.attachConfigurationTargets(ctx, configurations, configurationIDs); err != nil {
 		return nil, 0, err
 	}
 	return configurations, count, nil
@@ -65,7 +66,7 @@ func (s *Store) GetConfigurationByID(ctx context.Context, id int64) (*Configurat
 		return nil, err
 	}
 	configurations := []Configuration{*configuration}
-	if err := s.attachConfigurationLabels(ctx, configurations, []int64{configuration.ID}); err != nil {
+	if err := s.attachConfigurationTargets(ctx, configurations, []int64{configuration.ID}); err != nil {
 		return nil, err
 	}
 	return &configurations[0], nil
@@ -89,16 +90,12 @@ func (s *Store) CreateConfiguration(ctx context.Context, params ConfigurationMut
 
 	var configurationID int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		err := validateConfigurationLabelsAvailable(ctx, tx, 0, params.LabelIDs)
-		if err != nil {
-			return err
-		}
 		row, err := s.q.WithTx(tx).CreateSantaConfiguration(ctx, createConfigurationParams(params))
 		if err != nil {
 			return mapConfigurationMutationError(err)
 		}
 		configurationID = row.ID
-		if err := replaceConfigurationLabels(ctx, tx, configurationID, params.LabelIDs); err != nil {
+		if err := replaceConfigurationTargets(ctx, tx, configurationID, params.Targets); err != nil {
 			return mapConfigurationMutationError(err)
 		}
 		return nil
@@ -119,17 +116,13 @@ func (s *Store) UpdateConfiguration(
 	}
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		err := validateConfigurationLabelsAvailable(ctx, tx, id, params.LabelIDs)
-		if err != nil {
-			return err
-		}
 		row, err := s.q.WithTx(tx).UpdateSantaConfiguration(ctx, updateConfigurationParams(id, params))
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		} else if err != nil {
 			return mapConfigurationMutationError(err)
 		}
-		if err := replaceConfigurationLabels(ctx, tx, row.ID, params.LabelIDs); err != nil {
+		if err := replaceConfigurationTargets(ctx, tx, row.ID, params.Targets); err != nil {
 			return mapConfigurationMutationError(err)
 		}
 		return nil
@@ -197,54 +190,39 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 	}, nil
 }
 
-func replaceConfigurationLabels(ctx context.Context, tx pgx.Tx, configurationID int64, labelIDs []int64) error {
-	q := sqlc.New(tx)
-	if err := q.DeleteSantaConfigurationLabels(
-		ctx,
-		sqlc.DeleteSantaConfigurationLabelsParams{ConfigurationID: configurationID},
-	); err != nil {
-		return err
-	}
-	if len(labelIDs) == 0 {
-		return nil
-	}
-	return q.InsertSantaConfigurationLabels(ctx, sqlc.InsertSantaConfigurationLabelsParams{
-		ConfigurationID: configurationID,
-		LabelIds:        labelIDs,
-	})
-}
-
-func validateConfigurationLabelsAvailable(
+func replaceConfigurationTargets(
 	ctx context.Context,
 	tx pgx.Tx,
 	configurationID int64,
-	labelIDs []int64,
+	targets []scope.TargetLabel,
 ) error {
-	if len(labelIDs) == 0 {
-		return nil
-	}
-
-	row, err := sqlc.New(tx).FindSantaConfigurationLabelConflict(
-		ctx,
-		sqlc.FindSantaConfigurationLabelConflictParams{
-			LabelIds:        labelIDs,
-			ConfigurationID: configurationID,
-		},
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
+	if err := validateTargets(targets); err != nil {
 		return err
 	}
-	return &ConfigurationLabelConflictError{
-		LabelID:           row.LabelID,
-		ConfigurationID:   row.ConfigurationID,
-		ConfigurationName: row.ConfigurationName,
+	q := sqlc.New(tx)
+	if err := q.DeleteSantaConfigurationTargets(
+		ctx,
+		sqlc.DeleteSantaConfigurationTargetsParams{ConfigurationID: configurationID},
+	); err != nil {
+		return err
 	}
+	if len(targets) == 0 {
+		return nil
+	}
+	labelIDs := make([]int64, len(targets))
+	effects := make([]string, len(targets))
+	for i, target := range targets {
+		labelIDs[i] = target.LabelID
+		effects[i] = string(target.Effect)
+	}
+	return q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
+		ConfigurationID: configurationID,
+		LabelIds:        labelIDs,
+		Effects:         effects,
+	})
 }
 
-func (s *Store) attachConfigurationLabels(
+func (s *Store) attachConfigurationTargets(
 	ctx context.Context,
 	configurations []Configuration,
 	configurationIDs []int64,
@@ -257,9 +235,9 @@ func (s *Store) attachConfigurationLabels(
 		configurationIndexes[configurations[i].ID] = i
 	}
 
-	rows, err := s.q.ListSantaConfigurationLabels(
+	rows, err := s.q.ListSantaConfigurationTargets(
 		ctx,
-		sqlc.ListSantaConfigurationLabelsParams{ConfigurationIds: configurationIDs},
+		sqlc.ListSantaConfigurationTargetsParams{ConfigurationIds: configurationIDs},
 	)
 	if err != nil {
 		return err
@@ -267,7 +245,10 @@ func (s *Store) attachConfigurationLabels(
 
 	for _, row := range rows {
 		if i, ok := configurationIndexes[row.ConfigurationID]; ok {
-			configurations[i].LabelIDs = append(configurations[i].LabelIDs, row.LabelID)
+			configurations[i].Targets = append(configurations[i].Targets, scope.TargetLabel{
+				LabelID: row.LabelID,
+				Effect:  scope.TargetLabelEffect(row.Effect),
+			})
 		}
 	}
 	return nil
@@ -290,12 +271,27 @@ func (p ConfigurationMutation) Validate() error {
 	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
 		return err
 	}
-	for _, labelID := range p.LabelIDs {
-		if labelID <= 0 {
-			return fmt.Errorf("%w: label IDs must be positive", dbutil.ErrInvalidInput)
-		}
+	if err := validateTargets(p.Targets); err != nil {
+		return err
 	}
 	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
+}
+
+func validateTargets(targets []scope.TargetLabel) error {
+	seen := make(map[scope.TargetLabel]struct{}, len(targets))
+	for _, target := range targets {
+		if target.LabelID <= 0 {
+			return fmt.Errorf("%w: target label_id must be positive", dbutil.ErrInvalidInput)
+		}
+		if !scope.ValidTargetLabelEffect(target.Effect) {
+			return fmt.Errorf("%w: unsupported target effect %q", dbutil.ErrInvalidInput, target.Effect)
+		}
+		if _, ok := seen[target]; ok {
+			return fmt.Errorf("%w: duplicate target row", dbutil.ErrInvalidInput)
+		}
+		seen[target] = struct{}{}
+	}
+	return nil
 }
 
 func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) error {

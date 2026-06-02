@@ -1,10 +1,10 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 
-import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { TargetLabelRowEditor } from "@/components/targeting/target-label-row-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,13 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateSantaConfiguration,
   useSantaConfiguration,
-  useSantaConfigurations,
   useUpdateSantaConfiguration,
   type SantaConfiguration,
   type SantaConfigurationMutation,
 } from "@/hooks/use-santa";
-import { fieldErrors, integerRange, optionalText, positiveIntegerArray, requiredString } from "@/lib/form-validation";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { fieldErrors, integerRange, optionalText, requiredString } from "@/lib/form-validation";
 
 import { CLIENT_MODE_OPTIONS, CLIENT_MODE_VALUES } from "./shared";
 
@@ -31,7 +29,7 @@ interface ConfigurationFormState {
   name: string;
   description: string;
   client_mode: SantaConfigurationMutation["client_mode"];
-  label_ids: number[];
+  targets: NonNullable<SantaConfigurationMutation["targets"]>;
   enable_bundles: boolean;
   enable_transitive_rules: boolean;
   enable_all_event_upload: boolean;
@@ -60,7 +58,12 @@ const configurationFormSchema = z
     name: requiredString("Name"),
     description: z.string().trim(),
     client_mode: z.enum(CLIENT_MODE_VALUES),
-    label_ids: positiveIntegerArray("Label"),
+    targets: z.array(
+      z.object({
+        label_id: z.number().int().positive("Label IDs must be positive."),
+        effect: z.enum(["include", "exclude"]),
+      }),
+    ),
     enable_bundles: z.boolean(),
     enable_transitive_rules: z.boolean(),
     enable_all_event_upload: z.boolean(),
@@ -101,7 +104,7 @@ const emptyConfigurationForm: ConfigurationFormState = {
   name: "",
   description: "",
   client_mode: "monitor",
-  label_ids: [],
+  targets: [],
   enable_bundles: false,
   enable_transitive_rules: false,
   enable_all_event_upload: false,
@@ -162,16 +165,9 @@ function ConfigurationForm({
   const navigate = useNavigate();
   const create = useCreateSantaConfiguration();
   const update = useUpdateSantaConfiguration();
-  const configurations = useSantaConfigurations({ page_size: MAX_PAGE_SIZE, sort: "position.asc" });
   const [form, setForm] = useState<ConfigurationFormState>(initial);
   const [showErrors, setShowErrors] = useState(false);
   const pending = create.isPending || update.isPending;
-  const unavailableLabelIDs = useMemo(() => {
-    const rows = configurations.data?.items ?? [];
-    return rows.flatMap((configuration) =>
-      configuration.id === configurationId ? [] : (configuration.label_ids ?? []),
-    );
-  }, [configurationId, configurations.data?.items]);
   const parsed = configurationFormSchema.safeParse(form);
   const errors = fieldErrors(parsed);
 
@@ -382,23 +378,12 @@ function ConfigurationForm({
           />
           <Field>
             <FieldLabel>Scope</FieldLabel>
-            {configurations.isLoading ? (
-              <p className="text-muted-foreground text-sm">Loading Configuration Scope...</p>
-            ) : configurations.error ? (
-              <p className="text-destructive text-sm">{configurations.error.message}</p>
-            ) : (
-              <LabelPicker
-                value={form.label_ids}
-                includeBuiltins
-                unavailableLabelIDs={unavailableLabelIDs}
-                emptyPlaceholder="No Unassigned Labels"
-                emptyMessage="All labels are already assigned to configurations."
-                onChange={(label_ids) => setForm({ ...form, label_ids })}
-              />
-            )}
-            <FieldDescription>
-              Labels that select hosts for this configuration. A label can only belong to one configuration.
-            </FieldDescription>
+            <TargetLabelRowEditor
+              value={form.targets}
+              onChange={(targets) => setForm({ ...form, targets })}
+              noun="configuration"
+            />
+            <FieldDescription>Priority decides which matching configuration a host receives.</FieldDescription>
           </Field>
         </FieldGroup>
 
@@ -503,7 +488,7 @@ function formFromConfiguration(configuration: SantaConfiguration): Configuration
     name: configuration.name,
     description: configuration.description,
     client_mode: configuration.client_mode,
-    label_ids: configuration.label_ids ?? [],
+    targets: configuration.targets ?? [],
     enable_bundles: configuration.enable_bundles,
     enable_transitive_rules: configuration.enable_transitive_rules,
     enable_all_event_upload: configuration.enable_all_event_upload,
@@ -527,7 +512,7 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
     name: form.name.trim(),
     description: optionalText(form.description),
     client_mode: form.client_mode,
-    label_ids: form.label_ids,
+    targets: form.targets,
     enable_bundles: form.enable_bundles,
     enable_transitive_rules: form.enable_transitive_rules,
     enable_all_event_upload: form.enable_all_event_upload,

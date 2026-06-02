@@ -9,58 +9,48 @@ import (
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
-// LabelScopeMode says how to read LabelIDs.
-type LabelScopeMode string
+type TargetLabelEffect string
 
 const (
-	ScopeNone       LabelScopeMode = "none"
-	ScopeIncludeAny LabelScopeMode = "include_any"
-	ScopeIncludeAll LabelScopeMode = "include_all"
-	ScopeExcludeAny LabelScopeMode = "exclude_any"
+	TargetLabelInclude TargetLabelEffect = "include"
+	TargetLabelExclude TargetLabelEffect = "exclude"
 )
 
-var LabelScopeModeValues = []LabelScopeMode{ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny}
-
-// LabelScope is shared label targeting.
-type LabelScope struct {
-	Mode     LabelScopeMode `json:"mode,omitempty"`
-	LabelIDs []int64        `json:"label_ids,omitempty"`
+var TargetLabelEffectValues = []TargetLabelEffect{
+	TargetLabelInclude,
+	TargetLabelExclude,
 }
 
-func (LabelScopeMode) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(LabelScopeModeValues...)
+type TargetLabel struct {
+	LabelID int64             `json:"label_id"`
+	Effect  TargetLabelEffect `json:"effect"`
 }
 
-// IsZero lets json:omitzero drop the no-scope value.
-func (s LabelScope) IsZero() bool {
-	return (s.Mode == "" || s.Mode == ScopeNone) && len(s.LabelIDs) == 0
+func (TargetLabelEffect) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(TargetLabelEffectValues...)
 }
 
-// NormalizeLabelScope validates the mode and collapses empty scopes.
-func NormalizeLabelScope(s LabelScope) LabelScope {
-	switch s.Mode {
-	case ScopeNone, ScopeIncludeAny, ScopeIncludeAll, ScopeExcludeAny:
-	default:
-		s.Mode = ScopeNone
-	}
-	if len(s.LabelIDs) == 0 {
-		s.Mode = ScopeNone
-	}
-	return s
-}
-
-func (m *LabelScopeMode) Scan(src any) error {
+func (e *TargetLabelEffect) Scan(src any) error {
 	switch value := src.(type) {
 	case string:
-		*m = LabelScopeMode(value)
+		*e = TargetLabelEffect(value)
 	case []byte:
-		*m = LabelScopeMode(value)
+		*e = TargetLabelEffect(value)
 	default:
-		return fmt.Errorf("scope: unsupported label scope mode scan type %T", src)
+		return fmt.Errorf("scope: unsupported target label effect scan type %T", src)
 	}
 	return nil
 }
 
-func (m LabelScopeMode) Value() (driver.Value, error) {
-	return string(m), nil
+func (e TargetLabelEffect) Value() (driver.Value, error) {
+	return string(e), nil
+}
+
+func ValidTargetLabelEffect(effect TargetLabelEffect) bool {
+	switch effect {
+	case TargetLabelInclude, TargetLabelExclude:
+		return true
+	default:
+		return false
+	}
 }

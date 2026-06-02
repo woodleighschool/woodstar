@@ -206,38 +206,43 @@ SELECT
     l.id AS label_id,
     l.name AS label_name
 FROM santa_configurations c
-JOIN santa_configuration_labels cl ON cl.configuration_id = c.id
-JOIN label_membership lm ON lm.label_id = cl.label_id AND lm.host_id = @host_id
-JOIN labels l ON l.id = cl.label_id
-ORDER BY c.position, c.id, l.name, l.id
+JOIN LATERAL (
+    SELECT
+        include_label.id,
+        include_label.name
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = @host_id
+    JOIN labels include_label ON include_label.id = t.label_id
+    WHERE t.configuration_id = c.id
+      AND t.effect = 'include'
+    ORDER BY include_label.name, include_label.id
+    LIMIT 1
+) l ON true
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM santa_configuration_targets t
+    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = @host_id
+    WHERE t.configuration_id = c.id
+      AND t.effect = 'exclude'
+)
+ORDER BY c.position, c.id
 LIMIT 1;
 
--- name: DeleteSantaConfigurationLabels :exec
-DELETE FROM santa_configuration_labels
+-- name: DeleteSantaConfigurationTargets :exec
+DELETE FROM santa_configuration_targets
 WHERE configuration_id = @configuration_id;
 
--- name: InsertSantaConfigurationLabels :exec
-INSERT INTO santa_configuration_labels (label_id, configuration_id)
-SELECT label_id, @configuration_id
-FROM unnest(@label_ids::bigint[]) AS label_id;
+-- name: InsertSantaConfigurationTargets :exec
+INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
+SELECT @configuration_id, labels.label_id, effects.effect
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
 
--- name: FindSantaConfigurationLabelConflict :one
-SELECT
-    cl.label_id,
-    c.id AS configuration_id,
-    c.name AS configuration_name
-FROM santa_configuration_labels cl
-JOIN santa_configurations c ON c.id = cl.configuration_id
-WHERE cl.label_id = ANY(@label_ids::bigint[])
-  AND c.id <> @configuration_id
-ORDER BY cl.label_id
-LIMIT 1;
-
--- name: ListSantaConfigurationLabels :many
-SELECT configuration_id, label_id
-FROM santa_configuration_labels
+-- name: ListSantaConfigurationTargets :many
+SELECT configuration_id, label_id, effect
+FROM santa_configuration_targets
 WHERE configuration_id = ANY(@configuration_ids::bigint[])
-ORDER BY configuration_id, label_id;
+ORDER BY configuration_id, effect, label_id;
 
 -- name: SantaRuleExists :one
 SELECT EXISTS (

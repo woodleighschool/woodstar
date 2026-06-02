@@ -8,8 +8,6 @@ package sqlc
 import (
 	"context"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 const createReport = `-- name: CreateReport :one
@@ -36,7 +34,6 @@ RETURNING
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -68,7 +65,6 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 		&i.Query,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -93,20 +89,6 @@ func (q *Queries) DeleteReport(ctx context.Context, arg DeleteReportParams) (int
 	return id, err
 }
 
-const deleteReportLabels = `-- name: DeleteReportLabels :exec
-DELETE FROM report_labels
-WHERE report_id = $1
-`
-
-type DeleteReportLabelsParams struct {
-	ReportID int64 `json:"report_id"`
-}
-
-func (q *Queries) DeleteReportLabels(ctx context.Context, arg DeleteReportLabelsParams) error {
-	_, err := q.db.Exec(ctx, deleteReportLabels, arg.ReportID)
-	return err
-}
-
 const deleteReportResults = `-- name: DeleteReportResults :exec
 DELETE FROM report_results
 WHERE report_id = $1 AND host_id = $2
@@ -119,6 +101,20 @@ type DeleteReportResultsParams struct {
 
 func (q *Queries) DeleteReportResults(ctx context.Context, arg DeleteReportResultsParams) error {
 	_, err := q.db.Exec(ctx, deleteReportResults, arg.ReportID, arg.HostID)
+	return err
+}
+
+const deleteReportTargets = `-- name: DeleteReportTargets :exec
+DELETE FROM report_targets
+WHERE report_id = $1
+`
+
+type DeleteReportTargetsParams struct {
+	ReportID int64 `json:"report_id"`
+}
+
+func (q *Queries) DeleteReportTargets(ctx context.Context, arg DeleteReportTargetsParams) error {
+	_, err := q.db.Exec(ctx, deleteReportTargets, arg.ReportID)
 	return err
 }
 
@@ -160,7 +156,6 @@ SELECT
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -182,7 +177,6 @@ func (q *Queries) GetReportByID(ctx context.Context, arg GetReportByIDParams) (R
 		&i.Query,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -190,18 +184,21 @@ func (q *Queries) GetReportByID(ctx context.Context, arg GetReportByIDParams) (R
 	return i, err
 }
 
-const insertReportLabels = `-- name: InsertReportLabels :exec
-INSERT INTO report_labels (report_id, label_id)
-SELECT $1, unnest($2::bigint[])
+const insertReportTargets = `-- name: InsertReportTargets :exec
+INSERT INTO report_targets (report_id, label_id, effect)
+SELECT $1, labels.label_id, effects.effect
+FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
+JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
 `
 
-type InsertReportLabelsParams struct {
-	ReportID int64   `json:"report_id"`
-	LabelIds []int64 `json:"label_ids"`
+type InsertReportTargetsParams struct {
+	ReportID int64    `json:"report_id"`
+	LabelIds []int64  `json:"label_ids"`
+	Effects  []string `json:"effects"`
 }
 
-func (q *Queries) InsertReportLabels(ctx context.Context, arg InsertReportLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertReportLabels, arg.ReportID, arg.LabelIds)
+func (q *Queries) InsertReportTargets(ctx context.Context, arg InsertReportTargetsParams) error {
+	_, err := q.db.Exec(ctx, insertReportTargets, arg.ReportID, arg.LabelIds, arg.Effects)
 	return err
 }
 
@@ -325,37 +322,6 @@ func (q *Queries) ListHostReportStates(ctx context.Context, arg ListHostReportSt
 	return items, nil
 }
 
-const listReportLabelIDs = `-- name: ListReportLabelIDs :many
-SELECT report_id, label_id
-FROM report_labels
-WHERE report_id = ANY($1::bigint[])
-ORDER BY report_id, label_id
-`
-
-type ListReportLabelIDsParams struct {
-	ReportIds []int64 `json:"report_ids"`
-}
-
-func (q *Queries) ListReportLabelIDs(ctx context.Context, arg ListReportLabelIDsParams) ([]ReportLabel, error) {
-	rows, err := q.db.Query(ctx, listReportLabelIDs, arg.ReportIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ReportLabel{}
-	for rows.Next() {
-		var i ReportLabel
-		if err := rows.Scan(&i.ReportID, &i.LabelID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listReportResults = `-- name: ListReportResults :many
 SELECT rr.report_id, r.name, rr.host_id, h.display_name, rr.data, rr.last_fetched
 FROM report_results rr
@@ -405,31 +371,27 @@ func (q *Queries) ListReportResults(ctx context.Context, arg ListReportResultsPa
 	return items, nil
 }
 
-const listReportScopes = `-- name: ListReportScopes :many
-SELECT id, label_scope_mode
-FROM reports
-WHERE id = ANY($1::bigint[])
+const listReportTargets = `-- name: ListReportTargets :many
+SELECT report_id, label_id, effect
+FROM report_targets
+WHERE report_id = ANY($1::bigint[])
+ORDER BY report_id, effect, label_id
 `
 
-type ListReportScopesParams struct {
+type ListReportTargetsParams struct {
 	ReportIds []int64 `json:"report_ids"`
 }
 
-type ListReportScopesRow struct {
-	ID             int64                `json:"id"`
-	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
-}
-
-func (q *Queries) ListReportScopes(ctx context.Context, arg ListReportScopesParams) ([]ListReportScopesRow, error) {
-	rows, err := q.db.Query(ctx, listReportScopes, arg.ReportIds)
+func (q *Queries) ListReportTargets(ctx context.Context, arg ListReportTargetsParams) ([]ReportTarget, error) {
+	rows, err := q.db.Query(ctx, listReportTargets, arg.ReportIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListReportScopesRow{}
+	items := []ReportTarget{}
 	for rows.Next() {
-		var i ListReportScopesRow
-		if err := rows.Scan(&i.ID, &i.LabelScopeMode); err != nil {
+		var i ReportTarget
+		if err := rows.Scan(&i.ReportID, &i.LabelID, &i.Effect); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -453,46 +415,25 @@ SELECT
     r.query,
     r.min_osquery_version,
     r.schedule_interval,
-    r.label_scope_mode,
     r.created_by_user_id,
     r.created_at,
     r.updated_at
 FROM reports r
 JOIN host_row h ON true
 WHERE r.schedule_interval > 0
-  AND (
-      r.label_scope_mode = 'none'
-      OR (
-          r.label_scope_mode = 'include_any'
-          AND EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
-              WHERE rl.report_id = r.id
-          )
-      )
-      OR (
-          r.label_scope_mode = 'include_all'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              WHERE rl.report_id = r.id
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM label_membership lm
-                    WHERE lm.label_id = rl.label_id AND lm.host_id = h.id
-                )
-          )
-      )
-      OR (
-          r.label_scope_mode = 'exclude_any'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM report_labels rl
-              JOIN label_membership lm ON lm.label_id = rl.label_id AND lm.host_id = h.id
-              WHERE rl.report_id = r.id
-          )
-      )
+  AND EXISTS (
+      SELECT 1
+      FROM report_targets rt
+      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
+      WHERE rt.report_id = r.id
+        AND rt.effect = 'include'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM report_targets rt
+      JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
+      WHERE rt.report_id = r.id
+        AND rt.effect = 'exclude'
   )
 ORDER BY r.id
 `
@@ -517,7 +458,6 @@ func (q *Queries) ListScheduledReportsForHost(ctx context.Context, arg ListSched
 			&i.Query,
 			&i.MinOsqueryVersion,
 			&i.ScheduleInterval,
-			&i.LabelScopeMode,
 			&i.CreatedByUserID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -530,22 +470,6 @@ func (q *Queries) ListScheduledReportsForHost(ctx context.Context, arg ListSched
 		return nil, err
 	}
 	return items, nil
-}
-
-const setReportScopeMode = `-- name: SetReportScopeMode :exec
-UPDATE reports
-SET label_scope_mode = $1
-WHERE id = $2
-`
-
-type SetReportScopeModeParams struct {
-	LabelScopeMode scope.LabelScopeMode `json:"label_scope_mode"`
-	ID             int64                `json:"id"`
-}
-
-func (q *Queries) SetReportScopeMode(ctx context.Context, arg SetReportScopeModeParams) error {
-	_, err := q.db.Exec(ctx, setReportScopeMode, arg.LabelScopeMode, arg.ID)
-	return err
 }
 
 const updateReport = `-- name: UpdateReport :one
@@ -565,7 +489,6 @@ RETURNING
     query,
     min_osquery_version,
     schedule_interval,
-    label_scope_mode,
     created_by_user_id,
     created_at,
     updated_at
@@ -597,7 +520,6 @@ func (q *Queries) UpdateReport(ctx context.Context, arg UpdateReportParams) (Rep
 		&i.Query,
 		&i.MinOsqueryVersion,
 		&i.ScheduleInterval,
-		&i.LabelScopeMode,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,

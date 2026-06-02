@@ -33,7 +33,3 @@ sql:
               import: time
               type: Time
               pointer: true
-          - db_type: label_scope_mode
-            go_type:
-              import: github.com/woodleighschool/woodstar/internal/scope
-              type: LabelScopeMode

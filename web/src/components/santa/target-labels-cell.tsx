@@ -3,24 +3,29 @@ import type { ReactNode } from "react";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
 import { LabelChips } from "@/components/labels/label-chips";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import type { TargetLabel } from "@/lib/api";
+import { targetSummary } from "@/lib/targeting";
 
 export function TargetLabelsCell({
   labelIDs,
+  targets,
   labelsByID,
   empty,
 }: {
-  labelIDs: number[];
+  labelIDs?: number[];
+  targets?: TargetLabel[] | null;
   labelsByID: ReadonlyMap<number, LabelChip>;
   empty?: ReactNode;
 }) {
-  const countText = `${labelIDs.length} label${labelIDs.length === 1 ? "" : "s"}`;
+  const ids = targets ? targets.map((target) => target.label_id) : (labelIDs ?? []);
+  const countText = targets ? targetSummary(targets) : `${ids.length} label${ids.length === 1 ? "" : "s"}`;
 
-  if (labelIDs.length === 0) {
+  if (ids.length === 0) {
     return empty ?? <span className="text-sm tabular-nums">{countText}</span>;
   }
 
-  const labels = labelsFromIDs(labelIDs, labelsByID);
-  if (labels.length === 1 && labels[0].name === "All Hosts") {
+  const labels = labelsFromIDs(ids, labelsByID);
+  if (!targets && labels.length === 1 && labels[0].name === "All Hosts") {
     return <span className="text-sm">All Hosts</span>;
   }
 

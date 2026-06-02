@@ -1,10 +1,11 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { FileArchive, ImageIcon, Loader2 } from "lucide-react";
+import { FileArchive, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode, type SyntheticEvent } from "react";
 import { z } from "zod";
 
 import { LabelPicker } from "@/components/labels/label-picker";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,31 +21,34 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useCreateMunkiArtifact,
   useCreateMunkiArtifactUpload,
-  useCreateMunkiDeployment,
+  useCreateMunkiAssignment,
   useCreateMunkiPackage,
   useCreateMunkiSoftwareTitle,
-  useMunkiDeployment,
+  useMunkiAssignment,
   useMunkiPackage,
   useMunkiSoftwareTitle,
   useMunkiSoftwareTitles,
-  useUpdateMunkiDeployment,
+  useUpdateMunkiAssignment,
   useUpdateMunkiPackage,
+  useUpdateMunkiSoftwareTitle,
   type MunkiArtifact,
   type MunkiArtifactMutation,
   type MunkiArtifactUploadMutation,
-  type MunkiDeploymentMutation,
+  type MunkiAssignmentMutation,
   type MunkiPackageMutation,
   type MunkiSoftwareTitleMutation,
 } from "@/hooks/use-munki";
 import { fieldErrors, requiredString } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-type DeploymentAction = MunkiDeploymentMutation["action"];
-type PackageSelection = MunkiDeploymentMutation["package_selection"];
+type AssignmentAction = NonNullable<MunkiAssignmentMutation["action"]>;
+type AssignmentEffect = MunkiAssignmentMutation["effect"];
+type PackageSelection = NonNullable<MunkiAssignmentMutation["package_selection"]>;
 type InstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
 type RestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
 
@@ -67,7 +71,7 @@ const restartActionOptions: { value: RestartAction; label: string }[] = [
   { value: "RequireShutdown", label: "Require shutdown" },
 ];
 
-const actionOptions: { value: DeploymentAction; label: string; description: string }[] = [
+const actionOptions: { value: AssignmentAction; label: string; description: string }[] = [
   { value: "install", label: "Managed Installs", description: "Forces installation by writing managed_installs." },
   { value: "remove", label: "Managed Uninstalls", description: "Forces removal by writing managed_uninstalls." },
   {
@@ -113,9 +117,13 @@ const packageSchema = z.object({
   installer_type: z.enum(["pkg", "nopkg", "profile", "apple_update_metadata"]),
   uninstall_method: z.string().trim(),
   restart_action: z.enum(["None", "RequireLogout", "RecommendRestart", "RequireRestart", "RequireShutdown"]),
+  minimum_munki_version: z.string().trim(),
   minimum_os_version: z.string().trim(),
   maximum_os_version: z.string().trim(),
   supported_architectures: z.array(z.enum(["arm64", "x86_64"])),
+  blocking_applications: z.string().transform(parseStringList),
+  requires: z.string().transform(parseStringList),
+  update_for: z.string().transform(parseStringList),
   eligible: z.boolean(),
   unattended_install: z.boolean(),
   unattended_uninstall: z.boolean(),
@@ -124,18 +132,22 @@ const packageSchema = z.object({
   precache: z.boolean(),
 });
 
-const deploymentSchema = z
+const assignmentSchema = z
   .object({
+    priority: z.number().int("Priority must be a whole number.").positive("Priority must be at least 1."),
+    effect: z.enum(["include", "exclude"]),
+    label_id: z
+      .string()
+      .trim()
+      .refine((value) => Number(value) > 0, "Label is required."),
     package_selection: z.enum(["latest_eligible", "specific_package"]),
     pinned_package_id: z.string().trim(),
     action: z.enum(["install", "remove", "update_if_present", "none"]),
     optional_install: z.boolean(),
     featured_item: z.boolean(),
-    all_hosts: z.boolean(),
-    include_label_ids: z.array(z.number().int().positive()),
-    exclude_label_ids: z.array(z.number().int().positive()),
   })
   .superRefine((value, ctx) => {
+    if (value.effect === "exclude") return;
     if (value.package_selection === "specific_package" && !Number(value.pinned_package_id)) {
       ctx.addIssue({ code: "custom", message: "Package is required.", path: ["pinned_package_id"] });
     }
@@ -152,9 +164,6 @@ const deploymentSchema = z
         message: "Managed Uninstalls cannot also be Optional Installs or Featured Items.",
         path: ["optional_install"],
       });
-    }
-    if (!value.all_hosts && value.include_label_ids.length === 0) {
-      ctx.addIssue({ code: "custom", message: "Select at least one target label.", path: ["include_label_ids"] });
     }
   });
 
@@ -176,9 +185,13 @@ interface PackageFormState {
   installer_type: InstallerType;
   uninstall_method: string;
   restart_action: RestartAction;
+  minimum_munki_version: string;
   minimum_os_version: string;
   maximum_os_version: string;
   supported_architectures: Array<"arm64" | "x86_64">;
+  blocking_applications: string;
+  requires: string;
+  update_for: string;
   eligible: boolean;
   unattended_install: boolean;
   unattended_uninstall: boolean;
@@ -187,15 +200,15 @@ interface PackageFormState {
   precache: boolean;
 }
 
-interface DeploymentFormState {
+interface AssignmentFormState {
+  priority: number;
+  effect: AssignmentEffect;
+  label_id: string;
   package_selection: PackageSelection;
   pinned_package_id: string;
-  action: DeploymentAction;
+  action: AssignmentAction;
   optional_install: boolean;
   featured_item: boolean;
-  all_hosts: boolean;
-  include_label_ids: number[];
-  exclude_label_ids: number[];
 }
 
 export function MunkiSoftwareTitleNewPage() {
@@ -246,7 +259,16 @@ export function MunkiSoftwareTitleNewPage() {
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
         <PageHeader
           title="New Software"
-          description="Create the software title admins target. Add package versions and deployments after the title exists."
+          description="Create the software title admins target. Add package versions and assignments after the title exists."
+          leading={
+            <EditableMunkiIcon
+              title="software icon"
+              file={iconFile}
+              clearable={!!iconFile}
+              onFileChange={setIconFile}
+              onClear={() => setIconFile(null)}
+            />
+          }
         />
         <MutationError
           title="Failed to Create Software"
@@ -290,18 +312,149 @@ export function MunkiSoftwareTitleNewPage() {
               onChange={(developer) => setForm({ ...form, developer })}
             />
           </div>
-          <FileField
-            id="munki-software-icon-file"
-            label="Icon"
-            description="Optional app icon used by this software and inherited by packages unless a package overrides it."
-            accept="image/png,image/jpeg,image/webp,image/icns,.icns"
-            icon={<ImageIcon className="size-4" />}
-            file={iconFile}
-            onChange={setIconFile}
-          />
           <FormActions
             pending={create.isPending || createUpload.isPending || createArtifact.isPending}
             cancelTo="/munki/software-titles"
+          />
+        </FieldGroup>
+      </form>
+    </PageShell>
+  );
+}
+
+export function MunkiSoftwareTitleEditPage() {
+  const navigate = useNavigate();
+  const softwareId = useSoftwareIDParam();
+  const software = useMunkiSoftwareTitle(softwareId);
+  const update = useUpdateMunkiSoftwareTitle();
+  const createUpload = useCreateMunkiArtifactUpload();
+  const createArtifact = useCreateMunkiArtifact();
+  const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const categoryOptions = useMemo(
+    () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
+    [titles.data?.items],
+  );
+  const developerOptions = useMemo(
+    () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
+    [titles.data?.items],
+  );
+  const [form, setForm] = useState<SoftwareTitleFormState>({
+    name: "",
+    display_name: "",
+    description: "",
+    category: "",
+    developer: "",
+  });
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconCleared, setIconCleared] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+  const parsed = useMemo(() => softwareTitleSchema.safeParse(form), [form]);
+  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
+
+  useEffect(() => {
+    if (!software.data) return;
+    setForm({
+      name: software.data.name,
+      display_name: software.data.display_name,
+      description: software.data.description,
+      category: software.data.category,
+      developer: software.data.developer,
+    });
+    setIconFile(null);
+    setIconCleared(false);
+  }, [software.data]);
+
+  async function submit() {
+    const next = softwareTitleSchema.safeParse(form);
+    if (!next.success || softwareId === null) {
+      setShowErrors(true);
+      return;
+    }
+    const iconArtifact = iconFile
+      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const body: MunkiSoftwareTitleMutation = {
+      ...next.data,
+      icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.data?.icon_artifact_id),
+    };
+    const title = await update.mutateAsync({ id: softwareId, body });
+    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(title.id) } });
+  }
+
+  return (
+    <PageShell asChild>
+      <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
+        <PageHeader
+          title="Edit Software"
+          description="Edit the software title admins target. Package versions inherit this icon unless they override it."
+          leading={
+            <EditableMunkiIcon
+              title="software icon"
+              iconUrl={iconCleared ? undefined : software.data?.icon_url}
+              file={iconFile}
+              clearable={!!iconFile || (!iconCleared && !!software.data?.icon_artifact_id)}
+              onFileChange={(file) => {
+                setIconFile(file);
+                setIconCleared(false);
+              }}
+              onClear={() => {
+                setIconFile(null);
+                setIconCleared(!!software.data?.icon_artifact_id);
+              }}
+            />
+          }
+        />
+        <MutationError
+          title="Failed to Update Software"
+          message={
+            update.error?.message ??
+            createUpload.error?.message ??
+            createArtifact.error?.message ??
+            software.error?.message
+          }
+        />
+        <FieldGroup className="max-w-3xl">
+          <TextField
+            id="munki-software-name"
+            label="Name"
+            required
+            description="Stable Munki item name. Use Display Name for spaces, punctuation, and nicer casing."
+            value={form.name}
+            error={showErrors ? errors.name : undefined}
+            onChange={(name) => setForm({ ...form, name })}
+          />
+          <TextField
+            id="munki-software-display-name"
+            label="Display Name"
+            value={form.display_name}
+            onChange={(display_name) => setForm({ ...form, display_name })}
+          />
+          <TextAreaField
+            id="munki-software-description"
+            label="Description"
+            value={form.description}
+            onChange={(description) => setForm({ ...form, description })}
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <DatalistTextField
+              id="munki-software-category"
+              label="Category"
+              value={form.category}
+              options={categoryOptions}
+              onChange={(category) => setForm({ ...form, category })}
+            />
+            <DatalistTextField
+              id="munki-software-developer"
+              label="Developer"
+              value={form.developer}
+              options={developerOptions}
+              onChange={(developer) => setForm({ ...form, developer })}
+            />
+          </div>
+          <FormActions
+            pending={update.isPending || createUpload.isPending || createArtifact.isPending || software.isLoading}
+            cancelTo="/munki/software-titles/$softwareId"
+            cancelParams={{ softwareId: String(softwareId ?? "") }}
           />
         </FieldGroup>
       </form>
@@ -337,9 +490,13 @@ export function MunkiPackageNewPage() {
     installer_type: "pkg",
     uninstall_method: "",
     restart_action: "None",
+    minimum_munki_version: "",
     minimum_os_version: "",
     maximum_os_version: "",
     supported_architectures: [],
+    blocking_applications: "",
+    requires: "",
+    update_for: "",
     eligible: true,
     unattended_install: true,
     unattended_uninstall: true,
@@ -390,10 +547,14 @@ export function MunkiPackageNewPage() {
       uninstallable: next.data.uninstallable,
       uninstall_method: optionalText(next.data.uninstall_method),
       restart_action: next.data.restart_action === "None" ? undefined : next.data.restart_action,
+      minimum_munki_version: optionalText(next.data.minimum_munki_version),
       minimum_os_version: optionalText(next.data.minimum_os_version),
       maximum_os_version: optionalText(next.data.maximum_os_version),
       supported_architectures:
         next.data.supported_architectures.length > 0 ? next.data.supported_architectures : undefined,
+      blocking_applications: next.data.blocking_applications,
+      requires: next.data.requires,
+      update_for: next.data.update_for,
       on_demand: next.data.on_demand,
       precache: next.data.precache,
       installer_artifact_id: installerArtifact?.id,
@@ -408,7 +569,17 @@ export function MunkiPackageNewPage() {
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
         <PageHeader
           title="New Package"
-          description="Add a typed pkginfo package with optional installer and icon files."
+          description="Add a typed pkginfo package with an optional installer file."
+          leading={
+            <EditableMunkiIcon
+              title="package icon"
+              fallbackIconUrl={software.data?.icon_url}
+              file={iconFile}
+              clearable={!!iconFile}
+              onFileChange={setIconFile}
+              onClear={() => setIconFile(null)}
+            />
+          }
         />
         <MutationError
           title="Failed to Create Package"
@@ -419,206 +590,186 @@ export function MunkiPackageNewPage() {
             software.error?.message
           }
         />
-        <FieldGroup className="max-w-3xl">
-          <TextField
-            id="munki-package-name"
-            label="Name"
-            required
-            description="Stable Munki item name used in manifests. Keep it consistent across versions."
-            value={form.name}
-            error={showErrors ? errors.name : undefined}
-            placeholder={software.data?.name}
-            onChange={(name) => setForm({ ...form, name })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <TextField
-              id="munki-package-version"
-              label="Version"
-              required
-              description="Rendered into pkginfo and shown when choosing a deployment package."
-              value={form.version}
-              error={showErrors ? errors.version : undefined}
-              onChange={(version) => setForm({ ...form, version })}
-            />
-            <TextField
-              id="munki-package-display-name"
-              label="Display Name"
-              value={form.display_name}
-              placeholder={software.data?.display_name}
-              onChange={(display_name) => setForm({ ...form, display_name })}
-            />
-          </FieldGroup>
-          <TextAreaField
-            id="munki-package-description"
-            label="Description"
-            value={form.description}
-            placeholder={software.data?.description}
-            onChange={(description) => setForm({ ...form, description })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <DatalistTextField
-              id="munki-package-category"
-              label="Category"
-              value={form.category}
-              placeholder={software.data?.category}
-              options={categoryOptions}
-              onChange={(category) => setForm({ ...form, category })}
-            />
-            <DatalistTextField
-              id="munki-package-developer"
-              label="Developer"
-              value={form.developer}
-              placeholder={software.data?.developer}
-              options={developerOptions}
-              onChange={(developer) => setForm({ ...form, developer })}
-            />
-            <SelectField
-              id="munki-package-installer-type"
-              label="Installer Type"
-              description="Ordinary packages use Package. Woodstar omits that value from rendered pkginfo because Munki does not use installer_type for normal pkg installs."
-              value={form.installer_type}
-              options={installerTypeOptions}
-              onChange={(installer_type) => setForm({ ...form, installer_type })}
-            />
-          </FieldGroup>
-          <FieldSet>
-            <FieldLegend>Artifacts</FieldLegend>
-            <FieldDescription>
-              Files upload to Munki storage first. Woodstar stores the artifact reference and renders the stable Munki
-              URL.
-            </FieldDescription>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <FileField
-                id="munki-package-installer-file"
-                label="Installer"
-                description="Optional package, disk image, profile, or metadata payload used by this pkginfo."
-                icon={<FileArchive className="size-4" />}
-                file={installerFile}
-                onChange={setInstallerFile}
-              />
-              <FileField
-                id="munki-package-icon-file"
-                label="Icon Override"
-                description="Optional package-specific icon. If unset, this package inherits the software icon."
-                accept="image/png,image/jpeg,image/webp,image/icns,.icns"
-                icon={<ImageIcon className="size-4" />}
-                file={iconFile}
-                onChange={setIconFile}
-              />
-            </FieldGroup>
-          </FieldSet>
-          <FieldSet>
-            <FieldLegend>Package Behavior</FieldLegend>
-            <FieldDescription>
-              These values are rendered into pkginfo. They do not inspect the installer bytes.
-            </FieldDescription>
-            <CheckboxField
-              id="munki-package-eligible"
-              label="Available for deployment"
-              description="Ineligible packages stay stored but are skipped when manifests and catalogs are rendered."
-              checked={form.eligible}
-              onChange={(eligible) => setForm({ ...form, eligible })}
-            />
-            <FieldGroup className="grid gap-4 md:grid-cols-3">
-              <CheckboxField
-                id="munki-package-unattended-install"
-                label="Unattended install"
-                description="Allows Munki to install this item without MSC interaction."
-                checked={form.unattended_install}
-                onChange={(unattended_install) => setForm({ ...form, unattended_install })}
-              />
-              <CheckboxField
-                id="munki-package-unattended-uninstall"
-                label="Unattended uninstall"
-                description="Allows Munki to remove this item without MSC interaction."
-                checked={form.unattended_uninstall}
-                onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
-              />
-              <CheckboxField
-                id="munki-package-uninstallable"
-                label="Uninstallable"
-                description="Marks the item as removable when Munki has a valid uninstall method."
-                checked={form.uninstallable}
-                onChange={(uninstallable) => setForm({ ...form, uninstallable })}
-              />
-            </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
+        <Tabs defaultValue="basic" className="max-w-3xl">
+          <TabsList>
+            <TabsTrigger value="basic">Basic</TabsTrigger>
+            <TabsTrigger value="contents">Contents</TabsTrigger>
+            <TabsTrigger value="requirements">Requirements</TabsTrigger>
+            <TabsTrigger value="installation">Installation</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          </TabsList>
+          <TabsContent value="basic">
+            <FieldGroup>
               <TextField
-                id="munki-package-uninstall-method"
-                label="Uninstall Method"
-                description="Munki uninstall_method value, when the item supports removal."
-                value={form.uninstall_method}
-                onChange={(uninstall_method) => setForm({ ...form, uninstall_method })}
+                id="munki-package-name"
+                label="Name"
+                required
+                description="Stable Munki item name used in manifests. Keep it consistent across versions."
+                value={form.name}
+                error={showErrors ? errors.name : undefined}
+                placeholder={software.data?.name}
+                onChange={(name) => setForm({ ...form, name })}
               />
-              <SelectField
-                id="munki-package-restart-action"
-                label="Restart Action"
-                value={form.restart_action}
-                options={restartActionOptions}
-                onChange={(restart_action) => setForm({ ...form, restart_action })}
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="munki-package-version"
+                  label="Version"
+                  required
+                  description="Rendered into pkginfo and shown when choosing an assignment package."
+                  value={form.version}
+                  error={showErrors ? errors.version : undefined}
+                  onChange={(version) => setForm({ ...form, version })}
+                />
+                <TextField
+                  id="munki-package-display-name"
+                  label="Display Name"
+                  value={form.display_name}
+                  placeholder={software.data?.display_name}
+                  onChange={(display_name) => setForm({ ...form, display_name })}
+                />
+              </FieldGroup>
+              <TextAreaField
+                id="munki-package-description"
+                label="Description"
+                value={form.description}
+                placeholder={software.data?.description}
+                onChange={(description) => setForm({ ...form, description })}
               />
+              <FieldGroup className="grid gap-4 md:grid-cols-3">
+                <DatalistTextField
+                  id="munki-package-category"
+                  label="Category"
+                  value={form.category}
+                  placeholder={software.data?.category}
+                  options={categoryOptions}
+                  onChange={(category) => setForm({ ...form, category })}
+                />
+                <DatalistTextField
+                  id="munki-package-developer"
+                  label="Developer"
+                  value={form.developer}
+                  placeholder={software.data?.developer}
+                  options={developerOptions}
+                  onChange={(developer) => setForm({ ...form, developer })}
+                />
+                <SelectField
+                  id="munki-package-installer-type"
+                  label="Installer Type"
+                  description="Ordinary packages use Package. Woodstar omits that value from rendered pkginfo because Munki does not use installer_type for normal pkg installs."
+                  value={form.installer_type}
+                  options={installerTypeOptions}
+                  onChange={(installer_type) => setForm({ ...form, installer_type })}
+                />
+              </FieldGroup>
             </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <TextField
-                id="munki-package-minimum-os"
-                label="Minimum OS"
-                value={form.minimum_os_version}
-                placeholder="14.0"
-                onChange={(minimum_os_version) => setForm({ ...form, minimum_os_version })}
+          </TabsContent>
+          <TabsContent value="contents">
+            <FieldSet>
+              <FieldLegend>Artifacts</FieldLegend>
+              <FieldDescription>
+                Files upload to Munki storage first. Woodstar stores the artifact reference and renders the stable Munki
+                URL.
+              </FieldDescription>
+              <FieldGroup>
+                <FileField
+                  id="munki-package-installer-file"
+                  label="Installer"
+                  description="Optional package, disk image, profile, or metadata payload used by this pkginfo."
+                  icon={<FileArchive className="size-4" />}
+                  file={installerFile}
+                  onChange={setInstallerFile}
+                />
+              </FieldGroup>
+            </FieldSet>
+          </TabsContent>
+          <TabsContent value="requirements">
+            <PackageRequirementsFields form={form} onChange={setForm} />
+          </TabsContent>
+          <TabsContent value="installation">
+            <FieldSet>
+              <FieldLegend>Package Behavior</FieldLegend>
+              <FieldDescription>
+                These values are rendered into pkginfo. They do not inspect the installer bytes.
+              </FieldDescription>
+              <CheckboxField
+                id="munki-package-eligible"
+                label="Available for assignment"
+                description="Ineligible packages stay stored but are skipped when manifests and catalogs are rendered."
+                checked={form.eligible}
+                onChange={(eligible) => setForm({ ...form, eligible })}
               />
-              <TextField
-                id="munki-package-maximum-os"
-                label="Maximum OS"
-                value={form.maximum_os_version}
-                placeholder="15.99"
-                onChange={(maximum_os_version) => setForm({ ...form, maximum_os_version })}
-              />
-            </FieldGroup>
-            <Field>
-              <FieldLabel>Supported Architectures</FieldLabel>
-              <div className="grid gap-3 md:grid-cols-2">
+              <FieldGroup className="grid gap-4 md:grid-cols-3">
                 <CheckboxField
-                  id="munki-package-arch-arm64"
-                  label="Apple silicon"
-                  checked={form.supported_architectures.includes("arm64")}
-                  onChange={(checked) =>
-                    setForm({ ...form, supported_architectures: toggleArch(form, "arm64", checked) })
-                  }
+                  id="munki-package-unattended-install"
+                  label="Unattended install"
+                  description="Allows Munki to install this item without MSC interaction."
+                  checked={form.unattended_install}
+                  onChange={(unattended_install) => setForm({ ...form, unattended_install })}
                 />
                 <CheckboxField
-                  id="munki-package-arch-x86"
-                  label="Intel"
-                  checked={form.supported_architectures.includes("x86_64")}
-                  onChange={(checked) =>
-                    setForm({ ...form, supported_architectures: toggleArch(form, "x86_64", checked) })
-                  }
+                  id="munki-package-unattended-uninstall"
+                  label="Unattended uninstall"
+                  description="Allows Munki to remove this item without MSC interaction."
+                  checked={form.unattended_uninstall}
+                  onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
                 />
-              </div>
-              <FieldDescription>Leave both unchecked when the item applies to every supported Mac.</FieldDescription>
-            </Field>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <CheckboxField
-                id="munki-package-on-demand"
-                label="On demand"
-                description="Marks the item as available only when explicitly requested by Munki."
-                checked={form.on_demand}
-                onChange={(on_demand) => setForm({ ...form, on_demand })}
-              />
-              <CheckboxField
-                id="munki-package-precache"
-                label="Precache"
-                description="Allows Munki to cache the installer before it is needed."
-                checked={form.precache}
-                onChange={(precache) => setForm({ ...form, precache })}
-              />
-            </FieldGroup>
-          </FieldSet>
+                <CheckboxField
+                  id="munki-package-uninstallable"
+                  label="Uninstallable"
+                  description="Marks the item as removable when Munki has a valid uninstall method."
+                  checked={form.uninstallable}
+                  onChange={(uninstallable) => setForm({ ...form, uninstallable })}
+                />
+              </FieldGroup>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="munki-package-uninstall-method"
+                  label="Uninstall Method"
+                  description="Munki uninstall_method value, when the item supports removal."
+                  value={form.uninstall_method}
+                  onChange={(uninstall_method) => setForm({ ...form, uninstall_method })}
+                />
+                <SelectField
+                  id="munki-package-restart-action"
+                  label="Restart Action"
+                  value={form.restart_action}
+                  options={restartActionOptions}
+                  onChange={(restart_action) => setForm({ ...form, restart_action })}
+                />
+              </FieldGroup>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <CheckboxField
+                  id="munki-package-on-demand"
+                  label="On demand"
+                  description="Marks the item as available only when explicitly requested by Munki."
+                  checked={form.on_demand}
+                  onChange={(on_demand) => setForm({ ...form, on_demand })}
+                />
+                <CheckboxField
+                  id="munki-package-precache"
+                  label="Precache"
+                  description="Allows Munki to cache the installer before it is needed."
+                  checked={form.precache}
+                  onChange={(precache) => setForm({ ...form, precache })}
+                />
+              </FieldGroup>
+            </FieldSet>
+          </TabsContent>
+          <TabsContent value="advanced">
+            <FieldSet>
+              <FieldLegend>Rendered Pkginfo</FieldLegend>
+              <FieldDescription>
+                Woodstar renders pkginfo from typed fields after the package is saved. Scripts and alerts will get typed
+                fields in a later slice.
+              </FieldDescription>
+            </FieldSet>
+          </TabsContent>
           <FormActions
             pending={create.isPending || createUpload.isPending || createArtifact.isPending}
             cancelTo="/munki/software-titles/$softwareId"
             cancelParams={{ softwareId: String(softwareId ?? "") }}
           />
-        </FieldGroup>
+        </Tabs>
       </form>
     </PageShell>
   );
@@ -631,6 +782,8 @@ export function MunkiPackageEditPage() {
   const software = useMunkiSoftwareTitle(softwareId);
   const pkg = useMunkiPackage(packageId);
   const update = useUpdateMunkiPackage();
+  const createUpload = useCreateMunkiArtifactUpload();
+  const createArtifact = useCreateMunkiArtifact();
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
@@ -640,6 +793,9 @@ export function MunkiPackageEditPage() {
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
+  const [installerFile, setInstallerFile] = useState<File | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconCleared, setIconCleared] = useState(false);
   const [form, setForm] = useState<PackageFormState>({
     name: "",
     version: "",
@@ -650,9 +806,13 @@ export function MunkiPackageEditPage() {
     installer_type: "pkg",
     uninstall_method: "",
     restart_action: "None",
+    minimum_munki_version: "",
     minimum_os_version: "",
     maximum_os_version: "",
     supported_architectures: [],
+    blocking_applications: "",
+    requires: "",
+    update_for: "",
     eligible: true,
     unattended_install: true,
     unattended_uninstall: true,
@@ -676,9 +836,13 @@ export function MunkiPackageEditPage() {
       installer_type: pkg.data.installer_type,
       uninstall_method: pkg.data.uninstall_method,
       restart_action: pkg.data.restart_action ?? "None",
+      minimum_munki_version: pkg.data.minimum_munki_version,
       minimum_os_version: pkg.data.minimum_os_version,
       maximum_os_version: pkg.data.maximum_os_version,
       supported_architectures: (pkg.data.supported_architectures ?? []).filter(isSupportedArch),
+      blocking_applications: formatStringList(pkg.data.blocking_applications ?? []),
+      requires: formatStringList(pkg.data.requires ?? []),
+      update_for: formatStringList(pkg.data.update_for ?? []),
       eligible: pkg.data.eligible,
       unattended_install: pkg.data.unattended_install,
       unattended_uninstall: pkg.data.unattended_uninstall,
@@ -686,6 +850,8 @@ export function MunkiPackageEditPage() {
       on_demand: pkg.data.on_demand,
       precache: pkg.data.precache,
     });
+    setIconFile(null);
+    setIconCleared(false);
   }, [pkg.data]);
 
   async function submit() {
@@ -694,6 +860,12 @@ export function MunkiPackageEditPage() {
       setShowErrors(true);
       return;
     }
+    const installerArtifact = installerFile
+      ? await uploadSelectedArtifact(installerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const iconArtifact = iconFile
+      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
     const body: MunkiPackageMutation = {
       software_id: softwareId,
       name: next.data.name,
@@ -709,18 +881,25 @@ export function MunkiPackageEditPage() {
       uninstallable: next.data.uninstallable,
       uninstall_method: optionalText(next.data.uninstall_method),
       restart_action: next.data.restart_action === "None" ? undefined : next.data.restart_action,
+      minimum_munki_version: optionalText(next.data.minimum_munki_version),
       minimum_os_version: optionalText(next.data.minimum_os_version),
       maximum_os_version: optionalText(next.data.maximum_os_version),
       supported_architectures:
         next.data.supported_architectures.length > 0 ? next.data.supported_architectures : undefined,
+      blocking_applications: next.data.blocking_applications,
+      requires: next.data.requires,
+      update_for: next.data.update_for,
       on_demand: next.data.on_demand,
       precache: next.data.precache,
-      installer_artifact_id: pkg.data?.installer_artifact_id,
-      icon_artifact_id: pkg.data?.icon_artifact_id,
+      installer_artifact_id: installerArtifact?.id ?? pkg.data?.installer_artifact_id,
+      icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : pkg.data?.icon_artifact_id),
     };
     await update.mutateAsync({ id: packageId, body });
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareId) } });
   }
+
+  const packageIconURL = iconCleared || !pkg.data?.icon_artifact_id ? undefined : pkg.data.icon_url;
+  const packageIconClearable = !!iconFile || (!iconCleared && !!pkg.data?.icon_artifact_id);
 
   return (
     <PageShell asChild>
@@ -728,225 +907,250 @@ export function MunkiPackageEditPage() {
         <PageHeader
           title="Edit Package"
           description="Edit the typed pkginfo fields Woodstar renders into Munki catalogs."
+          leading={
+            <EditableMunkiIcon
+              title="package icon"
+              iconUrl={packageIconURL}
+              fallbackIconUrl={software.data?.icon_url}
+              file={iconFile}
+              clearable={packageIconClearable}
+              onFileChange={(file) => {
+                setIconFile(file);
+                setIconCleared(false);
+              }}
+              onClear={() => {
+                setIconFile(null);
+                setIconCleared(!!pkg.data?.icon_artifact_id);
+              }}
+            />
+          }
         />
         <MutationError
           title="Failed to Update Package"
-          message={update.error?.message ?? pkg.error?.message ?? software.error?.message}
+          message={
+            update.error?.message ??
+            createUpload.error?.message ??
+            createArtifact.error?.message ??
+            pkg.error?.message ??
+            software.error?.message
+          }
         />
-        <FieldGroup className="max-w-3xl">
-          <TextField
-            id="munki-package-name"
-            label="Name"
-            required
-            description="Stable Munki item name. Keep it consistent across versions when this should update in place."
-            value={form.name}
-            error={showErrors ? errors.name : undefined}
-            placeholder={software.data?.name}
-            onChange={(name) => setForm({ ...form, name })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <TextField
-              id="munki-package-version"
-              label="Version"
-              required
-              value={form.version}
-              error={showErrors ? errors.version : undefined}
-              onChange={(version) => setForm({ ...form, version })}
-            />
-            <TextField
-              id="munki-package-display-name"
-              label="Display Name"
-              value={form.display_name}
-              placeholder={software.data?.display_name}
-              onChange={(display_name) => setForm({ ...form, display_name })}
-            />
-          </FieldGroup>
-          <TextAreaField
-            id="munki-package-description"
-            label="Description"
-            value={form.description}
-            placeholder={software.data?.description}
-            onChange={(description) => setForm({ ...form, description })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <DatalistTextField
-              id="munki-package-category"
-              label="Category"
-              value={form.category}
-              placeholder={software.data?.category}
-              options={categoryOptions}
-              onChange={(category) => setForm({ ...form, category })}
-            />
-            <DatalistTextField
-              id="munki-package-developer"
-              label="Developer"
-              value={form.developer}
-              placeholder={software.data?.developer}
-              options={developerOptions}
-              onChange={(developer) => setForm({ ...form, developer })}
-            />
-            <SelectField
-              id="munki-package-installer-type"
-              label="Installer Type"
-              value={form.installer_type}
-              options={installerTypeOptions}
-              onChange={(installer_type) => setForm({ ...form, installer_type })}
-            />
-          </FieldGroup>
-          <FieldSet>
-            <FieldLegend>Package Behavior</FieldLegend>
-            <FieldDescription>These values are rendered into pkginfo.</FieldDescription>
-            <CheckboxField
-              id="munki-package-eligible"
-              label="Available for assignment"
-              description="Ineligible packages stay stored but are skipped when manifests and catalogs are rendered."
-              checked={form.eligible}
-              onChange={(eligible) => setForm({ ...form, eligible })}
-            />
-            <FieldGroup className="grid gap-4 md:grid-cols-3">
-              <CheckboxField
-                id="munki-package-unattended-install"
-                label="Unattended install"
-                checked={form.unattended_install}
-                onChange={(unattended_install) => setForm({ ...form, unattended_install })}
-              />
-              <CheckboxField
-                id="munki-package-unattended-uninstall"
-                label="Unattended uninstall"
-                checked={form.unattended_uninstall}
-                onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
-              />
-              <CheckboxField
-                id="munki-package-uninstallable"
-                label="Uninstallable"
-                checked={form.uninstallable}
-                onChange={(uninstallable) => setForm({ ...form, uninstallable })}
-              />
-            </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
+        <Tabs defaultValue="basic" className="max-w-3xl">
+          <TabsList>
+            <TabsTrigger value="basic">Basic</TabsTrigger>
+            <TabsTrigger value="contents">Contents</TabsTrigger>
+            <TabsTrigger value="requirements">Requirements</TabsTrigger>
+            <TabsTrigger value="installation">Installation</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          </TabsList>
+          <TabsContent value="basic">
+            <FieldGroup>
               <TextField
-                id="munki-package-uninstall-method"
-                label="Uninstall Method"
-                value={form.uninstall_method}
-                onChange={(uninstall_method) => setForm({ ...form, uninstall_method })}
+                id="munki-package-name"
+                label="Name"
+                required
+                description="Stable Munki item name. Keep it consistent across versions when this should update in place."
+                value={form.name}
+                error={showErrors ? errors.name : undefined}
+                placeholder={software.data?.name}
+                onChange={(name) => setForm({ ...form, name })}
               />
-              <SelectField
-                id="munki-package-restart-action"
-                label="Restart Action"
-                value={form.restart_action}
-                options={restartActionOptions}
-                onChange={(restart_action) => setForm({ ...form, restart_action })}
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="munki-package-version"
+                  label="Version"
+                  required
+                  value={form.version}
+                  error={showErrors ? errors.version : undefined}
+                  onChange={(version) => setForm({ ...form, version })}
+                />
+                <TextField
+                  id="munki-package-display-name"
+                  label="Display Name"
+                  value={form.display_name}
+                  placeholder={software.data?.display_name}
+                  onChange={(display_name) => setForm({ ...form, display_name })}
+                />
+              </FieldGroup>
+              <TextAreaField
+                id="munki-package-description"
+                label="Description"
+                value={form.description}
+                placeholder={software.data?.description}
+                onChange={(description) => setForm({ ...form, description })}
               />
+              <FieldGroup className="grid gap-4 md:grid-cols-3">
+                <DatalistTextField
+                  id="munki-package-category"
+                  label="Category"
+                  value={form.category}
+                  placeholder={software.data?.category}
+                  options={categoryOptions}
+                  onChange={(category) => setForm({ ...form, category })}
+                />
+                <DatalistTextField
+                  id="munki-package-developer"
+                  label="Developer"
+                  value={form.developer}
+                  placeholder={software.data?.developer}
+                  options={developerOptions}
+                  onChange={(developer) => setForm({ ...form, developer })}
+                />
+                <SelectField
+                  id="munki-package-installer-type"
+                  label="Installer Type"
+                  value={form.installer_type}
+                  options={installerTypeOptions}
+                  onChange={(installer_type) => setForm({ ...form, installer_type })}
+                />
+              </FieldGroup>
             </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <TextField
-                id="munki-package-minimum-os"
-                label="Minimum OS"
-                value={form.minimum_os_version}
-                placeholder="14.0"
-                onChange={(minimum_os_version) => setForm({ ...form, minimum_os_version })}
+          </TabsContent>
+          <TabsContent value="contents">
+            <FieldSet>
+              <FieldLegend>Artifacts</FieldLegend>
+              <FieldDescription>
+                Replacing a file uploads a new artifact and keeps the existing artifact if no replacement is selected.
+              </FieldDescription>
+              <FieldGroup>
+                <FileField
+                  id="munki-package-installer-file"
+                  label="Installer"
+                  description={pkg.data?.installer_artifact_location ?? "No installer artifact selected."}
+                  icon={<FileArchive className="size-4" />}
+                  file={installerFile}
+                  onChange={setInstallerFile}
+                />
+              </FieldGroup>
+            </FieldSet>
+          </TabsContent>
+          <TabsContent value="requirements">
+            <PackageRequirementsFields form={form} onChange={setForm} />
+          </TabsContent>
+          <TabsContent value="installation">
+            <FieldSet>
+              <FieldLegend>Package Behavior</FieldLegend>
+              <FieldDescription>These values are rendered into pkginfo.</FieldDescription>
+              <CheckboxField
+                id="munki-package-eligible"
+                label="Available for assignment"
+                description="Ineligible packages stay stored but are skipped when manifests and catalogs are rendered."
+                checked={form.eligible}
+                onChange={(eligible) => setForm({ ...form, eligible })}
               />
-              <TextField
-                id="munki-package-maximum-os"
-                label="Maximum OS"
-                value={form.maximum_os_version}
-                placeholder="15.99"
-                onChange={(maximum_os_version) => setForm({ ...form, maximum_os_version })}
-              />
-            </FieldGroup>
-            <Field>
-              <FieldLabel>Supported Architectures</FieldLabel>
-              <div className="grid gap-3 md:grid-cols-2">
+              <FieldGroup className="grid gap-4 md:grid-cols-3">
                 <CheckboxField
-                  id="munki-package-arch-arm64"
-                  label="Apple silicon"
-                  checked={form.supported_architectures.includes("arm64")}
-                  onChange={(checked) =>
-                    setForm({ ...form, supported_architectures: toggleArch(form, "arm64", checked) })
-                  }
+                  id="munki-package-unattended-install"
+                  label="Unattended install"
+                  checked={form.unattended_install}
+                  onChange={(unattended_install) => setForm({ ...form, unattended_install })}
                 />
                 <CheckboxField
-                  id="munki-package-arch-x86"
-                  label="Intel"
-                  checked={form.supported_architectures.includes("x86_64")}
-                  onChange={(checked) =>
-                    setForm({ ...form, supported_architectures: toggleArch(form, "x86_64", checked) })
-                  }
+                  id="munki-package-unattended-uninstall"
+                  label="Unattended uninstall"
+                  checked={form.unattended_uninstall}
+                  onChange={(unattended_uninstall) => setForm({ ...form, unattended_uninstall })}
                 />
-              </div>
-            </Field>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <CheckboxField
-                id="munki-package-on-demand"
-                label="On demand"
-                checked={form.on_demand}
-                onChange={(on_demand) => setForm({ ...form, on_demand })}
-              />
-              <CheckboxField
-                id="munki-package-precache"
-                label="Precache"
-                checked={form.precache}
-                onChange={(precache) => setForm({ ...form, precache })}
-              />
-            </FieldGroup>
-          </FieldSet>
+                <CheckboxField
+                  id="munki-package-uninstallable"
+                  label="Uninstallable"
+                  checked={form.uninstallable}
+                  onChange={(uninstallable) => setForm({ ...form, uninstallable })}
+                />
+              </FieldGroup>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="munki-package-uninstall-method"
+                  label="Uninstall Method"
+                  value={form.uninstall_method}
+                  onChange={(uninstall_method) => setForm({ ...form, uninstall_method })}
+                />
+                <SelectField
+                  id="munki-package-restart-action"
+                  label="Restart Action"
+                  value={form.restart_action}
+                  options={restartActionOptions}
+                  onChange={(restart_action) => setForm({ ...form, restart_action })}
+                />
+              </FieldGroup>
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
+                <CheckboxField
+                  id="munki-package-on-demand"
+                  label="On demand"
+                  checked={form.on_demand}
+                  onChange={(on_demand) => setForm({ ...form, on_demand })}
+                />
+                <CheckboxField
+                  id="munki-package-precache"
+                  label="Precache"
+                  checked={form.precache}
+                  onChange={(precache) => setForm({ ...form, precache })}
+                />
+              </FieldGroup>
+            </FieldSet>
+          </TabsContent>
+          <TabsContent value="advanced">
+            <FieldSet>
+              <FieldLegend>Rendered Pkginfo</FieldLegend>
+              <FieldDescription>
+                This is generated from typed fields. Scripts and alerts stay out of this slice until Woodstar stores
+                those Munki fields explicitly.
+              </FieldDescription>
+              {pkg.data?.pkginfo ? (
+                <Textarea
+                  value={JSON.stringify(pkg.data.pkginfo, null, 2)}
+                  readOnly
+                  className="min-h-72 font-mono text-xs"
+                />
+              ) : null}
+            </FieldSet>
+          </TabsContent>
           <FormActions
-            pending={update.isPending || pkg.isLoading}
+            pending={update.isPending || createUpload.isPending || createArtifact.isPending || pkg.isLoading}
             cancelTo="/munki/software-titles/$softwareId"
             cancelParams={{ softwareId: String(softwareId ?? "") }}
           />
-        </FieldGroup>
+        </Tabs>
       </form>
     </PageShell>
   );
 }
 
-export function MunkiDeploymentNewPage() {
+export function MunkiAssignmentNewPage() {
   const navigate = useNavigate();
   const softwareId = useSoftwareIDParam();
   const software = useMunkiSoftwareTitle(softwareId);
-  const create = useCreateMunkiDeployment();
+  const create = useCreateMunkiAssignment();
   const packages = software.data?.packages ?? [];
-  const [form, setForm] = useState<DeploymentFormState>({
+  const [form, setForm] = useState<AssignmentFormState>({
+    priority: 1,
+    effect: "include",
+    label_id: "",
     package_selection: "latest_eligible",
     pinned_package_id: "",
     action: "install",
     optional_install: false,
     featured_item: false,
-    all_hosts: true,
-    include_label_ids: [],
-    exclude_label_ids: [],
   });
   const [showErrors, setShowErrors] = useState(false);
-  const parsed = useMemo(
-    () =>
-      deploymentSchema.safeParse({
-        ...form,
-        pinned_package_id: form.pinned_package_id,
-      }),
-    [form],
-  );
+  const parsed = useMemo(() => assignmentSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
+  useEffect(() => {
+    if (!software.data) return;
+    setForm((current) => ({
+      ...current,
+      priority: current.priority === 1 ? (software.data.assignments?.length ?? 0) + 1 : current.priority,
+    }));
+  }, [software.data]);
+
   async function submit() {
-    const next = deploymentSchema.safeParse(form);
+    const next = assignmentSchema.safeParse(form);
     if (!next.success || softwareId === null) {
       setShowErrors(true);
       return;
     }
-    const pinnedPackageID =
-      next.data.package_selection === "specific_package" ? Number(next.data.pinned_package_id) : undefined;
-    const body: MunkiDeploymentMutation = {
-      software_id: softwareId,
-      action: next.data.action,
-      optional_install: next.data.optional_install,
-      featured_item: next.data.featured_item,
-      package_selection: next.data.package_selection,
-      pinned_package_id: pinnedPackageID,
-      all_hosts: next.data.all_hosts,
-      include_label_ids: next.data.all_hosts ? [] : next.data.include_label_ids,
-      exclude_label_ids: next.data.exclude_label_ids,
-    };
+    const body = assignmentBody(softwareId, next.data);
     await create.mutateAsync(body);
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareId) } });
   }
@@ -954,269 +1158,193 @@ export function MunkiDeploymentNewPage() {
   return (
     <PageShell asChild>
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
-        <PageHeader
-          title="New Assignment"
-          description="Target this software and choose the Munki manifest sections Woodstar renders."
-        />
+        <PageHeader title="New Assignment" description="Priority decides which matching row wins for this software." />
         <MutationError title="Failed to Create Assignment" message={create.error?.message ?? software.error?.message} />
-        <FieldGroup className="max-w-3xl">
-          <Field>
-            <FieldLabel htmlFor="munki-deployment-selection" required>
-              Package Selection
-            </FieldLabel>
-            <Select
-              value={form.package_selection}
-              onValueChange={(package_selection) =>
-                setForm({
-                  ...form,
-                  package_selection: package_selection as PackageSelection,
-                  pinned_package_id: package_selection === "latest_eligible" ? "" : form.pinned_package_id,
-                })
-              }
-            >
-              <SelectTrigger id="munki-deployment-selection" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {packageSelectionOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldDescription>{packageSelectionDescription(form.package_selection)}</FieldDescription>
-          </Field>
-
-          {form.package_selection === "specific_package" ? (
-            <Field data-invalid={showErrors && errors.pinned_package_id ? true : undefined}>
-              <FieldLabel htmlFor="munki-deployment-package" required>
-                Pinned Package
-              </FieldLabel>
-              <Select
-                value={form.pinned_package_id}
-                onValueChange={(pinned_package_id) => setForm({ ...form, pinned_package_id })}
-              >
-                <SelectTrigger id="munki-deployment-package" className="w-full">
-                  <SelectValue placeholder={software.isLoading ? "Loading..." : "Select Package"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {packages.map((pkg) => (
-                      <SelectItem key={pkg.id} value={String(pkg.id)}>
-                        {pkg.version} · {pkg.display_name || pkg.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <FieldDescription>Rendered as Name--Version in the manifest.</FieldDescription>
-              {showErrors && errors.pinned_package_id ? <FieldError>{errors.pinned_package_id}</FieldError> : null}
-            </Field>
-          ) : null}
-
-          <Field>
-            <FieldLabel htmlFor="munki-deployment-action" required>
-              Managed Section
-            </FieldLabel>
-            <Select
-              value={form.action}
-              onValueChange={(action) =>
-                setForm({
-                  ...form,
-                  action: action as DeploymentAction,
-                  optional_install: action === "remove" ? false : form.optional_install,
-                  featured_item: action === "remove" ? false : form.featured_item,
-                })
-              }
-            >
-              <SelectTrigger id="munki-deployment-action" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {actionOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldDescription>{actionDescription(form.action)}</FieldDescription>
-          </Field>
-
-          <FieldSet>
-            <FieldLegend>Managed Software Centre</FieldLegend>
-            <FieldDescription>These write the optional_installs and featured_items manifest sections.</FieldDescription>
-            <CheckboxField
-              id="munki-deployment-optional-install"
-              label="Optional Installs"
-              description="Adds this item to optional_installs so it appears in MSC."
-              checked={form.optional_install}
-              disabled={form.action === "remove"}
-              onChange={(optional_install) =>
-                setForm({
-                  ...form,
-                  optional_install,
-                  featured_item: optional_install ? form.featured_item : false,
-                })
-              }
-            />
-            <CheckboxField
-              id="munki-deployment-featured-item"
-              label="Featured Items"
-              description="Also adds this item to featured_items. Munki expects featured items to also be optional installs."
-              checked={form.featured_item}
-              disabled={form.action === "remove"}
-              onChange={(featured_item) =>
-                setForm({
-                  ...form,
-                  optional_install: featured_item ? true : form.optional_install,
-                  featured_item,
-                })
-              }
-            />
-            {showErrors && errors.optional_install ? <FieldError>{errors.optional_install}</FieldError> : null}
-            {showErrors && errors.featured_item ? <FieldError>{errors.featured_item}</FieldError> : null}
-          </FieldSet>
-
-          <CheckboxField
-            id="munki-deployment-all-hosts"
-            label="All devices"
-            description="Targets every known host unless an excluded label removes it."
-            checked={form.all_hosts}
-            onChange={(all_hosts) => setForm({ ...form, all_hosts })}
-          />
-
-          {form.all_hosts ? null : (
-            <Field data-invalid={showErrors && errors.include_label_ids ? true : undefined}>
-              <FieldLabel required>Target Labels</FieldLabel>
-              <LabelPicker
-                value={form.include_label_ids}
-                selectionMode="multiple"
-                includeBuiltins
-                unavailableLabelIDs={form.exclude_label_ids}
-                invalid={showErrors && errors.include_label_ids ? true : undefined}
-                onChange={(include_label_ids) => setForm({ ...form, include_label_ids })}
-              />
-              <FieldDescription>When All devices is off, a host must match at least one target label.</FieldDescription>
-              {showErrors && errors.include_label_ids ? <FieldError>{errors.include_label_ids}</FieldError> : null}
-            </Field>
-          )}
-
-          <Field>
-            <FieldLabel>Excluded Labels</FieldLabel>
-            <LabelPicker
-              value={form.exclude_label_ids}
-              selectionMode="multiple"
-              includeBuiltins
-              unavailableLabelIDs={form.include_label_ids}
-              onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
-            />
-            <FieldDescription>
-              Matching hosts are removed from this deployment, even when they match All devices or a target label.
-            </FieldDescription>
-          </Field>
-
-          <FormActions
-            pending={create.isPending}
-            cancelTo="/munki/software-titles/$softwareId"
-            cancelParams={{ softwareId: String(softwareId ?? "") }}
-          />
-        </FieldGroup>
+        <AssignmentFormFields
+          form={form}
+          packages={packages}
+          showErrors={showErrors}
+          errors={errors}
+          loadingPackages={software.isLoading}
+          onChange={setForm}
+        />
+        <FormActions
+          pending={create.isPending}
+          cancelTo="/munki/software-titles/$softwareId"
+          cancelParams={{ softwareId: String(softwareId ?? "") }}
+        />
       </form>
     </PageShell>
   );
 }
 
-export function MunkiDeploymentEditPage() {
+export function MunkiAssignmentEditPage() {
   const navigate = useNavigate();
   const softwareId = useSoftwareIDParam();
-  const deploymentId = useDeploymentIDParam();
+  const assignmentId = useAssignmentIDParam();
   const software = useMunkiSoftwareTitle(softwareId);
-  const deployment = useMunkiDeployment(deploymentId);
-  const update = useUpdateMunkiDeployment();
+  const assignment = useMunkiAssignment(assignmentId);
+  const update = useUpdateMunkiAssignment();
   const packages = software.data?.packages ?? [];
-  const [form, setForm] = useState<DeploymentFormState>({
+  const [form, setForm] = useState<AssignmentFormState>({
+    priority: 1,
+    effect: "include",
+    label_id: "",
     package_selection: "latest_eligible",
     pinned_package_id: "",
     action: "install",
     optional_install: false,
     featured_item: false,
-    all_hosts: true,
-    include_label_ids: [],
-    exclude_label_ids: [],
   });
   const [showErrors, setShowErrors] = useState(false);
-  const parsed = useMemo(() => deploymentSchema.safeParse(form), [form]);
+  const parsed = useMemo(() => assignmentSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
 
   useEffect(() => {
-    if (!deployment.data) return;
+    if (!assignment.data) return;
     setForm({
-      package_selection: deployment.data.package_selection,
-      pinned_package_id: deployment.data.pinned_package_id ? String(deployment.data.pinned_package_id) : "",
-      action: deployment.data.action,
-      optional_install: deployment.data.optional_install,
-      featured_item: deployment.data.featured_item,
-      all_hosts: deployment.data.all_hosts,
-      include_label_ids: deployment.data.include_label_ids ?? [],
-      exclude_label_ids: deployment.data.exclude_label_ids ?? [],
+      priority: assignment.data.priority,
+      effect: assignment.data.effect,
+      label_id: String(assignment.data.label_id),
+      package_selection: assignment.data.package_selection ?? "latest_eligible",
+      pinned_package_id: assignment.data.pinned_package_id ? String(assignment.data.pinned_package_id) : "",
+      action: assignment.data.action ?? "install",
+      optional_install: assignment.data.optional_install,
+      featured_item: assignment.data.featured_item,
     });
-  }, [deployment.data]);
+  }, [assignment.data]);
 
   async function submit() {
-    const next = deploymentSchema.safeParse(form);
-    if (!next.success || softwareId === null || deploymentId === null) {
+    const next = assignmentSchema.safeParse(form);
+    if (!next.success || softwareId === null || assignmentId === null) {
       setShowErrors(true);
       return;
     }
-    const body: MunkiDeploymentMutation = {
-      software_id: softwareId,
-      action: next.data.action,
-      optional_install: next.data.optional_install,
-      featured_item: next.data.featured_item,
-      package_selection: next.data.package_selection,
-      pinned_package_id:
-        next.data.package_selection === "specific_package" ? Number(next.data.pinned_package_id) : undefined,
-      all_hosts: next.data.all_hosts,
-      include_label_ids: next.data.all_hosts ? [] : next.data.include_label_ids,
-      exclude_label_ids: next.data.exclude_label_ids,
-    };
-    await update.mutateAsync({ id: deploymentId, body });
+    const body = assignmentBody(softwareId, next.data);
+    await update.mutateAsync({ id: assignmentId, body });
     void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareId) } });
   }
 
   return (
     <PageShell asChild>
       <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
-        <PageHeader
-          title="Edit Assignment"
-          description="Adjust targeting, managed action, Optional Installs, Featured Items, and package selection."
-        />
+        <PageHeader title="Edit Assignment" description="Priority 1 is evaluated first." />
         <MutationError
           title="Failed to Update Assignment"
-          message={update.error?.message ?? deployment.error?.message ?? software.error?.message}
+          message={update.error?.message ?? assignment.error?.message ?? software.error?.message}
         />
-        <FieldGroup className="max-w-3xl">
+        <AssignmentFormFields
+          form={form}
+          packages={packages}
+          showErrors={showErrors}
+          errors={errors}
+          loadingPackages={software.isLoading}
+          onChange={setForm}
+        />
+        <FormActions
+          pending={update.isPending || assignment.isLoading}
+          cancelTo="/munki/software-titles/$softwareId"
+          cancelParams={{ softwareId: String(softwareId ?? "") }}
+        />
+      </form>
+    </PageShell>
+  );
+}
+
+function AssignmentFormFields({
+  form,
+  packages,
+  showErrors,
+  errors,
+  loadingPackages,
+  onChange,
+}: {
+  form: AssignmentFormState;
+  packages: Array<{ id: number; version: string; display_name?: string; name: string }>;
+  showErrors: boolean;
+  errors: Record<string, string>;
+  loadingPackages: boolean;
+  onChange: (next: AssignmentFormState) => void;
+}) {
+  const include = form.effect === "include";
+  return (
+    <FieldGroup className="max-w-3xl">
+      <Field data-invalid={showErrors && errors.priority ? true : undefined}>
+        <FieldLabel htmlFor="munki-assignment-priority" required>
+          Priority
+        </FieldLabel>
+        <Input
+          id="munki-assignment-priority"
+          type="number"
+          min={1}
+          step={1}
+          required
+          inputMode="numeric"
+          aria-invalid={showErrors && errors.priority ? true : undefined}
+          value={form.priority}
+          onChange={(event) => onChange({ ...form, priority: Number(event.target.value) })}
+        />
+        {showErrors && errors.priority ? <FieldError>{errors.priority}</FieldError> : null}
+      </Field>
+
+      <Field data-invalid={showErrors && errors.label_id ? true : undefined}>
+        <FieldLabel required>Label</FieldLabel>
+        <LabelPicker
+          value={form.label_id ? [Number(form.label_id)] : []}
+          onChange={(labelIDs) => onChange({ ...form, label_id: labelIDs[0] ? String(labelIDs[0]) : "" })}
+          selectionMode="single"
+          includeBuiltins
+          placeholder="Select label"
+          required
+          invalid={showErrors && errors.label_id ? true : undefined}
+        />
+        {showErrors && errors.label_id ? <FieldError>{errors.label_id}</FieldError> : null}
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="munki-assignment-effect" required>
+          Effect
+        </FieldLabel>
+        <Select
+          value={form.effect}
+          onValueChange={(effect) =>
+            onChange({
+              ...form,
+              effect: effect as AssignmentEffect,
+              optional_install: effect === "exclude" ? false : form.optional_install,
+              featured_item: effect === "exclude" ? false : form.featured_item,
+            })
+          }
+        >
+          <SelectTrigger id="munki-assignment-effect" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="include">Include</SelectItem>
+              <SelectItem value="exclude">Exclude</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      {include ? (
+        <>
           <Field>
-            <FieldLabel htmlFor="munki-deployment-selection" required>
+            <FieldLabel htmlFor="munki-assignment-selection" required>
               Package Selection
             </FieldLabel>
             <Select
               value={form.package_selection}
               onValueChange={(package_selection) =>
-                setForm({
+                onChange({
                   ...form,
                   package_selection: package_selection as PackageSelection,
                   pinned_package_id: package_selection === "latest_eligible" ? "" : form.pinned_package_id,
                 })
               }
             >
-              <SelectTrigger id="munki-deployment-selection" className="w-full">
+              <SelectTrigger id="munki-assignment-selection" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1234,21 +1362,21 @@ export function MunkiDeploymentEditPage() {
 
           {form.package_selection === "specific_package" ? (
             <Field data-invalid={showErrors && errors.pinned_package_id ? true : undefined}>
-              <FieldLabel htmlFor="munki-deployment-package" required>
+              <FieldLabel htmlFor="munki-assignment-package" required>
                 Pinned Package
               </FieldLabel>
               <Select
                 value={form.pinned_package_id}
-                onValueChange={(pinned_package_id) => setForm({ ...form, pinned_package_id })}
+                onValueChange={(pinned_package_id) => onChange({ ...form, pinned_package_id })}
               >
-                <SelectTrigger id="munki-deployment-package" className="w-full">
-                  <SelectValue placeholder={software.isLoading ? "Loading..." : "Select Package"} />
+                <SelectTrigger id="munki-assignment-package" className="w-full">
+                  <SelectValue placeholder={loadingPackages ? "Loading..." : "Select Package"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {packages.map((pkg) => (
                       <SelectItem key={pkg.id} value={String(pkg.id)}>
-                        {pkg.version} · {pkg.display_name || pkg.name}
+                        {pkg.version} · {pkg.display_name ?? pkg.name}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -1260,21 +1388,21 @@ export function MunkiDeploymentEditPage() {
           ) : null}
 
           <Field>
-            <FieldLabel htmlFor="munki-deployment-action" required>
+            <FieldLabel htmlFor="munki-assignment-action" required>
               Managed Section
             </FieldLabel>
             <Select
               value={form.action}
               onValueChange={(action) =>
-                setForm({
+                onChange({
                   ...form,
-                  action: action as DeploymentAction,
+                  action: action as AssignmentAction,
                   optional_install: action === "remove" ? false : form.optional_install,
                   featured_item: action === "remove" ? false : form.featured_item,
                 })
               }
             >
-              <SelectTrigger id="munki-deployment-action" className="w-full">
+              <SelectTrigger id="munki-assignment-action" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1294,13 +1422,13 @@ export function MunkiDeploymentEditPage() {
             <FieldLegend>Managed Software Centre</FieldLegend>
             <FieldDescription>These write the optional_installs and featured_items manifest sections.</FieldDescription>
             <CheckboxField
-              id="munki-deployment-optional-install"
+              id="munki-assignment-optional-install"
               label="Optional Installs"
               description="Adds this item to optional_installs so it appears in MSC."
               checked={form.optional_install}
               disabled={form.action === "remove"}
               onChange={(optional_install) =>
-                setForm({
+                onChange({
                   ...form,
                   optional_install,
                   featured_item: optional_install ? form.featured_item : false,
@@ -1308,13 +1436,13 @@ export function MunkiDeploymentEditPage() {
               }
             />
             <CheckboxField
-              id="munki-deployment-featured-item"
+              id="munki-assignment-featured-item"
               label="Featured Items"
               description="Also adds this item to featured_items. Munki expects featured items to also be optional installs."
               checked={form.featured_item}
               disabled={form.action === "remove"}
               onChange={(featured_item) =>
-                setForm({
+                onChange({
                   ...form,
                   optional_install: featured_item ? true : form.optional_install,
                   featured_item,
@@ -1324,54 +1452,30 @@ export function MunkiDeploymentEditPage() {
             {showErrors && errors.optional_install ? <FieldError>{errors.optional_install}</FieldError> : null}
             {showErrors && errors.featured_item ? <FieldError>{errors.featured_item}</FieldError> : null}
           </FieldSet>
-
-          <CheckboxField
-            id="munki-deployment-all-hosts"
-            label="All devices"
-            description="Targets every known host unless an excluded label removes it."
-            checked={form.all_hosts}
-            onChange={(all_hosts) => setForm({ ...form, all_hosts })}
-          />
-
-          {form.all_hosts ? null : (
-            <Field data-invalid={showErrors && errors.include_label_ids ? true : undefined}>
-              <FieldLabel required>Target Labels</FieldLabel>
-              <LabelPicker
-                value={form.include_label_ids}
-                selectionMode="multiple"
-                includeBuiltins
-                unavailableLabelIDs={form.exclude_label_ids}
-                invalid={showErrors && errors.include_label_ids ? true : undefined}
-                onChange={(include_label_ids) => setForm({ ...form, include_label_ids })}
-              />
-              <FieldDescription>When All devices is off, a host must match at least one target label.</FieldDescription>
-              {showErrors && errors.include_label_ids ? <FieldError>{errors.include_label_ids}</FieldError> : null}
-            </Field>
-          )}
-
-          <Field>
-            <FieldLabel>Excluded Labels</FieldLabel>
-            <LabelPicker
-              value={form.exclude_label_ids}
-              selectionMode="multiple"
-              includeBuiltins
-              unavailableLabelIDs={form.include_label_ids}
-              onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
-            />
-            <FieldDescription>
-              Matching hosts are removed from this assignment, even when they match All devices or a target label.
-            </FieldDescription>
-          </Field>
-
-          <FormActions
-            pending={update.isPending || deployment.isLoading}
-            cancelTo="/munki/software-titles/$softwareId"
-            cancelParams={{ softwareId: String(softwareId ?? "") }}
-          />
-        </FieldGroup>
-      </form>
-    </PageShell>
+        </>
+      ) : null}
+    </FieldGroup>
   );
+}
+
+function assignmentBody(softwareId: number, form: AssignmentFormState): MunkiAssignmentMutation {
+  const body: MunkiAssignmentMutation = {
+    software_id: softwareId,
+    priority: form.priority,
+    effect: form.effect,
+    label_id: Number(form.label_id),
+  };
+  if (form.effect === "exclude") {
+    return body;
+  }
+  return {
+    ...body,
+    action: form.action,
+    optional_install: form.optional_install,
+    featured_item: form.featured_item,
+    package_selection: form.package_selection,
+    pinned_package_id: form.package_selection === "specific_package" ? Number(form.pinned_package_id) : undefined,
+  };
 }
 
 function useSoftwareIDParam() {
@@ -1386,9 +1490,9 @@ function usePackageIDParam() {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-function useDeploymentIDParam() {
+function useAssignmentIDParam() {
   const params = useParams({ strict: false });
-  const id = Number(params.deploymentId);
+  const id = Number(params.assignmentId);
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
@@ -1396,8 +1500,88 @@ function packageSelectionDescription(value: PackageSelection) {
   return packageSelectionOptions.find((option) => option.value === value)?.description;
 }
 
-function actionDescription(value: DeploymentAction) {
+function actionDescription(value: AssignmentAction) {
   return actionOptions.find((option) => option.value === value)?.description;
+}
+
+function PackageRequirementsFields({
+  form,
+  onChange,
+}: {
+  form: PackageFormState;
+  onChange: (next: PackageFormState) => void;
+}) {
+  return (
+    <FieldSet>
+      <FieldLegend>Requirements</FieldLegend>
+      <FieldDescription>
+        These map to Munki pkginfo requirement fields. Leave lists empty when the package has no prerequisite, updater,
+        or blocking-app rule.
+      </FieldDescription>
+      <TextField
+        id="munki-package-minimum-munki-version"
+        label="Minimum Munki Version"
+        value={form.minimum_munki_version}
+        placeholder="7.0"
+        onChange={(minimum_munki_version) => onChange({ ...form, minimum_munki_version })}
+      />
+      <FieldGroup className="grid gap-4 md:grid-cols-2">
+        <TextField
+          id="munki-package-minimum-os"
+          label="Minimum OS"
+          value={form.minimum_os_version}
+          placeholder="14.0"
+          onChange={(minimum_os_version) => onChange({ ...form, minimum_os_version })}
+        />
+        <TextField
+          id="munki-package-maximum-os"
+          label="Maximum OS"
+          value={form.maximum_os_version}
+          placeholder="15.99"
+          onChange={(maximum_os_version) => onChange({ ...form, maximum_os_version })}
+        />
+      </FieldGroup>
+      <Field>
+        <FieldLabel>Supported Architectures</FieldLabel>
+        <div className="grid gap-3 md:grid-cols-2">
+          <CheckboxField
+            id="munki-package-arch-arm64"
+            label="Apple silicon"
+            checked={form.supported_architectures.includes("arm64")}
+            onChange={(checked) => onChange({ ...form, supported_architectures: toggleArch(form, "arm64", checked) })}
+          />
+          <CheckboxField
+            id="munki-package-arch-x86"
+            label="Intel"
+            checked={form.supported_architectures.includes("x86_64")}
+            onChange={(checked) => onChange({ ...form, supported_architectures: toggleArch(form, "x86_64", checked) })}
+          />
+        </div>
+        <FieldDescription>Leave both unchecked when the item applies to every supported Mac.</FieldDescription>
+      </Field>
+      <StringListField
+        id="munki-package-blocking-applications"
+        label="Blocking Applications"
+        description="Application names Munki should check before install or removal."
+        value={form.blocking_applications}
+        onChange={(blocking_applications) => onChange({ ...form, blocking_applications })}
+      />
+      <StringListField
+        id="munki-package-requires"
+        label="Requires"
+        description="Munki item names that must be installed before this item."
+        value={form.requires}
+        onChange={(requires) => onChange({ ...form, requires })}
+      />
+      <StringListField
+        id="munki-package-update-for"
+        label="Update For"
+        description="Munki item names this item updates when already present."
+        value={form.update_for}
+        onChange={(update_for) => onChange({ ...form, update_for })}
+      />
+    </FieldSet>
+  );
 }
 
 function TextField({
@@ -1427,6 +1611,28 @@ function TextField({
       <Input id={id} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
       {description ? <FieldDescription>{description}</FieldDescription> : null}
       {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
+  );
+}
+
+function StringListField({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input id={id} value={value} placeholder="ItemA, ItemB" onChange={(event) => onChange(event.target.value)} />
+      <FieldDescription>{description}</FieldDescription>
     </Field>
   );
 }
@@ -1620,6 +1826,18 @@ function MutationError({ title, message }: { title: string; message?: string }) 
 function optionalText(value: string) {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
+}
+
+function cleanStringArray(values: string[]) {
+  return values.map((value) => value.trim()).filter(Boolean);
+}
+
+function parseStringList(value: string) {
+  return cleanStringArray(value.split(","));
+}
+
+function formatStringList(values: string[]) {
+  return values.join(", ");
 }
 
 function toggleArch(form: PackageFormState, arch: "arm64" | "x86_64", checked: boolean) {

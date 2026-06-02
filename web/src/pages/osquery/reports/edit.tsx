@@ -7,8 +7,8 @@ import { z } from "zod";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LabelScopeSelector } from "@/components/queries/label-scope-selector";
 import { LiveRunButton } from "@/components/queries/query-ui";
+import { TargetLabelRowEditor } from "@/components/targeting/target-label-row-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -39,7 +39,7 @@ const emptyReport: ReportMutation = {
   description: "",
   query: "select * from os_version;",
   schedule_interval: 0,
-  label_scope: {},
+  targets: [],
 };
 
 const reportFormSchema = z.object({
@@ -81,7 +81,7 @@ export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
           query: detail.data.query,
           min_osquery_version: detail.data.min_osquery_version,
           schedule_interval: detail.data.schedule_interval,
-          label_scope: detail.data.label_scope ?? {},
+          targets: detail.data.targets ?? [],
         }
       : emptyReport;
 
@@ -210,7 +210,11 @@ function ReportEditForm({
           </Field>
         </FieldGroup>
 
-        <LabelScopeSelector value={form.label_scope} onChange={(label_scope) => setForm({ ...form, label_scope })} />
+        <TargetLabelRowEditor
+          value={form.targets ?? []}
+          onChange={(targets) => setForm({ ...form, targets })}
+          noun="report"
+        />
 
         <Field data-invalid={showErrors && errors.query ? true : undefined}>
           <FieldLabel required>Query</FieldLabel>

@@ -5,18 +5,18 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { LabelScope } from "@/lib/api";
-import { targetScopeLabel } from "@/lib/targeting";
+import type { TargetLabel } from "@/lib/api";
+import { targetSummary } from "@/lib/targeting";
 import { cn, formatInterval } from "@/lib/utils";
 
 const LazySQLEditor = lazy(() =>
   import("@/components/editor/sql-editor").then((module) => ({ default: module.SQLEditor })),
 );
 
-export function TargetSummary({ scope }: { scope?: LabelScope }) {
+export function TargetSummary({ targets }: { targets?: TargetLabel[] | null }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
-      <span>{targetScopeLabel(scope)}</span>
+      <span>{targetSummary(targets)}</span>
     </span>
   );
 }

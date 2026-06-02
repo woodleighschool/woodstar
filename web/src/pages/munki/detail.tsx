@@ -1,12 +1,12 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Loader2, PackageCheck, Package as PackageIcon, Plus } from "lucide-react";
+import { Loader2, PackageCheck, Pencil, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableRowDragHandle } from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
+import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,8 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { useLabels } from "@/hooks/use-labels";
 import {
   useMunkiSoftwareTitle,
-  useReorderMunkiDeployments,
-  type MunkiDeployment,
+  useReorderMunkiAssignments,
+  type MunkiAssignment,
   type MunkiPackage,
 } from "@/hooks/use-munki";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
@@ -38,12 +38,12 @@ export function MunkiSoftwareTitleDetailPage() {
   const softwareId = Number(params.softwareId);
   const query = useMunkiSoftwareTitle(Number.isFinite(softwareId) ? softwareId : null);
   const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
-  const reorder = useReorderMunkiDeployments();
+  const reorder = useReorderMunkiAssignments();
   const [reorderEnabled, setReorderEnabled] = useState(false);
-  const [orderedDeployments, setOrderedDeployments] = useState<MunkiDeployment[]>([]);
+  const [orderedAssignments, setOrderedAssignments] = useState<MunkiAssignment[]>([]);
   const software = query.data;
   const packages = software?.packages ?? [];
-  const deployments = useMemo(() => software?.deployments ?? [], [software?.deployments]);
+  const assignments = useMemo(() => software?.assignments ?? [], [software?.assignments]);
   const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
@@ -53,19 +53,19 @@ export function MunkiSoftwareTitleDetailPage() {
   if (software?.display_name) title = software.display_name;
 
   useEffect(() => {
-    setOrderedDeployments(deployments);
-  }, [deployments]);
+    setOrderedAssignments(assignments);
+  }, [assignments]);
 
-  function moveDeployments(next: MunkiDeployment[]) {
-    setOrderedDeployments(next.map((deployment, position) => ({ ...deployment, position })));
+  function moveAssignments(next: MunkiAssignment[]) {
+    setOrderedAssignments(next.map((assignment, index) => ({ ...assignment, priority: index + 1 })));
   }
 
   function saveOrder() {
     reorder.mutate(
-      { softwareId, orderedIds: orderedDeployments.map((deployment) => deployment.id) },
+      { softwareId, orderedIds: orderedAssignments.map((assignment) => assignment.id) },
       {
         onSuccess: () => setReorderEnabled(false),
-        onError: () => setOrderedDeployments(deployments),
+        onError: () => setOrderedAssignments(assignments),
       },
     );
   }
@@ -115,7 +115,7 @@ export function MunkiSoftwareTitleDetailPage() {
     },
   ];
 
-  const deploymentColumns: ColumnDef<MunkiDeployment>[] = [
+  const assignmentColumns: ColumnDef<MunkiAssignment>[] = [
     ...(reorderEnabled
       ? ([
           {
@@ -126,56 +126,48 @@ export function MunkiSoftwareTitleDetailPage() {
             cell: () => <DataTableRowDragHandle />,
             meta: { headClassName: "w-10", cellClassName: "w-10" },
           },
-        ] satisfies ColumnDef<MunkiDeployment>[])
+        ] satisfies ColumnDef<MunkiAssignment>[])
       : []),
     {
-      id: "position",
-      accessorKey: "position",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Order" />,
-      cell: ({ row }) => row.original.position + 1,
+      id: "priority",
+      accessorKey: "priority",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
+      cell: ({ row }) => row.original.priority,
       meta: { headClassName: "w-20", cellClassName: "w-20" },
+    },
+    {
+      id: "effect",
+      accessorKey: "effect",
+      header: "Effect",
+      enableSorting: false,
+      cell: ({ row }) => effectLabel(row.original.effect),
+    },
+    {
+      id: "label",
+      accessorKey: "label_id",
+      header: "Label",
+      enableSorting: false,
+      cell: ({ row }) => labelsByID.get(row.original.label_id)?.name ?? `Label ${row.original.label_id}`,
     },
     {
       id: "selection",
       accessorKey: "package_selection",
       header: "Package",
       enableSorting: false,
-      cell: ({ row }) => deploymentPackageLabel(row.original),
+      cell: ({ row }) => assignmentPackageLabel(row.original),
     },
     {
       id: "action",
       accessorKey: "action",
       header: "Managed",
       enableSorting: false,
-      cell: ({ row }) => actionLabels[row.original.action] ?? row.original.action,
+      cell: ({ row }) => assignmentActionLabel(row.original),
     },
     {
       id: "msc",
-      header: "MSC",
+      header: "Availability",
       enableSorting: false,
-      cell: ({ row }) => deploymentMSCSections(row.original).join(", ") || "None",
-    },
-    {
-      id: "targets",
-      header: "Targets",
-      enableSorting: false,
-      cell: ({ row }) =>
-        row.original.all_hosts ? (
-          "All devices"
-        ) : (
-          <TargetLabelsCell labelIDs={row.original.include_label_ids ?? []} labelsByID={labelsByID} />
-        ),
-    },
-    {
-      id: "exclusions",
-      header: "Exclusions",
-      enableSorting: false,
-      cell: ({ row }) =>
-        (row.original.exclude_label_ids ?? []).length === 0 ? (
-          "None"
-        ) : (
-          <TargetLabelsCell labelIDs={row.original.exclude_label_ids ?? []} labelsByID={labelsByID} />
-        ),
+      cell: ({ row }) => assignmentMSCSections(row.original).join(", ") || "None",
     },
   ];
 
@@ -184,9 +176,16 @@ export function MunkiSoftwareTitleDetailPage() {
       <PageHeader
         title={title}
         description="Software is targeted once. Pkginfos provide the versioned Munki candidates each assignment can render."
+        leading={software ? <MunkiIcon iconUrl={software.icon_url} size="lg" /> : undefined}
         actions={
           software ? (
             <>
+              <Button asChild size="sm" variant="outline">
+                <Link to="/munki/software-titles/$softwareId/edit" params={{ softwareId: String(software.id) }}>
+                  <Pencil data-icon="inline-start" />
+                  Edit
+                </Link>
+              </Button>
               <Button asChild size="sm" variant="outline">
                 <Link to="/munki/software-titles/$softwareId/packages/new" params={{ softwareId: String(software.id) }}>
                   <Plus data-icon="inline-start" />
@@ -195,7 +194,7 @@ export function MunkiSoftwareTitleDetailPage() {
               </Button>
               <Button asChild size="sm">
                 <Link
-                  to="/munki/software-titles/$softwareId/deployments/new"
+                  to="/munki/software-titles/$softwareId/assignments/new"
                   params={{ softwareId: String(software.id) }}
                 >
                   <Plus data-icon="inline-start" />
@@ -261,7 +260,7 @@ export function MunkiSoftwareTitleDetailPage() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={reorderEnabled || orderedDeployments.length < 2 || query.isLoading}
+                  disabled={reorderEnabled || orderedAssignments.length < 2 || query.isLoading}
                   onClick={() => setReorderEnabled(true)}
                 >
                   Edit Order
@@ -280,10 +279,10 @@ export function MunkiSoftwareTitleDetailPage() {
               </ButtonGroup>
             </div>
             <DataTable
-              columns={deploymentColumns}
-              data={reorderEnabled ? orderedDeployments : deployments}
-              totalCount={deployments.length}
-              pagination={{ pageIndex: 0, pageSize: Math.max(deployments.length, 1) }}
+              columns={assignmentColumns}
+              data={reorderEnabled ? orderedAssignments : assignments}
+              totalCount={assignments.length}
+              pagination={{ pageIndex: 0, pageSize: Math.max(assignments.length, 1) }}
               sorting={[]}
               onPaginationChange={() => undefined}
               onSortingChange={() => undefined}
@@ -293,12 +292,12 @@ export function MunkiSoftwareTitleDetailPage() {
                 reorderEnabled
                   ? undefined
                   : (row) => ({
-                      to: "/munki/software-titles/$softwareId/deployments/$deploymentId/edit",
-                      params: { softwareId: String(row.software_id), deploymentId: String(row.id) },
+                      to: "/munki/software-titles/$softwareId/assignments/$assignmentId/edit",
+                      params: { softwareId: String(row.software_id), assignmentId: String(row.id) },
                     })
               }
-              rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedDeployments.length <= 1}
-              onRowReorder={moveDeployments}
+              rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedAssignments.length <= 1}
+              onRowReorder={moveAssignments}
               empty={
                 <DataTableEmptyState
                   icon={<PackageCheck />}
@@ -314,39 +313,35 @@ export function MunkiSoftwareTitleDetailPage() {
   );
 }
 
-function deploymentPackageLabel(deployment: MunkiDeployment) {
-  if (deployment.package_selection === "specific_package") {
-    return deployment.pinned_package_version
-      ? `${deployment.pinned_package_name ?? "Pinned"} ${deployment.pinned_package_version}`
-      : "Pinned package";
-  }
-  return packageSelectionLabels[deployment.package_selection] ?? deployment.package_selection;
+function effectLabel(effect: MunkiAssignment["effect"]) {
+  return effect === "include" ? "Include" : "Exclude";
 }
 
-function deploymentMSCSections(deployment: MunkiDeployment) {
+function assignmentPackageLabel(assignment: MunkiAssignment) {
+  if (assignment.effect === "exclude") return <span className="text-muted-foreground">None</span>;
+  if (assignment.package_selection === "specific_package") {
+    return assignment.pinned_package_version
+      ? `${assignment.pinned_package_name ?? "Pinned"} ${assignment.pinned_package_version}`
+      : "Pinned package";
+  }
+  return packageSelectionLabels[assignment.package_selection ?? ""] ?? assignment.package_selection;
+}
+
+function assignmentActionLabel(assignment: MunkiAssignment) {
+  if (assignment.effect === "exclude") return <span className="text-muted-foreground">Excluded</span>;
+  return actionLabels[assignment.action ?? ""] ?? assignment.action;
+}
+
+function assignmentMSCSections(assignment: MunkiAssignment) {
+  if (assignment.effect === "exclude") return [];
   const sections: string[] = [];
-  if (deployment.optional_install) sections.push("Optional Installs");
-  if (deployment.featured_item) sections.push("Featured Items");
+  if (assignment.optional_install) sections.push("Optional Installs");
+  if (assignment.featured_item) sections.push("Featured Items");
   return sections;
 }
 
 function PackageIconView({ pkg }: { pkg: MunkiPackage }) {
-  const label = pkg.display_name || pkg.name;
-  if (pkg.icon_url) {
-    return (
-      <img
-        src={pkg.icon_url}
-        alt=""
-        className="bg-muted size-9 shrink-0 rounded-md border object-contain p-1"
-        loading="lazy"
-      />
-    );
-  }
-  return (
-    <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border">
-      <PackageIcon aria-label={`${label} package`} className="size-4" />
-    </div>
-  );
+  return <MunkiIcon iconUrl={pkg.icon_url} size="md" />;
 }
 
 function PackageBehavior({ pkg }: { pkg: MunkiPackage }) {

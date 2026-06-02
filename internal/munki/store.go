@@ -130,8 +130,8 @@ func (s *Store) LoadSoftwareTitleDetail(ctx context.Context, id int64) (*Softwar
 	if err != nil {
 		return nil, err
 	}
-	deployments, _, err := s.ListDeployments(ctx, DeploymentListParams{
-		ListParams: dbutil.ListParams{PageSize: 1000, Sort: "position.asc"},
+	assignments, _, err := s.ListAssignments(ctx, AssignmentListParams{
+		ListParams: dbutil.ListParams{PageSize: 1000, Sort: "priority.asc"},
 		SoftwareID: id,
 	})
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *Store) LoadSoftwareTitleDetail(ctx context.Context, id int64) (*Softwar
 	return &SoftwareTitleDetail{
 		SoftwareTitle: *title,
 		Packages:      packages,
-		Deployments:   deployments,
+		Assignments:   assignments,
 	}, nil
 }
 
@@ -480,38 +480,31 @@ func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]P
 	return packages, count, nil
 }
 
-func (s *Store) CreateDeployment(ctx context.Context, params DeploymentMutation) (*Deployment, error) {
+func (s *Store) CreateAssignment(ctx context.Context, params AssignmentMutation) (*Assignment, error) {
 	var err error
-	params, err = s.normalizeDeploymentMutation(ctx, params)
+	params, err = s.normalizeAssignmentMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	var row sqlc.MunkiDeployment
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		var err error
-		row, err = q.CreateMunkiDeployment(ctx, sqlc.CreateMunkiDeploymentParams{
-			SoftwareID:       params.SoftwareID,
-			Action:           sqlc.MunkiDeploymentAction(params.Action),
-			OptionalInstall:  params.OptionalInstall,
-			FeaturedItem:     params.FeaturedItem,
-			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
-			PinnedPackageID:  params.PinnedPackageID,
-			AllHosts:         params.AllHosts,
-		})
-		if err != nil {
-			return err
-		}
-		return insertDeploymentScope(ctx, q, row.ID, params)
+	row, err := s.q.CreateMunkiAssignment(ctx, sqlc.CreateMunkiAssignmentParams{
+		SoftwareID:       params.SoftwareID,
+		Priority:         params.Priority,
+		LabelID:          params.LabelID,
+		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
+		Action:           sqlcAssignmentAction(params.Action),
+		OptionalInstall:  params.OptionalInstall,
+		FeaturedItem:     params.FeaturedItem,
+		PackageSelection: sqlcPackageSelection(params.PackageSelection),
+		PinnedPackageID:  params.PinnedPackageID,
 	})
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
 	}
-	return s.GetDeployment(ctx, row.ID)
+	return s.GetAssignment(ctx, row.ID)
 }
 
-func (s *Store) UpdateDeployment(ctx context.Context, id int64, params DeploymentMutation) (*Deployment, error) {
-	existing, err := s.GetDeployment(ctx, id)
+func (s *Store) UpdateAssignment(ctx context.Context, id int64, params AssignmentMutation) (*Assignment, error) {
+	existing, err := s.GetAssignment(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -519,30 +512,20 @@ func (s *Store) UpdateDeployment(ctx context.Context, id int64, params Deploymen
 		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
 	}
 	params.SoftwareID = existing.SoftwareID
-	params, err = s.normalizeDeploymentMutation(ctx, params)
+	params, err = s.normalizeAssignmentMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	var row sqlc.MunkiDeployment
-	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		var err error
-		row, err = q.UpdateMunkiDeployment(ctx, sqlc.UpdateMunkiDeploymentParams{
-			ID:               id,
-			Action:           sqlc.MunkiDeploymentAction(params.Action),
-			OptionalInstall:  params.OptionalInstall,
-			FeaturedItem:     params.FeaturedItem,
-			PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
-			PinnedPackageID:  params.PinnedPackageID,
-			AllHosts:         params.AllHosts,
-		})
-		if err != nil {
-			return err
-		}
-		if err := deleteDeploymentScope(ctx, q, row.ID); err != nil {
-			return err
-		}
-		return insertDeploymentScope(ctx, q, row.ID, params)
+	row, err := s.q.UpdateMunkiAssignment(ctx, sqlc.UpdateMunkiAssignmentParams{
+		ID:               id,
+		Priority:         params.Priority,
+		LabelID:          params.LabelID,
+		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
+		Action:           sqlcAssignmentAction(params.Action),
+		OptionalInstall:  params.OptionalInstall,
+		FeaturedItem:     params.FeaturedItem,
+		PackageSelection: sqlcPackageSelection(params.PackageSelection),
+		PinnedPackageID:  params.PinnedPackageID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -550,40 +533,37 @@ func (s *Store) UpdateDeployment(ctx context.Context, id int64, params Deploymen
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
 	}
-	return s.GetDeployment(ctx, row.ID)
+	return s.GetAssignment(ctx, row.ID)
 }
 
-func (s *Store) GetDeployment(ctx context.Context, id int64) (*Deployment, error) {
+func (s *Store) GetAssignment(ctx context.Context, id int64) (*Assignment, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := s.db.Pool().Query(ctx, deploymentSelectSQL+"\nWHERE d.id = $1", id)
+	row, err := s.db.Pool().Query(ctx, assignmentSelectSQL+"\nWHERE a.id = $1", id)
 	if err != nil {
 		return nil, err
 	}
-	records, err := pgx.CollectRows(row, pgx.RowToStructByName[deploymentRecord])
+	records, err := pgx.CollectRows(row, pgx.RowToStructByName[assignmentRecord])
 	if err != nil {
 		return nil, err
 	}
 	if len(records) == 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	deployments := []Deployment{deploymentFromRecord(records[0])}
-	if err := s.attachDeploymentScopes(ctx, deployments); err != nil {
-		return nil, err
-	}
-	return &deployments[0], nil
+	assignment := assignmentFromRecord(records[0])
+	return &assignment, nil
 }
 
-func (s *Store) ListDeployments(ctx context.Context, params DeploymentListParams) ([]Deployment, int, error) {
+func (s *Store) ListAssignments(ctx context.Context, params AssignmentListParams) ([]Assignment, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
-	where, args := deploymentListWhere(params)
+	where, args := assignmentListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL:    deploymentSelectSQL,
+		SelectSQL:    assignmentSelectSQL,
 		WhereSQL:     where,
 		Args:         args,
-		OrderKeys:    deploymentOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "d.position"}, {SQL: "d.id"}},
+		OrderKeys:    assignmentOrderKeys(),
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "a.priority"}, {SQL: "a.id"}},
 		Params:       params.ListParams,
 	}
 	var count int
@@ -599,45 +579,42 @@ func (s *Store) ListDeployments(ctx context.Context, params DeploymentListParams
 	if err != nil {
 		return nil, 0, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[deploymentRecord])
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[assignmentRecord])
 	if err != nil {
 		return nil, 0, err
 	}
-	deployments := make([]Deployment, len(records))
+	assignments := make([]Assignment, len(records))
 	for i, row := range records {
-		deployments[i] = deploymentFromRecord(row)
+		assignments[i] = assignmentFromRecord(row)
 	}
-	if err := s.attachDeploymentScopes(ctx, deployments); err != nil {
-		return nil, 0, err
-	}
-	return deployments, count, nil
+	return assignments, count, nil
 }
 
-func (s *Store) ReorderDeployments(ctx context.Context, softwareID int64, orderedIDs []int64) error {
+func (s *Store) ReorderAssignments(ctx context.Context, softwareID int64, orderedIDs []int64) error {
 	if softwareID <= 0 {
 		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
-		currentIDs, err := q.ListMunkiDeploymentIDsBySoftware(
+		currentIDs, err := q.ListMunkiAssignmentIDsBySoftware(
 			ctx,
-			sqlc.ListMunkiDeploymentIDsBySoftwareParams{SoftwareID: softwareID},
+			sqlc.ListMunkiAssignmentIDsBySoftwareParams{SoftwareID: softwareID},
 		)
 		if err != nil {
 			return err
 		}
 		if !dbutil.SameInt64Set(orderedIDs, currentIDs) {
-			return fmt.Errorf("%w: ordered_ids must exactly match existing deployment IDs", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: ordered_ids must exactly match existing assignment IDs", dbutil.ErrInvalidInput)
 		}
-		if err := q.SetMunkiDeploymentPositions(ctx, sqlc.SetMunkiDeploymentPositionsParams{
+		if err := q.SetMunkiAssignmentPriorities(ctx, sqlc.SetMunkiAssignmentPrioritiesParams{
 			SoftwareID: softwareID,
 			OrderedIds: orderedIDs,
 		}); err != nil {
 			return err
 		}
-		return q.NormalizeMunkiDeploymentPositions(
+		return q.NormalizeMunkiAssignmentPriorities(
 			ctx,
-			sqlc.NormalizeMunkiDeploymentPositionsParams{SoftwareID: softwareID},
+			sqlc.NormalizeMunkiAssignmentPrioritiesParams{SoftwareID: softwareID},
 		)
 	})
 }
@@ -649,24 +626,28 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	if err != nil {
 		return nil, err
 	}
-	packages := make([]EffectivePackage, len(rows))
-	for i, row := range rows {
-		pkg, err := packageFromRecord(packageRecordFromEffectiveSQLC(row))
-		if err != nil {
-			return nil, err
+	packages := make([]EffectivePackage, 0, len(rows))
+	for _, row := range rows {
+		pkg := Package{}
+		if row.AssignmentEffect == sqlc.MunkiAssignmentEffectInclude {
+			resolvedPackage, err := packageFromRecord(packageRecordFromEffectiveSQLC(row))
+			if err != nil {
+				return nil, err
+			}
+			pkg = resolvedPackage
 		}
-		packages[i] = EffectivePackage{
-			DeploymentID:     row.DeploymentID,
-			SoftwareID:       row.DeploymentSoftwareID,
-			Action:           DeploymentAction(row.Action),
+		packages = append(packages, EffectivePackage{
+			AssignmentID:     row.AssignmentID,
+			SoftwareID:       row.AssignmentSoftwareID,
+			AssignmentEffect: AssignmentEffect(row.AssignmentEffect),
+			Action:           assignmentActionValue(row.Action),
 			OptionalInstall:  row.OptionalInstall,
 			FeaturedItem:     row.FeaturedItem,
-			PackageSelection: PackageSelection(row.PackageSelection),
+			PackageSelection: packageSelectionValue(row.PackageSelection),
 			PinnedPackageID:  row.PinnedPackageID,
-			Position:         row.Position,
+			Priority:         row.Priority,
 			Package:          pkg,
-			scopeRank:        int(row.ScopeRank),
-		}
+		})
 	}
 	return resolveEffectivePackages(packages), nil
 }
@@ -882,15 +863,6 @@ func mergePackageUpdate(existing Package, params PackageMutation) PackageMutatio
 	if params.InstallerArtifactID == nil {
 		params.InstallerArtifactID = existing.InstallerArtifactID
 	}
-	if params.IconArtifactID == nil {
-		params.IconArtifactID = existing.IconArtifactID
-	}
-	if params.IconName == "" {
-		params.IconName = existing.IconName
-	}
-	if params.IconHash == "" {
-		params.IconHash = existing.IconHash
-	}
 	return params
 }
 
@@ -922,34 +894,32 @@ func cleanArtifactMutation(params ArtifactMutation) ArtifactMutation {
 	return params
 }
 
-func cleanDeploymentMutation(params DeploymentMutation) DeploymentMutation {
-	params.Action = DeploymentAction(strings.TrimSpace(string(params.Action)))
-	if params.Action == "" {
-		params.Action = DeploymentActionInstall
+func cleanAssignmentMutation(params AssignmentMutation) AssignmentMutation {
+	params.Effect = AssignmentEffect(strings.TrimSpace(string(params.Effect)))
+	if params.Action != nil {
+		action := AssignmentAction(strings.TrimSpace(string(*params.Action)))
+		params.Action = &action
 	}
-	params.PackageSelection = PackageSelection(strings.TrimSpace(string(params.PackageSelection)))
-	if params.PackageSelection == "" {
-		params.PackageSelection = PackageSelectionLatestEligible
+	if params.PackageSelection != nil {
+		selection := PackageSelection(strings.TrimSpace(string(*params.PackageSelection)))
+		params.PackageSelection = &selection
 	}
-	params.IncludeLabelIDs = cleanInt64List(params.IncludeLabelIDs)
-	params.ExcludeLabelIDs = cleanInt64List(params.ExcludeLabelIDs)
-	params.IncludeHostIDs = cleanInt64List(params.IncludeHostIDs)
-	params.ExcludeHostIDs = cleanInt64List(params.ExcludeHostIDs)
 	return params
 }
 
-func (s *Store) normalizeDeploymentMutation(
+func (s *Store) normalizeAssignmentMutation(
 	ctx context.Context,
-	params DeploymentMutation,
-) (DeploymentMutation, error) {
-	params = cleanDeploymentMutation(params)
+	params AssignmentMutation,
+) (AssignmentMutation, error) {
+	params = cleanAssignmentMutation(params)
 	if err := params.Validate(); err != nil {
 		return params, err
 	}
 	if _, err := s.GetSoftwareTitle(ctx, params.SoftwareID); err != nil {
 		return params, err
 	}
-	if params.PackageSelection != PackageSelectionSpecific {
+	if params.Effect != AssignmentEffectInclude || params.PackageSelection == nil ||
+		*params.PackageSelection != PackageSelectionSpecific {
 		return params, nil
 	}
 	pkg, err := s.GetPackage(ctx, *params.PinnedPackageID)
@@ -963,22 +933,6 @@ func (s *Store) normalizeDeploymentMutation(
 		)
 	}
 	return params, nil
-}
-
-func cleanInt64List(values []int64) []int64 {
-	out := make([]int64, 0, len(values))
-	seen := make(map[int64]struct{}, len(values))
-	for _, value := range values {
-		if value <= 0 {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
 }
 
 func softwareTitleFromSQLC(row sqlc.MunkiSoftwareTitle) SoftwareTitle {
@@ -1074,125 +1028,24 @@ func packagesFromRecords(records []packageRecord) ([]Package, error) {
 	return packages, nil
 }
 
-func deploymentFromRecord(row deploymentRecord) Deployment {
-	return Deployment{
+func assignmentFromRecord(row assignmentRecord) Assignment {
+	return Assignment{
 		ID:                   row.ID,
 		SoftwareID:           row.SoftwareID,
 		SoftwareDisplayName:  row.SoftwareDisplayName,
-		Action:               DeploymentAction(row.Action),
+		Priority:             row.Priority,
+		LabelID:              row.LabelID,
+		Effect:               AssignmentEffect(row.Effect),
+		Action:               assignmentActionFromSQLC(row.Action),
 		OptionalInstall:      row.OptionalInstall,
 		FeaturedItem:         row.FeaturedItem,
-		PackageSelection:     PackageSelection(row.PackageSelection),
+		PackageSelection:     assignmentPackageSelectionFromSQLC(row.PackageSelection),
 		PinnedPackageID:      row.PinnedPackageID,
 		PinnedPackageName:    stringPtrValue(row.PinnedPackageName),
 		PinnedPackageVersion: stringPtrValue(row.PinnedPackageVersion),
-		Position:             row.Position,
-		AllHosts:             row.AllHosts,
 		CreatedAt:            row.CreatedAt,
 		UpdatedAt:            row.UpdatedAt,
 	}
-}
-
-func deleteDeploymentScope(ctx context.Context, q *sqlc.Queries, deploymentID int64) error {
-	if err := q.DeleteMunkiDeploymentIncludeLabels(
-		ctx,
-		sqlc.DeleteMunkiDeploymentIncludeLabelsParams{DeploymentID: deploymentID},
-	); err != nil {
-		return err
-	}
-	if err := q.DeleteMunkiDeploymentExcludeLabels(
-		ctx,
-		sqlc.DeleteMunkiDeploymentExcludeLabelsParams{DeploymentID: deploymentID},
-	); err != nil {
-		return err
-	}
-	if err := q.DeleteMunkiDeploymentIncludeHosts(
-		ctx,
-		sqlc.DeleteMunkiDeploymentIncludeHostsParams{DeploymentID: deploymentID},
-	); err != nil {
-		return err
-	}
-	return q.DeleteMunkiDeploymentExcludeHosts(
-		ctx,
-		sqlc.DeleteMunkiDeploymentExcludeHostsParams{DeploymentID: deploymentID},
-	)
-}
-
-func insertDeploymentScope(
-	ctx context.Context,
-	q *sqlc.Queries,
-	deploymentID int64,
-	params DeploymentMutation,
-) error {
-	if len(params.IncludeLabelIDs) > 0 {
-		if err := q.InsertMunkiDeploymentIncludeLabels(ctx, sqlc.InsertMunkiDeploymentIncludeLabelsParams{
-			DeploymentID: deploymentID,
-			LabelIds:     params.IncludeLabelIDs,
-		}); err != nil {
-			return err
-		}
-	}
-	if len(params.ExcludeLabelIDs) > 0 {
-		if err := q.InsertMunkiDeploymentExcludeLabels(ctx, sqlc.InsertMunkiDeploymentExcludeLabelsParams{
-			DeploymentID: deploymentID,
-			LabelIds:     params.ExcludeLabelIDs,
-		}); err != nil {
-			return err
-		}
-	}
-	if len(params.IncludeHostIDs) > 0 {
-		if err := q.InsertMunkiDeploymentIncludeHosts(ctx, sqlc.InsertMunkiDeploymentIncludeHostsParams{
-			DeploymentID: deploymentID,
-			HostIds:      params.IncludeHostIDs,
-		}); err != nil {
-			return err
-		}
-	}
-	if len(params.ExcludeHostIDs) > 0 {
-		if err := q.InsertMunkiDeploymentExcludeHosts(ctx, sqlc.InsertMunkiDeploymentExcludeHostsParams{
-			DeploymentID: deploymentID,
-			HostIds:      params.ExcludeHostIDs,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Store) attachDeploymentScopes(ctx context.Context, deployments []Deployment) error {
-	if len(deployments) == 0 {
-		return nil
-	}
-	indexes := make(map[int64]int, len(deployments))
-	ids := make([]int64, len(deployments))
-	for i := range deployments {
-		indexes[deployments[i].ID] = i
-		ids[i] = deployments[i].ID
-	}
-	rows, err := s.q.ListMunkiDeploymentScopeIDs(
-		ctx,
-		sqlc.ListMunkiDeploymentScopeIDsParams{DeploymentIds: ids},
-	)
-	if err != nil {
-		return err
-	}
-	for _, row := range rows {
-		i, ok := indexes[row.DeploymentID]
-		if !ok {
-			continue
-		}
-		switch row.Scope {
-		case "include_label":
-			deployments[i].IncludeLabelIDs = append(deployments[i].IncludeLabelIDs, row.ID)
-		case "exclude_label":
-			deployments[i].ExcludeLabelIDs = append(deployments[i].ExcludeLabelIDs, row.ID)
-		case "include_host":
-			deployments[i].IncludeHostIDs = append(deployments[i].IncludeHostIDs, row.ID)
-		case "exclude_host":
-			deployments[i].ExcludeHostIDs = append(deployments[i].ExcludeHostIDs, row.ID)
-		}
-	}
-	return nil
 }
 
 func mapDesiredMutationError(err error) error {
@@ -1222,6 +1075,52 @@ func stringPtrValue(value *string) string {
 
 func sqlcString[S ~string](value S) string {
 	return string(value)
+}
+
+func sqlcAssignmentAction(action *AssignmentAction) *sqlc.MunkiAssignmentAction {
+	if action == nil {
+		return nil
+	}
+	value := sqlc.MunkiAssignmentAction(*action)
+	return &value
+}
+
+func sqlcPackageSelection(selection *PackageSelection) *sqlc.MunkiPackageSelection {
+	if selection == nil {
+		return nil
+	}
+	value := sqlc.MunkiPackageSelection(*selection)
+	return &value
+}
+
+func assignmentActionFromSQLC(action *sqlc.MunkiAssignmentAction) *AssignmentAction {
+	if action == nil {
+		return nil
+	}
+	value := AssignmentAction(*action)
+	return &value
+}
+
+func assignmentPackageSelectionFromSQLC(selection *sqlc.MunkiPackageSelection) *PackageSelection {
+	if selection == nil {
+		return nil
+	}
+	value := PackageSelection(*selection)
+	return &value
+}
+
+func assignmentActionValue(action *sqlc.MunkiAssignmentAction) AssignmentAction {
+	if action == nil {
+		return ""
+	}
+	return AssignmentAction(*action)
+}
+
+func packageSelectionValue(selection *sqlc.MunkiPackageSelection) PackageSelection {
+	if selection == nil {
+		return ""
+	}
+	return PackageSelection(*selection)
 }
 
 func softwareTitleListWhere(params dbutil.ListParams) (string, []any) {
@@ -1262,10 +1161,10 @@ func packageListWhere(params PackageListParams) (string, []any) {
 	return where.Build()
 }
 
-func deploymentListWhere(params DeploymentListParams) (string, []any) {
+func assignmentListWhere(params AssignmentListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.SoftwareID > 0 {
-		where.Add("d.software_id = " + where.Arg(params.SoftwareID))
+		where.Add("a.software_id = " + where.Arg(params.SoftwareID))
 	}
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -1275,8 +1174,9 @@ func deploymentListWhere(params DeploymentListParams) (string, []any) {
 			OR p.display_name ILIKE ` + search + `
 			OR s.name ILIKE ` + search + `
 			OR s.display_name ILIKE ` + search + `
-			OR d.action::text ILIKE ` + search + `
-			OR d.package_selection::text ILIKE ` + search + `
+			OR a.action::text ILIKE ` + search + `
+			OR a.effect::text ILIKE ` + search + `
+			OR a.package_selection::text ILIKE ` + search + `
 		)`)
 	}
 	return where.Build()
@@ -1291,14 +1191,15 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
-func deploymentOrderKeys() map[string]dbutil.OrderExpr {
+func assignmentOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"position":   {SQL: "d.position"},
+		"priority":   {SQL: "a.priority"},
 		"name":       {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
-		"action":     {SQL: "d.action"},
-		"optional":   {SQL: "d.optional_install"},
-		"featured":   {SQL: "d.featured_item"},
-		"updated_at": {SQL: "d.updated_at"},
+		"action":     {SQL: "a.action"},
+		"effect":     {SQL: "a.effect"},
+		"optional":   {SQL: "a.optional_install"},
+		"featured":   {SQL: "a.featured_item"},
+		"updated_at": {SQL: "a.updated_at"},
 	}
 }
 
@@ -1344,19 +1245,20 @@ type packageRecord struct {
 	UpdatedAt                    time.Time
 }
 
-type deploymentRecord struct {
+type assignmentRecord struct {
 	ID                   int64
 	SoftwareID           int64
 	SoftwareDisplayName  string
-	Action               sqlc.MunkiDeploymentAction
+	Priority             int32
+	LabelID              int64
+	Effect               sqlc.MunkiAssignmentEffect
+	Action               *sqlc.MunkiAssignmentAction
 	OptionalInstall      bool
 	FeaturedItem         bool
-	PackageSelection     sqlc.MunkiPackageSelection
+	PackageSelection     *sqlc.MunkiPackageSelection
 	PinnedPackageID      *int64
 	PinnedPackageName    *string
 	PinnedPackageVersion *string
-	Position             int32
-	AllHosts             bool
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }
@@ -1509,22 +1411,23 @@ LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id`
 
-const deploymentSelectSQL = `
+const assignmentSelectSQL = `
 SELECT
-	d.id,
-	d.software_id,
+	a.id,
+	a.software_id,
 	COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
-	d.action,
-	d.optional_install,
-	d.featured_item,
-	d.package_selection,
-	d.pinned_package_id,
+	a.priority,
+	a.label_id,
+	a.effect,
+	a.action,
+	a.optional_install,
+	a.featured_item,
+	a.package_selection,
+	a.pinned_package_id,
 	p.name AS pinned_package_name,
 	p.version AS pinned_package_version,
-	d.position,
-	d.all_hosts,
-	d.created_at,
-	d.updated_at
-FROM munki_deployments d
-JOIN munki_software_titles s ON s.id = d.software_id
-LEFT JOIN munki_packages p ON p.id = d.pinned_package_id`
+	a.created_at,
+	a.updated_at
+FROM munki_assignments a
+JOIN munki_software_titles s ON s.id = a.software_id
+LEFT JOIN munki_packages p ON p.id = a.pinned_package_id`

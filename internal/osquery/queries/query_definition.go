@@ -7,5 +7,5 @@ type QueryDefinition struct {
 	Name        string
 	Description string
 	Query       string
-	LabelScope  scope.LabelScope
+	Targets     []scope.TargetLabel
 }

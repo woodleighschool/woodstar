@@ -20,9 +20,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				DeploymentID:     10,
+				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
@@ -34,9 +34,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID:     11,
+				AssignmentID:     11,
 				SoftwareID:       2,
-				Action:           munki.DeploymentActionNone,
+				Action:           munki.AssignmentActionNone,
 				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
@@ -49,9 +49,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID:     12,
+				AssignmentID:     12,
 				SoftwareID:       3,
-				Action:           munki.DeploymentActionRemove,
+				Action:           munki.AssignmentActionRemove,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      22,
@@ -63,9 +63,9 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID:     13,
+				AssignmentID:     13,
 				SoftwareID:       4,
-				Action:           munki.DeploymentActionNone,
+				Action:           munki.AssignmentActionNone,
 				OptionalInstall:  true,
 				FeaturedItem:     true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
@@ -115,9 +115,9 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 		nil,
 		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				DeploymentID:     10,
+				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
@@ -162,9 +162,9 @@ func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
 		nil,
 		staticPackageResolver{packages: []munki.EffectivePackage{
 			{
-				DeploymentID:     10,
+				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
@@ -246,14 +246,14 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 	}
 }
 
-func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
+func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				DeploymentID:     10,
+				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      20,
@@ -265,9 +265,9 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID:     11,
+				AssignmentID:     11,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionNone,
+				Action:           munki.AssignmentActionNone,
 				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
@@ -280,9 +280,9 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 				},
 			},
 			{
-				DeploymentID:     12,
+				AssignmentID:     12,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionRemove,
+				Action:           munki.AssignmentActionRemove,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
 					ID:      22,
@@ -313,11 +313,11 @@ func TestMunkiHTTPCollapsesOverlappingDeployments(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedUninstalls, []string{"OverlapApp"}) {
-		t.Fatalf("managed_uninstalls = %v, want [OverlapApp]", decoded.ManagedUninstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"OverlapApp"}) {
+		t.Fatalf("managed_installs = %v, want [OverlapApp]", decoded.ManagedInstalls)
 	}
-	if len(decoded.ManagedInstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
-		t.Fatalf("manifest still has conflicting installs: %+v", decoded)
+	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
+		t.Fatalf("manifest still has later conflicting rows: %+v", decoded)
 	}
 }
 
@@ -326,9 +326,9 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
 			{
-				DeploymentID:     10,
+				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.DeploymentActionInstall,
+				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionSpecific,
 				Package: munki.Package{
 					ID:      20,

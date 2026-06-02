@@ -56,7 +56,7 @@ export function CheckDetailPage() {
         <SettingItem label="Hosts Failing">{check.data.failing_host_count}</SettingItem>
         <SettingItem label="Hosts Passing">{check.data.passing_host_count}</SettingItem>
         <SettingItem label="Targets">
-          <TargetSummary scope={check.data.label_scope} />
+          <TargetSummary targets={check.data.targets} />
         </SettingItem>
       </DetailSettings>
     </PageShell>

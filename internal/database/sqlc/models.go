@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 type Agent string
@@ -141,50 +139,6 @@ func (ns NullHostUserAffinitySource) Value() (driver.Value, error) {
 	return string(ns.HostUserAffinitySource), nil
 }
 
-type LabelScopeMode string
-
-const (
-	LabelScopeModeNone       LabelScopeMode = "none"
-	LabelScopeModeIncludeAny LabelScopeMode = "include_any"
-	LabelScopeModeIncludeAll LabelScopeMode = "include_all"
-	LabelScopeModeExcludeAny LabelScopeMode = "exclude_any"
-)
-
-func (e *LabelScopeMode) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = LabelScopeMode(s)
-	case string:
-		*e = LabelScopeMode(s)
-	default:
-		return fmt.Errorf("unsupported scan type for LabelScopeMode: %T", src)
-	}
-	return nil
-}
-
-type NullLabelScopeMode struct {
-	LabelScopeMode LabelScopeMode `json:"label_scope_mode"`
-	Valid          bool           `json:"valid"` // Valid is true if LabelScopeMode is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullLabelScopeMode) Scan(value interface{}) error {
-	if value == nil {
-		ns.LabelScopeMode, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.LabelScopeMode.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullLabelScopeMode) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.LabelScopeMode), nil
-}
-
 type MunkiArtifactKind string
 
 const (
@@ -227,48 +181,90 @@ func (ns NullMunkiArtifactKind) Value() (driver.Value, error) {
 	return string(ns.MunkiArtifactKind), nil
 }
 
-type MunkiDeploymentAction string
+type MunkiAssignmentAction string
 
 const (
-	MunkiDeploymentActionInstall         MunkiDeploymentAction = "install"
-	MunkiDeploymentActionRemove          MunkiDeploymentAction = "remove"
-	MunkiDeploymentActionUpdateIfPresent MunkiDeploymentAction = "update_if_present"
-	MunkiDeploymentActionNone            MunkiDeploymentAction = "none"
+	MunkiAssignmentActionInstall         MunkiAssignmentAction = "install"
+	MunkiAssignmentActionRemove          MunkiAssignmentAction = "remove"
+	MunkiAssignmentActionUpdateIfPresent MunkiAssignmentAction = "update_if_present"
+	MunkiAssignmentActionNone            MunkiAssignmentAction = "none"
 )
 
-func (e *MunkiDeploymentAction) Scan(src interface{}) error {
+func (e *MunkiAssignmentAction) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = MunkiDeploymentAction(s)
+		*e = MunkiAssignmentAction(s)
 	case string:
-		*e = MunkiDeploymentAction(s)
+		*e = MunkiAssignmentAction(s)
 	default:
-		return fmt.Errorf("unsupported scan type for MunkiDeploymentAction: %T", src)
+		return fmt.Errorf("unsupported scan type for MunkiAssignmentAction: %T", src)
 	}
 	return nil
 }
 
-type NullMunkiDeploymentAction struct {
-	MunkiDeploymentAction MunkiDeploymentAction `json:"munki_deployment_action"`
-	Valid                 bool                  `json:"valid"` // Valid is true if MunkiDeploymentAction is not NULL
+type NullMunkiAssignmentAction struct {
+	MunkiAssignmentAction MunkiAssignmentAction `json:"munki_assignment_action"`
+	Valid                 bool                  `json:"valid"` // Valid is true if MunkiAssignmentAction is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullMunkiDeploymentAction) Scan(value interface{}) error {
+func (ns *NullMunkiAssignmentAction) Scan(value interface{}) error {
 	if value == nil {
-		ns.MunkiDeploymentAction, ns.Valid = "", false
+		ns.MunkiAssignmentAction, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.MunkiDeploymentAction.Scan(value)
+	return ns.MunkiAssignmentAction.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullMunkiDeploymentAction) Value() (driver.Value, error) {
+func (ns NullMunkiAssignmentAction) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.MunkiDeploymentAction), nil
+	return string(ns.MunkiAssignmentAction), nil
+}
+
+type MunkiAssignmentEffect string
+
+const (
+	MunkiAssignmentEffectInclude MunkiAssignmentEffect = "include"
+	MunkiAssignmentEffectExclude MunkiAssignmentEffect = "exclude"
+)
+
+func (e *MunkiAssignmentEffect) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiAssignmentEffect(s)
+	case string:
+		*e = MunkiAssignmentEffect(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiAssignmentEffect: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiAssignmentEffect struct {
+	MunkiAssignmentEffect MunkiAssignmentEffect `json:"munki_assignment_effect"`
+	Valid                 bool                  `json:"valid"` // Valid is true if MunkiAssignmentEffect is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiAssignmentEffect) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiAssignmentEffect, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiAssignmentEffect.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiAssignmentEffect) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiAssignmentEffect), nil
 }
 
 type MunkiPackageSelection string
@@ -730,19 +726,13 @@ type AgentSecret struct {
 }
 
 type Check struct {
-	ID              int64                `json:"id"`
-	Name            string               `json:"name"`
-	Description     string               `json:"description"`
-	Query           string               `json:"query"`
-	LabelScopeMode  scope.LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID *int64               `json:"created_by_user_id"`
-	CreatedAt       time.Time            `json:"created_at"`
-	UpdatedAt       time.Time            `json:"updated_at"`
-}
-
-type CheckLabel struct {
-	CheckID int64 `json:"check_id"`
-	LabelID int64 `json:"label_id"`
+	ID              int64     `json:"id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	Query           string    `json:"query"`
+	CreatedByUserID *int64    `json:"created_by_user_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type CheckMembership struct {
@@ -751,6 +741,12 @@ type CheckMembership struct {
 	Passes    *bool     `json:"passes"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type CheckTarget struct {
+	CheckID int64  `json:"check_id"`
+	LabelID int64  `json:"label_id"`
+	Effect  string `json:"effect"`
 }
 
 type DirectoryGroup struct {
@@ -951,38 +947,19 @@ type MunkiArtifact struct {
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
-type MunkiDeployment struct {
-	ID               int64                 `json:"id"`
-	SoftwareID       int64                 `json:"software_id"`
-	Action           MunkiDeploymentAction `json:"action"`
-	OptionalInstall  bool                  `json:"optional_install"`
-	FeaturedItem     bool                  `json:"featured_item"`
-	PackageSelection MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                `json:"pinned_package_id"`
-	Position         int32                 `json:"position"`
-	AllHosts         bool                  `json:"all_hosts"`
-	CreatedAt        time.Time             `json:"created_at"`
-	UpdatedAt        time.Time             `json:"updated_at"`
-}
-
-type MunkiDeploymentExcludeHost struct {
-	DeploymentID int64 `json:"deployment_id"`
-	HostID       int64 `json:"host_id"`
-}
-
-type MunkiDeploymentExcludeLabel struct {
-	DeploymentID int64 `json:"deployment_id"`
-	LabelID      int64 `json:"label_id"`
-}
-
-type MunkiDeploymentIncludeHost struct {
-	DeploymentID int64 `json:"deployment_id"`
-	HostID       int64 `json:"host_id"`
-}
-
-type MunkiDeploymentIncludeLabel struct {
-	DeploymentID int64 `json:"deployment_id"`
-	LabelID      int64 `json:"label_id"`
+type MunkiAssignment struct {
+	ID               int64                  `json:"id"`
+	SoftwareID       int64                  `json:"software_id"`
+	Priority         int32                  `json:"priority"`
+	LabelID          int64                  `json:"label_id"`
+	Effect           MunkiAssignmentEffect  `json:"effect"`
+	Action           *MunkiAssignmentAction `json:"action"`
+	OptionalInstall  bool                   `json:"optional_install"`
+	FeaturedItem     bool                   `json:"featured_item"`
+	PackageSelection *MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                 `json:"pinned_package_id"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
 }
 
 type MunkiHostItem struct {
@@ -1058,21 +1035,15 @@ type MunkiSoftwareTitle struct {
 }
 
 type Report struct {
-	ID                int64                `json:"id"`
-	Name              string               `json:"name"`
-	Description       string               `json:"description"`
-	Query             string               `json:"query"`
-	MinOsqueryVersion *string              `json:"min_osquery_version"`
-	ScheduleInterval  int32                `json:"schedule_interval"`
-	LabelScopeMode    scope.LabelScopeMode `json:"label_scope_mode"`
-	CreatedByUserID   *int64               `json:"created_by_user_id"`
-	CreatedAt         time.Time            `json:"created_at"`
-	UpdatedAt         time.Time            `json:"updated_at"`
-}
-
-type ReportLabel struct {
-	ReportID int64 `json:"report_id"`
-	LabelID  int64 `json:"label_id"`
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
+	Description       string    `json:"description"`
+	Query             string    `json:"query"`
+	MinOsqueryVersion *string   `json:"min_osquery_version"`
+	ScheduleInterval  int32     `json:"schedule_interval"`
+	CreatedByUserID   *int64    `json:"created_by_user_id"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type ReportResult struct {
@@ -1081,6 +1052,12 @@ type ReportResult struct {
 	HostID      int64     `json:"host_id"`
 	Data        []byte    `json:"data"`
 	LastFetched time.Time `json:"last_fetched"`
+}
+
+type ReportTarget struct {
+	ReportID int64  `json:"report_id"`
+	LabelID  int64  `json:"label_id"`
+	Effect   string `json:"effect"`
 }
 
 type SantaBundle struct {
@@ -1139,9 +1116,10 @@ type SantaConfiguration struct {
 	Description                         string                     `json:"description"`
 }
 
-type SantaConfigurationLabel struct {
-	LabelID         int64 `json:"label_id"`
-	ConfigurationID int64 `json:"configuration_id"`
+type SantaConfigurationTarget struct {
+	ConfigurationID int64  `json:"configuration_id"`
+	LabelID         int64  `json:"label_id"`
+	Effect          string `json:"effect"`
 }
 
 type SantaExecutable struct {
