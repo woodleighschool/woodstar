@@ -115,7 +115,6 @@ export function HostSoftwareTab({ hostId }: { hostId: number | null }) {
             <InstalledPathCell row={row.original} versionLabel={versionLabel} typeLabel={typeLabel} paths={paths} />
           );
         },
-        meta: { headClassName: "w-[18rem]", cellClassName: "max-w-[18rem] min-w-32" },
       },
       {
         id: "hash",

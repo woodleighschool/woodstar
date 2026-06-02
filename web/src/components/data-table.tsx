@@ -254,7 +254,7 @@ export function DataTable<TData, TValue>({
 
   const tableContent = (
     <div className="overflow-hidden rounded-lg border">
-      <Table>
+      <Table className="w-max min-w-full">
         <TableHeader className="bg-muted sticky top-0 z-10">
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
