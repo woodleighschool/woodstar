@@ -13,13 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
-import { USER_ROLE_OPTIONS, USER_ROLES } from "@/components/users/user-role";
+import {
+  USER_ACCESS_ROLES,
+  USER_ACCESS_ROLE_OPTIONS,
+  userAccessRole,
+  userMutationRole,
+  type UserAccessRole,
+} from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
 import { AccountPage } from "@/pages/account";
-
-const INITIAL_USER_ID = 1;
 
 export function UserEditPage() {
   const params = useParams({ strict: false });
@@ -63,21 +67,21 @@ function UserEditForm({ user }: { user: User }) {
   const update = useUpdateUser();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [name, setName] = useState(user.name);
-  const [role, setRole] = useState<User["role"]>(user.role);
+  const [role, setRole] = useState<UserAccessRole>(userAccessRole(user.role));
   const [password, setPassword] = useState("");
 
-  const isInitialUser = user.id === INITIAL_USER_ID;
-  const canDelete = !isInitialUser;
   const passwordChanged = password.trim() !== "";
-  const changed = (!isInitialUser && (name !== user.name || role !== user.role)) || passwordChanged;
+  const nameChanged = !user.synced && name !== user.name;
+  const roleChanged = userMutationRole(role) !== user.role;
+  const changed = nameChanged || roleChanged || passwordChanged;
 
   async function submit() {
     if (!changed) return;
     const saved = await update.mutateAsync({
       id: user.id,
       body: {
-        name: isInitialUser ? user.name : name.trim(),
-        role: isInitialUser ? user.role : role,
+        name: user.synced ? user.name : name.trim(),
+        role: userMutationRole(role),
         password: passwordChanged ? password : undefined,
       },
     });
@@ -93,7 +97,7 @@ function UserEditForm({ user }: { user: User }) {
           <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             <span>{user.email}</span>
-            <EnumBadge value={user.role} metadata={USER_ROLES} />
+            <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />
           </CardDescription>
         </CardHeader>
         <form
@@ -104,38 +108,36 @@ function UserEditForm({ user }: { user: User }) {
         >
           <CardContent>
             <FieldGroup className="gap-4">
-              {!isInitialUser ? (
-                <>
-                  <Field>
-                    <FieldLabel htmlFor="user-name">Display Name</FieldLabel>
-                    <Input
-                      id="user-name"
-                      type="text"
-                      autoComplete="off"
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                  </Field>
+              <Field data-disabled={user.synced}>
+                <FieldLabel htmlFor="user-name">Display Name</FieldLabel>
+                <Input
+                  id="user-name"
+                  type="text"
+                  autoComplete="off"
+                  value={name}
+                  disabled={user.synced}
+                  onChange={(event) => setName(event.target.value)}
+                />
+                {user.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
+              </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="user-role">Role</FieldLabel>
-                    <Select value={role} onValueChange={(value) => setRole(value as User["role"])}>
-                      <SelectTrigger id="user-role" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {USER_ROLE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                </>
-              ) : null}
+              <Field>
+                <FieldLabel htmlFor="user-role">Role</FieldLabel>
+                <Select value={role} onValueChange={(value) => setRole(value as UserAccessRole)}>
+                  <SelectTrigger id="user-role" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {USER_ACCESS_ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
 
               <Field>
                 <FieldLabel htmlFor="user-password">Password</FieldLabel>
@@ -163,24 +165,22 @@ function UserEditForm({ user }: { user: User }) {
         </form>
       </Card>
 
-      {canDelete ? (
-        <Card className="gap-4 py-4">
-          <CardHeader className="px-4">
-            <CardTitle>Remove User</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4">
-            <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-              <Trash2 data-icon="inline-start" />
-              Delete User
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <Card className="gap-4 py-4">
+        <CardHeader className="px-4">
+          <CardTitle>Remove User</CardTitle>
+        </CardHeader>
+        <CardContent className="px-4">
+          <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 data-icon="inline-start" />
+            {user.synced ? "Deactivate User" : "Delete User"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <UserDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        user={canDelete ? user : null}
+        user={user}
         onDeleted={() => void navigate({ to: "/users" })}
       />
     </PageShell>

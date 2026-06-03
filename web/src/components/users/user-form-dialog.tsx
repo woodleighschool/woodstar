@@ -13,18 +13,20 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { USER_ROLE_OPTIONS, type UserRole } from "@/components/users/user-role";
+import {
+  USER_ACCESS_ROLE_OPTIONS,
+  USER_ROLE_OPTIONS,
+  userAccessRole,
+  userMutationRole,
+  type UserAccessRole,
+} from "@/components/users/user-role";
 import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
-
-type Role = UserRole;
 
 interface BaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // canChangeRole gates the role select. False when editing self or the initial user.
+  // canChangeRole gates the role select. False when editing self.
   canChangeRole?: boolean;
-  // isInitialUser locks name and role; only the password may be changed.
-  isInitialUser?: boolean;
 }
 
 interface CreateProps extends BaseProps {
@@ -53,7 +55,6 @@ export function UserFormDialog(props: UserFormDialogProps) {
             mode={props.mode}
             editing={props.mode === "edit" ? props.user : null}
             canChangeRole={props.canChangeRole ?? true}
-            isInitialUser={props.isInitialUser ?? false}
             onClose={() => props.onOpenChange(false)}
           />
         ) : null}
@@ -66,11 +67,10 @@ interface UserFormBodyProps {
   mode: "create" | "edit";
   editing: User | null;
   canChangeRole: boolean;
-  isInitialUser: boolean;
   onClose: () => void;
 }
 
-function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: UserFormBodyProps) {
+function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyProps) {
   const create = useCreateUser();
   const update = useUpdateUser();
   const pending = create.isPending || update.isPending;
@@ -78,20 +78,20 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
 
   const [email, setEmail] = useState(editing?.email ?? "");
   const [name, setName] = useState(editing?.name ?? "");
-  const [role, setRole] = useState<Role>(editing?.role ?? "viewer");
+  const [role, setRole] = useState<UserAccessRole>(editing ? userAccessRole(editing.role) : "viewer");
   const [password, setPassword] = useState("");
 
   async function handleSubmit() {
     if (mode === "create") {
-      const body: UserCreate = { email, name, role, password };
+      const body: UserCreate = { email, name, role: role === "none" ? "viewer" : role, password };
       await create.mutateAsync(body);
       onClose();
       return;
     }
 
     const body: UserMutation = {
-      name: isInitialUser ? editing!.name : name,
-      role: canChangeRole ? role : editing!.role,
+      name: editing!.synced ? editing!.name : name,
+      role: canChangeRole ? userMutationRole(role) : editing!.role,
     };
     if (password.trim() !== "") body.password = password;
     await update.mutateAsync({ id: editing!.id, body });
@@ -102,9 +102,7 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
   const description =
     mode === "create"
       ? "Create a new Woodstar user. Roles control whether the user can manage other users and enrollments."
-      : isInitialUser
-        ? "The initial account is permanent. Only the password may be changed."
-        : "Update name, role, or reset password. Email cannot change.";
+      : "Update name, role, or reset password. Email cannot change.";
 
   return (
     <>
@@ -136,27 +134,28 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
             />
           </Field>
 
-          <Field data-disabled={isInitialUser}>
+          <Field data-disabled={editing?.synced}>
             <FieldLabel htmlFor="user-name">Name</FieldLabel>
             <Input
               id="user-name"
               type="text"
               autoComplete="off"
               value={name}
-              disabled={isInitialUser}
+              disabled={editing?.synced}
               onChange={(event) => setName(event.target.value)}
             />
+            {editing?.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
           </Field>
 
           <Field data-disabled={!canChangeRole}>
             <FieldLabel htmlFor="user-role">Role</FieldLabel>
-            <Select value={role} onValueChange={(value) => setRole(value as Role)} disabled={!canChangeRole}>
+            <Select value={role} onValueChange={(value) => setRole(value as UserAccessRole)} disabled={!canChangeRole}>
               <SelectTrigger id="user-role" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {USER_ROLE_OPTIONS.map((option) => (
+                  {(mode === "create" ? USER_ROLE_OPTIONS : USER_ACCESS_ROLE_OPTIONS).map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -164,11 +163,7 @@ function UserFormBody({ mode, editing, canChangeRole, isInitialUser, onClose }: 
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {!canChangeRole ? (
-              <FieldDescription>
-                {isInitialUser ? "Initial user role is locked." : "Your own role is locked."}
-              </FieldDescription>
-            ) : null}
+            {!canChangeRole ? <FieldDescription>Your own role is locked.</FieldDescription> : null}
           </Field>
 
           <Field>

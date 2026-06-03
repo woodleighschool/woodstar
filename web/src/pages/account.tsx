@@ -11,11 +11,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { USER_ROLES } from "@/components/users/user-role";
+import { USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
 import { formatRelative, nonEmpty } from "@/lib/utils";
-
-const INITIAL_USER_ID = 1;
 
 export function AccountPage() {
   const account = useAccount();
@@ -53,19 +51,18 @@ export function AccountPage() {
 
 function AccountProfileCard({ account }: { account: Account }) {
   const user = account.user;
-  const isInitialUser = user.id === INITIAL_USER_ID;
   const update = useUpdateAccount();
   const [name, setName] = useState(user.name);
   const [password, setPassword] = useState("");
 
   const passwordChanged = password.trim() !== "";
-  const nameChanged = !isInitialUser && name !== user.name;
+  const nameChanged = !user.synced && name !== user.name;
   const canSubmit = nameChanged || passwordChanged;
 
   async function submit() {
     if (!canSubmit) return;
     await update.mutateAsync({
-      name: isInitialUser ? user.name : name.trim(),
+      name: user.synced ? user.name : name.trim(),
       password: passwordChanged ? password : undefined,
     });
     setPassword("");
@@ -78,7 +75,7 @@ function AccountProfileCard({ account }: { account: Account }) {
         <CardTitle>{nonEmpty(user.name) ?? user.email}</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <span>{user.email}</span>
-          <EnumBadge value={user.role} metadata={USER_ROLES} />
+          <EnumBadge value={userAccessRole(user.role)} metadata={USER_ACCESS_ROLES} />
         </CardDescription>
       </CardHeader>
       <form
@@ -89,18 +86,18 @@ function AccountProfileCard({ account }: { account: Account }) {
       >
         <CardContent>
           <FieldGroup className="gap-4">
-            {!isInitialUser ? (
-              <Field>
-                <FieldLabel htmlFor="account-name">Display Name</FieldLabel>
-                <Input
-                  id="account-name"
-                  type="text"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </Field>
-            ) : null}
+            <Field data-disabled={user.synced}>
+              <FieldLabel htmlFor="account-name">Display Name</FieldLabel>
+              <Input
+                id="account-name"
+                type="text"
+                autoComplete="name"
+                value={name}
+                disabled={user.synced}
+                onChange={(event) => setName(event.target.value)}
+              />
+              {user.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
+            </Field>
 
             <Field>
               <FieldLabel htmlFor="account-password">Password</FieldLabel>

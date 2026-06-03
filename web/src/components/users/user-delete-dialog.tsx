@@ -20,6 +20,10 @@ export interface UserDeleteDialogProps {
 
 export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDeleteDialogProps) {
   const remove = useDeleteUser();
+  const action = user?.synced ? "Deactivate User" : "Delete User";
+  const description = user?.synced
+    ? "This deactivates the synced user in Woodstar and revokes app access. Entra sync keeps the identity row."
+    : "This permanently deletes the local user. Their next request will sign them out automatically.";
 
   async function handleConfirm() {
     if (!user) return;
@@ -38,14 +42,13 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete User</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently deletes the user. Their next request will sign them out automatically.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{action}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
 
         <p className="text-sm">
-          Delete <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
+          {user?.synced ? "Deactivate" : "Delete"}{" "}
+          <span className="font-medium">{nonEmpty(user?.name) ?? nonEmpty(user?.email) ?? ""}</span>
           {user?.name ? <span className="text-muted-foreground"> ({user.email})</span> : null}?
         </p>
 
@@ -62,7 +65,7 @@ export function UserDeleteDialog({ open, onOpenChange, user, onDeleted }: UserDe
               void handleConfirm();
             }}
           >
-            Delete
+            {user?.synced ? "Deactivate" : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

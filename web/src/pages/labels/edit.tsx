@@ -19,13 +19,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
-  useDirectoryDepartments,
-  useDirectoryGroups,
-  useDirectoryUsers,
-  type DirectoryDepartment,
-  type DirectoryGroup,
-  type DirectoryUser,
-} from "@/hooks/use-directory";
+  useEntraDepartments,
+  useEntraGroups,
+  useEntraUsers,
+  type EntraDepartment,
+  type EntraGroup,
+  type EntraUser,
+} from "@/hooks/use-entra";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
@@ -39,12 +39,12 @@ import {
   type LabelMembershipType,
 } from "@/pages/labels/shared";
 
-type DerivedAttribute = "directory_department" | "directory_group" | "directory_user";
+type DerivedAttribute = "user_department" | "entra_group" | "user";
 
 const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
-  { value: "directory_department", label: "Directory Department" },
-  { value: "directory_group", label: "Directory Group" },
-  { value: "directory_user", label: "Directory User" },
+  { value: "user_department", label: "User Department" },
+  { value: "entra_group", label: "Entra Group" },
+  { value: "user", label: "User" },
 ];
 
 interface FormState {
@@ -62,7 +62,7 @@ const empty: FormState = {
   description: "",
   query: "select 1 from os_version where major >= 13;",
   host_ids: [],
-  derived_attribute: "directory_department",
+  derived_attribute: "user_department",
   derived_values: [],
   label_membership_type: "dynamic",
 };
@@ -75,7 +75,7 @@ const labelFormSchema = z
     description: z.string().trim(),
     query: z.string().trim(),
     host_ids: selectedIDArray("Host"),
-    derived_attribute: z.enum(["directory_department", "directory_group", "directory_user"]),
+    derived_attribute: z.enum(["user_department", "entra_group", "user"]),
     derived_values: z.array(requiredString("Derived value")),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
@@ -328,7 +328,7 @@ function LabelEditForm({
                   value={form.derived_values}
                   onChange={(derived_values) => setForm({ ...form, derived_values })}
                 />
-                <FieldDescription>Matches linked directory records.</FieldDescription>
+                <FieldDescription>Matches linked users and Entra groups.</FieldDescription>
                 {showErrors && errors.derived_values ? <FieldError>{errors.derived_values}</FieldError> : null}
               </Field>
             </FieldGroup>
@@ -454,10 +454,10 @@ function DerivedSelector({
   onChange: (value: string[]) => void;
 }) {
   switch (attribute) {
-    case "directory_group":
-      return <DirectoryGroupSelector value={value} onChange={onChange} />;
-    case "directory_user":
-      return <DirectoryUserSelector value={value} onChange={onChange} />;
+    case "entra_group":
+      return <EntraGroupSelector value={value} onChange={onChange} />;
+    case "user":
+      return <EntraUserSelector value={value} onChange={onChange} />;
     default:
       return <DepartmentSelector value={value} onChange={onChange} />;
   }
@@ -466,7 +466,7 @@ function DerivedSelector({
 function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "value", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const departments = useDirectoryDepartments({
+  const departments = useEntraDepartments({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -475,7 +475,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
   });
   const rows = showSelected && value.length === 0 ? [] : (departments.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (departments.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<DirectoryDepartment>[]>(
+  const columns = useMemo<ColumnDef<EntraDepartment>[]>(
     () => [
       {
         accessorKey: "value",
@@ -508,19 +508,17 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       getRowId={(department) => department.value}
       emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
       emptyDescription={
-        showSelected
-          ? "Selected departments will appear here."
-          : "Try another search term or sync directory users first."
+        showSelected ? "Selected departments will appear here." : "Try another search term or sync Entra users first."
       }
       emptyIcon={<UsersRound className="size-5" />}
     />
   );
 }
 
-function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function EntraGroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const groups = useDirectoryGroups({
+  const groups = useEntraGroups({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -529,7 +527,7 @@ function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange
   });
   const rows = showSelected && value.length === 0 ? [] : (groups.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (groups.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<DirectoryGroup>[]>(
+  const columns = useMemo<ColumnDef<EntraGroup>[]>(
     () => [
       {
         accessorKey: "display_name",
@@ -574,10 +572,10 @@ function DirectoryGroupSelector({ value, onChange }: { value: string[]; onChange
   );
 }
 
-function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
-  const controls = useSelectorControls([{ id: "display_name", desc: false }]);
+function EntraUserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const controls = useSelectorControls([{ id: "name", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const users = useDirectoryUsers({
+  const users = useEntraUsers({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -586,12 +584,12 @@ function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange:
   });
   const rows = showSelected && value.length === 0 ? [] : (users.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (users.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<DirectoryUser>[]>(
+  const columns = useMemo<ColumnDef<EntraUser>[]>(
     () => [
       {
-        accessorKey: "display_name",
+        accessorKey: "name",
         header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
-        cell: ({ row }) => row.original.display_name,
+        cell: ({ row }) => row.original.name,
       },
       {
         accessorKey: "department",
@@ -621,7 +619,7 @@ function DirectoryUserSelector({ value, onChange }: { value: string[]; onChange:
       onSearchChange={controls.setSearch}
       onScopeChange={controls.setScopeFilter}
       onSelectedRowIdsChange={onChange}
-      getRowId={(user) => user.external_id}
+      getRowId={(user) => String(user.id)}
       emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
       emptyDescription={
         showSelected ? "Selected users will appear here." : "Try another search term or sync users first."
@@ -773,9 +771,9 @@ function sortParam(sorting: SortingState) {
 
 function derivedSelectorLabel(attribute: DerivedAttribute) {
   switch (attribute) {
-    case "directory_group":
+    case "entra_group":
       return "Groups";
-    case "directory_user":
+    case "user":
       return "Users";
     default:
       return "Departments";
@@ -794,11 +792,11 @@ function membershipFromString(value: string | undefined): LabelMembershipType {
 
 function derivedAttributeFromString(value: string | undefined): DerivedAttribute {
   switch (value) {
-    case "directory_group":
-    case "directory_user":
-    case "directory_department":
+    case "entra_group":
+    case "user":
+    case "user_department":
       return value;
     default:
-      return "directory_department";
+      return "user_department";
   }
 }

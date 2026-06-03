@@ -1,7 +1,8 @@
 import type { User } from "@/hooks/use-users";
 import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
 
-export type UserRole = User["role"];
+export type UserRole = NonNullable<User["role"]>;
+export type UserAccessRole = UserRole | "none";
 
 export const USER_ROLE_VALUES = ["admin", "viewer"] as const satisfies readonly UserRole[];
 
@@ -18,8 +19,26 @@ export const USER_ROLES = {
   },
 } satisfies EnumMetadataMap<UserRole>;
 
+export const USER_ACCESS_ROLES = {
+  ...USER_ROLES,
+  none: {
+    name: "No Access",
+    description: "Cannot sign in until a role is assigned.",
+    variant: "outline",
+  },
+} satisfies EnumMetadataMap<UserAccessRole>;
+
 export const USER_ROLE_OPTIONS = enumOptions(USER_ROLES);
+export const USER_ACCESS_ROLE_OPTIONS = enumOptions(USER_ACCESS_ROLES);
 
 export function userRoleLabel(value: string | null | undefined) {
   return enumLabel(USER_ROLES, value);
+}
+
+export function userAccessRole(value: User["role"]): UserAccessRole {
+  return value ?? "none";
+}
+
+export function userMutationRole(value: UserAccessRole): User["role"] {
+  return value === "none" ? undefined : value;
 }

@@ -177,11 +177,11 @@ export type Criteria = {
     values: Array<string> | null;
 };
 
-export type Department = {
+export type EntraDepartment = {
     value: string;
 };
 
-export type DirectoryGroup = {
+export type EntraGroup = {
     display_name: string;
     external_id: string;
     id: number;
@@ -189,17 +189,17 @@ export type DirectoryGroup = {
     mail_nickname?: string;
 };
 
-export type DirectoryUser = {
+export type EntraUser = {
     active: boolean;
     department?: string;
-    display_name: string;
-    external_id: string;
+    email: string;
+    entra_id: string;
     family_name?: string;
     given_name?: string;
     id: number;
     last_synced_at: string;
-    mail?: string;
     mail_nickname?: string;
+    name: string;
     user_principal_name: string;
 };
 
@@ -942,31 +942,31 @@ export type PageConfiguration = {
     items: Array<SantaConfiguration> | null;
 };
 
-export type PageDepartment = {
+export type PageEntraDepartment = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Department> | null;
+    items: Array<EntraDepartment> | null;
 };
 
-export type PageDirectoryGroup = {
+export type PageEntraGroup = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<DirectoryGroup> | null;
+    items: Array<EntraGroup> | null;
 };
 
-export type PageDirectoryUser = {
+export type PageEntraUser = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<DirectoryUser> | null;
+    items: Array<EntraUser> | null;
 };
 
 export type PageExecutionEvent = {
@@ -1386,12 +1386,22 @@ export type User = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    active: boolean;
+    can_login: boolean;
     created_at: string;
+    department?: string;
     email: string;
+    entra_id?: string;
+    family_name?: string;
+    given_name?: string;
     id: number;
+    last_synced_at?: string;
+    mail_nickname?: string;
     name: string;
-    role: 'admin' | 'viewer';
+    role?: 'admin' | 'viewer';
+    synced: boolean;
     updated_at: string;
+    user_principal_name?: string;
 };
 
 export type UserCreate = {
@@ -1412,7 +1422,7 @@ export type UserMutation = {
     readonly $schema?: string;
     name: string;
     password?: string;
-    role: 'admin' | 'viewer';
+    role?: 'admin' | 'viewer';
 };
 
 export type AccountWritable = {
@@ -1824,19 +1834,19 @@ export type PageConfigurationWritable = {
     items: Array<SantaConfigurationWritable> | null;
 };
 
-export type PageDepartmentWritable = {
+export type PageEntraDepartmentWritable = {
     count: number;
-    items: Array<Department> | null;
+    items: Array<EntraDepartment> | null;
 };
 
-export type PageDirectoryGroupWritable = {
+export type PageEntraGroupWritable = {
     count: number;
-    items: Array<DirectoryGroup> | null;
+    items: Array<EntraGroup> | null;
 };
 
-export type PageDirectoryUserWritable = {
+export type PageEntraUserWritable = {
     count: number;
-    items: Array<DirectoryUser> | null;
+    items: Array<EntraUser> | null;
 };
 
 export type PageExecutionEventWritable = {
@@ -2018,12 +2028,22 @@ export type SoftwareTitleWritable = {
 };
 
 export type UserWritable = {
+    active: boolean;
+    can_login: boolean;
     created_at: string;
+    department?: string;
     email: string;
+    entra_id?: string;
+    family_name?: string;
+    given_name?: string;
     id: number;
+    last_synced_at?: string;
+    mail_nickname?: string;
     name: string;
-    role: 'admin' | 'viewer';
+    role?: 'admin' | 'viewer';
+    synced: boolean;
     updated_at: string;
+    user_principal_name?: string;
 };
 
 export type UserCreateWritable = {
@@ -2036,7 +2056,7 @@ export type UserCreateWritable = {
 export type UserMutationWritable = {
     name: string;
     password?: string;
-    role: 'admin' | 'viewer';
+    role?: 'admin' | 'viewer';
 };
 
 export type GetAccountData = {
@@ -2426,7 +2446,7 @@ export type GetSessionResponses = {
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
 
-export type ListDirectoryDepartmentsData = {
+export type ListEntraDepartmentsData = {
     body?: never;
     path?: never;
     query?: {
@@ -2436,10 +2456,10 @@ export type ListDirectoryDepartmentsData = {
         sort?: string;
         values?: Array<string> | null;
     };
-    url: '/api/directory/departments';
+    url: '/api/entra/departments';
 };
 
-export type ListDirectoryDepartmentsErrors = {
+export type ListEntraDepartmentsErrors = {
     /**
      * Unauthorized
      */
@@ -2454,18 +2474,18 @@ export type ListDirectoryDepartmentsErrors = {
     500: ErrorModel;
 };
 
-export type ListDirectoryDepartmentsError = ListDirectoryDepartmentsErrors[keyof ListDirectoryDepartmentsErrors];
+export type ListEntraDepartmentsError = ListEntraDepartmentsErrors[keyof ListEntraDepartmentsErrors];
 
-export type ListDirectoryDepartmentsResponses = {
+export type ListEntraDepartmentsResponses = {
     /**
      * OK
      */
-    200: PageDepartment;
+    200: PageEntraDepartment;
 };
 
-export type ListDirectoryDepartmentsResponse = ListDirectoryDepartmentsResponses[keyof ListDirectoryDepartmentsResponses];
+export type ListEntraDepartmentsResponse = ListEntraDepartmentsResponses[keyof ListEntraDepartmentsResponses];
 
-export type ListDirectoryGroupsData = {
+export type ListEntraGroupsData = {
     body?: never;
     path?: never;
     query?: {
@@ -2475,10 +2495,10 @@ export type ListDirectoryGroupsData = {
         sort?: string;
         values?: Array<string> | null;
     };
-    url: '/api/directory/groups';
+    url: '/api/entra/groups';
 };
 
-export type ListDirectoryGroupsErrors = {
+export type ListEntraGroupsErrors = {
     /**
      * Unauthorized
      */
@@ -2493,18 +2513,18 @@ export type ListDirectoryGroupsErrors = {
     500: ErrorModel;
 };
 
-export type ListDirectoryGroupsError = ListDirectoryGroupsErrors[keyof ListDirectoryGroupsErrors];
+export type ListEntraGroupsError = ListEntraGroupsErrors[keyof ListEntraGroupsErrors];
 
-export type ListDirectoryGroupsResponses = {
+export type ListEntraGroupsResponses = {
     /**
      * OK
      */
-    200: PageDirectoryGroup;
+    200: PageEntraGroup;
 };
 
-export type ListDirectoryGroupsResponse = ListDirectoryGroupsResponses[keyof ListDirectoryGroupsResponses];
+export type ListEntraGroupsResponse = ListEntraGroupsResponses[keyof ListEntraGroupsResponses];
 
-export type ListDirectoryUsersData = {
+export type ListEntraUsersData = {
     body?: never;
     path?: never;
     query?: {
@@ -2514,10 +2534,10 @@ export type ListDirectoryUsersData = {
         sort?: string;
         values?: Array<string> | null;
     };
-    url: '/api/directory/users';
+    url: '/api/entra/users';
 };
 
-export type ListDirectoryUsersErrors = {
+export type ListEntraUsersErrors = {
     /**
      * Unauthorized
      */
@@ -2532,16 +2552,16 @@ export type ListDirectoryUsersErrors = {
     500: ErrorModel;
 };
 
-export type ListDirectoryUsersError = ListDirectoryUsersErrors[keyof ListDirectoryUsersErrors];
+export type ListEntraUsersError = ListEntraUsersErrors[keyof ListEntraUsersErrors];
 
-export type ListDirectoryUsersResponses = {
+export type ListEntraUsersResponses = {
     /**
      * OK
      */
-    200: PageDirectoryUser;
+    200: PageEntraUser;
 };
 
-export type ListDirectoryUsersResponse = ListDirectoryUsersResponses[keyof ListDirectoryUsersResponses];
+export type ListEntraUsersResponse = ListEntraUsersResponses[keyof ListEntraUsersResponses];
 
 export type ListHostsData = {
     body?: never;

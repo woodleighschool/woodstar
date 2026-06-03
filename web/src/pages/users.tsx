@@ -17,12 +17,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { USER_ROLES } from "@/components/users/user-role";
+import { USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsers, type User } from "@/hooks/use-users";
 import { formatRelative } from "@/lib/utils";
 
-const INITIAL_USER_ID = 1;
 const USERS_TABLE_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 100 };
 const USERS_TABLE_SORTING: SortingState = [];
 
@@ -37,7 +36,7 @@ export function UsersPage() {
     <PageShell>
       <PageHeader
         title="Users"
-        description="Manage local Woodstar accounts and access."
+        description="Manage users and Woodstar access."
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus data-icon="inline-start" /> Create
@@ -83,15 +82,14 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Email" />,
       cell: ({ row }) => {
         const isSelf = row.original.id === currentUserId;
-        const isInitial = row.original.id === INITIAL_USER_ID;
-        return `${row.original.email}${isSelf ? " (you)" : ""}${isInitial ? " (initial)" : ""}`;
+        return `${row.original.email}${isSelf ? " (you)" : ""}`;
       },
     },
     {
       id: "role",
       accessorKey: "role",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Role" />,
-      cell: ({ row }) => <EnumBadge value={row.original.role} metadata={USER_ROLES} />,
+      cell: ({ row }) => <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />,
     },
     {
       id: "created_at",
@@ -138,14 +136,12 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
           ? { to: "/account" }
           : { to: "/users/$userId/edit", params: { userId: String(row.id) } }
       }
-      empty={<DataTableEmptyState icon={<Users />} title="No Account Access" description="Create a local account." />}
+      empty={<DataTableEmptyState icon={<Users />} title="No Users" description="Create a local account." />}
     />
   );
 }
 
 function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolean; onDelete: (user: User) => void }) {
-  const isInitial = user.id === INITIAL_USER_ID;
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -166,9 +162,9 @@ function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolea
               </Link>
             </DropdownMenuItem>
           )}
-          {!isSelf && !isInitial ? (
+          {!isSelf ? (
             <DropdownMenuItem variant="destructive" onSelect={() => onDelete(user)}>
-              Delete
+              {user.synced ? "Deactivate" : "Delete"}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuGroup>

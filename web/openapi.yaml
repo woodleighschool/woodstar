@@ -467,7 +467,7 @@ components:
         - attribute
         - values
       type: object
-    Department:
+    EntraDepartment:
       additionalProperties: false
       properties:
         value:
@@ -475,7 +475,7 @@ components:
       required:
         - value
       type: object
-    DirectoryGroup:
+    EntraGroup:
       additionalProperties: false
       properties:
         display_name:
@@ -496,16 +496,17 @@ components:
         - display_name
         - last_synced_at
       type: object
-    DirectoryUser:
+    EntraUser:
       additionalProperties: false
       properties:
         active:
           type: boolean
         department:
           type: string
-        display_name:
+        email:
+          format: email
           type: string
-        external_id:
+        entra_id:
           type: string
         family_name:
           type: string
@@ -517,17 +518,18 @@ components:
         last_synced_at:
           format: date-time
           type: string
-        mail:
-          type: string
         mail_nickname:
+          type: string
+        name:
           type: string
         user_principal_name:
           type: string
       required:
         - id
-        - external_id
+        - entra_id
+        - email
         - user_principal_name
-        - display_name
+        - name
         - active
         - last_synced_at
       type: object
@@ -2554,13 +2556,13 @@ components:
         - items
         - count
       type: object
-    PageDepartment:
+    PageEntraDepartment:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PageDepartment.json
+            - https://example.com/api/schemas/PageEntraDepartment.json
           format: uri
           readOnly: true
           type: string
@@ -2569,7 +2571,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Department"
+            $ref: "#/components/schemas/EntraDepartment"
           type:
             - array
             - "null"
@@ -2577,13 +2579,13 @@ components:
         - items
         - count
       type: object
-    PageDirectoryGroup:
+    PageEntraGroup:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PageDirectoryGroup.json
+            - https://example.com/api/schemas/PageEntraGroup.json
           format: uri
           readOnly: true
           type: string
@@ -2592,7 +2594,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/DirectoryGroup"
+            $ref: "#/components/schemas/EntraGroup"
           type:
             - array
             - "null"
@@ -2600,13 +2602,13 @@ components:
         - items
         - count
       type: object
-    PageDirectoryUser:
+    PageEntraUser:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/PageDirectoryUser.json
+            - https://example.com/api/schemas/PageEntraUser.json
           format: uri
           readOnly: true
           type: string
@@ -2615,7 +2617,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/DirectoryUser"
+            $ref: "#/components/schemas/EntraUser"
           type:
             - array
             - "null"
@@ -3796,15 +3798,32 @@ components:
           format: uri
           readOnly: true
           type: string
+        active:
+          type: boolean
+        can_login:
+          type: boolean
         created_at:
           format: date-time
+          type: string
+        department:
           type: string
         email:
           format: email
           type: string
+        entra_id:
+          type: string
+        family_name:
+          type: string
+        given_name:
+          type: string
         id:
           format: int64
           type: integer
+        last_synced_at:
+          format: date-time
+          type: string
+        mail_nickname:
+          type: string
         name:
           type: string
         role:
@@ -3812,14 +3831,20 @@ components:
             - admin
             - viewer
           type: string
+        synced:
+          type: boolean
         updated_at:
           format: date-time
+          type: string
+        user_principal_name:
           type: string
       required:
         - id
         - email
         - name
-        - role
+        - active
+        - synced
+        - can_login
         - created_at
         - updated_at
       type: object
@@ -3872,7 +3897,6 @@ components:
           type: string
       required:
         - name
-        - role
       type: object
   securitySchemes:
     cookieAuth:
@@ -4288,9 +4312,9 @@ paths:
       summary: Get setup state and the current signed-in user, if any
       tags:
         - Auth
-  /api/directory/departments:
+  /api/entra/departments:
     get:
-      operationId: list-directory-departments
+      operationId: list-entra-departments
       parameters:
         - explode: false
           in: query
@@ -4333,7 +4357,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageDepartment"
+                $ref: "#/components/schemas/PageEntraDepartment"
           description: OK
         "401":
           content:
@@ -4353,12 +4377,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List directory departments
+      summary: List Entra-populated departments
       tags:
-        - Directory
-  /api/directory/groups:
+        - Entra
+  /api/entra/groups:
     get:
-      operationId: list-directory-groups
+      operationId: list-entra-groups
       parameters:
         - explode: false
           in: query
@@ -4401,7 +4425,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageDirectoryGroup"
+                $ref: "#/components/schemas/PageEntraGroup"
           description: OK
         "401":
           content:
@@ -4421,12 +4445,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List directory groups
+      summary: List Entra groups
       tags:
-        - Directory
-  /api/directory/users:
+        - Entra
+  /api/entra/users:
     get:
-      operationId: list-directory-users
+      operationId: list-entra-users
       parameters:
         - explode: false
           in: query
@@ -4469,7 +4493,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageDirectoryUser"
+                $ref: "#/components/schemas/PageEntraUser"
           description: OK
         "401":
           content:
@@ -4489,9 +4513,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: List directory users
+      summary: List Entra-populated users
       tags:
-        - Directory
+        - Entra
   /api/hosts:
     get:
       operationId: list-hosts
