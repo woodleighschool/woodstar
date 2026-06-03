@@ -20,7 +20,7 @@ export const LABEL_MEMBERSHIP_TYPES = {
   },
   derived: {
     name: "Derived",
-    description: "Membership is computed from linked users, Entra groups, or other host attributes.",
+    description: "Membership is computed from linked users, groups, or other host attributes.",
   },
 } satisfies EnumMetadataMap<LabelMembershipType>;
 

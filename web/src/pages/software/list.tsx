@@ -20,7 +20,7 @@ import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pa
 import { expandSoftwareSourceFilters, softwareSourceLabel, SOURCE_FILTER_OPTIONS } from "@/lib/software-source-labels";
 
 export function SoftwarePage() {
-  const search = useSearch({ strict: false });
+  const search = useSearch({ from: "/_authenticated/software/" });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
 

@@ -3,9 +3,11 @@ package users
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/entra"
 )
 
 func TestDeleteRemovesLocalUsers(t *testing.T) {
@@ -93,5 +95,98 @@ RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
 	}
 	if _, err := store.GetByAPIKey(ctx, apiKey); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get deactivated user by api key err = %v, want %v", err, dbutil.ErrNotFound)
+	}
+}
+
+func TestListFiltersUsers(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	entraStore := entra.NewStore(database)
+
+	if err := entraStore.Apply(ctx, entra.Snapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users: []entra.SnapshotUser{
+			{
+				ExternalID:        "u-alice",
+				UserPrincipalName: "alice@example.edu",
+				DisplayName:       "Alice Engineering",
+				Department:        "Engineering",
+				Active:            true,
+			},
+			{
+				ExternalID:        "u-bob",
+				UserPrincipalName: "bob@example.edu",
+				DisplayName:       "Bob Operations",
+				Department:        "Operations",
+				Active:            false,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("apply entra snapshot: %v", err)
+	}
+	local, err := store.Create(ctx, UserCreate{
+		Email:    "local@example.edu",
+		Name:     "Local Admin",
+		Role:     RoleAdmin,
+		Password: "correct-password",
+	})
+	if err != nil {
+		t.Fatalf("create local user: %v", err)
+	}
+
+	users, count, err := store.List(ctx, ListParams{
+		ListParams: dbutil.ListParams{Q: "engineering"},
+		Source:     "synced",
+		Status:     "active",
+	})
+	if err != nil {
+		t.Fatalf("list synced engineering users: %v", err)
+	}
+	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
+		t.Fatalf("users = %+v count=%d, want Alice only", users, count)
+	}
+
+	users, count, err = store.List(ctx, ListParams{Role: "admin", Source: "local"})
+	if err != nil {
+		t.Fatalf("list local admins: %v", err)
+	}
+	if count != 1 || len(users) != 1 || users[0].ID != local.ID {
+		t.Fatalf("local admins = %+v count=%d, want local admin", users, count)
+	}
+}
+
+func TestListDepartmentsReturnsSyncedDepartments(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	store := NewStore(database)
+	entraStore := entra.NewStore(database)
+
+	if err := entraStore.Apply(ctx, entra.Snapshot{
+		GeneratedAt: time.Now().UTC(),
+		Users: []entra.SnapshotUser{
+			{
+				ExternalID:        "u-alice",
+				UserPrincipalName: "alice@example.edu",
+				DisplayName:       "Alice",
+				Department:        "Engineering",
+				Active:            true,
+			},
+			{
+				ExternalID:        "u-bob",
+				UserPrincipalName: "bob@example.edu",
+				DisplayName:       "Bob",
+				Department:        "Operations",
+				Active:            true,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("apply entra snapshot: %v", err)
+	}
+
+	departments, count, err := store.ListDepartments(ctx, ListParams{ListParams: dbutil.ListParams{Q: "eng"}})
+	if err != nil {
+		t.Fatalf("list departments: %v", err)
+	}
+	if count != 1 || len(departments) != 1 || departments[0].Value != "Engineering" {
+		t.Fatalf("departments = %+v count=%d, want Engineering only", departments, count)
 	}
 }

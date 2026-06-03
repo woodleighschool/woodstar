@@ -87,7 +87,7 @@ function UserEditForm({ user }: { user: User }) {
     });
     setPassword("");
     toast.success("User updated");
-    void navigate({ to: "/users/$userId/edit", params: { userId: String(saved.id) } });
+    void navigate({ to: "/directory/users/$userId/edit", params: { userId: String(saved.id) } });
   }
 
   return (
@@ -181,7 +181,7 @@ function UserEditForm({ user }: { user: User }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         user={user}
-        onDeleted={() => void navigate({ to: "/users" })}
+        onDeleted={() => void navigate({ to: "/directory/users" })}
       />
     </PageShell>
   );

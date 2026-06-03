@@ -18,17 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  useEntraDepartments,
-  useEntraGroups,
-  useEntraUsers,
-  type EntraDepartment,
-  type EntraGroup,
-  type EntraUser,
-} from "@/hooks/use-entra";
+import { useGroups, type Group } from "@/hooks/use-groups";
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
+import { useUserDepartments, useUsers, type Department, type User } from "@/hooks/use-users";
 import { fieldErrors, requiredString, selectedIDArray } from "@/lib/form-validation";
 import { sqlSyntaxError } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
@@ -43,7 +37,7 @@ type DerivedAttribute = "user_department" | "entra_group" | "user";
 
 const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
   { value: "user_department", label: "User Department" },
-  { value: "entra_group", label: "Entra Group" },
+  { value: "entra_group", label: "Group" },
   { value: "user", label: "User" },
 ];
 
@@ -328,7 +322,7 @@ function LabelEditForm({
                   value={form.derived_values}
                   onChange={(derived_values) => setForm({ ...form, derived_values })}
                 />
-                <FieldDescription>Matches linked users and Entra groups.</FieldDescription>
+                <FieldDescription>Matches linked users and groups.</FieldDescription>
                 {showErrors && errors.derived_values ? <FieldError>{errors.derived_values}</FieldError> : null}
               </Field>
             </FieldGroup>
@@ -455,9 +449,9 @@ function DerivedSelector({
 }) {
   switch (attribute) {
     case "entra_group":
-      return <EntraGroupSelector value={value} onChange={onChange} />;
+      return <GroupSelector value={value} onChange={onChange} />;
     case "user":
-      return <EntraUserSelector value={value} onChange={onChange} />;
+      return <UserSelector value={value} onChange={onChange} />;
     default:
       return <DepartmentSelector value={value} onChange={onChange} />;
   }
@@ -466,7 +460,7 @@ function DerivedSelector({
 function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "value", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const departments = useEntraDepartments({
+  const departments = useUserDepartments({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -475,7 +469,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
   });
   const rows = showSelected && value.length === 0 ? [] : (departments.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (departments.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<EntraDepartment>[]>(
+  const columns = useMemo<ColumnDef<Department>[]>(
     () => [
       {
         accessorKey: "value",
@@ -508,17 +502,17 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       getRowId={(department) => department.value}
       emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
       emptyDescription={
-        showSelected ? "Selected departments will appear here." : "Try another search term or sync Entra users first."
+        showSelected ? "Selected departments will appear here." : "Try another search term or sync users first."
       }
       emptyIcon={<UsersRound className="size-5" />}
     />
   );
 }
 
-function EntraGroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function GroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const groups = useEntraGroups({
+  const groups = useGroups({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -527,7 +521,7 @@ function EntraGroupSelector({ value, onChange }: { value: string[]; onChange: (v
   });
   const rows = showSelected && value.length === 0 ? [] : (groups.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (groups.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<EntraGroup>[]>(
+  const columns = useMemo<ColumnDef<Group>[]>(
     () => [
       {
         accessorKey: "display_name",
@@ -572,10 +566,10 @@ function EntraGroupSelector({ value, onChange }: { value: string[]; onChange: (v
   );
 }
 
-function EntraUserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+function UserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "name", desc: false }]);
   const showSelected = controls.scope === "selected";
-  const users = useEntraUsers({
+  const users = useUsers({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
     page_size: controls.pagination.pageSize,
@@ -584,7 +578,7 @@ function EntraUserSelector({ value, onChange }: { value: string[]; onChange: (va
   });
   const rows = showSelected && value.length === 0 ? [] : (users.data?.items ?? []);
   const count = showSelected && value.length === 0 ? 0 : (users.data?.count ?? 0);
-  const columns = useMemo<ColumnDef<EntraUser>[]>(
+  const columns = useMemo<ColumnDef<User>[]>(
     () => [
       {
         accessorKey: "name",

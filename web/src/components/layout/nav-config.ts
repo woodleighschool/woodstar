@@ -6,7 +6,7 @@ import {
   ServerCog,
   ShieldCheck,
   Tag,
-  Users as UsersIcon,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +64,15 @@ export const navSections: NavMenu[] = [
     label: "System",
     items: [
       {
+        label: "Directory",
+        icon: UsersRound,
+        adminOnly: true,
+        items: [
+          { label: "Users", to: "/directory/users" },
+          { label: "Groups", to: "/directory/groups" },
+        ],
+      },
+      {
         label: "Enrollments",
         icon: KeyRound,
         adminOnly: true,
@@ -74,7 +83,6 @@ export const navSections: NavMenu[] = [
         ],
       },
       { label: "Labels", to: "/labels", icon: Tag },
-      { label: "Users", to: "/users", icon: UsersIcon, adminOnly: true },
     ],
   },
 ];

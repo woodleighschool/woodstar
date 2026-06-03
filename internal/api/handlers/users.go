@@ -21,8 +21,25 @@ type userListOutput struct {
 	Body Page[users.User]
 }
 
+type departmentListOutput struct {
+	Body Page[users.Department]
+}
+
 type userOutput struct {
 	Body users.User
+}
+
+type userListInput struct {
+	ListQueryInput
+	Values []string `query:"values,omitempty"`
+	Role   string   `query:"role,omitempty"   enum:"admin,viewer,none"`
+	Source string   `query:"source,omitempty" enum:"local,synced"`
+	Status string   `query:"status,omitempty" enum:"active,inactive"`
+}
+
+type departmentListInput struct {
+	ListQueryInput
+	Values []string `query:"values,omitempty"`
 }
 
 type userCreateInput struct {
@@ -44,10 +61,28 @@ type userDeleteInput struct {
 
 func RegisterUsers(api huma.API, userService *users.Service) {
 	registerListUsers(api, userService)
+	registerListUserDepartments(api, userService)
 	registerCreateUser(api, userService)
 	registerGetUser(api, userService)
 	registerPutUser(api, userService)
 	registerDeleteUser(api, userService)
+}
+
+func (i userListInput) params() users.ListParams {
+	return users.ListParams{
+		ListParams: i.ListQueryInput.params(),
+		Values:     dbutil.SplitListValues(i.Values),
+		Role:       i.Role,
+		Source:     i.Source,
+		Status:     i.Status,
+	}
+}
+
+func (i departmentListInput) params() users.ListParams {
+	return users.ListParams{
+		ListParams: i.ListQueryInput.params(),
+		Values:     dbutil.SplitListValues(i.Values),
+	}
 }
 
 func registerListUsers(api huma.API, userService *users.Service) {
@@ -58,15 +93,35 @@ func registerListUsers(api huma.API, userService *users.Service) {
 		Tags:        []string{usersTag},
 		Summary:     "List Woodstar users",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, _ *struct{}) (*userListOutput, error) {
+	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		list, err := userService.List(ctx)
+		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
+			return nil, resourceMutationError(userResource, err)
+		}
+		return &userListOutput{Body: Page[users.User]{Items: list, Count: count}}, nil
+	})
+}
+
+func registerListUserDepartments(api huma.API, userService *users.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-user-departments",
+		Method:      http.MethodGet,
+		Path:        "/api/users/departments",
+		Tags:        []string{usersTag},
+		Summary:     "List synced user departments",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
+		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		return &userListOutput{Body: Page[users.User]{Items: list, Count: len(list)}}, nil
+		list, count, err := userService.ListDepartments(ctx, input.params())
+		if err != nil {
+			return nil, resourceMutationError("department", err)
+		}
+		return &departmentListOutput{Body: Page[users.Department]{Items: list, Count: count}}, nil
 	})
 }
 

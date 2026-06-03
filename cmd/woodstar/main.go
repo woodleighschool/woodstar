@@ -23,6 +23,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/entra"
+	"github.com/woodleighschool/woodstar/internal/groups"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
@@ -178,13 +179,15 @@ func newServer(
 			AuthService: authService,
 			UserService: userService,
 		},
+		Directory: api.DirectoryDependencies{
+			Groups: stores.groups,
+		},
 		Inventory: api.InventoryDependencies{
 			Hosts:          stores.hosts,
 			UserAffinities: stores.userAffinities,
 			Software:       stores.software,
 			Labels:         stores.labels,
 		},
-		Entra:     api.EntraDependencies{Store: stores.entra},
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
 		Orbit:     orbitDeps,
 		Osquery:   osqueryDeps,
@@ -218,6 +221,7 @@ func (services backgroundServices) start(ctx context.Context) func() {
 
 type appStores struct {
 	users               *users.Store
+	groups              *groups.Store
 	hosts               *hosts.Store
 	userAffinities      *hosts.UserAffinityStore
 	entra               *entra.Store
@@ -238,6 +242,7 @@ type appStores struct {
 func newStores(db *database.DB) appStores {
 	return appStores{
 		users:               users.NewStore(db),
+		groups:              groups.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		userAffinities:      hosts.NewUserAffinityStore(db),
 		entra:               entra.NewStore(db),

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCheck } from "@/hooks/use-checks";
+import { useGroup } from "@/hooks/use-groups";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
 import { useMunkiSoftwareTitle } from "@/hooks/use-munki";
@@ -258,10 +259,15 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: `santa-rule-${params.ruleId}`, label: <SantaRuleCrumb id={params.ruleId} /> },
       ];
 
-    // System
-    case "/_authenticated/users/$userId/edit":
+    // Directory
+    case "/_authenticated/directory/groups/$groupId":
       return [
-        { key: "users", label: "Users", to: "/users" },
+        { key: "directory-groups", label: "Groups", to: "/directory/groups" },
+        { key: `group-${params.groupId}`, label: <GroupCrumb id={params.groupId} /> },
+      ];
+    case "/_authenticated/directory/users/$userId/edit":
+      return [
+        { key: "directory-users", label: "Users", to: "/directory/users" },
         { key: `user-${params.userId}`, label: <UserCrumb id={params.userId} /> },
       ];
     default:
@@ -290,7 +296,10 @@ const sidebarRouteIDs = new Set([
   "/_authenticated/santa/rules",
   "/_authenticated/santa/rules/",
   "/_authenticated/software/",
-  "/_authenticated/users",
+  "/_authenticated/directory/groups",
+  "/_authenticated/directory/groups/",
+  "/_authenticated/directory/users",
+  "/_authenticated/directory/users/",
 ]);
 
 function HostCrumb({ id }: { id: string }) {
@@ -321,6 +330,12 @@ function ReportCrumb({ id }: { id: string }) {
   const { data, isLoading } = useReport(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
+}
+
+function GroupCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useGroup(Number(id));
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{data.display_name || id}</span>;
 }
 
 function SantaConfigurationCrumb({ id }: { id: string }) {

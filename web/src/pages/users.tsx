@@ -1,12 +1,19 @@
-import { Link } from "@tanstack/react-router";
-import type { ColumnDef, PaginationState, SortingState } from "@tanstack/react-table";
+import { Link, useSearch } from "@tanstack/react-router";
+import type { ColumnDef, OnChangeFn, PaginationState, SortingState } from "@tanstack/react-table";
 import { MoreHorizontal, UserPlus, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
+import {
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableFacetedFilter,
+  DataTableSearch,
+} from "@/components/data-table";
 import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,26 +24,47 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
+import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
+import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { useUsers, type User } from "@/hooks/use-users";
-import { formatRelative } from "@/lib/utils";
+import { formatRelative, nonEmpty } from "@/lib/utils";
 
-const USERS_TABLE_PAGINATION: PaginationState = { pageIndex: 0, pageSize: 100 };
-const USERS_TABLE_SORTING: SortingState = [];
+const USER_SOURCE_OPTIONS = [
+  { value: "local", label: "Local" },
+  { value: "synced", label: "Synced" },
+];
+
+const USER_STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
 
 export function UsersPage() {
-  const query = useUsers();
+  const search = useSearch({ from: "/_authenticated/directory/users/" });
+  const { state, setters } = useTablePaginationParams();
+  const [draft, setDraft] = useDebouncedSearchParam("q");
   const { user: currentUser } = useAuth();
-
   const [createOpen, setCreateOpen] = useState(false);
   const [deleting, setDeleting] = useState<User | null>(null);
+
+  const query = useUsers({
+    q: search.q,
+    role: search.role,
+    source: search.source,
+    status: search.status,
+    ...tableQueryParams(state),
+  });
+  const data = query.data?.items ?? [];
+  const totalCount = query.data?.count ?? 0;
+  const hasFilters = !!search.q || !!search.role || !!search.source || !!search.status;
 
   return (
     <PageShell>
       <PageHeader
         title="Users"
-        description="Manage users and Woodstar access."
+        description="Manage synced and local users."
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus data-icon="inline-start" /> Create
@@ -45,7 +73,28 @@ export function UsersPage() {
       />
 
       <div>
-        <UsersTable query={query} currentUserId={currentUser?.id ?? null} onDelete={setDeleting} />
+        <UsersTable
+          data={data}
+          totalCount={totalCount}
+          query={query}
+          currentUserId={currentUser?.id ?? null}
+          pagination={state.pagination}
+          sorting={state.sorting}
+          onPaginationChange={setters.setPagination}
+          onSortingChange={setters.setSorting}
+          toolbar={
+            <UsersToolbar
+              draft={draft}
+              onDraftChange={setDraft}
+              role={search.role}
+              source={search.source}
+              status={search.status}
+              onFilterChange={setters.setFilter}
+            />
+          }
+          hasFilters={hasFilters}
+          onDelete={setDeleting}
+        />
       </div>
 
       <UserFormDialog mode="create" open={createOpen} onOpenChange={setCreateOpen} />
@@ -62,19 +111,38 @@ export function UsersPage() {
 }
 
 interface UsersTableProps {
+  data: User[];
+  totalCount: number;
   query: ReturnType<typeof useUsers>;
   currentUserId: number | null;
+  pagination: PaginationState;
+  sorting: SortingState;
+  onPaginationChange: OnChangeFn<PaginationState>;
+  onSortingChange: OnChangeFn<SortingState>;
+  toolbar: ReactNode;
+  hasFilters: boolean;
   onDelete: (user: User) => void;
 }
 
-function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
-  const data = query.data ?? [];
+function UsersTable({
+  data,
+  totalCount,
+  query,
+  currentUserId,
+  pagination,
+  sorting,
+  onPaginationChange,
+  onSortingChange,
+  toolbar,
+  hasFilters,
+  onDelete,
+}: UsersTableProps) {
   const columns: ColumnDef<User>[] = [
     {
       id: "name",
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => row.original.name || row.original.email,
+      cell: ({ row }) => nonEmpty(row.original.name) ?? row.original.email,
     },
     {
       id: "email",
@@ -92,10 +160,36 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
       cell: ({ row }) => <EnumBadge value={userAccessRole(row.original.role)} metadata={USER_ACCESS_ROLES} />,
     },
     {
-      id: "created_at",
-      accessorKey: "created_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
-      cell: ({ row }) => formatRelative(row.original.created_at),
+      id: "source",
+      accessorFn: (row) => (row.synced ? "synced" : "local"),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Source" />,
+      cell: ({ row }) => (
+        <Badge variant={row.original.synced ? "secondary" : "outline"}>
+          {row.original.synced ? "Synced" : "Local"}
+        </Badge>
+      ),
+    },
+    {
+      id: "status",
+      accessorFn: (row) => (row.active ? "active" : "inactive"),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "outline" : "secondary"}>
+          {row.original.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      id: "department",
+      accessorKey: "department",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
+      cell: ({ row }) => nonEmpty(row.original.department) ?? "-",
+    },
+    {
+      id: "last_synced_at",
+      accessorKey: "last_synced_at",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Synced" />,
+      cell: ({ row }) => (row.original.last_synced_at ? formatRelative(row.original.last_synced_at) : "-"),
     },
     {
       id: "actions",
@@ -124,20 +218,69 @@ function UsersTable({ query, currentUserId, onDelete }: UsersTableProps) {
     <DataTable
       columns={columns}
       data={data}
-      totalCount={data.length}
-      pagination={USERS_TABLE_PAGINATION}
-      sorting={USERS_TABLE_SORTING}
-      onPaginationChange={() => undefined}
-      onSortingChange={() => undefined}
+      totalCount={totalCount}
+      pagination={pagination}
+      sorting={sorting}
+      onPaginationChange={onPaginationChange}
+      onSortingChange={onSortingChange}
       isLoading={query.isLoading}
-      clientSort
+      toolbar={toolbar}
       rowHref={(row) =>
         row.id === currentUserId
           ? { to: "/account" }
-          : { to: "/users/$userId/edit", params: { userId: String(row.id) } }
+          : { to: "/directory/users/$userId/edit", params: { userId: String(row.id) } }
       }
-      empty={<DataTableEmptyState icon={<Users />} title="No Users" description="Create a local account." />}
+      empty={
+        <DataTableEmptyState
+          icon={<Users />}
+          title={hasFilters ? "No Matches" : "No Users"}
+          description={hasFilters ? "No users matched the current filters." : "Users appear after setup or sync."}
+        />
+      }
     />
+  );
+}
+
+function UsersToolbar({
+  draft,
+  onDraftChange,
+  role,
+  source,
+  status,
+  onFilterChange,
+}: {
+  draft: string;
+  onDraftChange: (next: string) => void;
+  role?: string;
+  source?: string;
+  status?: string;
+  onFilterChange: (key: string, value: string | undefined) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <DataTableSearch value={draft} onChange={onDraftChange} placeholder="Search" />
+      <DataTableFacetedFilter
+        title="Role"
+        options={USER_ACCESS_ROLE_OPTIONS}
+        selected={role ? [role] : []}
+        onChange={(next) => onFilterChange("role", next[0])}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Source"
+        options={USER_SOURCE_OPTIONS}
+        selected={source ? [source] : []}
+        onChange={(next) => onFilterChange("source", next[0])}
+        singleSelect
+      />
+      <DataTableFacetedFilter
+        title="Status"
+        options={USER_STATUS_OPTIONS}
+        selected={status ? [status] : []}
+        onChange={(next) => onFilterChange("status", next[0])}
+        singleSelect
+      />
+    </div>
   );
 }
 
@@ -157,7 +300,7 @@ function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolea
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem asChild>
-              <Link to="/users/$userId/edit" params={{ userId: String(user.id) }}>
+              <Link to="/directory/users/$userId/edit" params={{ userId: String(user.id) }}>
                 Edit
               </Link>
             </DropdownMenuItem>

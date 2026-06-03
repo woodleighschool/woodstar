@@ -29,8 +29,16 @@ func (s *Service) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetByID(ctx, id)
 }
 
-func (s *Service) List(ctx context.Context) ([]User, error) {
-	return s.store.List(ctx)
+func (s *Service) List(ctx context.Context, params ListParams) ([]User, int, error) {
+	return s.store.List(ctx, params)
+}
+
+func (s *Service) ListDepartments(ctx context.Context, params ListParams) ([]Department, int, error) {
+	return s.store.ListDepartments(ctx, params)
+}
+
+func (s *Service) ListGroupMembers(ctx context.Context, groupID int64, params ListParams) ([]User, int, error) {
+	return s.store.ListGroupMembers(ctx, groupID, params)
 }
 
 func (s *Service) Create(ctx context.Context, params UserCreate) (*User, error) {

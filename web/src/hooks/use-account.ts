@@ -24,7 +24,7 @@ export function useUpdateAccount() {
       queryClient.setQueryData(queryKeys.session, (session: Session | undefined) =>
         session ? { ...session, user: account.user } : session,
       );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

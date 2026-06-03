@@ -177,30 +177,8 @@ export type Criteria = {
     values: Array<string> | null;
 };
 
-export type EntraDepartment = {
+export type Department = {
     value: string;
-};
-
-export type EntraGroup = {
-    display_name: string;
-    external_id: string;
-    id: number;
-    last_synced_at: string;
-    mail_nickname?: string;
-};
-
-export type EntraUser = {
-    active: boolean;
-    department?: string;
-    email: string;
-    entra_id: string;
-    family_name?: string;
-    given_name?: string;
-    id: number;
-    last_synced_at: string;
-    mail_nickname?: string;
-    name: string;
-    user_principal_name: string;
 };
 
 export type ErrorDetail = {
@@ -325,6 +303,21 @@ export type FileAccessEvent = {
     rule_name: string;
     rule_version: string;
     target: string;
+};
+
+export type Group = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    created_at: string;
+    display_name: string;
+    external_id: string;
+    id: number;
+    last_synced_at: string;
+    mail_nickname?: string;
+    member_count: number;
+    updated_at: string;
 };
 
 export type Handle = {
@@ -942,31 +935,13 @@ export type PageConfiguration = {
     items: Array<SantaConfiguration> | null;
 };
 
-export type PageEntraDepartment = {
+export type PageDepartment = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<EntraDepartment> | null;
-};
-
-export type PageEntraGroup = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<EntraGroup> | null;
-};
-
-export type PageEntraUser = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<EntraUser> | null;
+    items: Array<Department> | null;
 };
 
 export type PageExecutionEvent = {
@@ -985,6 +960,15 @@ export type PageFileAccessEvent = {
     readonly $schema?: string;
     count: number;
     items: Array<FileAccessEvent> | null;
+};
+
+export type PageGroup = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<Group> | null;
 };
 
 export type PageHost = {
@@ -1552,6 +1536,17 @@ export type FileAccessEventWritable = {
     target: string;
 };
 
+export type GroupWritable = {
+    created_at: string;
+    display_name: string;
+    external_id: string;
+    id: number;
+    last_synced_at: string;
+    mail_nickname?: string;
+    member_count: number;
+    updated_at: string;
+};
+
 export type HandleWritable = {
     id: number;
     resolved_host_count: number;
@@ -1834,19 +1829,9 @@ export type PageConfigurationWritable = {
     items: Array<SantaConfigurationWritable> | null;
 };
 
-export type PageEntraDepartmentWritable = {
+export type PageDepartmentWritable = {
     count: number;
-    items: Array<EntraDepartment> | null;
-};
-
-export type PageEntraGroupWritable = {
-    count: number;
-    items: Array<EntraGroup> | null;
-};
-
-export type PageEntraUserWritable = {
-    count: number;
-    items: Array<EntraUser> | null;
+    items: Array<Department> | null;
 };
 
 export type PageExecutionEventWritable = {
@@ -1857,6 +1842,11 @@ export type PageExecutionEventWritable = {
 export type PageFileAccessEventWritable = {
     count: number;
     items: Array<FileAccessEventWritable> | null;
+};
+
+export type PageGroupWritable = {
+    count: number;
+    items: Array<GroupWritable> | null;
 };
 
 export type PageHostWritable = {
@@ -2446,7 +2436,7 @@ export type GetSessionResponses = {
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
 
-export type ListEntraDepartmentsData = {
+export type ListGroupsData = {
     body?: never;
     path?: never;
     query?: {
@@ -2456,14 +2446,18 @@ export type ListEntraDepartmentsData = {
         sort?: string;
         values?: Array<string> | null;
     };
-    url: '/api/entra/departments';
+    url: '/api/groups';
 };
 
-export type ListEntraDepartmentsErrors = {
+export type ListGroupsErrors = {
     /**
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -2474,35 +2468,39 @@ export type ListEntraDepartmentsErrors = {
     500: ErrorModel;
 };
 
-export type ListEntraDepartmentsError = ListEntraDepartmentsErrors[keyof ListEntraDepartmentsErrors];
+export type ListGroupsError = ListGroupsErrors[keyof ListGroupsErrors];
 
-export type ListEntraDepartmentsResponses = {
+export type ListGroupsResponses = {
     /**
      * OK
      */
-    200: PageEntraDepartment;
+    200: PageGroup;
 };
 
-export type ListEntraDepartmentsResponse = ListEntraDepartmentsResponses[keyof ListEntraDepartmentsResponses];
+export type ListGroupsResponse = ListGroupsResponses[keyof ListGroupsResponses];
 
-export type ListEntraGroupsData = {
+export type GetGroupData = {
     body?: never;
-    path?: never;
-    query?: {
-        q?: string;
-        page_index?: number;
-        page_size?: number;
-        sort?: string;
-        values?: Array<string> | null;
+    path: {
+        id: number;
     };
-    url: '/api/entra/groups';
+    query?: never;
+    url: '/api/groups/{id}';
 };
 
-export type ListEntraGroupsErrors = {
+export type GetGroupErrors = {
     /**
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -2513,35 +2511,48 @@ export type ListEntraGroupsErrors = {
     500: ErrorModel;
 };
 
-export type ListEntraGroupsError = ListEntraGroupsErrors[keyof ListEntraGroupsErrors];
+export type GetGroupError = GetGroupErrors[keyof GetGroupErrors];
 
-export type ListEntraGroupsResponses = {
+export type GetGroupResponses = {
     /**
      * OK
      */
-    200: PageEntraGroup;
+    200: Group;
 };
 
-export type ListEntraGroupsResponse = ListEntraGroupsResponses[keyof ListEntraGroupsResponses];
+export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
 
-export type ListEntraUsersData = {
+export type ListGroupMembersData = {
     body?: never;
-    path?: never;
+    path: {
+        id: number;
+    };
     query?: {
         q?: string;
         page_index?: number;
         page_size?: number;
         sort?: string;
         values?: Array<string> | null;
+        role?: 'admin' | 'viewer' | 'none';
+        source?: 'local' | 'synced';
+        status?: 'active' | 'inactive';
     };
-    url: '/api/entra/users';
+    url: '/api/groups/{id}/members';
 };
 
-export type ListEntraUsersErrors = {
+export type ListGroupMembersErrors = {
     /**
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Unprocessable Entity
      */
@@ -2552,16 +2563,16 @@ export type ListEntraUsersErrors = {
     500: ErrorModel;
 };
 
-export type ListEntraUsersError = ListEntraUsersErrors[keyof ListEntraUsersErrors];
+export type ListGroupMembersError = ListGroupMembersErrors[keyof ListGroupMembersErrors];
 
-export type ListEntraUsersResponses = {
+export type ListGroupMembersResponses = {
     /**
      * OK
      */
-    200: PageEntraUser;
+    200: PageUser;
 };
 
-export type ListEntraUsersResponse = ListEntraUsersResponses[keyof ListEntraUsersResponses];
+export type ListGroupMembersResponse = ListGroupMembersResponses[keyof ListGroupMembersResponses];
 
 export type ListHostsData = {
     body?: never;
@@ -5830,7 +5841,16 @@ export type GetSoftwareSantaReferenceResponse = GetSoftwareSantaReferenceRespons
 export type ListUsersData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+        values?: Array<string> | null;
+        role?: 'admin' | 'viewer' | 'none';
+        source?: 'local' | 'synced';
+        status?: 'active' | 'inactive';
+    };
     url: '/api/users';
 };
 
@@ -5843,6 +5863,10 @@ export type ListUsersErrors = {
      * Forbidden
      */
     403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
     /**
      * Internal Server Error
      */
@@ -5904,6 +5928,49 @@ export type CreateUserResponses = {
 };
 
 export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
+
+export type ListUserDepartmentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+        values?: Array<string> | null;
+    };
+    url: '/api/users/departments';
+};
+
+export type ListUserDepartmentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListUserDepartmentsError = ListUserDepartmentsErrors[keyof ListUserDepartmentsErrors];
+
+export type ListUserDepartmentsResponses = {
+    /**
+     * OK
+     */
+    200: PageDepartment;
+};
+
+export type ListUserDepartmentsResponse = ListUserDepartmentsResponses[keyof ListUserDepartmentsResponses];
 
 export type DeleteUserData = {
     body?: never;

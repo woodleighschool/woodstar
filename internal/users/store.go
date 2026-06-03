@@ -15,7 +15,8 @@ import (
 
 // Store persists users and their Woodstar access fields.
 type Store struct {
-	q *sqlc.Queries
+	db *database.DB
+	q  *sqlc.Queries
 }
 
 // UserCreate contains fields needed to create a user.
@@ -34,7 +35,7 @@ type UserMutation struct {
 }
 
 func NewStore(db *database.DB) *Store {
-	return &Store{q: db.Queries()}
+	return &Store{db: db, q: db.Queries()}
 }
 
 func (s *Store) Exists(ctx context.Context) (bool, error) {
@@ -104,16 +105,81 @@ func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) 
 	return new(accountFromSQLC(row)), nil
 }
 
-func (s *Store) List(ctx context.Context) ([]User, error) {
-	rows, err := s.q.ListUsers(ctx)
+func (s *Store) List(ctx context.Context, params ListParams) ([]User, int, error) {
+	where, args := userWhere(params)
+	listQuery := userListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
+	var count int
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	query, args, err := listQuery.Build()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	users := make([]User, len(rows))
-	for i, row := range rows {
-		users[i] = userFromSQLC(row)
+	rows, err := s.db.Pool().Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
 	}
-	return users, nil
+	defer rows.Close()
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.User])
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]User, len(list))
+	for i, row := range list {
+		out[i] = userFromSQLC(row)
+	}
+	return out, count, nil
+}
+
+func (s *Store) ListDepartments(ctx context.Context, params ListParams) ([]Department, int, error) {
+	where, args := departmentWhere(params)
+	listQuery := departmentListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
+	var count int
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	query, args, err := listQuery.Build()
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	departments, err := pgx.CollectRows(rows, pgx.RowToStructByName[Department])
+	return departments, count, err
+}
+
+func (s *Store) ListGroupMembers(ctx context.Context, groupID int64, params ListParams) ([]User, int, error) {
+	where, args := groupMemberWhere(groupID, params)
+	listQuery := groupMemberListQuery(params, where, args)
+	countSQL, countArgs := listQuery.BuildCount()
+	var count int
+	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
+		return nil, 0, err
+	}
+	query, args, err := listQuery.Build()
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.db.Pool().Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.User])
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]User, len(list))
+	for i, row := range list {
+		out[i] = userFromSQLC(row)
+	}
+	return out, count, nil
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*User, error) {
@@ -276,4 +342,155 @@ func stringValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func userWhere(params ListParams) (string, []any) {
+	var where dbutil.WhereBuilder
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(`(
+			email ILIKE ` + search + `
+			OR user_principal_name ILIKE ` + search + `
+			OR mail_nickname ILIKE ` + search + `
+			OR name ILIKE ` + search + `
+			OR given_name ILIKE ` + search + `
+			OR family_name ILIKE ` + search + `
+			OR department ILIKE ` + search + `
+		)`)
+	}
+	if len(params.Values) > 0 {
+		values := where.Arg(dbutil.SplitListValues(params.Values))
+		where.Add("id::text = ANY(" + values + "::text[])")
+	}
+	switch params.Role {
+	case "admin", "viewer":
+		role := where.Arg(params.Role)
+		where.Add("role = " + role + "::user_role")
+	case "none":
+		where.Add("role IS NULL")
+	}
+	switch params.Source {
+	case "local":
+		where.Add("entra_id IS NULL")
+	case "synced":
+		where.Add("entra_id IS NOT NULL")
+	}
+	switch params.Status {
+	case "active":
+		where.Add("active")
+	case "inactive":
+		where.Add("NOT active")
+	}
+	return where.Build()
+}
+
+func departmentWhere(params ListParams) (string, []any) {
+	var where dbutil.WhereBuilder
+	where.Add("entra_id IS NOT NULL")
+	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("department ILIKE " + search)
+	}
+	if len(params.Values) > 0 {
+		values := where.Arg(dbutil.SplitListValues(params.Values))
+		where.Add("department = ANY(" + values + "::text[])")
+	}
+	return where.Build()
+}
+
+func userListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+	return dbutil.ListQuery{
+		SelectSQL: "SELECT * FROM users",
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"name":           {SQL: "lower(name)"},
+			"email":          {SQL: "lower(email)"},
+			"role":           {SQL: "role", NullOrder: dbutil.NullsLast},
+			"department":     {SQL: "lower(department)", NullOrder: dbutil.NullsLast},
+			"created_at":     {SQL: "created_at"},
+			"updated_at":     {SQL: "updated_at"},
+			"last_synced_at": {SQL: "last_synced_at", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(name)"}, {SQL: "lower(email)"}, {SQL: "id"}},
+		Params:       params.ListParams,
+	}
+}
+
+func departmentListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+	return dbutil.ListQuery{
+		SelectSQL: "SELECT DISTINCT department AS value FROM users",
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"value": {SQL: "department"},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "department"}},
+		Params:       params.ListParams,
+	}
+}
+
+func groupMemberWhere(groupID int64, params ListParams) (string, []any) {
+	var where dbutil.WhereBuilder
+	groupIDArg := where.Arg(groupID)
+	where.Add("gm.group_id = " + groupIDArg)
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add(`(
+			u.email ILIKE ` + search + `
+			OR u.user_principal_name ILIKE ` + search + `
+			OR u.mail_nickname ILIKE ` + search + `
+			OR u.name ILIKE ` + search + `
+			OR u.given_name ILIKE ` + search + `
+			OR u.family_name ILIKE ` + search + `
+			OR u.department ILIKE ` + search + `
+		)`)
+	}
+	if len(params.Values) > 0 {
+		values := where.Arg(dbutil.SplitListValues(params.Values))
+		where.Add("u.id::text = ANY(" + values + "::text[])")
+	}
+	switch params.Role {
+	case "admin", "viewer":
+		role := where.Arg(params.Role)
+		where.Add("u.role = " + role + "::user_role")
+	case "none":
+		where.Add("u.role IS NULL")
+	}
+	switch params.Source {
+	case "local":
+		where.Add("u.entra_id IS NULL")
+	case "synced":
+		where.Add("u.entra_id IS NOT NULL")
+	}
+	switch params.Status {
+	case "active":
+		where.Add("u.active")
+	case "inactive":
+		where.Add("NOT u.active")
+	}
+	return where.Build()
+}
+
+func groupMemberListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+	return dbutil.ListQuery{
+		SelectSQL: `
+SELECT u.*
+FROM users u
+JOIN entra_group_memberships gm ON gm.user_id = u.id`,
+		WhereSQL: where,
+		Args:     args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"name":           {SQL: "lower(u.name)"},
+			"email":          {SQL: "lower(u.email)"},
+			"role":           {SQL: "u.role", NullOrder: dbutil.NullsLast},
+			"department":     {SQL: "lower(u.department)", NullOrder: dbutil.NullsLast},
+			"created_at":     {SQL: "u.created_at"},
+			"updated_at":     {SQL: "u.updated_at"},
+			"last_synced_at": {SQL: "u.last_synced_at", NullOrder: dbutil.NullsLast},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(u.name)"}, {SQL: "lower(u.email)"}, {SQL: "u.id"}},
+		Params:       params.ListParams,
+	}
 }

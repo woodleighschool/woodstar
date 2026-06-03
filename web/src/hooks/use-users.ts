@@ -1,19 +1,71 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError, Page, User, UserCreate, UserMutation } from "@/lib/api";
+import type { ApiError, Department, Page, User, UserCreate, UserMutation } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
+import type { ListUserDepartmentsData, ListUsersData } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
+import { nonEmpty } from "@/lib/utils";
 
-export type { User, UserCreate, UserMutation };
+export type { Department, User, UserCreate, UserMutation };
 export type UserListResult = Page<User>;
+export type DepartmentListResult = Page<Department>;
+export type UserListParams = NonNullable<ListUsersData["query"]>;
+export type DepartmentListParams = NonNullable<ListUserDepartmentsData["query"]>;
 
-export function useUsers() {
-  return useQuery<User[], ApiError>({
-    queryKey: queryKeys.users,
-    queryFn: async ({ signal }) => {
-      const result = await unwrap(apiClient.GET<UserListResult>("/api/users", { signal }));
-      return result.items ?? [];
-    },
+type BaseUserListParams = {
+  page_index?: number;
+  page_size?: number;
+  q?: string;
+  sort?: string;
+  values?: string[] | null;
+};
+
+function baseUserQueryParams(params: BaseUserListParams = {}) {
+  return {
+    q: nonEmpty(params.q),
+    page_index: params.page_index ?? 0,
+    page_size: params.page_size ?? 50,
+    sort: nonEmpty(params.sort),
+    values: params.values && params.values.length > 0 ? params.values : undefined,
+  };
+}
+
+function userQueryParams(params: UserListParams = {}) {
+  return {
+    ...baseUserQueryParams(params),
+    role: params.role,
+    source: params.source,
+    status: params.status,
+  };
+}
+
+export function useUsers(params: UserListParams = {}) {
+  const queryParams = userQueryParams(params);
+  return useQuery<UserListResult, ApiError>({
+    queryKey: queryKeys.users(queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/users", {
+          params: { query: queryParams },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUserDepartments(params: DepartmentListParams = {}) {
+  const queryParams = baseUserQueryParams(params);
+  return useQuery<DepartmentListResult, ApiError>({
+    queryKey: queryKeys.userDepartments(queryParams),
+    queryFn: ({ signal }) =>
+      unwrap(
+        apiClient.GET("/api/users/departments", {
+          params: { query: queryParams },
+          signal,
+        }),
+      ),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -35,7 +87,7 @@ export function useCreateUser() {
   return useMutation<User, ApiError, UserCreate>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/users", { body })),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }
@@ -53,7 +105,8 @@ export function useUpdateUser() {
     onSuccess: async (user, variables) => {
       queryClient.setQueryData(queryKeys.user(variables.id), user);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["groups"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.session }),
       ]);
     },
@@ -71,7 +124,10 @@ export function useDeleteUser() {
       );
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["groups"] }),
+      ]);
     },
   });
 }

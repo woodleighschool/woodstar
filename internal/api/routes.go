@@ -24,6 +24,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterSSO(r, deps.Auth.AuthService)
 	handlers.RegisterAccount(protected, deps.Auth.AuthService, deps.Auth.UserService)
 	handlers.RegisterUsers(protected, deps.Auth.UserService)
+	handlers.RegisterGroups(protected, deps.Directory.Groups, deps.Auth.UserService)
 	handlers.RegisterHosts(
 		protected,
 		deps.Inventory.Hosts,
@@ -34,7 +35,6 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	)
 	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)
 	handlers.RegisterLabels(protected, deps.Inventory.Labels)
-	handlers.RegisterEntra(protected, deps.Entra.Store)
 	handlers.RegisterAgentSecrets(admin, deps.AgentAuth.Store)
 	handlers.RegisterReports(protected, deps.Osquery.Reports)
 	handlers.RegisterHostReports(protected, deps.Osquery.Reports, deps.Inventory.Hosts)

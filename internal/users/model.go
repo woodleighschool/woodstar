@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
@@ -38,6 +39,21 @@ type User struct {
 	LastSyncedAt      *time.Time `json:"last_synced_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+// Department is one non-empty department observed on synced users.
+type Department struct {
+	Value string `json:"value"`
+}
+
+// ListParams filters paginated user lists.
+type ListParams struct {
+	dbutil.ListParams
+
+	Values []string
+	Role   string
+	Source string
+	Status string
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {
