@@ -17,10 +17,6 @@ func (s *Service) Exists(ctx context.Context) (bool, error) {
 	return s.store.Exists(ctx)
 }
 
-func (s *Service) GetByEmail(ctx context.Context, email string) (*User, error) {
-	return s.store.GetByEmail(ctx, email)
-}
-
 func (s *Service) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
 	return s.store.GetLoginByEmail(ctx, email)
 }

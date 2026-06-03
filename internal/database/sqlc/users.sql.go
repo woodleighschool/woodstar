@@ -305,44 +305,6 @@ func (q *Queries) GetUserByAPIKey(ctx context.Context, arg GetUserByAPIKeyParams
 	return i, err
 }
 
-const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
-FROM users
-WHERE lower(email) = lower($1)
-   OR lower(COALESCE(user_principal_name, '')) = lower($1)
-ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
-LIMIT 1
-`
-
-type GetUserByEmailParams struct {
-	Email string `json:"email"`
-}
-
-func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, arg.Email)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.Name,
-		&i.PasswordHash,
-		&i.Role,
-		&i.APIKey,
-		&i.APIKeyCreatedAt,
-		&i.EntraID,
-		&i.UserPrincipalName,
-		&i.MailNickname,
-		&i.GivenName,
-		&i.FamilyName,
-		&i.Department,
-		&i.Active,
-		&i.LastSyncedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 FROM users

@@ -11,7 +11,7 @@ import (
 type EntraUser struct {
 	ID                int64     `json:"id"`
 	EntraID           string    `json:"entra_id"`
-	Email             string    `json:"email" format:"email"`
+	Email             string    `json:"email"                   format:"email"`
 	UserPrincipalName string    `json:"user_principal_name"`
 	MailNickname      string    `json:"mail_nickname,omitempty"`
 	Name              string    `json:"name"`

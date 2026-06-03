@@ -42,7 +42,9 @@ func TestStoreApplyReconcilesUsersAndGroups(t *testing.T) {
 	}
 
 	var userCount int
-	if err := store.db.Pool().QueryRow(ctx, `SELECT count(*) FROM users WHERE entra_id IS NOT NULL`).Scan(&userCount); err != nil {
+	if err := store.db.Pool().
+		QueryRow(ctx, `SELECT count(*) FROM users WHERE entra_id IS NOT NULL`).
+		Scan(&userCount); err != nil {
 		t.Fatalf("count users: %v", err)
 	}
 	if userCount != 2 {

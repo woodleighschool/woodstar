@@ -21,14 +21,6 @@ VALUES (
 )
 RETURNING *;
 
--- name: GetUserByEmail :one
-SELECT *
-FROM users
-WHERE lower(email) = lower(@email)
-   OR lower(COALESCE(user_principal_name, '')) = lower(@email)
-ORDER BY CASE WHEN lower(email) = lower(@email) THEN 0 ELSE 1 END, id
-LIMIT 1;
-
 -- name: GetLoginUserByEmail :one
 SELECT *
 FROM users

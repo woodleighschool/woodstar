@@ -22,7 +22,7 @@ var RoleValues = []Role{RoleAdmin, RoleViewer}
 // User is a Woodstar person row, optionally granted app access by Role.
 type User struct {
 	ID                int64      `json:"id"`
-	Email             string     `json:"email"      format:"email"`
+	Email             string     `json:"email"                         format:"email"`
 	Name              string     `json:"name"`
 	PasswordHash      string     `json:"-"`
 	Role              *Role      `json:"role,omitempty"`

@@ -21,6 +21,8 @@ import (
 )
 
 func TestRequireAdmin(t *testing.T) {
+	adminRole := users.RoleAdmin
+	viewerRole := users.RoleViewer
 	tests := []struct {
 		name       string
 		ctx        context.Context
@@ -29,12 +31,12 @@ func TestRequireAdmin(t *testing.T) {
 	}{
 		{
 			name:   "admin in context",
-			ctx:    withUser(context.Background(), &users.User{ID: 1, Role: testRole(users.RoleAdmin)}),
+			ctx:    withUser(context.Background(), &users.User{ID: 1, Role: &adminRole}),
 			wantOK: true,
 		},
 		{
 			name:       "viewer is forbidden",
-			ctx:        withUser(context.Background(), &users.User{ID: 2, Role: testRole(users.RoleViewer)}),
+			ctx:        withUser(context.Background(), &users.User{ID: 2, Role: &viewerRole}),
 			wantStatus: 403,
 		},
 		{
@@ -106,8 +108,4 @@ func testSessionManager() *scs.SessionManager {
 	sm := scs.New()
 	sm.Store = memstore.New()
 	return sm
-}
-
-func testRole(role users.Role) *users.Role {
-	return &role
 }

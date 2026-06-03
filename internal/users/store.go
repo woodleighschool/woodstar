@@ -59,17 +59,6 @@ func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 	return new(userFromSQLC(row)), nil
 }
 
-func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
-	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: strings.ToLower(email)})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, dbutil.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return new(userFromSQLC(row)), nil
-}
-
 func (s *Store) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetLoginUserByEmail(ctx, sqlc.GetLoginUserByEmailParams{Email: strings.ToLower(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
