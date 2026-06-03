@@ -324,14 +324,7 @@ INSERT INTO munki_assignments (
 )
 VALUES (
     @software_id,
-    CASE
-        WHEN @priority::integer > 0 THEN @priority::integer
-        ELSE (
-            SELECT COALESCE(MAX(a.priority) + 1, 1)
-            FROM munki_assignments a
-            WHERE a.software_id = @software_id
-        )
-    END,
+    @priority::integer,
     @label_id,
     @effect::munki_assignment_effect,
     sqlc.narg(action)::munki_assignment_action,
@@ -365,15 +358,10 @@ ORDER BY a.priority, a.id;
 
 -- name: SetMunkiAssignmentPriorities :exec
 UPDATE munki_assignments a
-SET priority = -ordered.priority
+SET priority = ordered.priority
 FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, priority)
 WHERE a.id = ordered.id
   AND a.software_id = @software_id;
-
--- name: NormalizeMunkiAssignmentPriorities :exec
-UPDATE munki_assignments a
-SET priority = -priority
-WHERE a.software_id = @software_id;
 
 -- name: ListEffectiveMunkiPackagesForHost :many
 SELECT

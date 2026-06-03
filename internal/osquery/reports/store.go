@@ -3,7 +3,9 @@ package reports
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -104,9 +106,6 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 			CreatedByUserID:   params.CreatedByUserID,
 		})
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		report := reportFromSQLC(row)
@@ -117,7 +116,10 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 		created = report
 		return nil
 	})
-	return created, err
+	if err != nil {
+		return nil, mapReportMutationError(err)
+	}
+	return created, nil
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*Report, error) {
@@ -138,9 +140,6 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 			return dbutil.ErrNotFound
 		}
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		report := reportFromSQLC(row)
@@ -151,7 +150,24 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 		updated = report
 		return nil
 	})
-	return updated, err
+	if err != nil {
+		return nil, mapReportMutationError(err)
+	}
+	return updated, nil
+}
+
+func mapReportMutationError(err error) error {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -280,9 +281,6 @@ func (p ConfigurationMutation) Validate() error {
 func validateTargets(targets []scope.TargetLabel) error {
 	seen := make(map[scope.TargetLabel]struct{}, len(targets))
 	for _, target := range targets {
-		if target.LabelID <= 0 {
-			return fmt.Errorf("%w: target label_id must be positive", dbutil.ErrInvalidInput)
-		}
 		if !scope.ValidTargetLabelEffect(target.Effect) {
 			return fmt.Errorf("%w: unsupported target effect %q", dbutil.ErrInvalidInput, target.Effect)
 		}
@@ -312,10 +310,14 @@ func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) erro
 }
 
 func mapConfigurationMutationError(err error) error {
-	if dbutil.IsUniqueViolation(err) {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
 		return dbutil.ErrAlreadyExists
-	}
-	if dbutil.IsInvalidInputViolation(err) {
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
 		return dbutil.ErrInvalidInput
 	}
 	return err

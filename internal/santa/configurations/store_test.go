@@ -53,9 +53,9 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 	}
 
 	invalidLabel := baseline("invalid label")
-	invalidLabel.Targets = []scope.TargetLabel{{LabelID: -1, Effect: scope.TargetLabelInclude}}
-	if _, err := store.CreateConfiguration(ctx, invalidLabel); !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("invalid label ID error = %v, want ErrInvalidInput", err)
+	invalidLabel.Targets = []scope.TargetLabel{{LabelID: 0, Effect: scope.TargetLabelInclude}}
+	if _, err := store.CreateConfiguration(ctx, invalidLabel); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("invalid label ID error = %v, want ErrNotFound", err)
 	}
 
 	remountWithoutFlags := baseline("remount without flags")

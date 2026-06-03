@@ -35,7 +35,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleTarget,
 } from "@/hooks/use-santa";
-import { fieldErrors, optionalText, positiveIntegerArray, requiredString } from "@/lib/form-validation";
+import { fieldErrors, optionalText, requiredString, selectedIDArray } from "@/lib/form-validation";
 import { santaCELExpressionError } from "@/lib/santa-cel";
 
 import {
@@ -54,7 +54,7 @@ const includeSchema = z
     id: z.number(),
     policy: z.enum(POLICY_VALUES),
     cel_expression: z.string().trim(),
-    label_id: z.number().int().positive("Pick a label.").nullable(),
+    label_id: z.number().int("Label selection is invalid.").nullable(),
   })
   .refine((value) => value.label_id !== null, {
     message: "Pick a label.",
@@ -80,7 +80,7 @@ const ruleFormSchema = z
     description: z.string().trim(),
     custom_message: z.string().trim(),
     custom_url: z.string().trim(),
-    exclude_label_ids: positiveIntegerArray("Label"),
+    exclude_label_ids: selectedIDArray("Label"),
     includes: z.array(includeSchema),
   })
   .superRefine((value, ctx) => {

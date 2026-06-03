@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -131,10 +132,7 @@ func (s *Store) Create(ctx context.Context, params LabelMutation) (*Label, error
 		return err
 	})
 	if err != nil {
-		if dbutil.IsUniqueViolation(err) {
-			return nil, dbutil.ErrAlreadyExists
-		}
-		return nil, err
+		return nil, mapLabelMutationError(err)
 	}
 	return out, nil
 }
@@ -180,12 +178,26 @@ func (s *Store) Update(ctx context.Context, id int64, params LabelMutation) (*La
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		if dbutil.IsUniqueViolation(err) {
-			return nil, dbutil.ErrAlreadyExists
-		}
-		return nil, err
+		return nil, mapLabelMutationError(err)
 	}
 	return out, nil
+}
+
+func mapLabelMutationError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
@@ -307,11 +319,6 @@ func validateMembershipPairing(
 		}
 	default:
 		return fmt.Errorf("%w: membership type must be dynamic, manual, or derived", dbutil.ErrInvalidInput)
-	}
-	for _, hostID := range hostIDs {
-		if hostID <= 0 {
-			return fmt.Errorf("%w: host IDs must be positive", dbutil.ErrInvalidInput)
-		}
 	}
 	return nil
 }

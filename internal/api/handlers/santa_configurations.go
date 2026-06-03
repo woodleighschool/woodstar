@@ -99,7 +99,13 @@ func registerCreateSantaConfiguration(api huma.API, store *configurations.Store)
 		Tags:          []string{santaTag},
 		Summary:       "Create a Santa configuration",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
 	}, func(ctx context.Context, input *santaConfigurationCreateInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.CreateConfiguration(ctx, input.Body)
 		if err != nil {

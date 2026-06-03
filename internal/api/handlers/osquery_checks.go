@@ -87,7 +87,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 		Tags:          []string{checksTag},
 		Summary:       "Create a check",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkCreateInput) (*checkOutput, error) {
 		params := input.Body
 		params.CreatedByUserID = currentUserID(ctx)

@@ -29,7 +29,7 @@ import {
 import { useHosts, type Host } from "@/hooks/use-hosts";
 import { useCreateLabel, useLabel, useUpdateLabel, type LabelMutation } from "@/hooks/use-labels";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors, positiveIntegerArray, requiredString } from "@/lib/form-validation";
+import { fieldErrors, requiredString, selectedIDArray } from "@/lib/form-validation";
 import { sqlSyntaxError } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 import {
@@ -74,7 +74,7 @@ const labelFormSchema = z
     name: requiredString("Name"),
     description: z.string().trim(),
     query: z.string().trim(),
-    host_ids: positiveIntegerArray("Host"),
+    host_ids: selectedIDArray("Host"),
     derived_attribute: z.enum(["directory_department", "directory_group", "directory_user"]),
     derived_values: z.array(requiredString("Derived value")),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),

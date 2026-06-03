@@ -4,7 +4,9 @@ package checks
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -108,9 +110,6 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 			CreatedByUserID: params.CreatedByUserID,
 		})
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		check := checkFromSQLC(row)
@@ -121,7 +120,10 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 		created = check
 		return nil
 	})
-	return created, err
+	if err != nil {
+		return nil, mapCheckMutationError(err)
+	}
+	return created, nil
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Check, error) {
@@ -140,9 +142,6 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 			return dbutil.ErrNotFound
 		}
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		check := checkFromSQLC(row)
@@ -153,7 +152,24 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 		updated = check
 		return nil
 	})
-	return updated, err
+	if err != nil {
+		return nil, mapCheckMutationError(err)
+	}
+	return updated, nil
+}
+
+func mapCheckMutationError(err error) error {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {

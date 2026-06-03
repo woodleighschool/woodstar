@@ -420,27 +420,15 @@ func (m SoftwareTitleMutation) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
-	if m.IconArtifactID != nil && *m.IconArtifactID <= 0 {
-		return fmt.Errorf("%w: icon_artifact_id must be positive", dbutil.ErrInvalidInput)
-	}
 	return nil
 }
 
 func (m PackageMutation) Validate() error {
-	if m.SoftwareID <= 0 {
-		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
 	}
 	if strings.TrimSpace(m.Version) == "" {
 		return fmt.Errorf("%w: version is required", dbutil.ErrInvalidInput)
-	}
-	if m.InstallerArtifactID != nil && *m.InstallerArtifactID <= 0 {
-		return fmt.Errorf("%w: installer_artifact_id must be positive", dbutil.ErrInvalidInput)
-	}
-	if m.IconArtifactID != nil && *m.IconArtifactID <= 0 {
-		return fmt.Errorf("%w: icon_artifact_id must be positive", dbutil.ErrInvalidInput)
 	}
 	if !validInstallerType(m.InstallerType) {
 		return fmt.Errorf("%w: unsupported installer_type %q", dbutil.ErrInvalidInput, m.InstallerType)
@@ -478,12 +466,6 @@ func (m PackageImportMutation) Validate() error {
 	if m.SoftwareID < 0 {
 		return fmt.Errorf("%w: software_id must not be negative", dbutil.ErrInvalidInput)
 	}
-	if m.InstallerArtifactID != nil && *m.InstallerArtifactID <= 0 {
-		return fmt.Errorf("%w: installer_artifact_id must be positive", dbutil.ErrInvalidInput)
-	}
-	if m.IconArtifactID != nil && *m.IconArtifactID <= 0 {
-		return fmt.Errorf("%w: icon_artifact_id must be positive", dbutil.ErrInvalidInput)
-	}
 	if len(m.Pkginfo) == 0 || !json.Valid(m.Pkginfo) {
 		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
 	}
@@ -517,15 +499,6 @@ func (m ArtifactMutation) Validate() error {
 }
 
 func (m AssignmentMutation) Validate() error {
-	if m.SoftwareID <= 0 {
-		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
-	if m.Priority <= 0 {
-		return fmt.Errorf("%w: priority is required", dbutil.ErrInvalidInput)
-	}
-	if m.LabelID <= 0 {
-		return fmt.Errorf("%w: label_id is required", dbutil.ErrInvalidInput)
-	}
 	switch m.Effect {
 	case AssignmentEffectInclude:
 		return m.validateIncludePayload()
@@ -570,7 +543,7 @@ func (m AssignmentMutation) validateIncludePayload() error {
 			)
 		}
 	case PackageSelectionSpecific:
-		if m.PinnedPackageID == nil || *m.PinnedPackageID <= 0 {
+		if m.PinnedPackageID == nil {
 			return fmt.Errorf("%w: pinned_package_id is required", dbutil.ErrInvalidInput)
 		}
 	}

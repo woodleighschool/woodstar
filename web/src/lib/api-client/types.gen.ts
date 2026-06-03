@@ -3069,6 +3069,10 @@ export type CreateLabelErrors = {
      */
     401: ErrorModel;
     /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
      * Conflict
      */
     409: ErrorModel;
@@ -4039,6 +4043,10 @@ export type CreateMunkiSoftwareTitleErrors = {
      */
     403: ErrorModel;
     /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
      * Conflict
      */
     409: ErrorModel;
@@ -4254,6 +4262,10 @@ export type CreateOsqueryCheckErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Conflict
      */
@@ -4538,6 +4550,10 @@ export type CreateOsqueryReportErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Conflict
      */
@@ -4830,6 +4846,10 @@ export type CreateSantaConfigurationErrors = {
      * Forbidden
      */
     403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Conflict
      */
@@ -5379,6 +5399,10 @@ export type CreateSantaRuleErrors = {
      * Forbidden
      */
     403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
     /**
      * Conflict
      */

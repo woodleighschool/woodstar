@@ -89,7 +89,7 @@ CREATE TABLE munki_packages (
 CREATE TABLE munki_assignments (
     id BIGSERIAL PRIMARY KEY,
     software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
-    priority INTEGER NOT NULL DEFAULT 1 CHECK (priority >= 1),
+    priority INTEGER NOT NULL DEFAULT 1,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
     effect munki_assignment_effect NOT NULL DEFAULT 'include',
     action munki_assignment_action,
@@ -99,6 +99,7 @@ CREATE TABLE munki_assignments (
     pinned_package_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT munki_assignments_priority_check CHECK (priority >= 1),
     CONSTRAINT munki_assignments_include_payload_check CHECK (
         (
             effect = 'include'

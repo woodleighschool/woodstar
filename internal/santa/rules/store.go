@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -142,16 +143,13 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 			CustomURL:     params.CustomURL,
 		})
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		ruleID = row.ID
 		return replaceRuleChildren(ctx, tx, ruleID, params.Includes, params.ExcludeLabelIDs)
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapRuleMutationError(err)
 	}
 	return s.GetRuleByID(ctx, ruleID)
 }
@@ -181,17 +179,28 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 			return dbutil.ErrNotFound
 		}
 		if err != nil {
-			if dbutil.IsUniqueViolation(err) {
-				return dbutil.ErrAlreadyExists
-			}
 			return err
 		}
 		return replaceRuleChildren(ctx, tx, row.ID, params.Includes, params.ExcludeLabelIDs)
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapRuleMutationError(err)
 	}
 	return s.GetRuleByID(ctx, id)
+}
+
+func mapRuleMutationError(err error) error {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }
 
 func (s *Store) DeleteRule(ctx context.Context, id int64) error {
@@ -455,18 +464,12 @@ func (p RuleMutation) Validate() error {
 		if include.Policy != PolicyCEL && include.CELExpression != "" {
 			return fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
 		}
-		if include.LabelID <= 0 {
-			return fmt.Errorf("%w: include label_id is required", dbutil.ErrInvalidInput)
-		}
 		if _, ok := labelIDs[include.LabelID]; ok {
 			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
 		}
 		labelIDs[include.LabelID] = struct{}{}
 	}
 	for _, labelID := range p.ExcludeLabelIDs {
-		if labelID <= 0 {
-			return fmt.Errorf("%w: exclude label IDs must be positive", dbutil.ErrInvalidInput)
-		}
 		if _, ok := labelIDs[labelID]; ok {
 			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
 		}

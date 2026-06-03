@@ -62,14 +62,7 @@ INSERT INTO munki_assignments (
 )
 VALUES (
     $1,
-    CASE
-        WHEN $2::integer > 0 THEN $2::integer
-        ELSE (
-            SELECT COALESCE(MAX(a.priority) + 1, 1)
-            FROM munki_assignments a
-            WHERE a.software_id = $1
-        )
-    END,
+    $2::integer,
     $3,
     $4::munki_assignment_effect,
     $5::munki_assignment_action,
@@ -1003,24 +996,9 @@ func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoft
 	return items, nil
 }
 
-const normalizeMunkiAssignmentPriorities = `-- name: NormalizeMunkiAssignmentPriorities :exec
-UPDATE munki_assignments a
-SET priority = -priority
-WHERE a.software_id = $1
-`
-
-type NormalizeMunkiAssignmentPrioritiesParams struct {
-	SoftwareID int64 `json:"software_id"`
-}
-
-func (q *Queries) NormalizeMunkiAssignmentPriorities(ctx context.Context, arg NormalizeMunkiAssignmentPrioritiesParams) error {
-	_, err := q.db.Exec(ctx, normalizeMunkiAssignmentPriorities, arg.SoftwareID)
-	return err
-}
-
 const setMunkiAssignmentPriorities = `-- name: SetMunkiAssignmentPriorities :exec
 UPDATE munki_assignments a
-SET priority = -ordered.priority
+SET priority = ordered.priority
 FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, priority)
 WHERE a.id = ordered.id
   AND a.software_id = $1

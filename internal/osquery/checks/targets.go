@@ -70,9 +70,6 @@ func replaceCheckTargets(ctx context.Context, tx pgx.Tx, checkID int64, targets 
 func validateTargets(targets []scope.TargetLabel) error {
 	seen := make(map[scope.TargetLabel]struct{}, len(targets))
 	for _, target := range targets {
-		if target.LabelID <= 0 {
-			return fmt.Errorf("%w: target label_id must be positive", dbutil.ErrInvalidInput)
-		}
 		if !scope.ValidTargetLabelEffect(target.Effect) {
 			return fmt.Errorf("%w: unsupported target effect %q", dbutil.ErrInvalidInput, target.Effect)
 		}

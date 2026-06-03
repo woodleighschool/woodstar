@@ -87,7 +87,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 		Tags:          []string{reportsTag},
 		Summary:       "Create a report",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
 		params := input.Body
 		params.CreatedByUserID = currentUserID(ctx)

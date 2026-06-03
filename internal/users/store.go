@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/woodleighschool/woodstar/internal/database"
@@ -53,10 +54,7 @@ func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 		Role:         sqlc.UserRole(params.Role),
 	})
 	if err != nil {
-		if dbutil.IsUniqueViolation(err) {
-			return nil, dbutil.ErrAlreadyExists
-		}
-		return nil, err
+		return nil, mapUserMutationError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
@@ -127,10 +125,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*Use
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		if dbutil.IsUniqueViolation(err) {
-			return nil, dbutil.ErrAlreadyExists
-		}
-		return nil, err
+		return nil, mapUserMutationError(err)
 	}
 	return new(userFromSQLC(row)), nil
 }
@@ -187,10 +182,7 @@ func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*Account, 
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		if dbutil.IsUniqueViolation(err) {
-			return nil, dbutil.ErrAlreadyExists
-		}
-		return nil, err
+		return nil, mapUserMutationError(err)
 	}
 	return new(accountFromSQLC(row)), nil
 }
@@ -227,4 +219,11 @@ func accountFromSQLC(s sqlc.User) Account {
 		account.APIKey = *s.APIKey
 	}
 	return account
+}
+
+func mapUserMutationError(err error) error {
+	if database.SQLState(err) == pgerrcode.UniqueViolation {
+		return dbutil.ErrAlreadyExists
+	}
+	return err
 }

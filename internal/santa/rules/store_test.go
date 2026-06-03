@@ -60,15 +60,6 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 			},
 		},
 		{
-			name: "include without label",
-			params: rules.RuleMutation{
-				RuleType:   rules.RuleTypeBinary,
-				Identifier: binaryIdentifier,
-				Name:       "Include Without Label",
-				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist}},
-			},
-		},
-		{
 			name: "duplicate include label",
 			params: rules.RuleMutation{
 				RuleType:   rules.RuleTypeBinary,
@@ -171,6 +162,33 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	}
 	if len(updated.ExcludeLabelIDs) != 1 || updated.ExcludeLabelIDs[0] != excludeLabelID {
 		t.Fatalf("exclude labels = %v, want [%d]", updated.ExcludeLabelIDs, excludeLabelID)
+	}
+}
+
+func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := rules.NewStore(db)
+
+	_, err := store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:   rules.RuleTypeBinary,
+		Identifier: strings.Repeat("d", 64),
+		Name:       "Missing Include Label",
+		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: 0}},
+	})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("missing include label error = %v, want ErrNotFound", err)
+	}
+
+	labelID := createSantaRuleLabel(t, db, "Rule Missing Exclude Include")
+	_, err = store.CreateRule(ctx, rules.RuleMutation{
+		RuleType:        rules.RuleTypeBinary,
+		Identifier:      strings.Repeat("e", 64),
+		Name:            "Missing Exclude Label",
+		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+		ExcludeLabelIDs: []int64{0},
+	})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("missing exclude label error = %v, want ErrNotFound", err)
 	}
 }
 

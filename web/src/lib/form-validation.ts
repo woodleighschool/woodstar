@@ -10,8 +10,8 @@ export function optionalText(value: string) {
   return trimmed === "" ? undefined : trimmed;
 }
 
-export function positiveIntegerArray(label: string) {
-  return z.array(z.number().int().positive(`${label} IDs must be positive.`));
+export function selectedIDArray(label: string) {
+  return z.array(z.number().int(`${label} selection is invalid.`));
 }
 
 export function integerRange(label: string, min: number, max?: number) {

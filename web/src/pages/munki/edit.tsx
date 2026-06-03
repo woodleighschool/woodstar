@@ -134,12 +134,12 @@ const packageSchema = z.object({
 
 const assignmentSchema = z
   .object({
-    priority: z.number().int("Priority must be a whole number.").positive("Priority must be at least 1."),
+    priority: z.number().int("Priority must be a whole number.").positive("Priority starts at 1."),
     effect: z.enum(["include", "exclude"]),
     label_id: z
       .string()
       .trim()
-      .refine((value) => Number(value) > 0, "Label is required."),
+      .refine((value) => value !== "", "Pick a label."),
     package_selection: z.enum(["latest_eligible", "specific_package"]),
     pinned_package_id: z.string().trim(),
     action: z.enum(["install", "remove", "update_if_present", "none"]),

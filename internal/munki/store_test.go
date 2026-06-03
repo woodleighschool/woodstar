@@ -816,6 +816,42 @@ func TestUpdateAssignmentRejectsSoftwareMove(t *testing.T) {
 	}
 }
 
+func TestAssignmentMissingLabelFallsThroughToNotFound(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "MissingLabelAssignment"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+
+	_, err = store.CreateAssignment(ctx, includeAssignment(title.ID, 1, 0, munki.AssignmentActionInstall))
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("CreateAssignment error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAssignmentBadPriorityFallsThroughToInvalidInput(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	labelStore := labels.NewStore(db)
+	store := munki.NewStore(db)
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "BadPriorityAssignment"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	label, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Bad Priority Label",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create label: %v", err)
+	}
+
+	_, err = store.CreateAssignment(ctx, includeAssignment(title.ID, 0, label.ID, munki.AssignmentActionInstall))
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("CreateAssignment error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func TestHostStatusUpsertAndDetail(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)

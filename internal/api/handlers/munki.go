@@ -406,6 +406,7 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 			http.StatusBadRequest,
 			http.StatusUnauthorized,
 			http.StatusForbidden,
+			http.StatusNotFound,
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareTitleCreateInput) (*munkiSoftwareTitleOutput, error) {

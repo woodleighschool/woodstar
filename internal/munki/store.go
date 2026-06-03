@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
@@ -612,10 +612,7 @@ func (s *Store) ReorderAssignments(ctx context.Context, softwareID int64, ordere
 		}); err != nil {
 			return err
 		}
-		return q.NormalizeMunkiAssignmentPriorities(
-			ctx,
-			sqlc.NormalizeMunkiAssignmentPrioritiesParams{SoftwareID: softwareID},
-		)
+		return nil
 	})
 }
 
@@ -1049,21 +1046,20 @@ func assignmentFromRecord(row assignmentRecord) Assignment {
 }
 
 func mapDesiredMutationError(err error) error {
-	if errors.Is(err, pgx.ErrNoRows) || isForeignKeyViolation(err) {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
-	if dbutil.IsUniqueViolation(err) {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
 		return dbutil.ErrAlreadyExists
-	}
-	if dbutil.IsInvalidInputViolation(err) {
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return err
-}
-
-func isForeignKeyViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }
 
 func stringPtrValue(value *string) string {

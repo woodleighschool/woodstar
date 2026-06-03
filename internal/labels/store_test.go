@@ -2,6 +2,7 @@ package labels
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -129,6 +130,20 @@ func TestCreateManualLabelStoresHostIDs(t *testing.T) {
 	wantHostIDs := []int64{hostA, hostB}
 	if !equalInt64s(label.HostIDs, wantHostIDs) {
 		t.Fatalf("HostIDs = %v, want %v", label.HostIDs, wantHostIDs)
+	}
+}
+
+func TestCreateManualLabelWithMissingHostReturnsNotFound(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewStore(db)
+
+	_, err := store.Create(ctx, LabelMutation{
+		Name:                "Missing host",
+		LabelMembershipType: LabelMembershipTypeManual,
+		HostIDs:             []int64{0},
+	})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }
 

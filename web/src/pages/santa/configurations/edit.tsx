@@ -60,7 +60,7 @@ const configurationFormSchema = z
     client_mode: z.enum(CLIENT_MODE_VALUES),
     targets: z.array(
       z.object({
-        label_id: z.number().int().positive("Label IDs must be positive."),
+        label_id: z.number().int("Label selection is invalid."),
         effect: z.enum(["include", "exclude"]),
       }),
     ),

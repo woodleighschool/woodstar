@@ -135,7 +135,13 @@ func registerCreateSantaRule(api huma.API, store *santarules.Store) {
 		Tags:          []string{santaTag},
 		Summary:       "Create a Santa rule",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict},
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
 	}, func(ctx context.Context, input *santaRuleCreateInput) (*santaRuleOutput, error) {
 		rule, err := store.CreateRule(ctx, input.Body)
 		if err != nil {

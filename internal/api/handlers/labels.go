@@ -87,7 +87,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 		Tags:          []string{labelsTag},
 		Summary:       "Create a label",
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusConflict},
+		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *labelCreateInput) (*labelOutput, error) {
 		label, err := labelStore.Create(ctx, input.Body)
 		if err != nil {

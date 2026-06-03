@@ -2,10 +2,12 @@ package reports
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/scope"
@@ -118,6 +120,22 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("ScheduledForHost returned %+v, want no reports", got)
+	}
+}
+
+func TestCreateReportWithMissingTargetLabelReturnsNotFound(t *testing.T) {
+	store, _, _, ctx := newIntegrationReportStore(t)
+
+	_, err := store.Create(ctx, ReportMutation{
+		Name:             "Missing label target",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{
+			{LabelID: 0, Effect: scope.TargetLabelInclude},
+		},
+	})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
 }
 
