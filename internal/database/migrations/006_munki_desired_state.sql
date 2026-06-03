@@ -76,7 +76,7 @@ CREATE TABLE munki_packages (
     precache BOOLEAN NOT NULL DEFAULT FALSE,
     icon_name TEXT NOT NULL DEFAULT '',
     icon_hash TEXT NOT NULL DEFAULT '',
-    extra_pkginfo JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(extra_pkginfo) = 'object'),
+    extra_pkginfo JSONB NOT NULL DEFAULT '{}'::JSONB CHECK (jsonb_typeof(extra_pkginfo) = 'object'),
     installer_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE SET NULL,
     icon_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE SET NULL,
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
@@ -142,14 +142,3 @@ CREATE INDEX munki_assignments_priority_idx
     ON munki_assignments (software_id, priority, id);
 CREATE INDEX munki_assignments_label_idx
     ON munki_assignments (label_id);
-
--- +goose Down
-
-DROP TABLE IF EXISTS munki_assignments;
-DROP TABLE IF EXISTS munki_packages;
-DROP TABLE IF EXISTS munki_software_titles;
-DROP TABLE IF EXISTS munki_artifacts;
-DROP TYPE IF EXISTS munki_assignment_effect;
-DROP TYPE IF EXISTS munki_package_selection;
-DROP TYPE IF EXISTS munki_assignment_action;
-DROP TYPE IF EXISTS munki_artifact_kind;

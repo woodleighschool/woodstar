@@ -144,7 +144,7 @@ VALUES (
     $15,
     $16
 )
-RETURNING id, name, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at, description
+RETURNING id, name, description, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at
 `
 
 type CreateSantaConfigurationParams struct {
@@ -189,6 +189,7 @@ func (q *Queries) CreateSantaConfiguration(ctx context.Context, arg CreateSantaC
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Description,
 		&i.Position,
 		&i.ClientMode,
 		&i.EnableBundles,
@@ -206,7 +207,6 @@ func (q *Queries) CreateSantaConfiguration(ctx context.Context, arg CreateSantaC
 		&i.EventDetailText,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }
@@ -228,7 +228,7 @@ VALUES (
     $5,
     $6
 )
-RETURNING id, rule_type, identifier, name, custom_message, custom_url, created_at, updated_at, description
+RETURNING id, rule_type, identifier, name, description, custom_message, custom_url, created_at, updated_at
 `
 
 type CreateSantaRuleParams struct {
@@ -255,11 +255,11 @@ func (q *Queries) CreateSantaRule(ctx context.Context, arg CreateSantaRuleParams
 		&i.RuleType,
 		&i.Identifier,
 		&i.Name,
+		&i.Description,
 		&i.CustomMessage,
 		&i.CustomURL,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }
@@ -452,7 +452,7 @@ func (q *Queries) GetObservedSantaHostState(ctx context.Context, arg GetObserved
 }
 
 const getSantaConfigurationByID = `-- name: GetSantaConfigurationByID :one
-SELECT id, name, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at, description
+SELECT id, name, description, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at
 FROM santa_configurations
 WHERE id = $1
 `
@@ -467,6 +467,7 @@ func (q *Queries) GetSantaConfigurationByID(ctx context.Context, arg GetSantaCon
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Description,
 		&i.Position,
 		&i.ClientMode,
 		&i.EnableBundles,
@@ -484,13 +485,12 @@ func (q *Queries) GetSantaConfigurationByID(ctx context.Context, arg GetSantaCon
 		&i.EventDetailText,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }
 
 const getSantaRuleByID = `-- name: GetSantaRuleByID :one
-SELECT id, rule_type, identifier, name, custom_message, custom_url, created_at, updated_at, description
+SELECT id, rule_type, identifier, name, description, custom_message, custom_url, created_at, updated_at
 FROM santa_rules
 WHERE id = $1
 `
@@ -507,11 +507,11 @@ func (q *Queries) GetSantaRuleByID(ctx context.Context, arg GetSantaRuleByIDPara
 		&i.RuleType,
 		&i.Identifier,
 		&i.Name,
+		&i.Description,
 		&i.CustomMessage,
 		&i.CustomURL,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }
@@ -1593,7 +1593,7 @@ func (q *Queries) NormalizeSantaRuleIncludePositions(ctx context.Context, arg No
 
 const resolveSantaConfigurationForHost = `-- name: ResolveSantaConfigurationForHost :one
 SELECT
-    c.id, c.name, c.position, c.client_mode, c.enable_bundles, c.enable_transitive_rules, c.enable_all_event_upload, c.full_sync_interval_seconds, c.batch_size, c.allowed_path_regex, c.blocked_path_regex, c.removable_media_action, c.removable_media_remount_flags, c.encrypted_removable_media_action, c.encrypted_removable_media_remount_flags, c.event_detail_url, c.event_detail_text, c.created_at, c.updated_at, c.description,
+    c.id, c.name, c.description, c.position, c.client_mode, c.enable_bundles, c.enable_transitive_rules, c.enable_all_event_upload, c.full_sync_interval_seconds, c.batch_size, c.allowed_path_regex, c.blocked_path_regex, c.removable_media_action, c.removable_media_remount_flags, c.encrypted_removable_media_action, c.encrypted_removable_media_remount_flags, c.event_detail_url, c.event_detail_text, c.created_at, c.updated_at,
     l.id AS label_id,
     l.name AS label_name
 FROM santa_configurations c
@@ -1636,6 +1636,7 @@ func (q *Queries) ResolveSantaConfigurationForHost(ctx context.Context, arg Reso
 	err := row.Scan(
 		&i.SantaConfiguration.ID,
 		&i.SantaConfiguration.Name,
+		&i.SantaConfiguration.Description,
 		&i.SantaConfiguration.Position,
 		&i.SantaConfiguration.ClientMode,
 		&i.SantaConfiguration.EnableBundles,
@@ -1653,7 +1654,6 @@ func (q *Queries) ResolveSantaConfigurationForHost(ctx context.Context, arg Reso
 		&i.SantaConfiguration.EventDetailText,
 		&i.SantaConfiguration.CreatedAt,
 		&i.SantaConfiguration.UpdatedAt,
-		&i.SantaConfiguration.Description,
 		&i.LabelID,
 		&i.LabelName,
 	)
@@ -1733,7 +1733,7 @@ SET
     event_detail_text = $16,
     updated_at = now()
 WHERE id = $17
-RETURNING id, name, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at, description
+RETURNING id, name, description, position, client_mode, enable_bundles, enable_transitive_rules, enable_all_event_upload, full_sync_interval_seconds, batch_size, allowed_path_regex, blocked_path_regex, removable_media_action, removable_media_remount_flags, encrypted_removable_media_action, encrypted_removable_media_remount_flags, event_detail_url, event_detail_text, created_at, updated_at
 `
 
 type UpdateSantaConfigurationParams struct {
@@ -1780,6 +1780,7 @@ func (q *Queries) UpdateSantaConfiguration(ctx context.Context, arg UpdateSantaC
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Description,
 		&i.Position,
 		&i.ClientMode,
 		&i.EnableBundles,
@@ -1797,7 +1798,6 @@ func (q *Queries) UpdateSantaConfiguration(ctx context.Context, arg UpdateSantaC
 		&i.EventDetailText,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }
@@ -1813,7 +1813,7 @@ SET
     custom_url = $6,
     updated_at = now()
 WHERE id = $7
-RETURNING id, rule_type, identifier, name, custom_message, custom_url, created_at, updated_at, description
+RETURNING id, rule_type, identifier, name, description, custom_message, custom_url, created_at, updated_at
 `
 
 type UpdateSantaRuleParams struct {
@@ -1842,11 +1842,11 @@ func (q *Queries) UpdateSantaRule(ctx context.Context, arg UpdateSantaRuleParams
 		&i.RuleType,
 		&i.Identifier,
 		&i.Name,
+		&i.Description,
 		&i.CustomMessage,
 		&i.CustomURL,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.Description,
 	)
 	return i, err
 }

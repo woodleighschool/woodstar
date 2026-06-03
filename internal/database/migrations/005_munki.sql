@@ -1,6 +1,10 @@
 -- +goose Up
 
-ALTER TYPE agent ADD VALUE IF NOT EXISTS 'munki';
+ALTER TYPE agent ADD VALUE 'munki';
+
+CREATE UNIQUE INDEX hosts_hardware_serial_idx
+    ON hosts (hardware_serial)
+    WHERE hardware_serial <> '';
 
 CREATE TABLE munki_host_status (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
@@ -29,8 +33,3 @@ CREATE TABLE munki_host_items (
 
 CREATE INDEX munki_host_items_host_idx
     ON munki_host_items (host_id);
-
--- +goose Down
-
-DROP TABLE IF EXISTS munki_host_items;
-DROP TABLE IF EXISTS munki_host_status;

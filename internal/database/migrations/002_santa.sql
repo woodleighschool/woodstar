@@ -2,7 +2,7 @@
 
 CREATE TYPE santa_client_mode AS ENUM ('unknown', 'monitor', 'lockdown', 'standalone');
 CREATE TYPE santa_removable_media_action AS ENUM ('allow', 'block', 'remount');
-CREATE TYPE santa_rule_type AS ENUM ('binary', 'certificate', 'teamid', 'signingid', 'cdhash');
+CREATE TYPE santa_rule_type AS ENUM ('binary', 'certificate', 'teamid', 'signingid', 'cdhash', 'bundle');
 CREATE TYPE santa_policy AS ENUM ('allowlist', 'allowlist_compiler', 'blocklist', 'silent_blocklist', 'cel');
 CREATE TYPE santa_execution_decision AS ENUM (
     'unknown',
@@ -118,6 +118,7 @@ CREATE UNIQUE INDEX santa_sync_pending_rules_host_identity_idx
 CREATE TABLE santa_configurations (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
     position INT NOT NULL UNIQUE,
     client_mode santa_client_mode NOT NULL,
     enable_bundles BOOLEAN NOT NULL,
@@ -164,6 +165,7 @@ CREATE TABLE santa_rules (
     rule_type santa_rule_type NOT NULL,
     identifier TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
     custom_message TEXT NOT NULL DEFAULT '',
     custom_url TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -251,26 +253,3 @@ CREATE INDEX santa_execution_events_host_time_idx
     ON santa_execution_events (host_id, COALESCE(occurred_at, ingested_at) DESC);
 CREATE INDEX santa_execution_events_decision_ingested_idx
     ON santa_execution_events (decision, ingested_at DESC);
-
--- +goose Down
-
-DROP TABLE santa_execution_events;
-DROP TABLE santa_executable_signing_chains;
-DROP TABLE santa_signing_chains;
-DROP TABLE santa_executables;
-DROP TABLE santa_rule_exclude_labels;
-DROP TABLE santa_rule_includes;
-DROP TABLE santa_rules;
-DROP TABLE santa_configuration_targets;
-DROP TABLE santa_configurations;
-DROP TABLE santa_sync_pending_rules;
-DROP TABLE santa_sync_targets;
-DROP TABLE santa_sync_state;
-DROP TABLE santa_hosts;
-
-DROP TYPE santa_sync_target_phase;
-DROP TYPE santa_execution_decision;
-DROP TYPE santa_policy;
-DROP TYPE santa_rule_type;
-DROP TYPE santa_removable_media_action;
-DROP TYPE santa_client_mode;

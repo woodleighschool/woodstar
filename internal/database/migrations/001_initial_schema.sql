@@ -1,7 +1,7 @@
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
-CREATE TYPE agent AS ENUM ('orbit', 'munki', 'santa');
+CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
 CREATE TYPE host_directory_user_source AS ENUM ('manual', 'reported_user_affinity');
 
@@ -428,33 +428,3 @@ CREATE TABLE check_targets (
 
 CREATE INDEX check_targets_label_idx ON check_targets (label_id);
 CREATE INDEX check_targets_check_effect_idx ON check_targets (check_id, effect);
-
--- +goose Down
-
-DROP TABLE check_targets;
-DROP TABLE report_targets;
-DROP TABLE check_membership;
-DROP TABLE checks;
-DROP TABLE report_results;
-DROP TABLE reports;
-DROP TABLE label_membership;
-DROP TABLE labels;
-DROP TABLE host_software_installed_paths;
-DROP TABLE host_software;
-DROP TABLE software;
-DROP TABLE software_titles;
-DROP TABLE host_batteries;
-DROP TABLE host_users;
-DROP TABLE host_directory_user;
-DROP TABLE host_user_affinity_mappings;
-DROP TABLE hosts;
-DROP TABLE directory_user_groups;
-DROP TABLE directory_groups;
-DROP TABLE directory_users;
-DROP TABLE agent_secrets;
-DROP TABLE sessions;
-DROP TABLE users;
-DROP TYPE IF EXISTS host_directory_user_source;
-DROP TYPE IF EXISTS host_user_affinity_source;
-DROP TYPE agent;
-DROP TYPE user_role;

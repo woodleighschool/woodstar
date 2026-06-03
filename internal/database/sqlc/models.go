@@ -15,8 +15,8 @@ type Agent string
 
 const (
 	AgentOrbit Agent = "orbit"
-	AgentMunki Agent = "munki"
 	AgentSanta Agent = "santa"
+	AgentMunki Agent = "munki"
 )
 
 func (e *Agent) Scan(src interface{}) error {
@@ -1096,6 +1096,7 @@ type SantaCertificate struct {
 type SantaConfiguration struct {
 	ID                                  int64                      `json:"id"`
 	Name                                string                     `json:"name"`
+	Description                         string                     `json:"description"`
 	Position                            int32                      `json:"position"`
 	ClientMode                          SantaClientMode            `json:"client_mode"`
 	EnableBundles                       bool                       `json:"enable_bundles"`
@@ -1113,7 +1114,6 @@ type SantaConfiguration struct {
 	EventDetailText                     string                     `json:"event_detail_text"`
 	CreatedAt                           time.Time                  `json:"created_at"`
 	UpdatedAt                           time.Time                  `json:"updated_at"`
-	Description                         string                     `json:"description"`
 }
 
 type SantaConfigurationTarget struct {
@@ -1207,11 +1207,11 @@ type SantaRule struct {
 	RuleType      SantaRuleType `json:"rule_type"`
 	Identifier    string        `json:"identifier"`
 	Name          string        `json:"name"`
+	Description   string        `json:"description"`
 	CustomMessage string        `json:"custom_message"`
 	CustomURL     string        `json:"custom_url"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
-	Description   string        `json:"description"`
 }
 
 type SantaRuleExcludeLabel struct {
