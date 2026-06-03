@@ -328,7 +328,7 @@ func validateCriteria(criteria *Criteria) error {
 		return fmt.Errorf("%w: criteria is required for derived labels", dbutil.ErrInvalidInput)
 	}
 	switch criteria.Attribute {
-	case DerivedAttributeDirectoryDepartment, DerivedAttributeDirectoryGroup, DerivedAttributeDirectoryUser:
+	case DerivedAttributeUserDepartment, DerivedAttributeEntraGroup, DerivedAttributeUser:
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)
 	}
@@ -530,20 +530,20 @@ func refreshDerivedMembership(ctx context.Context, q *sqlc.Queries, labelID int6
 
 	values := cleanCriteriaValues(criteria.Values)
 	switch criteria.Attribute {
-	case DerivedAttributeDirectoryDepartment:
-		return q.InsertDirectoryDepartmentLabelMemberships(
+	case DerivedAttributeUserDepartment:
+		return q.InsertUserDepartmentLabelMemberships(
 			ctx,
-			sqlc.InsertDirectoryDepartmentLabelMembershipsParams{LabelID: labelID, Values: values},
+			sqlc.InsertUserDepartmentLabelMembershipsParams{LabelID: labelID, Values: values},
 		)
-	case DerivedAttributeDirectoryGroup:
-		return q.InsertDirectoryGroupLabelMemberships(
+	case DerivedAttributeEntraGroup:
+		return q.InsertEntraGroupLabelMemberships(
 			ctx,
-			sqlc.InsertDirectoryGroupLabelMembershipsParams{LabelID: labelID, Values: values},
+			sqlc.InsertEntraGroupLabelMembershipsParams{LabelID: labelID, Values: values},
 		)
-	case DerivedAttributeDirectoryUser:
-		return q.InsertDirectoryUserLabelMemberships(
+	case DerivedAttributeUser:
+		return q.InsertUserLabelMemberships(
 			ctx,
-			sqlc.InsertDirectoryUserLabelMembershipsParams{LabelID: labelID, Values: values},
+			sqlc.InsertUserLabelMembershipsParams{LabelID: labelID, Values: values},
 		)
 	default:
 		return fmt.Errorf("%w: unknown derived label attribute", dbutil.ErrInvalidInput)

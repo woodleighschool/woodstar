@@ -124,6 +124,48 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deactivateSyncedUser = `-- name: DeactivateSyncedUser :one
+UPDATE users
+SET
+    active = false,
+    role = NULL,
+    api_key = NULL,
+    api_key_created_at = NULL,
+    updated_at = now()
+WHERE id = $1
+  AND entra_id IS NOT NULL
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
+`
+
+type DeactivateSyncedUserParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeactivateSyncedUser(ctx context.Context, arg DeactivateSyncedUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, deactivateSyncedUser, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.APIKey,
+		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteUser = `-- name: DeleteUser :one
 DELETE FROM users
 WHERE id = $1

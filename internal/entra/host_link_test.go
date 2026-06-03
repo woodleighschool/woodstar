@@ -1,4 +1,4 @@
-package directory
+package entra
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
 		},
 	}); err != nil {
-		t.Fatalf("apply directory snapshot: %v", err)
+		t.Fatalf("apply entra snapshot: %v", err)
 	}
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
@@ -66,21 +66,21 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
 		},
 	}); err != nil {
-		t.Fatalf("apply directory snapshot after host email: %v", err)
+		t.Fatalf("apply entra snapshot after host email: %v", err)
 	}
 
-	linkedUserID, source := hostDirectoryLink(t, ctx, store, host.ID)
+	linkedUserID, source := hostUserLink(t, ctx, store, host.ID)
 	if source != "reported_user_affinity" {
 		t.Fatalf("source = %q, want reported_user_affinity", source)
 	}
 
-	aliceID := directoryUserID(t, ctx, store, "alice@example.com")
+	aliceID := entraUserID(t, ctx, store, "alice@example.com")
 	if linkedUserID != aliceID {
 		t.Fatalf("link points to %d, want alice's id %d", linkedUserID, aliceID)
 	}
 
-	bobID := directoryUserID(t, ctx, store, "bob@example.com")
-	linkedUserID, source = hostDirectoryLink(t, ctx, store, santaHost.ID)
+	bobID := entraUserID(t, ctx, store, "bob@example.com")
+	linkedUserID, source = hostUserLink(t, ctx, store, santaHost.ID)
 	if source != "reported_user_affinity" {
 		t.Fatalf("santa source = %q, want reported_user_affinity", source)
 	}
@@ -89,10 +89,10 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	}
 
 	if _, err := store.db.Pool().Exec(ctx, `
-		INSERT INTO host_directory_user (host_id, directory_user_id, source)
+		INSERT INTO host_user_links (host_id, user_id, source)
 		VALUES ($1, $2, 'manual')
 		ON CONFLICT (host_id) DO UPDATE SET
-			directory_user_id = EXCLUDED.directory_user_id,
+			user_id = EXCLUDED.user_id,
 			source = 'manual',
 			updated_at = now()
 	`, host.ID, bobID); err != nil {
@@ -106,10 +106,10 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
 		},
 	}); err != nil {
-		t.Fatalf("apply directory snapshot after manual: %v", err)
+		t.Fatalf("apply entra snapshot after manual: %v", err)
 	}
 
-	linkedUserID, source = hostDirectoryLink(t, ctx, store, host.ID)
+	linkedUserID, source = hostUserLink(t, ctx, store, host.ID)
 	if source != "manual" {
 		t.Fatalf("source = %q, want manual", source)
 	}
@@ -118,29 +118,29 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	}
 }
 
-func directoryUserID(t *testing.T, ctx context.Context, store *Store, upn string) int64 {
+func entraUserID(t *testing.T, ctx context.Context, store *Store, upn string) int64 {
 	t.Helper()
 	var id int64
 	if err := store.db.Pool().QueryRow(ctx, `
 		SELECT id
-		FROM directory_users
+		FROM users
 		WHERE user_principal_name = $1
 	`, upn).Scan(&id); err != nil {
-		t.Fatalf("lookup directory user %q: %v", upn, err)
+		t.Fatalf("lookup entra user %q: %v", upn, err)
 	}
 	return id
 }
 
-func hostDirectoryLink(t *testing.T, ctx context.Context, store *Store, hostID int64) (int64, string) {
+func hostUserLink(t *testing.T, ctx context.Context, store *Store, hostID int64) (int64, string) {
 	t.Helper()
-	var directoryUserID int64
+	var userID int64
 	var source string
 	if err := store.db.Pool().QueryRow(ctx, `
-		SELECT directory_user_id, source
-		FROM host_directory_user
+		SELECT user_id, source
+		FROM host_user_links
 		WHERE host_id = $1
-	`, hostID).Scan(&directoryUserID, &source); err != nil {
-		t.Fatalf("lookup host directory link: %v", err)
+	`, hostID).Scan(&userID, &source); err != nil {
+		t.Fatalf("lookup host user link: %v", err)
 	}
-	return directoryUserID, source
+	return userID, source
 }

@@ -2,7 +2,6 @@ package users
 
 import (
 	"context"
-	"fmt"
 )
 
 // AccountMutation contains fields a signed-in user can mutate on their own account.
@@ -18,14 +17,5 @@ func (s *Service) GetAccount(ctx context.Context, id int64) (*Account, error) {
 
 // UpdateAccount updates fields the signed-in user can manage for themselves.
 func (s *Service) UpdateAccount(ctx context.Context, id int64, params AccountMutation) (*Account, error) {
-	if id == initialUserID {
-		current, err := s.store.GetByID(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("get user: %w", err)
-		}
-		if params.Name != current.Name {
-			return nil, ErrCannotModifyInitialUser
-		}
-	}
 	return s.store.UpdateAccount(ctx, id, params)
 }

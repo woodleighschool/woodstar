@@ -29,12 +29,12 @@ func TestRequireAdmin(t *testing.T) {
 	}{
 		{
 			name:   "admin in context",
-			ctx:    withUser(context.Background(), &users.User{ID: 1, Role: users.RoleAdmin}),
+			ctx:    withUser(context.Background(), &users.User{ID: 1, Role: testRole(users.RoleAdmin)}),
 			wantOK: true,
 		},
 		{
 			name:       "viewer is forbidden",
-			ctx:        withUser(context.Background(), &users.User{ID: 2, Role: users.RoleViewer}),
+			ctx:        withUser(context.Background(), &users.User{ID: 2, Role: testRole(users.RoleViewer)}),
 			wantStatus: 403,
 		},
 		{
@@ -106,4 +106,8 @@ func testSessionManager() *scs.SessionManager {
 	sm := scs.New()
 	sm.Store = memstore.New()
 	return sm
+}
+
+func testRole(role users.Role) *users.Role {
+	return &role
 }

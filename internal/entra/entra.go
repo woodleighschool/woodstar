@@ -1,4 +1,4 @@
-package directory
+package entra
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ type EntraConfig struct {
 	TransitiveGroups bool
 }
 
-// EntraClient fetches directory users and groups from Microsoft Graph.
+// EntraClient fetches Entra users and groups from Microsoft Graph.
 type EntraClient struct {
 	cfg   EntraConfig
 	creds clientcredentials.Config

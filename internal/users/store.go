@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Store persists local accounts.
+// Store persists users and their Woodstar access fields.
 type Store struct {
 	q *sqlc.Queries
 }
@@ -29,7 +29,7 @@ type UserCreate struct {
 // UserMutation replaces the writable fields of a user.
 type UserMutation struct {
 	Name     string  `json:"name"`
-	Role     Role    `json:"role"`
+	Role     *Role   `json:"role,omitempty"`
 	Password *string `json:"password,omitempty"`
 }
 
@@ -50,7 +50,7 @@ func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:        strings.ToLower(params.Email),
 		Name:         params.Name,
-		PasswordHash: hash,
+		PasswordHash: &hash,
 		Role:         sqlc.UserRole(params.Role),
 	})
 	if err != nil {
@@ -61,6 +61,28 @@ func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 
 func (s *Store) GetByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetUserByEmail(ctx, sqlc.GetUserByEmailParams{Email: strings.ToLower(email)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return new(userFromSQLC(row)), nil
+}
+
+func (s *Store) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
+	row, err := s.q.GetLoginUserByEmail(ctx, sqlc.GetLoginUserByEmailParams{Email: strings.ToLower(email)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, dbutil.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return new(userFromSQLC(row)), nil
+}
+
+func (s *Store) GetSSOByEmail(ctx context.Context, email string) (*User, error) {
+	row, err := s.q.GetSSOUserByEmail(ctx, sqlc.GetSSOUserByEmailParams{Email: strings.ToLower(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
@@ -106,6 +128,11 @@ func (s *Store) List(ctx context.Context) ([]User, error) {
 }
 
 func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*User, error) {
+	var role *sqlc.UserRole
+	if params.Role != nil {
+		value := sqlc.UserRole(*params.Role)
+		role = &value
+	}
 	var passwordHash *string
 	if params.Password != nil {
 		hash, err := HashPassword(*params.Password)
@@ -117,7 +144,7 @@ func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*Use
 
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
 		Name:         params.Name,
-		Role:         sqlc.UserRole(params.Role),
+		Role:         role,
 		PasswordHash: passwordHash,
 		ID:           id,
 	})
@@ -163,6 +190,14 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (s *Store) DeactivateSynced(ctx context.Context, id int64) error {
+	_, err := s.q.DeactivateSyncedUser(ctx, sqlc.DeactivateSyncedUserParams{ID: id})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	return err
+}
+
 func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -199,14 +234,25 @@ func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*Account, error) {
 }
 
 func userFromSQLC(s sqlc.User) User {
+	role := roleFromSQLC(s.Role)
 	return User{
-		ID:           s.ID,
-		Email:        s.Email,
-		Name:         s.Name,
-		PasswordHash: s.PasswordHash,
-		Role:         Role(s.Role),
-		CreatedAt:    s.CreatedAt,
-		UpdatedAt:    s.UpdatedAt,
+		ID:                s.ID,
+		Email:             s.Email,
+		Name:              s.Name,
+		PasswordHash:      stringValue(s.PasswordHash),
+		Role:              role,
+		EntraID:           stringValue(s.EntraID),
+		UserPrincipalName: stringValue(s.UserPrincipalName),
+		MailNickname:      stringValue(s.MailNickname),
+		GivenName:         stringValue(s.GivenName),
+		FamilyName:        stringValue(s.FamilyName),
+		Department:        stringValue(s.Department),
+		Active:            s.Active,
+		Synced:            s.EntraID != nil,
+		CanLogin:          s.Active && role != nil,
+		LastSyncedAt:      s.LastSyncedAt,
+		CreatedAt:         s.CreatedAt,
+		UpdatedAt:         s.UpdatedAt,
 	}
 }
 
@@ -226,4 +272,19 @@ func mapUserMutationError(err error) error {
 		return dbutil.ErrAlreadyExists
 	}
 	return err
+}
+
+func roleFromSQLC(role *sqlc.UserRole) *Role {
+	if role == nil {
+		return nil
+	}
+	value := Role(*role)
+	return &value
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

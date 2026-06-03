@@ -23,7 +23,6 @@ var (
 	ErrSSOStateMismatch   = errors.New("sso state mismatch")
 	ErrSSONotConfigured   = errors.New("sso is not configured")
 	ErrSSOUnknownUser     = errors.New("no woodstar account for this identity")
-	ErrSSOInitialUser     = errors.New("the initial user must sign in with a password, not SSO")
 	ErrSSOEmailClaimEmpty = errors.New("identity provider returned no email claim")
 )
 
@@ -133,15 +132,12 @@ func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.U
 		return nil, ErrSSOEmailClaimEmpty
 	}
 
-	user, err := s.users.GetByEmail(ctx, email)
+	user, err := s.users.GetSSOByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, ErrSSOUnknownUser
 	}
 	if err != nil {
 		return nil, fmt.Errorf("lookup sso user: %w", err)
-	}
-	if s.users.IsInitialUser(user) {
-		return nil, ErrSSOInitialUser
 	}
 
 	if err := s.startSession(ctx, user.ID); err != nil {

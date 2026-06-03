@@ -1,5 +1,5 @@
-// Package directory syncs people and groups from an identity provider.
-package directory
+// Package entra syncs Microsoft Entra users and groups into Woodstar.
+package entra
 
 import (
 	"time"
@@ -7,14 +7,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// DirectoryUser is one synced directory account.
-type DirectoryUser struct {
+// EntraUser is one canonical user populated by Entra.
+type EntraUser struct {
 	ID                int64     `json:"id"`
-	ExternalID        string    `json:"external_id"`
+	EntraID           string    `json:"entra_id"`
+	Email             string    `json:"email" format:"email"`
 	UserPrincipalName string    `json:"user_principal_name"`
-	Mail              string    `json:"mail,omitempty"`
 	MailNickname      string    `json:"mail_nickname,omitempty"`
-	DisplayName       string    `json:"display_name"`
+	Name              string    `json:"name"`
 	GivenName         string    `json:"given_name,omitempty"`
 	FamilyName        string    `json:"family_name,omitempty"`
 	Department        string    `json:"department,omitempty"`
@@ -22,8 +22,8 @@ type DirectoryUser struct {
 	LastSyncedAt      time.Time `json:"last_synced_at"`
 }
 
-// DirectoryGroup is one synced directory group.
-type DirectoryGroup struct {
+// EntraGroup is one synced Entra group.
+type EntraGroup struct {
 	ID           int64     `json:"id"`
 	ExternalID   string    `json:"external_id"`
 	DisplayName  string    `json:"display_name"`
@@ -31,12 +31,12 @@ type DirectoryGroup struct {
 	LastSyncedAt time.Time `json:"last_synced_at"`
 }
 
-// Department is one non-empty department observed on synced directory users.
-type Department struct {
+// EntraDepartment is one non-empty department observed on Entra-populated users.
+type EntraDepartment struct {
 	Value string `json:"value"`
 }
 
-// ListParams filters paginated directory selector lists.
+// ListParams filters paginated Entra selector lists.
 type ListParams struct {
 	dbutil.ListParams
 

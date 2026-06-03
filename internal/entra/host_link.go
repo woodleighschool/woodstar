@@ -1,4 +1,4 @@
-package directory
+package entra
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 )
 
 func reconcileLinks(ctx context.Context, q *sqlc.Queries) error {
-	return q.ReconcileHostDirectoryLinks(ctx, sqlc.ReconcileHostDirectoryLinksParams{
+	return q.ReconcileHostUserLinks(ctx, sqlc.ReconcileHostUserLinksParams{
 		AffinitySources: []string{
 			string(hosts.UserAffinitySourceOrbitProfile),
 			string(hosts.UserAffinitySourceSantaPrimaryUser),

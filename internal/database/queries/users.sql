@@ -88,6 +88,18 @@ DELETE FROM users
 WHERE id = @id
 RETURNING id;
 
+-- name: DeactivateSyncedUser :one
+UPDATE users
+SET
+    active = false,
+    role = NULL,
+    api_key = NULL,
+    api_key_created_at = NULL,
+    updated_at = now()
+WHERE id = @id
+  AND entra_id IS NOT NULL
+RETURNING *;
+
 -- name: GetUserByAPIKey :one
 SELECT *
 FROM users

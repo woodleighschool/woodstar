@@ -2,21 +2,9 @@ package users
 
 import (
 	"context"
-	"errors"
 )
 
-// User management errors for expected admin failures.
-var (
-	ErrCannotDeleteInitialUser = errors.New("the initial user cannot be deleted")
-	ErrCannotModifyInitialUser = errors.New(
-		"the initial user's name and role are locked; only the password may be changed",
-	)
-)
-
-// initialUserID is the row created by the setup wizard.
-const initialUserID int64 = 1
-
-// Service owns local account management.
+// Service owns user management.
 type Service struct {
 	store *Store
 }
@@ -33,6 +21,14 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (*User, error) {
 	return s.store.GetByEmail(ctx, email)
 }
 
+func (s *Service) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
+	return s.store.GetLoginByEmail(ctx, email)
+}
+
+func (s *Service) GetSSOByEmail(ctx context.Context, email string) (*User, error) {
+	return s.store.GetSSOByEmail(ctx, email)
+}
+
 func (s *Service) Get(ctx context.Context, id int64) (*User, error) {
 	return s.store.GetByID(ctx, id)
 }
@@ -41,34 +37,23 @@ func (s *Service) List(ctx context.Context) ([]User, error) {
 	return s.store.List(ctx)
 }
 
-// IsInitialUser checks the setup admin.
-func (s *Service) IsInitialUser(user *User) bool {
-	return user != nil && user.ID == initialUserID
-}
-
 func (s *Service) Create(ctx context.Context, params UserCreate) (*User, error) {
 	return s.store.Create(ctx, params)
 }
 
 // Update writes the full target record.
 func (s *Service) Update(ctx context.Context, targetID int64, params UserMutation) (*User, error) {
-	if targetID == initialUserID {
-		current, err := s.store.GetByID(ctx, targetID)
-		if err != nil {
-			return nil, err
-		}
-		if s.IsInitialUser(current) && (params.Name != current.Name || params.Role != current.Role) {
-			return nil, ErrCannotModifyInitialUser
-		}
-	}
-
 	return s.store.Update(ctx, targetID, params)
 }
 
-// Delete hard-deletes targetID.
+// Delete removes local users and deactivates synced users.
 func (s *Service) Delete(ctx context.Context, targetID int64) error {
-	if targetID == initialUserID {
-		return ErrCannotDeleteInitialUser
+	user, err := s.store.GetByID(ctx, targetID)
+	if err != nil {
+		return err
+	}
+	if user.Synced {
+		return s.store.DeactivateSynced(ctx, targetID)
 	}
 	return s.store.Delete(ctx, targetID)
 }

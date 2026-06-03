@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/entra"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
@@ -36,7 +36,7 @@ type Dependencies struct {
 	Runtime   RuntimeDependencies
 	Auth      AuthDependencies
 	Inventory InventoryDependencies
-	Directory DirectoryDependencies
+	Entra     EntraDependencies
 	AgentAuth AgentAuthDependencies
 	Orbit     OrbitDependencies
 	Osquery   OsqueryDependencies
@@ -65,8 +65,8 @@ type InventoryDependencies struct {
 	Labels         *labels.Store
 }
 
-type DirectoryDependencies struct {
-	Store *directory.Store
+type EntraDependencies struct {
+	Store *entra.Store
 }
 
 type AgentAuthDependencies struct {

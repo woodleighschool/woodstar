@@ -38,9 +38,9 @@ var LabelMembershipTypeValues = []LabelMembershipType{
 
 // Derived label attributes.
 const (
-	DerivedAttributeDirectoryDepartment = "directory_department"
-	DerivedAttributeDirectoryGroup      = "directory_group"
-	DerivedAttributeDirectoryUser       = "directory_user"
+	DerivedAttributeUserDepartment = "user_department"
+	DerivedAttributeEntraGroup     = "entra_group"
+	DerivedAttributeUser           = "user"
 )
 
 // Label groups hosts.

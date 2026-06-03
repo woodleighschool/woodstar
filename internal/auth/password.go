@@ -21,9 +21,7 @@ func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
 	return s.users.Exists(ctx)
 }
 
-// Setup creates the first administrator account and starts a session. The
-// account is pinned as the immutable id:1 break-glass login (see users
-// package).
+// Setup creates the first administrator account and starts a session.
 func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, error) {
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
@@ -59,7 +57,7 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*us
 		return nil, ErrNotSetup
 	}
 
-	user, err := s.users.GetByEmail(ctx, email)
+	user, err := s.users.GetLoginByEmail(ctx, email)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, ErrInvalidCredentials
 	}

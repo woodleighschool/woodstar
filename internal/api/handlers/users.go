@@ -172,9 +172,6 @@ func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, users.ErrCannotDeleteInitialUser),
-		errors.Is(err, users.ErrCannotModifyInitialUser):
-		return huma.Error422UnprocessableEntity(err.Error())
 	case errors.Is(err, users.ErrWeakPassword):
 		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
 	default:

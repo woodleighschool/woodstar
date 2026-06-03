@@ -1,4 +1,4 @@
-package directory
+package entra
 
 // Graph wire shapes keep Graph's weird names.
 type graphUser struct {

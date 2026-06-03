@@ -64,8 +64,6 @@ func ssoUserMessage(err error) string {
 		return "sso state mismatch; try again"
 	case errors.Is(err, auth.ErrSSOUnknownUser):
 		return "no woodstar account for this identity"
-	case errors.Is(err, auth.ErrSSOInitialUser):
-		return "the initial user must sign in with a password"
 	case errors.Is(err, auth.ErrSSOEmailClaimEmpty):
 		return "identity provider returned no email"
 	default:

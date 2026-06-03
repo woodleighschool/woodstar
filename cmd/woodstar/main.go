@@ -22,7 +22,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/entra"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
@@ -184,7 +184,7 @@ func newServer(
 			Software:       stores.software,
 			Labels:         stores.labels,
 		},
-		Directory: api.DirectoryDependencies{Store: stores.directory},
+		Entra:     api.EntraDependencies{Store: stores.entra},
 		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
 		Orbit:     orbitDeps,
 		Osquery:   osqueryDeps,
@@ -220,7 +220,7 @@ type appStores struct {
 	users               *users.Store
 	hosts               *hosts.Store
 	userAffinities      *hosts.UserAffinityStore
-	directory           *directory.Store
+	entra               *entra.Store
 	agentSecrets        *agentauth.Store
 	software            *software.Store
 	labels              *labels.Store
@@ -240,7 +240,7 @@ func newStores(db *database.DB) appStores {
 		users:               users.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		userAffinities:      hosts.NewUserAffinityStore(db),
-		directory:           directory.NewStore(db),
+		entra:               entra.NewStore(db),
 		agentSecrets:        agentauth.NewStore(db),
 		software:            software.NewStore(db),
 		labels:              labels.NewStore(db),
@@ -403,21 +403,21 @@ func newIntegrationBackgrounds(
 	if !cfg.EntraEnabled() {
 		return nil
 	}
-	entraClient := directory.NewEntraClient(directory.EntraConfig{
+	entraClient := entra.NewEntraClient(entra.EntraConfig{
 		TenantID:         cfg.EntraTenantID,
 		ClientID:         cfg.EntraClientID,
 		ClientSecret:     cfg.EntraClientSecret,
 		TransitiveGroups: cfg.EntraTransitiveGroups,
 	})
-	directorySvc := directory.NewService(
-		stores.directory,
+	entraSvc := entra.NewService(
+		stores.entra,
 		entraClient,
-		logger.With("component", "directory"),
+		logger.With("component", "entra"),
 		stores.labels,
 	)
 	return backgroundServices{
 		func(ctx context.Context) func() {
-			return directorySvc.StartScheduler(ctx, cfg.EntraSyncInterval)
+			return entraSvc.StartScheduler(ctx, cfg.EntraSyncInterval)
 		},
 	}
 }

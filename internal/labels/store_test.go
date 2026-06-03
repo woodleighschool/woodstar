@@ -3,6 +3,7 @@ package labels
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -66,7 +67,7 @@ func TestLabelMutationValidate(t *testing.T) {
 			in: LabelMutation{
 				Name: "Department",
 				Criteria: &Criteria{
-					Attribute: DerivedAttributeDirectoryDepartment,
+					Attribute: DerivedAttributeUserDepartment,
 					Values:    []string{"Engineering"},
 				},
 				LabelMembershipType: LabelMembershipTypeDerived,
@@ -154,7 +155,7 @@ func TestListIncludesDerivedCriteria(t *testing.T) {
 	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Engineering",
 		LabelMembershipType: LabelMembershipTypeDerived,
-		Criteria:            &Criteria{Attribute: DerivedAttributeDirectoryDepartment, Values: []string{"Engineering"}},
+		Criteria:            &Criteria{Attribute: DerivedAttributeUserDepartment, Values: []string{"Engineering"}},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
@@ -177,23 +178,23 @@ func TestListIncludesDerivedCriteria(t *testing.T) {
 	if got == nil {
 		t.Fatalf("created label %d was not returned", label.ID)
 	}
-	if got.Criteria == nil || got.Criteria.Attribute != DerivedAttributeDirectoryDepartment ||
+	if got.Criteria == nil || got.Criteria.Attribute != DerivedAttributeUserDepartment ||
 		len(got.Criteria.Values) != 1 || got.Criteria.Values[0] != "Engineering" {
 		t.Fatalf("Criteria = %#v, want department Engineering", got.Criteria)
 	}
 }
 
-func TestDerivedLabelsMatchDirectoryAttributes(t *testing.T) {
+func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := NewStore(db)
 	hostA := insertHost(t, db, "derived-a")
 	hostB := insertHost(t, db, "derived-b")
-	aliceID := insertDirectoryUser(t, db, "alice", "alice@example.com", "Engineering")
-	bobID := insertDirectoryUser(t, db, "bob", "bob@example.com", "Operations")
-	linkHostDirectoryUser(t, db, hostA, aliceID)
-	linkHostDirectoryUser(t, db, hostB, bobID)
-	staffID := insertDirectoryGroup(t, db, "staff", "Staff")
-	linkDirectoryUserGroup(t, db, aliceID, staffID)
+	aliceID := insertUser(t, db, "alice", "alice@example.com", "Engineering")
+	bobID := insertUser(t, db, "bob", "bob@example.com", "Operations")
+	linkHostUser(t, db, hostA, aliceID)
+	linkHostUser(t, db, hostB, bobID)
+	staffID := insertEntraGroup(t, db, "staff", "Staff")
+	linkEntraGroupMembership(t, db, aliceID, staffID)
 
 	tests := []struct {
 		name       string
@@ -202,17 +203,17 @@ func TestDerivedLabelsMatchDirectoryAttributes(t *testing.T) {
 	}{
 		{
 			name:       "department",
-			criteria:   Criteria{Attribute: DerivedAttributeDirectoryDepartment, Values: []string{"Engineering"}},
+			criteria:   Criteria{Attribute: DerivedAttributeUserDepartment, Values: []string{"Engineering"}},
 			wantHostID: hostA,
 		},
 		{
 			name:       "group",
-			criteria:   Criteria{Attribute: DerivedAttributeDirectoryGroup, Values: []string{"staff"}},
+			criteria:   Criteria{Attribute: DerivedAttributeEntraGroup, Values: []string{"staff"}},
 			wantHostID: hostA,
 		},
 		{
 			name:       "user",
-			criteria:   Criteria{Attribute: DerivedAttributeDirectoryUser, Values: []string{"alice"}},
+			criteria:   Criteria{Attribute: DerivedAttributeUser, Values: []string{strconv.FormatInt(aliceID, 10)}},
 			wantHostID: hostA,
 		},
 	}
@@ -245,21 +246,21 @@ func TestRefreshDerivedLabelsRecomputesMembership(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := NewStore(db)
 	hostID := insertHost(t, db, "derived-refresh")
-	userID := insertDirectoryUser(t, db, "refresh-user", "refresh@example.com", "Engineering")
-	linkHostDirectoryUser(t, db, hostID, userID)
+	userID := insertUser(t, db, "refresh-user", "refresh@example.com", "Engineering")
+	linkHostUser(t, db, hostID, userID)
 
 	label, err := store.Create(ctx, LabelMutation{
 		Name:                "Refresh derived",
 		LabelMembershipType: LabelMembershipTypeDerived,
-		Criteria:            &Criteria{Attribute: DerivedAttributeDirectoryDepartment, Values: []string{"Engineering"}},
+		Criteria:            &Criteria{Attribute: DerivedAttributeUserDepartment, Values: []string{"Engineering"}},
 	})
 	if err != nil {
 		t.Fatalf("create label: %v", err)
 	}
 
 	if _, err := db.Pool().
-		Exec(ctx, `UPDATE directory_users SET department = 'Operations' WHERE id = $1`, userID); err != nil {
-		t.Fatalf("update directory user: %v", err)
+		Exec(ctx, `UPDATE users SET department = 'Operations' WHERE id = $1`, userID); err != nil {
+		t.Fatalf("update user: %v", err)
 	}
 	if err := store.RefreshDerived(ctx); err != nil {
 		t.Fatalf("refresh derived labels: %v", err)
@@ -285,45 +286,45 @@ RETURNING id`, hardwareUUID).Scan(&id); err != nil {
 	return id
 }
 
-func insertDirectoryUser(t *testing.T, db *database.DB, externalID string, upn string, department string) int64 {
+func insertUser(t *testing.T, db *database.DB, entraID string, email string, department string) int64 {
 	t.Helper()
 	var id int64
 	if err := db.Pool().QueryRow(context.Background(), `
-INSERT INTO directory_users (external_id, user_principal_name, mail, display_name, department, last_synced_at)
-VALUES ($1, $2, $2, $2, $3, now())
-RETURNING id`, externalID, upn, dbutil.NullString(department)).Scan(&id); err != nil {
-		t.Fatalf("insert directory user: %v", err)
+INSERT INTO users (email, name, entra_id, user_principal_name, department, active, last_synced_at)
+VALUES ($1, $1, $2, $1, $3, true, now())
+RETURNING id`, email, entraID, dbutil.NullString(department)).Scan(&id); err != nil {
+		t.Fatalf("insert user: %v", err)
 	}
 	return id
 }
 
-func linkHostDirectoryUser(t *testing.T, db *database.DB, hostID int64, userID int64) {
+func linkHostUser(t *testing.T, db *database.DB, hostID int64, userID int64) {
 	t.Helper()
 	if _, err := db.Pool().Exec(context.Background(), `
-INSERT INTO host_directory_user (host_id, directory_user_id, source)
+INSERT INTO host_user_links (host_id, user_id, source)
 VALUES ($1, $2, 'manual')`, hostID, userID); err != nil {
-		t.Fatalf("link host directory user: %v", err)
+		t.Fatalf("link host user: %v", err)
 	}
 }
 
-func insertDirectoryGroup(t *testing.T, db *database.DB, externalID string, displayName string) int64 {
+func insertEntraGroup(t *testing.T, db *database.DB, externalID string, displayName string) int64 {
 	t.Helper()
 	var id int64
 	if err := db.Pool().QueryRow(context.Background(), `
-INSERT INTO directory_groups (external_id, display_name, last_synced_at)
+INSERT INTO entra_groups (external_id, display_name, last_synced_at)
 VALUES ($1, $2, now())
 RETURNING id`, externalID, displayName).Scan(&id); err != nil {
-		t.Fatalf("insert directory group: %v", err)
+		t.Fatalf("insert entra group: %v", err)
 	}
 	return id
 }
 
-func linkDirectoryUserGroup(t *testing.T, db *database.DB, userID int64, groupID int64) {
+func linkEntraGroupMembership(t *testing.T, db *database.DB, userID int64, groupID int64) {
 	t.Helper()
 	if _, err := db.Pool().Exec(context.Background(), `
-INSERT INTO directory_user_groups (directory_user_id, directory_group_id)
+INSERT INTO entra_group_memberships (user_id, group_id)
 VALUES ($1, $2)`, userID, groupID); err != nil {
-		t.Fatalf("link directory user group: %v", err)
+		t.Fatalf("link entra group membership: %v", err)
 	}
 }
 

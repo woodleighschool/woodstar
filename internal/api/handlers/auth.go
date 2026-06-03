@@ -179,7 +179,7 @@ func requireAdmin(ctx context.Context) (*users.User, error) {
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
-	if user.Role != users.RoleAdmin {
+	if user.Role == nil || *user.Role != users.RoleAdmin {
 		return nil, huma.Error403Forbidden("admin role required")
 	}
 	return user, nil

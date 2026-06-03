@@ -61,6 +61,10 @@ func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get session user: %w", err)
 	}
+	if !user.CanLogin {
+		_ = s.sessions.Destroy(ctx)
+		return nil, ErrNotAuthenticated
+	}
 	return user, nil
 }
 

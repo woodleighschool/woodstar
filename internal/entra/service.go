@@ -1,4 +1,4 @@
-package directory
+package entra
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Fetcher returns a directory snapshot. Implemented by EntraClient in
+// Fetcher returns an Entra snapshot. Implemented by EntraClient in
 // production; tests pass an in-memory fake.
 type Fetcher interface {
 	Fetch(ctx context.Context) (Snapshot, error)
@@ -34,7 +34,7 @@ func NewService(store *Store, fetcher Fetcher, logger *slog.Logger, labelRefresh
 // database reconciliation phase abort the pass and are returned for logging.
 func (s *Service) Sync(ctx context.Context) error {
 	if s.fetcher == nil {
-		return errors.New("directory: no fetcher configured")
+		return errors.New("entra: no fetcher configured")
 	}
 	started := time.Now()
 	snapshot, err := s.fetcher.Fetch(ctx)
@@ -49,8 +49,8 @@ func (s *Service) Sync(ctx context.Context) error {
 			return err
 		}
 	}
-	s.logger.InfoContext(ctx, "directory sync complete",
-		"component", "directory",
+	s.logger.InfoContext(ctx, "entra sync complete",
+		"component", "entra",
 		"operation", "sync",
 		"users", len(snapshot.Users),
 		"groups", len(snapshot.Groups),
@@ -87,8 +87,8 @@ func (s *Service) runOnce(ctx context.Context) {
 		if errors.Is(err, context.Canceled) {
 			return
 		}
-		s.logger.ErrorContext(ctx, "directory sync failed",
-			"component", "directory",
+		s.logger.ErrorContext(ctx, "entra sync failed",
+			"component", "entra",
 			"operation", "sync",
 			"err", err,
 		)

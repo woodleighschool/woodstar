@@ -19,15 +19,25 @@ const (
 
 var RoleValues = []Role{RoleAdmin, RoleViewer}
 
-// User is a local account.
+// User is a Woodstar person row, optionally granted app access by Role.
 type User struct {
-	ID           int64     `json:"id"`
-	Email        string    `json:"email"      format:"email"`
-	Name         string    `json:"name"`
-	PasswordHash string    `json:"-"`
-	Role         Role      `json:"role"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID                int64      `json:"id"`
+	Email             string     `json:"email"      format:"email"`
+	Name              string     `json:"name"`
+	PasswordHash      string     `json:"-"`
+	Role              *Role      `json:"role,omitempty"`
+	EntraID           string     `json:"entra_id,omitempty"`
+	UserPrincipalName string     `json:"user_principal_name,omitempty"`
+	MailNickname      string     `json:"mail_nickname,omitempty"`
+	GivenName         string     `json:"given_name,omitempty"`
+	FamilyName        string     `json:"family_name,omitempty"`
+	Department        string     `json:"department,omitempty"`
+	Active            bool       `json:"active"`
+	Synced            bool       `json:"synced"`
+	CanLogin          bool       `json:"can_login"`
+	LastSyncedAt      *time.Time `json:"last_synced_at,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {
