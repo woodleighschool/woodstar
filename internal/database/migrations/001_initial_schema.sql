@@ -3,7 +3,7 @@
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
-CREATE TYPE host_directory_user_source AS ENUM ('manual', 'reported_user_affinity');
+CREATE TYPE host_user_link_source AS ENUM ('manual', 'reported_user_affinity');
 
 -- Users, sessions, Enrollment ------------------------------------------
 
@@ -11,10 +11,18 @@ CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL DEFAULT '',
-    password_hash TEXT NOT NULL,
-    role user_role NOT NULL,
+    password_hash TEXT,
+    role user_role,
     api_key TEXT,
     api_key_created_at TIMESTAMPTZ,
+    entra_id TEXT UNIQUE,
+    user_principal_name TEXT UNIQUE,
+    mail_nickname TEXT,
+    given_name TEXT,
+    family_name TEXT,
+    department TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_synced_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -22,6 +30,9 @@ CREATE TABLE users (
 CREATE UNIQUE INDEX users_api_key_idx
     ON users (api_key)
     WHERE api_key IS NOT NULL;
+CREATE INDEX users_department_idx
+    ON users (department)
+    WHERE department IS NOT NULL;
 
 -- Owned by alexedwards/scs/pgxstore.
 CREATE TABLE sessions (
@@ -45,28 +56,9 @@ CREATE INDEX agent_secrets_active_idx
     ON agent_secrets (agent, created_at DESC)
     WHERE deleted_at IS NULL;
 
--- Directory (Entra-only MVP; table shape stays portable) ---------------------
+-- Entra groups ---------------------------------------------------------------
 
-CREATE TABLE directory_users (
-    id BIGSERIAL PRIMARY KEY,
-    external_id TEXT NOT NULL UNIQUE,
-    user_principal_name TEXT NOT NULL UNIQUE,
-    mail TEXT,
-    mail_nickname TEXT,
-    display_name TEXT NOT NULL DEFAULT '',
-    given_name TEXT,
-    family_name TEXT,
-    department TEXT,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    last_synced_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX directory_users_upn_idx ON directory_users (user_principal_name);
-CREATE INDEX directory_users_department_idx ON directory_users (department);
-
-CREATE TABLE directory_groups (
+CREATE TABLE entra_groups (
     id BIGSERIAL PRIMARY KEY,
     external_id TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
@@ -76,21 +68,15 @@ CREATE TABLE directory_groups (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE directory_user_groups (
-    directory_user_id BIGINT NOT NULL REFERENCES directory_users (id) ON DELETE CASCADE,
-    directory_group_id BIGINT NOT NULL REFERENCES directory_groups (id) ON DELETE CASCADE,
-    PRIMARY KEY (directory_user_id, directory_group_id)
+CREATE TABLE entra_group_memberships (
+    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    group_id BIGINT NOT NULL REFERENCES entra_groups (id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, group_id)
 );
 
-CREATE INDEX directory_user_groups_group_idx ON directory_user_groups (directory_group_id);
+CREATE INDEX entra_group_memberships_group_idx ON entra_group_memberships (group_id);
 
 -- Hosts ----------------------------------------------------------------------
-
--- host_directory_user links one host to one directory user (1:1). The link
--- has a source: 'manual' is set by an admin and is sticky;
--- 'reported_user_affinity' is inferred from agent-reported user affinity and is
--- overwritten by future manual links and overwrites future reported
--- inferences when the matched directory user changes.
 
 CREATE TABLE hosts (
     id BIGSERIAL PRIMARY KEY,
@@ -159,16 +145,15 @@ CREATE TABLE host_user_affinity_mappings (
 CREATE INDEX host_user_affinity_mappings_host_idx ON host_user_affinity_mappings (host_id);
 CREATE INDEX host_user_affinity_mappings_email_idx ON host_user_affinity_mappings (email);
 
-CREATE TABLE host_directory_user (
+CREATE TABLE host_user_links (
     host_id BIGINT PRIMARY KEY REFERENCES hosts (id) ON DELETE CASCADE,
-    directory_user_id BIGINT NOT NULL REFERENCES directory_users (id) ON DELETE CASCADE,
-    source host_directory_user_source NOT NULL,
+    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    source host_user_link_source NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX host_directory_user_directory_user_idx
-    ON host_directory_user (directory_user_id);
+CREATE INDEX host_user_links_user_idx ON host_user_links (user_id);
 
 CREATE TABLE host_users (
     id BIGSERIAL PRIMARY KEY,

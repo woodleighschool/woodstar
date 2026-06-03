@@ -10,6 +10,65 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 )
 
+func TestUserSchemaUnifiesLocalAndEntraIdentity(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+
+	nullableColumns := []string{"password_hash", "role"}
+	for _, column := range nullableColumns {
+		var nullable string
+		if err := db.Pool().QueryRow(ctx, `
+			SELECT is_nullable
+			FROM information_schema.columns
+			WHERE table_schema = 'public'
+			  AND table_name = 'users'
+			  AND column_name = $1
+		`, column).Scan(&nullable); err != nil {
+			t.Fatalf("load users.%s nullability: %v", column, err)
+		}
+		if nullable != "YES" {
+			t.Fatalf("users.%s nullable = %q, want YES", column, nullable)
+		}
+	}
+
+	for _, column := range []string{"entra_id", "user_principal_name", "active", "last_synced_at"} {
+		var exists bool
+		if err := db.Pool().QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = 'public'
+				  AND table_name = 'users'
+				  AND column_name = $1
+			)
+		`, column).Scan(&exists); err != nil {
+			t.Fatalf("check users.%s: %v", column, err)
+		}
+		if !exists {
+			t.Fatalf("users.%s missing", column)
+		}
+	}
+
+	for _, table := range []string{"directory_users", "directory_groups", "directory_user_groups", "host_directory_user"} {
+		var exists bool
+		if err := db.Pool().QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, table).Scan(&exists); err != nil {
+			t.Fatalf("check removed table %s: %v", table, err)
+		}
+		if exists {
+			t.Fatalf("%s still exists", table)
+		}
+	}
+
+	for _, table := range []string{"entra_groups", "entra_group_memberships", "host_user_links"} {
+		var exists bool
+		if err := db.Pool().QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, table).Scan(&exists); err != nil {
+			t.Fatalf("check table %s: %v", table, err)
+		}
+		if !exists {
+			t.Fatalf("%s missing", table)
+		}
+	}
+}
+
 func TestSantaMigrationEnforcesConfigurationAndRuleInvariants(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 

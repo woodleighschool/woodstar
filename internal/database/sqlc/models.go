@@ -54,48 +54,6 @@ func (ns NullAgent) Value() (driver.Value, error) {
 	return string(ns.Agent), nil
 }
 
-type HostDirectoryUserSource string
-
-const (
-	HostDirectoryUserSourceManual               HostDirectoryUserSource = "manual"
-	HostDirectoryUserSourceReportedUserAffinity HostDirectoryUserSource = "reported_user_affinity"
-)
-
-func (e *HostDirectoryUserSource) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = HostDirectoryUserSource(s)
-	case string:
-		*e = HostDirectoryUserSource(s)
-	default:
-		return fmt.Errorf("unsupported scan type for HostDirectoryUserSource: %T", src)
-	}
-	return nil
-}
-
-type NullHostDirectoryUserSource struct {
-	HostDirectoryUserSource HostDirectoryUserSource `json:"host_directory_user_source"`
-	Valid                   bool                    `json:"valid"` // Valid is true if HostDirectoryUserSource is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullHostDirectoryUserSource) Scan(value interface{}) error {
-	if value == nil {
-		ns.HostDirectoryUserSource, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.HostDirectoryUserSource.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullHostDirectoryUserSource) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.HostDirectoryUserSource), nil
-}
-
 type HostUserAffinitySource string
 
 const (
@@ -137,6 +95,48 @@ func (ns NullHostUserAffinitySource) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.HostUserAffinitySource), nil
+}
+
+type HostUserLinkSource string
+
+const (
+	HostUserLinkSourceManual               HostUserLinkSource = "manual"
+	HostUserLinkSourceReportedUserAffinity HostUserLinkSource = "reported_user_affinity"
+)
+
+func (e *HostUserLinkSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = HostUserLinkSource(s)
+	case string:
+		*e = HostUserLinkSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for HostUserLinkSource: %T", src)
+	}
+	return nil
+}
+
+type NullHostUserLinkSource struct {
+	HostUserLinkSource HostUserLinkSource `json:"host_user_link_source"`
+	Valid              bool               `json:"valid"` // Valid is true if HostUserLinkSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullHostUserLinkSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.HostUserLinkSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.HostUserLinkSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullHostUserLinkSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.HostUserLinkSource), nil
 }
 
 type MunkiArtifactKind string
@@ -749,7 +749,7 @@ type CheckTarget struct {
 	Effect  string `json:"effect"`
 }
 
-type DirectoryGroup struct {
+type EntraGroup struct {
 	ID           int64     `json:"id"`
 	ExternalID   string    `json:"external_id"`
 	DisplayName  string    `json:"display_name"`
@@ -759,25 +759,9 @@ type DirectoryGroup struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-type DirectoryUser struct {
-	ID                int64     `json:"id"`
-	ExternalID        string    `json:"external_id"`
-	UserPrincipalName string    `json:"user_principal_name"`
-	Mail              *string   `json:"mail"`
-	MailNickname      *string   `json:"mail_nickname"`
-	DisplayName       string    `json:"display_name"`
-	GivenName         *string   `json:"given_name"`
-	FamilyName        *string   `json:"family_name"`
-	Department        *string   `json:"department"`
-	Active            bool      `json:"active"`
-	LastSyncedAt      time.Time `json:"last_synced_at"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
-}
-
-type DirectoryUserGroup struct {
-	DirectoryUserID  int64 `json:"directory_user_id"`
-	DirectoryGroupID int64 `json:"directory_group_id"`
+type EntraGroupMembership struct {
+	UserID  int64 `json:"user_id"`
+	GroupID int64 `json:"group_id"`
 }
 
 type Host struct {
@@ -866,14 +850,6 @@ type HostCertificate struct {
 	UpdatedAt                 time.Time  `json:"updated_at"`
 }
 
-type HostDirectoryUser struct {
-	HostID          int64                   `json:"host_id"`
-	DirectoryUserID int64                   `json:"directory_user_id"`
-	Source          HostDirectoryUserSource `json:"source"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
-}
-
 type HostSoftware struct {
 	HostID       int64      `json:"host_id"`
 	SoftwareID   int64      `json:"software_id"`
@@ -913,6 +889,14 @@ type HostUserAffinityMapping struct {
 	Source    HostUserAffinitySource `json:"source"`
 	CreatedAt time.Time              `json:"created_at"`
 	UpdatedAt time.Time              `json:"updated_at"`
+}
+
+type HostUserLink struct {
+	HostID    int64              `json:"host_id"`
+	UserID    int64              `json:"user_id"`
+	Source    HostUserLinkSource `json:"source"`
+	CreatedAt time.Time          `json:"created_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
 }
 
 type Label struct {
@@ -1330,13 +1314,21 @@ type SoftwareTitle struct {
 }
 
 type User struct {
-	ID              int64      `json:"id"`
-	Email           string     `json:"email"`
-	Name            string     `json:"name"`
-	PasswordHash    string     `json:"password_hash"`
-	Role            UserRole   `json:"role"`
-	APIKey          *string    `json:"api_key"`
-	APIKeyCreatedAt *time.Time `json:"api_key_created_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                int64      `json:"id"`
+	Email             string     `json:"email"`
+	Name              string     `json:"name"`
+	PasswordHash      *string    `json:"password_hash"`
+	Role              *UserRole  `json:"role"`
+	APIKey            *string    `json:"api_key"`
+	APIKeyCreatedAt   *time.Time `json:"api_key_created_at"`
+	EntraID           *string    `json:"entra_id"`
+	UserPrincipalName *string    `json:"user_principal_name"`
+	MailNickname      *string    `json:"mail_nickname"`
+	GivenName         *string    `json:"given_name"`
+	FamilyName        *string    `json:"family_name"`
+	Department        *string    `json:"department"`
+	Active            bool       `json:"active"`
+	LastSyncedAt      *time.Time `json:"last_synced_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }

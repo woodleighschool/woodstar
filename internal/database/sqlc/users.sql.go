@@ -7,7 +7,28 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
+
+const attachEntraUserByEmail = `-- name: AttachEntraUserByEmail :exec
+UPDATE users
+SET
+    entra_id = $1::text,
+    updated_at = now()
+WHERE entra_id IS NULL
+  AND lower(email) = lower(COALESCE($2::text, $3::text))
+`
+
+type AttachEntraUserByEmailParams struct {
+	ExternalID        string  `json:"external_id"`
+	Mail              *string `json:"mail"`
+	UserPrincipalName string  `json:"user_principal_name"`
+}
+
+func (q *Queries) AttachEntraUserByEmail(ctx context.Context, arg AttachEntraUserByEmailParams) error {
+	_, err := q.db.Exec(ctx, attachEntraUserByEmail, arg.ExternalID, arg.Mail, arg.UserPrincipalName)
+	return err
+}
 
 const clearUserAPIKey = `-- name: ClearUserAPIKey :one
 UPDATE users
@@ -16,7 +37,7 @@ SET
     api_key_created_at = NULL,
     updated_at = now()
 WHERE id = $1
-RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 `
 
 type ClearUserAPIKeyParams struct {
@@ -34,6 +55,14 @@ func (q *Queries) ClearUserAPIKey(ctx context.Context, arg ClearUserAPIKeyParams
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -45,21 +74,23 @@ INSERT INTO users (
     email,
     name,
     password_hash,
-    role
+    role,
+    active
 )
 VALUES (
     $1,
     $2,
     $3,
-    $4
+    $4::user_role,
+    true
 )
-RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	Email        string   `json:"email"`
 	Name         string   `json:"name"`
-	PasswordHash string   `json:"password_hash"`
+	PasswordHash *string  `json:"password_hash"`
 	Role         UserRole `json:"role"`
 }
 
@@ -79,6 +110,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -102,10 +141,97 @@ func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) (int64, 
 	return id, err
 }
 
+const getLoginUserByEmail = `-- name: GetLoginUserByEmail :one
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
+FROM users
+WHERE active
+  AND role IS NOT NULL
+  AND password_hash IS NOT NULL
+  AND (
+      lower(email) = lower($1)
+      OR lower(COALESCE(user_principal_name, '')) = lower($1)
+  )
+ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
+LIMIT 1
+`
+
+type GetLoginUserByEmailParams struct {
+	Email string `json:"email"`
+}
+
+func (q *Queries) GetLoginUserByEmail(ctx context.Context, arg GetLoginUserByEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, getLoginUserByEmail, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.APIKey,
+		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSSOUserByEmail = `-- name: GetSSOUserByEmail :one
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
+FROM users
+WHERE active
+  AND role IS NOT NULL
+  AND (
+      lower(email) = lower($1)
+      OR lower(COALESCE(user_principal_name, '')) = lower($1)
+  )
+ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
+LIMIT 1
+`
+
+type GetSSOUserByEmailParams struct {
+	Email string `json:"email"`
+}
+
+func (q *Queries) GetSSOUserByEmail(ctx context.Context, arg GetSSOUserByEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, getSSOUserByEmail, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.APIKey,
+		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByAPIKey = `-- name: GetUserByAPIKey :one
-SELECT id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 FROM users
 WHERE api_key = $1
+  AND active
+  AND role IS NOT NULL
 `
 
 type GetUserByAPIKeyParams struct {
@@ -123,6 +249,14 @@ func (q *Queries) GetUserByAPIKey(ctx context.Context, arg GetUserByAPIKeyParams
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -130,9 +264,12 @@ func (q *Queries) GetUserByAPIKey(ctx context.Context, arg GetUserByAPIKeyParams
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 FROM users
-WHERE email = $1
+WHERE lower(email) = lower($1)
+   OR lower(COALESCE(user_principal_name, '')) = lower($1)
+ORDER BY CASE WHEN lower(email) = lower($1) THEN 0 ELSE 1 END, id
+LIMIT 1
 `
 
 type GetUserByEmailParams struct {
@@ -150,6 +287,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -157,7 +302,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 FROM users
 WHERE id = $1
 `
@@ -177,6 +322,14 @@ func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (User,
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -184,9 +337,9 @@ func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (User,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+SELECT id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 FROM users
-ORDER BY created_at
+ORDER BY lower(name), id
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -206,6 +359,14 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.APIKey,
 			&i.APIKeyCreatedAt,
+			&i.EntraID,
+			&i.UserPrincipalName,
+			&i.MailNickname,
+			&i.GivenName,
+			&i.FamilyName,
+			&i.Department,
+			&i.Active,
+			&i.LastSyncedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -219,6 +380,24 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const markEntraUsersInactiveNotIn = `-- name: MarkEntraUsersInactiveNotIn :exec
+UPDATE users
+SET
+    active = false,
+    updated_at = now()
+WHERE entra_id IS NOT NULL
+  AND entra_id <> ALL($1::text[])
+`
+
+type MarkEntraUsersInactiveNotInParams struct {
+	ExternalIds []string `json:"external_ids"`
+}
+
+func (q *Queries) MarkEntraUsersInactiveNotIn(ctx context.Context, arg MarkEntraUsersInactiveNotInParams) error {
+	_, err := q.db.Exec(ctx, markEntraUsersInactiveNotIn, arg.ExternalIds)
+	return err
+}
+
 const setUserAPIKey = `-- name: SetUserAPIKey :one
 UPDATE users
 SET
@@ -226,7 +405,9 @@ SET
     api_key_created_at = now(),
     updated_at = now()
 WHERE id = $2
-RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+  AND active
+  AND role IS NOT NULL
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 `
 
 type SetUserAPIKeyParams struct {
@@ -245,6 +426,14 @@ func (q *Queries) SetUserAPIKey(ctx context.Context, arg SetUserAPIKeyParams) (U
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -254,11 +443,11 @@ func (q *Queries) SetUserAPIKey(ctx context.Context, arg SetUserAPIKeyParams) (U
 const updateAccountByID = `-- name: UpdateAccountByID :one
 UPDATE users
 SET
-    name = $1,
+    name = CASE WHEN entra_id IS NULL THEN $1 ELSE name END,
     password_hash = COALESCE($2, password_hash),
     updated_at = now()
 WHERE id = $3
-RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 `
 
 type UpdateAccountByIDParams struct {
@@ -278,6 +467,14 @@ func (q *Queries) UpdateAccountByID(ctx context.Context, arg UpdateAccountByIDPa
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -287,19 +484,19 @@ func (q *Queries) UpdateAccountByID(ctx context.Context, arg UpdateAccountByIDPa
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET
-    name = $1,
+    name = CASE WHEN entra_id IS NULL THEN $1 ELSE name END,
     role = $2::user_role,
     password_hash = COALESCE($3, password_hash),
     updated_at = now()
 WHERE id = $4
-RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, created_at, updated_at
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
 `
 
 type UpdateUserParams struct {
-	Name         string   `json:"name"`
-	Role         UserRole `json:"role"`
-	PasswordHash *string  `json:"password_hash"`
-	ID           int64    `json:"id"`
+	Name         string    `json:"name"`
+	Role         *UserRole `json:"role"`
+	PasswordHash *string   `json:"password_hash"`
+	ID           int64     `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -318,6 +515,102 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Role,
 		&i.APIKey,
 		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertEntraUser = `-- name: UpsertEntraUser :one
+INSERT INTO users (
+    email,
+    name,
+    entra_id,
+    user_principal_name,
+    mail_nickname,
+    given_name,
+    family_name,
+    department,
+    active,
+    last_synced_at
+)
+VALUES (
+    COALESCE($1::text, $2::text),
+    $3::text,
+    $4::text,
+    $2::text,
+    $5::text,
+    $6::text,
+    $7::text,
+    $8::text,
+    $9::boolean,
+    $10::timestamptz
+)
+ON CONFLICT (entra_id) DO UPDATE SET
+    email = EXCLUDED.email,
+    name = EXCLUDED.name,
+    user_principal_name = EXCLUDED.user_principal_name,
+    mail_nickname = EXCLUDED.mail_nickname,
+    given_name = EXCLUDED.given_name,
+    family_name = EXCLUDED.family_name,
+    department = EXCLUDED.department,
+    active = EXCLUDED.active,
+    last_synced_at = EXCLUDED.last_synced_at,
+    updated_at = now()
+RETURNING id, email, name, password_hash, role, api_key, api_key_created_at, entra_id, user_principal_name, mail_nickname, given_name, family_name, department, active, last_synced_at, created_at, updated_at
+`
+
+type UpsertEntraUserParams struct {
+	Mail              *string   `json:"mail"`
+	UserPrincipalName string    `json:"user_principal_name"`
+	DisplayName       string    `json:"display_name"`
+	ExternalID        string    `json:"external_id"`
+	MailNickname      *string   `json:"mail_nickname"`
+	GivenName         *string   `json:"given_name"`
+	FamilyName        *string   `json:"family_name"`
+	Department        *string   `json:"department"`
+	Active            bool      `json:"active"`
+	LastSyncedAt      time.Time `json:"last_synced_at"`
+}
+
+func (q *Queries) UpsertEntraUser(ctx context.Context, arg UpsertEntraUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertEntraUser,
+		arg.Mail,
+		arg.UserPrincipalName,
+		arg.DisplayName,
+		arg.ExternalID,
+		arg.MailNickname,
+		arg.GivenName,
+		arg.FamilyName,
+		arg.Department,
+		arg.Active,
+		arg.LastSyncedAt,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.PasswordHash,
+		&i.Role,
+		&i.APIKey,
+		&i.APIKeyCreatedAt,
+		&i.EntraID,
+		&i.UserPrincipalName,
+		&i.MailNickname,
+		&i.GivenName,
+		&i.FamilyName,
+		&i.Department,
+		&i.Active,
+		&i.LastSyncedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

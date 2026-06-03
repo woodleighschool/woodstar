@@ -145,62 +145,24 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 	return i, err
 }
 
-const insertDirectoryDepartmentLabelMemberships = `-- name: InsertDirectoryDepartmentLabelMemberships :exec
+const insertEntraGroupLabelMemberships = `-- name: InsertEntraGroupLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.department = ANY($2::text[])
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+JOIN entra_group_memberships egm ON egm.user_id = u.id
+JOIN entra_groups eg ON eg.id = egm.group_id
+WHERE u.active AND eg.external_id = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
 `
 
-type InsertDirectoryDepartmentLabelMembershipsParams struct {
+type InsertEntraGroupLabelMembershipsParams struct {
 	LabelID int64    `json:"label_id"`
 	Values  []string `json:"values"`
 }
 
-func (q *Queries) InsertDirectoryDepartmentLabelMemberships(ctx context.Context, arg InsertDirectoryDepartmentLabelMembershipsParams) error {
-	_, err := q.db.Exec(ctx, insertDirectoryDepartmentLabelMemberships, arg.LabelID, arg.Values)
-	return err
-}
-
-const insertDirectoryGroupLabelMemberships = `-- name: InsertDirectoryGroupLabelMemberships :exec
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
-JOIN directory_groups dg ON dg.id = dug.directory_group_id
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND dg.external_id = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
-`
-
-type InsertDirectoryGroupLabelMembershipsParams struct {
-	LabelID int64    `json:"label_id"`
-	Values  []string `json:"values"`
-}
-
-func (q *Queries) InsertDirectoryGroupLabelMemberships(ctx context.Context, arg InsertDirectoryGroupLabelMembershipsParams) error {
-	_, err := q.db.Exec(ctx, insertDirectoryGroupLabelMemberships, arg.LabelID, arg.Values)
-	return err
-}
-
-const insertDirectoryUserLabelMemberships = `-- name: InsertDirectoryUserLabelMemberships :exec
-INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT $1::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.external_id = ANY($2::text[])
-ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
-`
-
-type InsertDirectoryUserLabelMembershipsParams struct {
-	LabelID int64    `json:"label_id"`
-	Values  []string `json:"values"`
-}
-
-func (q *Queries) InsertDirectoryUserLabelMemberships(ctx context.Context, arg InsertDirectoryUserLabelMembershipsParams) error {
-	_, err := q.db.Exec(ctx, insertDirectoryUserLabelMemberships, arg.LabelID, arg.Values)
+func (q *Queries) InsertEntraGroupLabelMemberships(ctx context.Context, arg InsertEntraGroupLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertEntraGroupLabelMemberships, arg.LabelID, arg.Values)
 	return err
 }
 
@@ -218,6 +180,44 @@ type InsertLabelMembershipsParams struct {
 
 func (q *Queries) InsertLabelMemberships(ctx context.Context, arg InsertLabelMembershipsParams) error {
 	_, err := q.db.Exec(ctx, insertLabelMemberships, arg.LabelID, arg.HostIds)
+	return err
+}
+
+const insertUserDepartmentLabelMemberships = `-- name: InsertUserDepartmentLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.active AND u.department = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
+`
+
+type InsertUserDepartmentLabelMembershipsParams struct {
+	LabelID int64    `json:"label_id"`
+	Values  []string `json:"values"`
+}
+
+func (q *Queries) InsertUserDepartmentLabelMemberships(ctx context.Context, arg InsertUserDepartmentLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertUserDepartmentLabelMemberships, arg.LabelID, arg.Values)
+	return err
+}
+
+const insertUserLabelMemberships = `-- name: InsertUserLabelMemberships :exec
+INSERT INTO label_membership (label_id, host_id)
+SELECT DISTINCT $1::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.active AND u.id::text = ANY($2::text[])
+ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
+`
+
+type InsertUserLabelMembershipsParams struct {
+	LabelID int64    `json:"label_id"`
+	Values  []string `json:"values"`
+}
+
+func (q *Queries) InsertUserLabelMemberships(ctx context.Context, arg InsertUserLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertUserLabelMemberships, arg.LabelID, arg.Values)
 	return err
 }
 

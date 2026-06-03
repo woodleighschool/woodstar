@@ -78,30 +78,30 @@ FROM labels
 WHERE label_membership_type = 'derived'
 ORDER BY id;
 
--- name: InsertDirectoryDepartmentLabelMemberships :exec
+-- name: InsertUserDepartmentLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT @label_id::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.department = ANY(@values::text[])
+SELECT DISTINCT @label_id::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.active AND u.department = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
--- name: InsertDirectoryGroupLabelMemberships :exec
+-- name: InsertEntraGroupLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT @label_id::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_user_groups dug ON dug.directory_user_id = hdu.directory_user_id
-JOIN directory_groups dg ON dg.id = dug.directory_group_id
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND dg.external_id = ANY(@values::text[])
+SELECT DISTINCT @label_id::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+JOIN entra_group_memberships egm ON egm.user_id = u.id
+JOIN entra_groups eg ON eg.id = egm.group_id
+WHERE u.active AND eg.external_id = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
--- name: InsertDirectoryUserLabelMemberships :exec
+-- name: InsertUserLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
-SELECT DISTINCT @label_id::bigint, hdu.host_id
-FROM host_directory_user hdu
-JOIN directory_users du ON du.id = hdu.directory_user_id
-WHERE du.active AND du.external_id = ANY(@values::text[])
+SELECT DISTINCT @label_id::bigint, hul.host_id
+FROM host_user_links hul
+JOIN users u ON u.id = hul.user_id
+WHERE u.active AND u.id::text = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
 -- name: InsertLabelMemberships :exec

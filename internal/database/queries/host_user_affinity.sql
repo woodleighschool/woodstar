@@ -56,19 +56,19 @@ WITH primary_mapping AS (
 SELECT
     pm.email,
     pm.source,
-    COALESCE(du.mail_nickname, '') AS username,
-    COALESCE(du.display_name, '') AS name,
-    COALESCE(du.department, '') AS department,
+    COALESCE(u.mail_nickname, '') AS username,
+    COALESCE(u.name, '') AS name,
+    COALESCE(u.department, '') AS department,
     COALESCE(
-        array_agg(dg.display_name ORDER BY lower(dg.display_name)) FILTER (WHERE dg.id IS NOT NULL),
+        array_agg(eg.display_name ORDER BY lower(eg.display_name)) FILTER (WHERE eg.id IS NOT NULL),
         ARRAY[]::text[]
     )::text[] AS groups
 FROM primary_mapping pm
-LEFT JOIN host_directory_user hdu ON hdu.host_id = pm.host_id
-LEFT JOIN directory_users du ON du.id = hdu.directory_user_id AND du.active
-LEFT JOIN directory_user_groups dug ON dug.directory_user_id = du.id
-LEFT JOIN directory_groups dg ON dg.id = dug.directory_group_id
-GROUP BY pm.email, pm.source, du.mail_nickname, du.display_name, du.department;
+LEFT JOIN host_user_links hul ON hul.host_id = pm.host_id
+LEFT JOIN users u ON u.id = hul.user_id AND u.active
+LEFT JOIN entra_group_memberships egm ON egm.user_id = u.id
+LEFT JOIN entra_groups eg ON eg.id = egm.group_id
+GROUP BY pm.email, pm.source, u.mail_nickname, u.name, u.department;
 
 -- name: ListHostUserAffinityPrimaries :many
 WITH primary_mapping AS (
@@ -86,17 +86,17 @@ SELECT
     pm.host_id,
     pm.email,
     pm.source,
-    COALESCE(du.mail_nickname, '') AS username,
-    COALESCE(du.display_name, '') AS name,
-    COALESCE(du.department, '') AS department,
+    COALESCE(u.mail_nickname, '') AS username,
+    COALESCE(u.name, '') AS name,
+    COALESCE(u.department, '') AS department,
     COALESCE(
-        array_agg(dg.display_name ORDER BY lower(dg.display_name)) FILTER (WHERE dg.id IS NOT NULL),
+        array_agg(eg.display_name ORDER BY lower(eg.display_name)) FILTER (WHERE eg.id IS NOT NULL),
         ARRAY[]::text[]
     )::text[] AS groups
 FROM primary_mapping pm
-LEFT JOIN host_directory_user hdu ON hdu.host_id = pm.host_id
-LEFT JOIN directory_users du ON du.id = hdu.directory_user_id AND du.active
-LEFT JOIN directory_user_groups dug ON dug.directory_user_id = du.id
-LEFT JOIN directory_groups dg ON dg.id = dug.directory_group_id
-GROUP BY pm.host_id, pm.email, pm.source, du.mail_nickname, du.display_name, du.department
+LEFT JOIN host_user_links hul ON hul.host_id = pm.host_id
+LEFT JOIN users u ON u.id = hul.user_id AND u.active
+LEFT JOIN entra_group_memberships egm ON egm.user_id = u.id
+LEFT JOIN entra_groups eg ON eg.id = egm.group_id
+GROUP BY pm.host_id, pm.email, pm.source, u.mail_nickname, u.name, u.department
 ORDER BY pm.host_id;
