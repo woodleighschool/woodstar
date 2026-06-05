@@ -154,34 +154,6 @@ func (s *Store) ListDepartments(ctx context.Context, params ListParams) ([]Depar
 	return departments, count, err
 }
 
-func (s *Store) ListGroupMembers(ctx context.Context, groupID int64, params ListParams) ([]User, int, error) {
-	where, args := groupMemberWhere(groupID, params)
-	listQuery := groupMemberListQuery(params, where, args)
-	countSQL, countArgs := listQuery.BuildCount()
-	var count int
-	if err := s.db.Pool().QueryRow(ctx, countSQL, countArgs...).Scan(&count); err != nil {
-		return nil, 0, err
-	}
-	query, args, err := listQuery.Build()
-	if err != nil {
-		return nil, 0, err
-	}
-	rows, err := s.db.Pool().Query(ctx, query, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.User])
-	if err != nil {
-		return nil, 0, err
-	}
-	out := make([]User, len(list))
-	for i, row := range list {
-		out[i] = userFromSQLC(row)
-	}
-	return out, count, nil
-}
-
 func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*User, error) {
 	var role *sqlc.UserRole
 	if params.Role != nil {
@@ -346,95 +318,10 @@ func stringValue(value *string) string {
 
 func userWhere(params ListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
-		where.Add(`(
-			email ILIKE ` + search + `
-			OR user_principal_name ILIKE ` + search + `
-			OR mail_nickname ILIKE ` + search + `
-			OR name ILIKE ` + search + `
-			OR given_name ILIKE ` + search + `
-			OR family_name ILIKE ` + search + `
-			OR department ILIKE ` + search + `
-		)`)
+	if params.GroupID > 0 {
+		groupID := where.Arg(params.GroupID)
+		where.Add("gm.group_id = " + groupID)
 	}
-	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.SplitListValues(params.Values))
-		where.Add("id::text = ANY(" + values + "::text[])")
-	}
-	switch params.Role {
-	case "admin", "viewer":
-		role := where.Arg(params.Role)
-		where.Add("role = " + role + "::user_role")
-	case "none":
-		where.Add("role IS NULL")
-	}
-	switch params.Source {
-	case "local":
-		where.Add("entra_id IS NULL")
-	case "synced":
-		where.Add("entra_id IS NOT NULL")
-	}
-	switch params.Status {
-	case "active":
-		where.Add("active")
-	case "inactive":
-		where.Add("NOT active")
-	}
-	return where.Build()
-}
-
-func departmentWhere(params ListParams) (string, []any) {
-	var where dbutil.WhereBuilder
-	where.Add("entra_id IS NOT NULL")
-	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
-	if params.Q != "" {
-		search := where.Arg("%" + params.Q + "%")
-		where.Add("department ILIKE " + search)
-	}
-	if len(params.Values) > 0 {
-		values := where.Arg(dbutil.SplitListValues(params.Values))
-		where.Add("department = ANY(" + values + "::text[])")
-	}
-	return where.Build()
-}
-
-func userListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
-		SelectSQL: "SELECT * FROM users",
-		WhereSQL:  where,
-		Args:      args,
-		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":           {SQL: "lower(name)"},
-			"email":          {SQL: "lower(email)"},
-			"role":           {SQL: "role", NullOrder: dbutil.NullsLast},
-			"department":     {SQL: "lower(department)", NullOrder: dbutil.NullsLast},
-			"created_at":     {SQL: "created_at"},
-			"updated_at":     {SQL: "updated_at"},
-			"last_synced_at": {SQL: "last_synced_at", NullOrder: dbutil.NullsLast},
-		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(name)"}, {SQL: "lower(email)"}, {SQL: "id"}},
-		Params:       params.ListParams,
-	}
-}
-
-func departmentListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
-	return dbutil.ListQuery{
-		SelectSQL: "SELECT DISTINCT department AS value FROM users",
-		WhereSQL:  where,
-		Args:      args,
-		OrderKeys: map[string]dbutil.OrderExpr{
-			"value": {SQL: "department"},
-		},
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "department"}},
-		Params:       params.ListParams,
-	}
-}
-
-func groupMemberWhere(groupID int64, params ListParams) (string, []any) {
-	var where dbutil.WhereBuilder
-	groupIDArg := where.Arg(groupID)
-	where.Add("gm.group_id = " + groupIDArg)
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
@@ -473,14 +360,26 @@ func groupMemberWhere(groupID int64, params ListParams) (string, []any) {
 	return where.Build()
 }
 
-func groupMemberListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func departmentWhere(params ListParams) (string, []any) {
+	var where dbutil.WhereBuilder
+	where.Add("entra_id IS NOT NULL")
+	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
+	if params.Q != "" {
+		search := where.Arg("%" + params.Q + "%")
+		where.Add("department ILIKE " + search)
+	}
+	if len(params.Values) > 0 {
+		values := where.Arg(dbutil.SplitListValues(params.Values))
+		where.Add("department = ANY(" + values + "::text[])")
+	}
+	return where.Build()
+}
+
+func userListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
-		SelectSQL: `
-SELECT u.*
-FROM users u
-JOIN entra_group_memberships gm ON gm.user_id = u.id`,
-		WhereSQL: where,
-		Args:     args,
+		SelectSQL: userListSelectSQL(params),
+		WhereSQL:  where,
+		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
 			"name":           {SQL: "lower(u.name)"},
 			"email":          {SQL: "lower(u.email)"},
@@ -491,6 +390,29 @@ JOIN entra_group_memberships gm ON gm.user_id = u.id`,
 			"last_synced_at": {SQL: "u.last_synced_at", NullOrder: dbutil.NullsLast},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(u.name)"}, {SQL: "lower(u.email)"}, {SQL: "u.id"}},
+		Params:       params.ListParams,
+	}
+}
+
+func userListSelectSQL(params ListParams) string {
+	if params.GroupID <= 0 {
+		return "SELECT u.* FROM users u"
+	}
+	return `
+SELECT u.*
+FROM users u
+JOIN entra_group_memberships gm ON gm.user_id = u.id`
+}
+
+func departmentListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+	return dbutil.ListQuery{
+		SelectSQL: "SELECT DISTINCT department AS value FROM users",
+		WhereSQL:  where,
+		Args:      args,
+		OrderKeys: map[string]dbutil.OrderExpr{
+			"value": {SQL: "department"},
+		},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "department"}},
 		Params:       params.ListParams,
 	}
 }

@@ -125,7 +125,7 @@ interface DataTableProps<TData, TValue> {
   selectedRowIds?: string[];
   onSelectedRowIdsChange?: (ids: string[]) => void;
   bulkActions?: ReactNode;
-  rowHref?: (row: TData) => { to: string; params?: Record<string, string> };
+  rowHref?: (row: TData) => DataTableRowHref;
   onRowClick?: (row: TData) => void;
   getRowId?: (row: TData) => string;
   toolbar?: ReactNode | ((table: TanStackTable<TData>, exportButton: ReactNode) => ReactNode);
@@ -139,6 +139,12 @@ interface DataTableProps<TData, TValue> {
   clientSort?: boolean;
   showExport?: boolean;
   exportFilename?: string;
+}
+
+interface DataTableRowHref {
+  to: string;
+  params?: Record<string, string>;
+  search?: Record<string, string | number | boolean | undefined>;
 }
 
 export function DataTable<TData, TValue>({
@@ -385,7 +391,7 @@ function csvFilename(filename: string) {
 
 interface DataTableBodyRowProps<TData> {
   row: TanStackRow<TData>;
-  rowHref?: (row: TData) => { to: string; params?: Record<string, string> };
+  rowHref?: (row: TData) => DataTableRowHref;
   onRowClick?: (row: TData) => void;
   isDragging?: boolean;
 }
@@ -420,7 +426,7 @@ function DataTableBodyRow<TData>({
               if (target.closest(INTERACTIVE_SELECTOR)) return;
               if (window.getSelection()?.toString()) return;
               if (linkProps !== undefined) {
-                void navigate({ to: linkProps.to, params: linkProps.params });
+                void navigate({ to: linkProps.to, params: linkProps.params, search: linkProps.search });
               } else {
                 onRowClick?.(row.original);
               }

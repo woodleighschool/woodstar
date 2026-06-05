@@ -2522,58 +2522,6 @@ export type GetGroupResponses = {
 
 export type GetGroupResponse = GetGroupResponses[keyof GetGroupResponses];
 
-export type ListGroupMembersData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: {
-        q?: string;
-        page_index?: number;
-        page_size?: number;
-        sort?: string;
-        values?: Array<string> | null;
-        role?: 'admin' | 'viewer' | 'none';
-        source?: 'local' | 'synced';
-        status?: 'active' | 'inactive';
-    };
-    url: '/api/groups/{id}/members';
-};
-
-export type ListGroupMembersErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListGroupMembersError = ListGroupMembersErrors[keyof ListGroupMembersErrors];
-
-export type ListGroupMembersResponses = {
-    /**
-     * OK
-     */
-    200: PageUser;
-};
-
-export type ListGroupMembersResponse = ListGroupMembersResponses[keyof ListGroupMembersResponses];
-
 export type ListHostsData = {
     body?: never;
     path?: never;
@@ -5850,6 +5798,7 @@ export type ListUsersData = {
         role?: 'admin' | 'viewer' | 'none';
         source?: 'local' | 'synced';
         status?: 'active' | 'inactive';
+        group_id?: number;
     };
     url: '/api/users';
 };

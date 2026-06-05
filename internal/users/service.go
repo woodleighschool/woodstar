@@ -37,10 +37,6 @@ func (s *Service) ListDepartments(ctx context.Context, params ListParams) ([]Dep
 	return s.store.ListDepartments(ctx, params)
 }
 
-func (s *Service) ListGroupMembers(ctx context.Context, groupID int64, params ListParams) ([]User, int, error) {
-	return s.store.ListGroupMembers(ctx, groupID, params)
-}
-
 func (s *Service) Create(ctx context.Context, params UserCreate) (*User, error) {
 	return s.store.Create(ctx, params)
 }

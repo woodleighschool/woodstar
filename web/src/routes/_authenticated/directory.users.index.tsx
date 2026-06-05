@@ -12,6 +12,7 @@ const searchSchema = z.object({
   role: z.enum(["admin", "viewer", "none"]).optional(),
   source: z.enum(["local", "synced"]).optional(),
   status: z.enum(["active", "inactive"]).optional(),
+  group_id: z.coerce.number().int().positive().optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/directory/users/")({

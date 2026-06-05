@@ -105,6 +105,10 @@ func TestListFiltersUsers(t *testing.T) {
 
 	if err := entraStore.Apply(ctx, entra.Snapshot{
 		GeneratedAt: time.Now().UTC(),
+		Groups: []entra.SnapshotGroup{
+			{ExternalID: "all-users", DisplayName: "All Users", MailNickname: "all-users"},
+			{ExternalID: "engineering", DisplayName: "Engineering", MailNickname: "engineering"},
+		},
 		Users: []entra.SnapshotUser{
 			{
 				ExternalID:        "u-alice",
@@ -112,6 +116,7 @@ func TestListFiltersUsers(t *testing.T) {
 				DisplayName:       "Alice Engineering",
 				Department:        "Engineering",
 				Active:            true,
+				GroupExternalIDs:  []string{"all-users", "engineering"},
 			},
 			{
 				ExternalID:        "u-bob",
@@ -119,10 +124,18 @@ func TestListFiltersUsers(t *testing.T) {
 				DisplayName:       "Bob Operations",
 				Department:        "Operations",
 				Active:            false,
+				GroupExternalIDs:  []string{"all-users"},
 			},
 		},
 	}); err != nil {
 		t.Fatalf("apply entra snapshot: %v", err)
+	}
+	var engineeringGroupID int64
+	if err := database.Pool().QueryRow(ctx, `
+SELECT id
+FROM entra_groups
+WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
+		t.Fatalf("get engineering group id: %v", err)
 	}
 	local, err := store.Create(ctx, UserCreate{
 		Email:    "local@example.edu",
@@ -144,6 +157,14 @@ func TestListFiltersUsers(t *testing.T) {
 	}
 	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
 		t.Fatalf("users = %+v count=%d, want Alice only", users, count)
+	}
+
+	users, count, err = store.List(ctx, ListParams{GroupID: engineeringGroupID})
+	if err != nil {
+		t.Fatalf("list engineering group users: %v", err)
+	}
+	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
+		t.Fatalf("engineering group users = %+v count=%d, want Alice only", users, count)
 	}
 
 	users, count, err = store.List(ctx, ListParams{Role: "admin", Source: "local"})

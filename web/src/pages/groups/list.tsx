@@ -74,7 +74,7 @@ export function GroupsPage() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
-          rowHref={(row) => ({ to: "/directory/groups/$groupId", params: { groupId: String(row.id) } })}
+          rowHref={(row) => ({ to: "/directory/users", search: { group_id: row.id } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
               <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />

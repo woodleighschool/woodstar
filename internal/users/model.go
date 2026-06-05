@@ -50,10 +50,11 @@ type Department struct {
 type ListParams struct {
 	dbutil.ListParams
 
-	Values []string
-	Role   string
-	Source string
-	Status string
+	Values  []string
+	Role    string
+	Source  string
+	Status  string
+	GroupID int64
 }
 
 func (Role) Schema(_ huma.Registry) *huma.Schema {

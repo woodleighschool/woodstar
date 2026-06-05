@@ -6,7 +6,6 @@ export const queryKeys = {
   userDepartments: (params?: unknown) => ["users", "departments", params ?? {}] as const,
   groups: (params?: unknown) => ["groups", params ?? {}] as const,
   group: (id: number | null) => ["groups", id] as const,
-  groupMembers: (id: number | null, params?: unknown) => ["groups", id, "members", params ?? {}] as const,
   osquerySchema: ["osquery-schema"] as const,
   hosts: (params?: unknown) => ["hosts", params ?? {}] as const,
   host: (id: number | null) => ["hosts", id] as const,

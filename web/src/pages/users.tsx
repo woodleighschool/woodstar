@@ -11,6 +11,7 @@ import {
   DataTableSearch,
 } from "@/components/data-table";
 import { EnumBadge } from "@/components/enum-badge";
+import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import { UserFormDialog } from "@/components/users/user-form-dialog";
 import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
+import { useGroup, type Group } from "@/hooks/use-groups";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { useUsers, type User } from "@/hooks/use-users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
@@ -48,17 +50,20 @@ export function UsersPage() {
   const { user: currentUser } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleting, setDeleting] = useState<User | null>(null);
+  const groupID = search.group_id;
+  const group = useGroup(groupID ?? null);
 
   const query = useUsers({
     q: search.q,
     role: search.role,
     source: search.source,
     status: search.status,
+    group_id: groupID,
     ...tableQueryParams(state),
   });
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.role || !!search.source || !!search.status;
+  const hasFilters = !!search.q || !!search.role || !!search.source || !!search.status || groupID !== undefined;
 
   return (
     <PageShell>
@@ -90,6 +95,8 @@ export function UsersPage() {
               source={search.source}
               status={search.status}
               onFilterChange={setters.setFilter}
+              groupLabel={groupFilterLabel({ group: group.data, groupID })}
+              onClearGroup={() => setters.setFilter("group_id", undefined)}
             />
           }
           hasFilters={hasFilters}
@@ -248,6 +255,8 @@ function UsersToolbar({
   source,
   status,
   onFilterChange,
+  groupLabel,
+  onClearGroup,
 }: {
   draft: string;
   onDraftChange: (next: string) => void;
@@ -255,6 +264,8 @@ function UsersToolbar({
   source?: string;
   status?: string;
   onFilterChange: (key: string, value: string | undefined) => void;
+  groupLabel?: string;
+  onClearGroup: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -280,8 +291,14 @@ function UsersToolbar({
         onChange={(next) => onFilterChange("status", next[0])}
         singleSelect
       />
+      {groupLabel ? <FilterChip label="Group" value={groupLabel} onRemove={onClearGroup} /> : null}
     </div>
   );
+}
+
+function groupFilterLabel({ group, groupID }: { group: Group | undefined; groupID: number | undefined }) {
+  if (groupID === undefined) return undefined;
+  return group?.display_name ?? `Group #${groupID}`;
 }
 
 function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolean; onDelete: (user: User) => void }) {

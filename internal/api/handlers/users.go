@@ -31,10 +31,11 @@ type userOutput struct {
 
 type userListInput struct {
 	ListQueryInput
-	Values []string `query:"values,omitempty"`
-	Role   string   `query:"role,omitempty"   enum:"admin,viewer,none"`
-	Source string   `query:"source,omitempty" enum:"local,synced"`
-	Status string   `query:"status,omitempty" enum:"active,inactive"`
+	Values  []string `query:"values,omitempty"`
+	Role    string   `query:"role,omitempty"     enum:"admin,viewer,none"`
+	Source  string   `query:"source,omitempty"   enum:"local,synced"`
+	Status  string   `query:"status,omitempty"   enum:"active,inactive"`
+	GroupID int64    `query:"group_id,omitempty"                          minimum:"1"`
 }
 
 type departmentListInput struct {
@@ -75,6 +76,7 @@ func (i userListInput) params() users.ListParams {
 		Role:       i.Role,
 		Source:     i.Source,
 		Status:     i.Status,
+		GroupID:    i.GroupID,
 	}
 }
 
