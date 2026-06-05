@@ -1,4 +1,4 @@
-package munki
+package assignments
 
 import (
 	"context"
@@ -7,15 +7,44 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 )
 
-func (s *Store) CreateAssignment(ctx context.Context, params AssignmentMutation) (*Assignment, error) {
+type softwareTitleStore interface {
+	GetByID(context.Context, int64) (*softwaretitles.SoftwareTitle, error)
+}
+
+type packageStore interface {
+	GetByID(context.Context, int64) (*packages.Package, error)
+	AttachRelations(context.Context, []packages.Package) ([]packages.Package, error)
+}
+
+type Store struct {
+	db             *database.DB
+	q              *sqlc.Queries
+	softwareTitles softwareTitleStore
+	packages       packageStore
+}
+
+func NewStore(db *database.DB, softwareTitles softwareTitleStore, packages packageStore) *Store {
+	return &Store{
+		db:             db,
+		q:              db.Queries(),
+		softwareTitles: softwareTitles,
+		packages:       packages,
+	}
+}
+
+func (s *Store) Create(ctx context.Context, params AssignmentMutation) (*Assignment, error) {
 	var err error
-	params, err = s.normalizeAssignmentMutation(ctx, params)
+	params, err = s.normalizeMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -24,20 +53,20 @@ func (s *Store) CreateAssignment(ctx context.Context, params AssignmentMutation)
 		Priority:         params.Priority,
 		LabelID:          params.LabelID,
 		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
-		Action:           sqlcAssignmentAction(params.Action),
+		Action:           sqlcAction(params.Action),
 		OptionalInstall:  params.OptionalInstall,
 		FeaturedItem:     params.FeaturedItem,
 		PackageSelection: sqlcPackageSelection(params.PackageSelection),
 		PinnedPackageID:  params.PinnedPackageID,
 	})
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
-	return s.GetAssignment(ctx, row.ID)
+	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) UpdateAssignment(ctx context.Context, id int64, params AssignmentMutation) (*Assignment, error) {
-	existing, err := s.GetAssignment(ctx, id)
+func (s *Store) Update(ctx context.Context, id int64, params AssignmentMutation) (*Assignment, error) {
+	existing, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +74,7 @@ func (s *Store) UpdateAssignment(ctx context.Context, id int64, params Assignmen
 		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
 	}
 	params.SoftwareID = existing.SoftwareID
-	params, err = s.normalizeAssignmentMutation(ctx, params)
+	params, err = s.normalizeMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +83,7 @@ func (s *Store) UpdateAssignment(ctx context.Context, id int64, params Assignmen
 		Priority:         params.Priority,
 		LabelID:          params.LabelID,
 		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
-		Action:           sqlcAssignmentAction(params.Action),
+		Action:           sqlcAction(params.Action),
 		OptionalInstall:  params.OptionalInstall,
 		FeaturedItem:     params.FeaturedItem,
 		PackageSelection: sqlcPackageSelection(params.PackageSelection),
@@ -64,12 +93,12 @@ func (s *Store) UpdateAssignment(ctx context.Context, id int64, params Assignmen
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
-	return s.GetAssignment(ctx, row.ID)
+	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) GetAssignment(ctx context.Context, id int64) (*Assignment, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Assignment, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
@@ -88,7 +117,7 @@ func (s *Store) GetAssignment(ctx context.Context, id int64) (*Assignment, error
 	return &assignment, nil
 }
 
-func (s *Store) ListAssignments(ctx context.Context, params AssignmentListParams) ([]Assignment, int, error) {
+func (s *Store) List(ctx context.Context, params AssignmentListParams) ([]Assignment, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := assignmentListWhere(params)
 	listQuery := dbutil.ListQuery{
@@ -123,7 +152,41 @@ func (s *Store) ListAssignments(ctx context.Context, params AssignmentListParams
 	return assignments, count, nil
 }
 
-func (s *Store) ReorderAssignments(ctx context.Context, softwareID int64, orderedIDs []int64) error {
+func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
+	rows, err := s.q.ListEffectiveMunkiPackagesForHost(ctx, sqlc.ListEffectiveMunkiPackagesForHostParams{
+		HostID: hostID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	effective := make([]EffectivePackage, 0, len(rows))
+	for _, row := range rows {
+		pkg := packages.Package{}
+		if row.AssignmentEffect == sqlc.MunkiAssignmentEffectInclude {
+			resolvedPackage, err := packages.FromEffectiveRow(row)
+			if err != nil {
+				return nil, err
+			}
+			pkg = resolvedPackage
+		}
+		effective = append(effective, EffectivePackage{
+			AssignmentID:     row.AssignmentID,
+			SoftwareID:       row.AssignmentSoftwareID,
+			Effect:           AssignmentEffect(row.AssignmentEffect),
+			Action:           assignmentActionValue(row.Action),
+			OptionalInstall:  row.OptionalInstall,
+			FeaturedItem:     row.FeaturedItem,
+			PackageSelection: packageSelectionValue(row.PackageSelection),
+			PinnedPackageID:  row.PinnedPackageID,
+			Priority:         row.Priority,
+			Package:          pkg,
+		})
+	}
+	resolved := ResolveEffectivePackages(effective)
+	return s.attachPackageRelations(ctx, resolved)
+}
+
+func (s *Store) Reorder(ctx context.Context, softwareID int64, orderedIDs []int64) error {
 	if softwareID <= 0 {
 		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
@@ -149,7 +212,33 @@ func (s *Store) ReorderAssignments(ctx context.Context, softwareID int64, ordere
 	})
 }
 
-func cleanAssignmentMutation(params AssignmentMutation) AssignmentMutation {
+func (s *Store) attachPackageRelations(
+	ctx context.Context,
+	effective []EffectivePackage,
+) ([]EffectivePackage, error) {
+	pkgs := make([]packages.Package, 0, len(effective))
+	for _, pkg := range effective {
+		if pkg.Package.ID > 0 {
+			pkgs = append(pkgs, pkg.Package)
+		}
+	}
+	pkgs, err := s.packages.AttachRelations(ctx, pkgs)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int64]packages.Package, len(pkgs))
+	for _, pkg := range pkgs {
+		byID[pkg.ID] = pkg
+	}
+	for i := range effective {
+		if pkg, ok := byID[effective[i].Package.ID]; ok {
+			effective[i].Package = pkg
+		}
+	}
+	return effective, nil
+}
+
+func cleanMutation(params AssignmentMutation) AssignmentMutation {
 	params.Effect = AssignmentEffect(strings.TrimSpace(string(params.Effect)))
 	if params.Action != nil {
 		action := AssignmentAction(strings.TrimSpace(string(*params.Action)))
@@ -162,22 +251,22 @@ func cleanAssignmentMutation(params AssignmentMutation) AssignmentMutation {
 	return params
 }
 
-func (s *Store) normalizeAssignmentMutation(
+func (s *Store) normalizeMutation(
 	ctx context.Context,
 	params AssignmentMutation,
 ) (AssignmentMutation, error) {
-	params = cleanAssignmentMutation(params)
+	params = cleanMutation(params)
 	if err := params.Validate(); err != nil {
 		return params, err
 	}
-	if _, err := s.GetSoftwareTitle(ctx, params.SoftwareID); err != nil {
+	if _, err := s.softwareTitles.GetByID(ctx, params.SoftwareID); err != nil {
 		return params, err
 	}
 	if params.Effect != AssignmentEffectInclude || params.PackageSelection == nil ||
 		*params.PackageSelection != PackageSelectionSpecific {
 		return params, nil
 	}
-	pkg, err := s.GetPackage(ctx, *params.PinnedPackageID)
+	pkg, err := s.packages.GetByID(ctx, *params.PinnedPackageID)
 	if err != nil {
 		return params, err
 	}
@@ -210,7 +299,7 @@ func assignmentFromRecord(row assignmentRecord) Assignment {
 	}
 }
 
-func sqlcAssignmentAction(action *AssignmentAction) *sqlc.MunkiAssignmentAction {
+func sqlcAction(action *AssignmentAction) *sqlc.MunkiAssignmentAction {
 	if action == nil {
 		return nil
 	}
@@ -327,3 +416,27 @@ SELECT
 FROM munki_assignments a
 JOIN munki_software_titles s ON s.id = a.software_id
 LEFT JOIN munki_packages p ON p.id = a.pinned_package_id`
+
+func mapMutationError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
+}
+
+func stringPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}

@@ -20,11 +20,18 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
@@ -257,18 +264,18 @@ func TestMunkiAdminAPI(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Munki.State = munki.NewStore(database)
+	wireMunkiTestDeps(&deps, database)
 	server := NewServer(deps)
 	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
-	title := postMunkiJSON[munki.SoftwareTitle](
+	title := postMunkiJSON[softwaretitles.SoftwareTitle](
 		t,
 		server,
 		cookie,
 		"/api/munki/software-titles",
 		`{"name":"GoogleChrome","display_name":"Google Chrome"}`,
 	)
-	pkg := postMunkiJSON[munki.Package](
+	pkg := postMunkiJSON[packages.Package](
 		t,
 		server,
 		cookie,
@@ -281,7 +288,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	if pkg.Name != "GoogleChrome" || pkg.Version != "148.0.0.1" {
 		t.Fatalf("pkg = %+v, want GoogleChrome 148.0.0.1", pkg)
 	}
-	pkg = patchMunkiJSON[munki.Package](
+	pkg = patchMunkiJSON[packages.Package](
 		t,
 		server,
 		cookie,
@@ -295,7 +302,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t.Fatalf("updated pkg = %+v, want version 148.0.0.2", pkg)
 	}
 	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
-	assignment := postMunkiJSON[munki.Assignment](
+	assignment := postMunkiJSON[assignments.Assignment](
 		t,
 		server,
 		cookie,
@@ -307,7 +314,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 			pkg.ID,
 		),
 	)
-	assignment = patchMunkiJSON[munki.Assignment](
+	assignment = patchMunkiJSON[assignments.Assignment](
 		t,
 		server,
 		cookie,
@@ -331,8 +338,8 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t.Fatalf("list assignments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
 	}
 	var listed struct {
-		Items []munki.Assignment `json:"items"`
-		Count int                `json:"count"`
+		Items []assignments.Assignment `json:"items"`
+		Count int                      `json:"count"`
 	}
 	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
 		t.Fatalf("decode assignments page: %v", err)
@@ -376,16 +383,16 @@ func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Munki.State = munki.NewStore(database)
+	wireMunkiTestDeps(&deps, database)
 	deps.Munki.ArtifactStorage = fakeMunkiStorage{}
 	server := NewServer(deps)
 	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "munki-upload@example.test")
 	sha := strings.Repeat("a", 64)
 
 	upload := postMunkiJSON[struct {
-		UploadURL string                 `json:"upload_url"`
-		Headers   map[string]string      `json:"headers"`
-		Artifact  munki.ArtifactMutation `json:"artifact"`
+		UploadURL string                     `json:"upload_url"`
+		Headers   map[string]string          `json:"headers"`
+		Artifact  artifacts.ArtifactMutation `json:"artifact"`
 	}](
 		t,
 		server,
@@ -407,11 +414,11 @@ func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal artifact: %v", err)
 	}
-	artifact := postMunkiJSON[munki.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
-	if artifact.Kind != munki.ArtifactKindIcon || artifact.SHA256 != sha {
+	artifact := postMunkiJSON[artifacts.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
+	if artifact.Kind != artifacts.ArtifactKindIcon || artifact.SHA256 != sha {
 		t.Fatalf("artifact = %+v, want finalized icon artifact", artifact)
 	}
-	again := postMunkiJSON[munki.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
+	again := postMunkiJSON[artifacts.Artifact](t, server, cookie, "/api/munki/artifacts", string(body))
 	if again.ID != artifact.ID {
 		t.Fatalf("repeat artifact finalize id = %d, want %d", again.ID, artifact.ID)
 	}
@@ -449,7 +456,7 @@ func TestMunkiArtifactUploadEndpointReportsUnavailableStorage(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Munki.State = munki.NewStore(database)
+	wireMunkiTestDeps(&deps, database)
 	deps.Munki.ArtifactStorage = unavailableMunkiStorage{}
 	server := NewServer(deps)
 	cookie := loginTestUserWithEmail(
@@ -495,7 +502,7 @@ func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agenta
 
 type fakeMunkiStorage struct{}
 
-func (fakeMunkiStorage) PresignGet(_ context.Context, artifact munki.Artifact) (string, error) {
+func (fakeMunkiStorage) PresignGet(_ context.Context, artifact artifacts.Artifact) (string, error) {
 	return "https://storage.example/" + artifact.StorageKey, nil
 }
 
@@ -504,21 +511,21 @@ func (fakeMunkiStorage) PresignPut(
 	storageKey string,
 	contentType string,
 	sha256 string,
-) (munki.ArtifactUploadURL, error) {
-	return munki.ArtifactUploadURL{
+) (artifacts.ArtifactUploadURL, error) {
+	return artifacts.ArtifactUploadURL{
 		URL:     "https://storage.example/" + storageKey,
 		Headers: map[string]string{"Content-Type": contentType, "x-amz-meta-woodstar-sha256": sha256},
 	}, nil
 }
 
-func (fakeMunkiStorage) Stat(_ context.Context, _ string) (munki.ArtifactObject, error) {
-	return munki.ArtifactObject{ContentType: "image/png", SizeBytes: 123, SHA256: strings.Repeat("a", 64)}, nil
+func (fakeMunkiStorage) Stat(_ context.Context, _ string) (artifacts.ArtifactObject, error) {
+	return artifacts.ArtifactObject{ContentType: "image/png", SizeBytes: 123, SHA256: strings.Repeat("a", 64)}, nil
 }
 
 type unavailableMunkiStorage struct{}
 
-func (unavailableMunkiStorage) PresignGet(context.Context, munki.Artifact) (string, error) {
-	return "", munki.ErrStorageUnavailable
+func (unavailableMunkiStorage) PresignGet(context.Context, artifacts.Artifact) (string, error) {
+	return "", munkistorage.ErrUnavailable
 }
 
 func (unavailableMunkiStorage) PresignPut(
@@ -526,12 +533,40 @@ func (unavailableMunkiStorage) PresignPut(
 	string,
 	string,
 	string,
-) (munki.ArtifactUploadURL, error) {
-	return munki.ArtifactUploadURL{}, munki.ErrStorageUnavailable
+) (artifacts.ArtifactUploadURL, error) {
+	return artifacts.ArtifactUploadURL{}, munkistorage.ErrUnavailable
 }
 
-func (unavailableMunkiStorage) Stat(context.Context, string) (munki.ArtifactObject, error) {
-	return munki.ArtifactObject{}, munki.ErrStorageUnavailable
+func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.ArtifactObject, error) {
+	return artifacts.ArtifactObject{}, munkistorage.ErrUnavailable
+}
+
+type munkiTestStores struct {
+	artifacts      *artifacts.Store
+	assignments    *assignments.Store
+	hoststate      *hoststate.Store
+	packages       *packages.Store
+	softwareTitles *softwaretitles.Store
+}
+
+func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
+	artifactStore := artifacts.NewStore(db)
+	softwareTitleStore := softwaretitles.NewStore(db, artifactStore)
+	packageStore := packages.NewStore(db, softwareTitleStore, artifactStore)
+	assignmentStore := assignments.NewStore(db, softwareTitleStore, packageStore)
+	stores := munkiTestStores{
+		artifacts:      artifactStore,
+		assignments:    assignmentStore,
+		hoststate:      hoststate.NewStore(db),
+		packages:       packageStore,
+		softwareTitles: softwareTitleStore,
+	}
+	deps.Munki.Artifacts = stores.artifacts
+	deps.Munki.Assignments = stores.assignments
+	deps.Munki.HostState = stores.hoststate
+	deps.Munki.Packages = stores.packages
+	deps.Munki.SoftwareTitles = stores.softwareTitles
+	return stores
 }
 
 func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
@@ -735,7 +770,8 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
-	deps.Munki.Repository = munki.NewService(hostStore, munki.NewStore(database))
+	stores := wireMunkiTestDeps(&deps, database)
+	deps.Munki.Repository = munki.NewService(hostStore, stores.assignments)
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{

@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 const (
@@ -24,13 +24,13 @@ const (
 )
 
 type munkiArtifactStorage interface {
-	PresignGet(context.Context, munki.Artifact) (string, error)
-	PresignPut(context.Context, string, string, string) (munki.ArtifactUploadURL, error)
-	Stat(context.Context, string) (munki.ArtifactObject, error)
+	PresignGet(context.Context, artifacts.Artifact) (string, error)
+	PresignPut(context.Context, string, string, string) (artifacts.ArtifactUploadURL, error)
+	Stat(context.Context, string) (artifacts.ArtifactObject, error)
 }
 
 type munkiArtifactCreateInput struct {
-	Body munkiArtifactMutation
+	Body artifacts.ArtifactMutation
 }
 
 type munkiArtifactUploadInput struct {
@@ -42,7 +42,7 @@ type munkiArtifactContentInput struct {
 }
 
 type munkiArtifactOutput struct {
-	Body munkiArtifact
+	Body artifacts.Artifact
 }
 
 type munkiArtifactUploadOutput struct {
@@ -54,51 +54,28 @@ type munkiArtifactContentOutput struct {
 	Location string `                       header:"Location"`
 }
 
-type munkiArtifact struct {
-	ID          int64              `json:"id"`
-	Kind        munki.ArtifactKind `json:"kind"`
-	DisplayName string             `json:"display_name"`
-	Location    string             `json:"location"`
-	ContentType string             `json:"content_type"`
-	SizeBytes   int64              `json:"size_bytes"`
-	SHA256      string             `json:"sha256"`
-	StorageKey  string             `json:"storage_key"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-}
-
-type munkiArtifactMutation struct {
-	Kind        munki.ArtifactKind `json:"kind"`
-	DisplayName string             `json:"display_name,omitempty"`
-	Location    string             `json:"location"`
-	ContentType string             `json:"content_type,omitempty"`
-	SizeBytes   int64              `json:"size_bytes"`
-	SHA256      string             `json:"sha256"`
-	StorageKey  string             `json:"storage_key"`
-}
-
 type munkiArtifactUploadMutation struct {
-	Kind        munki.ArtifactKind `json:"kind"`
-	Filename    string             `json:"filename"`
-	DisplayName string             `json:"display_name,omitempty"`
-	ContentType string             `json:"content_type,omitempty"`
-	SizeBytes   int64              `json:"size_bytes"`
-	SHA256      string             `json:"sha256"`
+	Kind        artifacts.ArtifactKind `json:"kind"`
+	Filename    string                 `json:"filename"`
+	DisplayName string                 `json:"display_name,omitempty"`
+	ContentType string                 `json:"content_type,omitempty"`
+	SizeBytes   int64                  `json:"size_bytes"`
+	SHA256      string                 `json:"sha256"`
 }
 
 type munkiArtifactUpload struct {
-	UploadURL string                `json:"upload_url"`
-	Headers   map[string]string     `json:"headers,omitempty"`
-	Artifact  munkiArtifactMutation `json:"artifact"`
+	UploadURL string                     `json:"upload_url"`
+	Headers   map[string]string          `json:"headers,omitempty"`
+	Artifact  artifacts.ArtifactMutation `json:"artifact"`
 }
 
-func registerMunkiArtifacts(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
+func registerMunkiArtifacts(api huma.API, store *artifacts.Store, artifactStorage munkiArtifactStorage) {
 	registerCreateMunkiArtifact(api, store, artifactStorage)
 	registerCreateMunkiArtifactUpload(api, artifactStorage)
 	registerGetMunkiArtifactContent(api, store, artifactStorage)
 }
 
-func registerCreateMunkiArtifact(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
+func registerCreateMunkiArtifact(api huma.API, store *artifacts.Store, artifactStorage munkiArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-artifact",
 		Method:        http.MethodPost,
@@ -114,15 +91,15 @@ func registerCreateMunkiArtifact(api huma.API, store *munki.Store, artifactStora
 			http.StatusServiceUnavailable,
 		},
 	}, func(ctx context.Context, input *munkiArtifactCreateInput) (*munkiArtifactOutput, error) {
-		mutation := input.Body.domain()
+		mutation := input.Body
 		if err := verifyMunkiArtifactObject(ctx, artifactStorage, mutation); err != nil {
 			return nil, err
 		}
-		artifact, err := store.CreateArtifact(ctx, mutation)
+		artifact, err := store.Create(ctx, mutation)
 		if err != nil {
 			return nil, resourceMutationError(munkiArtifactLabel, err)
 		}
-		return &munkiArtifactOutput{Body: munkiArtifactFromDomain(*artifact)}, nil
+		return &munkiArtifactOutput{Body: *artifact}, nil
 	})
 }
 
@@ -162,7 +139,7 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 	})
 }
 
-func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactStorage munkiArtifactStorage) {
+func registerGetMunkiArtifactContent(api huma.API, store *artifacts.Store, artifactStorage munkiArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-artifact-content",
 		Method:      http.MethodGet,
@@ -179,7 +156,7 @@ func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactS
 		if artifactStorage == nil {
 			return nil, munkiArtifactStorageUnavailable()
 		}
-		artifact, err := store.GetArtifact(ctx, input.ID)
+		artifact, err := store.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(munkiArtifactLabel, err)
 		}
@@ -191,31 +168,16 @@ func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactS
 	})
 }
 
-func munkiArtifactFromDomain(artifact munki.Artifact) munkiArtifact {
-	return munkiArtifact{
-		ID:          artifact.ID,
-		Kind:        artifact.Kind,
-		DisplayName: artifact.DisplayName,
-		Location:    artifact.Location,
-		ContentType: artifact.ContentType,
-		SizeBytes:   artifact.SizeBytes,
-		SHA256:      artifact.SHA256,
-		StorageKey:  artifact.StorageKey,
-		CreatedAt:   artifact.CreatedAt,
-		UpdatedAt:   artifact.UpdatedAt,
-	}
-}
-
 func verifyMunkiArtifactObject(
 	ctx context.Context,
 	artifactStorage munkiArtifactStorage,
-	mutation munki.ArtifactMutation,
+	mutation artifacts.ArtifactMutation,
 ) error {
 	if artifactStorage == nil {
 		return munkiArtifactStorageUnavailable()
 	}
 	object, err := artifactStorage.Stat(ctx, mutation.StorageKey)
-	if errors.Is(err, munki.ErrNotFound) {
+	if errors.Is(err, munkistorage.ErrObjectNotFound) {
 		return resourceMutationError(
 			munkiArtifactLabel,
 			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
@@ -244,34 +206,22 @@ func munkiArtifactStorageUnavailable() error {
 }
 
 func munkiArtifactStorageError(err error) error {
-	if errors.Is(err, munki.ErrStorageUnavailable) {
+	if errors.Is(err, munkistorage.ErrUnavailable) {
 		return munkiArtifactStorageUnavailable()
 	}
 	return err
 }
 
-func (body munkiArtifactMutation) domain() munki.ArtifactMutation {
-	return munki.ArtifactMutation{
-		Kind:        body.Kind,
-		DisplayName: body.DisplayName,
-		Location:    body.Location,
-		ContentType: body.ContentType,
-		SizeBytes:   body.SizeBytes,
-		SHA256:      body.SHA256,
-		StorageKey:  body.StorageKey,
-	}
-}
-
-func (body munkiArtifactUploadMutation) target() (munkiArtifactMutation, error) {
+func (body munkiArtifactUploadMutation) target() (artifacts.ArtifactMutation, error) {
 	filename := cleanArtifactFilename(body.Filename)
 	if filename == "" {
-		return munkiArtifactMutation{}, fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
+		return artifacts.ArtifactMutation{}, fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
 	}
 	contentType := strings.TrimSpace(body.ContentType)
 	if contentType == "" {
 		contentType = artifactContentType(filename)
 	}
-	target := munkiArtifactMutation{
+	target := artifacts.ArtifactMutation{
 		Kind:        body.Kind,
 		DisplayName: body.DisplayName,
 		Location:    artifactUploadLocation(body.SHA256, filename),
@@ -283,8 +233,8 @@ func (body munkiArtifactUploadMutation) target() (munkiArtifactMutation, error) 
 	if target.DisplayName == "" {
 		target.DisplayName = filename
 	}
-	if err := target.domain().Validate(); err != nil {
-		return munkiArtifactMutation{}, err
+	if err := target.Validate(); err != nil {
+		return artifacts.ArtifactMutation{}, err
 	}
 	return target, nil
 }
@@ -306,11 +256,11 @@ func artifactUploadLocation(sha256 string, filename string) string {
 	return filename
 }
 
-func artifactStorageKey(kind munki.ArtifactKind, location string) string {
+func artifactStorageKey(kind artifacts.ArtifactKind, location string) string {
 	switch kind {
-	case munki.ArtifactKindPackage:
+	case artifacts.ArtifactKindPackage:
 		return "pkgs/" + location
-	case munki.ArtifactKindIcon:
+	case artifacts.ArtifactKindIcon:
 		return "icons/" + location
 	default:
 		return string(kind) + "/" + location

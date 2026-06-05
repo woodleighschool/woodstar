@@ -14,6 +14,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -85,14 +90,18 @@ type OsqueryDependencies struct {
 
 type MunkiDependencies struct {
 	Repository      *munki.Service
-	State           *munki.Store
+	Artifacts       *artifacts.Store
+	Assignments     *assignments.Store
+	HostState       *hoststate.Store
+	Packages        *packages.Store
+	SoftwareTitles  *softwaretitles.Store
 	ArtifactStorage MunkiArtifactStorage
 }
 
 type MunkiArtifactStorage interface {
-	PresignGet(context.Context, munki.Artifact) (string, error)
-	PresignPut(context.Context, string, string, string) (munki.ArtifactUploadURL, error)
-	Stat(context.Context, string) (munki.ArtifactObject, error)
+	PresignGet(context.Context, artifacts.Artifact) (string, error)
+	PresignPut(context.Context, string, string, string) (artifacts.ArtifactUploadURL, error)
+	Stat(context.Context, string) (artifacts.ArtifactObject, error)
 }
 
 type SantaDependencies struct {

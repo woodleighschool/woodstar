@@ -28,6 +28,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -179,9 +184,14 @@ func newServer(
 	// Osquery stores.
 	reportStore := reports.NewStore(db)
 	checkStore := checks.NewStore(db)
+	liveQueries := livequery.NewManager()
 
 	// Munki stores.
-	munkiStore := munki.NewStore(db)
+	munkiArtifactStore := artifacts.NewStore(db)
+	munkiSoftwareTitleStore := softwaretitles.NewStore(db, munkiArtifactStore)
+	munkiPackageStore := packages.NewStore(db, munkiSoftwareTitleStore, munkiArtifactStore)
+	munkiAssignmentStore := assignments.NewStore(db, munkiSoftwareTitleStore, munkiPackageStore)
+	munkiHostStateStore := hoststate.NewStore(db)
 
 	// Santa stores.
 	santaHostStore := santa.NewStore(db)
@@ -196,13 +206,11 @@ func newServer(
 
 	orbitAgent := orbit.NewService(hostStore, secretStore, userAffinities)
 
-	liveQueries := livequery.NewManager()
-
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
 		softwareStore,
 		logger.With("component", "inventory"),
-	).WithMunkiStore(munkiStore)
+	).WithMunkiStore(munkiHostStateStore)
 
 	labelEvaluator := ingest.NewLabelEvaluator(
 		labelStore,
@@ -220,7 +228,14 @@ func newServer(
 		Logger:             logger.With("component", "osquery"),
 	})
 
-	munkiRepo, munkiArtifacts := newMunki(ctx, cfg, hostStore, munkiStore, logger)
+	munkiRepo, munkiArtifacts := newMunki(
+		ctx,
+		cfg,
+		hostStore,
+		munkiAssignmentStore,
+		munkiArtifactStore,
+		logger,
+	)
 
 	santaSync := santa.NewService(santa.Dependencies{
 		HostStore:      santaHostStore,
@@ -281,7 +296,11 @@ func newServer(
 
 		Munki: admin.MunkiDependencies{
 			Repository:      munkiRepo,
-			State:           munkiStore,
+			Artifacts:       munkiArtifactStore,
+			Assignments:     munkiAssignmentStore,
+			HostState:       munkiHostStateStore,
+			Packages:        munkiPackageStore,
+			SoftwareTitles:  munkiSoftwareTitleStore,
 			ArtifactStorage: munkiArtifacts,
 		},
 
@@ -344,10 +363,11 @@ func newMunki(
 	ctx context.Context,
 	cfg config.Config,
 	hosts *hosts.Store,
-	state *munki.Store,
+	assignmentStore *assignments.Store,
+	artifactStore *artifacts.Store,
 	logger *slog.Logger,
 ) (*munki.Service, munkistorage.ArtifactStorage) {
-	artifacts, err := munkistorage.NewArtifactStorage(ctx, munkistorage.Config{
+	storage, err := munkistorage.NewArtifactStorage(ctx, munkistorage.Config{
 		Enabled: cfg.MunkiS3Enabled(),
 		S3: munkistorage.S3Config{
 			Bucket:         cfg.MunkiS3Bucket,
@@ -369,12 +389,12 @@ func newMunki(
 	}
 
 	options := []munki.ServiceOption{
-		munki.WithArtifactStore(state),
-		munki.WithArtifactPresigner(artifacts),
+		munki.WithArtifactStore(artifactStore),
+		munki.WithArtifactPresigner(storage),
 		munki.WithPublicURL(cfg.PublicURL),
 	}
 
-	return munki.NewService(hosts, state, options...), artifacts
+	return munki.NewService(hosts, assignmentStore, options...), storage
 }
 
 func santaCleanup(

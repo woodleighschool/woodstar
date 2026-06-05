@@ -12,41 +12,45 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
+		newStaticRepositoryWithPackages("C02MUNKI", []assignments.EffectivePackage{
 			{
 				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
 			},
 			{
 				AssignmentID:     11,
 				SoftwareID:       2,
-				Action:           munki.AssignmentActionNone,
+				Action:           assignments.AssignmentActionNone,
 				OptionalInstall:  true,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(21, "Slack", "4.50.0"),
 			},
 			{
 				AssignmentID:     12,
 				SoftwareID:       3,
-				Action:           munki.AssignmentActionRemove,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				Action:           assignments.AssignmentActionRemove,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(22, "LegacyVPN", "1.0"),
 			},
 			{
 				AssignmentID:     13,
 				SoftwareID:       4,
-				Action:           munki.AssignmentActionNone,
+				Action:           assignments.AssignmentActionNone,
 				OptionalInstall:  true,
 				FeaturedItem:     true,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(23, "FeaturedApp", "3.2.1"),
 			},
 		}),
@@ -84,17 +88,17 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 	artifactID := int64(42)
 	service := munki.NewService(
 		nil,
-		staticPackageResolver{packages: []munki.EffectivePackage{
+		staticPackageResolver{packages: []assignments.EffectivePackage{
 			{
 				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
+				Package: packages.Package{
 					ID:                        20,
 					Name:                      "GoogleChrome",
 					Version:                   "148.0.0.1",
-					InstallerType:             munki.InstallerTypeNoPkg,
+					InstallerType:             packages.InstallerTypeNoPkg,
 					InstallerArtifactID:       &artifactID,
 					InstallerArtifactLocation: "apps/GoogleChrome.pkg",
 				},
@@ -129,12 +133,12 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 	service := munki.NewService(
 		nil,
-		staticPackageResolver{packages: []munki.EffectivePackage{
+		staticPackageResolver{packages: []assignments.EffectivePackage{
 			{
 				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
@@ -211,27 +215,27 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
+		newStaticRepositoryWithPackages("C02MUNKI", []assignments.EffectivePackage{
 			{
 				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(20, "OverlapApp", "1.0"),
 			},
 			{
 				AssignmentID:     11,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionNone,
+				Action:           assignments.AssignmentActionNone,
 				OptionalInstall:  true,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(21, "OverlapApp", "1.1"),
 			},
 			{
 				AssignmentID:     12,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionRemove,
-				PackageSelection: munki.PackageSelectionLatestEligible,
+				Action:           assignments.AssignmentActionRemove,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package:          staticMunkiPackage(22, "OverlapApp", "1.2"),
 			},
 		}),
@@ -265,12 +269,12 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
-		newStaticRepositoryWithPackages("C02MUNKI", []munki.EffectivePackage{
+		newStaticRepositoryWithPackages("C02MUNKI", []assignments.EffectivePackage{
 			{
 				AssignmentID:     10,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionSpecific,
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionSpecific,
 				Package:          staticMunkiPackage(20, "PinnedApp", "1.0"),
 			},
 		}),
@@ -423,7 +427,8 @@ func TestMunkiHTTPRedirectsArtifactWithMunkiIdentity(t *testing.T) {
 	if got := rec.Header().Get("Location"); got != repository.artifactURL {
 		t.Fatalf("Location = %q, want %q", got, repository.artifactURL)
 	}
-	if repository.artifactKind != munki.ArtifactKindPackage || repository.artifactLocation != "apps/GoogleChrome.pkg" {
+	if repository.artifactKind != artifacts.ArtifactKindPackage ||
+		repository.artifactLocation != "apps/GoogleChrome.pkg" {
 		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
 	}
 	if repository.serial != "C02MUNKI" {
@@ -449,7 +454,7 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusFound, rec.Body.String())
 	}
-	if repository.artifactKind != munki.ArtifactKindIcon ||
+	if repository.artifactKind != artifacts.ArtifactKindIcon ||
 		repository.artifactLocation != "aaaaaaaaaaaa/GoogleChrome.png" {
 		t.Fatalf("artifact request = kind %q location %q", repository.artifactKind, repository.artifactLocation)
 	}
@@ -457,7 +462,7 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 
 func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
 	repository := newStaticRepository("C02MUNKI")
-	repository.artifactErr = munki.ErrStorageUnavailable
+	repository.artifactErr = munkistorage.ErrUnavailable
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,
@@ -526,7 +531,7 @@ type staticRepository struct {
 	serial           string
 	artifactURL      string
 	artifactErr      error
-	artifactKind     munki.ArtifactKind
+	artifactKind     artifacts.ArtifactKind
 	artifactLocation string
 }
 
@@ -534,7 +539,7 @@ func newStaticRepository(serial string) *staticRepository {
 	return newStaticRepositoryWithPackages(serial, nil)
 }
 
-func newStaticRepositoryWithPackages(serial string, packages []munki.EffectivePackage) *staticRepository {
+func newStaticRepositoryWithPackages(serial string, packages []assignments.EffectivePackage) *staticRepository {
 	return &staticRepository{
 		service: munki.NewService(nil, staticPackageResolver{packages: packages}),
 		want:    serial,
@@ -560,7 +565,7 @@ func (r *staticRepository) Catalog(ctx context.Context, client munki.ClientHost,
 func (r *staticRepository) ArtifactRedirect(
 	_ context.Context,
 	_ munki.ClientHost,
-	kind munki.ArtifactKind,
+	kind artifacts.ArtifactKind,
 	location string,
 ) (string, error) {
 	r.artifactKind = kind
@@ -575,19 +580,22 @@ func (r *staticRepository) ArtifactRedirect(
 }
 
 type staticPackageResolver struct {
-	packages []munki.EffectivePackage
+	packages []assignments.EffectivePackage
 }
 
-func (r staticPackageResolver) EffectivePackagesForHost(_ context.Context, _ int64) ([]munki.EffectivePackage, error) {
-	return r.packages, nil
+func (r staticPackageResolver) EffectivePackagesForHost(
+	_ context.Context,
+	_ int64,
+) ([]assignments.EffectivePackage, error) {
+	return assignments.ResolveEffectivePackages(r.packages), nil
 }
 
-func staticMunkiPackage(id int64, name string, version string) munki.Package {
-	return munki.Package{
+func staticMunkiPackage(id int64, name string, version string) packages.Package {
+	return packages.Package{
 		ID:            id,
 		Name:          name,
 		Version:       version,
-		InstallerType: munki.InstallerTypeNoPkg,
+		InstallerType: packages.InstallerTypeNoPkg,
 	}
 }
 

@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 )
 
 const (
@@ -22,12 +24,12 @@ type munkiSoftwareTitleGetInput struct {
 }
 
 type munkiSoftwareTitleCreateInput struct {
-	Body munkiSoftwareTitleMutation
+	Body softwaretitles.SoftwareTitleMutation
 }
 
 type munkiSoftwareTitlePatchInput struct {
 	ID   int64 `path:"id"`
-	Body munkiSoftwareTitleMutation
+	Body softwaretitles.SoftwareTitleMutation
 }
 
 type munkiSoftwareTitleListOutput struct {
@@ -42,51 +44,31 @@ type munkiSoftwareTitleDetailOutput struct {
 	Body munkiSoftwareTitleDetail
 }
 
-type munkiSoftwareTitleMutation struct {
-	Name           string `json:"name"`
-	DisplayName    string `json:"display_name,omitempty"`
-	Description    string `json:"description,omitempty"`
-	Category       string `json:"category,omitempty"`
-	Developer      string `json:"developer,omitempty"`
-	IconArtifactID *int64 `json:"icon_artifact_id,omitempty"`
-}
-
 type munkiSoftwareTitleDetail struct {
-	ID             int64             `json:"id"`
-	Name           string            `json:"name"`
-	DisplayName    string            `json:"display_name"`
-	Description    string            `json:"description"`
-	Category       string            `json:"category"`
-	Developer      string            `json:"developer"`
-	IconArtifactID *int64            `json:"icon_artifact_id,omitempty"`
-	IconURL        string            `json:"icon_url,omitempty"`
-	Packages       []munkiPackage    `json:"packages"`
-	Assignments    []munkiAssignment `json:"assignments"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
+	softwaretitles.SoftwareTitle
+	IconURL     string                   `json:"icon_url,omitempty"`
+	Packages    []munkiPackage           `json:"packages"`
+	Assignments []assignments.Assignment `json:"assignments"`
 }
 
 type munkiSoftwareTitle struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	DisplayName    string    `json:"display_name"`
-	Description    string    `json:"description"`
-	Category       string    `json:"category"`
-	Developer      string    `json:"developer"`
-	IconArtifactID *int64    `json:"icon_artifact_id,omitempty"`
-	IconURL        string    `json:"icon_url,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	softwaretitles.SoftwareTitle
+	IconURL string `json:"icon_url,omitempty"`
 }
 
-func registerMunkiSoftwareTitles(api huma.API, store *munki.Store) {
+func registerMunkiSoftwareTitles(
+	api huma.API,
+	store *softwaretitles.Store,
+	packageStore *packages.Store,
+	assignmentStore *assignments.Store,
+) {
 	registerListMunkiSoftwareTitles(api, store)
 	registerCreateMunkiSoftwareTitle(api, store)
-	registerGetMunkiSoftwareTitle(api, store)
+	registerGetMunkiSoftwareTitle(api, store, packageStore, assignmentStore)
 	registerPatchMunkiSoftwareTitle(api, store)
 }
 
-func registerListMunkiSoftwareTitles(api huma.API, store *munki.Store) {
+func registerListMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-software-titles",
 		Method:      http.MethodGet,
@@ -95,7 +77,7 @@ func registerListMunkiSoftwareTitles(api huma.API, store *munki.Store) {
 		Summary:     "List Munki software titles",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiListInput) (*munkiSoftwareTitleListOutput, error) {
-		rows, count, err := store.ListSoftwareTitles(ctx, input.params())
+		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
@@ -105,7 +87,7 @@ func registerListMunkiSoftwareTitles(api huma.API, store *munki.Store) {
 	})
 }
 
-func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
+func registerCreateMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software-title",
 		Method:        http.MethodPost,
@@ -121,7 +103,7 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareTitleCreateInput) (*munkiSoftwareTitleOutput, error) {
-		title, err := store.CreateSoftwareTitle(ctx, input.Body.domain())
+		title, err := store.Create(ctx, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
@@ -129,7 +111,12 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	})
 }
 
-func registerGetMunkiSoftwareTitle(api huma.API, store *munki.Store) {
+func registerGetMunkiSoftwareTitle(
+	api huma.API,
+	store *softwaretitles.Store,
+	packageStore *packages.Store,
+	assignmentStore *assignments.Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-software-title",
 		Method:      http.MethodGet,
@@ -138,15 +125,31 @@ func registerGetMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 		Summary:     "Get a Munki software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareTitleGetInput) (*munkiSoftwareTitleDetailOutput, error) {
-		detail, err := store.LoadSoftwareTitleDetail(ctx, input.ID)
+		title, err := store.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
-		return &munkiSoftwareTitleDetailOutput{Body: munkiSoftwareTitleDetailFromDomain(*detail)}, nil
+		packageRows, _, err := packageStore.List(ctx, packages.PackageListParams{
+			ListParams: dbutil.ListParams{PageSize: 1000},
+			SoftwareID: input.ID,
+		})
+		if err != nil {
+			return nil, resourceMutationError(munkiPackageLabel, err)
+		}
+		assignmentRows, _, err := assignmentStore.List(ctx, assignments.AssignmentListParams{
+			ListParams: dbutil.ListParams{PageSize: 1000, Sort: "priority.asc"},
+			SoftwareID: input.ID,
+		})
+		if err != nil {
+			return nil, resourceMutationError(munkiAssignmentLabel, err)
+		}
+		return &munkiSoftwareTitleDetailOutput{
+			Body: munkiSoftwareTitleDetailFromDomain(*title, packageRows, assignmentRows),
+		}, nil
 	})
 }
 
-func registerPatchMunkiSoftwareTitle(api huma.API, store *munki.Store) {
+func registerPatchMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-software-title",
 		Method:      http.MethodPatch,
@@ -161,7 +164,7 @@ func registerPatchMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiSoftwareTitlePatchInput) (*munkiSoftwareTitleOutput, error) {
-		title, err := store.UpdateSoftwareTitle(ctx, input.ID, input.Body.domain())
+		title, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
@@ -169,50 +172,27 @@ func registerPatchMunkiSoftwareTitle(api huma.API, store *munki.Store) {
 	})
 }
 
-func munkiSoftwareTitleDetailFromDomain(detail munki.SoftwareTitleDetail) munkiSoftwareTitleDetail {
+func munkiSoftwareTitleDetailFromDomain(
+	title softwaretitles.SoftwareTitle,
+	packageRows []packages.Package,
+	assignmentRows []assignments.Assignment,
+) munkiSoftwareTitleDetail {
 	return munkiSoftwareTitleDetail{
-		ID:             detail.ID,
-		Name:           detail.Name,
-		DisplayName:    detail.DisplayName,
-		Description:    detail.Description,
-		Category:       detail.Category,
-		Developer:      detail.Developer,
-		IconArtifactID: detail.IconArtifactID,
-		IconURL:        munkiSoftwareIconURL(detail.SoftwareTitle),
-		Packages:       munkiPackagesFromDomain(detail.Packages),
-		Assignments:    munkiAssignmentsFromDomain(detail.Assignments),
-		CreatedAt:      detail.CreatedAt,
-		UpdatedAt:      detail.UpdatedAt,
+		SoftwareTitle: title,
+		IconURL:       munkiSoftwareIconURL(title),
+		Packages:      munkiPackagesFromDomain(packageRows),
+		Assignments:   assignmentRows,
 	}
 }
 
-func (body munkiSoftwareTitleMutation) domain() munki.SoftwareTitleMutation {
-	return munki.SoftwareTitleMutation{
-		Name:           body.Name,
-		DisplayName:    body.DisplayName,
-		Description:    body.Description,
-		Category:       body.Category,
-		Developer:      body.Developer,
-		IconArtifactID: body.IconArtifactID,
-	}
-}
-
-func munkiSoftwareTitleFromDomain(title munki.SoftwareTitle) munkiSoftwareTitle {
+func munkiSoftwareTitleFromDomain(title softwaretitles.SoftwareTitle) munkiSoftwareTitle {
 	return munkiSoftwareTitle{
-		ID:             title.ID,
-		Name:           title.Name,
-		DisplayName:    title.DisplayName,
-		Description:    title.Description,
-		Category:       title.Category,
-		Developer:      title.Developer,
-		IconArtifactID: title.IconArtifactID,
-		IconURL:        munkiSoftwareIconURL(title),
-		CreatedAt:      title.CreatedAt,
-		UpdatedAt:      title.UpdatedAt,
+		SoftwareTitle: title,
+		IconURL:       munkiSoftwareIconURL(title),
 	}
 }
 
-func munkiSoftwareTitlesFromDomain(rows []munki.SoftwareTitle) []munkiSoftwareTitle {
+func munkiSoftwareTitlesFromDomain(rows []softwaretitles.SoftwareTitle) []munkiSoftwareTitle {
 	items := make([]munkiSoftwareTitle, len(rows))
 	for i, row := range rows {
 		items[i] = munkiSoftwareTitleFromDomain(row)
@@ -220,7 +200,7 @@ func munkiSoftwareTitlesFromDomain(rows []munki.SoftwareTitle) []munkiSoftwareTi
 	return items
 }
 
-func munkiSoftwareIconURL(title munki.SoftwareTitle) string {
+func munkiSoftwareIconURL(title softwaretitles.SoftwareTitle) string {
 	if title.IconArtifactID == nil {
 		return ""
 	}

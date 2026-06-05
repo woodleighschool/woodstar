@@ -1,4 +1,4 @@
-package munki
+package hoststate
 
 import "testing"
 
@@ -39,8 +39,8 @@ func TestHostStatusFromInfoRowsMissing(t *testing.T) {
 	}
 }
 
-func TestHostItemsFromInstallRows(t *testing.T) {
-	got := HostItemsFromInstallRows(7, []map[string]string{
+func TestItemsFromInstallRows(t *testing.T) {
+	got := ItemsFromInstallRows(7, []map[string]string{
 		{
 			"name":              "GoogleChrome",
 			"installed":         "true",

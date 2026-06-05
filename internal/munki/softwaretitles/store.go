@@ -1,4 +1,4 @@
-package munki
+package softwaretitles
 
 import (
 	"context"
@@ -6,19 +6,36 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 )
 
-func (s *Store) CreateSoftwareTitle(ctx context.Context, params SoftwareTitleMutation) (*SoftwareTitle, error) {
+type artifactStore interface {
+	GetByID(context.Context, int64) (*artifacts.Artifact, error)
+}
+
+type Store struct {
+	db        *database.DB
+	q         *sqlc.Queries
+	artifacts artifactStore
+}
+
+func NewStore(db *database.DB, artifacts artifactStore) *Store {
+	return &Store{db: db, q: db.Queries(), artifacts: artifacts}
+}
+
+func (s *Store) Create(ctx context.Context, params SoftwareTitleMutation) (*SoftwareTitle, error) {
 	var err error
-	params = cleanSoftwareTitleMutation(params)
+	params = cleanMutation(params)
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	params, err = s.normalizeSoftwareTitleIcon(ctx, params)
+	params, err = s.normalizeIcon(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -33,23 +50,19 @@ func (s *Store) CreateSoftwareTitle(ctx context.Context, params SoftwareTitleMut
 		IconArtifactID: params.IconArtifactID,
 	})
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	title := softwareTitleFromSQLC(row)
 	return &title, nil
 }
 
-func (s *Store) UpdateSoftwareTitle(
-	ctx context.Context,
-	id int64,
-	params SoftwareTitleMutation,
-) (*SoftwareTitle, error) {
+func (s *Store) Update(ctx context.Context, id int64, params SoftwareTitleMutation) (*SoftwareTitle, error) {
 	var err error
-	params = cleanSoftwareTitleMutation(params)
+	params = cleanMutation(params)
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
-	params, err = s.normalizeSoftwareTitleIcon(ctx, params)
+	params, err = s.normalizeIcon(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +81,13 @@ func (s *Store) UpdateSoftwareTitle(
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	title := softwareTitleFromSQLC(row)
 	return &title, nil
 }
 
-func (s *Store) GetSoftwareTitle(ctx context.Context, id int64) (*SoftwareTitle, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
@@ -89,7 +102,7 @@ func (s *Store) GetSoftwareTitle(ctx context.Context, id int64) (*SoftwareTitle,
 	return &title, nil
 }
 
-func (s *Store) GetSoftwareTitleByName(ctx context.Context, name string) (*SoftwareTitle, error) {
+func (s *Store) GetByName(ctx context.Context, name string) (*SoftwareTitle, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, dbutil.ErrNotFound
@@ -105,33 +118,7 @@ func (s *Store) GetSoftwareTitleByName(ctx context.Context, name string) (*Softw
 	return &title, nil
 }
 
-func (s *Store) LoadSoftwareTitleDetail(ctx context.Context, id int64) (*SoftwareTitleDetail, error) {
-	title, err := s.GetSoftwareTitle(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	packages, _, err := s.ListPackages(ctx, PackageListParams{
-		ListParams: dbutil.ListParams{PageSize: 1000},
-		SoftwareID: id,
-	})
-	if err != nil {
-		return nil, err
-	}
-	assignments, _, err := s.ListAssignments(ctx, AssignmentListParams{
-		ListParams: dbutil.ListParams{PageSize: 1000, Sort: "priority.asc"},
-		SoftwareID: id,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &SoftwareTitleDetail{
-		SoftwareTitle: *title,
-		Packages:      packages,
-		Assignments:   assignments,
-	}, nil
-}
-
-func (s *Store) ListSoftwareTitles(ctx context.Context, params dbutil.ListParams) ([]SoftwareTitle, int, error) {
+func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]SoftwareTitle, int, error) {
 	params = dbutil.CleanListParams(params)
 	where, args := softwareTitleListWhere(params)
 	listQuery := dbutil.ListQuery{
@@ -175,18 +162,15 @@ func (s *Store) ListSoftwareTitles(ctx context.Context, params dbutil.ListParams
 	return titles, count, nil
 }
 
-func (s *Store) normalizeSoftwareTitleIcon(
-	ctx context.Context,
-	params SoftwareTitleMutation,
-) (SoftwareTitleMutation, error) {
+func (s *Store) normalizeIcon(ctx context.Context, params SoftwareTitleMutation) (SoftwareTitleMutation, error) {
 	if params.IconArtifactID == nil {
 		return params, nil
 	}
-	artifact, err := s.GetArtifact(ctx, *params.IconArtifactID)
+	artifact, err := s.artifacts.GetByID(ctx, *params.IconArtifactID)
 	if err != nil {
 		return params, err
 	}
-	if artifact.Kind != ArtifactKindIcon {
+	if artifact.Kind != artifacts.ArtifactKindIcon {
 		return params, fmt.Errorf(
 			"%w: icon_artifact_id must reference an icon artifact",
 			dbutil.ErrInvalidInput,
@@ -197,7 +181,7 @@ func (s *Store) normalizeSoftwareTitleIcon(
 	return params, nil
 }
 
-func cleanSoftwareTitleMutation(params SoftwareTitleMutation) SoftwareTitleMutation {
+func cleanMutation(params SoftwareTitleMutation) SoftwareTitleMutation {
 	params.Name = strings.TrimSpace(params.Name)
 	params.DisplayName = strings.TrimSpace(params.DisplayName)
 	if params.DisplayName == "" {
@@ -240,6 +224,23 @@ func softwareTitleListWhere(params dbutil.ListParams) (string, []any) {
 		)`)
 	}
 	return where.Build()
+}
+
+func mapMutationError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }
 
 const softwareTitleSelectSQL = `

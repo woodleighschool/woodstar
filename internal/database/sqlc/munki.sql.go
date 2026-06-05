@@ -429,6 +429,42 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 	return i, err
 }
 
+const createMunkiPackageRelation = `-- name: CreateMunkiPackageRelation :exec
+INSERT INTO munki_package_relations (
+    package_id,
+    relation_kind,
+    target_package_id,
+    name,
+    position
+)
+VALUES (
+    $1,
+    $2::munki_package_relation_kind,
+    $3::bigint,
+    $4,
+    $5::integer
+)
+`
+
+type CreateMunkiPackageRelationParams struct {
+	PackageID       int64                    `json:"package_id"`
+	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
+	TargetPackageID *int64                   `json:"target_package_id"`
+	Name            string                   `json:"name"`
+	Position        int32                    `json:"position"`
+}
+
+func (q *Queries) CreateMunkiPackageRelation(ctx context.Context, arg CreateMunkiPackageRelationParams) error {
+	_, err := q.db.Exec(ctx, createMunkiPackageRelation,
+		arg.PackageID,
+		arg.RelationKind,
+		arg.TargetPackageID,
+		arg.Name,
+		arg.Position,
+	)
+	return err
+}
+
 const createMunkiSoftwareTitle = `-- name: CreateMunkiSoftwareTitle :one
 INSERT INTO munki_software_titles (
     name,
@@ -503,6 +539,22 @@ type DeleteMunkiHostItemsParams struct {
 
 func (q *Queries) DeleteMunkiHostItems(ctx context.Context, arg DeleteMunkiHostItemsParams) error {
 	_, err := q.db.Exec(ctx, deleteMunkiHostItems, arg.HostID)
+	return err
+}
+
+const deleteMunkiPackageRelationsByKind = `-- name: DeleteMunkiPackageRelationsByKind :exec
+DELETE FROM munki_package_relations
+WHERE package_id = $1
+  AND relation_kind = $2::munki_package_relation_kind
+`
+
+type DeleteMunkiPackageRelationsByKindParams struct {
+	PackageID    int64                    `json:"package_id"`
+	RelationKind MunkiPackageRelationKind `json:"relation_kind"`
+}
+
+func (q *Queries) DeleteMunkiPackageRelationsByKind(ctx context.Context, arg DeleteMunkiPackageRelationsByKindParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiPackageRelationsByKind, arg.PackageID, arg.RelationKind)
 	return err
 }
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 )
 
@@ -186,12 +186,12 @@ func TestIngestMunkiDetailRows(t *testing.T) {
 }
 
 type fakeMunkiStore struct {
-	status        munki.HostStatusObservation
-	items         []munki.HostItem
+	status        hoststate.Observation
+	items         []hoststate.Item
 	clearedHostID int64
 }
 
-func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status munki.HostStatusObservation) error {
+func (s *fakeMunkiStore) UpsertHostStatus(_ context.Context, status hoststate.Observation) error {
 	s.status = status
 	return nil
 }
@@ -201,7 +201,7 @@ func (s *fakeMunkiStore) ClearHostStatus(_ context.Context, hostID int64) error 
 	return nil
 }
 
-func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []munki.HostItem) error {
+func (s *fakeMunkiStore) ReplaceHostItems(_ context.Context, _ int64, items []hoststate.Item) error {
 	s.items = items
 	return nil
 }

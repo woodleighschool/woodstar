@@ -3,11 +3,10 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 )
 
 const (
@@ -26,12 +25,12 @@ type munkiAssignmentGetInput struct {
 }
 
 type munkiAssignmentCreateInput struct {
-	Body munkiAssignmentMutation
+	Body assignments.AssignmentMutation
 }
 
 type munkiAssignmentPatchInput struct {
 	ID   int64 `path:"id"`
-	Body munkiAssignmentMutation
+	Body assignments.AssignmentMutation
 }
 
 type munkiAssignmentReorderInput struct {
@@ -44,51 +43,21 @@ type munkiAssignmentReorderBody struct {
 }
 
 type munkiAssignmentListOutput struct {
-	Body Page[munkiAssignment]
+	Body Page[assignments.Assignment]
 }
 
 type munkiAssignmentOutput struct {
-	Body munkiAssignment
+	Body assignments.Assignment
 }
 
-type munkiAssignmentMutation struct {
-	SoftwareID       int64                   `json:"software_id"`
-	Priority         int32                   `json:"priority"`
-	LabelID          int64                   `json:"label_id"`
-	Effect           munki.AssignmentEffect  `json:"effect"`
-	Action           *munki.AssignmentAction `json:"action,omitempty"`
-	OptionalInstall  bool                    `json:"optional_install,omitempty"`
-	FeaturedItem     bool                    `json:"featured_item,omitempty"`
-	PackageSelection *munki.PackageSelection `json:"package_selection,omitempty"`
-	PinnedPackageID  *int64                  `json:"pinned_package_id,omitempty"`
-}
-
-type munkiAssignment struct {
-	ID                   int64                   `json:"id"`
-	SoftwareID           int64                   `json:"software_id"`
-	SoftwareDisplayName  string                  `json:"software_display_name"`
-	Priority             int32                   `json:"priority"`
-	LabelID              int64                   `json:"label_id"`
-	Effect               munki.AssignmentEffect  `json:"effect"`
-	Action               *munki.AssignmentAction `json:"action,omitempty"`
-	OptionalInstall      bool                    `json:"optional_install"`
-	FeaturedItem         bool                    `json:"featured_item"`
-	PackageSelection     *munki.PackageSelection `json:"package_selection,omitempty"`
-	PinnedPackageID      *int64                  `json:"pinned_package_id,omitempty"`
-	PinnedPackageName    string                  `json:"pinned_package_name,omitempty"`
-	PinnedPackageVersion string                  `json:"pinned_package_version,omitempty"`
-	CreatedAt            time.Time               `json:"created_at"`
-	UpdatedAt            time.Time               `json:"updated_at"`
-}
-
-func (input munkiAssignmentListInput) params() munki.AssignmentListParams {
-	return munki.AssignmentListParams{
+func (input munkiAssignmentListInput) params() assignments.AssignmentListParams {
+	return assignments.AssignmentListParams{
 		ListParams: input.ListQueryInput.params(),
 		SoftwareID: input.SoftwareID,
 	}
 }
 
-func registerMunkiAssignments(api huma.API, store *munki.Store) {
+func registerMunkiAssignments(api huma.API, store *assignments.Store) {
 	registerListMunkiAssignments(api, store)
 	registerCreateMunkiAssignment(api, store)
 	registerGetMunkiAssignment(api, store)
@@ -96,7 +65,7 @@ func registerMunkiAssignments(api huma.API, store *munki.Store) {
 	registerReorderMunkiAssignments(api, store)
 }
 
-func registerListMunkiAssignments(api huma.API, store *munki.Store) {
+func registerListMunkiAssignments(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-assignments",
 		Method:      http.MethodGet,
@@ -105,17 +74,17 @@ func registerListMunkiAssignments(api huma.API, store *munki.Store) {
 		Summary:     "List Munki assignments",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiAssignmentListInput) (*munkiAssignmentListOutput, error) {
-		rows, count, err := store.ListAssignments(ctx, input.params())
+		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
 		return &munkiAssignmentListOutput{
-			Body: Page[munkiAssignment]{Items: munkiAssignmentsFromDomain(rows), Count: count},
+			Body: Page[assignments.Assignment]{Items: rows, Count: count},
 		}, nil
 	})
 }
 
-func registerCreateMunkiAssignment(api huma.API, store *munki.Store) {
+func registerCreateMunkiAssignment(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-assignment",
 		Method:        http.MethodPost,
@@ -131,15 +100,15 @@ func registerCreateMunkiAssignment(api huma.API, store *munki.Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiAssignmentCreateInput) (*munkiAssignmentOutput, error) {
-		assignment, err := store.CreateAssignment(ctx, input.Body.domain())
+		assignment, err := store.Create(ctx, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
-		return &munkiAssignmentOutput{Body: munkiAssignmentFromDomain(*assignment)}, nil
+		return &munkiAssignmentOutput{Body: *assignment}, nil
 	})
 }
 
-func registerGetMunkiAssignment(api huma.API, store *munki.Store) {
+func registerGetMunkiAssignment(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-assignment",
 		Method:      http.MethodGet,
@@ -148,15 +117,15 @@ func registerGetMunkiAssignment(api huma.API, store *munki.Store) {
 		Summary:     "Get a Munki assignment",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiAssignmentGetInput) (*munkiAssignmentOutput, error) {
-		assignment, err := store.GetAssignment(ctx, input.ID)
+		assignment, err := store.GetByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
-		return &munkiAssignmentOutput{Body: munkiAssignmentFromDomain(*assignment)}, nil
+		return &munkiAssignmentOutput{Body: *assignment}, nil
 	})
 }
 
-func registerPatchMunkiAssignment(api huma.API, store *munki.Store) {
+func registerPatchMunkiAssignment(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-assignment",
 		Method:      http.MethodPatch,
@@ -171,15 +140,15 @@ func registerPatchMunkiAssignment(api huma.API, store *munki.Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiAssignmentPatchInput) (*munkiAssignmentOutput, error) {
-		assignment, err := store.UpdateAssignment(ctx, input.ID, input.Body.domain())
+		assignment, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
-		return &munkiAssignmentOutput{Body: munkiAssignmentFromDomain(*assignment)}, nil
+		return &munkiAssignmentOutput{Body: *assignment}, nil
 	})
 }
 
-func registerReorderMunkiAssignments(api huma.API, store *munki.Store) {
+func registerReorderMunkiAssignments(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "reorder-munki-assignments",
 		Method:      http.MethodPut,
@@ -188,51 +157,9 @@ func registerReorderMunkiAssignments(api huma.API, store *munki.Store) {
 		Summary:     "Reorder Munki assignments",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiAssignmentReorderInput) (*struct{}, error) {
-		if err := store.ReorderAssignments(ctx, input.ID, input.Body.OrderedIDs); err != nil {
+		if err := store.Reorder(ctx, input.ID, input.Body.OrderedIDs); err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
 		return &struct{}{}, nil
 	})
-}
-
-func munkiAssignmentFromDomain(assignment munki.Assignment) munkiAssignment {
-	return munkiAssignment{
-		ID:                   assignment.ID,
-		SoftwareID:           assignment.SoftwareID,
-		SoftwareDisplayName:  assignment.SoftwareDisplayName,
-		Priority:             assignment.Priority,
-		LabelID:              assignment.LabelID,
-		Effect:               assignment.Effect,
-		Action:               assignment.Action,
-		OptionalInstall:      assignment.OptionalInstall,
-		FeaturedItem:         assignment.FeaturedItem,
-		PackageSelection:     assignment.PackageSelection,
-		PinnedPackageID:      assignment.PinnedPackageID,
-		PinnedPackageName:    assignment.PinnedPackageName,
-		PinnedPackageVersion: assignment.PinnedPackageVersion,
-		CreatedAt:            assignment.CreatedAt,
-		UpdatedAt:            assignment.UpdatedAt,
-	}
-}
-
-func munkiAssignmentsFromDomain(rows []munki.Assignment) []munkiAssignment {
-	items := make([]munkiAssignment, len(rows))
-	for i, row := range rows {
-		items[i] = munkiAssignmentFromDomain(row)
-	}
-	return items
-}
-
-func (body munkiAssignmentMutation) domain() munki.AssignmentMutation {
-	return munki.AssignmentMutation{
-		SoftwareID:       body.SoftwareID,
-		Priority:         body.Priority,
-		LabelID:          body.LabelID,
-		Effect:           body.Effect,
-		Action:           body.Action,
-		OptionalInstall:  body.OptionalInstall,
-		FeaturedItem:     body.FeaturedItem,
-		PackageSelection: body.PackageSelection,
-		PinnedPackageID:  body.PinnedPackageID,
-	}
 }

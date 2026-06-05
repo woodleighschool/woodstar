@@ -1,4 +1,4 @@
-package munki
+package hoststate
 
 import (
 	"context"
@@ -6,10 +6,20 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 )
 
-func (s *Store) UpsertHostStatus(ctx context.Context, status HostStatusObservation) error {
+type Store struct {
+	db *database.DB
+	q  *sqlc.Queries
+}
+
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
+}
+
+func (s *Store) UpsertHostStatus(ctx context.Context, status Observation) error {
 	return s.q.UpsertMunkiHostStatus(ctx, sqlc.UpsertMunkiHostStatusParams{
 		HostID:          status.HostID,
 		Version:         status.Version,
@@ -33,7 +43,7 @@ func (s *Store) ClearHostStatus(ctx context.Context, hostID int64) error {
 	})
 }
 
-func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []HostItem) error {
+func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Item) error {
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		if err := q.DeleteMunkiHostItems(ctx, sqlc.DeleteMunkiHostItemsParams{HostID: hostID}); err != nil {
@@ -57,7 +67,7 @@ func (s *Store) ReplaceHostItems(ctx context.Context, hostID int64, items []Host
 	})
 }
 
-func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, error) {
+func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*State, error) {
 	status, err := s.q.GetMunkiHostStatus(ctx, sqlc.GetMunkiHostStatusParams{HostID: hostID})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil //nolint:nilnil // missing Munki observation is represented by a nil state.
@@ -69,11 +79,11 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	if err != nil {
 		return nil, err
 	}
-	items := make([]HostItem, 0, len(rows))
+	items := make([]Item, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, hostItemFromRecord(row))
 	}
-	return &HostState{
+	return &State{
 		Version:         status.Version,
 		ManifestName:    status.ManifestName,
 		Success:         status.Success,
@@ -87,8 +97,8 @@ func (s *Store) LoadHostState(ctx context.Context, hostID int64) (*HostState, er
 	}, nil
 }
 
-func hostItemFromRecord(row sqlc.MunkiHostItem) HostItem {
-	return HostItem{
+func hostItemFromRecord(row sqlc.MunkiHostItem) Item {
+	return Item{
 		HostID:           row.HostID,
 		Name:             row.Name,
 		Installed:        row.Installed,
@@ -96,4 +106,11 @@ func hostItemFromRecord(row sqlc.MunkiHostItem) HostItem {
 		RunEndedAt:       row.RunEndedAt,
 		LastSeenAt:       row.LastSeenAt,
 	}
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }

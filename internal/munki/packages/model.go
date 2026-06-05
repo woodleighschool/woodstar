@@ -1,4 +1,4 @@
-package munki
+package packages
 
 import (
 	"encoding/json"
@@ -12,26 +12,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
-
-// ArtifactKind describes how Munki clients consume an artifact.
-type ArtifactKind string
-
-const (
-	// ArtifactKindPackage is an installer package or disk image.
-	ArtifactKindPackage ArtifactKind = "package"
-
-	// ArtifactKindIcon is an icon referenced by Munki catalogs.
-	ArtifactKindIcon ArtifactKind = "icon"
-)
-
-var artifactKindValues = []ArtifactKind{
-	ArtifactKindPackage,
-	ArtifactKindIcon,
-}
-
-func (ArtifactKind) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(artifactKindValues...)
-}
 
 // InstallerType describes the package installer mode Woodstar exposes in
 // normal authoring flows. InstallerTypePkg is Woodstar's default package mode.
@@ -113,91 +93,7 @@ func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(uninstallMethodValues...)
 }
 
-// AssignmentAction describes the managed Munki manifest section for an assignment.
-type AssignmentAction string
-
-const (
-	AssignmentActionInstall         AssignmentAction = "install"
-	AssignmentActionRemove          AssignmentAction = "remove"
-	AssignmentActionUpdateIfPresent AssignmentAction = "update_if_present"
-	AssignmentActionNone            AssignmentAction = "none"
-)
-
-var assignmentActionValues = []AssignmentAction{
-	AssignmentActionInstall,
-	AssignmentActionRemove,
-	AssignmentActionUpdateIfPresent,
-	AssignmentActionNone,
-}
-
-func (AssignmentAction) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(assignmentActionValues...)
-}
-
-type AssignmentEffect string
-
-const (
-	AssignmentEffectInclude AssignmentEffect = "include"
-	AssignmentEffectExclude AssignmentEffect = "exclude"
-)
-
-var assignmentEffectValues = []AssignmentEffect{
-	AssignmentEffectInclude,
-	AssignmentEffectExclude,
-}
-
-func (AssignmentEffect) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(assignmentEffectValues...)
-}
-
-// PackageSelection describes whether an assignment follows the latest eligible
-// package or pins one package version.
-type PackageSelection string
-
-const (
-	PackageSelectionLatestEligible PackageSelection = "latest_eligible"
-	PackageSelectionSpecific       PackageSelection = "specific_package"
-)
-
-var packageSelectionValues = []PackageSelection{
-	PackageSelectionLatestEligible,
-	PackageSelectionSpecific,
-}
-
-func (PackageSelection) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(packageSelectionValues...)
-}
-
-// SoftwareTitleMutation is the input shape for creating or updating a Munki software title.
-type SoftwareTitleMutation struct {
-	Name           string `json:"name"`
-	DisplayName    string `json:"display_name,omitempty"`
-	Description    string `json:"description,omitempty"`
-	Category       string `json:"category,omitempty"`
-	Developer      string `json:"developer,omitempty"`
-	IconName       string `json:"icon_name,omitempty"`
-	IconHash       string `json:"icon_hash,omitempty"`
-	IconArtifactID *int64 `json:"icon_artifact_id,omitempty"`
-}
-
-// SoftwareTitle is Woodstar-managed metadata for a Munki software item.
-type SoftwareTitle struct {
-	ID                   int64     `json:"id"`
-	Name                 string    `json:"name"`
-	DisplayName          string    `json:"display_name"`
-	Description          string    `json:"description"`
-	Category             string    `json:"category"`
-	Developer            string    `json:"developer"`
-	IconName             string    `json:"icon_name"`
-	IconHash             string    `json:"icon_hash"`
-	IconArtifactID       *int64    `json:"icon_artifact_id,omitempty"`
-	IconArtifactLocation string    `json:"icon_artifact_location,omitempty"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
-}
-
-// PackageReference points to either another Woodstar-authored package or a
-// literal Munki item name.
+// PackageReference points to either another Woodstar-authored package or a literal Munki item name.
 type PackageReference struct {
 	PackageID      *int64 `json:"package_id,omitempty"`
 	Name           string `json:"name,omitempty"`
@@ -205,8 +101,7 @@ type PackageReference struct {
 	PackageVersion string `json:"package_version,omitempty"`
 }
 
-// PackageInstallerEnvironmentVariable is one environment variable passed to a
-// Munki installer process.
+// PackageInstallerEnvironmentVariable is one environment variable passed to a Munki installer process.
 type PackageInstallerEnvironmentVariable struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
@@ -226,7 +121,7 @@ const (
 	PackageInstallItemFile PackageInstallItemType = "file"
 )
 
-var packageInstallItemTypeValues = []PackageInstallItemType{
+var installItemTypeValues = []PackageInstallItemType{
 	PackageInstallItemApplication,
 	PackageInstallItemBundle,
 	PackageInstallItemPlist,
@@ -234,7 +129,7 @@ var packageInstallItemTypeValues = []PackageInstallItemType{
 }
 
 func (PackageInstallItemType) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(packageInstallItemTypeValues...)
+	return humaschema.StringEnum(installItemTypeValues...)
 }
 
 // PackageInstallItem is one Munki installs array entry.
@@ -333,8 +228,7 @@ type PackageMutation struct {
 	Eligible                 bool                                  `json:"eligible"`
 }
 
-// PackageImportMutation imports one existing Munki pkginfo item as a Woodstar
-// package row.
+// PackageImportMutation imports one existing Munki pkginfo item as a Woodstar package row.
 type PackageImportMutation struct {
 	SoftwareID          int64           `json:"software_id,omitempty"`
 	Pkginfo             json.RawMessage `json:"pkginfo"`
@@ -411,157 +305,17 @@ type Package struct {
 	UpdatedAt                    time.Time                             `json:"updated_at"`
 }
 
-// EffectiveIconArtifactID returns the package icon override, or the software
-// title icon when the package does not override it.
-func (p Package) EffectiveIconArtifactID() *int64 {
+// EffectiveIconArtifactID returns the package icon override, or the software title icon.
+func EffectiveIconArtifactID(p Package) *int64 {
 	if p.IconArtifactID != nil || p.IconName != "" || p.IconHash != "" {
 		return p.IconArtifactID
 	}
 	return p.SoftwareIconArtifactID
 }
 
-// ArtifactMutation is the input shape for registering an existing Munki artifact.
-type ArtifactMutation struct {
-	Kind        ArtifactKind `json:"kind"`
-	DisplayName string       `json:"display_name,omitempty"`
-	Location    string       `json:"location"`
-	ContentType string       `json:"content_type,omitempty"`
-	SizeBytes   int64        `json:"size_bytes"`
-	SHA256      string       `json:"sha256"`
-	StorageKey  string       `json:"storage_key"`
-}
-
-// ArtifactUploadURL is a temporary object-storage upload target.
-type ArtifactUploadURL struct {
-	URL     string            `json:"url"`
-	Headers map[string]string `json:"headers,omitempty"`
-}
-
-// ArtifactObject is the storage-side view of an uploaded artifact.
-type ArtifactObject struct {
-	ContentType string
-	SizeBytes   int64
-	SHA256      string
-}
-
-// Artifact references one object stored in Munki's artifact backend.
-type Artifact struct {
-	ID          int64        `json:"id"`
-	Kind        ArtifactKind `json:"kind"`
-	DisplayName string       `json:"display_name"`
-	Location    string       `json:"location"`
-	ContentType string       `json:"content_type"`
-	SizeBytes   int64        `json:"size_bytes"`
-	SHA256      string       `json:"sha256"`
-	StorageKey  string       `json:"storage_key"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-}
-
-// AssignmentMutation is one ordered label row for Munki desired state.
-type AssignmentMutation struct {
-	SoftwareID       int64             `json:"software_id"`
-	Priority         int32             `json:"priority"`
-	LabelID          int64             `json:"label_id"`
-	Effect           AssignmentEffect  `json:"effect"`
-	Action           *AssignmentAction `json:"action,omitempty"`
-	OptionalInstall  bool              `json:"optional_install,omitempty"`
-	FeaturedItem     bool              `json:"featured_item,omitempty"`
-	PackageSelection *PackageSelection `json:"package_selection,omitempty"`
-	PinnedPackageID  *int64            `json:"pinned_package_id,omitempty"`
-}
-
-// Assignment links one Munki software title, one target label, and optional include payload.
-type Assignment struct {
-	ID                   int64             `json:"id"`
-	SoftwareID           int64             `json:"software_id"`
-	SoftwareDisplayName  string            `json:"software_display_name"`
-	Priority             int32             `json:"priority"`
-	LabelID              int64             `json:"label_id"`
-	Effect               AssignmentEffect  `json:"effect"`
-	Action               *AssignmentAction `json:"action,omitempty"`
-	OptionalInstall      bool              `json:"optional_install"`
-	FeaturedItem         bool              `json:"featured_item"`
-	PackageSelection     *PackageSelection `json:"package_selection,omitempty"`
-	PinnedPackageID      *int64            `json:"pinned_package_id,omitempty"`
-	PinnedPackageName    string            `json:"pinned_package_name,omitempty"`
-	PinnedPackageVersion string            `json:"pinned_package_version,omitempty"`
-	CreatedAt            time.Time         `json:"created_at"`
-	UpdatedAt            time.Time         `json:"updated_at"`
-}
-
-// EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
-type EffectivePackage struct {
-	AssignmentID     int64
-	SoftwareID       int64
-	AssignmentEffect AssignmentEffect
-	Action           AssignmentAction
-	OptionalInstall  bool
-	FeaturedItem     bool
-	PackageSelection PackageSelection
-	PinnedPackageID  *int64
-	Priority         int32
-	Package          Package
-}
-
-type SoftwareTitleDetail struct {
-	SoftwareTitle
-	Packages    []Package    `json:"packages"`
-	Assignments []Assignment `json:"assignments"`
-}
-
 type PackageListParams struct {
 	dbutil.ListParams
 	SoftwareID int64
-}
-
-type AssignmentListParams struct {
-	dbutil.ListParams
-	SoftwareID int64
-}
-
-// HostStatusObservation is Munki state observed for an existing host.
-type HostStatusObservation struct {
-	HostID          int64
-	Version         string
-	ManifestName    string
-	Success         *bool
-	Errors          []string
-	Warnings        []string
-	ProblemInstalls []string
-	RunStartedAt    string
-	RunEndedAt      string
-}
-
-// HostItem is one Munki-managed item observed on a host.
-type HostItem struct {
-	HostID           int64     `json:"-"`
-	Name             string    `json:"name"`
-	Installed        bool      `json:"installed"`
-	InstalledVersion string    `json:"installed_version"`
-	RunEndedAt       string    `json:"run_ended_at,omitempty"`
-	LastSeenAt       time.Time `json:"last_seen_at"`
-}
-
-// HostState is the Munki sub-object attached to host detail responses.
-type HostState struct {
-	Version         string     `json:"version"`
-	ManifestName    string     `json:"manifest_name"`
-	Success         *bool      `json:"success,omitempty"`
-	Errors          []string   `json:"errors"`
-	Warnings        []string   `json:"warnings"`
-	ProblemInstalls []string   `json:"problem_installs"`
-	RunStartedAt    string     `json:"run_started_at,omitempty"`
-	RunEndedAt      string     `json:"run_ended_at,omitempty"`
-	LastSeenAt      time.Time  `json:"last_seen_at"`
-	Items           []HostItem `json:"items"`
-}
-
-func (m SoftwareTitleMutation) Validate() error {
-	if strings.TrimSpace(m.Name) == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	return nil
 }
 
 func (m PackageMutation) Validate() error {
@@ -591,14 +345,14 @@ func (m PackageMutation) Validate() error {
 			)
 		}
 	}
-	if err := validatePackageReferences("requires", m.Requires); err != nil {
+	if err := validateReferences("requires", m.Requires); err != nil {
 		return err
 	}
-	if err := validatePackageReferences("update_for", m.UpdateFor); err != nil {
+	if err := validateReferences("update_for", m.UpdateFor); err != nil {
 		return err
 	}
 	for _, item := range m.Installs {
-		if !validPackageInstallItemType(item.Type) {
+		if !validInstallItemType(item.Type) {
 			return fmt.Errorf("%w: unsupported installs type %q", dbutil.ErrInvalidInput, item.Type)
 		}
 		if strings.TrimSpace(item.Path) == "" {
@@ -635,90 +389,6 @@ func (m PackageImportMutation) Validate() error {
 	return nil
 }
 
-func (m ArtifactMutation) Validate() error {
-	if !validArtifactKind(m.Kind) {
-		return fmt.Errorf("%w: unsupported artifact kind %q", dbutil.ErrInvalidInput, m.Kind)
-	}
-	if !validArtifactLocation(m.Location) {
-		return fmt.Errorf("%w: location is required and must be a relative Munki path", dbutil.ErrInvalidInput)
-	}
-	if !validSHA256(m.SHA256) {
-		return fmt.Errorf("%w: sha256 must be 64 lowercase hex characters", dbutil.ErrInvalidInput)
-	}
-	if strings.TrimSpace(m.StorageKey) == "" || strings.HasPrefix(strings.TrimSpace(m.StorageKey), "/") {
-		return fmt.Errorf("%w: storage_key is required and must be relative", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
-func (m AssignmentMutation) Validate() error {
-	switch m.Effect {
-	case AssignmentEffectInclude:
-		return m.validateIncludePayload()
-	case AssignmentEffectExclude:
-		return m.validateExcludePayload()
-	default:
-		return fmt.Errorf("%w: unsupported assignment effect %q", dbutil.ErrInvalidInput, m.Effect)
-	}
-}
-
-func validAssignmentAction(action AssignmentAction) bool {
-	return slices.Contains(assignmentActionValues, action)
-}
-
-func validPackageSelection(selection PackageSelection) bool {
-	return slices.Contains(packageSelectionValues, selection)
-}
-
-func (m AssignmentMutation) validateIncludePayload() error {
-	if m.Action == nil {
-		return fmt.Errorf("%w: action is required for include assignments", dbutil.ErrInvalidInput)
-	}
-	if !validAssignmentAction(*m.Action) {
-		return fmt.Errorf("%w: unsupported assignment action %q", dbutil.ErrInvalidInput, *m.Action)
-	}
-	if m.PackageSelection == nil {
-		return fmt.Errorf("%w: package_selection is required for include assignments", dbutil.ErrInvalidInput)
-	}
-	if !validPackageSelection(*m.PackageSelection) {
-		return fmt.Errorf(
-			"%w: unsupported package_selection %q",
-			dbutil.ErrInvalidInput,
-			*m.PackageSelection,
-		)
-	}
-	switch *m.PackageSelection {
-	case PackageSelectionLatestEligible:
-		if m.PinnedPackageID != nil {
-			return fmt.Errorf(
-				"%w: pinned_package_id must be empty for latest_eligible selection",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	case PackageSelectionSpecific:
-		if m.PinnedPackageID == nil {
-			return fmt.Errorf("%w: pinned_package_id is required", dbutil.ErrInvalidInput)
-		}
-	}
-	if m.FeaturedItem && !m.OptionalInstall {
-		return fmt.Errorf("%w: featured_item requires optional_install", dbutil.ErrInvalidInput)
-	}
-	if *m.Action == AssignmentActionRemove && (m.OptionalInstall || m.FeaturedItem) {
-		return fmt.Errorf(
-			"%w: remove assignments cannot be optional_installs or featured_items",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	return nil
-}
-
-func (m AssignmentMutation) validateExcludePayload() error {
-	if m.Action != nil || m.PackageSelection != nil || m.PinnedPackageID != nil || m.OptionalInstall || m.FeaturedItem {
-		return fmt.Errorf("%w: exclude assignments cannot carry Munki payload", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
 func validInstallerType(installerType InstallerType) bool {
 	return installerType == "" || slices.Contains(installerTypeValues, installerType)
 }
@@ -731,11 +401,11 @@ func validRestartAction(restartAction RestartAction) bool {
 	return restartAction == "" || slices.Contains(restartActionValues, restartAction)
 }
 
-func validPackageInstallItemType(itemType PackageInstallItemType) bool {
-	return slices.Contains(packageInstallItemTypeValues, itemType)
+func validInstallItemType(itemType PackageInstallItemType) bool {
+	return slices.Contains(installItemTypeValues, itemType)
 }
 
-func validatePackageReferences(field string, references []PackageReference) error {
+func validateReferences(field string, references []PackageReference) error {
 	for _, ref := range references {
 		name := strings.TrimSpace(ref.Name)
 		if ref.PackageID == nil && name == "" {
@@ -746,255 +416,6 @@ func validatePackageReferences(field string, references []PackageReference) erro
 		}
 	}
 	return nil
-}
-
-func validArtifactKind(kind ArtifactKind) bool {
-	return slices.Contains(artifactKindValues, kind)
-}
-
-func validArtifactLocation(location string) bool {
-	location = strings.TrimSpace(location)
-	if location == "" || strings.HasPrefix(location, "/") || strings.Contains(location, `\`) {
-		return false
-	}
-	for segment := range strings.SplitSeq(location, "/") {
-		if segment == "" || segment == "." || segment == ".." {
-			return false
-		}
-	}
-	return true
-}
-
-func validSHA256(value string) bool {
-	if len(value) != 64 {
-		return false
-	}
-	for _, r := range value {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
-			return false
-		}
-	}
-	return true
-}
-
-func packagePkginfo(pkg Package) map[string]any {
-	item := make(map[string]any)
-	item["name"] = pkg.Name
-	item["version"] = pkg.Version
-
-	addPkginfoString(item, "display_name", pkg.DisplayName)
-	addPkginfoString(item, "description", pkg.Description)
-	addPkginfoString(item, "category", pkg.Category)
-	addPkginfoString(item, "developer", pkg.Developer)
-	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
-		item["installer_type"] = pkg.InstallerType
-	}
-	addPkginfoUninstallMethod(item, pkg)
-	if pkg.RestartAction != "" && pkg.RestartAction != RestartActionNone {
-		item["RestartAction"] = pkg.RestartAction
-	}
-	addPkginfoString(item, "minimum_munki_version", pkg.MinimumMunkiVersion)
-	addPkginfoString(item, "minimum_os_version", pkg.MinimumOSVersion)
-	addPkginfoString(item, "maximum_os_version", pkg.MaximumOSVersion)
-	addPkginfoStrings(item, "supported_architectures", pkg.SupportedArchitectures)
-	item["blocking_applications"] = cleanStringList(pkg.BlockingApplications)
-	addPkginfoStrings(item, "requires", packageReferenceNames(pkg.Requires))
-	addPkginfoStrings(item, "update_for", packageReferenceNames(pkg.UpdateFor))
-	addPkginfoBool(item, "unattended_install", pkg.UnattendedInstall)
-	addPkginfoBool(item, "unattended_uninstall", pkg.UnattendedUninstall)
-	addPkginfoBool(item, "uninstallable", pkg.Uninstallable)
-	addPkginfoBool(item, "OnDemand", pkg.OnDemand)
-	addPkginfoBool(item, "precache", pkg.Precache)
-	addPkginfoBool(item, "autoremove", pkg.Autoremove)
-	addPkginfoBool(item, "apple_item", pkg.AppleItem)
-	addPkginfoBool(item, "suppress_bundle_relocation", pkg.SuppressBundleRelocation)
-	if pkg.ForceInstallAfterDate != nil {
-		item["force_install_after_date"] = *pkg.ForceInstallAfterDate
-	}
-	if pkg.InstalledSize > 0 {
-		item["installed_size"] = pkg.InstalledSize
-	}
-	addPkginfoString(item, "payload_identifier", pkg.PayloadIdentifier)
-	addPkginfoString(item, "package_path", pkg.PackagePath)
-	addPkginfoString(item, "installer_choices_xml", pkg.InstallerChoicesXML)
-	addPkginfoInstallerEnvironment(item, pkg.InstallerEnvironment)
-	addPkginfoInstallItems(item, pkg.Installs)
-	addPkginfoReceipts(item, pkg.Receipts)
-	addPkginfoItemsToCopy(item, pkg.ItemsToCopy)
-	addPkginfoString(item, "notes", pkg.Notes)
-	addPkginfoString(item, "installcheck_script", pkg.InstallcheckScript)
-	addPkginfoString(item, "uninstallcheck_script", pkg.UninstallcheckScript)
-	addPkginfoString(item, "preinstall_script", pkg.PreinstallScript)
-	addPkginfoString(item, "postinstall_script", pkg.PostinstallScript)
-	addPkginfoString(item, "preuninstall_script", pkg.PreuninstallScript)
-	addPkginfoString(item, "postuninstall_script", pkg.PostuninstallScript)
-	addPkginfoString(item, "uninstall_script", pkg.UninstallScript)
-	addPkginfoString(item, "version_script", pkg.VersionScript)
-	addPkginfoAlert(item, "preinstall_alert", pkg.PreinstallAlert)
-	addPkginfoAlert(item, "preuninstall_alert", pkg.PreuninstallAlert)
-	iconName, iconHash := packageIconFields(pkg)
-	addPkginfoString(item, "icon_name", iconName)
-	addPkginfoString(item, "icon_hash", iconHash)
-
-	return item
-}
-
-func packageIconFields(pkg Package) (string, string) {
-	if pkg.IconArtifactID != nil || pkg.IconName != "" || pkg.IconHash != "" {
-		return pkg.IconName, pkg.IconHash
-	}
-	return pkg.SoftwareIconName, pkg.SoftwareIconHash
-}
-
-func addPkginfoUninstallMethod(item map[string]any, pkg Package) {
-	switch pkg.UninstallMethod {
-	case "", UninstallMethodNone:
-	case UninstallMethodCustom:
-		addPkginfoString(item, "uninstall_method", pkg.CustomUninstallMethod)
-	default:
-		addPkginfoString(item, "uninstall_method", string(pkg.UninstallMethod))
-	}
-}
-
-func addPkginfoString(item map[string]any, key string, value string) {
-	value = strings.TrimSpace(value)
-	if value != "" {
-		item[key] = value
-	}
-}
-
-func addPkginfoStrings(item map[string]any, key string, values []string) {
-	values = cleanStringList(values)
-	if len(values) > 0 {
-		item[key] = values
-	}
-}
-
-func addPkginfoBool(item map[string]any, key string, value bool) {
-	if value {
-		item[key] = true
-	}
-}
-
-func addPkginfoInstallerEnvironment(item map[string]any, values []PackageInstallerEnvironmentVariable) {
-	environment := make(map[string]string, len(values))
-	for _, value := range values {
-		name := strings.TrimSpace(value.Name)
-		if name != "" {
-			environment[name] = value.Value
-		}
-	}
-	if len(environment) > 0 {
-		item["installer_environment"] = environment
-	}
-}
-
-func addPkginfoInstallItems(item map[string]any, values []PackageInstallItem) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		path := strings.TrimSpace(value.Path)
-		if path == "" {
-			continue
-		}
-		record := map[string]any{
-			"type": string(value.Type),
-			"path": path,
-		}
-		addPkginfoString(record, "CFBundleIdentifier", value.BundleIdentifier)
-		addPkginfoString(record, "CFBundleName", value.BundleName)
-		addPkginfoString(record, "CFBundleShortVersionString", value.BundleShortVersion)
-		addPkginfoString(record, "CFBundleVersion", value.BundleVersion)
-		addPkginfoString(record, "version_comparison_key", value.VersionComparisonKey)
-		addPkginfoString(record, "md5checksum", value.MD5Checksum)
-		addPkginfoString(record, "minimum_os_version", value.MinimumOSVersion)
-		addPkginfoString(record, "installer_item_location", value.InstallerItemLocation)
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["installs"] = out
-	}
-}
-
-func addPkginfoReceipts(item map[string]any, values []PackageReceipt) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		packageID := strings.TrimSpace(value.PackageID)
-		if packageID == "" {
-			continue
-		}
-		record := map[string]any{pkginfoReceiptPackageIDKey: packageID}
-		addPkginfoString(record, "version", value.Version)
-		if value.Optional {
-			record["optional"] = true
-		}
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["receipts"] = out
-	}
-}
-
-func addPkginfoItemsToCopy(item map[string]any, values []PackageItemToCopy) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		sourceItem := strings.TrimSpace(value.SourceItem)
-		destinationPath := strings.TrimSpace(value.DestinationPath)
-		if sourceItem == "" || destinationPath == "" {
-			continue
-		}
-		record := map[string]any{
-			"source_item":      sourceItem,
-			"destination_path": destinationPath,
-		}
-		addPkginfoString(record, "destination_item", value.DestinationItem)
-		addPkginfoString(record, "user", value.User)
-		addPkginfoString(record, "group", value.Group)
-		addPkginfoString(record, "mode", value.Mode)
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["items_to_copy"] = out
-	}
-}
-
-func addPkginfoAlert(item map[string]any, key string, alert PackageAlert) {
-	if !alert.Enabled {
-		return
-	}
-	record := map[string]any{}
-	addPkginfoString(record, "alert_title", alert.Title)
-	addPkginfoString(record, "alert_detail", alert.Detail)
-	addPkginfoString(record, "ok_label", alert.OKLabel)
-	addPkginfoString(record, "cancel_label", alert.CancelLabel)
-	if len(record) > 0 {
-		item[key] = record
-	}
-}
-
-func packageReferenceNames(references []PackageReference) []string {
-	out := make([]string, 0, len(references))
-	for _, ref := range references {
-		name := packageReferenceName(ref)
-		if name != "" {
-			out = append(out, name)
-		}
-	}
-	return cleanStringList(out)
-}
-
-func packageReferenceName(ref PackageReference) string {
-	if ref.PackageID != nil {
-		name := strings.TrimSpace(ref.PackageName)
-		version := strings.TrimSpace(ref.PackageVersion)
-		if name == "" {
-			return ""
-		}
-		if version == "" {
-			return name
-		}
-		return name + "--" + version
-	}
-	return strings.TrimSpace(ref.Name)
 }
 
 func cleanStringList(values []string) []string {

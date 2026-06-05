@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 )
 
 type munkiHostDetailContributor struct {
@@ -11,7 +11,7 @@ type munkiHostDetailContributor struct {
 }
 
 type munkiHostStateLoader interface {
-	LoadHostState(context.Context, int64) (*munki.HostState, error)
+	LoadHostState(context.Context, int64) (*hoststate.State, error)
 }
 
 // MunkiHostDetailContributor returns a host detail contributor backed by Munki state.

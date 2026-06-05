@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 )
 
 // S3Config contains the Munki artifact S3 settings.
@@ -75,7 +75,7 @@ func newS3Client(cfg aws.Config, endpoint string, pathStyle bool) *s3.Client {
 }
 
 // PresignGet returns a temporary GET URL for artifact's storage key.
-func (p *S3Presigner) PresignGet(ctx context.Context, artifact munki.Artifact) (string, error) {
+func (p *S3Presigner) PresignGet(ctx context.Context, artifact artifacts.Artifact) (string, error) {
 	output, err := p.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(p.bucket),
 		Key:    aws.String(artifact.StorageKey),
@@ -94,7 +94,7 @@ func (p *S3Presigner) PresignPut(
 	storageKey string,
 	contentType string,
 	sha256 string,
-) (munki.ArtifactUploadURL, error) {
+) (artifacts.ArtifactUploadURL, error) {
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(p.bucket),
 		Key:    aws.String(storageKey),
@@ -109,27 +109,27 @@ func (p *S3Presigner) PresignPut(
 		options.Expires = p.ttl
 	})
 	if err != nil {
-		return munki.ArtifactUploadURL{}, fmt.Errorf("presign munki upload %q: %w", storageKey, err)
+		return artifacts.ArtifactUploadURL{}, fmt.Errorf("presign munki upload %q: %w", storageKey, err)
 	}
-	return munki.ArtifactUploadURL{
+	return artifacts.ArtifactUploadURL{
 		URL:     output.URL,
 		Headers: singleValueHeaders(output.SignedHeader),
 	}, nil
 }
 
 // Stat returns object metadata for storageKey.
-func (p *S3Presigner) Stat(ctx context.Context, storageKey string) (munki.ArtifactObject, error) {
+func (p *S3Presigner) Stat(ctx context.Context, storageKey string) (artifacts.ArtifactObject, error) {
 	output, err := p.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(p.bucket),
 		Key:    aws.String(storageKey),
 	})
 	if s3NotFound(err) {
-		return munki.ArtifactObject{}, munki.ErrNotFound
+		return artifacts.ArtifactObject{}, ErrObjectNotFound
 	}
 	if err != nil {
-		return munki.ArtifactObject{}, fmt.Errorf("stat munki artifact %q: %w", storageKey, err)
+		return artifacts.ArtifactObject{}, fmt.Errorf("stat munki artifact %q: %w", storageKey, err)
 	}
-	return munki.ArtifactObject{
+	return artifacts.ArtifactObject{
 		ContentType: aws.ToString(output.ContentType),
 		SizeBytes:   aws.ToInt64(output.ContentLength),
 		SHA256:      output.Metadata["woodstar-sha256"],

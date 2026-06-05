@@ -6,7 +6,13 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
@@ -20,8 +26,38 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 	}{
 		{
 			name: "munki host state",
-			typ:  reflect.TypeFor[munki.HostState](),
-			want: "MunkiHostState",
+			typ:  reflect.TypeFor[hoststate.State](),
+			want: "MunkiState",
+		},
+		{
+			name: "munki artifact",
+			typ:  reflect.TypeFor[artifacts.Artifact](),
+			want: "MunkiArtifact",
+		},
+		{
+			name: "munki assignment",
+			typ:  reflect.TypeFor[assignments.Assignment](),
+			want: "MunkiAssignment",
+		},
+		{
+			name: "munki package mutation",
+			typ:  reflect.TypeFor[packages.PackageMutation](),
+			want: "MunkiPackageMutation",
+		},
+		{
+			name: "munki software title mutation",
+			typ:  reflect.TypeFor[softwaretitles.SoftwareTitleMutation](),
+			want: "MunkiSoftwareTitleMutation",
+		},
+		{
+			name: "osquery check",
+			typ:  reflect.TypeFor[checks.Check](),
+			want: "OsqueryCheck",
+		},
+		{
+			name: "osquery report mutation",
+			typ:  reflect.TypeFor[reports.ReportMutation](),
+			want: "OsqueryReportMutation",
 		},
 		{
 			name: "santa host state",
@@ -40,13 +76,13 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 		},
 		{
 			name: "pointer slice element",
-			typ:  reflect.TypeFor[[]*munki.HostState](),
-			want: "MunkiHostState",
+			typ:  reflect.TypeFor[[]*hoststate.State](),
+			want: "MunkiState",
 		},
 		{
 			name: "non ambiguous capability name",
-			typ:  reflect.TypeFor[munki.HostItem](),
-			want: "HostItem",
+			typ:  reflect.TypeFor[hoststate.Item](),
+			want: "Item",
 		},
 		{
 			name: "non capability package",

@@ -11,28 +11,29 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 // ErrNotFound reports that a requested Munki repository object does not exist.
 var ErrNotFound = errors.New("munki resource not found")
-
-// ErrStorageUnavailable reports that an artifact exists but has no usable storage backend.
-var ErrStorageUnavailable = errors.New("munki artifact storage unavailable")
 
 type hostResolver interface {
 	GetByHardwareSerial(context.Context, string) (*hosts.Host, error)
 }
 
 type packageResolver interface {
-	EffectivePackagesForHost(context.Context, int64) ([]EffectivePackage, error)
+	EffectivePackagesForHost(context.Context, int64) ([]assignments.EffectivePackage, error)
 }
 
 type artifactResolver interface {
-	GetArtifactByLocation(context.Context, ArtifactKind, string) (*Artifact, error)
+	GetByLocation(context.Context, artifacts.ArtifactKind, string) (*artifacts.Artifact, error)
 }
 
 type artifactPresigner interface {
-	PresignGet(context.Context, Artifact) (string, error)
+	PresignGet(context.Context, artifacts.Artifact) (string, error)
 }
 
 // ClientHost identifies the existing Woodstar host making a Munki request.
@@ -155,24 +156,24 @@ func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) (
 func (s *Service) ArtifactRedirect(
 	ctx context.Context,
 	client ClientHost,
-	kind ArtifactKind,
+	kind artifacts.ArtifactKind,
 	location string,
 ) (string, error) {
 	if s.artifacts == nil {
 		return "", ErrNotFound
 	}
 	location = strings.TrimSpace(location)
-	if !validArtifactKind(kind) || !validResourcePath(location) {
+	if !artifacts.ValidArtifactKind(kind) || !validResourcePath(location) {
 		return "", ErrNotFound
 	}
-	artifact, err := s.artifacts.GetArtifactByLocation(ctx, kind, location)
+	artifact, err := s.artifacts.GetByLocation(ctx, kind, location)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return "", ErrNotFound
 	}
 	if err != nil {
 		return "", err
 	}
-	if kind == ArtifactKindPackage {
+	if kind == artifacts.ArtifactKindPackage {
 		ok, err := s.clientCanFetchPackageArtifact(ctx, client.ID, *artifact)
 		if err != nil {
 			return "", err
@@ -182,19 +183,23 @@ func (s *Service) ArtifactRedirect(
 		}
 	}
 	if s.presigner == nil {
-		return "", ErrStorageUnavailable
+		return "", munkistorage.ErrUnavailable
 	}
 	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(storageURL) == "" {
-		return "", ErrStorageUnavailable
+		return "", munkistorage.ErrUnavailable
 	}
 	return storageURL, nil
 }
 
-func (s *Service) clientCanFetchPackageArtifact(ctx context.Context, hostID int64, artifact Artifact) (bool, error) {
+func (s *Service) clientCanFetchPackageArtifact(
+	ctx context.Context,
+	hostID int64,
+	artifact artifacts.Artifact,
+) (bool, error) {
 	packages, err := s.effectivePackages(ctx, hostID)
 	if err != nil {
 		return false, err
@@ -210,30 +215,29 @@ func (s *Service) clientCanFetchPackageArtifact(ctx context.Context, hostID int6
 	return false, nil
 }
 
-func (s *Service) effectivePackages(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
+func (s *Service) effectivePackages(
+	ctx context.Context,
+	hostID int64,
+) ([]assignments.EffectivePackage, error) {
 	if s.packages == nil {
 		return nil, nil
 	}
-	packages, err := s.packages.EffectivePackagesForHost(ctx, hostID)
-	if err != nil {
-		return nil, err
-	}
-	return resolveEffectivePackages(packages), nil
+	return s.packages.EffectivePackagesForHost(ctx, hostID)
 }
 
-func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
+func addManifestPackage(manifest *renderedManifest, pkg assignments.EffectivePackage) {
 	name := manifestItemName(pkg)
 	if name == "" {
 		return
 	}
 	switch pkg.Action {
-	case AssignmentActionInstall:
+	case assignments.AssignmentActionInstall:
 		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-	case AssignmentActionRemove:
+	case assignments.AssignmentActionRemove:
 		manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-	case AssignmentActionUpdateIfPresent:
+	case assignments.AssignmentActionUpdateIfPresent:
 		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-	case AssignmentActionNone:
+	case assignments.AssignmentActionNone:
 	}
 	if pkg.OptionalInstall {
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
@@ -243,12 +247,12 @@ func addManifestPackage(manifest *renderedManifest, pkg EffectivePackage) {
 	}
 }
 
-func manifestItemName(pkg EffectivePackage) string {
+func manifestItemName(pkg assignments.EffectivePackage) string {
 	name := strings.TrimSpace(pkg.Package.Name)
 	if name == "" {
 		return ""
 	}
-	if pkg.PackageSelection != PackageSelectionSpecific {
+	if pkg.PackageSelection != assignments.PackageSelectionSpecific {
 		return name
 	}
 	version := strings.TrimSpace(pkg.Package.Version)
@@ -258,55 +262,15 @@ func manifestItemName(pkg EffectivePackage) string {
 	return name + "--" + version
 }
 
-func resolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
-	resolved := make([][]EffectivePackage, 0, len(packages))
-	selectedAssignments := make(map[int64]int64, len(packages))
-	selectedIndexes := make(map[int64]int, len(packages))
-	for _, pkg := range packages {
-		if pkg.SoftwareID <= 0 {
-			continue
-		}
-		assignmentID, exists := selectedAssignments[pkg.SoftwareID]
-		if !exists {
-			selectedAssignments[pkg.SoftwareID] = pkg.AssignmentID
-			if pkg.AssignmentEffect == AssignmentEffectExclude || strings.TrimSpace(pkg.Package.Name) == "" {
-				selectedIndexes[pkg.SoftwareID] = -1
-				continue
-			}
-			selectedIndexes[pkg.SoftwareID] = len(resolved)
-			resolved = append(resolved, []EffectivePackage{pkg})
-			continue
-		}
-		index := selectedIndexes[pkg.SoftwareID]
-		if assignmentID == pkg.AssignmentID && index >= 0 && pkg.AssignmentEffect == AssignmentEffectInclude {
-			resolved[index] = appendUniqueEffectivePackage(resolved[index], pkg)
-		}
-	}
-	out := make([]EffectivePackage, 0, len(packages))
-	for _, group := range resolved {
-		out = append(out, group...)
-	}
-	return out
-}
-
-func appendUniqueEffectivePackage(packages []EffectivePackage, pkg EffectivePackage) []EffectivePackage {
-	for _, existing := range packages {
-		if existing.Package.ID == pkg.Package.ID {
-			return packages
-		}
-	}
-	return append(packages, pkg)
-}
-
-func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, error) {
-	items := make([]map[string]any, 0, len(packages))
-	seen := make(map[int64]bool, len(packages))
-	for _, pkg := range packages {
+func (s *Service) catalogItems(effective []assignments.EffectivePackage) ([]map[string]any, error) {
+	items := make([]map[string]any, 0, len(effective))
+	seen := make(map[int64]bool, len(effective))
+	for _, pkg := range effective {
 		if seen[pkg.Package.ID] {
 			continue
 		}
 		seen[pkg.Package.ID] = true
-		item := packagePkginfo(pkg.Package)
+		item := packages.Pkginfo(pkg.Package)
 		delete(item, "PackageCompleteURL")
 		delete(item, "PackageURL")
 		delete(item, "installer_item_location")
@@ -314,7 +278,7 @@ func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, e
 			if pkg.Package.InstallerArtifactLocation != "" {
 				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation
 				item["PackageCompleteURL"] = s.artifactURL(
-					ArtifactKindPackage,
+					artifacts.ArtifactKindPackage,
 					pkg.Package.InstallerArtifactLocation,
 				)
 			}
@@ -349,7 +313,7 @@ func validResourcePath(location string) bool {
 	return true
 }
 
-func (s *Service) artifactURL(kind ArtifactKind, location string) string {
+func (s *Service) artifactURL(kind artifacts.ArtifactKind, location string) string {
 	path := artifactPath(kind, location)
 	if s.publicURL == "" {
 		return path
@@ -357,9 +321,9 @@ func (s *Service) artifactURL(kind ArtifactKind, location string) string {
 	return s.publicURL + path
 }
 
-func artifactPath(kind ArtifactKind, location string) string {
+func artifactPath(kind artifacts.ArtifactKind, location string) string {
 	prefix := "/munki/pkgs/"
-	if kind == ArtifactKindIcon {
+	if kind == artifacts.ArtifactKindIcon {
 		prefix = "/munki/icons/"
 	}
 	return prefix + escapePath(location)

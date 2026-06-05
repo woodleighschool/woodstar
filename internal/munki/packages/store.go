@@ -1,4 +1,4 @@
-package munki
+package packages
 
 import (
 	"context"
@@ -8,14 +8,44 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 )
 
-func (s *Store) CreatePackage(ctx context.Context, params PackageMutation) (*Package, error) {
-	params, fields, err := s.preparePackageMutation(ctx, params)
+type softwareTitleStore interface {
+	GetByID(context.Context, int64) (*softwaretitles.SoftwareTitle, error)
+	GetByName(context.Context, string) (*softwaretitles.SoftwareTitle, error)
+	Create(context.Context, softwaretitles.SoftwareTitleMutation) (*softwaretitles.SoftwareTitle, error)
+}
+
+type artifactStore interface {
+	GetByID(context.Context, int64) (*artifacts.Artifact, error)
+}
+
+type Store struct {
+	db             *database.DB
+	q              *sqlc.Queries
+	softwareTitles softwareTitleStore
+	artifacts      artifactStore
+}
+
+func NewStore(db *database.DB, softwareTitles softwareTitleStore, artifacts artifactStore) *Store {
+	return &Store{
+		db:             db,
+		q:              db.Queries(),
+		softwareTitles: softwareTitles,
+		artifacts:      artifacts,
+	}
+}
+
+func (s *Store) Create(ctx context.Context, params PackageMutation) (*Package, error) {
+	params, fields, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -28,34 +58,34 @@ func (s *Store) CreatePackage(ctx context.Context, params PackageMutation) (*Pac
 	qtx := s.q.WithTx(tx)
 	row, err := qtx.CreateMunkiPackage(ctx, createMunkiPackageParams(params, fields))
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindRequires,
 		params.Requires,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindUpdateFor,
 		params.UpdateFor,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return s.GetPackage(ctx, row.ID)
+	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) UpdatePackage(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
-	existing, err := s.GetPackage(ctx, id)
+func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*Package, error) {
+	existing, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +93,7 @@ func (s *Store) UpdatePackage(ctx context.Context, id int64, params PackageMutat
 		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
 	}
 	params = mergePackageUpdate(*existing, params)
-	params, fields, err := s.preparePackageMutation(ctx, params)
+	params, fields, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -79,34 +109,34 @@ func (s *Store) UpdatePackage(ctx context.Context, id int64, params PackageMutat
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindRequires,
 		params.Requires,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindUpdateFor,
 		params.UpdateFor,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return s.GetPackage(ctx, row.ID)
+	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) UpsertPackage(ctx context.Context, params PackageMutation) (*Package, error) {
-	params, fields, err := s.preparePackageMutation(ctx, params)
+func (s *Store) Upsert(ctx context.Context, params PackageMutation) (*Package, error) {
+	params, fields, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -119,33 +149,33 @@ func (s *Store) UpsertPackage(ctx context.Context, params PackageMutation) (*Pac
 	qtx := s.q.WithTx(tx)
 	row, err := qtx.UpsertMunkiPackage(ctx, upsertMunkiPackageParams(params, fields))
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindRequires,
 		params.Requires,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := replacePackageRelations(
 		ctx,
-		tx,
+		qtx,
 		row.ID,
 		sqlc.MunkiPackageRelationKindUpdateFor,
 		params.UpdateFor,
 	); err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return s.GetPackage(ctx, row.ID)
+	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) GetPackage(ctx context.Context, id int64) (*Package, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
@@ -160,14 +190,14 @@ func (s *Store) GetPackage(ctx context.Context, id int64) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	packages, err := s.attachPackageRelations(ctx, []Package{pkg})
+	packages, err := s.AttachRelations(ctx, []Package{pkg})
 	if err != nil {
 		return nil, err
 	}
 	return &packages[0], nil
 }
 
-func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]Package, int, error) {
+func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := packageListWhere(params)
 	listQuery := dbutil.ListQuery{
@@ -203,56 +233,22 @@ func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]P
 	if err != nil {
 		return nil, 0, err
 	}
-	packages, err = s.attachPackageRelations(ctx, packages)
+	packages, err = s.AttachRelations(ctx, packages)
 	if err != nil {
 		return nil, 0, err
 	}
 	return packages, count, nil
 }
 
-func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]EffectivePackage, error) {
-	rows, err := s.q.ListEffectiveMunkiPackagesForHost(ctx, sqlc.ListEffectiveMunkiPackagesForHostParams{
-		HostID: hostID,
-	})
-	if err != nil {
-		return nil, err
-	}
-	packages := make([]EffectivePackage, 0, len(rows))
-	for _, row := range rows {
-		pkg := Package{}
-		if row.AssignmentEffect == sqlc.MunkiAssignmentEffectInclude {
-			resolvedPackage, err := packageFromRecord(packageRecordFromEffectiveSQLC(row))
-			if err != nil {
-				return nil, err
-			}
-			pkg = resolvedPackage
-		}
-		packages = append(packages, EffectivePackage{
-			AssignmentID:     row.AssignmentID,
-			SoftwareID:       row.AssignmentSoftwareID,
-			AssignmentEffect: AssignmentEffect(row.AssignmentEffect),
-			Action:           assignmentActionValue(row.Action),
-			OptionalInstall:  row.OptionalInstall,
-			FeaturedItem:     row.FeaturedItem,
-			PackageSelection: packageSelectionValue(row.PackageSelection),
-			PinnedPackageID:  row.PinnedPackageID,
-			Priority:         row.Priority,
-			Package:          pkg,
-		})
-	}
-	resolved := resolveEffectivePackages(packages)
-	return s.attachEffectivePackageRelations(ctx, resolved)
-}
-
-func (s *Store) preparePackageMutation(
+func (s *Store) prepareMutation(
 	ctx context.Context,
 	params PackageMutation,
 ) (PackageMutation, packageJSONFields, error) {
-	params = cleanPackageMutation(params)
+	params = cleanMutation(params)
 	if err := params.Validate(); err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
-	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	title, err := s.softwareTitles.GetByID(ctx, params.SoftwareID)
 	if err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
@@ -270,11 +266,11 @@ func (s *Store) preparePackageMutation(
 
 func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMutation) (PackageMutation, error) {
 	if params.InstallerArtifactID != nil {
-		artifact, err := s.GetArtifact(ctx, *params.InstallerArtifactID)
+		artifact, err := s.artifacts.GetByID(ctx, *params.InstallerArtifactID)
 		if err != nil {
 			return params, err
 		}
-		if artifact.Kind != ArtifactKindPackage {
+		if artifact.Kind != artifacts.ArtifactKindPackage {
 			return params, fmt.Errorf(
 				"%w: installer_artifact_id must reference a package artifact",
 				dbutil.ErrInvalidInput,
@@ -282,11 +278,11 @@ func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMut
 		}
 	}
 	if params.UninstallerArtifactID != nil {
-		artifact, err := s.GetArtifact(ctx, *params.UninstallerArtifactID)
+		artifact, err := s.artifacts.GetByID(ctx, *params.UninstallerArtifactID)
 		if err != nil {
 			return params, err
 		}
-		if artifact.Kind != ArtifactKindPackage {
+		if artifact.Kind != artifacts.ArtifactKindPackage {
 			return params, fmt.Errorf(
 				"%w: uninstaller_artifact_id must reference a package artifact",
 				dbutil.ErrInvalidInput,
@@ -294,11 +290,11 @@ func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMut
 		}
 	}
 	if params.IconArtifactID != nil {
-		artifact, err := s.GetArtifact(ctx, *params.IconArtifactID)
+		artifact, err := s.artifacts.GetByID(ctx, *params.IconArtifactID)
 		if err != nil {
 			return params, err
 		}
-		if artifact.Kind != ArtifactKindIcon {
+		if artifact.Kind != artifacts.ArtifactKindIcon {
 			return params, fmt.Errorf(
 				"%w: icon_artifact_id must reference an icon artifact",
 				dbutil.ErrInvalidInput,
@@ -310,7 +306,7 @@ func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMut
 	return params, nil
 }
 
-func cleanPackageMutation(params PackageMutation) PackageMutation {
+func cleanMutation(params PackageMutation) PackageMutation {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Version = strings.TrimSpace(params.Version)
 	params.DisplayName = strings.TrimSpace(params.DisplayName)
@@ -335,8 +331,8 @@ func cleanPackageMutation(params PackageMutation) PackageMutation {
 	params.MaximumOSVersion = strings.TrimSpace(params.MaximumOSVersion)
 	params.SupportedArchitectures = cleanStringList(params.SupportedArchitectures)
 	params.BlockingApplications = cleanStringList(params.BlockingApplications)
-	params.Requires = cleanPackageReferences(params.Requires)
-	params.UpdateFor = cleanPackageReferences(params.UpdateFor)
+	params.Requires = cleanReferences(params.Requires)
+	params.UpdateFor = cleanReferences(params.UpdateFor)
 	params.PayloadIdentifier = strings.TrimSpace(params.PayloadIdentifier)
 	params.PackagePath = strings.TrimSpace(params.PackagePath)
 	params.Notes = strings.TrimSpace(params.Notes)
@@ -344,8 +340,8 @@ func cleanPackageMutation(params PackageMutation) PackageMutation {
 	params.Installs = cleanInstallItems(params.Installs)
 	params.Receipts = cleanReceipts(params.Receipts)
 	params.ItemsToCopy = cleanItemsToCopy(params.ItemsToCopy)
-	params.PreinstallAlert = cleanPackageAlert(params.PreinstallAlert)
-	params.PreuninstallAlert = cleanPackageAlert(params.PreuninstallAlert)
+	params.PreinstallAlert = cleanAlert(params.PreinstallAlert)
+	params.PreuninstallAlert = cleanAlert(params.PreuninstallAlert)
 	if strings.TrimSpace(params.UninstallScript) != "" && params.UninstallMethod == UninstallMethodNone {
 		params.UninstallMethod = UninstallMethodUninstallScript
 		params.Uninstallable = true
@@ -390,7 +386,7 @@ func mergePackageUpdate(existing Package, params PackageMutation) PackageMutatio
 	return params
 }
 
-func fillPackageDefaults(params PackageMutation, title SoftwareTitle) PackageMutation {
+func fillPackageDefaults(params PackageMutation, title softwaretitles.SoftwareTitle) PackageMutation {
 	if params.DisplayName == "" {
 		params.DisplayName = title.DisplayName
 	}
@@ -501,6 +497,11 @@ func packagesFromRecords(records []packageRecord) ([]Package, error) {
 		packages[i] = pkg
 	}
 	return packages, nil
+}
+
+// FromEffectiveRow maps the assignment-effective package query row into the package domain type.
+func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (Package, error) {
+	return packageFromRecord(packageRecordFromEffectiveSQLC(row))
 }
 
 func sqlcString[S ~string](value S) string {
@@ -1049,17 +1050,15 @@ LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 
 func replacePackageRelations(
 	ctx context.Context,
-	db sqlc.DBTX,
+	q *sqlc.Queries,
 	packageID int64,
 	kind sqlc.MunkiPackageRelationKind,
 	references []PackageReference,
 ) error {
-	if _, err := db.Exec(
-		ctx,
-		`DELETE FROM munki_package_relations WHERE package_id = $1 AND relation_kind = $2`,
-		packageID,
-		kind,
-	); err != nil {
+	if err := q.DeleteMunkiPackageRelationsByKind(ctx, sqlc.DeleteMunkiPackageRelationsByKindParams{
+		PackageID:    packageID,
+		RelationKind: kind,
+	}); err != nil {
 		return err
 	}
 	for position, ref := range references {
@@ -1067,22 +1066,13 @@ func replacePackageRelations(
 		if ref.PackageID != nil {
 			name = ""
 		}
-		if _, err := db.Exec(
-			ctx,
-			`INSERT INTO munki_package_relations (
-				package_id,
-				relation_kind,
-				target_package_id,
-				name,
-				position
-			)
-			VALUES ($1, $2, $3, $4, $5)`,
-			packageID,
-			kind,
-			ref.PackageID,
-			name,
-			position,
-		); err != nil {
+		if err := q.CreateMunkiPackageRelation(ctx, sqlc.CreateMunkiPackageRelationParams{
+			PackageID:       packageID,
+			RelationKind:    kind,
+			TargetPackageID: ref.PackageID,
+			Name:            name,
+			Position:        int32(position),
+		}); err != nil {
 			return err
 		}
 	}
@@ -1103,37 +1093,16 @@ type packageRelations struct {
 	updateFor []PackageReference
 }
 
-func (s *Store) attachPackageRelations(ctx context.Context, packages []Package) ([]Package, error) {
+// AttachRelations loads requires and update_for references for package rows.
+func (s *Store) AttachRelations(ctx context.Context, packages []Package) ([]Package, error) {
 	relations, err := s.packageRelationsByPackage(ctx, packageIDs(packages))
 	if err != nil {
 		return nil, err
 	}
 	for i := range packages {
 		rel := relations[packages[i].ID]
-		packages[i].Requires = nonNilPackageReferences(rel.requires)
-		packages[i].UpdateFor = nonNilPackageReferences(rel.updateFor)
-	}
-	return packages, nil
-}
-
-func (s *Store) attachEffectivePackageRelations(
-	ctx context.Context,
-	packages []EffectivePackage,
-) ([]EffectivePackage, error) {
-	ids := make([]int64, 0, len(packages))
-	for _, pkg := range packages {
-		if pkg.Package.ID > 0 {
-			ids = append(ids, pkg.Package.ID)
-		}
-	}
-	relations, err := s.packageRelationsByPackage(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	for i := range packages {
-		rel := relations[packages[i].Package.ID]
-		packages[i].Package.Requires = nonNilPackageReferences(rel.requires)
-		packages[i].Package.UpdateFor = nonNilPackageReferences(rel.updateFor)
+		packages[i].Requires = nonNilReferences(rel.requires)
+		packages[i].UpdateFor = nonNilReferences(rel.updateFor)
 	}
 	return packages, nil
 }
@@ -1201,7 +1170,7 @@ func packageIDs(packages []Package) []int64 {
 	return ids
 }
 
-func cleanPackageReferences(values []PackageReference) []PackageReference {
+func cleanReferences(values []PackageReference) []PackageReference {
 	out := make([]PackageReference, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
@@ -1226,7 +1195,7 @@ func cleanPackageReferences(values []PackageReference) []PackageReference {
 	return out
 }
 
-func nonNilPackageReferences(values []PackageReference) []PackageReference {
+func nonNilReferences(values []PackageReference) []PackageReference {
 	if values == nil {
 		return []PackageReference{}
 	}
@@ -1303,10 +1272,41 @@ func cleanItemsToCopy(values []PackageItemToCopy) []PackageItemToCopy {
 	return out
 }
 
-func cleanPackageAlert(alert PackageAlert) PackageAlert {
+func cleanAlert(alert PackageAlert) PackageAlert {
 	alert.Title = strings.TrimSpace(alert.Title)
 	alert.Detail = strings.TrimSpace(alert.Detail)
 	alert.OKLabel = strings.TrimSpace(alert.OKLabel)
 	alert.CancelLabel = strings.TrimSpace(alert.CancelLabel)
 	return alert
+}
+
+func mapMutationError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+
+func stringPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

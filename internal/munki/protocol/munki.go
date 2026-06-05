@@ -12,6 +12,8 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 const plistContentType = "application/x-plist"
@@ -26,7 +28,7 @@ type Repository interface {
 	ResolveClient(context.Context, string) (munki.ClientHost, error)
 	Manifest(context.Context, munki.ClientHost, string) ([]byte, error)
 	Catalog(context.Context, munki.ClientHost, string) ([]byte, error)
-	ArtifactRedirect(context.Context, munki.ClientHost, munki.ArtifactKind, string) (string, error)
+	ArtifactRedirect(context.Context, munki.ClientHost, artifacts.ArtifactKind, string) (string, error)
 }
 
 type handler struct {
@@ -72,14 +74,14 @@ func (h handler) catalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) packageArtifact(w http.ResponseWriter, r *http.Request) {
-	h.artifact(w, r, munki.ArtifactKindPackage)
+	h.artifact(w, r, artifacts.ArtifactKindPackage)
 }
 
 func (h handler) iconArtifact(w http.ResponseWriter, r *http.Request) {
-	h.artifact(w, r, munki.ArtifactKindIcon)
+	h.artifact(w, r, artifacts.ArtifactKindIcon)
 }
 
-func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind munki.ArtifactKind) {
+func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts.ArtifactKind) {
 	authorized, err := h.authorized(r)
 	if err != nil {
 		h.log(r, http.StatusInternalServerError, "artifact", err)
@@ -109,7 +111,7 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind munki.Art
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	if errors.Is(err, munki.ErrStorageUnavailable) {
+	if errors.Is(err, munkistorage.ErrUnavailable) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}

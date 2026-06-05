@@ -90,23 +90,6 @@ export type CertificateReference = {
     valid_until?: string;
 };
 
-export type Check = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    failing_host_count: number;
-    id: number;
-    name: string;
-    passing_host_count: number;
-    query: string;
-    targets: Array<TargetLabel> | null;
-    updated_at: string;
-};
-
 export type CheckHostStatus = {
     check_id: number;
     check_name: string;
@@ -114,17 +97,6 @@ export type CheckHostStatus = {
     host_name: string;
     response: 'pass' | 'fail';
     updated_at?: string;
-};
-
-export type CheckMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    description?: string;
-    name: string;
-    query: string;
-    targets: Array<TargetLabel> | null;
 };
 
 export type ConfigurationMatch = {
@@ -410,7 +382,7 @@ export type HostDetail = {
     hostname: string;
     id: number;
     labels: Array<Label> | null;
-    munki?: MunkiHostState;
+    munki?: MunkiState;
     network: HostNetwork;
     os: HostOs;
     santa?: SantaHostState;
@@ -433,14 +405,6 @@ export type HostHardware = {
     serial: string;
     uuid: string;
     vendor: string;
-};
-
-export type HostItem = {
-    installed: boolean;
-    installed_version: string;
-    last_seen_at: string;
-    name: string;
-    run_ended_at?: string;
 };
 
 export type HostNetwork = {
@@ -569,6 +533,14 @@ export type HostUserAffinityPutBody = {
      */
     readonly $schema?: string;
     email: string;
+};
+
+export type Item = {
+    installed: boolean;
+    installed_version: string;
+    last_seen_at: string;
+    name: string;
+    run_ended_at?: string;
 };
 
 export type Label = {
@@ -768,19 +740,6 @@ export type MunkiAssignmentReorderBody = {
     ordered_ids: Array<number> | null;
 };
 
-export type MunkiHostState = {
-    errors: Array<string> | null;
-    items: Array<HostItem> | null;
-    last_seen_at: string;
-    manifest_name: string;
-    problem_installs: Array<string> | null;
-    run_ended_at?: string;
-    run_started_at?: string;
-    success?: boolean;
-    version: string;
-    warnings: Array<string> | null;
-};
-
 export type MunkiPackage = {
     /**
      * A URL to the JSON Schema for this object.
@@ -799,6 +758,8 @@ export type MunkiPackage = {
     force_install_after_date?: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     installcheck_script: string;
@@ -829,6 +790,10 @@ export type MunkiPackage = {
     requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
+    software_icon_artifact_id?: number;
+    software_icon_artifact_location?: string;
+    software_icon_hash?: string;
+    software_icon_name?: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;
@@ -875,6 +840,8 @@ export type MunkiPackageMutation = {
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
@@ -927,6 +894,9 @@ export type MunkiSoftwareTitle = {
     developer: string;
     display_name: string;
     icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     name: string;
@@ -945,6 +915,9 @@ export type MunkiSoftwareTitleDetail = {
     developer: string;
     display_name: string;
     icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     name: string;
@@ -962,7 +935,80 @@ export type MunkiSoftwareTitleMutation = {
     developer?: string;
     display_name?: string;
     icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
     name: string;
+};
+
+export type MunkiState = {
+    errors: Array<string> | null;
+    items: Array<Item> | null;
+    last_seen_at: string;
+    manifest_name: string;
+    problem_installs: Array<string> | null;
+    run_ended_at?: string;
+    run_started_at?: string;
+    success?: boolean;
+    version: string;
+    warnings: Array<string> | null;
+};
+
+export type OsqueryCheck = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    created_at: string;
+    created_by_user_id?: number;
+    description: string;
+    failing_host_count: number;
+    id: number;
+    name: string;
+    passing_host_count: number;
+    query: string;
+    targets: Array<TargetLabel> | null;
+    updated_at: string;
+};
+
+export type OsqueryCheckMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    description?: string;
+    name: string;
+    query: string;
+    targets: Array<TargetLabel> | null;
+};
+
+export type OsqueryReport = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    created_at: string;
+    created_by_user_id?: number;
+    description: string;
+    id: number;
+    min_osquery_version?: string;
+    name: string;
+    query: string;
+    schedule_interval: number;
+    targets: Array<TargetLabel> | null;
+    updated_at: string;
+};
+
+export type OsqueryReportMutation = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    description?: string;
+    min_osquery_version?: string;
+    name: string;
+    query: string;
+    schedule_interval?: number;
+    targets: Array<TargetLabel> | null;
 };
 
 export type PackageAlert = {
@@ -1013,13 +1059,22 @@ export type PackageReference = {
     package_version?: string;
 };
 
+export type PageAssignment = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiAssignment> | null;
+};
+
 export type PageCheck = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Check> | null;
+    items: Array<OsqueryCheck> | null;
 };
 
 export type PageConfiguration = {
@@ -1094,15 +1149,6 @@ export type PageLabel = {
     items: Array<Label> | null;
 };
 
-export type PageMunkiAssignment = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<MunkiAssignment> | null;
-};
-
 export type PageMunkiPackage = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1127,7 +1173,7 @@ export type PageReport = {
      */
     readonly $schema?: string;
     count: number;
-    items: Array<Report> | null;
+    items: Array<OsqueryReport> | null;
 };
 
 export type PageRule = {
@@ -1191,36 +1237,6 @@ export type RemovableMediaPolicy = {
      * Mount flags required when action is remount.
      */
     remount_flags?: Array<string> | null;
-};
-
-export type Report = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    id: number;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval: number;
-    targets: Array<TargetLabel> | null;
-    updated_at: string;
-};
-
-export type ReportMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    description?: string;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval?: number;
-    targets: Array<TargetLabel> | null;
 };
 
 export type ReportResult = {
@@ -1535,26 +1551,6 @@ export type BulkIdsBodyWritable = {
     ids: Array<number> | null;
 };
 
-export type CheckWritable = {
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    failing_host_count: number;
-    id: number;
-    name: string;
-    passing_host_count: number;
-    query: string;
-    targets: Array<TargetLabel> | null;
-    updated_at: string;
-};
-
-export type CheckMutationWritable = {
-    description?: string;
-    name: string;
-    query: string;
-    targets: Array<TargetLabel> | null;
-};
-
 export type ConfigurationMutationWritable = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -1660,7 +1656,7 @@ export type HostDetailWritable = {
     hostname: string;
     id: number;
     labels: Array<LabelWritable> | null;
-    munki?: MunkiHostState;
+    munki?: MunkiState;
     network: HostNetwork;
     os: HostOs;
     santa?: SantaHostState;
@@ -1816,6 +1812,8 @@ export type MunkiPackageWritable = {
     force_install_after_date?: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     installcheck_script: string;
@@ -1846,6 +1844,10 @@ export type MunkiPackageWritable = {
     requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
+    software_icon_artifact_id?: number;
+    software_icon_artifact_location?: string;
+    software_icon_hash?: string;
+    software_icon_name?: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;
@@ -1884,6 +1886,8 @@ export type MunkiPackageMutationWritable = {
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
@@ -1932,6 +1936,9 @@ export type MunkiSoftwareTitleWritable = {
     developer: string;
     display_name: string;
     icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     name: string;
@@ -1946,6 +1953,9 @@ export type MunkiSoftwareTitleDetailWritable = {
     developer: string;
     display_name: string;
     icon_artifact_id?: number;
+    icon_artifact_location?: string;
+    icon_hash: string;
+    icon_name: string;
     icon_url?: string;
     id: number;
     name: string;
@@ -1959,12 +1969,61 @@ export type MunkiSoftwareTitleMutationWritable = {
     developer?: string;
     display_name?: string;
     icon_artifact_id?: number;
+    icon_hash?: string;
+    icon_name?: string;
     name: string;
+};
+
+export type OsqueryCheckWritable = {
+    created_at: string;
+    created_by_user_id?: number;
+    description: string;
+    failing_host_count: number;
+    id: number;
+    name: string;
+    passing_host_count: number;
+    query: string;
+    targets: Array<TargetLabel> | null;
+    updated_at: string;
+};
+
+export type OsqueryCheckMutationWritable = {
+    description?: string;
+    name: string;
+    query: string;
+    targets: Array<TargetLabel> | null;
+};
+
+export type OsqueryReportWritable = {
+    created_at: string;
+    created_by_user_id?: number;
+    description: string;
+    id: number;
+    min_osquery_version?: string;
+    name: string;
+    query: string;
+    schedule_interval: number;
+    targets: Array<TargetLabel> | null;
+    updated_at: string;
+};
+
+export type OsqueryReportMutationWritable = {
+    description?: string;
+    min_osquery_version?: string;
+    name: string;
+    query: string;
+    schedule_interval?: number;
+    targets: Array<TargetLabel> | null;
+};
+
+export type PageAssignmentWritable = {
+    count: number;
+    items: Array<MunkiAssignmentWritable> | null;
 };
 
 export type PageCheckWritable = {
     count: number;
-    items: Array<CheckWritable> | null;
+    items: Array<OsqueryCheckWritable> | null;
 };
 
 export type PageConfigurationWritable = {
@@ -2007,11 +2066,6 @@ export type PageLabelWritable = {
     items: Array<LabelWritable> | null;
 };
 
-export type PageMunkiAssignmentWritable = {
-    count: number;
-    items: Array<MunkiAssignmentWritable> | null;
-};
-
 export type PageMunkiPackageWritable = {
     count: number;
     items: Array<MunkiPackageWritable> | null;
@@ -2024,7 +2078,7 @@ export type PageMunkiSoftwareTitleWritable = {
 
 export type PageReportWritable = {
     count: number;
-    items: Array<ReportWritable> | null;
+    items: Array<OsqueryReportWritable> | null;
 };
 
 export type PageRuleWritable = {
@@ -2045,28 +2099,6 @@ export type PageSoftwareTitleWritable = {
 export type PageUserWritable = {
     count: number;
     items: Array<UserWritable> | null;
-};
-
-export type ReportWritable = {
-    created_at: string;
-    created_by_user_id?: number;
-    description: string;
-    id: number;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval: number;
-    targets: Array<TargetLabel> | null;
-    updated_at: string;
-};
-
-export type ReportMutationWritable = {
-    description?: string;
-    min_osquery_version?: string;
-    name: string;
-    query: string;
-    schedule_interval?: number;
-    targets: Array<TargetLabel> | null;
 };
 
 export type RuleMutationWritable = {
@@ -3718,7 +3750,7 @@ export type ListMunkiAssignmentsResponses = {
     /**
      * OK
      */
-    200: PageMunkiAssignment;
+    200: PageAssignment;
 };
 
 export type ListMunkiAssignmentsResponse = ListMunkiAssignmentsResponses[keyof ListMunkiAssignmentsResponses];
@@ -4368,7 +4400,7 @@ export type ListOsqueryChecksResponses = {
 export type ListOsqueryChecksResponse = ListOsqueryChecksResponses[keyof ListOsqueryChecksResponses];
 
 export type CreateOsqueryCheckData = {
-    body: CheckMutationWritable;
+    body: OsqueryCheckMutationWritable;
     path?: never;
     query?: never;
     url: '/api/osquery/checks';
@@ -4407,7 +4439,7 @@ export type CreateOsqueryCheckResponses = {
     /**
      * Created
      */
-    201: Check;
+    201: OsqueryCheck;
 };
 
 export type CreateOsqueryCheckResponse = CreateOsqueryCheckResponses[keyof CreateOsqueryCheckResponses];
@@ -4526,13 +4558,13 @@ export type GetOsqueryCheckResponses = {
     /**
      * OK
      */
-    200: Check;
+    200: OsqueryCheck;
 };
 
 export type GetOsqueryCheckResponse = GetOsqueryCheckResponses[keyof GetOsqueryCheckResponses];
 
 export type UpdateOsqueryCheckData = {
-    body: CheckMutationWritable;
+    body: OsqueryCheckMutationWritable;
     path: {
         id: number;
     };
@@ -4573,7 +4605,7 @@ export type UpdateOsqueryCheckResponses = {
     /**
      * OK
      */
-    200: Check;
+    200: OsqueryCheck;
 };
 
 export type UpdateOsqueryCheckResponse = UpdateOsqueryCheckResponses[keyof UpdateOsqueryCheckResponses];
@@ -4656,7 +4688,7 @@ export type ListOsqueryReportsResponses = {
 export type ListOsqueryReportsResponse = ListOsqueryReportsResponses[keyof ListOsqueryReportsResponses];
 
 export type CreateOsqueryReportData = {
-    body: ReportMutationWritable;
+    body: OsqueryReportMutationWritable;
     path?: never;
     query?: never;
     url: '/api/osquery/reports';
@@ -4695,7 +4727,7 @@ export type CreateOsqueryReportResponses = {
     /**
      * Created
      */
-    201: Report;
+    201: OsqueryReport;
 };
 
 export type CreateOsqueryReportResponse = CreateOsqueryReportResponses[keyof CreateOsqueryReportResponses];
@@ -4814,13 +4846,13 @@ export type GetOsqueryReportResponses = {
     /**
      * OK
      */
-    200: Report;
+    200: OsqueryReport;
 };
 
 export type GetOsqueryReportResponse = GetOsqueryReportResponses[keyof GetOsqueryReportResponses];
 
 export type UpdateOsqueryReportData = {
-    body: ReportMutationWritable;
+    body: OsqueryReportMutationWritable;
     path: {
         id: number;
     };
@@ -4861,7 +4893,7 @@ export type UpdateOsqueryReportResponses = {
     /**
      * OK
      */
-    200: Report;
+    200: OsqueryReport;
 };
 
 export type UpdateOsqueryReportResponse = UpdateOsqueryReportResponses[keyof UpdateOsqueryReportResponses];

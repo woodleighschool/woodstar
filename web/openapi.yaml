@@ -211,57 +211,6 @@ components:
         - organizational_unit
         - rule_count
       type: object
-    Check:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Check.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        created_by_user_id:
-          format: int64
-          type: integer
-        description:
-          type: string
-        failing_host_count:
-          format: int32
-          type: integer
-        id:
-          format: int64
-          type: integer
-        name:
-          type: string
-        passing_host_count:
-          format: int32
-          type: integer
-        query:
-          type: string
-        targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - name
-        - description
-        - query
-        - targets
-        - passing_host_count
-        - failing_host_count
-        - created_at
-        - updated_at
-      type: object
     CheckHostStatus:
       additionalProperties: false
       properties:
@@ -289,33 +238,6 @@ components:
         - host_id
         - host_name
         - response
-      type: object
-    CheckMutation:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/CheckMutation.json
-          format: uri
-          readOnly: true
-          type: string
-        description:
-          type: string
-        name:
-          type: string
-        query:
-          type: string
-        targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
-      required:
-        - name
-        - query
-        - targets
       type: object
     ConfigurationMatch:
       additionalProperties: false
@@ -1074,7 +996,7 @@ components:
             - array
             - "null"
         munki:
-          $ref: "#/components/schemas/MunkiHostState"
+          $ref: "#/components/schemas/MunkiState"
         network:
           $ref: "#/components/schemas/HostNetwork"
         os:
@@ -1148,26 +1070,6 @@ components:
         - model_identifier
         - memory_bytes
         - cpu
-      type: object
-    HostItem:
-      additionalProperties: false
-      properties:
-        installed:
-          type: boolean
-        installed_version:
-          type: string
-        last_seen_at:
-          format: date-time
-          type: string
-        name:
-          type: string
-        run_ended_at:
-          type: string
-      required:
-        - name
-        - installed
-        - installed_version
-        - last_seen_at
       type: object
     HostNetwork:
       additionalProperties: false
@@ -1515,6 +1417,26 @@ components:
           type: string
       required:
         - email
+      type: object
+    Item:
+      additionalProperties: false
+      properties:
+        installed:
+          type: boolean
+        installed_version:
+          type: string
+        last_seen_at:
+          format: date-time
+          type: string
+        name:
+          type: string
+        run_ended_at:
+          type: string
+      required:
+        - name
+        - installed
+        - installed_version
+        - last_seen_at
       type: object
     Label:
       additionalProperties: false
@@ -2033,55 +1955,6 @@ components:
       required:
         - ordered_ids
       type: object
-    MunkiHostState:
-      additionalProperties: false
-      properties:
-        errors:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-        items:
-          items:
-            $ref: "#/components/schemas/HostItem"
-          type:
-            - array
-            - "null"
-        last_seen_at:
-          format: date-time
-          type: string
-        manifest_name:
-          type: string
-        problem_installs:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-        run_ended_at:
-          type: string
-        run_started_at:
-          type: string
-        success:
-          type: boolean
-        version:
-          type: string
-        warnings:
-          items:
-            type: string
-          type:
-            - array
-            - "null"
-      required:
-        - version
-        - manifest_name
-        - errors
-        - warnings
-        - problem_installs
-        - last_seen_at
-        - items
-      type: object
     MunkiPackage:
       additionalProperties: false
       properties:
@@ -2124,6 +1997,10 @@ components:
           format: int64
           type: integer
         icon_artifact_location:
+          type: string
+        icon_hash:
+          type: string
+        icon_name:
           type: string
         icon_url:
           type: string
@@ -2221,6 +2098,15 @@ components:
             - RequireShutdown
           type: string
         software_display_name:
+          type: string
+        software_icon_artifact_id:
+          format: int64
+          type: integer
+        software_icon_artifact_location:
+          type: string
+        software_icon_hash:
+          type: string
+        software_icon_name:
           type: string
         software_id:
           format: int64
@@ -2322,6 +2208,8 @@ components:
         - version_script
         - preinstall_alert
         - preuninstall_alert
+        - icon_name
+        - icon_hash
         - eligible
         - created_at
         - updated_at
@@ -2389,6 +2277,10 @@ components:
         icon_artifact_id:
           format: int64
           type: integer
+        icon_hash:
+          type: string
+        icon_name:
+          type: string
         installcheck_script:
           type: string
         installed_size:
@@ -2552,6 +2444,12 @@ components:
         icon_artifact_id:
           format: int64
           type: integer
+        icon_artifact_location:
+          type: string
+        icon_hash:
+          type: string
+        icon_name:
+          type: string
         icon_url:
           type: string
         id:
@@ -2569,6 +2467,8 @@ components:
         - description
         - category
         - developer
+        - icon_name
+        - icon_hash
         - created_at
         - updated_at
       type: object
@@ -2602,6 +2502,12 @@ components:
         icon_artifact_id:
           format: int64
           type: integer
+        icon_artifact_location:
+          type: string
+        icon_hash:
+          type: string
+        icon_name:
+          type: string
         icon_url:
           type: string
         id:
@@ -2619,14 +2525,16 @@ components:
           format: date-time
           type: string
       required:
+        - packages
+        - assignments
         - id
         - name
         - display_name
         - description
         - category
         - developer
-        - packages
-        - assignments
+        - icon_name
+        - icon_hash
         - created_at
         - updated_at
       type: object
@@ -2651,10 +2559,222 @@ components:
         icon_artifact_id:
           format: int64
           type: integer
+        icon_hash:
+          type: string
+        icon_name:
+          type: string
         name:
           type: string
       required:
         - name
+      type: object
+    MunkiState:
+      additionalProperties: false
+      properties:
+        errors:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        items:
+          items:
+            $ref: "#/components/schemas/Item"
+          type:
+            - array
+            - "null"
+        last_seen_at:
+          format: date-time
+          type: string
+        manifest_name:
+          type: string
+        problem_installs:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        run_ended_at:
+          type: string
+        run_started_at:
+          type: string
+        success:
+          type: boolean
+        version:
+          type: string
+        warnings:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+      required:
+        - version
+        - manifest_name
+        - errors
+        - warnings
+        - problem_installs
+        - last_seen_at
+        - items
+      type: object
+    OsqueryCheck:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/OsqueryCheck.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        created_by_user_id:
+          format: int64
+          type: integer
+        description:
+          type: string
+        failing_host_count:
+          format: int32
+          type: integer
+        id:
+          format: int64
+          type: integer
+        name:
+          type: string
+        passing_host_count:
+          format: int32
+          type: integer
+        query:
+          type: string
+        targets:
+          items:
+            $ref: "#/components/schemas/TargetLabel"
+          type:
+            - array
+            - "null"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - query
+        - targets
+        - passing_host_count
+        - failing_host_count
+        - created_at
+        - updated_at
+      type: object
+    OsqueryCheckMutation:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/OsqueryCheckMutation.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          type: string
+        name:
+          type: string
+        query:
+          type: string
+        targets:
+          items:
+            $ref: "#/components/schemas/TargetLabel"
+          type:
+            - array
+            - "null"
+      required:
+        - name
+        - query
+        - targets
+      type: object
+    OsqueryReport:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/OsqueryReport.json
+          format: uri
+          readOnly: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        created_by_user_id:
+          format: int64
+          type: integer
+        description:
+          type: string
+        id:
+          format: int64
+          type: integer
+        min_osquery_version:
+          type: string
+        name:
+          type: string
+        query:
+          type: string
+        schedule_interval:
+          format: int32
+          type: integer
+        targets:
+          items:
+            $ref: "#/components/schemas/TargetLabel"
+          type:
+            - array
+            - "null"
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - query
+        - schedule_interval
+        - targets
+        - created_at
+        - updated_at
+      type: object
+    OsqueryReportMutation:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/OsqueryReportMutation.json
+          format: uri
+          readOnly: true
+          type: string
+        description:
+          type: string
+        min_osquery_version:
+          type: string
+        name:
+          type: string
+        query:
+          type: string
+        schedule_interval:
+          format: int32
+          type: integer
+        targets:
+          items:
+            $ref: "#/components/schemas/TargetLabel"
+          type:
+            - array
+            - "null"
+      required:
+        - name
+        - query
+        - targets
       type: object
     PackageAlert:
       additionalProperties: false
@@ -2759,6 +2879,29 @@ components:
         package_version:
           type: string
       type: object
+    PageAssignment:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PageAssignment.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiAssignment"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     PageCheck:
       additionalProperties: false
       properties:
@@ -2774,7 +2917,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Check"
+            $ref: "#/components/schemas/OsqueryCheck"
           type:
             - array
             - "null"
@@ -2966,29 +3109,6 @@ components:
         - items
         - count
       type: object
-    PageMunkiAssignment:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/PageMunkiAssignment.json
-          format: uri
-          readOnly: true
-          type: string
-        count:
-          format: int64
-          type: integer
-        items:
-          items:
-            $ref: "#/components/schemas/MunkiAssignment"
-          type:
-            - array
-            - "null"
-      required:
-        - items
-        - count
-      type: object
     PageMunkiPackage:
       additionalProperties: false
       properties:
@@ -3050,7 +3170,7 @@ components:
           type: integer
         items:
           items:
-            $ref: "#/components/schemas/Report"
+            $ref: "#/components/schemas/OsqueryReport"
           type:
             - array
             - "null"
@@ -3219,87 +3339,6 @@ components:
           type:
             - array
             - "null"
-      type: object
-    Report:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/Report.json
-          format: uri
-          readOnly: true
-          type: string
-        created_at:
-          format: date-time
-          type: string
-        created_by_user_id:
-          format: int64
-          type: integer
-        description:
-          type: string
-        id:
-          format: int64
-          type: integer
-        min_osquery_version:
-          type: string
-        name:
-          type: string
-        query:
-          type: string
-        schedule_interval:
-          format: int32
-          type: integer
-        targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
-        updated_at:
-          format: date-time
-          type: string
-      required:
-        - id
-        - name
-        - description
-        - query
-        - schedule_interval
-        - targets
-        - created_at
-        - updated_at
-      type: object
-    ReportMutation:
-      additionalProperties: false
-      properties:
-        $schema:
-          description: A URL to the JSON Schema for this object.
-          examples:
-            - https://example.com/api/schemas/ReportMutation.json
-          format: uri
-          readOnly: true
-          type: string
-        description:
-          type: string
-        min_osquery_version:
-          type: string
-        name:
-          type: string
-        query:
-          type: string
-        schedule_interval:
-          format: int32
-          type: integer
-        targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
-      required:
-        - name
-        - query
-        - targets
       type: object
     ReportResult:
       additionalProperties: false
@@ -6036,7 +6075,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PageMunkiAssignment"
+                $ref: "#/components/schemas/PageAssignment"
           description: OK
         "401":
           content:
@@ -6910,14 +6949,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckMutation"
+              $ref: "#/components/schemas/OsqueryCheckMutation"
         required: true
       responses:
         "201":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Check"
+                $ref: "#/components/schemas/OsqueryCheck"
           description: Created
         "400":
           content:
@@ -7057,7 +7096,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Check"
+                $ref: "#/components/schemas/OsqueryCheck"
           description: OK
         "401":
           content:
@@ -7099,14 +7138,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckMutation"
+              $ref: "#/components/schemas/OsqueryCheckMutation"
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Check"
+                $ref: "#/components/schemas/OsqueryCheck"
           description: OK
         "400":
           content:
@@ -7260,14 +7299,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportMutation"
+              $ref: "#/components/schemas/OsqueryReportMutation"
         required: true
       responses:
         "201":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Report"
+                $ref: "#/components/schemas/OsqueryReport"
           description: Created
         "400":
           content:
@@ -7407,7 +7446,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Report"
+                $ref: "#/components/schemas/OsqueryReport"
           description: OK
         "401":
           content:
@@ -7449,14 +7488,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReportMutation"
+              $ref: "#/components/schemas/OsqueryReportMutation"
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Report"
+                $ref: "#/components/schemas/OsqueryReport"
           description: OK
         "400":
           content:

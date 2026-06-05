@@ -1,18 +1,30 @@
-package munki
+package artifacts
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func (s *Store) CreateArtifact(ctx context.Context, params ArtifactMutation) (*Artifact, error) {
-	params = cleanArtifactMutation(params)
+type Store struct {
+	db *database.DB
+	q  *sqlc.Queries
+}
+
+func NewStore(db *database.DB) *Store {
+	return &Store{db: db, q: db.Queries()}
+}
+
+func (s *Store) Create(ctx context.Context, params ArtifactMutation) (*Artifact, error) {
+	params = cleanMutation(params)
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -26,13 +38,13 @@ func (s *Store) CreateArtifact(ctx context.Context, params ArtifactMutation) (*A
 		StorageKey:  params.StorageKey,
 	})
 	if err != nil {
-		return nil, mapDesiredMutationError(err)
+		return nil, mapMutationError(err)
 	}
 	artifact := artifactFromSQLC(row)
 	return &artifact, nil
 }
 
-func (s *Store) ListArtifacts(ctx context.Context, params dbutil.ListParams) ([]Artifact, int, error) {
+func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Artifact, int, error) {
 	params = dbutil.CleanListParams(params)
 	count, err := s.q.CountMunkiArtifacts(ctx)
 	if err != nil {
@@ -52,7 +64,7 @@ func (s *Store) ListArtifacts(ctx context.Context, params dbutil.ListParams) ([]
 	return artifacts, int(count), nil
 }
 
-func (s *Store) GetArtifact(ctx context.Context, id int64) (*Artifact, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Artifact, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
@@ -67,8 +79,8 @@ func (s *Store) GetArtifact(ctx context.Context, id int64) (*Artifact, error) {
 	return &artifact, nil
 }
 
-func (s *Store) GetArtifactByLocation(ctx context.Context, kind ArtifactKind, location string) (*Artifact, error) {
-	if !validArtifactKind(kind) || !validArtifactLocation(location) {
+func (s *Store) GetByLocation(ctx context.Context, kind ArtifactKind, location string) (*Artifact, error) {
+	if !ValidArtifactKind(kind) || !ValidArtifactLocation(location) {
 		return nil, dbutil.ErrNotFound
 	}
 	row, err := s.q.GetMunkiArtifactByKindAndLocation(ctx, sqlc.GetMunkiArtifactByKindAndLocationParams{
@@ -85,7 +97,7 @@ func (s *Store) GetArtifactByLocation(ctx context.Context, kind ArtifactKind, lo
 	return &artifact, nil
 }
 
-func cleanArtifactMutation(params ArtifactMutation) ArtifactMutation {
+func cleanMutation(params ArtifactMutation) ArtifactMutation {
 	params.DisplayName = strings.TrimSpace(params.DisplayName)
 	params.Location = strings.TrimSpace(params.Location)
 	if params.DisplayName == "" {
@@ -110,4 +122,21 @@ func artifactFromSQLC(row sqlc.MunkiArtifact) Artifact {
 		CreatedAt:   row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
 	}
+}
+
+func mapMutationError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation:
+		return dbutil.ErrNotFound
+	case pgerrcode.UniqueViolation:
+		return dbutil.ErrAlreadyExists
+	case pgerrcode.InvalidTextRepresentation,
+		pgerrcode.NotNullViolation,
+		pgerrcode.CheckViolation:
+		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
+	}
+	return err
 }

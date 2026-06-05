@@ -492,6 +492,27 @@ LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = @id;
 
+-- name: DeleteMunkiPackageRelationsByKind :exec
+DELETE FROM munki_package_relations
+WHERE package_id = @package_id
+  AND relation_kind = @relation_kind::munki_package_relation_kind;
+
+-- name: CreateMunkiPackageRelation :exec
+INSERT INTO munki_package_relations (
+    package_id,
+    relation_kind,
+    target_package_id,
+    name,
+    position
+)
+VALUES (
+    @package_id,
+    @relation_kind::munki_package_relation_kind,
+    sqlc.narg(target_package_id)::bigint,
+    @name,
+    @position::integer
+);
+
 -- name: CreateMunkiAssignment :one
 INSERT INTO munki_assignments (
     software_id,

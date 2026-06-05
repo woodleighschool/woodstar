@@ -14,8 +14,8 @@ const (
 )
 
 // WoodstarSchemaNamer keeps OpenAPI component names stable when different
-// Woodstar modules use the same local Go type names, such as munki.HostState
-// and santa.HostState.
+// Woodstar modules use the same local Go type names, such as Munki's State and
+// Santa's HostState.
 func WoodstarSchemaNamer(t reflect.Type, hint string) string {
 	t = derefSchemaType(t)
 	name := huma.DefaultSchemaNamer(t, hint)
@@ -51,7 +51,16 @@ func isPackageOrSubpackage(path, prefix string) bool {
 
 func prefixIfAmbiguous(prefix, name string) string {
 	switch name {
-	case "Configuration", "Event", "HostState", "Rule", "State", "Status":
+	case "Artifact", "ArtifactMutation",
+		"Assignment", "AssignmentMutation",
+		"Check", "CheckMutation",
+		"Configuration", "Event",
+		"HostState",
+		"Package", "PackageImportMutation", "PackageMutation",
+		"Report", "ReportMutation",
+		"Rule",
+		"SoftwareTitle", "SoftwareTitleMutation",
+		"State", "Status":
 		return prefix + name
 	default:
 		return name

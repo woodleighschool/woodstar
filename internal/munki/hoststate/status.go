@@ -1,13 +1,13 @@
-package munki
+package hoststate
 
 import "strings"
 
-func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostStatusObservation, bool) {
+func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (Observation, bool) {
 	if len(rows) == 0 {
-		return HostStatusObservation{}, false
+		return Observation{}, false
 	}
 	row := rows[0]
-	return HostStatusObservation{
+	return Observation{
 		HostID:          hostID,
 		Version:         row["version"],
 		ManifestName:    row["manifest_name"],
@@ -20,14 +20,14 @@ func HostStatusFromInfoRows(hostID int64, rows []map[string]string) (HostStatusO
 	}, true
 }
 
-func HostItemsFromInstallRows(hostID int64, rows []map[string]string) []HostItem {
-	items := make([]HostItem, 0, len(rows))
+func ItemsFromInstallRows(hostID int64, rows []map[string]string) []Item {
+	items := make([]Item, 0, len(rows))
 	for _, row := range rows {
 		name := row["name"]
 		if name == "" {
 			continue
 		}
-		items = append(items, HostItem{
+		items = append(items, Item{
 			HostID:           hostID,
 			Name:             name,
 			Installed:        parseBool(row["installed"]),

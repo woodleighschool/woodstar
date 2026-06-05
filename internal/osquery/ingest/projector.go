@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/software"
 )
@@ -27,9 +27,9 @@ type softwareStore interface {
 }
 
 type munkiStore interface {
-	UpsertHostStatus(context.Context, munki.HostStatusObservation) error
+	UpsertHostStatus(context.Context, hoststate.Observation) error
 	ClearHostStatus(context.Context, int64) error
-	ReplaceHostItems(context.Context, int64, []munki.HostItem) error
+	ReplaceHostItems(context.Context, int64, []hoststate.Item) error
 }
 
 type Projector struct {
@@ -196,7 +196,7 @@ func ingestMunkiInfo(ctx context.Context, projector *Projector, hostID int64, ro
 	if projector.munkiStore == nil {
 		return nil
 	}
-	status, ok := munki.HostStatusFromInfoRows(hostID, rows)
+	status, ok := hoststate.HostStatusFromInfoRows(hostID, rows)
 	if !ok {
 		return projector.munkiStore.ClearHostStatus(ctx, hostID)
 	}
@@ -207,7 +207,7 @@ func ingestMunkiInstalls(ctx context.Context, projector *Projector, hostID int64
 	if projector.munkiStore == nil {
 		return nil
 	}
-	return projector.munkiStore.ReplaceHostItems(ctx, hostID, munki.HostItemsFromInstallRows(hostID, rows))
+	return projector.munkiStore.ReplaceHostItems(ctx, hostID, hoststate.ItemsFromInstallRows(hostID, rows))
 }
 
 func parseHostUsers(rows []map[string]string) []hosts.HostUser {

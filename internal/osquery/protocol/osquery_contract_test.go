@@ -18,7 +18,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -209,7 +209,7 @@ type osqueryContractStores struct {
 	reports      *reports.Store
 	checks       *checks.Store
 	live         *livequery.Manager
-	munki        *munki.Store
+	munki        *hoststate.Store
 	software     *software.Store
 }
 
@@ -221,7 +221,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		reports:      reports.NewStore(database),
 		checks:       checks.NewStore(database),
 		live:         livequery.NewManager(),
-		munki:        munki.NewStore(database),
+		munki:        hoststate.NewStore(database),
 		software:     software.NewStore(database),
 	}
 }
@@ -458,7 +458,7 @@ func assertProjectedHostDetails(t *testing.T, host *hosts.Host) {
 	}
 }
 
-func assertProjectedMunki(t *testing.T, ctx context.Context, store *munki.Store, hostID int64) {
+func assertProjectedMunki(t *testing.T, ctx context.Context, store *hoststate.Store, hostID int64) {
 	t.Helper()
 	state, err := store.LoadHostState(ctx, hostID)
 	if err != nil {

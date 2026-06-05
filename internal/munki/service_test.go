@@ -7,32 +7,35 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/assignments"
+	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
 func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 	artifactID := int64(42)
 	store := serviceArtifactStore{
-		artifacts: map[string]munki.Artifact{
+		artifacts: map[string]artifacts.Artifact{
 			"package/apps/GoogleChrome.pkg": {
 				ID:         artifactID,
-				Kind:       munki.ArtifactKindPackage,
+				Kind:       artifacts.ArtifactKindPackage,
 				Location:   "apps/GoogleChrome.pkg",
 				StorageKey: "apps/GoogleChrome.pkg",
 			},
 			"package/apps/Blocked.pkg": {
 				ID:         43,
-				Kind:       munki.ArtifactKindPackage,
+				Kind:       artifacts.ArtifactKindPackage,
 				Location:   "apps/Blocked.pkg",
 				StorageKey: "apps/Blocked.pkg",
 			},
 		},
-		packages: []munki.EffectivePackage{
+		packages: []assignments.EffectivePackage{
 			{
 				AssignmentID:     1,
 				SoftwareID:       1,
-				Action:           munki.AssignmentActionInstall,
-				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
+				Action:           assignments.AssignmentActionInstall,
+				PackageSelection: assignments.PackageSelectionLatestEligible,
+				Package: packages.Package{
 					ID:                        10,
 					Name:                      "GoogleChrome",
 					InstallerArtifactID:       &artifactID,
@@ -47,7 +50,7 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 	location, err := service.ArtifactRedirect(
 		context.Background(),
 		munki.ClientHost{ID: 1, Serial: "C02MUNKI"},
-		munki.ArtifactKindPackage,
+		artifacts.ArtifactKindPackage,
 		"apps/GoogleChrome.pkg",
 	)
 	if err != nil {
@@ -60,7 +63,7 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 	_, err = service.ArtifactRedirect(
 		context.Background(),
 		munki.ClientHost{ID: 1, Serial: "C02MUNKI"},
-		munki.ArtifactKindPackage,
+		artifacts.ArtifactKindPackage,
 		"apps/Blocked.pkg",
 	)
 	if !errors.Is(err, munki.ErrNotFound) {
@@ -69,15 +72,15 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 }
 
 type serviceArtifactStore struct {
-	artifacts map[string]munki.Artifact
-	packages  []munki.EffectivePackage
+	artifacts map[string]artifacts.Artifact
+	packages  []assignments.EffectivePackage
 }
 
-func (s serviceArtifactStore) GetArtifactByLocation(
+func (s serviceArtifactStore) GetByLocation(
 	_ context.Context,
-	kind munki.ArtifactKind,
+	kind artifacts.ArtifactKind,
 	location string,
-) (*munki.Artifact, error) {
+) (*artifacts.Artifact, error) {
 	artifact, ok := s.artifacts[string(kind)+"/"+location]
 	if !ok {
 		return nil, dbutil.ErrNotFound
@@ -88,7 +91,7 @@ func (s serviceArtifactStore) GetArtifactByLocation(
 func (s serviceArtifactStore) EffectivePackagesForHost(
 	_ context.Context,
 	hostID int64,
-) ([]munki.EffectivePackage, error) {
+) ([]assignments.EffectivePackage, error) {
 	if hostID != 1 {
 		return nil, nil
 	}
@@ -99,15 +102,15 @@ type serviceArtifactPresigner struct {
 	url string
 }
 
-func (p serviceArtifactPresigner) PresignGet(_ context.Context, _ munki.Artifact) (string, error) {
+func (p serviceArtifactPresigner) PresignGet(_ context.Context, _ artifacts.Artifact) (string, error) {
 	return p.url, nil
 }
 
 var _ interface {
-	GetArtifactByLocation(context.Context, munki.ArtifactKind, string) (*munki.Artifact, error)
-	EffectivePackagesForHost(context.Context, int64) ([]munki.EffectivePackage, error)
+	GetByLocation(context.Context, artifacts.ArtifactKind, string) (*artifacts.Artifact, error)
+	EffectivePackagesForHost(context.Context, int64) ([]assignments.EffectivePackage, error)
 } = serviceArtifactStore{}
 
 var _ interface {
-	PresignGet(context.Context, munki.Artifact) (string, error)
+	PresignGet(context.Context, artifacts.Artifact) (string, error)
 } = serviceArtifactPresigner{}
