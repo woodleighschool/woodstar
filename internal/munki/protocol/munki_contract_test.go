@@ -84,7 +84,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
+func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 	artifactID := int64(42)
 	service := munki.NewService(
 		nil,
@@ -104,7 +104,6 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 				},
 			},
 		}},
-		munki.WithPublicURL("https://woodstar.example"),
 	)
 
 	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")
@@ -122,8 +121,8 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 	if got := decoded[0]["installer_item_location"]; got != "apps/GoogleChrome.pkg" {
 		t.Fatalf("installer_item_location = %q, want artifact location", got)
 	}
-	if got := decoded[0]["PackageCompleteURL"]; got != "https://woodstar.example/munki/pkgs/apps/GoogleChrome.pkg" {
-		t.Fatalf("PackageCompleteURL = %q", got)
+	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
+		t.Fatalf("PackageCompleteURL should not override the client's SoftwareRepoURL: %+v", decoded[0])
 	}
 	if _, ok := decoded[0]["PackageURL"]; ok {
 		t.Fatalf("PackageURL was rendered from stored pkginfo: %+v", decoded[0])
@@ -142,7 +141,6 @@ func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 				Package:          staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
-		munki.WithPublicURL("https://woodstar.example"),
 	)
 
 	body, err := service.Catalog(context.Background(), munki.ClientHost{ID: 1, Serial: "C02MUNKI"}, "production")

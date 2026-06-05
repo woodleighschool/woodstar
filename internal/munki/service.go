@@ -3,7 +3,6 @@ package munki
 import (
 	"context"
 	"errors"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -49,7 +48,6 @@ type Service struct {
 	packages  packageResolver
 	artifacts artifactResolver
 	presigner artifactPresigner
-	publicURL string
 }
 
 // ServiceOption changes optional Munki repository behavior.
@@ -66,13 +64,6 @@ func WithArtifactStore(artifacts artifactResolver) ServiceOption {
 func WithArtifactPresigner(presigner artifactPresigner) ServiceOption {
 	return func(s *Service) {
 		s.presigner = presigner
-	}
-}
-
-// WithPublicURL sets the absolute base URL used in rendered Munki metadata.
-func WithPublicURL(publicURL string) ServiceOption {
-	return func(s *Service) {
-		s.publicURL = strings.TrimRight(strings.TrimSpace(publicURL), "/")
 	}
 }
 
@@ -277,10 +268,6 @@ func (s *Service) catalogItems(effective []assignments.EffectivePackage) ([]map[
 		if pkg.Package.InstallerArtifactID != nil {
 			if pkg.Package.InstallerArtifactLocation != "" {
 				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation
-				item["PackageCompleteURL"] = s.artifactURL(
-					artifacts.ArtifactKindPackage,
-					pkg.Package.InstallerArtifactLocation,
-				)
 			}
 		}
 		items = append(items, item)
@@ -311,30 +298,6 @@ func validResourcePath(location string) bool {
 		}
 	}
 	return true
-}
-
-func (s *Service) artifactURL(kind artifacts.ArtifactKind, location string) string {
-	path := artifactPath(kind, location)
-	if s.publicURL == "" {
-		return path
-	}
-	return s.publicURL + path
-}
-
-func artifactPath(kind artifacts.ArtifactKind, location string) string {
-	prefix := "/munki/pkgs/"
-	if kind == artifacts.ArtifactKindIcon {
-		prefix = "/munki/icons/"
-	}
-	return prefix + escapePath(location)
-}
-
-func escapePath(location string) string {
-	segments := strings.Split(location, "/")
-	for i, segment := range segments {
-		segments[i] = url.PathEscape(segment)
-	}
-	return strings.Join(segments, "/")
 }
 
 func encodePlist(value any) ([]byte, error) {

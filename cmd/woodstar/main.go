@@ -391,7 +391,6 @@ func newMunki(
 	options := []munki.ServiceOption{
 		munki.WithArtifactStore(artifactStore),
 		munki.WithArtifactPresigner(storage),
-		munki.WithPublicURL(cfg.PublicURL),
 	}
 
 	return munki.NewService(hosts, assignmentStore, options...), storage
