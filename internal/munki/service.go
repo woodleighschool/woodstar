@@ -2,9 +2,7 @@ package munki
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -308,10 +306,7 @@ func (s *Service) catalogItems(packages []EffectivePackage) ([]map[string]any, e
 			continue
 		}
 		seen[pkg.Package.ID] = true
-		var item map[string]any
-		if err := json.Unmarshal(pkg.Package.Pkginfo, &item); err != nil {
-			return nil, fmt.Errorf("render munki pkginfo %d: %w", pkg.Package.ID, err)
-		}
+		item := packagePkginfo(pkg.Package)
 		delete(item, "PackageCompleteURL")
 		delete(item, "PackageURL")
 		delete(item, "installer_item_location")

@@ -2,6 +2,7 @@ package munki
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -14,51 +15,41 @@ import (
 )
 
 func (s *Store) CreatePackage(ctx context.Context, params PackageMutation) (*Package, error) {
-	params = cleanPackageMutation(params)
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	params, fields, err := s.preparePackageMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	params = fillPackageDefaults(params, *title)
-	params, err = s.normalizePackageArtifacts(ctx, params)
+	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	row, err := s.q.CreateMunkiPackage(ctx, sqlc.CreateMunkiPackageParams{
-		SoftwareID:             params.SoftwareID,
-		Name:                   params.Name,
-		Version:                params.Version,
-		DisplayName:            params.DisplayName,
-		Description:            params.Description,
-		Category:               params.Category,
-		Developer:              params.Developer,
-		InstallerType:          sqlcString(params.InstallerType),
-		UninstallMethod:        params.UninstallMethod,
-		RestartAction:          sqlcString(params.RestartAction),
-		MinimumMunkiVersion:    params.MinimumMunkiVersion,
-		MinimumOSVersion:       params.MinimumOSVersion,
-		MaximumOSVersion:       params.MaximumOSVersion,
-		SupportedArchitectures: params.SupportedArchitectures,
-		BlockingApplications:   params.BlockingApplications,
-		Requires:               params.Requires,
-		UpdateFor:              params.UpdateFor,
-		UnattendedInstall:      params.UnattendedInstall,
-		UnattendedUninstall:    params.UnattendedUninstall,
-		Uninstallable:          params.Uninstallable,
-		OnDemand:               params.OnDemand,
-		Precache:               params.Precache,
-		IconName:               params.IconName,
-		IconHash:               params.IconHash,
-		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
-		InstallerArtifactID:    params.InstallerArtifactID,
-		IconArtifactID:         params.IconArtifactID,
-		Eligible:               params.Eligible,
-	})
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := s.q.WithTx(tx)
+	row, err := qtx.CreateMunkiPackage(ctx, createMunkiPackageParams(params, fields))
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
+	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindRequires,
+		params.Requires,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindUpdateFor,
+		params.UpdateFor,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return s.GetPackage(ctx, row.ID)
 }
@@ -72,104 +63,84 @@ func (s *Store) UpdatePackage(ctx context.Context, id int64, params PackageMutat
 		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
 	}
 	params = mergePackageUpdate(*existing, params)
-	params = cleanPackageMutation(params)
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	params, fields, err := s.preparePackageMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	params = fillPackageDefaults(params, *title)
-	params, err = s.normalizePackageArtifacts(ctx, params)
+	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	row, err := s.q.UpdateMunkiPackage(ctx, sqlc.UpdateMunkiPackageParams{
-		ID:                     id,
-		Name:                   params.Name,
-		Version:                params.Version,
-		DisplayName:            params.DisplayName,
-		Description:            params.Description,
-		Category:               params.Category,
-		Developer:              params.Developer,
-		InstallerType:          sqlcString(params.InstallerType),
-		UninstallMethod:        params.UninstallMethod,
-		RestartAction:          sqlcString(params.RestartAction),
-		MinimumMunkiVersion:    params.MinimumMunkiVersion,
-		MinimumOSVersion:       params.MinimumOSVersion,
-		MaximumOSVersion:       params.MaximumOSVersion,
-		SupportedArchitectures: params.SupportedArchitectures,
-		BlockingApplications:   params.BlockingApplications,
-		Requires:               params.Requires,
-		UpdateFor:              params.UpdateFor,
-		UnattendedInstall:      params.UnattendedInstall,
-		UnattendedUninstall:    params.UnattendedUninstall,
-		Uninstallable:          params.Uninstallable,
-		OnDemand:               params.OnDemand,
-		Precache:               params.Precache,
-		IconName:               params.IconName,
-		IconHash:               params.IconHash,
-		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
-		InstallerArtifactID:    params.InstallerArtifactID,
-		IconArtifactID:         params.IconArtifactID,
-		Eligible:               params.Eligible,
-	})
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := s.q.WithTx(tx)
+	row, err := qtx.UpdateMunkiPackage(ctx, updateMunkiPackageParams(id, params, fields))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
 	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindRequires,
+		params.Requires,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindUpdateFor,
+		params.UpdateFor,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return s.GetPackage(ctx, row.ID)
 }
 
 func (s *Store) UpsertPackage(ctx context.Context, params PackageMutation) (*Package, error) {
-	params = cleanPackageMutation(params)
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	params, fields, err := s.preparePackageMutation(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	params = fillPackageDefaults(params, *title)
-	params, err = s.normalizePackageArtifacts(ctx, params)
+	tx, err := s.db.Pool().Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	row, err := s.q.UpsertMunkiPackage(ctx, sqlc.UpsertMunkiPackageParams{
-		SoftwareID:             params.SoftwareID,
-		Name:                   params.Name,
-		Version:                params.Version,
-		DisplayName:            params.DisplayName,
-		Description:            params.Description,
-		Category:               params.Category,
-		Developer:              params.Developer,
-		InstallerType:          sqlcString(params.InstallerType),
-		UninstallMethod:        params.UninstallMethod,
-		RestartAction:          sqlcString(params.RestartAction),
-		MinimumMunkiVersion:    params.MinimumMunkiVersion,
-		MinimumOSVersion:       params.MinimumOSVersion,
-		MaximumOSVersion:       params.MaximumOSVersion,
-		SupportedArchitectures: params.SupportedArchitectures,
-		BlockingApplications:   params.BlockingApplications,
-		Requires:               params.Requires,
-		UpdateFor:              params.UpdateFor,
-		UnattendedInstall:      params.UnattendedInstall,
-		UnattendedUninstall:    params.UnattendedUninstall,
-		Uninstallable:          params.Uninstallable,
-		OnDemand:               params.OnDemand,
-		Precache:               params.Precache,
-		IconName:               params.IconName,
-		IconHash:               params.IconHash,
-		ExtraPkginfo:           cleanExtraPkginfo(params.ExtraPkginfo),
-		InstallerArtifactID:    params.InstallerArtifactID,
-		IconArtifactID:         params.IconArtifactID,
-		Eligible:               params.Eligible,
-	})
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := s.q.WithTx(tx)
+	row, err := qtx.UpsertMunkiPackage(ctx, upsertMunkiPackageParams(params, fields))
 	if err != nil {
 		return nil, mapDesiredMutationError(err)
+	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindRequires,
+		params.Requires,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := replacePackageRelations(
+		ctx,
+		tx,
+		row.ID,
+		sqlc.MunkiPackageRelationKindUpdateFor,
+		params.UpdateFor,
+	); err != nil {
+		return nil, mapDesiredMutationError(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return s.GetPackage(ctx, row.ID)
 }
@@ -189,7 +160,11 @@ func (s *Store) GetPackage(ctx context.Context, id int64) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &pkg, nil
+	packages, err := s.attachPackageRelations(ctx, []Package{pkg})
+	if err != nil {
+		return nil, err
+	}
+	return &packages[0], nil
 }
 
 func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]Package, int, error) {
@@ -228,6 +203,10 @@ func (s *Store) ListPackages(ctx context.Context, params PackageListParams) ([]P
 	if err != nil {
 		return nil, 0, err
 	}
+	packages, err = s.attachPackageRelations(ctx, packages)
+	if err != nil {
+		return nil, 0, err
+	}
 	return packages, count, nil
 }
 
@@ -261,7 +240,32 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 			Package:          pkg,
 		})
 	}
-	return resolveEffectivePackages(packages), nil
+	resolved := resolveEffectivePackages(packages)
+	return s.attachEffectivePackageRelations(ctx, resolved)
+}
+
+func (s *Store) preparePackageMutation(
+	ctx context.Context,
+	params PackageMutation,
+) (PackageMutation, packageJSONFields, error) {
+	params = cleanPackageMutation(params)
+	if err := params.Validate(); err != nil {
+		return PackageMutation{}, packageJSONFields{}, err
+	}
+	title, err := s.GetSoftwareTitle(ctx, params.SoftwareID)
+	if err != nil {
+		return PackageMutation{}, packageJSONFields{}, err
+	}
+	params = fillPackageDefaults(params, *title)
+	params, err = s.normalizePackageArtifacts(ctx, params)
+	if err != nil {
+		return PackageMutation{}, packageJSONFields{}, err
+	}
+	fields, err := packageJSONFromMutation(params)
+	if err != nil {
+		return PackageMutation{}, packageJSONFields{}, err
+	}
+	return params, fields, nil
 }
 
 func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMutation) (PackageMutation, error) {
@@ -273,6 +277,18 @@ func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMut
 		if artifact.Kind != ArtifactKindPackage {
 			return params, fmt.Errorf(
 				"%w: installer_artifact_id must reference a package artifact",
+				dbutil.ErrInvalidInput,
+			)
+		}
+	}
+	if params.UninstallerArtifactID != nil {
+		artifact, err := s.GetArtifact(ctx, *params.UninstallerArtifactID)
+		if err != nil {
+			return params, err
+		}
+		if artifact.Kind != ArtifactKindPackage {
+			return params, fmt.Errorf(
+				"%w: uninstaller_artifact_id must reference a package artifact",
 				dbutil.ErrInvalidInput,
 			)
 		}
@@ -308,18 +324,34 @@ func cleanPackageMutation(params PackageMutation) PackageMutation {
 	if params.InstallerType == "" {
 		params.InstallerType = InstallerTypePkg
 	}
-	params.UninstallMethod = strings.TrimSpace(params.UninstallMethod)
+	params.UninstallMethod = UninstallMethod(strings.TrimSpace(string(params.UninstallMethod)))
+	if params.UninstallMethod == "" {
+		params.UninstallMethod = UninstallMethodNone
+	}
+	params.CustomUninstallMethod = strings.TrimSpace(params.CustomUninstallMethod)
 	params.RestartAction = RestartAction(strings.TrimSpace(string(params.RestartAction)))
 	params.MinimumMunkiVersion = strings.TrimSpace(params.MinimumMunkiVersion)
 	params.MinimumOSVersion = strings.TrimSpace(params.MinimumOSVersion)
 	params.MaximumOSVersion = strings.TrimSpace(params.MaximumOSVersion)
 	params.SupportedArchitectures = cleanStringList(params.SupportedArchitectures)
 	params.BlockingApplications = cleanStringList(params.BlockingApplications)
-	params.Requires = cleanStringList(params.Requires)
-	params.UpdateFor = cleanStringList(params.UpdateFor)
+	params.Requires = cleanPackageReferences(params.Requires)
+	params.UpdateFor = cleanPackageReferences(params.UpdateFor)
+	params.PayloadIdentifier = strings.TrimSpace(params.PayloadIdentifier)
+	params.PackagePath = strings.TrimSpace(params.PackagePath)
+	params.Notes = strings.TrimSpace(params.Notes)
+	params.InstallerEnvironment = cleanInstallerEnvironment(params.InstallerEnvironment)
+	params.Installs = cleanInstallItems(params.Installs)
+	params.Receipts = cleanReceipts(params.Receipts)
+	params.ItemsToCopy = cleanItemsToCopy(params.ItemsToCopy)
+	params.PreinstallAlert = cleanPackageAlert(params.PreinstallAlert)
+	params.PreuninstallAlert = cleanPackageAlert(params.PreuninstallAlert)
+	if strings.TrimSpace(params.UninstallScript) != "" && params.UninstallMethod == UninstallMethodNone {
+		params.UninstallMethod = UninstallMethodUninstallScript
+		params.Uninstallable = true
+	}
 	params.IconName = strings.TrimSpace(params.IconName)
 	params.IconHash = strings.TrimSpace(params.IconHash)
-	params.ExtraPkginfo = cleanExtraPkginfo(params.ExtraPkginfo)
 	return params
 }
 
@@ -337,11 +369,23 @@ func mergePackageUpdate(existing Package, params PackageMutation) PackageMutatio
 	if params.UpdateFor == nil {
 		params.UpdateFor = existing.UpdateFor
 	}
-	if len(params.ExtraPkginfo) == 0 {
-		params.ExtraPkginfo = existing.ExtraPkginfo
+	if params.InstallerEnvironment == nil {
+		params.InstallerEnvironment = existing.InstallerEnvironment
+	}
+	if params.Installs == nil {
+		params.Installs = existing.Installs
+	}
+	if params.Receipts == nil {
+		params.Receipts = existing.Receipts
+	}
+	if params.ItemsToCopy == nil {
+		params.ItemsToCopy = existing.ItemsToCopy
 	}
 	if params.InstallerArtifactID == nil {
 		params.InstallerArtifactID = existing.InstallerArtifactID
+	}
+	if params.UninstallerArtifactID == nil {
+		params.UninstallerArtifactID = existing.UninstallerArtifactID
 	}
 	return params
 }
@@ -363,7 +407,23 @@ func fillPackageDefaults(params PackageMutation, title SoftwareTitle) PackageMut
 }
 
 func packageFromRecord(row packageRecord) (Package, error) {
-	pkg := Package{
+	installerEnvironment, err := decodePackageJSON[PackageInstallerEnvironmentVariable](row.InstallerEnvironment)
+	if err != nil {
+		return Package{}, err
+	}
+	installs, err := decodePackageJSON[PackageInstallItem](row.Installs)
+	if err != nil {
+		return Package{}, err
+	}
+	receipts, err := decodePackageJSON[PackageReceipt](row.Receipts)
+	if err != nil {
+		return Package{}, err
+	}
+	itemsToCopy, err := decodePackageJSON[PackageItemToCopy](row.ItemsToCopy)
+	if err != nil {
+		return Package{}, err
+	}
+	return Package{
 		ID:                           row.ID,
 		SoftwareID:                   row.SoftwareID,
 		SoftwareName:                 row.SoftwareName,
@@ -378,22 +438,47 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
 		Uninstallable:                row.Uninstallable,
-		UninstallMethod:              row.UninstallMethod,
+		UninstallMethod:              UninstallMethod(row.UninstallMethod),
+		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                RestartAction(row.RestartAction),
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
 		MaximumOSVersion:             row.MaximumOSVersion,
 		SupportedArchitectures:       nonNilStrings(row.SupportedArchitectures),
 		BlockingApplications:         nonNilStrings(row.BlockingApplications),
-		Requires:                     nonNilStrings(row.Requires),
-		UpdateFor:                    nonNilStrings(row.UpdateFor),
+		Requires:                     []PackageReference{},
+		UpdateFor:                    []PackageReference{},
 		OnDemand:                     row.OnDemand,
 		Precache:                     row.Precache,
+		Autoremove:                   row.Autoremove,
+		AppleItem:                    row.AppleItem,
+		SuppressBundleRelocation:     row.SuppressBundleRelocation,
+		ForceInstallAfterDate:        row.ForceInstallAfterDate,
+		InstalledSize:                row.InstalledSize,
+		PayloadIdentifier:            row.PayloadIdentifier,
+		PackagePath:                  row.PackagePath,
+		InstallerChoicesXML:          row.InstallerChoicesXML,
+		InstallerEnvironment:         installerEnvironment,
+		Installs:                     installs,
+		Receipts:                     receipts,
+		ItemsToCopy:                  itemsToCopy,
+		Notes:                        row.Notes,
+		InstallcheckScript:           row.InstallcheckScript,
+		UninstallcheckScript:         row.UninstallcheckScript,
+		PreinstallScript:             row.PreinstallScript,
+		PostinstallScript:            row.PostinstallScript,
+		PreuninstallScript:           row.PreuninstallScript,
+		PostuninstallScript:          row.PostuninstallScript,
+		UninstallScript:              row.UninstallScript,
+		VersionScript:                row.VersionScript,
+		PreinstallAlert:              row.PreinstallAlert(),
+		PreuninstallAlert:            row.PreuninstallAlert(),
 		IconName:                     row.IconName,
 		IconHash:                     row.IconHash,
-		ExtraPkginfo:                 cleanExtraPkginfo(row.ExtraPkginfo),
 		InstallerArtifactID:          row.InstallerArtifactID,
 		InstallerArtifactLocation:    stringPtrValue(row.InstallerArtifactLocation),
+		UninstallerArtifactID:        row.UninstallerArtifactID,
+		UninstallerArtifactLocation:  stringPtrValue(row.UninstallerArtifactLocation),
 		IconArtifactID:               row.IconArtifactID,
 		IconArtifactLocation:         stringPtrValue(row.IconArtifactLocation),
 		SoftwareIconName:             row.SoftwareIconName,
@@ -403,13 +488,7 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		Eligible:                     row.Eligible,
 		CreatedAt:                    row.CreatedAt,
 		UpdatedAt:                    row.UpdatedAt,
-	}
-	pkginfo, err := packagePkginfo(pkg)
-	if err != nil {
-		return Package{}, err
-	}
-	pkg.Pkginfo = pkginfo
-	return pkg, nil
+	}, nil
 }
 
 func packagesFromRecords(records []packageRecord) ([]Package, error) {
@@ -460,6 +539,194 @@ func packageOrderKeys() map[string]dbutil.OrderExpr {
 	}
 }
 
+type packageJSONFields struct {
+	InstallerEnvironment []byte
+	Installs             []byte
+	Receipts             []byte
+	ItemsToCopy          []byte
+}
+
+func packageJSONFromMutation(params PackageMutation) (packageJSONFields, error) {
+	installerEnvironment, err := marshalPackageJSON(params.InstallerEnvironment)
+	if err != nil {
+		return packageJSONFields{}, err
+	}
+	installs, err := marshalPackageJSON(params.Installs)
+	if err != nil {
+		return packageJSONFields{}, err
+	}
+	receipts, err := marshalPackageJSON(params.Receipts)
+	if err != nil {
+		return packageJSONFields{}, err
+	}
+	itemsToCopy, err := marshalPackageJSON(params.ItemsToCopy)
+	if err != nil {
+		return packageJSONFields{}, err
+	}
+	return packageJSONFields{
+		InstallerEnvironment: installerEnvironment,
+		Installs:             installs,
+		Receipts:             receipts,
+		ItemsToCopy:          itemsToCopy,
+	}, nil
+}
+
+func marshalPackageJSON[T any](values []T) ([]byte, error) {
+	if values == nil {
+		values = []T{}
+	}
+	return json.Marshal(values)
+}
+
+func decodePackageJSON[T any](raw []byte) ([]T, error) {
+	if len(raw) == 0 {
+		return []T{}, nil
+	}
+	var out []T
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		return []T{}, nil
+	}
+	return out, nil
+}
+
+func createMunkiPackageParams(params PackageMutation, fields packageJSONFields) sqlc.CreateMunkiPackageParams {
+	return sqlc.CreateMunkiPackageParams{
+		SoftwareID:                   params.SoftwareID,
+		Name:                         params.Name,
+		Version:                      params.Version,
+		DisplayName:                  params.DisplayName,
+		Description:                  params.Description,
+		Category:                     params.Category,
+		Developer:                    params.Developer,
+		InstallerType:                sqlcString(params.InstallerType),
+		UninstallMethod:              sqlcString(params.UninstallMethod),
+		CustomUninstallMethod:        params.CustomUninstallMethod,
+		RestartAction:                sqlcString(params.RestartAction),
+		MinimumMunkiVersion:          params.MinimumMunkiVersion,
+		MinimumOSVersion:             params.MinimumOSVersion,
+		MaximumOSVersion:             params.MaximumOSVersion,
+		SupportedArchitectures:       params.SupportedArchitectures,
+		BlockingApplications:         params.BlockingApplications,
+		UnattendedInstall:            params.UnattendedInstall,
+		UnattendedUninstall:          params.UnattendedUninstall,
+		Uninstallable:                params.Uninstallable,
+		OnDemand:                     params.OnDemand,
+		Precache:                     params.Precache,
+		Autoremove:                   params.Autoremove,
+		AppleItem:                    params.AppleItem,
+		SuppressBundleRelocation:     params.SuppressBundleRelocation,
+		ForceInstallAfterDate:        params.ForceInstallAfterDate,
+		InstalledSize:                params.InstalledSize,
+		PayloadIdentifier:            params.PayloadIdentifier,
+		PackagePath:                  params.PackagePath,
+		InstallerChoicesXml:          params.InstallerChoicesXML,
+		InstallerEnvironment:         fields.InstallerEnvironment,
+		Installs:                     fields.Installs,
+		Receipts:                     fields.Receipts,
+		ItemsToCopy:                  fields.ItemsToCopy,
+		Notes:                        params.Notes,
+		InstallcheckScript:           params.InstallcheckScript,
+		UninstallcheckScript:         params.UninstallcheckScript,
+		PreinstallScript:             params.PreinstallScript,
+		PostinstallScript:            params.PostinstallScript,
+		PreuninstallScript:           params.PreuninstallScript,
+		PostuninstallScript:          params.PostuninstallScript,
+		UninstallScript:              params.UninstallScript,
+		VersionScript:                params.VersionScript,
+		PreinstallAlertEnabled:       params.PreinstallAlert.Enabled,
+		PreinstallAlertTitle:         params.PreinstallAlert.Title,
+		PreinstallAlertDetail:        params.PreinstallAlert.Detail,
+		PreinstallAlertOkLabel:       params.PreinstallAlert.OKLabel,
+		PreinstallAlertCancelLabel:   params.PreinstallAlert.CancelLabel,
+		PreuninstallAlertEnabled:     params.PreuninstallAlert.Enabled,
+		PreuninstallAlertTitle:       params.PreuninstallAlert.Title,
+		PreuninstallAlertDetail:      params.PreuninstallAlert.Detail,
+		PreuninstallAlertOkLabel:     params.PreuninstallAlert.OKLabel,
+		PreuninstallAlertCancelLabel: params.PreuninstallAlert.CancelLabel,
+		IconName:                     params.IconName,
+		IconHash:                     params.IconHash,
+		InstallerArtifactID:          params.InstallerArtifactID,
+		UninstallerArtifactID:        params.UninstallerArtifactID,
+		IconArtifactID:               params.IconArtifactID,
+		Eligible:                     params.Eligible,
+	}
+}
+
+func updateMunkiPackageParams(
+	id int64,
+	params PackageMutation,
+	fields packageJSONFields,
+) sqlc.UpdateMunkiPackageParams {
+	base := createMunkiPackageParams(params, fields)
+	return sqlc.UpdateMunkiPackageParams{
+		Name:                         base.Name,
+		Version:                      base.Version,
+		DisplayName:                  base.DisplayName,
+		Description:                  base.Description,
+		Category:                     base.Category,
+		Developer:                    base.Developer,
+		InstallerType:                base.InstallerType,
+		UninstallMethod:              base.UninstallMethod,
+		CustomUninstallMethod:        base.CustomUninstallMethod,
+		RestartAction:                base.RestartAction,
+		MinimumMunkiVersion:          base.MinimumMunkiVersion,
+		MinimumOSVersion:             base.MinimumOSVersion,
+		MaximumOSVersion:             base.MaximumOSVersion,
+		SupportedArchitectures:       base.SupportedArchitectures,
+		BlockingApplications:         base.BlockingApplications,
+		UnattendedInstall:            base.UnattendedInstall,
+		UnattendedUninstall:          base.UnattendedUninstall,
+		Uninstallable:                base.Uninstallable,
+		OnDemand:                     base.OnDemand,
+		Precache:                     base.Precache,
+		Autoremove:                   base.Autoremove,
+		AppleItem:                    base.AppleItem,
+		SuppressBundleRelocation:     base.SuppressBundleRelocation,
+		ForceInstallAfterDate:        base.ForceInstallAfterDate,
+		InstalledSize:                base.InstalledSize,
+		PayloadIdentifier:            base.PayloadIdentifier,
+		PackagePath:                  base.PackagePath,
+		InstallerChoicesXml:          base.InstallerChoicesXml,
+		InstallerEnvironment:         base.InstallerEnvironment,
+		Installs:                     base.Installs,
+		Receipts:                     base.Receipts,
+		ItemsToCopy:                  base.ItemsToCopy,
+		Notes:                        base.Notes,
+		InstallcheckScript:           base.InstallcheckScript,
+		UninstallcheckScript:         base.UninstallcheckScript,
+		PreinstallScript:             base.PreinstallScript,
+		PostinstallScript:            base.PostinstallScript,
+		PreuninstallScript:           base.PreuninstallScript,
+		PostuninstallScript:          base.PostuninstallScript,
+		UninstallScript:              base.UninstallScript,
+		VersionScript:                base.VersionScript,
+		PreinstallAlertEnabled:       base.PreinstallAlertEnabled,
+		PreinstallAlertTitle:         base.PreinstallAlertTitle,
+		PreinstallAlertDetail:        base.PreinstallAlertDetail,
+		PreinstallAlertOkLabel:       base.PreinstallAlertOkLabel,
+		PreinstallAlertCancelLabel:   base.PreinstallAlertCancelLabel,
+		PreuninstallAlertEnabled:     base.PreuninstallAlertEnabled,
+		PreuninstallAlertTitle:       base.PreuninstallAlertTitle,
+		PreuninstallAlertDetail:      base.PreuninstallAlertDetail,
+		PreuninstallAlertOkLabel:     base.PreuninstallAlertOkLabel,
+		PreuninstallAlertCancelLabel: base.PreuninstallAlertCancelLabel,
+		IconName:                     base.IconName,
+		IconHash:                     base.IconHash,
+		InstallerArtifactID:          base.InstallerArtifactID,
+		UninstallerArtifactID:        base.UninstallerArtifactID,
+		IconArtifactID:               base.IconArtifactID,
+		Eligible:                     base.Eligible,
+		ID:                           id,
+	}
+}
+
+func upsertMunkiPackageParams(params PackageMutation, fields packageJSONFields) sqlc.UpsertMunkiPackageParams {
+	return sqlc.UpsertMunkiPackageParams(createMunkiPackageParams(params, fields))
+}
+
 type packageRecord struct {
 	ID                           int64
 	SoftwareID                   int64
@@ -473,24 +740,55 @@ type packageRecord struct {
 	Developer                    string
 	InstallerType                string
 	UninstallMethod              string
+	CustomUninstallMethod        string
 	RestartAction                string
 	MinimumMunkiVersion          string
 	MinimumOSVersion             string
 	MaximumOSVersion             string
 	SupportedArchitectures       []string
 	BlockingApplications         []string
-	Requires                     []string
-	UpdateFor                    []string
 	UnattendedInstall            bool
 	UnattendedUninstall          bool
 	Uninstallable                bool
 	OnDemand                     bool
 	Precache                     bool
+	Autoremove                   bool
+	AppleItem                    bool
+	SuppressBundleRelocation     bool
+	ForceInstallAfterDate        *time.Time
+	InstalledSize                int64
+	PayloadIdentifier            string
+	PackagePath                  string
+	InstallerChoicesXML          string `db:"installer_choices_xml"`
+	InstallerEnvironment         []byte
+	Installs                     []byte
+	Receipts                     []byte
+	ItemsToCopy                  []byte
+	Notes                        string
+	InstallcheckScript           string
+	UninstallcheckScript         string
+	PreinstallScript             string
+	PostinstallScript            string
+	PreuninstallScript           string
+	PostuninstallScript          string
+	UninstallScript              string
+	VersionScript                string
+	PreinstallAlertEnabled       bool
+	PreinstallAlertTitle         string
+	PreinstallAlertDetail        string
+	PreinstallAlertOKLabel       string `db:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel   string
+	PreuninstallAlertEnabled     bool
+	PreuninstallAlertTitle       string
+	PreuninstallAlertDetail      string
+	PreuninstallAlertOKLabel     string `db:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel string
 	IconName                     string
 	IconHash                     string
-	ExtraPkginfo                 []byte
 	InstallerArtifactID          *int64
 	InstallerArtifactLocation    *string
+	UninstallerArtifactID        *int64
+	UninstallerArtifactLocation  *string
 	IconArtifactID               *int64
 	IconArtifactLocation         *string
 	SoftwareIconName             string
@@ -500,6 +798,26 @@ type packageRecord struct {
 	Eligible                     bool
 	CreatedAt                    time.Time
 	UpdatedAt                    time.Time
+}
+
+func (row packageRecord) PreinstallAlert() PackageAlert {
+	return PackageAlert{
+		Enabled:     row.PreinstallAlertEnabled,
+		Title:       row.PreinstallAlertTitle,
+		Detail:      row.PreinstallAlertDetail,
+		OKLabel:     row.PreinstallAlertOKLabel,
+		CancelLabel: row.PreinstallAlertCancelLabel,
+	}
+}
+
+func (row packageRecord) PreuninstallAlert() PackageAlert {
+	return PackageAlert{
+		Enabled:     row.PreuninstallAlertEnabled,
+		Title:       row.PreuninstallAlertTitle,
+		Detail:      row.PreuninstallAlertDetail,
+		OKLabel:     row.PreuninstallAlertOKLabel,
+		CancelLabel: row.PreuninstallAlertCancelLabel,
+	}
 }
 
 func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
@@ -520,24 +838,55 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		Developer:                    row.Developer,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
+		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                row.RestartAction,
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
 		MaximumOSVersion:             row.MaximumOSVersion,
 		SupportedArchitectures:       row.SupportedArchitectures,
 		BlockingApplications:         row.BlockingApplications,
-		Requires:                     row.Requires,
-		UpdateFor:                    row.UpdateFor,
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
 		Uninstallable:                row.Uninstallable,
 		OnDemand:                     row.OnDemand,
 		Precache:                     row.Precache,
-		IconName:                     row.IconName,
-		IconHash:                     row.IconHash,
-		ExtraPkginfo:                 row.ExtraPkginfo,
+		Autoremove:                   row.Autoremove,
+		AppleItem:                    row.AppleItem,
+		SuppressBundleRelocation:     row.SuppressBundleRelocation,
+		ForceInstallAfterDate:        row.ForceInstallAfterDate,
+		InstalledSize:                row.InstalledSize,
+		PayloadIdentifier:            row.PayloadIdentifier,
+		PackagePath:                  row.PackagePath,
+		InstallerChoicesXML:          row.InstallerChoicesXml,
+		InstallerEnvironment:         row.InstallerEnvironment,
+		Installs:                     row.Installs,
+		Receipts:                     row.Receipts,
+		ItemsToCopy:                  row.ItemsToCopy,
+		Notes:                        row.Notes,
+		InstallcheckScript:           row.InstallcheckScript,
+		UninstallcheckScript:         row.UninstallcheckScript,
+		PreinstallScript:             row.PreinstallScript,
+		PostinstallScript:            row.PostinstallScript,
+		PreuninstallScript:           row.PreuninstallScript,
+		PostuninstallScript:          row.PostuninstallScript,
+		UninstallScript:              row.UninstallScript,
+		VersionScript:                row.VersionScript,
+		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
+		PreinstallAlertTitle:         row.PreinstallAlertTitle,
+		PreinstallAlertDetail:        row.PreinstallAlertDetail,
+		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
+		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
+		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
+		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
+		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
+		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
+		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerArtifactID:          row.InstallerArtifactID,
 		InstallerArtifactLocation:    row.InstallerArtifactLocation,
+		UninstallerArtifactID:        row.UninstallerArtifactID,
+		UninstallerArtifactLocation:  row.UninstallerArtifactLocation,
+		IconName:                     row.IconName,
+		IconHash:                     row.IconHash,
 		IconArtifactID:               row.IconArtifactID,
 		IconArtifactLocation:         row.IconArtifactLocation,
 		Eligible:                     row.Eligible,
@@ -564,24 +913,55 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		Developer:                    row.Developer,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
+		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                row.RestartAction,
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
 		MaximumOSVersion:             row.MaximumOSVersion,
 		SupportedArchitectures:       row.SupportedArchitectures,
 		BlockingApplications:         row.BlockingApplications,
-		Requires:                     row.Requires,
-		UpdateFor:                    row.UpdateFor,
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
 		Uninstallable:                row.Uninstallable,
 		OnDemand:                     row.OnDemand,
 		Precache:                     row.Precache,
-		IconName:                     row.IconName,
-		IconHash:                     row.IconHash,
-		ExtraPkginfo:                 row.ExtraPkginfo,
+		Autoremove:                   row.Autoremove,
+		AppleItem:                    row.AppleItem,
+		SuppressBundleRelocation:     row.SuppressBundleRelocation,
+		ForceInstallAfterDate:        row.ForceInstallAfterDate,
+		InstalledSize:                row.InstalledSize,
+		PayloadIdentifier:            row.PayloadIdentifier,
+		PackagePath:                  row.PackagePath,
+		InstallerChoicesXML:          row.InstallerChoicesXml,
+		InstallerEnvironment:         row.InstallerEnvironment,
+		Installs:                     row.Installs,
+		Receipts:                     row.Receipts,
+		ItemsToCopy:                  row.ItemsToCopy,
+		Notes:                        row.Notes,
+		InstallcheckScript:           row.InstallcheckScript,
+		UninstallcheckScript:         row.UninstallcheckScript,
+		PreinstallScript:             row.PreinstallScript,
+		PostinstallScript:            row.PostinstallScript,
+		PreuninstallScript:           row.PreuninstallScript,
+		PostuninstallScript:          row.PostuninstallScript,
+		UninstallScript:              row.UninstallScript,
+		VersionScript:                row.VersionScript,
+		PreinstallAlertEnabled:       row.PreinstallAlertEnabled,
+		PreinstallAlertTitle:         row.PreinstallAlertTitle,
+		PreinstallAlertDetail:        row.PreinstallAlertDetail,
+		PreinstallAlertOKLabel:       row.PreinstallAlertOkLabel,
+		PreinstallAlertCancelLabel:   row.PreinstallAlertCancelLabel,
+		PreuninstallAlertEnabled:     row.PreuninstallAlertEnabled,
+		PreuninstallAlertTitle:       row.PreuninstallAlertTitle,
+		PreuninstallAlertDetail:      row.PreuninstallAlertDetail,
+		PreuninstallAlertOKLabel:     row.PreuninstallAlertOkLabel,
+		PreuninstallAlertCancelLabel: row.PreuninstallAlertCancelLabel,
 		InstallerArtifactID:          row.InstallerArtifactID,
 		InstallerArtifactLocation:    row.InstallerArtifactLocation,
+		UninstallerArtifactID:        row.UninstallerArtifactID,
+		UninstallerArtifactLocation:  row.UninstallerArtifactLocation,
+		IconName:                     row.IconName,
+		IconHash:                     row.IconHash,
 		IconArtifactID:               row.IconArtifactID,
 		IconArtifactLocation:         row.IconArtifactLocation,
 		Eligible:                     true,
@@ -605,24 +985,55 @@ SELECT
 	p.developer,
 	p.installer_type,
 	p.uninstall_method,
+	p.custom_uninstall_method,
 	p.restart_action,
 	p.minimum_munki_version,
 	p.minimum_os_version,
 	p.maximum_os_version,
 	p.supported_architectures,
 	p.blocking_applications,
-	p.requires,
-	p.update_for,
 	p.unattended_install,
 	p.unattended_uninstall,
 	p.uninstallable,
 	p.on_demand,
 	p.precache,
+	p.autoremove,
+	p.apple_item,
+	p.suppress_bundle_relocation,
+	p.force_install_after_date,
+	p.installed_size,
+	p.payload_identifier,
+	p.package_path,
+	p.installer_choices_xml,
+	p.installer_environment,
+	p.installs,
+	p.receipts,
+	p.items_to_copy,
+	p.notes,
+	p.installcheck_script,
+	p.uninstallcheck_script,
+	p.preinstall_script,
+	p.postinstall_script,
+	p.preuninstall_script,
+	p.postuninstall_script,
+	p.uninstall_script,
+	p.version_script,
+	p.preinstall_alert_enabled,
+	p.preinstall_alert_title,
+	p.preinstall_alert_detail,
+	p.preinstall_alert_ok_label,
+	p.preinstall_alert_cancel_label,
+	p.preuninstall_alert_enabled,
+	p.preuninstall_alert_title,
+	p.preuninstall_alert_detail,
+	p.preuninstall_alert_ok_label,
+	p.preuninstall_alert_cancel_label,
 	p.icon_name,
 	p.icon_hash,
-	p.extra_pkginfo,
 	p.installer_artifact_id,
 	art.location AS installer_artifact_location,
+	p.uninstaller_artifact_id,
+	uninstaller.location AS uninstaller_artifact_location,
 	p.icon_artifact_id,
 	icon.location AS icon_artifact_location,
 	software_icon.location AS software_icon_artifact_location,
@@ -632,5 +1043,270 @@ SELECT
 FROM munki_packages p
 JOIN munki_software_titles s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id`
+
+func replacePackageRelations(
+	ctx context.Context,
+	db sqlc.DBTX,
+	packageID int64,
+	kind sqlc.MunkiPackageRelationKind,
+	references []PackageReference,
+) error {
+	if _, err := db.Exec(
+		ctx,
+		`DELETE FROM munki_package_relations WHERE package_id = $1 AND relation_kind = $2`,
+		packageID,
+		kind,
+	); err != nil {
+		return err
+	}
+	for position, ref := range references {
+		name := strings.TrimSpace(ref.Name)
+		if ref.PackageID != nil {
+			name = ""
+		}
+		if _, err := db.Exec(
+			ctx,
+			`INSERT INTO munki_package_relations (
+				package_id,
+				relation_kind,
+				target_package_id,
+				name,
+				position
+			)
+			VALUES ($1, $2, $3, $4, $5)`,
+			packageID,
+			kind,
+			ref.PackageID,
+			name,
+			position,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type packageRelationRecord struct {
+	PackageID       int64
+	RelationKind    sqlc.MunkiPackageRelationKind
+	TargetPackageID *int64
+	Name            string
+	TargetName      string
+	TargetVersion   string
+}
+
+type packageRelations struct {
+	requires  []PackageReference
+	updateFor []PackageReference
+}
+
+func (s *Store) attachPackageRelations(ctx context.Context, packages []Package) ([]Package, error) {
+	relations, err := s.packageRelationsByPackage(ctx, packageIDs(packages))
+	if err != nil {
+		return nil, err
+	}
+	for i := range packages {
+		rel := relations[packages[i].ID]
+		packages[i].Requires = nonNilPackageReferences(rel.requires)
+		packages[i].UpdateFor = nonNilPackageReferences(rel.updateFor)
+	}
+	return packages, nil
+}
+
+func (s *Store) attachEffectivePackageRelations(
+	ctx context.Context,
+	packages []EffectivePackage,
+) ([]EffectivePackage, error) {
+	ids := make([]int64, 0, len(packages))
+	for _, pkg := range packages {
+		if pkg.Package.ID > 0 {
+			ids = append(ids, pkg.Package.ID)
+		}
+	}
+	relations, err := s.packageRelationsByPackage(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range packages {
+		rel := relations[packages[i].Package.ID]
+		packages[i].Package.Requires = nonNilPackageReferences(rel.requires)
+		packages[i].Package.UpdateFor = nonNilPackageReferences(rel.updateFor)
+	}
+	return packages, nil
+}
+
+func (s *Store) packageRelationsByPackage(
+	ctx context.Context,
+	packageIDs []int64,
+) (map[int64]packageRelations, error) {
+	if len(packageIDs) == 0 {
+		return map[int64]packageRelations{}, nil
+	}
+	rows, err := s.db.Pool().Query(ctx, `
+		SELECT
+			r.package_id,
+			r.relation_kind,
+			r.target_package_id,
+			r.name,
+			COALESCE(target.name, '') AS target_name,
+			COALESCE(target.version, '') AS target_version
+		FROM munki_package_relations r
+		LEFT JOIN munki_packages target ON target.id = r.target_package_id
+		WHERE r.package_id = ANY($1::bigint[])
+		ORDER BY r.package_id, r.relation_kind, r.position, r.id
+	`, packageIDs)
+	if err != nil {
+		return nil, err
+	}
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[packageRelationRecord])
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]packageRelations, len(packageIDs))
+	for _, record := range records {
+		reference := PackageReference{
+			PackageID:      record.TargetPackageID,
+			Name:           record.Name,
+			PackageName:    record.TargetName,
+			PackageVersion: record.TargetVersion,
+		}
+		rel := out[record.PackageID]
+		switch record.RelationKind {
+		case sqlc.MunkiPackageRelationKindRequires:
+			rel.requires = append(rel.requires, reference)
+		case sqlc.MunkiPackageRelationKindUpdateFor:
+			rel.updateFor = append(rel.updateFor, reference)
+		}
+		out[record.PackageID] = rel
+	}
+	return out, nil
+}
+
+func packageIDs(packages []Package) []int64 {
+	ids := make([]int64, 0, len(packages))
+	seen := make(map[int64]struct{}, len(packages))
+	for _, pkg := range packages {
+		if pkg.ID <= 0 {
+			continue
+		}
+		if _, ok := seen[pkg.ID]; ok {
+			continue
+		}
+		seen[pkg.ID] = struct{}{}
+		ids = append(ids, pkg.ID)
+	}
+	return ids
+}
+
+func cleanPackageReferences(values []PackageReference) []PackageReference {
+	out := make([]PackageReference, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value.Name)
+		key := name
+		if value.PackageID != nil {
+			name = ""
+			key = fmt.Sprintf("id:%d", *value.PackageID)
+		}
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, PackageReference{
+			PackageID: value.PackageID,
+			Name:      name,
+		})
+	}
+	return out
+}
+
+func nonNilPackageReferences(values []PackageReference) []PackageReference {
+	if values == nil {
+		return []PackageReference{}
+	}
+	return values
+}
+
+func cleanInstallerEnvironment(
+	values []PackageInstallerEnvironmentVariable,
+) []PackageInstallerEnvironmentVariable {
+	out := make([]PackageInstallerEnvironmentVariable, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value.Name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, PackageInstallerEnvironmentVariable{Name: name, Value: value.Value})
+	}
+	return out
+}
+
+func cleanInstallItems(values []PackageInstallItem) []PackageInstallItem {
+	out := make([]PackageInstallItem, 0, len(values))
+	for _, value := range values {
+		value.Type = PackageInstallItemType(strings.TrimSpace(string(value.Type)))
+		if value.Type == "" {
+			value.Type = PackageInstallItemFile
+		}
+		value.Path = strings.TrimSpace(value.Path)
+		value.BundleIdentifier = strings.TrimSpace(value.BundleIdentifier)
+		value.BundleName = strings.TrimSpace(value.BundleName)
+		value.BundleShortVersion = strings.TrimSpace(value.BundleShortVersion)
+		value.BundleVersion = strings.TrimSpace(value.BundleVersion)
+		value.VersionComparisonKey = strings.TrimSpace(value.VersionComparisonKey)
+		value.MD5Checksum = strings.TrimSpace(value.MD5Checksum)
+		value.MinimumOSVersion = strings.TrimSpace(value.MinimumOSVersion)
+		value.InstallerItemLocation = strings.TrimSpace(value.InstallerItemLocation)
+		if value.Path != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func cleanReceipts(values []PackageReceipt) []PackageReceipt {
+	out := make([]PackageReceipt, 0, len(values))
+	for _, value := range values {
+		value.PackageID = strings.TrimSpace(value.PackageID)
+		value.Version = strings.TrimSpace(value.Version)
+		if value.PackageID != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func cleanItemsToCopy(values []PackageItemToCopy) []PackageItemToCopy {
+	out := make([]PackageItemToCopy, 0, len(values))
+	for _, value := range values {
+		value.SourceItem = strings.TrimSpace(value.SourceItem)
+		value.DestinationPath = strings.TrimSpace(value.DestinationPath)
+		value.DestinationItem = strings.TrimSpace(value.DestinationItem)
+		value.User = strings.TrimSpace(value.User)
+		value.Group = strings.TrimSpace(value.Group)
+		value.Mode = strings.TrimSpace(value.Mode)
+		if value.SourceItem != "" || value.DestinationPath != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func cleanPackageAlert(alert PackageAlert) PackageAlert {
+	alert.Title = strings.TrimSpace(alert.Title)
+	alert.Detail = strings.TrimSpace(alert.Detail)
+	alert.OKLabel = strings.TrimSpace(alert.OKLabel)
+	alert.CancelLabel = strings.TrimSpace(alert.CancelLabel)
+	return alert
+}

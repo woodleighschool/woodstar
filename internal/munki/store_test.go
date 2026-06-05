@@ -2,7 +2,6 @@ package munki_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -245,6 +244,22 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	}
 }
 
+func TestCreateArtifactBadSizeFallsThroughToInvalidInput(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	_, err := store.CreateArtifact(ctx, munki.ArtifactMutation{
+		Kind:       munki.ArtifactKindPackage,
+		Location:   "apps/BadSize.pkg",
+		SizeBytes:  -1,
+		SHA256:     strings.Repeat("a", 64),
+		StorageKey: "pkgs/BadSize.pkg",
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("CreateArtifact error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
@@ -312,9 +327,6 @@ func TestPackageInheritsSoftwareIcon(t *testing.T) {
 	if pkg.EffectiveIconArtifactID() == nil || *pkg.EffectiveIconArtifactID() != icon.ID {
 		t.Fatalf("effective icon id = %v, want %d", pkg.EffectiveIconArtifactID(), icon.ID)
 	}
-	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"icons/SharedApp.png"`) {
-		t.Fatalf("pkginfo = %s, want inherited software icon", pkg.Pkginfo)
-	}
 }
 
 func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
@@ -344,11 +356,8 @@ func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
 	if pkg.EffectiveIconArtifactID() == nil || *pkg.EffectiveIconArtifactID() != packageIcon.ID {
 		t.Fatalf("effective icon id = %v, want package override %d", pkg.EffectiveIconArtifactID(), packageIcon.ID)
 	}
-	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"icons/SpecialApp.png"`) {
-		t.Fatalf("pkginfo = %s, want package icon override", pkg.Pkginfo)
-	}
-	if strings.Contains(string(pkg.Pkginfo), "icons/DefaultApp.png") {
-		t.Fatalf("pkginfo = %s, should not render inherited icon when package overrides it", pkg.Pkginfo)
+	if pkg.IconName != "icons/SpecialApp.png" || pkg.IconHash != strings.Repeat("f", 64) {
+		t.Fatalf("package icon fields = %q %q, want package override", pkg.IconName, pkg.IconHash)
 	}
 }
 
@@ -400,12 +409,6 @@ func TestUpdatePackageClearsIconOverrideToInheritSoftwareIcon(t *testing.T) {
 			updated.EffectiveIconArtifactID(),
 			softwareIcon.ID,
 		)
-	}
-	if !strings.Contains(string(updated.Pkginfo), `"icon_name":"icons/DefaultApp.png"`) {
-		t.Fatalf("pkginfo = %s, want inherited software icon", updated.Pkginfo)
-	}
-	if strings.Contains(string(updated.Pkginfo), "icons/SpecialApp.png") {
-		t.Fatalf("pkginfo = %s, should not render cleared package icon override", updated.Pkginfo)
 	}
 }
 
@@ -526,7 +529,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	}
 }
 
-func TestCreatePackageRejectsInvalidPkginfoFields(t *testing.T) {
+func TestCreatePackageRejectsUnsupportedArchitecture(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
@@ -547,7 +550,50 @@ func TestCreatePackageRejectsInvalidPkginfoFields(t *testing.T) {
 	}
 }
 
-func TestPackageExtraPkginfoCannotOverrideTypedFields(t *testing.T) {
+func TestCreatePackageMissingRelationTargetFallsThroughToNotFound(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "MissingRelationApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	missingPackageID := int64(0)
+
+	_, err = store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID: title.ID,
+		Name:       "MissingRelationApp",
+		Version:    "1.0",
+		Requires:   []munki.PackageReference{{PackageID: &missingPackageID}},
+		Eligible:   true,
+	})
+	if !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("CreatePackage error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreatePackageBadInstalledSizeFallsThroughToInvalidInput(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := munki.NewStore(db)
+
+	title, err := store.CreateSoftwareTitle(ctx, munki.SoftwareTitleMutation{Name: "BadInstalledSizeApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+
+	_, err = store.CreatePackage(ctx, munki.PackageMutation{
+		SoftwareID:    title.ID,
+		Name:          "BadInstalledSizeApp",
+		Version:       "1.0",
+		InstalledSize: -1,
+		Eligible:      true,
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("CreatePackage error = %v, want ErrInvalidInput", err)
+	}
+}
+
+func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
@@ -555,29 +601,36 @@ func TestPackageExtraPkginfoCannotOverrideTypedFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create software title: %v", err)
 	}
+	dependency := createMunkiPackage(t, ctx, store, title.ID, "DependencyApp", "2.0")
 	pkg, err := store.CreatePackage(ctx, munki.PackageMutation{
-		SoftwareID:   title.ID,
-		Name:         "ExtraApp",
-		Version:      "1.0",
-		ExtraPkginfo: []byte(`{"installer_type":"nopkg","unattended_install":true,"custom_key":"kept"}`),
-		Eligible:     true,
+		SoftwareID:         title.ID,
+		Name:               "ExtraApp",
+		Version:            "1.0",
+		InstallerType:      munki.InstallerTypeNoPkg,
+		InstallcheckScript: "#!/bin/zsh\nexit 0\n",
+		Requires: []munki.PackageReference{
+			{PackageID: &dependency.ID},
+			{Name: "Python"},
+		},
+		Eligible: true,
 	})
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-
-	var rendered map[string]any
-	if err := json.Unmarshal(pkg.Pkginfo, &rendered); err != nil {
-		t.Fatalf("decode pkginfo: %v", err)
+	if pkg.InstallcheckScript == "" || pkg.InstallerType != munki.InstallerTypeNoPkg {
+		t.Fatalf("pkg typed fields = %+v, want nopkg installcheck script", pkg)
 	}
-	if _, ok := rendered["installer_type"]; ok {
-		t.Fatalf("pkginfo = %s, want typed default package to omit installer_type", pkg.Pkginfo)
+	if len(pkg.Requires) != 2 {
+		t.Fatalf("requires = %+v, want dependency and literal reference", pkg.Requires)
 	}
-	if _, ok := rendered["unattended_install"]; ok {
-		t.Fatalf("pkginfo = %s, want typed false to omit unattended_install", pkg.Pkginfo)
+	if pkg.Requires[0].PackageID == nil || *pkg.Requires[0].PackageID != dependency.ID {
+		t.Fatalf("first requires = %+v, want dependency package id", pkg.Requires[0])
 	}
-	if rendered["custom_key"] != "kept" {
-		t.Fatalf("pkginfo custom_key = %v, want preserved extra key", rendered["custom_key"])
+	if pkg.Requires[0].PackageName != "DependencyApp" || pkg.Requires[0].PackageVersion != "2.0" {
+		t.Fatalf("first requires target = %+v, want dependency package details", pkg.Requires[0])
+	}
+	if pkg.Requires[1].Name != "Python" {
+		t.Fatalf("second requires = %+v, want literal Python", pkg.Requires[1])
 	}
 }
 
@@ -624,17 +677,14 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	if !pkg.UnattendedInstall || !sameStrings(pkg.SupportedArchitectures, []string{"arm64", "x86_64"}) {
 		t.Fatalf("pkg typed fields = %+v", pkg)
 	}
-	if !strings.Contains(string(pkg.ExtraPkginfo), `"installs"`) {
-		t.Fatalf("extra pkginfo = %s, want installs preserved", pkg.ExtraPkginfo)
+	if len(pkg.Requires) != 1 || pkg.Requires[0].Name != "Python" {
+		t.Fatalf("requires = %+v, want literal Python", pkg.Requires)
+	}
+	if len(pkg.Installs) != 1 || pkg.Installs[0].Path != "/Applications/Imported App.app" {
+		t.Fatalf("installs = %+v, want imported install item", pkg.Installs)
 	}
 	if pkg.IconName != "cccccccccccc/ImportedApp.png" || pkg.IconHash != strings.Repeat("c", 64) {
 		t.Fatalf("pkg icon fields = name %q hash %q, want artifact-backed icon", pkg.IconName, pkg.IconHash)
-	}
-	if !strings.Contains(string(pkg.Pkginfo), `"icon_name":"cccccccccccc/ImportedApp.png"`) {
-		t.Fatalf("pkginfo = %s, want artifact-backed icon_name", pkg.Pkginfo)
-	}
-	if strings.Contains(string(pkg.ExtraPkginfo), "installer_item_location") {
-		t.Fatalf("extra pkginfo = %s, want rendered URL fields owned by Woodstar", pkg.ExtraPkginfo)
 	}
 
 	updated, err := store.ImportPackage(ctx, munki.PackageImportMutation{
@@ -657,7 +707,7 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	}
 }
 
-func TestUpdatePackagePreservesImportedPkginfo(t *testing.T) {
+func TestUpdatePackagePreservesTypedImportFields(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := munki.NewStore(db)
 
@@ -704,15 +754,11 @@ func TestUpdatePackagePreservesImportedPkginfo(t *testing.T) {
 	if !sameStrings(updated.BlockingApplications, []string{"Safari"}) {
 		t.Fatalf("blocking applications = %v, want preserved", updated.BlockingApplications)
 	}
-	if !sameStrings(updated.Requires, []string{"Python"}) {
+	if !samePackageReferenceNames(updated.Requires, []string{"Python"}) {
 		t.Fatalf("requires = %v, want preserved", updated.Requires)
 	}
-	if !strings.Contains(string(updated.ExtraPkginfo), `"installs"`) {
-		t.Fatalf("extra pkginfo = %s, want installs preserved", updated.ExtraPkginfo)
-	}
-	if !strings.Contains(string(updated.Pkginfo), `"requires":["Python"]`) ||
-		!strings.Contains(string(updated.Pkginfo), `"installs"`) {
-		t.Fatalf("pkginfo = %s, want preserved requires and installs", updated.Pkginfo)
+	if len(updated.Installs) != 1 || updated.Installs[0].Path != "/Applications/Imported Edit App.app" {
+		t.Fatalf("installs = %+v, want preserved imported install item", updated.Installs)
 	}
 }
 
@@ -1000,6 +1046,18 @@ func sameStrings(a, b []string) bool {
 	}
 	for i := range a {
 		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func samePackageReferenceNames(a []munki.PackageReference, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i] {
 			return false
 		}
 	}

@@ -2092,6 +2092,10 @@ components:
           format: uri
           readOnly: true
           type: string
+        apple_item:
+          type: boolean
+        autoremove:
+          type: boolean
         blocking_applications:
           items:
             type: string
@@ -2103,6 +2107,8 @@ components:
         created_at:
           format: date-time
           type: string
+        custom_uninstall_method:
+          type: string
         description:
           type: string
         developer:
@@ -2111,7 +2117,9 @@ components:
           type: string
         eligible:
           type: boolean
-        extra_pkginfo: {}
+        force_install_after_date:
+          format: date-time
+          type: string
         icon_artifact_id:
           format: int64
           type: integer
@@ -2122,29 +2130,46 @@ components:
         id:
           format: int64
           type: integer
+        installcheck_script:
+          type: string
+        installed_size:
+          format: int64
+          type: integer
         installer_artifact_id:
           format: int64
           type: integer
         installer_artifact_location:
           type: string
+        installer_choices_xml:
+          type: string
+        installer_environment:
+          items:
+            $ref: "#/components/schemas/PackageInstallerEnvironmentVariable"
+          type:
+            - array
+            - "null"
         installer_type:
           enum:
             - pkg
             - nopkg
             - copy_from_dmg
-            - appdmg
             - profile
             - apple_update_metadata
             - startosinstall
             - stage_os_installer
-            - AdobeCCPInstaller
-            - AdobeCS5AAMEEPackage
-            - AdobeCS5Installer
-            - AdobeCS5PatchInstaller
-            - AdobeUberInstaller
-            - AdobeSetup
-            - AdobeAcrobatUpdater
           type: string
+        installs:
+          items:
+            $ref: "#/components/schemas/PackageInstallItem"
+          type:
+            - array
+            - "null"
+        items_to_copy:
+          items:
+            $ref: "#/components/schemas/PackageItemToCopy"
+          type:
+            - array
+            - "null"
         maximum_os_version:
           type: string
         minimum_munki_version:
@@ -2153,14 +2178,37 @@ components:
           type: string
         name:
           type: string
+        notes:
+          type: string
         on_demand:
           type: boolean
-        pkginfo: {}
+        package_path:
+          type: string
+        payload_identifier:
+          type: string
+        postinstall_script:
+          type: string
+        postuninstall_script:
+          type: string
         precache:
           type: boolean
+        preinstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preinstall_script:
+          type: string
+        preuninstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preuninstall_script:
+          type: string
+        receipts:
+          items:
+            $ref: "#/components/schemas/PackageReceipt"
+          type:
+            - array
+            - "null"
         requires:
           items:
-            type: string
+            $ref: "#/components/schemas/PackageReference"
           type:
             - array
             - "null"
@@ -2185,17 +2233,37 @@ components:
           type:
             - array
             - "null"
+        suppress_bundle_relocation:
+          type: boolean
         unattended_install:
           type: boolean
         unattended_uninstall:
           type: boolean
         uninstall_method:
+          enum:
+            - none
+            - removepackages
+            - remove_copied_items
+            - remove_profile
+            - remove_app
+            - uninstall_script
+            - uninstall_package
+            - custom
+          type: string
+        uninstall_script:
           type: string
         uninstallable:
           type: boolean
+        uninstallcheck_script:
+          type: string
+        uninstaller_artifact_id:
+          format: int64
+          type: integer
+        uninstaller_artifact_location:
+          type: string
         update_for:
           items:
-            type: string
+            $ref: "#/components/schemas/PackageReference"
           type:
             - array
             - "null"
@@ -2203,6 +2271,8 @@ components:
           format: date-time
           type: string
         version:
+          type: string
+        version_script:
           type: string
       required:
         - id
@@ -2220,6 +2290,7 @@ components:
         - unattended_uninstall
         - uninstallable
         - uninstall_method
+        - custom_uninstall_method
         - minimum_munki_version
         - minimum_os_version
         - maximum_os_version
@@ -2229,6 +2300,28 @@ components:
         - update_for
         - on_demand
         - precache
+        - autoremove
+        - apple_item
+        - suppress_bundle_relocation
+        - installed_size
+        - payload_identifier
+        - package_path
+        - installer_choices_xml
+        - installer_environment
+        - installs
+        - receipts
+        - items_to_copy
+        - notes
+        - installcheck_script
+        - uninstallcheck_script
+        - preinstall_script
+        - postinstall_script
+        - preuninstall_script
+        - postuninstall_script
+        - uninstall_script
+        - version_script
+        - preinstall_alert
+        - preuninstall_alert
         - eligible
         - created_at
         - updated_at
@@ -2268,6 +2361,10 @@ components:
           format: uri
           readOnly: true
           type: string
+        apple_item:
+          type: boolean
+        autoremove:
+          type: boolean
         blocking_applications:
           items:
             type: string
@@ -2275,6 +2372,8 @@ components:
             - array
             - "null"
         category:
+          type: string
+        custom_uninstall_method:
           type: string
         description:
           type: string
@@ -2284,31 +2383,50 @@ components:
           type: string
         eligible:
           type: boolean
-        extra_pkginfo: {}
+        force_install_after_date:
+          format: date-time
+          type: string
         icon_artifact_id:
+          format: int64
+          type: integer
+        installcheck_script:
+          type: string
+        installed_size:
           format: int64
           type: integer
         installer_artifact_id:
           format: int64
           type: integer
+        installer_choices_xml:
+          type: string
+        installer_environment:
+          items:
+            $ref: "#/components/schemas/PackageInstallerEnvironmentVariable"
+          type:
+            - array
+            - "null"
         installer_type:
           enum:
             - pkg
             - nopkg
             - copy_from_dmg
-            - appdmg
             - profile
             - apple_update_metadata
             - startosinstall
             - stage_os_installer
-            - AdobeCCPInstaller
-            - AdobeCS5AAMEEPackage
-            - AdobeCS5Installer
-            - AdobeCS5PatchInstaller
-            - AdobeUberInstaller
-            - AdobeSetup
-            - AdobeAcrobatUpdater
           type: string
+        installs:
+          items:
+            $ref: "#/components/schemas/PackageInstallItem"
+          type:
+            - array
+            - "null"
+        items_to_copy:
+          items:
+            $ref: "#/components/schemas/PackageItemToCopy"
+          type:
+            - array
+            - "null"
         maximum_os_version:
           type: string
         minimum_munki_version:
@@ -2317,13 +2435,37 @@ components:
           type: string
         name:
           type: string
+        notes:
+          type: string
         on_demand:
           type: boolean
+        package_path:
+          type: string
+        payload_identifier:
+          type: string
+        postinstall_script:
+          type: string
+        postuninstall_script:
+          type: string
         precache:
           type: boolean
+        preinstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preinstall_script:
+          type: string
+        preuninstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preuninstall_script:
+          type: string
+        receipts:
+          items:
+            $ref: "#/components/schemas/PackageReceipt"
+          type:
+            - array
+            - "null"
         requires:
           items:
-            type: string
+            $ref: "#/components/schemas/PackageReference"
           type:
             - array
             - "null"
@@ -2344,21 +2486,41 @@ components:
           type:
             - array
             - "null"
+        suppress_bundle_relocation:
+          type: boolean
         unattended_install:
           type: boolean
         unattended_uninstall:
           type: boolean
         uninstall_method:
+          enum:
+            - none
+            - removepackages
+            - remove_copied_items
+            - remove_profile
+            - remove_app
+            - uninstall_script
+            - uninstall_package
+            - custom
+          type: string
+        uninstall_script:
           type: string
         uninstallable:
           type: boolean
+        uninstallcheck_script:
+          type: string
+        uninstaller_artifact_id:
+          format: int64
+          type: integer
         update_for:
           items:
-            type: string
+            $ref: "#/components/schemas/PackageReference"
           type:
             - array
             - "null"
         version:
+          type: string
+        version_script:
           type: string
       required:
         - software_id
@@ -2493,6 +2655,109 @@ components:
           type: string
       required:
         - name
+      type: object
+    PackageAlert:
+      additionalProperties: false
+      properties:
+        cancel_label:
+          type: string
+        detail:
+          type: string
+        enabled:
+          type: boolean
+        ok_label:
+          type: string
+        title:
+          type: string
+      required:
+        - enabled
+      type: object
+    PackageInstallItem:
+      additionalProperties: false
+      properties:
+        bundle_identifier:
+          type: string
+        bundle_name:
+          type: string
+        bundle_short_version:
+          type: string
+        bundle_version:
+          type: string
+        installer_item_location:
+          type: string
+        md5checksum:
+          type: string
+        minimum_os_version:
+          type: string
+        path:
+          type: string
+        type:
+          enum:
+            - application
+            - bundle
+            - plist
+            - file
+          type: string
+        version_comparison_key:
+          type: string
+      required:
+        - type
+        - path
+      type: object
+    PackageInstallerEnvironmentVariable:
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+      required:
+        - name
+        - value
+      type: object
+    PackageItemToCopy:
+      additionalProperties: false
+      properties:
+        destination_item:
+          type: string
+        destination_path:
+          type: string
+        group:
+          type: string
+        mode:
+          type: string
+        source_item:
+          type: string
+        user:
+          type: string
+      required:
+        - source_item
+        - destination_path
+      type: object
+    PackageReceipt:
+      additionalProperties: false
+      properties:
+        optional:
+          type: boolean
+        package_id:
+          type: string
+        version:
+          type: string
+      required:
+        - package_id
+      type: object
+    PackageReference:
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        package_id:
+          format: int64
+          type: integer
+        package_name:
+          type: string
+        package_version:
+          type: string
       type: object
     PageCheck:
       additionalProperties: false

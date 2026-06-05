@@ -309,6 +309,48 @@ func (ns NullMunkiAssignmentEffect) Value() (driver.Value, error) {
 	return string(ns.MunkiAssignmentEffect), nil
 }
 
+type MunkiPackageRelationKind string
+
+const (
+	MunkiPackageRelationKindRequires  MunkiPackageRelationKind = "requires"
+	MunkiPackageRelationKindUpdateFor MunkiPackageRelationKind = "update_for"
+)
+
+func (e *MunkiPackageRelationKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiPackageRelationKind(s)
+	case string:
+		*e = MunkiPackageRelationKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiPackageRelationKind: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiPackageRelationKind struct {
+	MunkiPackageRelationKind MunkiPackageRelationKind `json:"munki_package_relation_kind"`
+	Valid                    bool                     `json:"valid"` // Valid is true if MunkiPackageRelationKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiPackageRelationKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiPackageRelationKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiPackageRelationKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiPackageRelationKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiPackageRelationKind), nil
+}
+
 type MunkiPackageSelection string
 
 const (
@@ -1013,37 +1055,78 @@ type MunkiHostStatus struct {
 }
 
 type MunkiPackage struct {
-	ID                     int64     `json:"id"`
-	SoftwareID             int64     `json:"software_id"`
-	Name                   string    `json:"name"`
-	Version                string    `json:"version"`
-	DisplayName            string    `json:"display_name"`
-	Description            string    `json:"description"`
-	Category               string    `json:"category"`
-	Developer              string    `json:"developer"`
-	InstallerType          string    `json:"installer_type"`
-	UninstallMethod        string    `json:"uninstall_method"`
-	RestartAction          string    `json:"restart_action"`
-	MinimumMunkiVersion    string    `json:"minimum_munki_version"`
-	MinimumOSVersion       string    `json:"minimum_os_version"`
-	MaximumOSVersion       string    `json:"maximum_os_version"`
-	SupportedArchitectures []string  `json:"supported_architectures"`
-	BlockingApplications   []string  `json:"blocking_applications"`
-	Requires               []string  `json:"requires"`
-	UpdateFor              []string  `json:"update_for"`
-	UnattendedInstall      bool      `json:"unattended_install"`
-	UnattendedUninstall    bool      `json:"unattended_uninstall"`
-	Uninstallable          bool      `json:"uninstallable"`
-	OnDemand               bool      `json:"on_demand"`
-	Precache               bool      `json:"precache"`
-	IconName               string    `json:"icon_name"`
-	IconHash               string    `json:"icon_hash"`
-	ExtraPkginfo           []byte    `json:"extra_pkginfo"`
-	InstallerArtifactID    *int64    `json:"installer_artifact_id"`
-	IconArtifactID         *int64    `json:"icon_artifact_id"`
-	Eligible               bool      `json:"eligible"`
-	CreatedAt              time.Time `json:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at"`
+	ID                           int64      `json:"id"`
+	SoftwareID                   int64      `json:"software_id"`
+	Name                         string     `json:"name"`
+	Version                      string     `json:"version"`
+	DisplayName                  string     `json:"display_name"`
+	Description                  string     `json:"description"`
+	Category                     string     `json:"category"`
+	Developer                    string     `json:"developer"`
+	InstallerType                string     `json:"installer_type"`
+	UninstallMethod              string     `json:"uninstall_method"`
+	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
+	RestartAction                string     `json:"restart_action"`
+	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
+	MinimumOSVersion             string     `json:"minimum_os_version"`
+	MaximumOSVersion             string     `json:"maximum_os_version"`
+	SupportedArchitectures       []string   `json:"supported_architectures"`
+	BlockingApplications         []string   `json:"blocking_applications"`
+	UnattendedInstall            bool       `json:"unattended_install"`
+	UnattendedUninstall          bool       `json:"unattended_uninstall"`
+	Uninstallable                bool       `json:"uninstallable"`
+	OnDemand                     bool       `json:"on_demand"`
+	Precache                     bool       `json:"precache"`
+	Autoremove                   bool       `json:"autoremove"`
+	AppleItem                    bool       `json:"apple_item"`
+	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
+	InstalledSize                int64      `json:"installed_size"`
+	PayloadIdentifier            string     `json:"payload_identifier"`
+	PackagePath                  string     `json:"package_path"`
+	InstallerChoicesXml          string     `json:"installer_choices_xml"`
+	InstallerEnvironment         []byte     `json:"installer_environment"`
+	Installs                     []byte     `json:"installs"`
+	Receipts                     []byte     `json:"receipts"`
+	ItemsToCopy                  []byte     `json:"items_to_copy"`
+	Notes                        string     `json:"notes"`
+	InstallcheckScript           string     `json:"installcheck_script"`
+	UninstallcheckScript         string     `json:"uninstallcheck_script"`
+	PreinstallScript             string     `json:"preinstall_script"`
+	PostinstallScript            string     `json:"postinstall_script"`
+	PreuninstallScript           string     `json:"preuninstall_script"`
+	PostuninstallScript          string     `json:"postuninstall_script"`
+	UninstallScript              string     `json:"uninstall_script"`
+	VersionScript                string     `json:"version_script"`
+	PreinstallAlertEnabled       bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle         string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail        string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel       string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel   string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled     bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle       string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail      string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel     string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel string     `json:"preuninstall_alert_cancel_label"`
+	IconName                     string     `json:"icon_name"`
+	IconHash                     string     `json:"icon_hash"`
+	InstallerArtifactID          *int64     `json:"installer_artifact_id"`
+	UninstallerArtifactID        *int64     `json:"uninstaller_artifact_id"`
+	IconArtifactID               *int64     `json:"icon_artifact_id"`
+	Eligible                     bool       `json:"eligible"`
+	CreatedAt                    time.Time  `json:"created_at"`
+	UpdatedAt                    time.Time  `json:"updated_at"`
+}
+
+type MunkiPackageRelation struct {
+	ID              int64                    `json:"id"`
+	PackageID       int64                    `json:"package_id"`
+	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
+	TargetPackageID *int64                   `json:"target_package_id"`
+	Name            string                   `json:"name"`
+	Position        int32                    `json:"position"`
+	CreatedAt       time.Time                `json:"created_at"`
+	UpdatedAt       time.Time                `json:"updated_at"`
 }
 
 type MunkiSoftwareTitle struct {

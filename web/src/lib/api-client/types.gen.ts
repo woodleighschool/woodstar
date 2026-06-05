@@ -786,41 +786,65 @@ export type MunkiPackage = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    apple_item: boolean;
+    autoremove: boolean;
     blocking_applications: Array<string> | null;
     category: string;
     created_at: string;
+    custom_uninstall_method: string;
     description: string;
     developer: string;
     display_name: string;
     eligible: boolean;
-    extra_pkginfo?: unknown;
+    force_install_after_date?: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_url?: string;
     id: number;
+    installcheck_script: string;
+    installed_size: number;
     installer_artifact_id?: number;
     installer_artifact_location?: string;
-    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    installer_choices_xml: string;
+    installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installs: Array<PackageInstallItem> | null;
+    items_to_copy: Array<PackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
     name: string;
+    notes: string;
     on_demand: boolean;
-    pkginfo?: unknown;
+    package_path: string;
+    payload_identifier: string;
+    postinstall_script: string;
+    postuninstall_script: string;
     precache: boolean;
-    requires: Array<string> | null;
+    preinstall_alert: PackageAlert;
+    preinstall_script: string;
+    preuninstall_alert: PackageAlert;
+    preuninstall_script: string;
+    receipts: Array<PackageReceipt> | null;
+    requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;
+    suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: string;
+    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_script: string;
     uninstallable: boolean;
-    update_for: Array<string> | null;
+    uninstallcheck_script: string;
+    uninstaller_artifact_id?: number;
+    uninstaller_artifact_location?: string;
+    update_for: Array<PackageReference> | null;
     updated_at: string;
     version: string;
+    version_script: string;
 };
 
 export type MunkiPackageImportMutation = {
@@ -840,32 +864,56 @@ export type MunkiPackageMutation = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    apple_item?: boolean;
+    autoremove?: boolean;
     blocking_applications?: Array<string> | null;
     category?: string;
+    custom_uninstall_method?: string;
     description?: string;
     developer?: string;
     display_name?: string;
     eligible: boolean;
-    extra_pkginfo?: unknown;
+    force_install_after_date?: string;
     icon_artifact_id?: number;
+    installcheck_script?: string;
+    installed_size?: number;
     installer_artifact_id?: number;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    installer_choices_xml?: string;
+    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installs?: Array<PackageInstallItem> | null;
+    items_to_copy?: Array<PackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
     name: string;
+    notes?: string;
     on_demand?: boolean;
+    package_path?: string;
+    payload_identifier?: string;
+    postinstall_script?: string;
+    postuninstall_script?: string;
     precache?: boolean;
-    requires?: Array<string> | null;
+    preinstall_alert?: PackageAlert;
+    preinstall_script?: string;
+    preuninstall_alert?: PackageAlert;
+    preuninstall_script?: string;
+    receipts?: Array<PackageReceipt> | null;
+    requires?: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string> | null;
+    suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: string;
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_script?: string;
     uninstallable?: boolean;
-    update_for?: Array<string> | null;
+    uninstallcheck_script?: string;
+    uninstaller_artifact_id?: number;
+    update_for?: Array<PackageReference> | null;
     version: string;
+    version_script?: string;
 };
 
 export type MunkiSoftwareTitle = {
@@ -915,6 +963,54 @@ export type MunkiSoftwareTitleMutation = {
     display_name?: string;
     icon_artifact_id?: number;
     name: string;
+};
+
+export type PackageAlert = {
+    cancel_label?: string;
+    detail?: string;
+    enabled: boolean;
+    ok_label?: string;
+    title?: string;
+};
+
+export type PackageInstallItem = {
+    bundle_identifier?: string;
+    bundle_name?: string;
+    bundle_short_version?: string;
+    bundle_version?: string;
+    installer_item_location?: string;
+    md5checksum?: string;
+    minimum_os_version?: string;
+    path: string;
+    type: 'application' | 'bundle' | 'plist' | 'file';
+    version_comparison_key?: string;
+};
+
+export type PackageInstallerEnvironmentVariable = {
+    name: string;
+    value: string;
+};
+
+export type PackageItemToCopy = {
+    destination_item?: string;
+    destination_path: string;
+    group?: string;
+    mode?: string;
+    source_item: string;
+    user?: string;
+};
+
+export type PackageReceipt = {
+    optional?: boolean;
+    package_id: string;
+    version?: string;
+};
+
+export type PackageReference = {
+    name?: string;
+    package_id?: number;
+    package_name?: string;
+    package_version?: string;
 };
 
 export type PageCheck = {
@@ -1707,41 +1803,65 @@ export type MunkiAssignmentReorderBodyWritable = {
 };
 
 export type MunkiPackageWritable = {
+    apple_item: boolean;
+    autoremove: boolean;
     blocking_applications: Array<string> | null;
     category: string;
     created_at: string;
+    custom_uninstall_method: string;
     description: string;
     developer: string;
     display_name: string;
     eligible: boolean;
-    extra_pkginfo?: unknown;
+    force_install_after_date?: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_url?: string;
     id: number;
+    installcheck_script: string;
+    installed_size: number;
     installer_artifact_id?: number;
     installer_artifact_location?: string;
-    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    installer_choices_xml: string;
+    installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installs: Array<PackageInstallItem> | null;
+    items_to_copy: Array<PackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
     name: string;
+    notes: string;
     on_demand: boolean;
-    pkginfo?: unknown;
+    package_path: string;
+    payload_identifier: string;
+    postinstall_script: string;
+    postuninstall_script: string;
     precache: boolean;
-    requires: Array<string> | null;
+    preinstall_alert: PackageAlert;
+    preinstall_script: string;
+    preuninstall_alert: PackageAlert;
+    preuninstall_script: string;
+    receipts: Array<PackageReceipt> | null;
+    requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_display_name: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;
+    suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: string;
+    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_script: string;
     uninstallable: boolean;
-    update_for: Array<string> | null;
+    uninstallcheck_script: string;
+    uninstaller_artifact_id?: number;
+    uninstaller_artifact_location?: string;
+    update_for: Array<PackageReference> | null;
     updated_at: string;
     version: string;
+    version_script: string;
 };
 
 export type MunkiPackageImportMutationWritable = {
@@ -1753,32 +1873,56 @@ export type MunkiPackageImportMutationWritable = {
 };
 
 export type MunkiPackageMutationWritable = {
+    apple_item?: boolean;
+    autoremove?: boolean;
     blocking_applications?: Array<string> | null;
     category?: string;
+    custom_uninstall_method?: string;
     description?: string;
     developer?: string;
     display_name?: string;
     eligible: boolean;
-    extra_pkginfo?: unknown;
+    force_install_after_date?: string;
     icon_artifact_id?: number;
+    installcheck_script?: string;
+    installed_size?: number;
     installer_artifact_id?: number;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'appdmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer' | 'AdobeCCPInstaller' | 'AdobeCS5AAMEEPackage' | 'AdobeCS5Installer' | 'AdobeCS5PatchInstaller' | 'AdobeUberInstaller' | 'AdobeSetup' | 'AdobeAcrobatUpdater';
+    installer_choices_xml?: string;
+    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installs?: Array<PackageInstallItem> | null;
+    items_to_copy?: Array<PackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
     name: string;
+    notes?: string;
     on_demand?: boolean;
+    package_path?: string;
+    payload_identifier?: string;
+    postinstall_script?: string;
+    postuninstall_script?: string;
     precache?: boolean;
-    requires?: Array<string> | null;
+    preinstall_alert?: PackageAlert;
+    preinstall_script?: string;
+    preuninstall_alert?: PackageAlert;
+    preuninstall_script?: string;
+    receipts?: Array<PackageReceipt> | null;
+    requires?: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
     software_id: number;
     supported_architectures?: Array<string> | null;
+    suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: string;
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_script?: string;
     uninstallable?: boolean;
-    update_for?: Array<string> | null;
+    uninstallcheck_script?: string;
+    uninstaller_artifact_id?: number;
+    update_for?: Array<PackageReference> | null;
     version: string;
+    version_script?: string;
 };
 
 export type MunkiSoftwareTitleWritable = {

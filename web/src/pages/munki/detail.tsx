@@ -172,7 +172,7 @@ export function MunkiSoftwareTitleDetailPage() {
     <PageShell>
       <PageHeader
         title={title}
-        description="Software is targeted once. Pkginfos provide the versioned Munki candidates each assignment can render."
+        description="Software is targeted once. Packages provide the versioned Munki candidates each assignment can resolve."
         leading={software ? <MunkiIcon iconUrl={software.icon_url} size="lg" /> : undefined}
         actions={
           software ? (

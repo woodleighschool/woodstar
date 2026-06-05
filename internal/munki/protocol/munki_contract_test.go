@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -24,14 +23,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				SoftwareID:       1,
 				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      20,
-					Name:    "GoogleChrome",
-					Version: "148.0.0.1",
-					Pkginfo: json.RawMessage(
-						`{"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(20, "GoogleChrome", "148.0.0.1"),
 			},
 			{
 				AssignmentID:     11,
@@ -39,28 +31,14 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				Action:           munki.AssignmentActionNone,
 				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      21,
-					Name:    "Slack",
-					Version: "4.50.0",
-					Pkginfo: json.RawMessage(
-						`{"name":"Slack","version":"4.50.0","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(21, "Slack", "4.50.0"),
 			},
 			{
 				AssignmentID:     12,
 				SoftwareID:       3,
 				Action:           munki.AssignmentActionRemove,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      22,
-					Name:    "LegacyVPN",
-					Version: "1.0",
-					Pkginfo: json.RawMessage(
-						`{"name":"LegacyVPN","version":"1.0","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(22, "LegacyVPN", "1.0"),
 			},
 			{
 				AssignmentID:     13,
@@ -69,14 +47,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 				OptionalInstall:  true,
 				FeaturedItem:     true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      23,
-					Name:    "FeaturedApp",
-					Version: "3.2.1",
-					Pkginfo: json.RawMessage(
-						`{"name":"FeaturedApp","version":"3.2.1","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(23, "FeaturedApp", "3.2.1"),
 			},
 		}),
 	)
@@ -120,12 +91,10 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
 				Package: munki.Package{
-					ID:      20,
-					Name:    "GoogleChrome",
-					Version: "148.0.0.1",
-					Pkginfo: json.RawMessage(
-						`{"name":"GoogleChrome","version":"148.0.0.1","PackageCompleteURL":"https://s3.example/raw?expires=1","PackageURL":"https://packages.example"}`,
-					),
+					ID:                        20,
+					Name:                      "GoogleChrome",
+					Version:                   "148.0.0.1",
+					InstallerType:             munki.InstallerTypeNoPkg,
 					InstallerArtifactID:       &artifactID,
 					InstallerArtifactLocation: "apps/GoogleChrome.pkg",
 				},
@@ -157,7 +126,7 @@ func TestMunkiCatalogUsesStableArtifactURL(t *testing.T) {
 	}
 }
 
-func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
+func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
 	service := munki.NewService(
 		nil,
 		staticPackageResolver{packages: []munki.EffectivePackage{
@@ -166,14 +135,7 @@ func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
 				SoftwareID:       1,
 				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      20,
-					Name:    "ExternalURLApp",
-					Version: "1.0",
-					Pkginfo: json.RawMessage(
-						`{"name":"ExternalURLApp","version":"1.0","PackageCompleteURL":"https://s3.example/raw?expires=1","PackageURL":"https://packages.example"}`,
-					),
-				},
+				Package:          staticMunkiPackage(20, "ExternalURLApp", "1.0"),
 			},
 		}},
 		munki.WithPublicURL("https://woodstar.example"),
@@ -192,10 +154,10 @@ func TestMunkiCatalogStripsCallerPackageURLs(t *testing.T) {
 		t.Fatalf("catalog items = %d, want 1", len(decoded))
 	}
 	if _, ok := decoded[0]["PackageCompleteURL"]; ok {
-		t.Fatalf("PackageCompleteURL was rendered from stored pkginfo: %+v", decoded[0])
+		t.Fatalf("PackageCompleteURL rendered without an artifact: %+v", decoded[0])
 	}
 	if _, ok := decoded[0]["PackageURL"]; ok {
-		t.Fatalf("PackageURL was rendered from stored pkginfo: %+v", decoded[0])
+		t.Fatalf("PackageURL rendered without an artifact: %+v", decoded[0])
 	}
 }
 
@@ -255,14 +217,7 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 				SoftwareID:       1,
 				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      20,
-					Name:    "OverlapApp",
-					Version: "1.0",
-					Pkginfo: json.RawMessage(
-						`{"name":"OverlapApp","version":"1.0","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(20, "OverlapApp", "1.0"),
 			},
 			{
 				AssignmentID:     11,
@@ -270,28 +225,14 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 				Action:           munki.AssignmentActionNone,
 				OptionalInstall:  true,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      21,
-					Name:    "OverlapApp",
-					Version: "1.1",
-					Pkginfo: json.RawMessage(
-						`{"name":"OverlapApp","version":"1.1","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(21, "OverlapApp", "1.1"),
 			},
 			{
 				AssignmentID:     12,
 				SoftwareID:       1,
 				Action:           munki.AssignmentActionRemove,
 				PackageSelection: munki.PackageSelectionLatestEligible,
-				Package: munki.Package{
-					ID:      22,
-					Name:    "OverlapApp",
-					Version: "1.2",
-					Pkginfo: json.RawMessage(
-						`{"name":"OverlapApp","version":"1.2","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(22, "OverlapApp", "1.2"),
 			},
 		}),
 	)
@@ -330,14 +271,7 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 				SoftwareID:       1,
 				Action:           munki.AssignmentActionInstall,
 				PackageSelection: munki.PackageSelectionSpecific,
-				Package: munki.Package{
-					ID:      20,
-					Name:    "PinnedApp",
-					Version: "1.0",
-					Pkginfo: json.RawMessage(
-						`{"name":"PinnedApp","version":"1.0","installer_type":"nopkg"}`,
-					),
-				},
+				Package:          staticMunkiPackage(20, "PinnedApp", "1.0"),
 			},
 		}),
 	)
@@ -646,6 +580,15 @@ type staticPackageResolver struct {
 
 func (r staticPackageResolver) EffectivePackagesForHost(_ context.Context, _ int64) ([]munki.EffectivePackage, error) {
 	return r.packages, nil
+}
+
+func staticMunkiPackage(id int64, name string, version string) munki.Package {
+	return munki.Package{
+		ID:            id,
+		Name:          name,
+		Version:       version,
+		InstallerType: munki.InstallerTypeNoPkg,
+	}
 }
 
 func sameStrings(a, b []string) bool {
