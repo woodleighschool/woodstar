@@ -15,27 +15,27 @@ export function enrollmentTitle(integration: Integration) {
 
 export function enrollmentDescription(integration: Integration) {
   if (integration === "orbit") {
-    return "Orbit package, configuration profile, and enroll secrets.";
+    return "Orbit package, profile, and enroll secrets.";
   }
   if (integration === "munki") {
-    return "Configuration profile and bearer secrets for Munki clients.";
+    return "Profile and bearer secrets for Munki.";
   }
-  return "Configuration profile and bearer secrets for Santa clients.";
+  return "Profile and bearer secrets for Santa.";
 }
 
 export function secretUsageDescription(integration: Integration) {
   if (integration === "orbit") {
-    return "Use these secrets to enroll Orbit and osquery hosts.";
+    return "Use these secrets for Orbit enrollment.";
   }
   if (integration === "munki") {
-    return "Use these bearer secrets to authenticate Munki repository fetches.";
+    return "Use these bearer secrets for Munki.";
   }
-  return "Use these bearer secrets to authenticate Santa sync clients.";
+  return "Use these bearer secrets for Santa.";
 }
 
 export function deleteDescription(integration: Integration) {
   if (integration === "orbit") {
-    return "Future Orbit and osquery enrollments using this secret will fail. Existing hosts keep their issued node keys.";
+    return "New enrollments using this secret will fail. Existing hosts keep their issued node keys.";
   }
   if (integration === "munki") {
     return "Munki clients using this bearer secret will be rejected until they receive another active secret.";
