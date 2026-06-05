@@ -30,7 +30,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 		deps.Inventory.Hosts,
 		deps.Inventory.UserAffinities,
 		deps.Inventory.Software,
-		handlers.MunkiHostDetailContributor(deps.Munki.Store),
+		handlers.MunkiHostDetailContributor(deps.Munki.State),
 		handlers.SantaHostDetailContributor(deps.Santa.HostState),
 	)
 	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)
@@ -45,5 +45,5 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterSantaRules(admin, deps.Santa.Rules)
 	handlers.RegisterSantaEvents(admin, deps.Santa.Events)
 	handlers.RegisterHostSantaRules(protected, deps.Inventory.Hosts, deps.Santa.Rules)
-	handlers.RegisterMunki(admin, deps.Munki.Store, deps.Munki.ArtifactStorage)
+	handlers.RegisterMunki(admin, deps.Munki.State, deps.Munki.ArtifactStorage)
 }

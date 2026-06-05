@@ -10,10 +10,10 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMunkiSoftwareTitle } from "@/hooks/munki/software-titles";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
-import { useMunkiSoftwareTitle } from "@/hooks/use-munki";
 import { useReport } from "@/hooks/use-reports";
 import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
 import { useSoftwareTitle } from "@/hooks/use-software";

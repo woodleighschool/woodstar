@@ -256,7 +256,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Munki.Store = munki.NewStore(database)
+	deps.Munki.State = munki.NewStore(database)
 	server := NewServer(deps)
 	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
@@ -375,7 +375,7 @@ func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
 	deps.Runtime.DB = database
 	deps.Auth.UserService = userService
 	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
-	deps.Munki.Store = munki.NewStore(database)
+	deps.Munki.State = munki.NewStore(database)
 	deps.Munki.ArtifactStorage = fakeMunkiStorage{}
 	server := NewServer(deps)
 	cookie := loginTestUserWithEmail(t, deps.Auth.AuthService, deps.Runtime.SessionManager, "munki-upload@example.test")

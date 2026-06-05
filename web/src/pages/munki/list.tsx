@@ -7,8 +7,8 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useMunkiSoftwareTitles, type MunkiSoftwareTitle } from "@/hooks/munki/software-titles";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
-import { useMunkiSoftwareTitles, type MunkiSoftwareTitle } from "@/hooks/use-munki";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
 

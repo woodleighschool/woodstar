@@ -11,13 +11,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { useReorderMunkiAssignments, type MunkiAssignment } from "@/hooks/munki/assignments";
+import { type MunkiPackage } from "@/hooks/munki/packages";
+import { useMunkiSoftwareTitle } from "@/hooks/munki/software-titles";
 import { useLabels } from "@/hooks/use-labels";
-import {
-  useMunkiSoftwareTitle,
-  useReorderMunkiAssignments,
-  type MunkiAssignment,
-  type MunkiPackage,
-} from "@/hooks/use-munki";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 

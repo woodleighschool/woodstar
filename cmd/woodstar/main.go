@@ -218,41 +218,41 @@ func (services backgroundServices) start(ctx context.Context) func() {
 	}
 }
 
-type appStores struct {
+type storeSet struct {
 	directory           *directory.Store
 	hosts               *hosts.Store
 	userAffinities      *hosts.UserAffinityStore
 	agentSecrets        *agentauth.Store
 	software            *software.Store
 	labels              *labels.Store
-	reports             *reports.Store
-	checks              *checks.Store
-	munki               *munki.Store
-	santa               *santa.Store
+	osqueryReports      *reports.Store
+	osqueryChecks       *checks.Store
+	munkiState          *munki.Store
+	santaHosts          *santa.Store
 	santaConfigurations *configurations.Store
 	santaEvents         *events.Store
 	santaRules          *rules.Store
 	santaReferences     *references.Store
-	santaSync           *syncstate.Store
+	santaSyncState      *syncstate.Store
 }
 
-func newStores(db *database.DB) appStores {
-	return appStores{
+func newStores(db *database.DB) storeSet {
+	return storeSet{
 		directory:           directory.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		userAffinities:      hosts.NewUserAffinityStore(db),
 		agentSecrets:        agentauth.NewStore(db),
 		software:            software.NewStore(db),
 		labels:              labels.NewStore(db),
-		reports:             reports.NewStore(db),
-		checks:              checks.NewStore(db),
-		munki:               munki.NewStore(db),
-		santa:               santa.NewStore(db),
+		osqueryReports:      reports.NewStore(db),
+		osqueryChecks:       checks.NewStore(db),
+		munkiState:          munki.NewStore(db),
+		santaHosts:          santa.NewStore(db),
 		santaConfigurations: configurations.NewStore(db),
 		santaEvents:         events.NewStore(db),
 		santaRules:          rules.NewStore(db),
 		santaReferences:     references.NewStore(db),
-		santaSync:           syncstate.NewStore(db),
+		santaSyncState:      syncstate.NewStore(db),
 	}
 }
 
@@ -285,17 +285,14 @@ func newAuthService(
 	return authService
 }
 
-// newOrbit builds the Orbit capability's runtime dependencies. Orbit has no
-// background lifecycle of its own, so there's no stop func.
-func newOrbit(stores appStores) api.OrbitDependencies {
+func newOrbit(stores storeSet) api.OrbitDependencies {
 	return api.OrbitDependencies{
 		Agent: orbit.NewService(stores.hosts, stores.agentSecrets, stores.userAffinities),
 	}
 }
 
-// newOsquery builds the osquery capability's runtime dependencies.
 func newOsquery(
-	stores appStores,
+	stores storeSet,
 	logger *slog.Logger,
 ) api.OsqueryDependencies {
 	liveQueries := livequery.NewManager()
@@ -303,14 +300,14 @@ func newOsquery(
 		stores.hosts,
 		stores.software,
 		logger.With("component", "inventory"),
-	).WithMunkiStore(stores.munki)
+	).WithMunkiStore(stores.munkiState)
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	osqueryService := osquery.NewService(osquery.Dependencies{
 		HostStore:          stores.hosts,
 		InventoryProjector: inventoryProjector,
 		LabelEvaluator:     labelEvaluator,
-		ReportStore:        stores.reports,
-		CheckStore:         stores.checks,
+		ReportStore:        stores.osqueryReports,
+		CheckStore:         stores.osqueryChecks,
 		LiveQueries:        liveQueries,
 		SecretStore:        stores.agentSecrets,
 		Logger:             logger.With("component", "osquery"),
@@ -318,13 +315,12 @@ func newOsquery(
 	return api.OsqueryDependencies{
 		Agent:       osqueryService,
 		LiveQueries: liveQueries,
-		Reports:     stores.reports,
-		Checks:      stores.checks,
+		Reports:     stores.osqueryReports,
+		Checks:      stores.osqueryChecks,
 	}
 }
 
-// newMunki builds the Munki capability's runtime dependencies.
-func newMunki(ctx context.Context, cfg config.Config, stores appStores, logger *slog.Logger) api.MunkiDependencies {
+func newMunki(ctx context.Context, cfg config.Config, stores storeSet, logger *slog.Logger) api.MunkiDependencies {
 	var artifactPresigner munki.ServiceOption
 	var artifactStorage api.MunkiArtifactStorage
 	if cfg.MunkiS3Enabled() {
@@ -347,34 +343,33 @@ func newMunki(ctx context.Context, cfg config.Config, stores appStores, logger *
 		}
 	}
 	options := []munki.ServiceOption{
-		munki.WithArtifactStore(stores.munki),
+		munki.WithArtifactStore(stores.munkiState),
 		munki.WithPublicURL(cfg.PublicURL),
 	}
 	if artifactPresigner != nil {
 		options = append(options, artifactPresigner)
 	}
 	return api.MunkiDependencies{
-		Repository:      munki.NewService(stores.hosts, stores.munki, options...),
-		Store:           stores.munki,
+		Repository:      munki.NewService(stores.hosts, stores.munkiState, options...),
+		State:           stores.munkiState,
 		ArtifactStorage: artifactStorage,
 	}
 }
 
-// newSanta builds Santa dependencies and returns the event cleanup starter.
 func newSanta(
 	cfg config.Config,
-	stores appStores,
+	stores storeSet,
 	logger *slog.Logger,
 ) (api.SantaDependencies, backgroundService) {
 	santaService := santa.NewService(santa.Dependencies{
-		HostStore:      stores.santa,
+		HostStore:      stores.santaHosts,
 		Configurations: stores.santaConfigurations,
 		UserAffinities: stores.userAffinities,
 		Events:         stores.santaEvents,
 		Rules:          stores.santaRules,
-		Sync:           stores.santaSync,
+		Sync:           stores.santaSyncState,
 	})
-	santaHostState := santa.NewHostStateService(stores.santa, stores.santaConfigurations)
+	santaHostState := santa.NewHostStateService(stores.santaHosts, stores.santaConfigurations)
 	startCleanup := func(ctx context.Context) func() {
 		eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
 			RetentionDays: cfg.SantaEventRetentionDays,
@@ -397,7 +392,7 @@ func newSanta(
 
 func newIntegrationBackgrounds(
 	cfg config.Config,
-	stores appStores,
+	stores storeSet,
 	logger *slog.Logger,
 ) backgroundServices {
 	if !cfg.EntraEnabled() {
