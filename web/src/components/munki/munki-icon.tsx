@@ -2,9 +2,9 @@ import { SoftwareIcon, type SoftwareIconSize } from "@/components/software/softw
 import { cn } from "@/lib/utils";
 
 const IMAGE_SIZE_CLASS = {
-  sm: { box: "size-6 rounded-sm", image: "p-0.5" },
-  md: { box: "size-9 rounded-md", image: "p-1" },
-  lg: { box: "size-20 rounded-lg", image: "p-2" },
+  sm: "size-6 rounded-sm",
+  md: "size-9 rounded-md",
+  lg: "size-20 rounded-lg",
 } as const;
 
 interface MunkiIconProps {
@@ -21,16 +21,9 @@ export function MunkiIcon({ iconUrl, fallbackIconUrl, size = "sm", className, lo
     return <SoftwareIcon source="pkg_packages" size={size} className={className} />;
   }
 
-  const sizes = IMAGE_SIZE_CLASS[size];
   return (
-    <span
-      className={cn(
-        "bg-muted/40 inline-flex shrink-0 items-center justify-center overflow-hidden border",
-        sizes.box,
-        className,
-      )}
-    >
-      <img src={url} alt="" className={cn("size-full object-contain", sizes.image)} loading={loading} />
+    <span className={cn("bg-muted/40 inline-flex shrink-0 overflow-hidden", IMAGE_SIZE_CLASS[size], className)}>
+      <img src={url} alt="" className="size-full object-contain" loading={loading} />
     </span>
   );
 }
