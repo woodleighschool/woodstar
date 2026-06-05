@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -432,6 +433,57 @@ func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
 	}
 }
 
+func TestMunkiArtifactUploadEndpointReportsUnavailableStorage(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
+		Email:    "munki-disabled-storage@example.test",
+		Name:     "Munki Disabled Storage",
+		Password: testUserPassword,
+		Role:     directory.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Munki.State = munki.NewStore(database)
+	deps.Munki.ArtifactStorage = unavailableMunkiStorage{}
+	server := NewServer(deps)
+	cookie := loginTestUserWithEmail(
+		t,
+		deps.Auth.AuthService,
+		deps.Runtime.SessionManager,
+		"munki-disabled-storage@example.test",
+	)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/api/munki/artifact-uploads",
+		strings.NewReader(
+			fmt.Sprintf(
+				`{"kind":"icon","filename":"GoogleChrome.png","content_type":"image/png","size_bytes":123,"sha256":%q}`,
+				strings.Repeat("a", 64),
+			),
+		),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("Munki artifact storage is not configured")) {
+		t.Fatalf("body = %q, want storage unavailable message", rec.Body.String())
+	}
+}
+
 func containsAgentSecret(secrets []agentauth.AgentSecret, id int64, agent agentauth.Agent, value string) bool {
 	for _, secret := range secrets {
 		if secret.ID == id && secret.Agent == agent && secret.Value == value {
@@ -461,6 +513,25 @@ func (fakeMunkiStorage) PresignPut(
 
 func (fakeMunkiStorage) Stat(_ context.Context, _ string) (munki.ArtifactObject, error) {
 	return munki.ArtifactObject{ContentType: "image/png", SizeBytes: 123, SHA256: strings.Repeat("a", 64)}, nil
+}
+
+type unavailableMunkiStorage struct{}
+
+func (unavailableMunkiStorage) PresignGet(context.Context, munki.Artifact) (string, error) {
+	return "", munki.ErrStorageUnavailable
+}
+
+func (unavailableMunkiStorage) PresignPut(
+	context.Context,
+	string,
+	string,
+	string,
+) (munki.ArtifactUploadURL, error) {
+	return munki.ArtifactUploadURL{}, munki.ErrStorageUnavailable
+}
+
+func (unavailableMunkiStorage) Stat(context.Context, string) (munki.ArtifactObject, error) {
+	return munki.ArtifactObject{}, munki.ErrStorageUnavailable
 }
 
 func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {

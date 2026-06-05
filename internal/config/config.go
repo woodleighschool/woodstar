@@ -27,8 +27,6 @@ type Config struct {
 	DatabaseURL   string `env:"DATABASE_URL"`
 	LogLevel      string `env:"LOG_LEVEL"                        envDefault:"info"`
 
-	ShutdownTimeoutSeconds int `env:"SHUTDOWN_TIMEOUT_SECONDS" envDefault:"15"`
-
 	SantaEventRetentionDays int           `env:"SANTA_EVENT_RETENTION_DAYS" envDefault:"90"`
 	SantaEventSweepInterval time.Duration `env:"SANTA_EVENT_SWEEP_INTERVAL" envDefault:"1h"`
 

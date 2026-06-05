@@ -142,7 +142,7 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 		},
 	}, func(ctx context.Context, input *munkiArtifactUploadInput) (*munkiArtifactUploadOutput, error) {
 		if uploads == nil {
-			return nil, huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+			return nil, munkiArtifactStorageUnavailable()
 		}
 		target, err := input.Body.target()
 		if err != nil {
@@ -150,7 +150,7 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 		}
 		upload, err := uploads.PresignPut(ctx, target.StorageKey, target.ContentType, target.SHA256)
 		if err != nil {
-			return nil, err
+			return nil, munkiArtifactStorageError(err)
 		}
 		return &munkiArtifactUploadOutput{
 			Body: munkiArtifactUpload{
@@ -177,7 +177,7 @@ func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactS
 		},
 	}, func(ctx context.Context, input *munkiArtifactContentInput) (*munkiArtifactContentOutput, error) {
 		if artifactStorage == nil {
-			return nil, huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+			return nil, munkiArtifactStorageUnavailable()
 		}
 		artifact, err := store.GetArtifact(ctx, input.ID)
 		if err != nil {
@@ -185,7 +185,7 @@ func registerGetMunkiArtifactContent(api huma.API, store *munki.Store, artifactS
 		}
 		location, err := artifactStorage.PresignGet(ctx, *artifact)
 		if err != nil {
-			return nil, err
+			return nil, munkiArtifactStorageError(err)
 		}
 		return &munkiArtifactContentOutput{Status: http.StatusFound, Location: location}, nil
 	})
@@ -212,7 +212,7 @@ func verifyMunkiArtifactObject(
 	mutation munki.ArtifactMutation,
 ) error {
 	if artifactStorage == nil {
-		return huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+		return munkiArtifactStorageUnavailable()
 	}
 	object, err := artifactStorage.Stat(ctx, mutation.StorageKey)
 	if errors.Is(err, munki.ErrNotFound) {
@@ -222,7 +222,7 @@ func verifyMunkiArtifactObject(
 		)
 	}
 	if err != nil {
-		return err
+		return munkiArtifactStorageError(err)
 	}
 	if object.SizeBytes != mutation.SizeBytes {
 		return resourceMutationError(
@@ -237,6 +237,17 @@ func verifyMunkiArtifactObject(
 		)
 	}
 	return nil
+}
+
+func munkiArtifactStorageUnavailable() error {
+	return huma.Error503ServiceUnavailable("Munki artifact storage is not configured")
+}
+
+func munkiArtifactStorageError(err error) error {
+	if errors.Is(err, munki.ErrStorageUnavailable) {
+		return munkiArtifactStorageUnavailable()
+	}
+	return err
 }
 
 func (body munkiArtifactMutation) domain() munki.ArtifactMutation {

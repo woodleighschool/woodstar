@@ -61,9 +61,6 @@ func TestApplyEnvironmentDefaults(t *testing.T) {
 	if cfg.LogLevel != "info" {
 		t.Fatalf("LogLevel = %q, want info", cfg.LogLevel)
 	}
-	if cfg.ShutdownTimeoutSeconds != 15 {
-		t.Fatalf("ShutdownTimeoutSeconds = %d, want 15", cfg.ShutdownTimeoutSeconds)
-	}
 }
 
 func TestApplyEnvironmentReadsAndNormalizesConfiguredValues(t *testing.T) {

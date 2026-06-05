@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/api"
+	admin "github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -46,18 +46,21 @@ import (
 	webdist "github.com/woodleighschool/woodstar/web"
 )
 
+const gracefulShutdownTimeout = 15 * time.Second
+
 func main() {
-	rootCmd := &cobra.Command{
+	root := &cobra.Command{
 		Use:           "woodstar",
 		Short:         "Woodstar macOS observability and admin server",
+		Version:       buildinfo.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	rootCmd.Version = buildinfo.Version
-	rootCmd.AddCommand(serveCommand())
-	rootCmd.AddCommand(openAPICommand())
 
-	if err := rootCmd.Execute(); err != nil {
+	root.AddCommand(serveCommand())
+	root.AddCommand(openAPICommand())
+
+	if err := root.ExecuteContext(context.Background()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -78,7 +81,7 @@ func serveCommand() *cobra.Command {
 	cmd.Flags().IntVar(&cfg.Port, "port", 0, "HTTP listen port")
 	cmd.Flags().StringVar(&cfg.PublicURL, "public-url", "", "Public base URL")
 	cmd.Flags().StringVar(&cfg.DatabaseURL, "database-url", "", "Postgres connection URL")
-	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "log level")
+	cmd.Flags().StringVar(&cfg.LogLevel, "log-level", "", "Log level")
 	cmd.Flags().StringVar(&cfg.SessionSecret, "session-secret", "", "Session signing secret")
 
 	return cmd
@@ -91,55 +94,70 @@ func serve(parent context.Context, cfg config.Config) error {
 	if err := config.ApplyEnvironment(&cfg); err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+
 	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
-	api.InstallHumaErrorHandler(logger)
-	logger.InfoContext(parent, "woodstar configuration loaded", "component", "config", "operation", "load")
+	admin.InstallHumaErrorHandler(logger)
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer db.Close()
-	logger.InfoContext(parent, "database ready", "component", "database", "operation", "open")
 
-	sessionManager, sessionStore := newSessionManager(db, cfg)
-	// StopCleanup must be deferred after db.Close so it runs first (LIFO); the
-	// cleanup goroutine talks to the pool, which must still be open when it stops.
+	sessions, sessionStore := newSessions(db, cfg)
+
+	// StopCleanup must run while the DB pool still exists.
 	defer sessionStore.StopCleanup()
 
-	server, background := newServer(ctx, cfg, db, sessionManager, logger)
-	listenConfig := net.ListenConfig{}
-	listener, err := listenConfig.Listen(ctx, "tcp", server.Addr())
+	server, starts := newServer(ctx, cfg, db, sessions, logger)
+
+	listener, err := new(net.ListenConfig).Listen(ctx, "tcp", server.Addr())
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", server.Addr(), err)
 	}
 
-	stopBackground := background.start(ctx)
-	defer stopBackground()
-	return runServer(ctx, server, listener, time.Duration(cfg.ShutdownTimeoutSeconds)*time.Second)
+	stopJobs := start(ctx, starts...)
+	defer stopJobs()
+
+	if err := runHTTPServer(ctx, server, listener); err != nil {
+		return err
+	}
+
+	logger.InfoContext(context.Background(), "server stopped")
+	return nil
 }
 
-func runServer(
+func runHTTPServer(
 	ctx context.Context,
-	server *api.Server,
+	server *admin.Server,
 	listener net.Listener,
-	shutdownTimeout time.Duration,
 ) error {
-	serveErr := make(chan error, 1)
+	errc := make(chan error, 1)
+
 	go func() {
-		serveErr <- server.Serve(listener)
+		errc <- server.Serve(listener)
 	}()
 
 	select {
-	case err := <-serveErr:
-		return err
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			return err
+	case err := <-errc:
+		if err != nil {
+			return fmt.Errorf("serve http: %w", err)
 		}
-		return <-serveErr
+		return nil
+
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
+		defer cancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown http: %w", err)
+		}
+
+		if err := <-errc; err != nil {
+			return fmt.Errorf("serve http: %w", err)
+		}
+
+		return nil
 	}
 }
 
@@ -147,26 +165,81 @@ func newServer(
 	ctx context.Context,
 	cfg config.Config,
 	db *database.DB,
-	sessionManager *scs.SessionManager,
+	sessions *scs.SessionManager,
 	logger *slog.Logger,
-) (*api.Server, backgroundServices) {
-	stores := newStores(db)
-	userService := directory.NewUserService(stores.directory)
-	authService := newAuthService(ctx, cfg, userService, sessionManager, logger)
+) (*admin.Server, []starter) {
+	// Core stores.
+	directoryStore := directory.NewStore(db)
+	hostStore := hosts.NewStore(db)
+	userAffinities := hosts.NewUserAffinityStore(db)
+	secretStore := agentauth.NewStore(db)
+	softwareStore := software.NewStore(db)
+	labelStore := labels.NewStore(db)
 
-	orbitDeps := newOrbit(stores)
-	osqueryDeps := newOsquery(stores, logger)
-	munkiDeps := newMunki(ctx, cfg, stores, logger)
-	santaDeps, santaBackground := newSanta(cfg, stores, logger)
-	background := append(backgroundServices{santaBackground}, newIntegrationBackgrounds(cfg, stores, logger)...)
+	// Osquery stores.
+	reportStore := reports.NewStore(db)
+	checkStore := checks.NewStore(db)
 
-	server := api.NewServer(api.Dependencies{
-		Runtime: api.RuntimeDependencies{
+	// Munki stores.
+	munkiStore := munki.NewStore(db)
+
+	// Santa stores.
+	santaHostStore := santa.NewStore(db)
+	configurationStore := configurations.NewStore(db)
+	eventStore := events.NewStore(db)
+	ruleStore := rules.NewStore(db)
+	referenceStore := references.NewStore(db)
+	syncStore := syncstate.NewStore(db)
+
+	users := directory.NewUserService(directoryStore)
+	authn := newAuth(ctx, cfg, users, sessions, logger)
+
+	orbitAgent := orbit.NewService(hostStore, secretStore, userAffinities)
+
+	liveQueries := livequery.NewManager()
+
+	inventoryProjector := ingest.NewProjector(
+		hostStore,
+		softwareStore,
+		logger.With("component", "inventory"),
+	).WithMunkiStore(munkiStore)
+
+	labelEvaluator := ingest.NewLabelEvaluator(
+		labelStore,
+		logger.With("component", "labels"),
+	)
+
+	osqueryAgent := osquery.NewService(osquery.Dependencies{
+		HostStore:          hostStore,
+		InventoryProjector: inventoryProjector,
+		LabelEvaluator:     labelEvaluator,
+		ReportStore:        reportStore,
+		CheckStore:         checkStore,
+		LiveQueries:        liveQueries,
+		SecretStore:        secretStore,
+		Logger:             logger.With("component", "osquery"),
+	})
+
+	munkiRepo, munkiArtifacts := newMunki(ctx, cfg, hostStore, munkiStore, logger)
+
+	santaSync := santa.NewService(santa.Dependencies{
+		HostStore:      santaHostStore,
+		Configurations: configurationStore,
+		UserAffinities: userAffinities,
+		Events:         eventStore,
+		Rules:          ruleStore,
+		Sync:           syncStore,
+	})
+
+	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
+
+	server := admin.NewServer(admin.Dependencies{
+		Runtime: admin.RuntimeDependencies{
 			Config:         cfg,
 			DB:             db,
 			Version:        buildinfo.Version,
 			Logger:         logger,
-			SessionManager: sessionManager,
+			SessionManager: sessions,
 			WebHandler: web.NewHandler(web.HandlerOptions{
 				FS:        webdist.DistDirFS,
 				Version:   buildinfo.Version,
@@ -174,100 +247,75 @@ func newServer(
 				Logger:    logger.With("component", "web"),
 			}),
 		},
-		Auth: api.AuthDependencies{
-			AuthService: authService,
-			UserService: userService,
+
+		Auth: admin.AuthDependencies{
+			AuthService: authn,
+			UserService: users,
 		},
-		Directory: api.DirectoryDependencies{
-			Store: stores.directory,
+
+		Directory: admin.DirectoryDependencies{
+			Store: directoryStore,
 		},
-		Inventory: api.InventoryDependencies{
-			Hosts:          stores.hosts,
-			UserAffinities: stores.userAffinities,
-			Software:       stores.software,
-			Labels:         stores.labels,
+
+		Inventory: admin.InventoryDependencies{
+			Hosts:          hostStore,
+			UserAffinities: userAffinities,
+			Software:       softwareStore,
+			Labels:         labelStore,
 		},
-		AgentAuth: api.AgentAuthDependencies{Store: stores.agentSecrets},
-		Orbit:     orbitDeps,
-		Osquery:   osqueryDeps,
-		Munki:     munkiDeps,
-		Santa:     santaDeps,
+
+		AgentAuth: admin.AgentAuthDependencies{
+			Store: secretStore,
+		},
+
+		Orbit: admin.OrbitDependencies{
+			Agent: orbitAgent,
+		},
+
+		Osquery: admin.OsqueryDependencies{
+			Agent:       osqueryAgent,
+			LiveQueries: liveQueries,
+			Reports:     reportStore,
+			Checks:      checkStore,
+		},
+
+		Munki: admin.MunkiDependencies{
+			Repository:      munkiRepo,
+			State:           munkiStore,
+			ArtifactStorage: munkiArtifacts,
+		},
+
+		Santa: admin.SantaDependencies{
+			Sync:           santaSync,
+			HostState:      santaState,
+			Configurations: configurationStore,
+			Rules:          ruleStore,
+			Events:         eventStore,
+			References:     referenceStore,
+		},
 	})
-	return server, background
-}
 
-type backgroundService func(context.Context) func()
-
-type backgroundServices []backgroundService
-
-func (services backgroundServices) start(ctx context.Context) func() {
-	stops := make([]func(), 0, len(services))
-	for _, start := range services {
-		if start == nil {
-			continue
-		}
-		stop := start(ctx)
-		if stop != nil {
-			stops = append(stops, stop)
-		}
+	starts := []starter{
+		santaCleanup(cfg, eventStore, logger),
+		entraSync(cfg, directoryStore, labelStore, logger),
 	}
-	return func() {
-		for _, stop := range slices.Backward(stops) {
-			stop()
-		}
-	}
+
+	return server, starts
 }
 
-type storeSet struct {
-	directory           *directory.Store
-	hosts               *hosts.Store
-	userAffinities      *hosts.UserAffinityStore
-	agentSecrets        *agentauth.Store
-	software            *software.Store
-	labels              *labels.Store
-	osqueryReports      *reports.Store
-	osqueryChecks       *checks.Store
-	munkiState          *munki.Store
-	santaHosts          *santa.Store
-	santaConfigurations *configurations.Store
-	santaEvents         *events.Store
-	santaRules          *rules.Store
-	santaReferences     *references.Store
-	santaSyncState      *syncstate.Store
-}
-
-func newStores(db *database.DB) storeSet {
-	return storeSet{
-		directory:           directory.NewStore(db),
-		hosts:               hosts.NewStore(db),
-		userAffinities:      hosts.NewUserAffinityStore(db),
-		agentSecrets:        agentauth.NewStore(db),
-		software:            software.NewStore(db),
-		labels:              labels.NewStore(db),
-		osqueryReports:      reports.NewStore(db),
-		osqueryChecks:       checks.NewStore(db),
-		munkiState:          munki.NewStore(db),
-		santaHosts:          santa.NewStore(db),
-		santaConfigurations: configurations.NewStore(db),
-		santaEvents:         events.NewStore(db),
-		santaRules:          rules.NewStore(db),
-		santaReferences:     references.NewStore(db),
-		santaSyncState:      syncstate.NewStore(db),
-	}
-}
-
-func newAuthService(
+func newAuth(
 	ctx context.Context,
 	cfg config.Config,
-	userService *directory.UserService,
-	sessionManager *scs.SessionManager,
+	users *directory.UserService,
+	sessions *scs.SessionManager,
 	logger *slog.Logger,
 ) *auth.Service {
-	authService := auth.NewService(userService, sessionManager)
+	service := auth.NewService(users, sessions)
 	if !cfg.OIDCEnabled() {
-		return authService
+		return service
 	}
-	oidcErr := authService.ConfigureOIDC(ctx, auth.OIDCConfig{
+
+	err := service.ConfigureOIDC(ctx, auth.OIDCConfig{
 		IssuerURL:    cfg.OIDCIssuerURL,
 		ClientID:     cfg.OIDCClientID,
 		ClientSecret: cfg.OIDCClientSecret,
@@ -275,56 +323,33 @@ func newAuthService(
 		Scopes:       cfg.OIDCScopes,
 		EmailClaim:   cfg.OIDCEmailClaim,
 	})
-	if oidcErr != nil {
-		logger.WarnContext(ctx, "sso disabled: oidc discovery failed",
-			"component", "auth", "operation", "oidc-configure", "err", oidcErr)
-	} else {
-		logger.InfoContext(ctx, "sso enabled",
-			"component", "auth", "operation", "oidc-configure", "issuer", cfg.OIDCIssuerURL)
+	if err != nil {
+		logger.WarnContext(ctx, "sso disabled",
+			"component", "auth",
+			"operation", "oidc-discovery",
+			"err", err,
+		)
+		return service
 	}
-	return authService
+
+	logger.InfoContext(ctx, "sso enabled",
+		"component", "auth",
+		"issuer", cfg.OIDCIssuerURL,
+	)
+
+	return service
 }
 
-func newOrbit(stores storeSet) api.OrbitDependencies {
-	return api.OrbitDependencies{
-		Agent: orbit.NewService(stores.hosts, stores.agentSecrets, stores.userAffinities),
-	}
-}
-
-func newOsquery(
-	stores storeSet,
+func newMunki(
+	ctx context.Context,
+	cfg config.Config,
+	hosts *hosts.Store,
+	state *munki.Store,
 	logger *slog.Logger,
-) api.OsqueryDependencies {
-	liveQueries := livequery.NewManager()
-	inventoryProjector := ingest.NewProjector(
-		stores.hosts,
-		stores.software,
-		logger.With("component", "inventory"),
-	).WithMunkiStore(stores.munkiState)
-	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
-	osqueryService := osquery.NewService(osquery.Dependencies{
-		HostStore:          stores.hosts,
-		InventoryProjector: inventoryProjector,
-		LabelEvaluator:     labelEvaluator,
-		ReportStore:        stores.osqueryReports,
-		CheckStore:         stores.osqueryChecks,
-		LiveQueries:        liveQueries,
-		SecretStore:        stores.agentSecrets,
-		Logger:             logger.With("component", "osquery"),
-	})
-	return api.OsqueryDependencies{
-		Agent:       osqueryService,
-		LiveQueries: liveQueries,
-		Reports:     stores.osqueryReports,
-		Checks:      stores.osqueryChecks,
-	}
-}
-
-func newMunki(ctx context.Context, cfg config.Config, stores storeSet, logger *slog.Logger) api.MunkiDependencies {
-	var artifactPresigner munki.ServiceOption
-	var artifactStorage api.MunkiArtifactStorage
-	if cfg.MunkiS3Enabled() {
-		presigner, err := munkistorage.NewS3Presigner(ctx, munkistorage.S3Config{
+) (*munki.Service, munkistorage.ArtifactStorage) {
+	artifacts, err := munkistorage.NewArtifactStorage(ctx, munkistorage.Config{
+		Enabled: cfg.MunkiS3Enabled(),
+		S3: munkistorage.S3Config{
 			Bucket:         cfg.MunkiS3Bucket,
 			Region:         cfg.MunkiS3Region,
 			Endpoint:       cfg.MunkiS3Endpoint,
@@ -333,100 +358,108 @@ func newMunki(ctx context.Context, cfg config.Config, stores storeSet, logger *s
 			SecretKey:      cfg.MunkiS3SecretKey,
 			PathStyle:      cfg.MunkiS3PathStyle,
 			TTL:            cfg.MunkiS3PresignTTL,
-		})
-		if err != nil {
-			logger.WarnContext(ctx, "munki artifact storage disabled: s3 presigner failed",
-				"component", "munki", "operation", "s3-presigner", "err", err)
-		} else {
-			artifactPresigner = munki.WithArtifactPresigner(presigner)
-			artifactStorage = presigner
-		}
+		},
+	})
+	if err != nil {
+		logger.WarnContext(ctx, "munki artifact storage disabled",
+			"component", "munki",
+			"operation", "artifact-storage",
+			"err", err,
+		)
 	}
+
 	options := []munki.ServiceOption{
-		munki.WithArtifactStore(stores.munkiState),
+		munki.WithArtifactStore(state),
+		munki.WithArtifactPresigner(artifacts),
 		munki.WithPublicURL(cfg.PublicURL),
 	}
-	if artifactPresigner != nil {
-		options = append(options, artifactPresigner)
-	}
-	return api.MunkiDependencies{
-		Repository:      munki.NewService(stores.hosts, stores.munkiState, options...),
-		State:           stores.munkiState,
-		ArtifactStorage: artifactStorage,
-	}
+
+	return munki.NewService(hosts, state, options...), artifacts
 }
 
-func newSanta(
+func santaCleanup(
 	cfg config.Config,
-	stores storeSet,
+	store *events.Store,
 	logger *slog.Logger,
-) (api.SantaDependencies, backgroundService) {
-	santaService := santa.NewService(santa.Dependencies{
-		HostStore:      stores.santaHosts,
-		Configurations: stores.santaConfigurations,
-		UserAffinities: stores.userAffinities,
-		Events:         stores.santaEvents,
-		Rules:          stores.santaRules,
-		Sync:           stores.santaSyncState,
-	})
-	santaHostState := santa.NewHostStateService(stores.santaHosts, stores.santaConfigurations)
-	startCleanup := func(ctx context.Context) func() {
-		eventCleanup := events.StartCleanup(ctx, stores.santaEvents, events.CleanupOptions{
+) starter {
+	return func(ctx context.Context) func() {
+		cleanup := events.StartCleanup(ctx, store, events.CleanupOptions{
 			RetentionDays: cfg.SantaEventRetentionDays,
 			SweepInterval: cfg.SantaEventSweepInterval,
 		}, logger.With("component", "santa"))
-		if eventCleanup == nil {
+
+		if cleanup == nil {
 			return nil
 		}
-		return eventCleanup.Stop
+
+		return cleanup.Stop
 	}
-	return api.SantaDependencies{
-		Sync:           santaService,
-		HostState:      santaHostState,
-		Configurations: stores.santaConfigurations,
-		Rules:          stores.santaRules,
-		Events:         stores.santaEvents,
-		References:     stores.santaReferences,
-	}, startCleanup
 }
 
-func newIntegrationBackgrounds(
+func entraSync(
 	cfg config.Config,
-	stores storeSet,
+	directoryStore *directory.Store,
+	labelStore *labels.Store,
 	logger *slog.Logger,
-) backgroundServices {
+) starter {
 	if !cfg.EntraEnabled() {
 		return nil
 	}
-	entraClient := entra.NewClient(entra.Config{
+
+	client := entra.NewClient(entra.Config{
 		TenantID:         cfg.EntraTenantID,
 		ClientID:         cfg.EntraClientID,
 		ClientSecret:     cfg.EntraClientSecret,
 		TransitiveGroups: cfg.EntraTransitiveGroups,
 	})
-	entraSvc := entra.NewService(
-		stores.directory,
-		entraClient,
+
+	service := entra.NewService(
+		directoryStore,
+		client,
 		logger.With("component", "entra"),
-		stores.labels,
+		labelStore,
 	)
-	return backgroundServices{
-		func(ctx context.Context) func() {
-			return entraSvc.StartScheduler(ctx, cfg.EntraSyncInterval)
-		},
+
+	return func(ctx context.Context) func() {
+		return service.StartScheduler(ctx, cfg.EntraSyncInterval)
 	}
 }
 
-func newSessionManager(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
+type starter func(context.Context) func()
+
+func start(ctx context.Context, starts ...starter) func() {
+	var stops []func()
+
+	for _, start := range starts {
+		if start == nil {
+			continue
+		}
+
+		stop := start(ctx)
+		if stop != nil {
+			stops = append(stops, stop)
+		}
+	}
+
+	return func() {
+		for _, stop := range slices.Backward(stops) {
+			stop()
+		}
+	}
+}
+
+func newSessions(db *database.DB, cfg config.Config) (*scs.SessionManager, *pgxstore.PostgresStore) {
 	store := pgxstore.New(db.Pool())
-	sm := scs.New()
-	sm.Store = store
-	sm.Lifetime = config.SessionLifetime
-	sm.Cookie.Name = "woodstar_session"
-	sm.Cookie.Path = "/"
-	sm.Cookie.HttpOnly = true
-	sm.Cookie.Secure = cfg.IsHTTPS()
-	sm.Cookie.SameSite = http.SameSiteLaxMode
-	sm.Cookie.Persist = true
-	return sm, store
+
+	sessions := scs.New()
+	sessions.Store = store
+	sessions.Lifetime = config.SessionLifetime
+	sessions.Cookie.Name = "woodstar_session"
+	sessions.Cookie.Path = "/"
+	sessions.Cookie.HttpOnly = true
+	sessions.Cookie.Secure = cfg.IsHTTPS()
+	sessions.Cookie.SameSite = http.SameSiteLaxMode
+	sessions.Cookie.Persist = true
+
+	return sessions, store
 }
