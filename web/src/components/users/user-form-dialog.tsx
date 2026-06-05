@@ -13,14 +13,15 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
+import { directorySourceLabel } from "@/pages/directory/shared";
 import {
   USER_ACCESS_ROLE_OPTIONS,
   USER_ROLE_OPTIONS,
   userAccessRole,
   userMutationRole,
   type UserAccessRole,
-} from "@/components/users/user-role";
-import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
+} from "@/pages/users/shared";
 
 interface BaseProps {
   open: boolean;
@@ -80,6 +81,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
   const [name, setName] = useState(editing?.name ?? "");
   const [role, setRole] = useState<UserAccessRole>(editing ? userAccessRole(editing.role) : "viewer");
   const [password, setPassword] = useState("");
+  const isLocal = editing === null || editing.source === "local";
 
   async function handleSubmit() {
     if (mode === "create") {
@@ -89,12 +91,15 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
       return;
     }
 
+    const user = editing;
+    if (!user) return;
+
     const body: UserMutation = {
-      name: editing!.synced ? editing!.name : name,
-      role: canChangeRole ? userMutationRole(role) : editing!.role,
+      name: isLocal ? name : user.name,
+      role: canChangeRole ? userMutationRole(role) : user.role,
     };
-    if (password.trim() !== "") body.password = password;
-    await update.mutateAsync({ id: editing!.id, body });
+    if (isLocal && password.trim() !== "") body.password = password;
+    await update.mutateAsync({ id: user.id, body });
     onClose();
   }
 
@@ -134,17 +139,17 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
             />
           </Field>
 
-          <Field data-disabled={editing?.synced}>
+          <Field data-disabled={!isLocal}>
             <FieldLabel htmlFor="user-name">Name</FieldLabel>
             <Input
               id="user-name"
               type="text"
               autoComplete="off"
               value={name}
-              disabled={editing?.synced}
+              disabled={!isLocal}
               onChange={(event) => setName(event.target.value)}
             />
-            {editing?.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
+            {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(editing.source)}.</FieldDescription> : null}
           </Field>
 
           <Field data-disabled={!canChangeRole}>
@@ -166,7 +171,7 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
             {!canChangeRole ? <FieldDescription>Your own role is locked.</FieldDescription> : null}
           </Field>
 
-          <Field>
+          <Field data-disabled={!isLocal}>
             <FieldLabel htmlFor="user-password" required={mode === "create"}>
               Password
             </FieldLabel>
@@ -177,9 +182,15 @@ function UserFormBody({ mode, editing, canChangeRole, onClose }: UserFormBodyPro
               required={mode === "create"}
               minLength={mode === "create" ? 12 : undefined}
               value={password}
+              disabled={!isLocal}
               onChange={(event) => setPassword(event.target.value)}
               placeholder={mode === "create" ? "Min 12 characters" : ""}
             />
+            {!isLocal ? (
+              <FieldDescription>
+                {directorySourceLabel(editing.source)} users do not use local passwords.
+              </FieldDescription>
+            ) : null}
           </Field>
         </FieldGroup>
 

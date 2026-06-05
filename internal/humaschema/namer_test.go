@@ -4,12 +4,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
@@ -50,7 +50,7 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 		},
 		{
 			name: "non capability package",
-			typ:  reflect.TypeFor[users.User](),
+			typ:  reflect.TypeFor[directory.User](),
 			want: "User",
 		},
 	}

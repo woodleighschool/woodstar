@@ -7,7 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/groups"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 const (
@@ -26,26 +26,26 @@ type groupGetInput struct {
 }
 
 type groupListOutput struct {
-	Body Page[groups.Group]
+	Body Page[directory.Group]
 }
 
 type groupOutput struct {
-	Body groups.Group
+	Body directory.Group
 }
 
-func RegisterGroups(api huma.API, groupStore *groups.Store) {
+func RegisterGroups(api huma.API, groupStore *directory.Store) {
 	registerListGroups(api, groupStore)
 	registerGetGroup(api, groupStore)
 }
 
-func (i groupListInput) params() groups.ListParams {
-	return groups.ListParams{
+func (i groupListInput) params() directory.GroupListParams {
+	return directory.GroupListParams{
 		ListParams: i.ListQueryInput.params(),
 		Values:     dbutil.SplitListValues(i.Values),
 	}
 }
 
-func registerListGroups(api huma.API, groupStore *groups.Store) {
+func registerListGroups(api huma.API, groupStore *directory.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-groups",
 		Method:      http.MethodGet,
@@ -57,15 +57,15 @@ func registerListGroups(api huma.API, groupStore *groups.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		list, count, err := groupStore.List(ctx, input.params())
+		list, count, err := groupStore.ListGroups(ctx, input.params())
 		if err != nil {
 			return nil, resourceMutationError(groupResource, err)
 		}
-		return &groupListOutput{Body: Page[groups.Group]{Items: list, Count: count}}, nil
+		return &groupListOutput{Body: Page[directory.Group]{Items: list, Count: count}}, nil
 	})
 }
 
-func registerGetGroup(api huma.API, groupStore *groups.Store) {
+func registerGetGroup(api huma.API, groupStore *directory.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-group",
 		Method:      http.MethodGet,
@@ -77,7 +77,7 @@ func registerGetGroup(api huma.API, groupStore *groups.Store) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		group, err := groupStore.GetByID(ctx, input.ID)
+		group, err := groupStore.GetGroupByID(ctx, input.ID)
 		if err != nil {
 			return nil, resourceMutationError(groupResource, err)
 		}

@@ -1,4 +1,4 @@
-package entra
+package directory
 
 import (
 	"context"
@@ -15,11 +15,11 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	hostStore := hosts.NewStore(database)
 	userAffinities := hosts.NewUserAffinityStore(database)
 
-	if err := store.Apply(ctx, Snapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Users: []SnapshotUser{
-			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Active: true},
-			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
+		Users: []ProviderUser{
+			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Enabled: true},
+			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Enabled: true},
 		},
 	}); err != nil {
 		t.Fatalf("apply entra snapshot: %v", err)
@@ -59,11 +59,11 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("seed santa host email: %v", err)
 	}
 
-	if err := store.Apply(ctx, Snapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Users: []SnapshotUser{
-			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Active: true},
-			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
+		Users: []ProviderUser{
+			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Enabled: true},
+			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Enabled: true},
 		},
 	}); err != nil {
 		t.Fatalf("apply entra snapshot after host email: %v", err)
@@ -74,12 +74,12 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("source = %q, want reported_user_affinity", source)
 	}
 
-	aliceID := entraUserID(t, ctx, store, "alice@example.com")
+	aliceID := providerUserID(t, ctx, store, "alice@example.com")
 	if linkedUserID != aliceID {
 		t.Fatalf("link points to %d, want alice's id %d", linkedUserID, aliceID)
 	}
 
-	bobID := entraUserID(t, ctx, store, "bob@example.com")
+	bobID := providerUserID(t, ctx, store, "bob@example.com")
 	linkedUserID, source = hostUserLink(t, ctx, store, santaHost.ID)
 	if source != "reported_user_affinity" {
 		t.Fatalf("santa source = %q, want reported_user_affinity", source)
@@ -99,11 +99,11 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 		t.Fatalf("manual override: %v", err)
 	}
 
-	if err := store.Apply(ctx, Snapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Users: []SnapshotUser{
-			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Active: true},
-			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Active: true},
+		Users: []ProviderUser{
+			{ExternalID: "u-alice", UserPrincipalName: "alice@example.com", DisplayName: "Alice", Enabled: true},
+			{ExternalID: "u-bob", UserPrincipalName: "bob@example.com", DisplayName: "Bob", Enabled: true},
 		},
 	}); err != nil {
 		t.Fatalf("apply entra snapshot after manual: %v", err)
@@ -118,7 +118,7 @@ func TestReconcileLinksMatchesByUPNAndRespectsManual(t *testing.T) {
 	}
 }
 
-func entraUserID(t *testing.T, ctx context.Context, store *Store, upn string) int64 {
+func providerUserID(t *testing.T, ctx context.Context, store *Store, upn string) int64 {
 	t.Helper()
 	var id int64
 	if err := store.db.Pool().QueryRow(ctx, `

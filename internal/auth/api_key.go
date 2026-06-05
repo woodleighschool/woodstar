@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
-	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 // apiKeyByteLen is the entropy budget for the random component of every
@@ -16,7 +16,7 @@ const apiKeyByteLen = 24
 
 // RotateAPIKey generates a fresh API key for userID, persists it, and returns
 // the updated account self-view with the retrievable plaintext key.
-func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
+func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*directory.Account, error) {
 	key, err := randtoken.Generate(apiKeyByteLen)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*users.Accoun
 }
 
 // RevokeAPIKey clears the API key on userID and returns the updated user.
-func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*users.Account, error) {
+func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*directory.Account, error) {
 	account, err := s.users.ClearAPIKey(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("clear api key: %w", err)
@@ -40,7 +40,7 @@ func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*users.Accoun
 // userByAPIKey returns the user owning the given API key and best-effort
 // updates api_key_last_used_at. Token lookup is plain equality on the
 // indexed column; the user is not retrieved when token is empty.
-func (s *Service) userByAPIKey(ctx context.Context, token string) (*users.User, error) {
+func (s *Service) userByAPIKey(ctx context.Context, token string) (*directory.User, error) {
 	if token == "" {
 		return nil, ErrNotAuthenticated
 	}

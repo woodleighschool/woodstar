@@ -35,7 +35,6 @@ function userQueryParams(params: UserListParams = {}) {
     ...baseUserQueryParams(params),
     role: params.role,
     source: params.source,
-    status: params.status,
     group_id: params.group_id,
   };
 }

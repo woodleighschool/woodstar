@@ -24,7 +24,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterSSO(r, deps.Auth.AuthService)
 	handlers.RegisterAccount(protected, deps.Auth.AuthService, deps.Auth.UserService)
 	handlers.RegisterUsers(protected, deps.Auth.UserService)
-	handlers.RegisterGroups(protected, deps.Directory.Groups)
+	handlers.RegisterGroups(protected, deps.Directory.Store)
 	handlers.RegisterHosts(
 		protected,
 		deps.Inventory.Hosts,

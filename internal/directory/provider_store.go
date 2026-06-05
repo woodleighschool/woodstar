@@ -1,50 +1,37 @@
-package entra
+package directory
 
 import (
 	"context"
-	"time"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Store persists Entra group data and applies Entra user enrichment.
-type Store struct {
-	db *database.DB
-	q  *sqlc.Queries
-}
-
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db, q: db.Queries()}
-}
-
-// Apply reconciles the snapshot into the database within a single transaction.
-// Missing Entra users are marked inactive instead of deleted.
-func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
-	syncedAt := snapshot.GeneratedAt
-	if syncedAt.IsZero() {
-		syncedAt = time.Now().UTC()
+// ApplyProviderSnapshot reconciles a source-owned snapshot in one transaction.
+func (s *Store) ApplyProviderSnapshot(ctx context.Context, source Source, snapshot ProviderSnapshot) error {
+	if source == SourceLocal {
+		return errors.New("directory: local source cannot apply provider snapshot")
 	}
-
 	return pgx.BeginFunc(ctx, s.db.Pool(), func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 
 		groupIDs := make([]string, 0, len(snapshot.Groups))
 		for _, g := range snapshot.Groups {
-			if _, err := q.UpsertEntraGroup(ctx, sqlc.UpsertEntraGroupParams{
+			if _, err := q.UpsertDirectoryGroup(ctx, sqlc.UpsertDirectoryGroupParams{
+				Source:       sqlc.DirectorySource(source),
 				ExternalID:   g.ExternalID,
 				DisplayName:  g.DisplayName,
 				MailNickname: dbutil.NullString(g.MailNickname),
-				LastSyncedAt: syncedAt,
 			}); err != nil {
 				return err
 			}
 			groupIDs = append(groupIDs, g.ExternalID)
 		}
-		if err := q.DeleteEntraGroupsNotIn(ctx, sqlc.DeleteEntraGroupsNotInParams{
+		if err := q.DeleteDirectoryGroupsNotIn(ctx, sqlc.DeleteDirectoryGroupsNotInParams{
+			Source:      sqlc.DirectorySource(source),
 			ExternalIds: groupIDs,
 		}); err != nil {
 			return err
@@ -52,14 +39,18 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 
 		userExternalIDs := make([]string, 0, len(snapshot.Users))
 		for _, u := range snapshot.Users {
-			if err := q.AttachEntraUserByEmail(ctx, sqlc.AttachEntraUserByEmailParams{
-				ExternalID:        u.ExternalID,
-				Mail:              dbutil.NullString(u.Mail),
-				UserPrincipalName: u.UserPrincipalName,
-			}); err != nil {
-				return err
+			if u.Enabled {
+				if err := q.AttachDirectoryUserByEmail(ctx, sqlc.AttachDirectoryUserByEmailParams{
+					Source:            sqlc.DirectorySource(source),
+					ExternalID:        u.ExternalID,
+					Mail:              dbutil.NullString(u.Mail),
+					UserPrincipalName: u.UserPrincipalName,
+				}); err != nil {
+					return err
+				}
 			}
-			row, err := q.UpsertEntraUser(ctx, sqlc.UpsertEntraUserParams{
+			row, err := q.UpsertDirectoryUser(ctx, sqlc.UpsertDirectoryUserParams{
+				Source:            sqlc.DirectorySource(source),
 				ExternalID:        u.ExternalID,
 				UserPrincipalName: u.UserPrincipalName,
 				Mail:              dbutil.NullString(u.Mail),
@@ -68,19 +59,19 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 				GivenName:         dbutil.NullString(u.GivenName),
 				FamilyName:        dbutil.NullString(u.FamilyName),
 				Department:        dbutil.NullString(u.Department),
-				Active:            u.Active,
-				LastSyncedAt:      syncedAt,
+				Enabled:           u.Enabled,
 			})
 			if err != nil {
 				return err
 			}
-			if err := q.DeleteEntraGroupMembershipsForUser(
+			if err := q.DeleteDirectoryGroupMembershipsForUser(
 				ctx,
-				sqlc.DeleteEntraGroupMembershipsForUserParams{UserID: row.ID},
+				sqlc.DeleteDirectoryGroupMembershipsForUserParams{UserID: row.ID},
 			); err != nil {
 				return err
 			}
-			if err := q.InsertEntraGroupMemberships(ctx, sqlc.InsertEntraGroupMembershipsParams{
+			if err := q.InsertDirectoryGroupMemberships(ctx, sqlc.InsertDirectoryGroupMembershipsParams{
+				Source:           sqlc.DirectorySource(source),
 				UserID:           row.ID,
 				GroupExternalIds: u.GroupExternalIDs,
 			}); err != nil {
@@ -88,7 +79,8 @@ func (s *Store) Apply(ctx context.Context, snapshot Snapshot) error {
 			}
 			userExternalIDs = append(userExternalIDs, u.ExternalID)
 		}
-		if err := q.MarkEntraUsersInactiveNotIn(ctx, sqlc.MarkEntraUsersInactiveNotInParams{
+		if err := q.SoftDeleteDirectoryUsersNotIn(ctx, sqlc.SoftDeleteDirectoryUsersNotInParams{
+			Source:      sqlc.DirectorySource(source),
 			ExternalIds: userExternalIDs,
 		}); err != nil {
 			return err

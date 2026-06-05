@@ -1,4 +1,4 @@
-package users
+package directory
 
 import (
 	"errors"

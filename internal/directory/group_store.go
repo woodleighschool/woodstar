@@ -1,4 +1,4 @@
-package groups
+package directory
 
 import (
 	"context"
@@ -6,20 +6,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Store reads synced directory groups and memberships.
-type Store struct {
-	db *database.DB
-}
-
-func NewStore(db *database.DB) *Store {
-	return &Store{db: db}
-}
-
-func (s *Store) List(ctx context.Context, params ListParams) ([]Group, int, error) {
+func (s *Store) ListGroups(ctx context.Context, params GroupListParams) ([]Group, int, error) {
 	where, args := groupWhere(params)
 	listQuery := groupListQuery(params, where, args)
 	countSQL, countArgs := listQuery.BuildCount()
@@ -40,17 +30,17 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]Group, int, erro
 	return groups, count, err
 }
 
-func (s *Store) GetByID(ctx context.Context, id int64) (*Group, error) {
+func (s *Store) GetGroupByID(ctx context.Context, id int64) (*Group, error) {
 	var group Group
 	err := s.db.Pool().QueryRow(ctx, groupSelectSQL+`
 WHERE g.id = $1
 GROUP BY g.id`, id).Scan(
 		&group.ID,
+		&group.Source,
 		&group.ExternalID,
 		&group.DisplayName,
 		&group.MailNickname,
 		&group.MemberCount,
-		&group.LastSyncedAt,
 		&group.CreatedAt,
 		&group.UpdatedAt,
 	)
@@ -65,18 +55,19 @@ GROUP BY g.id`, id).Scan(
 
 const groupSelectSQL = `SELECT
 	g.id,
+	g.source,
 	g.external_id,
 	g.display_name,
 	COALESCE(g.mail_nickname, '') AS mail_nickname,
-	count(gm.user_id)::integer AS member_count,
-	g.last_synced_at,
+	count(u.id)::integer AS member_count,
 	g.created_at,
 	g.updated_at
-FROM entra_groups g
-LEFT JOIN entra_group_memberships gm ON gm.group_id = g.id
+FROM directory_groups g
+LEFT JOIN directory_group_memberships gm ON gm.group_id = g.id
+LEFT JOIN users u ON u.id = gm.user_id AND u.deleted_at IS NULL
 `
 
-func groupWhere(params ListParams) (string, []any) {
+func groupWhere(params GroupListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -93,17 +84,17 @@ func groupWhere(params ListParams) (string, []any) {
 	return where.Build()
 }
 
-func groupListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func groupListQuery(params GroupListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL:  groupSelectSQL,
 		WhereSQL:   where,
 		GroupBySQL: "GROUP BY g.id",
 		Args:       args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"display_name":   {SQL: "lower(g.display_name)"},
-			"mail_nickname":  {SQL: "lower(g.mail_nickname)", NullOrder: dbutil.NullsLast},
-			"member_count":   {SQL: "member_count"},
-			"last_synced_at": {SQL: "g.last_synced_at"},
+			"display_name":  {SQL: "lower(g.display_name)"},
+			"mail_nickname": {SQL: "lower(g.mail_nickname)", NullOrder: dbutil.NullsLast},
+			"member_count":  {SQL: "member_count"},
+			"source":        {SQL: "g.source"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(g.display_name)"}, {SQL: "g.id"}},
 		Params:       params.ListParams,

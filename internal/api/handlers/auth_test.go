@@ -17,12 +17,12 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
-	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 func TestRequireAdmin(t *testing.T) {
-	adminRole := users.RoleAdmin
-	viewerRole := users.RoleViewer
+	adminRole := directory.RoleAdmin
+	viewerRole := directory.RoleViewer
 	tests := []struct {
 		name       string
 		ctx        context.Context
@@ -31,12 +31,12 @@ func TestRequireAdmin(t *testing.T) {
 	}{
 		{
 			name:   "admin in context",
-			ctx:    withUser(context.Background(), &users.User{ID: 1, Role: &adminRole}),
+			ctx:    withUser(context.Background(), &directory.User{ID: 1, Role: &adminRole}),
 			wantOK: true,
 		},
 		{
 			name:       "viewer is forbidden",
-			ctx:        withUser(context.Background(), &users.User{ID: 2, Role: &viewerRole}),
+			ctx:        withUser(context.Background(), &directory.User{ID: 2, Role: &viewerRole}),
 			wantStatus: 403,
 		},
 		{
@@ -75,12 +75,12 @@ func TestRequireAdmin(t *testing.T) {
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: "correct-password",
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create test user: %v", err)
 	}

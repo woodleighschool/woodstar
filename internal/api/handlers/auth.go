@@ -8,7 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 type sessionOutput struct {
@@ -16,13 +16,13 @@ type sessionOutput struct {
 }
 
 type sessionBody struct {
-	SetupComplete bool        `json:"setup_complete"`
-	SSOEnabled    bool        `json:"sso_enabled"`
-	User          *users.User `json:"user,omitempty"`
+	SetupComplete bool            `json:"setup_complete"`
+	SSOEnabled    bool            `json:"sso_enabled"`
+	User          *directory.User `json:"user,omitempty"`
 }
 
 type authUserOutput struct {
-	Body users.User
+	Body directory.User
 }
 
 type setupInput struct {
@@ -174,23 +174,23 @@ func registerLogin(api huma.API, authService *auth.Service) {
 
 // requireAdmin returns the authenticated admin user from ctx.
 // It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
-func requireAdmin(ctx context.Context) (*users.User, error) {
+func requireAdmin(ctx context.Context) (*directory.User, error) {
 	user, ok := userFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")
 	}
-	if user.Role == nil || *user.Role != users.RoleAdmin {
+	if user.Role == nil || *user.Role != directory.RoleAdmin {
 		return nil, huma.Error403Forbidden("admin role required")
 	}
 	return user, nil
 }
 
-func withUser(ctx context.Context, user *users.User) context.Context {
+func withUser(ctx context.Context, user *directory.User) context.Context {
 	return context.WithValue(ctx, userContextKey, user)
 }
 
-func userFromContext(ctx context.Context) (*users.User, bool) {
-	user, ok := ctx.Value(userContextKey).(*users.User)
+func userFromContext(ctx context.Context) (*directory.User, bool) {
+	user, ok := ctx.Value(userContextKey).(*directory.User)
 	return user, ok && user != nil
 }
 
@@ -204,8 +204,8 @@ func authError(err error) error {
 		return huma.Error409Conflict("setup required")
 	case errors.Is(err, auth.ErrAlreadySetup):
 		return huma.Error409Conflict("woodstar is already set up")
-	case errors.Is(err, users.ErrWeakPassword):
-		return huma.Error400BadRequest(users.ErrWeakPassword.Error())
+	case errors.Is(err, directory.ErrWeakPassword):
+		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
 	default:
 		return err
 	}

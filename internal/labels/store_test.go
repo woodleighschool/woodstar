@@ -193,8 +193,8 @@ func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {
 	bobID := insertUser(t, db, "bob", "bob@example.com", "Operations")
 	linkHostUser(t, db, hostA, aliceID)
 	linkHostUser(t, db, hostB, bobID)
-	staffID := insertEntraGroup(t, db, "staff", "Staff")
-	linkEntraGroupMembership(t, db, aliceID, staffID)
+	staffID := insertDirectoryGroup(t, db, "staff", "Staff")
+	linkDirectoryGroupMembership(t, db, aliceID, staffID)
 
 	tests := []struct {
 		name       string
@@ -208,7 +208,7 @@ func TestDerivedLabelsMatchUserAndEntraAttributes(t *testing.T) {
 		},
 		{
 			name:       "group",
-			criteria:   Criteria{Attribute: DerivedAttributeEntraGroup, Values: []string{"staff"}},
+			criteria:   Criteria{Attribute: DerivedAttributeDirectoryGroup, Values: []string{"staff"}},
 			wantHostID: hostA,
 		},
 		{
@@ -286,13 +286,13 @@ RETURNING id`, hardwareUUID).Scan(&id); err != nil {
 	return id
 }
 
-func insertUser(t *testing.T, db *database.DB, entraID string, email string, department string) int64 {
+func insertUser(t *testing.T, db *database.DB, externalID string, email string, department string) int64 {
 	t.Helper()
 	var id int64
 	if err := db.Pool().QueryRow(context.Background(), `
-INSERT INTO users (email, name, entra_id, user_principal_name, department, active, last_synced_at)
-VALUES ($1, $1, $2, $1, $3, true, now())
-RETURNING id`, email, entraID, dbutil.NullString(department)).Scan(&id); err != nil {
+INSERT INTO users (email, name, source, external_id, user_principal_name, department)
+VALUES ($1, $1, 'entra', $2, $1, $3)
+RETURNING id`, email, externalID, dbutil.NullString(department)).Scan(&id); err != nil {
 		t.Fatalf("insert user: %v", err)
 	}
 	return id
@@ -307,24 +307,24 @@ VALUES ($1, $2, 'manual')`, hostID, userID); err != nil {
 	}
 }
 
-func insertEntraGroup(t *testing.T, db *database.DB, externalID string, displayName string) int64 {
+func insertDirectoryGroup(t *testing.T, db *database.DB, externalID string, displayName string) int64 {
 	t.Helper()
 	var id int64
 	if err := db.Pool().QueryRow(context.Background(), `
-INSERT INTO entra_groups (external_id, display_name, last_synced_at)
-VALUES ($1, $2, now())
+INSERT INTO directory_groups (source, external_id, display_name)
+VALUES ('entra', $1, $2)
 RETURNING id`, externalID, displayName).Scan(&id); err != nil {
-		t.Fatalf("insert entra group: %v", err)
+		t.Fatalf("insert directory group: %v", err)
 	}
 	return id
 }
 
-func linkEntraGroupMembership(t *testing.T, db *database.DB, userID int64, groupID int64) {
+func linkDirectoryGroupMembership(t *testing.T, db *database.DB, userID int64, groupID int64) {
 	t.Helper()
 	if _, err := db.Pool().Exec(context.Background(), `
-INSERT INTO entra_group_memberships (user_id, group_id)
+INSERT INTO directory_group_memberships (user_id, group_id)
 VALUES ($1, $2)`, userID, groupID); err != nil {
-		t.Fatalf("link entra group membership: %v", err)
+		t.Fatalf("link directory group membership: %v", err)
 	}
 }
 

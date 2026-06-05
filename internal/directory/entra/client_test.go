@@ -16,7 +16,7 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-func TestEntraClientTokenFetchUsesRequestContext(t *testing.T) {
+func TestClientTokenFetchUsesRequestContext(t *testing.T) {
 	tokenCalled := make(chan struct{})
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		close(tokenCalled)
@@ -25,7 +25,7 @@ func TestEntraClientTokenFetchUsesRequestContext(t *testing.T) {
 	}))
 	defer tokenServer.Close()
 
-	client := &EntraClient{
+	client := &Client{
 		creds: clientcredentials.Config{
 			ClientID:     "client",
 			ClientSecret: "secret",
@@ -53,10 +53,10 @@ func TestEntraClientTokenFetchUsesRequestContext(t *testing.T) {
 	}
 }
 
-func TestEntraClientFetchBatchesUserGroupMembership(t *testing.T) {
+func TestClientFetchBatchesUserGroupMembership(t *testing.T) {
 	var batchCalls int
 	var directMembershipCalls int
-	client := &EntraClient{
+	client := &Client{
 		http: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			switch {
 			case req.URL.Path == "/v1.0/users":

@@ -281,7 +281,8 @@ internal/
 
   # shared core
   auth/                sessions, login, OIDC, password verification
-  users/               local Woodstar accounts, roles, password hashes
+  directory/           provider-neutral directory identity source concepts
+  users/               Woodstar user accounts, source identity, roles, password hashes
   hosts/               canonical host identity + host detail loader
   software/            observed software inventory: titles, versions, paths
   labels/              label entity + store

@@ -1,4 +1,4 @@
-package users
+package directory
 
 import (
 	"errors"
@@ -7,13 +7,12 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/entra"
 )
 
 func TestDeleteRemovesLocalUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewService(store)
+	service := NewUserService(store)
 
 	user, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.test",
@@ -28,15 +27,15 @@ func TestDeleteRemovesLocalUsers(t *testing.T) {
 	if err := service.Delete(ctx, user.ID); err != nil {
 		t.Fatalf("delete user: %v", err)
 	}
-	if _, err := store.GetByID(ctx, user.ID); !errors.Is(err, dbutil.ErrNotFound) {
+	if _, err := store.GetUserByID(ctx, user.ID); !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("get deleted user err = %v, want %v", err, dbutil.ErrNotFound)
 	}
 }
 
-func TestDeleteDeactivatesSyncedUsers(t *testing.T) {
+func TestDeleteSoftDeletesDirectoryUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	service := NewService(store)
+	service := NewUserService(store)
 
 	hash, err := HashPassword("correct-password")
 	if err != nil {
@@ -50,72 +49,76 @@ INSERT INTO users (
     name,
     password_hash,
     role,
-    active,
+    source,
+    external_id,
     api_key,
     api_key_created_at,
-    entra_id,
-    user_principal_name,
-    last_synced_at
+    user_principal_name
 )
 VALUES (
-    'synced@example.test',
-    'Synced User',
+    'source@example.test',
+    'Sourced User',
     $1,
     'admin',
-    true,
+    'entra',
+    'entra-user-1',
     $2,
     now(),
-    'entra-user-1',
-    'synced@example.test',
-    now()
+    'source@example.test'
 )
 RETURNING id`, hash, apiKey).Scan(&userID); err != nil {
-		t.Fatalf("insert synced user: %v", err)
+		t.Fatalf("insert sourced user: %v", err)
 	}
 
 	if err := service.Delete(ctx, userID); err != nil {
-		t.Fatalf("delete synced user: %v", err)
+		t.Fatalf("soft delete directory user: %v", err)
 	}
 
-	user, err := store.GetByID(ctx, userID)
-	if err != nil {
-		t.Fatalf("get synced user: %v", err)
+	if _, err := store.GetUserByID(ctx, userID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get deleted directory user err = %v, want %v", err, dbutil.ErrNotFound)
 	}
-	if !user.Synced {
-		t.Fatal("synced user lost Entra ownership")
+
+	var source Source
+	var externalID string
+	var role string
+	var deletedAt *time.Time
+	if err := database.Pool().QueryRow(ctx, `
+SELECT source::text, external_id, role::text, deleted_at
+FROM users
+WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != nil {
+		t.Fatalf("load soft-deleted directory user: %v", err)
 	}
-	if user.Active {
-		t.Fatal("synced user stayed active")
+	if source != SourceEntra || externalID != "entra-user-1" {
+		t.Fatalf("source identity = %s/%q, want entra/entra-user-1", source, externalID)
 	}
-	if user.Role != nil {
-		t.Fatalf("role = %v, want nil", *user.Role)
+	if role != "admin" {
+		t.Fatalf("role = %q, want preserved admin", role)
 	}
-	if user.CanLogin {
-		t.Fatal("synced user can still log in")
+	if deletedAt == nil {
+		t.Fatal("deleted_at is nil, want soft-deleted")
 	}
-	if _, err := store.GetByAPIKey(ctx, apiKey); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("get deactivated user by api key err = %v, want %v", err, dbutil.ErrNotFound)
+	if _, err := store.GetUserByAPIKey(ctx, apiKey); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("get soft-deleted user by api key err = %v, want %v", err, dbutil.ErrNotFound)
 	}
 }
 
 func TestListFiltersUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	entraStore := entra.NewStore(database)
 
-	if err := entraStore.Apply(ctx, entra.Snapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Groups: []entra.SnapshotGroup{
+		Groups: []ProviderGroup{
 			{ExternalID: "all-users", DisplayName: "All Users", MailNickname: "all-users"},
 			{ExternalID: "engineering", DisplayName: "Engineering", MailNickname: "engineering"},
 		},
-		Users: []entra.SnapshotUser{
+		Users: []ProviderUser{
 			{
 				ExternalID:        "u-alice",
 				UserPrincipalName: "alice@example.edu",
 				DisplayName:       "Alice Engineering",
 				Department:        "Engineering",
-				Active:            true,
+				Enabled:           true,
 				GroupExternalIDs:  []string{"all-users", "engineering"},
 			},
 			{
@@ -123,7 +126,7 @@ func TestListFiltersUsers(t *testing.T) {
 				UserPrincipalName: "bob@example.edu",
 				DisplayName:       "Bob Operations",
 				Department:        "Operations",
-				Active:            false,
+				Enabled:           false,
 				GroupExternalIDs:  []string{"all-users"},
 			},
 		},
@@ -133,11 +136,11 @@ func TestListFiltersUsers(t *testing.T) {
 	var engineeringGroupID int64
 	if err := database.Pool().QueryRow(ctx, `
 SELECT id
-FROM entra_groups
+FROM directory_groups
 WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 		t.Fatalf("get engineering group id: %v", err)
 	}
-	local, err := store.Create(ctx, UserCreate{
+	local, err := store.CreateUser(ctx, UserCreate{
 		Email:    "local@example.edu",
 		Name:     "Local Admin",
 		Role:     RoleAdmin,
@@ -147,19 +150,26 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 		t.Fatalf("create local user: %v", err)
 	}
 
-	users, count, err := store.List(ctx, ListParams{
+	users, count, err := store.ListUsers(ctx, UserListParams{
 		ListParams: dbutil.ListParams{Q: "engineering"},
-		Source:     "synced",
-		Status:     "active",
+		Source:     "entra",
 	})
 	if err != nil {
-		t.Fatalf("list synced engineering users: %v", err)
+		t.Fatalf("list Entra engineering users: %v", err)
 	}
 	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
 		t.Fatalf("users = %+v count=%d, want Alice only", users, count)
 	}
 
-	users, count, err = store.List(ctx, ListParams{GroupID: engineeringGroupID})
+	users, count, err = store.ListUsers(ctx, UserListParams{Source: "entra"})
+	if err != nil {
+		t.Fatalf("list current Entra users: %v", err)
+	}
+	if count != 1 || len(users) != 1 || users[0].Email != "alice@example.edu" {
+		t.Fatalf("current Entra users = %+v count=%d, want Alice only", users, count)
+	}
+
+	users, count, err = store.ListUsers(ctx, UserListParams{GroupID: engineeringGroupID})
 	if err != nil {
 		t.Fatalf("list engineering group users: %v", err)
 	}
@@ -167,7 +177,7 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 		t.Fatalf("engineering group users = %+v count=%d, want Alice only", users, count)
 	}
 
-	users, count, err = store.List(ctx, ListParams{Role: "admin", Source: "local"})
+	users, count, err = store.ListUsers(ctx, UserListParams{Role: "admin", Source: "local"})
 	if err != nil {
 		t.Fatalf("list local admins: %v", err)
 	}
@@ -176,34 +186,33 @@ WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 	}
 }
 
-func TestListDepartmentsReturnsSyncedDepartments(t *testing.T) {
+func TestListDepartmentsReturnsDirectoryDepartments(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
-	entraStore := entra.NewStore(database)
 
-	if err := entraStore.Apply(ctx, entra.Snapshot{
+	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
-		Users: []entra.SnapshotUser{
+		Users: []ProviderUser{
 			{
 				ExternalID:        "u-alice",
 				UserPrincipalName: "alice@example.edu",
 				DisplayName:       "Alice",
 				Department:        "Engineering",
-				Active:            true,
+				Enabled:           true,
 			},
 			{
 				ExternalID:        "u-bob",
 				UserPrincipalName: "bob@example.edu",
 				DisplayName:       "Bob",
 				Department:        "Operations",
-				Active:            true,
+				Enabled:           true,
 			},
 		},
 	}); err != nil {
 		t.Fatalf("apply entra snapshot: %v", err)
 	}
 
-	departments, count, err := store.ListDepartments(ctx, ListParams{ListParams: dbutil.ListParams{Q: "eng"}})
+	departments, count, err := store.ListDepartments(ctx, UserListParams{ListParams: dbutil.ListParams{Q: "eng"}})
 	if err != nil {
 		t.Fatalf("list departments: %v", err)
 	}

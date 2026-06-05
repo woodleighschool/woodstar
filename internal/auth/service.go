@@ -10,7 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 const sessionUserKey = "user_id"
@@ -25,13 +25,13 @@ var (
 
 // Service owns setup, login, and session lookup.
 type Service struct {
-	users    *users.Service
+	users    *directory.UserService
 	sessions *scs.SessionManager
 	oidc     *oidcProvider
 }
 
 // NewService wires auth to users and sessions.
-func NewService(users *users.Service, sessions *scs.SessionManager) *Service {
+func NewService(users *directory.UserService, sessions *scs.SessionManager) *Service {
 	return &Service{users: users, sessions: sessions}
 }
 
@@ -48,7 +48,7 @@ func (s *Service) ConfigureOIDC(ctx context.Context, cfg OIDCConfig) error {
 }
 
 // CurrentUser returns the user attached to the session loaded into ctx by scs middleware.
-func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
+func (s *Service) CurrentUser(ctx context.Context) (*directory.User, error) {
 	id := s.sessions.GetInt64(ctx, sessionUserKey)
 	if id == 0 {
 		return nil, ErrNotAuthenticated
@@ -72,7 +72,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*users.User, error) {
 // authHeader or, when authHeader is empty or malformed, the session cookie
 // already loaded into ctx by scs middleware. Returns ErrNotAuthenticated for
 // both missing and bad credentials.
-func (s *Service) Authenticate(ctx context.Context, authHeader string) (*users.User, error) {
+func (s *Service) Authenticate(ctx context.Context, authHeader string) (*directory.User, error) {
 	if token, ok := agentauth.BearerToken(authHeader); ok {
 		return s.userByAPIKey(ctx, token)
 	}

@@ -32,10 +32,10 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { userRoleLabel } from "@/components/users/user-role";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
 import { nonEmpty } from "@/lib/utils";
+import { userRoleLabel } from "@/pages/users/shared";
 
 export function AppSidebar() {
   const { location } = useRouterState();

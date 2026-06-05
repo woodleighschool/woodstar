@@ -7,23 +7,23 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/auth"
-	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 const accountTag = "Account"
 
 type accountOutput struct {
-	Body users.Account
+	Body directory.Account
 }
 
 type accountPutInput struct {
-	Body users.AccountMutation
+	Body directory.AccountMutation
 }
 
 // RegisterAccount registers self-service endpoints scoped to the signed-in
 // user. The API key is intended for non-browser callers; the SPA continues to
 // authenticate via the scs session cookie.
-func RegisterAccount(api huma.API, authService *auth.Service, userService *users.Service) {
+func RegisterAccount(api huma.API, authService *auth.Service, userService *directory.UserService) {
 	registerGetAccount(api, authService)
 	registerPutAccount(api, userService)
 	registerRotateAPIKey(api, authService)
@@ -51,7 +51,7 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerPutAccount(api huma.API, userService *users.Service) {
+func registerPutAccount(api huma.API, userService *directory.UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-account",
 		Method:      http.MethodPut,
@@ -123,7 +123,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 // Unlike requireAdmin this accepts both admin and viewer; the operations
 // it gates (rotating one's own key, viewing one's own account) are open to
 // every signed-in user.
-func requireUser(ctx context.Context) (*users.User, error) {
+func requireUser(ctx context.Context) (*directory.User, error) {
 	user, ok := userFromContext(ctx)
 	if !ok {
 		return nil, huma.Error401Unauthorized("not authenticated")

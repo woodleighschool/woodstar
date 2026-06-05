@@ -11,9 +11,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
 import { formatRelative, nonEmpty } from "@/lib/utils";
+import { directorySourceLabel } from "@/pages/directory/shared";
+import { USER_ACCESS_ROLES, userAccessRole } from "@/pages/users/shared";
 
 export function AccountPage() {
   const account = useAccount();
@@ -54,15 +55,16 @@ function AccountProfileCard({ account }: { account: Account }) {
   const update = useUpdateAccount();
   const [name, setName] = useState(user.name);
   const [password, setPassword] = useState("");
+  const isLocal = user.source === "local";
 
-  const passwordChanged = password.trim() !== "";
-  const nameChanged = !user.synced && name !== user.name;
+  const passwordChanged = isLocal && password.trim() !== "";
+  const nameChanged = isLocal && name !== user.name;
   const canSubmit = nameChanged || passwordChanged;
 
   async function submit() {
     if (!canSubmit) return;
     await update.mutateAsync({
-      name: user.synced ? user.name : name.trim(),
+      name: name.trim(),
       password: passwordChanged ? password : undefined,
     });
     setPassword("");
@@ -86,20 +88,20 @@ function AccountProfileCard({ account }: { account: Account }) {
       >
         <CardContent>
           <FieldGroup className="gap-4">
-            <Field data-disabled={user.synced}>
+            <Field data-disabled={!isLocal}>
               <FieldLabel htmlFor="account-name">Display Name</FieldLabel>
               <Input
                 id="account-name"
                 type="text"
                 autoComplete="name"
                 value={name}
-                disabled={user.synced}
+                disabled={!isLocal}
                 onChange={(event) => setName(event.target.value)}
               />
-              {user.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
+              {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(user.source)}.</FieldDescription> : null}
             </Field>
 
-            <Field>
+            <Field data-disabled={!isLocal}>
               <FieldLabel htmlFor="account-password">Password</FieldLabel>
               <Input
                 id="account-password"
@@ -107,9 +109,14 @@ function AccountProfileCard({ account }: { account: Account }) {
                 autoComplete="new-password"
                 minLength={12}
                 value={password}
+                disabled={!isLocal}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              <FieldDescription>Set a new password.</FieldDescription>
+              <FieldDescription>
+                {isLocal
+                  ? "Set a new password."
+                  : `${directorySourceLabel(user.source)} accounts do not use local passwords.`}
+              </FieldDescription>
             </Field>
           </FieldGroup>
         </CardContent>

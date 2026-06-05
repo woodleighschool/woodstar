@@ -314,9 +314,9 @@ export type Group = {
     display_name: string;
     external_id: string;
     id: number;
-    last_synced_at: string;
     mail_nickname?: string;
     member_count: number;
+    source: 'local' | 'entra';
     updated_at: string;
 };
 
@@ -1370,20 +1370,19 @@ export type User = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    active: boolean;
     can_login: boolean;
     created_at: string;
+    deleted_at?: string;
     department?: string;
     email: string;
-    entra_id?: string;
+    external_id?: string;
     family_name?: string;
     given_name?: string;
     id: number;
-    last_synced_at?: string;
     mail_nickname?: string;
     name: string;
     role?: 'admin' | 'viewer';
-    synced: boolean;
+    source: 'local' | 'entra';
     updated_at: string;
     user_principal_name?: string;
 };
@@ -1541,9 +1540,9 @@ export type GroupWritable = {
     display_name: string;
     external_id: string;
     id: number;
-    last_synced_at: string;
     mail_nickname?: string;
     member_count: number;
+    source: 'local' | 'entra';
     updated_at: string;
 };
 
@@ -2018,20 +2017,19 @@ export type SoftwareTitleWritable = {
 };
 
 export type UserWritable = {
-    active: boolean;
     can_login: boolean;
     created_at: string;
+    deleted_at?: string;
     department?: string;
     email: string;
-    entra_id?: string;
+    external_id?: string;
     family_name?: string;
     given_name?: string;
     id: number;
-    last_synced_at?: string;
     mail_nickname?: string;
     name: string;
     role?: 'admin' | 'viewer';
-    synced: boolean;
+    source: 'local' | 'entra';
     updated_at: string;
     user_principal_name?: string;
 };
@@ -5796,8 +5794,7 @@ export type ListUsersData = {
         sort?: string;
         values?: Array<string> | null;
         role?: 'admin' | 'viewer' | 'none';
-        source?: 'local' | 'synced';
-        status?: 'active' | 'inactive';
+        source?: 'local' | 'entra';
         group_id?: number;
     };
     url: '/api/users';

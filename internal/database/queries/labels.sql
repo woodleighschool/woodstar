@@ -83,17 +83,17 @@ INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT @label_id::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-WHERE u.active AND u.department = ANY(@values::text[])
+WHERE u.deleted_at IS NULL AND u.department = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
--- name: InsertEntraGroupLabelMemberships :exec
+-- name: InsertDirectoryGroupLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT @label_id::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-JOIN entra_group_memberships egm ON egm.user_id = u.id
-JOIN entra_groups eg ON eg.id = egm.group_id
-WHERE u.active AND eg.external_id = ANY(@values::text[])
+JOIN directory_group_memberships dgm ON dgm.user_id = u.id
+JOIN directory_groups dg ON dg.id = dgm.group_id
+WHERE u.deleted_at IS NULL AND dg.external_id = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
 -- name: InsertUserLabelMemberships :exec
@@ -101,7 +101,7 @@ INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT @label_id::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-WHERE u.active AND u.id::text = ANY(@values::text[])
+WHERE u.deleted_at IS NULL AND u.id::text = ANY(@values::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now();
 
 -- name: InsertLabelMemberships :exec

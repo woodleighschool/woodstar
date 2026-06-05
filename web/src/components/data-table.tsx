@@ -276,39 +276,39 @@ export function DataTable<TData, TValue>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody className="**:data-[slot=table-cell]:first:w-8">
-          {showSkeleton ? (
-            skeletonRowIds.map((rowId) => (
-              <TableRow key={rowId}>
-                {table.getVisibleLeafColumns().map((col) => (
-                  <TableCell key={col.id}>
-                    <Skeleton className="h-4 w-3/4" />
-                  </TableCell>
+        {showEmpty ? null : (
+          <TableBody className="**:data-[slot=table-cell]:first:w-8">
+            {showSkeleton ? (
+              skeletonRowIds.map((rowId) => (
+                <TableRow key={rowId}>
+                  {table.getVisibleLeafColumns().map((col) => (
+                    <TableCell key={col.id}>
+                      <Skeleton className="h-4 w-3/4" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : canReorderRows ? (
+              <SortableContext items={dataIDs} strategy={verticalListSortingStrategy}>
+                {visibleRows.map((row) => (
+                  <SortableDataTableRow key={row.id} row={row} rowHref={rowHref} onRowClick={onRowClick} />
                 ))}
-              </TableRow>
-            ))
-          ) : showEmpty ? (
-            <TableRow>
-              <TableCell
-                colSpan={table.getVisibleLeafColumns().length}
-                className={cn("h-72 whitespace-normal p-4 text-center", emptyClassName)}
-              >
-                <div className="flex justify-center">{empty}</div>
-              </TableCell>
-            </TableRow>
-          ) : canReorderRows ? (
-            <SortableContext items={dataIDs} strategy={verticalListSortingStrategy}>
-              {visibleRows.map((row) => (
-                <SortableDataTableRow key={row.id} row={row} rowHref={rowHref} onRowClick={onRowClick} />
-              ))}
-            </SortableContext>
-          ) : (
-            visibleRows.map((row) => (
-              <DataTableBodyRow key={row.id} row={row} rowHref={rowHref} onRowClick={onRowClick} />
-            ))
-          )}
-        </TableBody>
+              </SortableContext>
+            ) : (
+              visibleRows.map((row) => (
+                <DataTableBodyRow key={row.id} row={row} rowHref={rowHref} onRowClick={onRowClick} />
+              ))
+            )}
+          </TableBody>
+        )}
       </Table>
+      {showEmpty ? (
+        <div
+          className={cn("flex min-h-72 items-center justify-center whitespace-normal p-4 text-center", emptyClassName)}
+        >
+          {empty}
+        </div>
+      ) : null}
     </div>
   );
 

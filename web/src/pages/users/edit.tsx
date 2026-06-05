@@ -13,17 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
+import { useAuth } from "@/hooks/use-auth";
+import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
+import { formatRelative, nonEmpty } from "@/lib/utils";
+import { AccountPage } from "@/pages/account";
+import { directorySourceLabel } from "@/pages/directory/shared";
 import {
   USER_ACCESS_ROLES,
   USER_ACCESS_ROLE_OPTIONS,
   userAccessRole,
   userMutationRole,
   type UserAccessRole,
-} from "@/components/users/user-role";
-import { useAuth } from "@/hooks/use-auth";
-import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
-import { formatRelative, nonEmpty } from "@/lib/utils";
-import { AccountPage } from "@/pages/account";
+} from "@/pages/users/shared";
 
 export function UserEditPage() {
   const params = useParams({ strict: false });
@@ -69,9 +70,10 @@ function UserEditForm({ user }: { user: User }) {
   const [name, setName] = useState(user.name);
   const [role, setRole] = useState<UserAccessRole>(userAccessRole(user.role));
   const [password, setPassword] = useState("");
+  const isLocal = user.source === "local";
 
-  const passwordChanged = password.trim() !== "";
-  const nameChanged = !user.synced && name !== user.name;
+  const passwordChanged = isLocal && password.trim() !== "";
+  const nameChanged = isLocal && name !== user.name;
   const roleChanged = userMutationRole(role) !== user.role;
   const changed = nameChanged || roleChanged || passwordChanged;
 
@@ -80,7 +82,7 @@ function UserEditForm({ user }: { user: User }) {
     const saved = await update.mutateAsync({
       id: user.id,
       body: {
-        name: user.synced ? user.name : name.trim(),
+        name: isLocal ? name.trim() : user.name,
         role: userMutationRole(role),
         password: passwordChanged ? password : undefined,
       },
@@ -108,17 +110,17 @@ function UserEditForm({ user }: { user: User }) {
         >
           <CardContent>
             <FieldGroup className="gap-4">
-              <Field data-disabled={user.synced}>
+              <Field data-disabled={!isLocal}>
                 <FieldLabel htmlFor="user-name">Display Name</FieldLabel>
                 <Input
                   id="user-name"
                   type="text"
                   autoComplete="off"
                   value={name}
-                  disabled={user.synced}
+                  disabled={!isLocal}
                   onChange={(event) => setName(event.target.value)}
                 />
-                {user.synced ? <FieldDescription>Synced from Entra.</FieldDescription> : null}
+                {!isLocal ? <FieldDescription>Managed by {directorySourceLabel(user.source)}.</FieldDescription> : null}
               </Field>
 
               <Field>
@@ -139,7 +141,7 @@ function UserEditForm({ user }: { user: User }) {
                 </Select>
               </Field>
 
-              <Field>
+              <Field data-disabled={!isLocal}>
                 <FieldLabel htmlFor="user-password">Password</FieldLabel>
                 <Input
                   id="user-password"
@@ -147,9 +149,14 @@ function UserEditForm({ user }: { user: User }) {
                   autoComplete="new-password"
                   minLength={12}
                   value={password}
+                  disabled={!isLocal}
                   onChange={(event) => setPassword(event.target.value)}
                 />
-                <FieldDescription>Set a new password.</FieldDescription>
+                <FieldDescription>
+                  {isLocal
+                    ? "Set a new password."
+                    : `${directorySourceLabel(user.source)} users do not use local passwords.`}
+                </FieldDescription>
               </Field>
             </FieldGroup>
           </CardContent>
@@ -167,12 +174,12 @@ function UserEditForm({ user }: { user: User }) {
 
       <Card className="gap-4 py-4">
         <CardHeader className="px-4">
-          <CardTitle>Remove User</CardTitle>
+          <CardTitle>Delete User</CardTitle>
         </CardHeader>
         <CardContent className="px-4">
           <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 data-icon="inline-start" />
-            {user.synced ? "Deactivate User" : "Delete User"}
+            Delete User
           </Button>
         </CardContent>
       </Card>

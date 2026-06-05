@@ -20,11 +20,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
-	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
@@ -43,12 +43,12 @@ func TestProtectedAPIRoutesRequireSession(t *testing.T) {
 
 func TestAgentSecretsAdminAPI(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Agent Secret Admin",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
@@ -175,12 +175,12 @@ func TestAgentSecretsAdminAPI(t *testing.T) {
 
 func TestAgentSecretsRejectBadAgent(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Agent Secret Admin",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
@@ -212,12 +212,12 @@ func TestAgentSecretsRejectBadAgent(t *testing.T) {
 
 func TestAgentSecretsRequireAdmin(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "viewer@example.test",
 		Name:     "Agent Secret Viewer",
 		Password: testUserPassword,
-		Role:     users.RoleViewer,
+		Role:     directory.RoleViewer,
 	}); err != nil {
 		t.Fatalf("create viewer user: %v", err)
 	}
@@ -242,12 +242,12 @@ func TestAgentSecretsRequireAdmin(t *testing.T) {
 
 func TestMunkiAdminAPI(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Munki Admin",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
@@ -361,12 +361,12 @@ func TestMunkiAdminAPI(t *testing.T) {
 
 func TestMunkiArtifactUploadEndpointReturnsFinalizePayload(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "munki-upload@example.test",
 		Name:     "Munki Upload",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
@@ -514,12 +514,12 @@ func TestLiveQueryStreamRequiresSession(t *testing.T) {
 
 func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create test user: %v", err)
 	}
@@ -574,12 +574,12 @@ func TestLiveQueryEndpointsUseBrowserSession(t *testing.T) {
 
 func TestBrowserMutationRequiresTrustedOrigin(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	if _, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Test Admin",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create test user: %v", err)
 	}
@@ -708,12 +708,12 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 
 func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	user, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	user, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "api@example.test",
 		Name:     "API User",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	})
 	if err != nil {
 		t.Fatalf("create test user: %v", err)
@@ -742,12 +742,12 @@ func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 
 func TestAccountReadReturnsRetrievableAPIKeyOnlyToSelf(t *testing.T) {
 	database, ctx := dbtest.Open(t)
-	userService := users.NewService(users.NewStore(database))
-	user, err := userService.Create(ctx, users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(database))
+	user, err := userService.Create(ctx, directory.UserCreate{
 		Email:    "admin@example.test",
 		Name:     "Account User",
 		Password: testUserPassword,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	})
 	if err != nil {
 		t.Fatalf("create test user: %v", err)
@@ -887,7 +887,7 @@ func testConfig() config.Config {
 func testDependencies(cfg config.Config) Dependencies {
 	sessionManager := scs.New()
 	sessionManager.Store = memstore.New()
-	userService := users.NewService(&users.Store{})
+	userService := directory.NewUserService(&directory.Store{})
 
 	return Dependencies{
 		Runtime: RuntimeDependencies{

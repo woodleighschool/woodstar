@@ -39,7 +39,7 @@ var LabelMembershipTypeValues = []LabelMembershipType{
 // Derived label attributes.
 const (
 	DerivedAttributeUserDepartment = "user_department"
-	DerivedAttributeEntraGroup     = "entra_group"
+	DerivedAttributeDirectoryGroup = "directory_group"
 	DerivedAttributeUser           = "user"
 )
 

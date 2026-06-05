@@ -10,8 +10,7 @@ const searchSchema = z.object({
   page_size: z.coerce.number().int().min(10).max(MAX_PAGE_SIZE).optional(),
   sort: z.string().optional(),
   role: z.enum(["admin", "viewer", "none"]).optional(),
-  source: z.enum(["local", "synced"]).optional(),
-  status: z.enum(["active", "inactive"]).optional(),
+  source: z.enum(["local", "entra"]).optional(),
   group_id: z.coerce.number().int().positive().optional(),
 });
 

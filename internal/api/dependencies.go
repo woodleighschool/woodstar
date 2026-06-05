@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/groups"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
@@ -25,7 +25,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 )
 
@@ -55,11 +54,11 @@ type RuntimeDependencies struct {
 
 type AuthDependencies struct {
 	AuthService *auth.Service
-	UserService *users.Service
+	UserService *directory.UserService
 }
 
 type DirectoryDependencies struct {
-	Groups *groups.Store
+	Store *directory.Store
 }
 
 type InventoryDependencies struct {

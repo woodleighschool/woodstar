@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/users"
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 // SetupParams contains the first administrator account fields.
@@ -22,7 +22,7 @@ func (s *Service) SetupComplete(ctx context.Context) (bool, error) {
 }
 
 // Setup creates the first administrator account and starts a session.
-func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, error) {
+func (s *Service) Setup(ctx context.Context, params SetupParams) (*directory.User, error) {
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -31,11 +31,11 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, e
 		return nil, ErrAlreadySetup
 	}
 
-	user, err := s.users.Create(ctx, users.UserCreate{
+	user, err := s.users.Create(ctx, directory.UserCreate{
 		Email:    params.Email,
 		Name:     params.Name,
 		Password: params.Password,
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create setup user: %w", err)
@@ -48,7 +48,7 @@ func (s *Service) Setup(ctx context.Context, params SetupParams) (*users.User, e
 }
 
 // Login checks local credentials and starts a session.
-func (s *Service) Login(ctx context.Context, email string, password string) (*users.User, error) {
+func (s *Service) Login(ctx context.Context, email string, password string) (*directory.User, error) {
 	exists, err := s.users.Exists(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("check setup state: %w", err)
@@ -65,7 +65,7 @@ func (s *Service) Login(ctx context.Context, email string, password string) (*us
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	valid, err := users.VerifyPassword(password, user.PasswordHash)
+	valid, err := directory.VerifyPassword(password, user.PasswordHash)
 	if err != nil {
 		return nil, fmt.Errorf("verify password: %w", err)
 	}

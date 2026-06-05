@@ -21,7 +21,7 @@ FROM (
         ON lower(u.email) = lower(he.email)
         OR lower(COALESCE(u.user_principal_name, '')) = lower(he.email)
     WHERE he.source::text = ANY($1::text[])
-      AND u.active
+      AND u.deleted_at IS NULL
     ORDER BY he.host_id, CASE he.source
         WHEN 'orbit_profile' THEN 0
         WHEN 'santa_primary_user' THEN 0

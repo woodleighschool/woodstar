@@ -14,7 +14,6 @@ import { EnumBadge } from "@/components/enum-badge";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,23 +24,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/components/users/user-role";
 import { useAuth } from "@/hooks/use-auth";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useGroup, type Group } from "@/hooks/use-groups";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { useUsers, type User } from "@/hooks/use-users";
-import { formatRelative, nonEmpty } from "@/lib/utils";
-
-const USER_SOURCE_OPTIONS = [
-  { value: "local", label: "Local" },
-  { value: "synced", label: "Synced" },
-];
-
-const USER_STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-];
+import { nonEmpty } from "@/lib/utils";
+import { DIRECTORY_SOURCE_OPTIONS, DIRECTORY_SOURCES } from "@/pages/directory/shared";
+import { USER_ACCESS_ROLE_OPTIONS, USER_ACCESS_ROLES, userAccessRole } from "@/pages/users/shared";
 
 export function UsersPage() {
   const search = useSearch({ from: "/_authenticated/directory/users/" });
@@ -57,20 +47,19 @@ export function UsersPage() {
     q: search.q,
     role: search.role,
     source: search.source,
-    status: search.status,
     group_id: groupID,
     ...tableQueryParams(state),
   });
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
-  const hasFilters = !!search.q || !!search.role || !!search.source || !!search.status || groupID !== undefined;
+  const hasFilters = !!search.q || !!search.role || !!search.source || groupID !== undefined;
   const groupLabel = groupFilterLabel({ group: group.data, groupID });
 
   return (
     <PageShell>
       <PageHeader
         title="Users"
-        description="Manage synced and local users."
+        description="Manage directory and local users."
         context={
           groupLabel ? (
             <FilterChip label="Group" value={groupLabel} onRemove={() => setters.setFilter("group_id", undefined)} />
@@ -99,7 +88,6 @@ export function UsersPage() {
               onDraftChange={setDraft}
               role={search.role}
               source={search.source}
-              status={search.status}
               onFilterChange={setters.setFilter}
             />
           }
@@ -172,35 +160,15 @@ function UsersTable({
     },
     {
       id: "source",
-      accessorFn: (row) => (row.synced ? "synced" : "local"),
+      accessorKey: "source",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Source" />,
-      cell: ({ row }) => (
-        <Badge variant={row.original.synced ? "secondary" : "outline"}>
-          {row.original.synced ? "Synced" : "Local"}
-        </Badge>
-      ),
-    },
-    {
-      id: "status",
-      accessorFn: (row) => (row.active ? "active" : "inactive"),
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-      cell: ({ row }) => (
-        <Badge variant={row.original.active ? "outline" : "secondary"}>
-          {row.original.active ? "Active" : "Inactive"}
-        </Badge>
-      ),
+      cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
     },
     {
       id: "department",
       accessorKey: "department",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
       cell: ({ row }) => nonEmpty(row.original.department) ?? "-",
-    },
-    {
-      id: "last_synced_at",
-      accessorKey: "last_synced_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Synced" />,
-      cell: ({ row }) => (row.original.last_synced_at ? formatRelative(row.original.last_synced_at) : "-"),
     },
     {
       id: "actions",
@@ -257,14 +225,12 @@ function UsersToolbar({
   onDraftChange,
   role,
   source,
-  status,
   onFilterChange,
 }: {
   draft: string;
   onDraftChange: (next: string) => void;
   role?: string;
   source?: string;
-  status?: string;
   onFilterChange: (key: string, value: string | undefined) => void;
 }) {
   return (
@@ -279,16 +245,9 @@ function UsersToolbar({
       />
       <DataTableFacetedFilter
         title="Source"
-        options={USER_SOURCE_OPTIONS}
+        options={DIRECTORY_SOURCE_OPTIONS}
         selected={source ? [source] : []}
         onChange={(next) => onFilterChange("source", next[0])}
-        singleSelect
-      />
-      <DataTableFacetedFilter
-        title="Status"
-        options={USER_STATUS_OPTIONS}
-        selected={status ? [status] : []}
-        onChange={(next) => onFilterChange("status", next[0])}
         singleSelect
       />
     </div>
@@ -323,7 +282,7 @@ function UserRowActions({ user, isSelf, onDelete }: { user: User; isSelf: boolea
           )}
           {!isSelf ? (
             <DropdownMenuItem variant="destructive" onSelect={() => onDelete(user)}>
-              {user.synced ? "Deactivate" : "Delete"}
+              Delete
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuGroup>

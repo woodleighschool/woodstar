@@ -54,6 +54,48 @@ func (ns NullAgent) Value() (driver.Value, error) {
 	return string(ns.Agent), nil
 }
 
+type DirectorySource string
+
+const (
+	DirectorySourceLocal DirectorySource = "local"
+	DirectorySourceEntra DirectorySource = "entra"
+)
+
+func (e *DirectorySource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DirectorySource(s)
+	case string:
+		*e = DirectorySource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DirectorySource: %T", src)
+	}
+	return nil
+}
+
+type NullDirectorySource struct {
+	DirectorySource DirectorySource `json:"directory_source"`
+	Valid           bool            `json:"valid"` // Valid is true if DirectorySource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDirectorySource) Scan(value interface{}) error {
+	if value == nil {
+		ns.DirectorySource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DirectorySource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDirectorySource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DirectorySource), nil
+}
+
 type HostUserAffinitySource string
 
 const (
@@ -749,17 +791,17 @@ type CheckTarget struct {
 	Effect  string `json:"effect"`
 }
 
-type EntraGroup struct {
-	ID           int64     `json:"id"`
-	ExternalID   string    `json:"external_id"`
-	DisplayName  string    `json:"display_name"`
-	MailNickname *string   `json:"mail_nickname"`
-	LastSyncedAt time.Time `json:"last_synced_at"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+type DirectoryGroup struct {
+	ID           int64           `json:"id"`
+	Source       DirectorySource `json:"source"`
+	ExternalID   string          `json:"external_id"`
+	DisplayName  string          `json:"display_name"`
+	MailNickname *string         `json:"mail_nickname"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
-type EntraGroupMembership struct {
+type DirectoryGroupMembership struct {
 	UserID  int64 `json:"user_id"`
 	GroupID int64 `json:"group_id"`
 }
@@ -1314,21 +1356,21 @@ type SoftwareTitle struct {
 }
 
 type User struct {
-	ID                int64      `json:"id"`
-	Email             string     `json:"email"`
-	Name              string     `json:"name"`
-	PasswordHash      *string    `json:"password_hash"`
-	Role              *UserRole  `json:"role"`
-	APIKey            *string    `json:"api_key"`
-	APIKeyCreatedAt   *time.Time `json:"api_key_created_at"`
-	EntraID           *string    `json:"entra_id"`
-	UserPrincipalName *string    `json:"user_principal_name"`
-	MailNickname      *string    `json:"mail_nickname"`
-	GivenName         *string    `json:"given_name"`
-	FamilyName        *string    `json:"family_name"`
-	Department        *string    `json:"department"`
-	Active            bool       `json:"active"`
-	LastSyncedAt      *time.Time `json:"last_synced_at"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                int64           `json:"id"`
+	Email             string          `json:"email"`
+	Name              string          `json:"name"`
+	PasswordHash      *string         `json:"password_hash"`
+	Role              *UserRole       `json:"role"`
+	APIKey            *string         `json:"api_key"`
+	APIKeyCreatedAt   *time.Time      `json:"api_key_created_at"`
+	Source            DirectorySource `json:"source"`
+	ExternalID        *string         `json:"external_id"`
+	UserPrincipalName *string         `json:"user_principal_name"`
+	MailNickname      *string         `json:"mail_nickname"`
+	GivenName         *string         `json:"given_name"`
+	FamilyName        *string         `json:"family_name"`
+	Department        *string         `json:"department"`
+	DeletedAt         *time.Time      `json:"deleted_at"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }

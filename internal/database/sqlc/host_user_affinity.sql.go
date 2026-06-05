@@ -136,9 +136,9 @@ SELECT
     )::text[] AS groups
 FROM primary_mapping pm
 LEFT JOIN host_user_links hul ON hul.host_id = pm.host_id
-LEFT JOIN users u ON u.id = hul.user_id AND u.active
-LEFT JOIN entra_group_memberships egm ON egm.user_id = u.id
-LEFT JOIN entra_groups eg ON eg.id = egm.group_id
+LEFT JOIN users u ON u.id = hul.user_id AND u.deleted_at IS NULL
+LEFT JOIN directory_group_memberships egm ON egm.user_id = u.id
+LEFT JOIN directory_groups eg ON eg.id = egm.group_id
 GROUP BY pm.host_id, pm.email, pm.source, u.mail_nickname, u.name, u.department
 ORDER BY pm.host_id
 `
@@ -210,9 +210,9 @@ SELECT
     )::text[] AS groups
 FROM primary_mapping pm
 LEFT JOIN host_user_links hul ON hul.host_id = pm.host_id
-LEFT JOIN users u ON u.id = hul.user_id AND u.active
-LEFT JOIN entra_group_memberships egm ON egm.user_id = u.id
-LEFT JOIN entra_groups eg ON eg.id = egm.group_id
+LEFT JOIN users u ON u.id = hul.user_id AND u.deleted_at IS NULL
+LEFT JOIN directory_group_memberships egm ON egm.user_id = u.id
+LEFT JOIN directory_groups eg ON eg.id = egm.group_id
 GROUP BY pm.email, pm.source, u.mail_nickname, u.name, u.department
 `
 

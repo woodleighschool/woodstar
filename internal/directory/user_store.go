@@ -1,4 +1,4 @@
-package users
+package directory
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Store persists users and their Woodstar access fields.
+// Store persists directory users, groups, memberships, and source snapshots.
 type Store struct {
 	db *database.DB
 	q  *sqlc.Queries
@@ -38,11 +38,11 @@ func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
 
-func (s *Store) Exists(ctx context.Context) (bool, error) {
+func (s *Store) UserExists(ctx context.Context) (bool, error) {
 	return s.q.UserExists(ctx)
 }
 
-func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
+func (s *Store) CreateUser(ctx context.Context, params UserCreate) (*User, error) {
 	hash, err := HashPassword(params.Password)
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (s *Store) Create(ctx context.Context, params UserCreate) (*User, error) {
 	return new(userFromSQLC(row)), nil
 }
 
-func (s *Store) GetLoginByEmail(ctx context.Context, email string) (*User, error) {
+func (s *Store) GetLoginUserByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetLoginUserByEmail(ctx, sqlc.GetLoginUserByEmailParams{Email: strings.ToLower(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -71,7 +71,7 @@ func (s *Store) GetLoginByEmail(ctx context.Context, email string) (*User, error
 	return new(userFromSQLC(row)), nil
 }
 
-func (s *Store) GetSSOByEmail(ctx context.Context, email string) (*User, error) {
+func (s *Store) GetSSOUserByEmail(ctx context.Context, email string) (*User, error) {
 	row, err := s.q.GetSSOUserByEmail(ctx, sqlc.GetSSOUserByEmailParams{Email: strings.ToLower(email)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -82,7 +82,7 @@ func (s *Store) GetSSOByEmail(ctx context.Context, email string) (*User, error) 
 	return new(userFromSQLC(row)), nil
 }
 
-func (s *Store) GetByID(ctx context.Context, id int64) (*User, error) {
+func (s *Store) GetUserByID(ctx context.Context, id int64) (*User, error) {
 	row, err := s.q.GetUserByID(ctx, sqlc.GetUserByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -105,7 +105,7 @@ func (s *Store) GetAccountByID(ctx context.Context, id int64) (*Account, error) 
 	return new(accountFromSQLC(row)), nil
 }
 
-func (s *Store) List(ctx context.Context, params ListParams) ([]User, int, error) {
+func (s *Store) ListUsers(ctx context.Context, params UserListParams) ([]User, int, error) {
 	where, args := userWhere(params)
 	listQuery := userListQuery(params, where, args)
 	countSQL, countArgs := listQuery.BuildCount()
@@ -133,7 +133,7 @@ func (s *Store) List(ctx context.Context, params ListParams) ([]User, int, error
 	return out, count, nil
 }
 
-func (s *Store) ListDepartments(ctx context.Context, params ListParams) ([]Department, int, error) {
+func (s *Store) ListDepartments(ctx context.Context, params UserListParams) ([]Department, int, error) {
 	where, args := departmentWhere(params)
 	listQuery := departmentListQuery(params, where, args)
 	countSQL, countArgs := listQuery.BuildCount()
@@ -154,7 +154,7 @@ func (s *Store) ListDepartments(ctx context.Context, params ListParams) ([]Depar
 	return departments, count, err
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params UserMutation) (*User, error) {
+func (s *Store) UpdateUser(ctx context.Context, id int64, params UserMutation) (*User, error) {
 	var role *sqlc.UserRole
 	if params.Role != nil {
 		value := sqlc.UserRole(*params.Role)
@@ -209,7 +209,7 @@ func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountMutat
 	return new(accountFromSQLC(row)), nil
 }
 
-func (s *Store) Delete(ctx context.Context, id int64) error {
+func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 	_, err := s.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
@@ -217,15 +217,15 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (s *Store) DeactivateSynced(ctx context.Context, id int64) error {
-	_, err := s.q.DeactivateSyncedUser(ctx, sqlc.DeactivateSyncedUserParams{ID: id})
+func (s *Store) SoftDeleteUser(ctx context.Context, id int64) error {
+	_, err := s.q.SoftDeleteDirectoryUser(ctx, sqlc.SoftDeleteDirectoryUserParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
 	return err
 }
 
-func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
+func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) {
 	row, err := s.q.GetUserByAPIKey(ctx, sqlc.GetUserByAPIKeyParams{APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -238,7 +238,7 @@ func (s *Store) GetByAPIKey(ctx context.Context, key string) (*User, error) {
 
 // SetAPIKey writes a freshly generated API key for id and resets the
 // created_at and last_used_at timestamps.
-func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
+func (s *Store) SetUserAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
 	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -249,7 +249,7 @@ func (s *Store) SetAPIKey(ctx context.Context, id int64, key string) (*Account, 
 	return new(accountFromSQLC(row)), nil
 }
 
-func (s *Store) ClearAPIKey(ctx context.Context, id int64) (*Account, error) {
+func (s *Store) ClearUserAPIKey(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -268,16 +268,15 @@ func userFromSQLC(s sqlc.User) User {
 		Name:              s.Name,
 		PasswordHash:      stringValue(s.PasswordHash),
 		Role:              role,
-		EntraID:           stringValue(s.EntraID),
+		Source:            Source(s.Source),
+		ExternalID:        stringValue(s.ExternalID),
 		UserPrincipalName: stringValue(s.UserPrincipalName),
 		MailNickname:      stringValue(s.MailNickname),
 		GivenName:         stringValue(s.GivenName),
 		FamilyName:        stringValue(s.FamilyName),
 		Department:        stringValue(s.Department),
-		Active:            s.Active,
-		Synced:            s.EntraID != nil,
-		CanLogin:          s.Active && role != nil,
-		LastSyncedAt:      s.LastSyncedAt,
+		CanLogin:          s.DeletedAt == nil && role != nil,
+		DeletedAt:         s.DeletedAt,
 		CreatedAt:         s.CreatedAt,
 		UpdatedAt:         s.UpdatedAt,
 	}
@@ -316,8 +315,9 @@ func stringValue(value *string) string {
 	return *value
 }
 
-func userWhere(params ListParams) (string, []any) {
+func userWhere(params UserListParams) (string, []any) {
 	var where dbutil.WhereBuilder
+	where.Add("u.deleted_at IS NULL")
 	if params.GroupID > 0 {
 		groupID := where.Arg(params.GroupID)
 		where.Add("gm.group_id = " + groupID)
@@ -347,22 +347,17 @@ func userWhere(params ListParams) (string, []any) {
 	}
 	switch params.Source {
 	case "local":
-		where.Add("u.entra_id IS NULL")
-	case "synced":
-		where.Add("u.entra_id IS NOT NULL")
-	}
-	switch params.Status {
-	case "active":
-		where.Add("u.active")
-	case "inactive":
-		where.Add("NOT u.active")
+		where.Add("u.source = 'local'")
+	case "entra":
+		where.Add("u.source = 'entra'")
 	}
 	return where.Build()
 }
 
-func departmentWhere(params ListParams) (string, []any) {
+func departmentWhere(params UserListParams) (string, []any) {
 	var where dbutil.WhereBuilder
-	where.Add("entra_id IS NOT NULL")
+	where.Add("source <> 'local'")
+	where.Add("deleted_at IS NULL")
 	where.Add("NULLIF(btrim(department), '') IS NOT NULL")
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -375,36 +370,35 @@ func departmentWhere(params ListParams) (string, []any) {
 	return where.Build()
 }
 
-func userListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func userListQuery(params UserListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: userListSelectSQL(params),
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
-			"name":           {SQL: "lower(u.name)"},
-			"email":          {SQL: "lower(u.email)"},
-			"role":           {SQL: "u.role", NullOrder: dbutil.NullsLast},
-			"department":     {SQL: "lower(u.department)", NullOrder: dbutil.NullsLast},
-			"created_at":     {SQL: "u.created_at"},
-			"updated_at":     {SQL: "u.updated_at"},
-			"last_synced_at": {SQL: "u.last_synced_at", NullOrder: dbutil.NullsLast},
+			"name":       {SQL: "lower(u.name)"},
+			"email":      {SQL: "lower(u.email)"},
+			"role":       {SQL: "u.role", NullOrder: dbutil.NullsLast},
+			"department": {SQL: "lower(u.department)", NullOrder: dbutil.NullsLast},
+			"created_at": {SQL: "u.created_at"},
+			"updated_at": {SQL: "u.updated_at"},
 		},
 		DefaultOrder: []dbutil.OrderExpr{{SQL: "lower(u.name)"}, {SQL: "lower(u.email)"}, {SQL: "u.id"}},
 		Params:       params.ListParams,
 	}
 }
 
-func userListSelectSQL(params ListParams) string {
+func userListSelectSQL(params UserListParams) string {
 	if params.GroupID <= 0 {
 		return "SELECT u.* FROM users u"
 	}
 	return `
 SELECT u.*
 FROM users u
-JOIN entra_group_memberships gm ON gm.user_id = u.id`
+JOIN directory_group_memberships gm ON gm.user_id = u.id`
 }
 
-func departmentListQuery(params ListParams, where string, args []any) dbutil.ListQuery {
+func departmentListQuery(params UserListParams, where string, args []any) dbutil.ListQuery {
 	return dbutil.ListQuery{
 		SelectSQL: "SELECT DISTINCT department AS value FROM users",
 		WhereSQL:  where,

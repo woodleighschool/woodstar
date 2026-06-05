@@ -9,8 +9,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/randtoken"
-	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 const (
@@ -97,7 +97,7 @@ func (s *Service) BeginSSO(ctx context.Context) (string, error) {
 	return s.oidc.oauth2.AuthCodeURL(state, oidc.Nonce(nonce)), nil
 }
 
-func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*users.User, error) {
+func (s *Service) CompleteSSO(ctx context.Context, state, code string) (*directory.User, error) {
 	if s.oidc == nil {
 		return nil, ErrSSONotConfigured
 	}

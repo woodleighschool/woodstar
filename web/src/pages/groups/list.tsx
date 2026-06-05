@@ -3,13 +3,15 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { UsersRound } from "lucide-react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
+import { EnumBadge } from "@/components/enum-badge";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useGroups, type Group } from "@/hooks/use-groups";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
-import { formatRelative, nonEmpty } from "@/lib/utils";
+import { nonEmpty } from "@/lib/utils";
+import { DIRECTORY_SOURCES } from "@/pages/directory/shared";
 
 export function GroupsPage() {
   const search = useSearch({ from: "/_authenticated/directory/groups/" });
@@ -45,16 +47,16 @@ export function GroupsPage() {
       meta: { headClassName: "text-right", cellClassName: "text-right" },
     },
     {
-      id: "last_synced_at",
-      accessorKey: "last_synced_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Synced" />,
-      cell: ({ row }) => formatRelative(row.original.last_synced_at),
+      id: "source",
+      accessorKey: "source",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Source" />,
+      cell: ({ row }) => <EnumBadge value={row.original.source} metadata={DIRECTORY_SOURCES} />,
     },
   ];
 
   return (
     <PageShell>
-      <PageHeader title="Groups" description="Browse synced directory groups." />
+      <PageHeader title="Groups" description="Browse directory groups." />
 
       {query.error ? (
         <Alert variant="destructive">

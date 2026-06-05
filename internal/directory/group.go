@@ -1,5 +1,4 @@
-// Package groups exposes synced directory groups as Woodstar resources.
-package groups
+package directory
 
 import (
 	"time"
@@ -7,20 +6,20 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// Group is one synced directory group.
+// Group is one directory group.
 type Group struct {
 	ID           int64     `json:"id"`
+	Source       Source    `json:"source"`
 	ExternalID   string    `json:"external_id"`
 	DisplayName  string    `json:"display_name"`
 	MailNickname string    `json:"mail_nickname,omitempty"`
 	MemberCount  int       `json:"member_count"`
-	LastSyncedAt time.Time `json:"last_synced_at"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// ListParams filters paginated group lists.
-type ListParams struct {
+// GroupListParams filters paginated group lists.
+type GroupListParams struct {
 	dbutil.ListParams
 
 	Values []string

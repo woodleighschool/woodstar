@@ -19,6 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -28,7 +29,6 @@ import (
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/scope"
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/users"
 )
 
 func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
@@ -409,12 +409,12 @@ func santaTestAPIWith(
 ) (*chi.Mux, huma.API, *http.Cookie) {
 	t.Helper()
 
-	userService := users.NewService(users.NewStore(db))
-	if _, err := userService.Create(context.Background(), users.UserCreate{
+	userService := directory.NewUserService(directory.NewStore(db))
+	if _, err := userService.Create(context.Background(), directory.UserCreate{
 		Email:    email,
 		Name:     "Santa Test Admin",
 		Password: "correct-password",
-		Role:     users.RoleAdmin,
+		Role:     directory.RoleAdmin,
 	}); err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}

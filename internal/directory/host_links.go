@@ -1,4 +1,4 @@
-package entra
+package directory
 
 import (
 	"context"

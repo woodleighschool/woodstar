@@ -1,6 +1,7 @@
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('admin', 'viewer');
+CREATE TYPE directory_source AS ENUM ('local', 'entra');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
 CREATE TYPE host_user_link_source AS ENUM ('manual', 'reported_user_affinity');
@@ -15,16 +16,21 @@ CREATE TABLE users (
     role user_role,
     api_key TEXT,
     api_key_created_at TIMESTAMPTZ,
-    entra_id TEXT UNIQUE,
+    source directory_source NOT NULL DEFAULT 'local',
+    external_id TEXT,
     user_principal_name TEXT UNIQUE,
     mail_nickname TEXT,
     given_name TEXT,
     family_name TEXT,
     department TEXT,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    last_synced_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, external_id),
+    CHECK (
+        (source = 'local' AND external_id IS NULL)
+        OR (source <> 'local' AND external_id IS NOT NULL)
+    )
 );
 
 CREATE UNIQUE INDEX users_api_key_idx
@@ -56,25 +62,27 @@ CREATE INDEX agent_secrets_active_idx
     ON agent_secrets (agent, created_at DESC)
     WHERE deleted_at IS NULL;
 
--- Entra groups ---------------------------------------------------------------
+-- Directory groups -----------------------------------------------------------
 
-CREATE TABLE entra_groups (
+CREATE TABLE directory_groups (
     id BIGSERIAL PRIMARY KEY,
-    external_id TEXT NOT NULL UNIQUE,
+    source directory_source NOT NULL,
+    external_id TEXT NOT NULL,
     display_name TEXT NOT NULL,
     mail_nickname TEXT,
-    last_synced_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, external_id),
+    CHECK (source <> 'local')
 );
 
-CREATE TABLE entra_group_memberships (
+CREATE TABLE directory_group_memberships (
     user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    group_id BIGINT NOT NULL REFERENCES entra_groups (id) ON DELETE CASCADE,
+    group_id BIGINT NOT NULL REFERENCES directory_groups (id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, group_id)
 );
 
-CREATE INDEX entra_group_memberships_group_idx ON entra_group_memberships (group_id);
+CREATE INDEX directory_group_memberships_group_idx ON directory_group_memberships (group_id);
 
 -- Hosts ----------------------------------------------------------------------
 

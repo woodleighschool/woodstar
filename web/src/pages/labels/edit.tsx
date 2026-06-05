@@ -33,11 +33,11 @@ import {
   type LabelMembershipType,
 } from "@/pages/labels/shared";
 
-type DerivedAttribute = "user_department" | "entra_group" | "user";
+type DerivedAttribute = "user_department" | "directory_group" | "user";
 
 const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
   { value: "user_department", label: "User Department" },
-  { value: "entra_group", label: "Group" },
+  { value: "directory_group", label: "Group" },
   { value: "user", label: "User" },
 ];
 
@@ -69,7 +69,7 @@ const labelFormSchema = z
     description: z.string().trim(),
     query: z.string().trim(),
     host_ids: selectedIDArray("Host"),
-    derived_attribute: z.enum(["user_department", "entra_group", "user"]),
+    derived_attribute: z.enum(["user_department", "directory_group", "user"]),
     derived_values: z.array(requiredString("Derived value")),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
@@ -448,7 +448,7 @@ function DerivedSelector({
   onChange: (value: string[]) => void;
 }) {
   switch (attribute) {
-    case "entra_group":
+    case "directory_group":
       return <GroupSelector value={value} onChange={onChange} />;
     case "user":
       return <UserSelector value={value} onChange={onChange} />;
@@ -765,7 +765,7 @@ function sortParam(sorting: SortingState) {
 
 function derivedSelectorLabel(attribute: DerivedAttribute) {
   switch (attribute) {
-    case "entra_group":
+    case "directory_group":
       return "Groups";
     case "user":
       return "Users";
@@ -786,7 +786,7 @@ function membershipFromString(value: string | undefined): LabelMembershipType {
 
 function derivedAttributeFromString(value: string | undefined): DerivedAttribute {
   switch (value) {
-    case "entra_group":
+    case "directory_group":
     case "user":
     case "user_department":
       return value;

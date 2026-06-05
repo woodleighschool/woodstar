@@ -5,12 +5,18 @@ import (
 	"errors"
 	"log/slog"
 	"time"
+
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// Fetcher returns an Entra snapshot. Implemented by EntraClient in
-// production; tests pass an in-memory fake.
+// Fetcher returns an Entra snapshot.
 type Fetcher interface {
-	Fetch(ctx context.Context) (Snapshot, error)
+	Fetch(ctx context.Context) (directory.ProviderSnapshot, error)
+}
+
+// SnapshotApplier applies fetched Entra snapshots to Woodstar directory state.
+type SnapshotApplier interface {
+	ApplyProviderSnapshot(ctx context.Context, source directory.Source, snapshot directory.ProviderSnapshot) error
 }
 
 type DerivedLabelRefresher interface {
@@ -19,15 +25,20 @@ type DerivedLabelRefresher interface {
 
 // Service runs sync passes on demand and on a fixed interval.
 type Service struct {
-	store          *Store
+	applier        SnapshotApplier
 	fetcher        Fetcher
 	logger         *slog.Logger
 	labelRefresher DerivedLabelRefresher
 }
 
-// NewService composes a Store with a Fetcher and logger.
-func NewService(store *Store, fetcher Fetcher, logger *slog.Logger, labelRefresher DerivedLabelRefresher) *Service {
-	return &Service{store: store, fetcher: fetcher, logger: logger, labelRefresher: labelRefresher}
+// NewService composes an Entra fetcher with directory reconciliation.
+func NewService(
+	applier SnapshotApplier,
+	fetcher Fetcher,
+	logger *slog.Logger,
+	labelRefresher DerivedLabelRefresher,
+) *Service {
+	return &Service{applier: applier, fetcher: fetcher, logger: logger, labelRefresher: labelRefresher}
 }
 
 // Sync performs a single full reconciliation. Errors from either the fetch or
@@ -36,12 +47,15 @@ func (s *Service) Sync(ctx context.Context) error {
 	if s.fetcher == nil {
 		return errors.New("entra: no fetcher configured")
 	}
+	if s.applier == nil {
+		return errors.New("entra: no snapshot applier configured")
+	}
 	started := time.Now()
 	snapshot, err := s.fetcher.Fetch(ctx)
 	if err != nil {
 		return err
 	}
-	if err := s.store.Apply(ctx, snapshot); err != nil {
+	if err := s.applier.ApplyProviderSnapshot(ctx, directory.SourceEntra, snapshot); err != nil {
 		return err
 	}
 	if s.labelRefresher != nil {

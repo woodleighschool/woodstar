@@ -145,24 +145,24 @@ func (q *Queries) GetLabelByID(ctx context.Context, arg GetLabelByIDParams) (Get
 	return i, err
 }
 
-const insertEntraGroupLabelMemberships = `-- name: InsertEntraGroupLabelMemberships :exec
+const insertDirectoryGroupLabelMemberships = `-- name: InsertDirectoryGroupLabelMemberships :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-JOIN entra_group_memberships egm ON egm.user_id = u.id
-JOIN entra_groups eg ON eg.id = egm.group_id
-WHERE u.active AND eg.external_id = ANY($2::text[])
+JOIN directory_group_memberships dgm ON dgm.user_id = u.id
+JOIN directory_groups dg ON dg.id = dgm.group_id
+WHERE u.deleted_at IS NULL AND dg.external_id = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
 `
 
-type InsertEntraGroupLabelMembershipsParams struct {
+type InsertDirectoryGroupLabelMembershipsParams struct {
 	LabelID int64    `json:"label_id"`
 	Values  []string `json:"values"`
 }
 
-func (q *Queries) InsertEntraGroupLabelMemberships(ctx context.Context, arg InsertEntraGroupLabelMembershipsParams) error {
-	_, err := q.db.Exec(ctx, insertEntraGroupLabelMemberships, arg.LabelID, arg.Values)
+func (q *Queries) InsertDirectoryGroupLabelMemberships(ctx context.Context, arg InsertDirectoryGroupLabelMembershipsParams) error {
+	_, err := q.db.Exec(ctx, insertDirectoryGroupLabelMemberships, arg.LabelID, arg.Values)
 	return err
 }
 
@@ -188,7 +188,7 @@ INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-WHERE u.active AND u.department = ANY($2::text[])
+WHERE u.deleted_at IS NULL AND u.department = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
 `
 
@@ -207,7 +207,7 @@ INSERT INTO label_membership (label_id, host_id)
 SELECT DISTINCT $1::bigint, hul.host_id
 FROM host_user_links hul
 JOIN users u ON u.id = hul.user_id
-WHERE u.active AND u.id::text = ANY($2::text[])
+WHERE u.deleted_at IS NULL AND u.id::text = ANY($2::text[])
 ON CONFLICT (label_id, host_id) DO UPDATE SET updated_at = now()
 `
 

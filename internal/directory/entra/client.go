@@ -14,72 +14,72 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+
+	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
-// EntraConfig holds the credentials needed to call Microsoft Graph as an
-// application (client-credentials flow).
-type EntraConfig struct {
+// Config holds the credentials needed to call Microsoft Graph as an
+// application.
+type Config struct {
 	TenantID         string
 	ClientID         string
 	ClientSecret     string
 	TransitiveGroups bool
 }
 
-// EntraClient fetches Entra users and groups from Microsoft Graph.
-type EntraClient struct {
-	cfg   EntraConfig
+// Client fetches Entra users and groups from Microsoft Graph.
+type Client struct {
+	cfg   Config
 	creds clientcredentials.Config
 	http  *http.Client
 	mu    sync.Mutex
 	token *oauth2.Token
 }
 
-// NewEntraClient returns a Graph client that signs requests with an
-// application token from the v2.0 token endpoint. Tokens are refreshed
-// automatically by the underlying oauth2 transport.
-func NewEntraClient(cfg EntraConfig) *EntraClient {
+// NewClient returns a Graph client that signs requests with an application token.
+func NewClient(cfg Config) *Client {
 	creds := clientcredentials.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
 		TokenURL:     fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", cfg.TenantID),
 		Scopes:       []string{"https://graph.microsoft.com/.default"},
 	}
-	return &EntraClient{
+	return &Client{
 		cfg:   cfg,
 		creds: creds,
 		http:  http.DefaultClient,
 	}
 }
 
-// Fetch builds a Snapshot from Graph. It pages through /users and /groups,
+// Fetch builds a directory snapshot from Graph. It pages through /users and /groups,
 // then resolves each user's group membership (memberOf or
 // transitiveMemberOf per config) filtered to microsoft.graph.group.
-func (c *EntraClient) Fetch(ctx context.Context) (Snapshot, error) {
+func (c *Client) Fetch(ctx context.Context) (directory.ProviderSnapshot, error) {
 	now := time.Now().UTC()
 
 	users, err := c.fetchUsers(ctx)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("fetch users: %w", err)
+		return directory.ProviderSnapshot{}, fmt.Errorf("fetch users: %w", err)
 	}
 	groups, err := c.fetchGroups(ctx)
 	if err != nil {
-		return Snapshot{}, fmt.Errorf("fetch groups: %w", err)
+		return directory.ProviderSnapshot{}, fmt.Errorf("fetch groups: %w", err)
 	}
 
 	groupIDsByUser, err := c.fetchUsersGroupIDs(ctx, users)
 	if err != nil {
-		return Snapshot{}, err
+		return directory.ProviderSnapshot{}, err
 	}
 	for i := range users {
 		users[i].GroupExternalIDs = groupIDsByUser[users[i].ExternalID]
 	}
 
-	return Snapshot{Users: users, Groups: groups, GeneratedAt: now}, nil
+	return directory.ProviderSnapshot{Users: users, Groups: groups, GeneratedAt: now}, nil
 }
 
-func (c *EntraClient) fetchUsers(ctx context.Context) ([]SnapshotUser, error) {
+func (c *Client) fetchUsers(ctx context.Context) ([]directory.ProviderUser, error) {
 	endpoint := "https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,mail,mailNickname,displayName,givenName,surname,department,accountEnabled&$top=999"
-	var out []SnapshotUser
+	var out []directory.ProviderUser
 	for endpoint != "" {
 		var page struct {
 			NextLink string      `json:"@odata.nextLink"`
@@ -89,7 +89,7 @@ func (c *EntraClient) fetchUsers(ctx context.Context) ([]SnapshotUser, error) {
 			return nil, err
 		}
 		for _, u := range page.Value {
-			out = append(out, SnapshotUser{
+			out = append(out, directory.ProviderUser{
 				ExternalID:        u.ID,
 				UserPrincipalName: u.UserPrincipalName,
 				Mail:              deref(u.Mail),
@@ -98,7 +98,7 @@ func (c *EntraClient) fetchUsers(ctx context.Context) ([]SnapshotUser, error) {
 				GivenName:         deref(u.GivenName),
 				FamilyName:        deref(u.Surname),
 				Department:        deref(u.Department),
-				Active:            u.AccountEnabled == nil || *u.AccountEnabled,
+				Enabled:           u.AccountEnabled == nil || *u.AccountEnabled,
 			})
 		}
 		endpoint = page.NextLink
@@ -106,9 +106,9 @@ func (c *EntraClient) fetchUsers(ctx context.Context) ([]SnapshotUser, error) {
 	return out, nil
 }
 
-func (c *EntraClient) fetchGroups(ctx context.Context) ([]SnapshotGroup, error) {
+func (c *Client) fetchGroups(ctx context.Context) ([]directory.ProviderGroup, error) {
 	endpoint := "https://graph.microsoft.com/v1.0/groups?$select=id,displayName,mailNickname&$top=999"
-	var out []SnapshotGroup
+	var out []directory.ProviderGroup
 	for endpoint != "" {
 		var page struct {
 			NextLink string       `json:"@odata.nextLink"`
@@ -118,7 +118,7 @@ func (c *EntraClient) fetchGroups(ctx context.Context) ([]SnapshotGroup, error) 
 			return nil, err
 		}
 		for _, g := range page.Value {
-			out = append(out, SnapshotGroup{
+			out = append(out, directory.ProviderGroup{
 				ExternalID:   g.ID,
 				DisplayName:  g.DisplayName,
 				MailNickname: deref(g.MailNickname),
@@ -129,7 +129,10 @@ func (c *EntraClient) fetchGroups(ctx context.Context) ([]SnapshotGroup, error) 
 	return out, nil
 }
 
-func (c *EntraClient) fetchUsersGroupIDs(ctx context.Context, users []SnapshotUser) (map[string][]string, error) {
+func (c *Client) fetchUsersGroupIDs(
+	ctx context.Context,
+	users []directory.ProviderUser,
+) (map[string][]string, error) {
 	out := make(map[string][]string, len(users))
 	pending := make([]graphMembershipRequest, 0, len(users))
 	for _, user := range users {
@@ -178,7 +181,7 @@ func (c *EntraClient) fetchUsersGroupIDs(ctx context.Context, users []SnapshotUs
 	return out, nil
 }
 
-func (c *EntraClient) userGroupMembershipURL(userID string) string {
+func (c *Client) userGroupMembershipURL(userID string) string {
 	relation := "memberOf"
 	if c.cfg.TransitiveGroups {
 		relation = "transitiveMemberOf"
@@ -189,7 +192,7 @@ func (c *EntraClient) userGroupMembershipURL(userID string) string {
 	)
 }
 
-func (c *EntraClient) fetchMembershipBatch(
+func (c *Client) fetchMembershipBatch(
 	ctx context.Context,
 	requests []graphMembershipRequest,
 ) (map[string]graphBatchResponse, error) {
@@ -236,7 +239,7 @@ func graphBatchRelativeURL(endpoint string) (string, error) {
 	return path, nil
 }
 
-func (c *EntraClient) get(ctx context.Context, endpoint string, out any) error {
+func (c *Client) get(ctx context.Context, endpoint string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err
@@ -258,7 +261,7 @@ func (c *EntraClient) get(ctx context.Context, endpoint string, out any) error {
 	return json.NewDecoder(res.Body).Decode(out)
 }
 
-func (c *EntraClient) post(ctx context.Context, endpoint string, body any, out any) error {
+func (c *Client) post(ctx context.Context, endpoint string, body any, out any) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(body); err != nil {
 		return err
@@ -285,7 +288,7 @@ func (c *EntraClient) post(ctx context.Context, endpoint string, body any, out a
 	return json.NewDecoder(res.Body).Decode(out)
 }
 
-func (c *EntraClient) authToken(ctx context.Context) (*oauth2.Token, error) {
+func (c *Client) authToken(ctx context.Context) (*oauth2.Token, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.token.Valid() {

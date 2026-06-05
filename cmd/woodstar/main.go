@@ -22,8 +22,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
 	"github.com/woodleighschool/woodstar/internal/database"
-	"github.com/woodleighschool/woodstar/internal/entra"
-	"github.com/woodleighschool/woodstar/internal/groups"
+	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
@@ -42,7 +42,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
 	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/users"
 	"github.com/woodleighschool/woodstar/internal/web"
 	webdist "github.com/woodleighschool/woodstar/web"
 )
@@ -152,7 +151,7 @@ func newServer(
 	logger *slog.Logger,
 ) (*api.Server, backgroundServices) {
 	stores := newStores(db)
-	userService := users.NewService(stores.users)
+	userService := directory.NewUserService(stores.directory)
 	authService := newAuthService(ctx, cfg, userService, sessionManager, logger)
 
 	orbitDeps := newOrbit(stores)
@@ -180,7 +179,7 @@ func newServer(
 			UserService: userService,
 		},
 		Directory: api.DirectoryDependencies{
-			Groups: stores.groups,
+			Store: stores.directory,
 		},
 		Inventory: api.InventoryDependencies{
 			Hosts:          stores.hosts,
@@ -220,11 +219,9 @@ func (services backgroundServices) start(ctx context.Context) func() {
 }
 
 type appStores struct {
-	users               *users.Store
-	groups              *groups.Store
+	directory           *directory.Store
 	hosts               *hosts.Store
 	userAffinities      *hosts.UserAffinityStore
-	entra               *entra.Store
 	agentSecrets        *agentauth.Store
 	software            *software.Store
 	labels              *labels.Store
@@ -241,11 +238,9 @@ type appStores struct {
 
 func newStores(db *database.DB) appStores {
 	return appStores{
-		users:               users.NewStore(db),
-		groups:              groups.NewStore(db),
+		directory:           directory.NewStore(db),
 		hosts:               hosts.NewStore(db),
 		userAffinities:      hosts.NewUserAffinityStore(db),
-		entra:               entra.NewStore(db),
 		agentSecrets:        agentauth.NewStore(db),
 		software:            software.NewStore(db),
 		labels:              labels.NewStore(db),
@@ -264,7 +259,7 @@ func newStores(db *database.DB) appStores {
 func newAuthService(
 	ctx context.Context,
 	cfg config.Config,
-	userService *users.Service,
+	userService *directory.UserService,
 	sessionManager *scs.SessionManager,
 	logger *slog.Logger,
 ) *auth.Service {
@@ -408,14 +403,14 @@ func newIntegrationBackgrounds(
 	if !cfg.EntraEnabled() {
 		return nil
 	}
-	entraClient := entra.NewEntraClient(entra.EntraConfig{
+	entraClient := entra.NewClient(entra.Config{
 		TenantID:         cfg.EntraTenantID,
 		ClientID:         cfg.EntraClientID,
 		ClientSecret:     cfg.EntraClientSecret,
 		TransitiveGroups: cfg.EntraTransitiveGroups,
 	})
 	entraSvc := entra.NewService(
-		stores.entra,
+		stores.directory,
 		entraClient,
 		logger.With("component", "entra"),
 		stores.labels,
