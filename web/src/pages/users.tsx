@@ -64,12 +64,18 @@ export function UsersPage() {
   const data = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q || !!search.role || !!search.source || !!search.status || groupID !== undefined;
+  const groupLabel = groupFilterLabel({ group: group.data, groupID });
 
   return (
     <PageShell>
       <PageHeader
         title="Users"
         description="Manage synced and local users."
+        context={
+          groupLabel ? (
+            <FilterChip label="Group" value={groupLabel} onRemove={() => setters.setFilter("group_id", undefined)} />
+          ) : null
+        }
         actions={
           <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus data-icon="inline-start" /> Create
@@ -95,8 +101,6 @@ export function UsersPage() {
               source={search.source}
               status={search.status}
               onFilterChange={setters.setFilter}
-              groupLabel={groupFilterLabel({ group: group.data, groupID })}
-              onClearGroup={() => setters.setFilter("group_id", undefined)}
             />
           }
           hasFilters={hasFilters}
@@ -255,8 +259,6 @@ function UsersToolbar({
   source,
   status,
   onFilterChange,
-  groupLabel,
-  onClearGroup,
 }: {
   draft: string;
   onDraftChange: (next: string) => void;
@@ -264,8 +266,6 @@ function UsersToolbar({
   source?: string;
   status?: string;
   onFilterChange: (key: string, value: string | undefined) => void;
-  groupLabel?: string;
-  onClearGroup: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -291,7 +291,6 @@ function UsersToolbar({
         onChange={(next) => onFilterChange("status", next[0])}
         singleSelect
       />
-      {groupLabel ? <FilterChip label="Group" value={groupLabel} onRemove={onClearGroup} /> : null}
     </div>
   );
 }

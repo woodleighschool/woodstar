@@ -45,12 +45,14 @@ function PageHeader({
   title,
   description,
   actions,
+  context,
   leading,
   className,
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
+  context?: ReactNode;
   leading?: ReactNode;
   className?: string;
 }) {
@@ -59,7 +61,10 @@ function PageHeader({
       <div className="flex min-w-0 items-start gap-4">
         {leading ? <div className="shrink-0">{leading}</div> : null}
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            {context ? <div className="flex min-w-0 flex-wrap items-center gap-2">{context}</div> : null}
+          </div>
           {description ? <p className="text-muted-foreground max-w-3xl text-sm">{description}</p> : null}
         </div>
       </div>

@@ -11,8 +11,8 @@ const searchSchema = z.object({
   sort: z.string().optional(),
   status: z.string().optional(),
   label_id: z.string().optional(),
-  software_title_id: z.string().optional(),
-  software_id: z.string().optional(),
+  software_title_id: z.coerce.number().int().positive().optional(),
+  software_id: z.coerce.number().int().positive().optional(),
   check_id: z.coerce.number().int().positive().optional(),
   check_response: z.enum(["pass", "fail"]).optional(),
 });

@@ -109,7 +109,7 @@ function SoftwareHeader({ title }: { title: SoftwareTitle }) {
         </div>
       </div>
       <Button asChild variant="outline" size="sm">
-        <Link to="/hosts" search={{ software_title_id: title.id.toString() }}>
+        <Link to="/hosts" search={{ software_title_id: title.id }}>
           View hosts
         </Link>
       </Button>
@@ -464,7 +464,7 @@ function VersionRow({ title, version }: { title: SoftwareTitle; version: Softwar
       <TableCell className="text-right tabular-nums">
         <Link
           to="/hosts"
-          search={{ software_title_id: title.id.toString(), software_id: version.id.toString() }}
+          search={{ software_title_id: title.id, software_id: version.id }}
           className="hover:text-primary hover:underline"
         >
           {version.hosts_count}

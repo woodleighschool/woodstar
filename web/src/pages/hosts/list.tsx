@@ -52,14 +52,16 @@ export function HostsListPage() {
   const checkID = typeof search.check_id === "number" ? search.check_id : undefined;
   const checkResponse =
     search.check_response === "pass" || search.check_response === "fail" ? search.check_response : undefined;
-  const checkQuery = useCheck(checkID && checkResponse ? checkID : null);
-  const softwareIDParam = typeof search.software_id === "string" ? search.software_id : undefined;
-  const softwareTitleIDParam = typeof search.software_title_id === "string" ? search.software_title_id : undefined;
-  const softwareTitleID = softwareTitleIDParam === undefined ? undefined : Number(softwareTitleIDParam);
-  const softwareTitle = useSoftwareTitle(
-    softwareTitleID !== undefined && Number.isFinite(softwareTitleID) ? softwareTitleID : null,
-  );
-  const isSoftwareFiltered = !!softwareTitleIDParam || !!softwareIDParam;
+  const checkQuery = useCheck(checkID ?? null);
+  const softwareID = typeof search.software_id === "number" ? search.software_id : undefined;
+  const softwareTitleID = typeof search.software_title_id === "number" ? search.software_title_id : undefined;
+  const softwareTitle = useSoftwareTitle(softwareTitleID ?? null);
+  const softwareLabel = softwareFilterLabel({
+    title: softwareTitle.data,
+    softwareID,
+    softwareTitleID,
+  });
+  const isSoftwareFiltered = softwareTitleID !== undefined || softwareID !== undefined;
   const isCheckFiltered = checkID !== undefined || checkResponse !== undefined;
 
   const query = useHosts({
@@ -68,7 +70,7 @@ export function HostsListPage() {
     status: search.status,
     label_id: search.label_id == null ? undefined : Number(search.label_id),
     software_title_id: softwareTitleID,
-    software_id: softwareIDParam == null ? undefined : Number(softwareIDParam),
+    software_id: softwareID,
     check_id: checkID,
     check_response: checkResponse,
   });
@@ -198,7 +200,28 @@ export function HostsListPage() {
 
   return (
     <PageShell>
-      <PageHeader title="Hosts" description="Track enrolled hosts, inventory, checks, reports, and Santa state." />
+      <PageHeader
+        title="Hosts"
+        description="Track enrolled hosts, inventory, checks, reports, and Santa state."
+        context={
+          <>
+            {checkID !== undefined ? (
+              <FilterChip
+                label="Check"
+                value={checkQuery.data?.name ?? `#${checkID}`}
+                onRemove={() => setters.setFilters({ check_id: undefined, check_response: undefined })}
+              />
+            ) : null}
+            {softwareLabel ? (
+              <FilterChip
+                label="Software"
+                value={softwareLabel}
+                onRemove={() => setters.setFilters({ software_id: undefined, software_title_id: undefined })}
+              />
+            ) : null}
+          </>
+        }
+      />
 
       {query.error ? (
         <Alert variant="destructive">
@@ -239,17 +262,9 @@ export function HostsListPage() {
               labelId={search.label_id}
               onLabelChange={(v) => setters.setFilter("label_id", v)}
               labelOptions={labelOptions}
-              checkId={checkID}
-              checkName={checkQuery.data?.name}
               checkResponse={checkResponse}
               onCheckResponseChange={(v) => setters.setFilter("check_response", v)}
-              onClearCheck={() => setters.setFilters({ check_id: undefined, check_response: undefined })}
-              softwareLabel={softwareFilterLabel({
-                title: softwareTitle.data,
-                softwareID: softwareIDParam,
-                softwareTitleID: softwareTitleIDParam,
-              })}
-              onClearSoftware={() => setters.setFilters({ software_id: undefined, software_title_id: undefined })}
+              hasCheckFilter={checkID !== undefined}
               table={table}
               actions={exportButton}
             />
@@ -293,13 +308,9 @@ interface HostsToolbarProps {
   labelId: string | undefined;
   onLabelChange: (next: string | undefined) => void;
   labelOptions: { value: string; label: string }[];
-  checkId: number | undefined;
-  checkName: string | undefined;
   checkResponse: "pass" | "fail" | undefined;
   onCheckResponseChange: (next: string) => void;
-  onClearCheck: () => void;
-  softwareLabel: string | undefined;
-  onClearSoftware: () => void;
+  hasCheckFilter: boolean;
   table: TanStackTable<Host>;
   actions?: ReactNode;
 }
@@ -312,13 +323,9 @@ function HostsToolbar({
   labelId,
   onLabelChange,
   labelOptions,
-  checkId,
-  checkName,
   checkResponse,
   onCheckResponseChange,
-  onClearCheck,
-  softwareLabel,
-  onClearSoftware,
+  hasCheckFilter,
   table,
   actions,
 }: HostsToolbarProps) {
@@ -340,10 +347,7 @@ function HostsToolbar({
         onChange={(next) => onLabelChange(next.at(0))}
         singleSelect
       />
-      {checkId !== undefined ? (
-        <FilterChip label="Check" value={checkName ?? `#${checkId}`} onRemove={onClearCheck} />
-      ) : null}
-      {checkId !== undefined && checkResponse ? (
+      {hasCheckFilter && checkResponse ? (
         <FilterSelect
           label="Result"
           value={checkResponse}
@@ -351,7 +355,6 @@ function HostsToolbar({
           onChange={onCheckResponseChange}
         />
       ) : null}
-      {softwareLabel ? <FilterChip label="Software" value={softwareLabel} onRemove={onClearSoftware} /> : null}
       {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
@@ -363,14 +366,14 @@ function softwareFilterLabel({
   softwareTitleID,
 }: {
   title: SoftwareTitle | undefined;
-  softwareID: string | undefined;
-  softwareTitleID: string | undefined;
+  softwareID: number | undefined;
+  softwareTitleID: number | undefined;
 }) {
-  if (!softwareID && !softwareTitleID) return undefined;
+  if (softwareID === undefined && softwareTitleID === undefined) return undefined;
   const titleName = title?.display_name ?? title?.name;
-  if (softwareID && titleName) return `${titleName} version`;
+  if (softwareID !== undefined && titleName) return `${titleName} version`;
   if (titleName) return titleName;
-  if (softwareID) return `Version #${softwareID}`;
+  if (softwareID !== undefined) return `Version #${softwareID}`;
   return `Title #${softwareTitleID}`;
 }
 

@@ -31,9 +31,25 @@ import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
 type EventListKind = "execution" | "file-access";
 
 export function SantaEventsPage() {
+  const search = useSearch({ from: "/_authenticated/santa/events/" });
+  const { setters } = useTablePaginationParams();
+  const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
+  const user = typeof search.user === "string" ? search.user : undefined;
+
   return (
     <PageShell>
-      <PageHeader title="Events" description="Review Santa execution and file access activity." />
+      <PageHeader
+        title="Events"
+        description="Review Santa execution and file access activity."
+        context={
+          <SantaEventHeaderContext
+            hostID={hostID}
+            user={user}
+            onClearHost={() => setters.setFilter("host_id", undefined)}
+            onClearUser={() => setters.setFilter("user", undefined)}
+          />
+        }
+      />
       <EventListNav active="execution" />
       <ExecutionEventsTable />
     </PageShell>
@@ -41,12 +57,45 @@ export function SantaEventsPage() {
 }
 
 export function SantaFileAccessEventsPage() {
+  const search = useSearch({ from: "/_authenticated/santa/events/file-access/" });
+  const { setters } = useTablePaginationParams();
+  const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
+
   return (
     <PageShell>
-      <PageHeader title="Events" description="Review Santa execution and file access activity." />
+      <PageHeader
+        title="Events"
+        description="Review Santa execution and file access activity."
+        context={
+          <SantaEventHeaderContext hostID={hostID} onClearHost={() => setters.setFilter("host_id", undefined)} />
+        }
+      />
       <EventListNav active="file-access" />
       <FileAccessEventsTable />
     </PageShell>
+  );
+}
+
+function SantaEventHeaderContext({
+  hostID,
+  onClearHost,
+  user,
+  onClearUser,
+}: {
+  hostID: number | undefined;
+  onClearHost: () => void;
+  user?: string;
+  onClearUser?: () => void;
+}) {
+  const host = useHost(hostID ?? null);
+
+  return (
+    <>
+      {hostID !== undefined ? (
+        <FilterChip label="Host" value={host.data ? hostLabel(host.data) : `#${hostID}`} onRemove={onClearHost} />
+      ) : null}
+      {user && onClearUser ? <FilterChip label="User" value={user} onRemove={onClearUser} /> : null}
+    </>
   );
 }
 
@@ -82,7 +131,6 @@ function ExecutionEventsTable() {
   const decisions = search.decisions ?? [];
   const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
   const user = typeof search.user === "string" ? search.user : undefined;
-  const host = useHost(hostID ?? null);
   const query = useSantaEvents({
     q: search.q,
     host_id: hostID,
@@ -171,10 +219,6 @@ function ExecutionEventsTable() {
               decisions={decisions}
               decisionOptions={[...DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              hostName={host.data ? hostLabel(host.data) : undefined}
-              onClearHost={() => setters.setFilter("host_id", undefined)}
-              user={user}
-              onClearUser={() => setters.setFilter("user", undefined)}
               searchPlaceholder="Search Executable, Path, Host, User"
               actions={exportButton}
             />
@@ -200,7 +244,6 @@ function FileAccessEventsTable() {
   const [draft, setDraft] = useDebouncedSearchParam("q", { resetKeys: ["page_index"] });
   const decisions = search.decisions ?? [];
   const hostID = typeof search.host_id === "number" ? search.host_id : undefined;
-  const host = useHost(hostID ?? null);
   const query = useSantaFileAccessEvents({
     q: search.q,
     host_id: hostID,
@@ -282,8 +325,6 @@ function FileAccessEventsTable() {
               decisions={decisions}
               decisionOptions={[...FILE_ACCESS_DECISION_FILTERS]}
               onDecisionsChange={(next) => setters.setFilter("decisions", next.length > 0 ? next.join(",") : undefined)}
-              hostName={host.data ? hostLabel(host.data) : undefined}
-              onClearHost={() => setters.setFilter("host_id", undefined)}
               searchPlaceholder="Search Target, Process, Host, Signer"
               actions={exportButton}
             />
@@ -337,10 +378,6 @@ function EventTableToolbar({
   decisions,
   decisionOptions,
   onDecisionsChange,
-  hostName,
-  onClearHost,
-  user,
-  onClearUser,
   searchPlaceholder,
   actions,
 }: {
@@ -349,10 +386,6 @@ function EventTableToolbar({
   decisions: string[];
   decisionOptions: Array<{ value: string; label: string }>;
   onDecisionsChange: (next: string[]) => void;
-  hostName?: string;
-  onClearHost?: () => void;
-  user?: string;
-  onClearUser?: () => void;
   searchPlaceholder: string;
   actions?: ReactNode;
 }) {
@@ -365,8 +398,6 @@ function EventTableToolbar({
         selected={decisions}
         onChange={onDecisionsChange}
       />
-      {hostName && onClearHost ? <FilterChip label="Host" value={hostName} onRemove={onClearHost} /> : null}
-      {user && onClearUser ? <FilterChip label="User" value={user} onRemove={onClearUser} /> : null}
       {actions ? <div className="ml-auto">{actions}</div> : null}
     </div>
   );
