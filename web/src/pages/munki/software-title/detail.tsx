@@ -12,14 +12,13 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { MutationError } from "@/components/mutation-error";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { FreeTextCombobox } from "@/components/ui/free-text-combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateMunkiArtifact, useCreateMunkiArtifactUpload } from "@/hooks/munki/artifacts";
+import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import {
   useCreateMunkiAssignment,
   useReorderMunkiAssignments,
@@ -32,6 +31,7 @@ import {
   useMunkiSoftwareTitle,
   useMunkiSoftwareTitles,
   useUpdateMunkiSoftwareTitle,
+  type MunkiSoftwareTitleDetail,
   type MunkiSoftwareTitleMutation,
 } from "@/hooks/munki/software-titles";
 import { useLabels } from "@/hooks/use-labels";
@@ -47,25 +47,66 @@ import {
   munkiAssignmentFormSchema,
   munkiAssignmentMutation,
 } from "./assignment-form-model";
-import { emptySoftwareTitleForm, softwareTitleFormFromTitle, softwareTitleSchema } from "./form-model";
+import { softwareTitleFormFromTitle, softwareTitleSchema } from "./form-model";
 import {
   munkiAssignmentActionLabel,
   munkiInstallerTypeLabel,
   munkiPackageSelectionLabel,
   munkiRestartActionLabel,
 } from "./shared";
-import { uniqueOptions, uploadSelectedArtifact } from "./utils";
+import { uniqueOptions } from "./utils";
 
 export function MunkiSoftwareTitleDetailPage() {
   const params = useParams({ strict: false });
   const softwareId = Number(params.softwareId);
-  const query = useMunkiSoftwareTitle(Number.isFinite(softwareId) ? softwareId : null);
+  const softwareID = Number.isFinite(softwareId) && softwareId > 0 ? softwareId : null;
+  const query = useMunkiSoftwareTitle(softwareID);
+
+  if (softwareID === null) {
+    return (
+      <PageShell>
+        <MutationError title="Failed to Load Software" message="Software route is invalid." />
+      </PageShell>
+    );
+  }
+
+  if (query.error) {
+    return (
+      <PageShell>
+        <MutationError title="Failed to Load Software" message={query.error.message} />
+      </PageShell>
+    );
+  }
+
+  if (!query.data) {
+    return (
+      <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
+        <Loader2 className="animate-spin" /> Loading Software...
+      </PageShell>
+    );
+  }
+
+  return (
+    <MunkiSoftwareTitleDetailForm
+      key={`${query.data.id}:${query.data.updated_at}`}
+      software={query.data}
+      refetchSoftware={() => query.refetch()}
+    />
+  );
+}
+
+function MunkiSoftwareTitleDetailForm({
+  software,
+  refetchSoftware,
+}: {
+  software: MunkiSoftwareTitleDetail;
+  refetchSoftware: () => Promise<unknown>;
+}) {
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const updateSoftware = useUpdateMunkiSoftwareTitle();
-  const createUpload = useCreateMunkiArtifactUpload();
-  const createArtifact = useCreateMunkiArtifact();
+  const iconUpload = useUploadMunkiArtifact("icon");
   const reorder = useReorderMunkiAssignments();
   const createAssignment = useCreateMunkiAssignment();
   const updateAssignment = useUpdateMunkiAssignment();
@@ -79,24 +120,20 @@ export function MunkiSoftwareTitleDetailPage() {
   const [assignmentForm, setAssignmentForm] = useState(() => emptyMunkiAssignmentForm());
   const [showAssignmentErrors, setShowAssignmentErrors] = useState(false);
   const [excludeForm, setExcludeForm] = useState<number[]>([]);
-  const software = query.data;
-  const packages = software?.packages ?? [];
-  const includes = useMemo(() => software?.includes ?? [], [software?.includes]);
-  const excludeLabelIDs = useMemo(() => software?.exclude_label_ids ?? [], [software?.exclude_label_ids]);
+  const packages = software.packages ?? [];
+  const includes = useMemo(() => software.includes ?? [], [software.includes]);
+  const excludeLabelIDs = useMemo(() => software.exclude_label_ids ?? [], [software.exclude_label_ids]);
   const includeLabelIDs = useMemo(() => includes.map((assignment) => assignment.label_id), [includes]);
   const includeIDs = useMemo(() => includes.map((assignment) => assignment.id), [includes]);
   const orderedIncludeIDs = useMemo(() => orderedIncludes.map((assignment) => assignment.id), [orderedIncludes]);
   const softwareOptionsForm = useForm({
-    defaultValues: emptySoftwareTitleForm(),
+    defaultValues: softwareTitleFormFromTitle(software),
     validators: {
       onSubmit: softwareTitleSchema,
     },
     onSubmit: async ({ value }) => {
-      if (!software) return;
       const data = softwareTitleSchema.parse(value);
-      const iconArtifact = iconFile
-        ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
-        : null;
+      const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
       const body: MunkiSoftwareTitleMutation = {
         ...data,
         icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
@@ -113,15 +150,10 @@ export function MunkiSoftwareTitleDetailPage() {
   const excludeDirty = !sameNumberSet(excludeForm, excludeLabelIDs);
   const orderDirty = !sameNumberSequence(orderedIncludeIDs, includeIDs);
   const pagePending =
-    updateSoftware.isPending ||
-    createUpload.isPending ||
-    createArtifact.isPending ||
-    updateExcludes.isPending ||
-    reorder.isPending;
+    updateSoftware.isPending || iconUpload.isUploading || updateExcludes.isPending || reorder.isPending;
   const pageMutationError =
     updateSoftware.error?.message ??
-    createUpload.error?.message ??
-    createArtifact.error?.message ??
+    iconUpload.error?.message ??
     updateExcludes.error?.message ??
     reorder.error?.message;
   const assignmentUnavailableLabelIDs = useMemo(
@@ -140,9 +172,7 @@ export function MunkiSoftwareTitleDetailPage() {
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
     [titles.data?.items],
   );
-  let title = "Software";
-  if (software?.name) title = software.name;
-  if (software?.display_name) title = software.display_name;
+  const title = software.display_name || software.name || "Software";
 
   useEffect(() => {
     setOrderedIncludes(includes);
@@ -151,13 +181,6 @@ export function MunkiSoftwareTitleDetailPage() {
   useEffect(() => {
     setExcludeForm(excludeLabelIDs);
   }, [excludeLabelIDs]);
-
-  useEffect(() => {
-    if (!software) return;
-    softwareOptionsForm.reset(softwareTitleFormFromTitle(software));
-    setIconFile(null);
-    setIconCleared(false);
-  }, [software, softwareOptionsForm]);
 
   function moveAssignments(next: MunkiAssignment[]) {
     reorder.reset();
@@ -184,7 +207,7 @@ export function MunkiSoftwareTitleDetailPage() {
 
   async function saveAssignment() {
     const next = munkiAssignmentFormSchema.safeParse(assignmentForm);
-    if (!next.success || !software) {
+    if (!next.success) {
       setShowAssignmentErrors(true);
       return;
     }
@@ -199,7 +222,6 @@ export function MunkiSoftwareTitleDetailPage() {
   }
 
   async function savePage() {
-    if (!software) return;
     const softwareDirty = iconFile !== null || iconCleared || softwareOptionsForm.state.isDirty;
     if (softwareDirty) {
       await softwareOptionsForm.handleSubmit();
@@ -211,7 +233,7 @@ export function MunkiSoftwareTitleDetailPage() {
     if (excludeDirty) {
       await updateExcludes.mutateAsync({ softwareId: software.id, excludeLabelIds: excludeForm });
     }
-    await query.refetch();
+    await refetchSoftware();
     setReorderEnabled(false);
   }
 
@@ -219,11 +241,8 @@ export function MunkiSoftwareTitleDetailPage() {
     reorder.reset();
     updateExcludes.reset();
     updateSoftware.reset();
-    createUpload.reset();
-    createArtifact.reset();
-    if (software) {
-      softwareOptionsForm.reset(softwareTitleFormFromTitle(software));
-    }
+    iconUpload.reset();
+    softwareOptionsForm.reset(softwareTitleFormFromTitle(software));
     setIconFile(null);
     setIconCleared(false);
     setOrderedIncludes(includes);
@@ -329,144 +348,53 @@ export function MunkiSoftwareTitleDetailPage() {
     <PageShell>
       <PageHeader title={title} />
 
-      {query.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Failed to Load Software</AlertTitle>
-          <AlertDescription>{query.error.message}</AlertDescription>
-        </Alert>
-      ) : (
-        <form
-          className="flex flex-col gap-5"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-            void savePage();
-          }}
-        >
-          <MutableResourceTabs
-            tabs={[
-              {
-                value: "options",
-                label: "Options",
-                content: (
-                  <FieldGroup className="max-w-3xl">
-                    <div className="flex items-start gap-4">
-                      <EditableMunkiIcon
-                        title="software icon"
-                        iconUrl={iconCleared ? undefined : software?.icon_url}
-                        file={iconFile}
-                        clearable={!!iconFile || (!iconCleared && !!software?.icon_artifact_id)}
-                        onFileChange={(file) => {
-                          setIconFile(file);
-                          setIconCleared(false);
-                        }}
-                        onClear={() => {
-                          setIconFile(null);
-                          setIconCleared(!!software?.icon_artifact_id);
-                        }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <softwareOptionsForm.Field
-                          name="name"
-                          children={(field) => {
-                            const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                            return (
-                              <Field data-invalid={invalid}>
-                                <FieldLabel htmlFor="munki-software-name" required>
-                                  Name
-                                </FieldLabel>
-                                <Input
-                                  id="munki-software-name"
-                                  name={field.name}
-                                  value={field.state.value}
-                                  aria-invalid={invalid}
-                                  onBlur={field.handleBlur}
-                                  onChange={(event) => field.handleChange(event.target.value)}
-                                />
-                                {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
-                              </Field>
-                            );
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <softwareOptionsForm.Field
-                      name="display_name"
-                      children={(field) => {
-                        const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor="munki-software-display-name">Display Name</FieldLabel>
-                            <Input
-                              id="munki-software-display-name"
-                              name={field.name}
-                              value={field.state.value}
-                              aria-invalid={invalid}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                            {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
-                          </Field>
-                        );
+      <form
+        className="flex flex-col gap-5"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void savePage();
+        }}
+      >
+        <MutableResourceTabs
+          tabs={[
+            {
+              value: "options",
+              label: "Options",
+              content: (
+                <FieldGroup className="max-w-3xl">
+                  <div className="flex items-start gap-4">
+                    <EditableMunkiIcon
+                      title="software icon"
+                      iconUrl={iconCleared ? undefined : software.icon_url}
+                      file={iconFile}
+                      clearable={!!iconFile || (!iconCleared && !!software.icon_artifact_id)}
+                      onFileChange={(file) => {
+                        setIconFile(file);
+                        setIconCleared(false);
+                      }}
+                      onClear={() => {
+                        setIconFile(null);
+                        setIconCleared(!!software.icon_artifact_id);
                       }}
                     />
-                    <softwareOptionsForm.Field
-                      name="description"
-                      children={(field) => {
-                        const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                        return (
-                          <Field data-invalid={invalid}>
-                            <FieldLabel htmlFor="munki-software-description">Description</FieldLabel>
-                            <Textarea
-                              id="munki-software-description"
-                              name={field.name}
-                              value={field.state.value}
-                              aria-invalid={invalid}
-                              onBlur={field.handleBlur}
-                              onChange={(event) => field.handleChange(event.target.value)}
-                            />
-                            {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
-                          </Field>
-                        );
-                      }}
-                    />
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="min-w-0 flex-1">
                       <softwareOptionsForm.Field
-                        name="category"
+                        name="name"
                         children={(field) => {
                           const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                           return (
                             <Field data-invalid={invalid}>
-                              <FieldLabel htmlFor="munki-software-category">Category</FieldLabel>
-                              <FreeTextCombobox
-                                id="munki-software-category"
+                              <FieldLabel htmlFor="munki-software-name" required>
+                                Name
+                              </FieldLabel>
+                              <Input
+                                id="munki-software-name"
                                 name={field.name}
                                 value={field.state.value}
-                                options={categoryOptions}
-                                invalid={invalid}
+                                aria-invalid={invalid}
                                 onBlur={field.handleBlur}
-                                onChange={field.handleChange}
-                              />
-                              {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
-                            </Field>
-                          );
-                        }}
-                      />
-                      <softwareOptionsForm.Field
-                        name="developer"
-                        children={(field) => {
-                          const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                          return (
-                            <Field data-invalid={invalid}>
-                              <FieldLabel htmlFor="munki-software-developer">Developer</FieldLabel>
-                              <FreeTextCombobox
-                                id="munki-software-developer"
-                                name={field.name}
-                                value={field.state.value}
-                                options={developerOptions}
-                                invalid={invalid}
-                                onBlur={field.handleBlur}
-                                onChange={field.handleChange}
+                                onChange={(event) => field.handleChange(event.target.value)}
                               />
                               {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
                             </Field>
@@ -474,158 +402,235 @@ export function MunkiSoftwareTitleDetailPage() {
                         }}
                       />
                     </div>
-                  </FieldGroup>
-                ),
-              },
-              {
-                value: "scope",
-                label: "Scope",
-                content: (
-                  <div className="flex flex-col gap-6">
-                    <section className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <h2 className="text-base font-semibold">Targets</h2>
-                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={openNewAssignment}
-                            disabled={!software || query.isLoading}
-                          >
-                            <Plus data-icon="inline-start" />
-                            Add Target
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={reorderEnabled || orderedIncludes.length < 2 || query.isLoading}
-                            onClick={() => setReorderEnabled(true)}
-                          >
-                            Order
-                          </Button>
-                          {reorderEnabled ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled={pagePending}
-                              onClick={resetAssignmentPage}
-                            >
-                              Cancel Order
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <DataTable
-                        columns={includeColumns}
-                        data={reorderEnabled ? orderedIncludes : includes}
-                        totalCount={includes.length}
-                        pagination={{ pageIndex: 0, pageSize: Math.max(includes.length, 1) }}
-                        sorting={[]}
-                        onPaginationChange={() => undefined}
-                        onSortingChange={() => undefined}
-                        isLoading={query.isLoading}
-                        clientSort
-                        onRowClick={
-                          reorderEnabled
-                            ? undefined
-                            : (row) => {
-                                openEditAssignment(row);
-                              }
-                        }
-                        rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedIncludes.length <= 1}
-                        onRowReorder={moveAssignments}
-                        empty={<CompactMunkiEmptyState title="No Targets" />}
-                        emptyClassName="min-h-32 py-4"
-                      />
-                    </section>
-                    <section className="flex max-w-3xl flex-col gap-3">
-                      <h2 className="text-base font-semibold">Exclusions</h2>
-                      <LabelPicker
-                        value={excludeForm}
-                        includeBuiltins={false}
-                        unavailableLabelIDs={includeLabelIDs}
-                        placeholder="Add Exclusion"
-                        emptyMessage="No Labels Found."
-                        onChange={(next) => {
-                          updateExcludes.reset();
-                          setExcludeForm(next);
-                        }}
-                      />
-                    </section>
                   </div>
-                ),
-              },
-              {
-                value: "packages",
-                label: "Packages",
-                content: (
-                  <div className="flex flex-col gap-3">
+                  <softwareOptionsForm.Field
+                    name="display_name"
+                    children={(field) => {
+                      const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={invalid}>
+                          <FieldLabel htmlFor="munki-software-display-name">Display Name</FieldLabel>
+                          <Input
+                            id="munki-software-display-name"
+                            name={field.name}
+                            value={field.state.value}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                          {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
+                        </Field>
+                      );
+                    }}
+                  />
+                  <softwareOptionsForm.Field
+                    name="description"
+                    children={(field) => {
+                      const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                      return (
+                        <Field data-invalid={invalid}>
+                          <FieldLabel htmlFor="munki-software-description">Description</FieldLabel>
+                          <Textarea
+                            id="munki-software-description"
+                            name={field.name}
+                            value={field.state.value}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                          {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
+                        </Field>
+                      );
+                    }}
+                  />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <softwareOptionsForm.Field
+                      name="category"
+                      children={(field) => {
+                        const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                        return (
+                          <Field data-invalid={invalid}>
+                            <FieldLabel htmlFor="munki-software-category">Category</FieldLabel>
+                            <FreeTextCombobox
+                              id="munki-software-category"
+                              name={field.name}
+                              value={field.state.value}
+                              options={categoryOptions}
+                              invalid={invalid}
+                              onBlur={field.handleBlur}
+                              onChange={field.handleChange}
+                            />
+                            {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
+                          </Field>
+                        );
+                      }}
+                    />
+                    <softwareOptionsForm.Field
+                      name="developer"
+                      children={(field) => {
+                        const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                        return (
+                          <Field data-invalid={invalid}>
+                            <FieldLabel htmlFor="munki-software-developer">Developer</FieldLabel>
+                            <FreeTextCombobox
+                              id="munki-software-developer"
+                              name={field.name}
+                              value={field.state.value}
+                              options={developerOptions}
+                              invalid={invalid}
+                              onBlur={field.handleBlur}
+                              onChange={field.handleChange}
+                            />
+                            {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
+                          </Field>
+                        );
+                      }}
+                    />
+                  </div>
+                </FieldGroup>
+              ),
+            },
+            {
+              value: "scope",
+              label: "Scope",
+              content: (
+                <div className="flex flex-col gap-6">
+                  <section className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold">Packages</h2>
-                      {software ? (
-                        <Button asChild size="sm" variant="outline">
-                          <Link
-                            to="/munki/software-titles/$softwareId/packages/new"
-                            params={{ softwareId: String(software.id) }}
-                          >
-                            <Plus data-icon="inline-start" />
-                            Add Package
-                          </Link>
+                      <h2 className="text-base font-semibold">Targets</h2>
+                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        <Button type="button" size="sm" onClick={openNewAssignment}>
+                          <Plus data-icon="inline-start" />
+                          Add Target
                         </Button>
-                      ) : null}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={reorderEnabled || orderedIncludes.length < 2}
+                          onClick={() => setReorderEnabled(true)}
+                        >
+                          Order
+                        </Button>
+                        {reorderEnabled ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={pagePending}
+                            onClick={resetAssignmentPage}
+                          >
+                            Cancel Order
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                     <DataTable
-                      columns={packageColumns}
-                      data={packages}
-                      totalCount={packages.length}
-                      pagination={{ pageIndex: 0, pageSize: Math.max(packages.length, 1) }}
+                      columns={includeColumns}
+                      data={reorderEnabled ? orderedIncludes : includes}
+                      totalCount={includes.length}
+                      pagination={{ pageIndex: 0, pageSize: Math.max(includes.length, 1) }}
                       sorting={[]}
                       onPaginationChange={() => undefined}
                       onSortingChange={() => undefined}
-                      isLoading={query.isLoading}
+                      isLoading={false}
                       clientSort
-                      rowHref={(row) => ({
-                        to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
-                        params: { softwareId: String(row.software_id), packageId: String(row.id) },
-                      })}
-                      empty={<CompactMunkiEmptyState title="No Packages" />}
+                      onRowClick={
+                        reorderEnabled
+                          ? undefined
+                          : (row) => {
+                              openEditAssignment(row);
+                            }
+                      }
+                      rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedIncludes.length <= 1}
+                      onRowReorder={moveAssignments}
+                      empty={<CompactMunkiEmptyState title="No Targets" />}
                       emptyClassName="min-h-32 py-4"
                     />
-                  </div>
-                ),
-              },
-            ]}
-          />
-
-          <MutationError title="Failed to Save Software" message={pageMutationError} />
-          <softwareOptionsForm.Subscribe selector={(state) => state.isDirty}>
-            {(softwareFormDirty) => {
-              const softwareDirty = !!software && (iconFile !== null || iconCleared || softwareFormDirty);
-              const pageDirty = softwareDirty || excludeDirty || orderDirty;
-
-              return (
-                <div className="flex items-center gap-2 border-t pt-4">
-                  <Button type="submit" size="sm" disabled={!pageDirty || pagePending || query.isLoading}>
-                    {pagePending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                    Save
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!pageDirty || pagePending}
-                    onClick={resetAssignmentPage}
-                  >
-                    Cancel
-                  </Button>
+                  </section>
+                  <section className="flex max-w-3xl flex-col gap-3">
+                    <h2 className="text-base font-semibold">Exclusions</h2>
+                    <LabelPicker
+                      value={excludeForm}
+                      includeBuiltins={false}
+                      unavailableLabelIDs={includeLabelIDs}
+                      placeholder="Add Exclusion"
+                      emptyMessage="No Labels Found."
+                      onChange={(next) => {
+                        updateExcludes.reset();
+                        setExcludeForm(next);
+                      }}
+                    />
+                  </section>
                 </div>
-              );
-            }}
-          </softwareOptionsForm.Subscribe>
-        </form>
-      )}
+              ),
+            },
+            {
+              value: "packages",
+              label: "Packages",
+              content: (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-base font-semibold">Packages</h2>
+                    <Button asChild size="sm" variant="outline">
+                      <Link
+                        to="/munki/software-titles/$softwareId/packages/new"
+                        params={{ softwareId: String(software.id) }}
+                      >
+                        <Plus data-icon="inline-start" />
+                        Add Package
+                      </Link>
+                    </Button>
+                  </div>
+                  <DataTable
+                    columns={packageColumns}
+                    data={packages}
+                    totalCount={packages.length}
+                    pagination={{ pageIndex: 0, pageSize: Math.max(packages.length, 1) }}
+                    sorting={[]}
+                    onPaginationChange={() => undefined}
+                    onSortingChange={() => undefined}
+                    isLoading={false}
+                    clientSort
+                    rowHref={(row) => ({
+                      to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
+                      params: { softwareId: String(row.software_id), packageId: String(row.id) },
+                    })}
+                    empty={<CompactMunkiEmptyState title="No Packages" />}
+                    emptyClassName="min-h-32 py-4"
+                  />
+                </div>
+              ),
+            },
+          ]}
+        />
+
+        <MutationError title="Failed to Save Software" message={pageMutationError} />
+        <softwareOptionsForm.Subscribe selector={(state) => state.isDirty}>
+          {(softwareFormDirty) => {
+            const softwareDirty = iconFile !== null || iconCleared || softwareFormDirty;
+            const pageDirty = softwareDirty || excludeDirty || orderDirty;
+
+            return (
+              <div className="flex items-center gap-2 border-t pt-4">
+                <Button type="submit" size="sm" disabled={!pageDirty || pagePending}>
+                  {pagePending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!pageDirty || pagePending}
+                  onClick={resetAssignmentPage}
+                >
+                  Cancel
+                </Button>
+              </div>
+            );
+          }}
+        </softwareOptionsForm.Subscribe>
+      </form>
       <Sheet open={assignmentSheetOpen} onOpenChange={setAssignmentSheetOpen}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
           <form
@@ -646,7 +651,7 @@ export function MunkiSoftwareTitleDetailPage() {
                 packages={packages}
                 showErrors={showAssignmentErrors}
                 errors={assignmentErrors}
-                loadingPackages={query.isLoading}
+                loadingPackages={false}
                 unavailableLabelIDs={assignmentUnavailableLabelIDs}
                 className="max-w-none"
                 onChange={setAssignmentForm}

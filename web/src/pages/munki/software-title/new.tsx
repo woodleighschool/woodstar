@@ -12,7 +12,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { FreeTextCombobox } from "@/components/ui/free-text-combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateMunkiArtifact, useCreateMunkiArtifactUpload } from "@/hooks/munki/artifacts";
+import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import {
   useCreateMunkiSoftwareTitle,
   useMunkiSoftwareTitles,
@@ -21,13 +21,12 @@ import {
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 import { emptySoftwareTitleForm, softwareTitleSchema } from "./form-model";
-import { uniqueOptions, uploadSelectedArtifact } from "./utils";
+import { uniqueOptions } from "./utils";
 
 export function MunkiSoftwareTitleNewPage() {
   const navigate = useNavigate();
   const create = useCreateMunkiSoftwareTitle();
-  const createUpload = useCreateMunkiArtifactUpload();
-  const createArtifact = useCreateMunkiArtifact();
+  const iconUpload = useUploadMunkiArtifact("icon");
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const categoryOptions = useMemo(
@@ -46,9 +45,7 @@ export function MunkiSoftwareTitleNewPage() {
     },
     onSubmit: async ({ value }) => {
       const data = softwareTitleSchema.parse(value);
-      const iconArtifact = iconFile
-        ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
-        : null;
+      const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
       const body: MunkiSoftwareTitleMutation = {
         ...data,
         icon_artifact_id: iconArtifact?.id,
@@ -68,10 +65,7 @@ export function MunkiSoftwareTitleNewPage() {
         }}
       >
         <PageHeader title="New Software" />
-        <MutationError
-          title="Failed to Create Software"
-          message={create.error?.message ?? createUpload.error?.message ?? createArtifact.error?.message}
-        />
+        <MutationError title="Failed to Create Software" message={create.error?.message ?? iconUpload.error?.message} />
         <MutableResourceTabs
           tabs={[
             {
@@ -202,12 +196,8 @@ export function MunkiSoftwareTitleNewPage() {
           ]}
         />
         <div className="flex items-center gap-2 border-t pt-4">
-          <Button
-            type="submit"
-            size="sm"
-            disabled={create.isPending || createUpload.isPending || createArtifact.isPending}
-          >
-            {create.isPending || createUpload.isPending || createArtifact.isPending ? (
+          <Button type="submit" size="sm" disabled={create.isPending || iconUpload.isUploading}>
+            {create.isPending || iconUpload.isUploading ? (
               <Loader2 data-icon="inline-start" className="animate-spin" />
             ) : null}
             Save
