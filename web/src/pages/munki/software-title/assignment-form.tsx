@@ -1,6 +1,8 @@
 import { LabelPicker } from "@/components/labels/label-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -13,7 +15,6 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { cn } from "@/lib/utils";
 
 import type { MunkiAssignmentFormState } from "./assignment-form-model";
-import { CheckboxField } from "./edit-shared";
 import {
   MUNKI_ASSIGNMENT_ACTION_OPTIONS,
   MUNKI_PACKAGE_SELECTION_OPTIONS,
@@ -176,34 +177,44 @@ export function MunkiAssignmentFormFields({
       <FieldSet>
         <FieldLegend>Managed Software Centre</FieldLegend>
         <FieldDescription>These write the optional_installs and featured_items manifest sections.</FieldDescription>
-        <CheckboxField
-          id="munki-assignment-optional-install"
-          label="Optional Installs"
-          description="Adds this item to optional_installs so it appears in MSC."
-          checked={form.optional_install}
-          disabled={form.action === "remove"}
-          onChange={(optional_install) =>
-            onChange({
-              ...form,
-              optional_install,
-              featured_item: optional_install ? form.featured_item : false,
-            })
-          }
-        />
-        <CheckboxField
-          id="munki-assignment-featured-item"
-          label="Featured Items"
-          description="Also adds this item to featured_items. Munki expects featured items to also be optional installs."
-          checked={form.featured_item}
-          disabled={form.action === "remove"}
-          onChange={(featured_item) =>
-            onChange({
-              ...form,
-              optional_install: featured_item ? true : form.optional_install,
-              featured_item,
-            })
-          }
-        />
+        <Field orientation="horizontal" className={form.action === "remove" ? "opacity-60" : undefined}>
+          <Checkbox
+            id="munki-assignment-optional-install"
+            checked={form.optional_install}
+            disabled={form.action === "remove"}
+            onCheckedChange={(checked) =>
+              onChange({
+                ...form,
+                optional_install: checked === true,
+                featured_item: checked === true ? form.featured_item : false,
+              })
+            }
+          />
+          <FieldContent>
+            <FieldLabel htmlFor="munki-assignment-optional-install">Optional Installs</FieldLabel>
+            <FieldDescription>Adds this item to optional_installs so it appears in MSC.</FieldDescription>
+          </FieldContent>
+        </Field>
+        <Field orientation="horizontal" className={form.action === "remove" ? "opacity-60" : undefined}>
+          <Checkbox
+            id="munki-assignment-featured-item"
+            checked={form.featured_item}
+            disabled={form.action === "remove"}
+            onCheckedChange={(checked) =>
+              onChange({
+                ...form,
+                optional_install: checked === true ? true : form.optional_install,
+                featured_item: checked === true,
+              })
+            }
+          />
+          <FieldContent>
+            <FieldLabel htmlFor="munki-assignment-featured-item">Featured Items</FieldLabel>
+            <FieldDescription>
+              Also adds this item to featured_items. Munki expects featured items to also be optional installs.
+            </FieldDescription>
+          </FieldContent>
+        </Field>
         {showErrors && errors.optional_install ? <FieldError>{errors.optional_install}</FieldError> : null}
         {showErrors && errors.featured_item ? <FieldError>{errors.featured_item}</FieldError> : null}
       </FieldSet>

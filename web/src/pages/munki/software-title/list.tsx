@@ -67,13 +67,13 @@ export function MunkiSoftwareTitlesPage() {
       id: "category",
       accessorKey: "category",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
-      cell: ({ row }) => row.original.category || "Uncategorised",
+      cell: ({ row }) => row.original.category || "-",
     },
     {
       id: "developer",
       accessorKey: "developer",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Developer" />,
-      cell: ({ row }) => row.original.developer || "Unknown",
+      cell: ({ row }) => row.original.developer || "-",
     },
     {
       id: "updated_at",

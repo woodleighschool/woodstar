@@ -1,9 +1,9 @@
+import { useForm } from "@tanstack/react-form";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { z } from "zod";
+import { useCallback, useRef, useState } from "react";
 
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
@@ -27,7 +27,7 @@ import {
   type ReportMutation,
 } from "@/hooks/use-reports";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors, requiredString } from "@/lib/form-validation";
+import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import {
   reportRows,
   reportTableColumns,
@@ -59,10 +59,7 @@ const emptyReport: ReportMutation = {
   targets: [],
 };
 
-const reportFormSchema = z.object({
-  name: requiredString("Name"),
-  query: requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
-});
+const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
 
 export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -129,32 +126,24 @@ function ReportForm({
   const navigate = useNavigate();
   const createReport = useCreateReport();
   const updateReport = useUpdateReport(reportId);
-  const [form, setForm] = useState<ReportMutation>(initial);
-  const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
-
+  const form = useForm({
+    defaultValues: initial,
+    onSubmit: async ({ value }) => {
+      const payload = trimReport(value);
+      const saved =
+        mode === "create" ? await createReport.mutateAsync(payload) : await updateReport.mutateAsync(payload);
+      void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
+    },
+  });
   const pending = createReport.isPending || updateReport.isPending;
-  const parsed = useMemo(() => reportFormSchema.safeParse(form), [form]);
-  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
-  const title = mode === "create" ? "New Report" : form.name || "Report";
-
-  async function submit() {
-    const payload = trimReport(form);
-    const nextParsed = reportFormSchema.safeParse(payload);
-    if (!nextParsed.success) {
-      setShowErrors(true);
-      return;
-    }
-    const saved = mode === "create" ? await createReport.mutateAsync(payload) : await updateReport.mutateAsync(payload);
-    void navigate({ to: "/osquery/reports/$reportId", params: { reportId: String(saved.id) } });
-  }
 
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
-      setForm((prev) => ({ ...prev, query: prev.query + " " + snippet }));
+      form.setFieldValue("query", (current) => `${current} ${snippet}`);
       return;
     }
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
@@ -174,17 +163,21 @@ function ReportForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void form.handleSubmit();
         }}
       >
-        <PageHeader
-          title={title}
-          actions={
-            mode === "edit" ? (
-              <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId: reportParam }} />
-            ) : null
-          }
-        />
+        <form.Subscribe selector={(state) => state.values.name}>
+          {(name) => (
+            <PageHeader
+              title={mode === "create" ? "New Report" : name || "Report"}
+              actions={
+                mode === "edit" ? (
+                  <LiveRunButton to="/osquery/reports/$reportId/live" params={{ reportId: reportParam }} />
+                ) : null
+              }
+            />
+          )}
+        </form.Subscribe>
 
         <MutableResourceTabs
           tabs={[
@@ -194,78 +187,115 @@ function ReportForm({
               content: (
                 <div className="flex max-w-5xl flex-col gap-6">
                   <FieldGroup className="max-w-3xl">
-                    <Field data-invalid={showErrors && errors.name ? true : undefined}>
-                      <FieldLabel htmlFor="report-name" required>
-                        Name
-                      </FieldLabel>
-                      <Input
-                        id="report-name"
-                        required
-                        aria-invalid={showErrors && errors.name ? true : undefined}
-                        value={form.name}
-                        onChange={(event) => setForm({ ...form, name: event.target.value })}
-                      />
-                      {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
-                    </Field>
+                    <form.Field
+                      name="name"
+                      validators={{ onSubmit: requiredString("Name") }}
+                      children={(field) => {
+                        const error = firstErrorMessage(field.state.meta.errors);
+                        return (
+                          <Field data-invalid={error ? true : undefined}>
+                            <FieldLabel htmlFor="report-name" required>
+                              Name
+                            </FieldLabel>
+                            <Input
+                              id="report-name"
+                              name={field.name}
+                              required
+                              aria-invalid={error ? true : undefined}
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                            />
+                            {error ? <FieldError>{error}</FieldError> : null}
+                          </Field>
+                        );
+                      }}
+                    />
 
-                    <Field>
-                      <FieldLabel htmlFor="report-description">Description</FieldLabel>
-                      <Textarea
-                        id="report-description"
-                        rows={3}
-                        value={form.description ?? ""}
-                        onChange={(event) => setForm({ ...form, description: event.target.value })}
-                      />
-                    </Field>
+                    <form.Field
+                      name="description"
+                      children={(field) => (
+                        <Field>
+                          <FieldLabel htmlFor="report-description">Description</FieldLabel>
+                          <Textarea
+                            id="report-description"
+                            name={field.name}
+                            rows={3}
+                            value={field.state.value ?? ""}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        </Field>
+                      )}
+                    />
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Field>
-                        <FieldLabel htmlFor="report-interval">Interval</FieldLabel>
-                        <Select
-                          value={String(form.schedule_interval ?? 0)}
-                          onValueChange={(value) => setForm({ ...form, schedule_interval: Number(value) })}
-                        >
-                          <SelectTrigger id="report-interval" className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {FREQUENCY_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={String(option.value)}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </Field>
+                      <form.Field
+                        name="schedule_interval"
+                        children={(field) => (
+                          <Field>
+                            <FieldLabel htmlFor="report-interval">Interval</FieldLabel>
+                            <Select
+                              value={String(field.state.value ?? 0)}
+                              onValueChange={(value) => field.handleChange(Number(value))}
+                            >
+                              <SelectTrigger id="report-interval" className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  {FREQUENCY_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={String(option.value)}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                        )}
+                      />
 
-                      <Field>
-                        <FieldLabel htmlFor="report-min-version">Minimum Osquery Version</FieldLabel>
-                        <Input
-                          id="report-min-version"
-                          value={form.min_osquery_version ?? ""}
-                          placeholder="5.18.1"
-                          onChange={(event) =>
-                            setForm({ ...form, min_osquery_version: event.target.value || undefined })
-                          }
-                        />
-                      </Field>
+                      <form.Field
+                        name="min_osquery_version"
+                        children={(field) => (
+                          <Field>
+                            <FieldLabel htmlFor="report-min-version">Minimum Osquery Version</FieldLabel>
+                            <Input
+                              id="report-min-version"
+                              name={field.name}
+                              value={field.state.value ?? ""}
+                              placeholder="5.18.1"
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value || undefined)}
+                            />
+                          </Field>
+                        )}
+                      />
                     </div>
                   </FieldGroup>
 
-                  <Field data-invalid={showErrors && errors.query ? true : undefined}>
-                    <FieldLabel required>Query</FieldLabel>
-                    <SQLEditor
-                      ref={editorRef}
-                      value={form.query}
-                      onChange={(query) => setForm({ ...form, query })}
-                      onTableMetaClick={selectSchemaTable}
-                      placeholder="SELECT ..."
-                      invalid={showErrors && errors.query ? true : undefined}
-                    />
-                    {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
-                  </Field>
+                  <form.Field
+                    name="query"
+                    validators={{ onSubmit: reportQuerySchema }}
+                    children={(field) => {
+                      const error = firstErrorMessage(field.state.meta.errors);
+                      return (
+                        <Field data-invalid={error ? true : undefined}>
+                          <FieldLabel required>Query</FieldLabel>
+                          <SQLEditor
+                            ref={editorRef}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onTableMetaClick={selectSchemaTable}
+                            placeholder="SELECT ..."
+                            invalid={error ? true : undefined}
+                          />
+                          {error ? <FieldError>{error}</FieldError> : null}
+                        </Field>
+                      );
+                    }}
+                  />
                 </div>
               ),
             },
@@ -273,7 +303,12 @@ function ReportForm({
               value: "scope",
               label: "Scope",
               content: (
-                <LabelScopeEditor value={form.targets ?? []} onChange={(targets) => setForm({ ...form, targets })} />
+                <form.Field
+                  name="targets"
+                  children={(field) => (
+                    <LabelScopeEditor value={field.state.value ?? []} onChange={field.handleChange} />
+                  )}
+                />
               ),
             },
             ...(mode === "edit"
@@ -281,7 +316,11 @@ function ReportForm({
                   {
                     value: "results",
                     label: "Results",
-                    content: <ReportResults reportId={reportId} reportName={form.name} />,
+                    content: (
+                      <form.Subscribe selector={(state) => state.values.name}>
+                        {(name) => <ReportResults reportId={reportId} reportName={name} />}
+                      </form.Subscribe>
+                    ),
                   },
                 ]
               : []),

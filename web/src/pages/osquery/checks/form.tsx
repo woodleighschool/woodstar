@@ -1,8 +1,8 @@
+import { useForm } from "@tanstack/react-form";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { z } from "zod";
+import { useCallback, useRef, useState } from "react";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/hooks/use-checks";
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
-import { fieldErrors, requiredString } from "@/lib/form-validation";
+import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +28,7 @@ const emptyCheck: CheckMutation = {
   targets: [],
 };
 
-const checkFormSchema = z.object({
-  name: requiredString("Name"),
-  query: requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage }),
-});
+const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
 
 export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
   const params = useParams({ strict: false });
@@ -108,32 +105,23 @@ function CheckForm({
   const navigate = useNavigate();
   const createCheck = useCreateCheck();
   const updateCheck = useUpdateCheck(checkId);
-  const [form, setForm] = useState<CheckMutation>(initial);
-  const [showErrors, setShowErrors] = useState(false);
   const [schemaOpen, setSchemaOpen] = useSchemaSidebar();
   const [selectedSchemaTable, setSelectedSchemaTable] = useState<string | null>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
-
+  const form = useForm({
+    defaultValues: initial,
+    onSubmit: async ({ value }) => {
+      const payload = trimCheck(value);
+      const saved = mode === "create" ? await createCheck.mutateAsync(payload) : await updateCheck.mutateAsync(payload);
+      void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
+    },
+  });
   const pending = createCheck.isPending || updateCheck.isPending;
-  const parsed = useMemo(() => checkFormSchema.safeParse(form), [form]);
-  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
-  const title = mode === "create" ? "New Check" : form.name || "Check";
-
-  async function submit() {
-    const payload = trimCheck(form);
-    const nextParsed = checkFormSchema.safeParse(payload);
-    if (!nextParsed.success) {
-      setShowErrors(true);
-      return;
-    }
-    const saved = mode === "create" ? await createCheck.mutateAsync(payload) : await updateCheck.mutateAsync(payload);
-    void navigate({ to: "/osquery/checks/$checkId", params: { checkId: String(saved.id) } });
-  }
 
   function insertAtCursor(snippet: string) {
     const view = editorRef.current?.view;
     if (!view) {
-      setForm((prev) => ({ ...prev, query: prev.query + " " + snippet }));
+      form.setFieldValue("query", (current) => `${current} ${snippet}`);
       return;
     }
     view.dispatch({ changes: { from: view.state.selection.main.from, insert: snippet } });
@@ -153,29 +141,33 @@ function CheckForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void form.handleSubmit();
         }}
       >
-        <PageHeader
-          title={title}
-          context={
-            mode === "edit" ? (
-              <>
-                <SettingItem label="Pass">
-                  <HostCount checkId={checkId} response="pass" value={passingHostCount} />
-                </SettingItem>
-                <SettingItem label="Fail">
-                  <HostCount checkId={checkId} response="fail" value={failingHostCount} />
-                </SettingItem>
-              </>
-            ) : null
-          }
-          actions={
-            mode === "edit" ? (
-              <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
-            ) : null
-          }
-        />
+        <form.Subscribe selector={(state) => state.values.name}>
+          {(name) => (
+            <PageHeader
+              title={mode === "create" ? "New Check" : name || "Check"}
+              context={
+                mode === "edit" ? (
+                  <>
+                    <SettingItem label="Pass">
+                      <HostCount checkId={checkId} response="pass" value={passingHostCount} />
+                    </SettingItem>
+                    <SettingItem label="Fail">
+                      <HostCount checkId={checkId} response="fail" value={failingHostCount} />
+                    </SettingItem>
+                  </>
+                ) : null
+              }
+              actions={
+                mode === "edit" ? (
+                  <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
+                ) : null
+              }
+            />
+          )}
+        </form.Subscribe>
 
         <MutableResourceTabs
           tabs={[
@@ -185,43 +177,70 @@ function CheckForm({
               content: (
                 <div className="flex max-w-5xl flex-col gap-6">
                   <FieldGroup className="max-w-3xl">
-                    <Field data-invalid={showErrors && errors.name ? true : undefined}>
-                      <FieldLabel htmlFor="check-name" required>
-                        Name
-                      </FieldLabel>
-                      <Input
-                        id="check-name"
-                        required
-                        aria-invalid={showErrors && errors.name ? true : undefined}
-                        value={form.name}
-                        onChange={(event) => setForm({ ...form, name: event.target.value })}
-                      />
-                      {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
-                    </Field>
+                    <form.Field
+                      name="name"
+                      validators={{ onSubmit: requiredString("Name") }}
+                      children={(field) => {
+                        const error = firstErrorMessage(field.state.meta.errors);
+                        return (
+                          <Field data-invalid={error ? true : undefined}>
+                            <FieldLabel htmlFor="check-name" required>
+                              Name
+                            </FieldLabel>
+                            <Input
+                              id="check-name"
+                              name={field.name}
+                              required
+                              aria-invalid={error ? true : undefined}
+                              value={field.state.value}
+                              onBlur={field.handleBlur}
+                              onChange={(event) => field.handleChange(event.target.value)}
+                            />
+                            {error ? <FieldError>{error}</FieldError> : null}
+                          </Field>
+                        );
+                      }}
+                    />
 
-                    <Field>
-                      <FieldLabel htmlFor="check-description">Description</FieldLabel>
-                      <Textarea
-                        id="check-description"
-                        rows={3}
-                        value={form.description ?? ""}
-                        onChange={(event) => setForm({ ...form, description: event.target.value })}
-                      />
-                    </Field>
+                    <form.Field
+                      name="description"
+                      children={(field) => (
+                        <Field>
+                          <FieldLabel htmlFor="check-description">Description</FieldLabel>
+                          <Textarea
+                            id="check-description"
+                            name={field.name}
+                            rows={3}
+                            value={field.state.value ?? ""}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                        </Field>
+                      )}
+                    />
                   </FieldGroup>
 
-                  <Field data-invalid={showErrors && errors.query ? true : undefined}>
-                    <FieldLabel required>Query</FieldLabel>
-                    <SQLEditor
-                      ref={editorRef}
-                      value={form.query}
-                      onChange={(query) => setForm({ ...form, query })}
-                      onTableMetaClick={selectSchemaTable}
-                      placeholder="SELECT ..."
-                      invalid={showErrors && errors.query ? true : undefined}
-                    />
-                    {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
-                  </Field>
+                  <form.Field
+                    name="query"
+                    validators={{ onSubmit: checkQuerySchema }}
+                    children={(field) => {
+                      const error = firstErrorMessage(field.state.meta.errors);
+                      return (
+                        <Field data-invalid={error ? true : undefined}>
+                          <FieldLabel required>Query</FieldLabel>
+                          <SQLEditor
+                            ref={editorRef}
+                            value={field.state.value}
+                            onChange={field.handleChange}
+                            onTableMetaClick={selectSchemaTable}
+                            placeholder="SELECT ..."
+                            invalid={error ? true : undefined}
+                          />
+                          {error ? <FieldError>{error}</FieldError> : null}
+                        </Field>
+                      );
+                    }}
+                  />
                 </div>
               ),
             },
@@ -229,7 +248,12 @@ function CheckForm({
               value: "scope",
               label: "Scope",
               content: (
-                <LabelScopeEditor value={form.targets ?? []} onChange={(targets) => setForm({ ...form, targets })} />
+                <form.Field
+                  name="targets"
+                  children={(field) => (
+                    <LabelScopeEditor value={field.state.value ?? []} onChange={field.handleChange} />
+                  )}
+                />
               ),
             },
           ]}

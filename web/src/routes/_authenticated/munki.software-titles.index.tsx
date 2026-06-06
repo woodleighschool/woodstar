@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { MunkiSoftwareTitlesPage } from "@/pages/munki/list";
+import { MunkiSoftwareTitlesPage } from "@/pages/munki/software-title/list";
 
 const searchSchema = z.object({
   q: z.string().optional(),

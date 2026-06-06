@@ -1,3 +1,4 @@
+import { useForm } from "@tanstack/react-form";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Code2, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
@@ -36,7 +37,7 @@ import {
   type SantaRuleMutation,
   type SantaRuleTarget,
 } from "@/hooks/use-santa";
-import { fieldErrors, optionalText, requiredString, selectedIDArray } from "@/lib/form-validation";
+import { firstErrorMessage, optionalText, requiredString, selectedIDArray } from "@/lib/form-validation";
 import { santaCELExpressionError } from "@/lib/santa-cel";
 
 import {
@@ -168,38 +169,37 @@ function RuleForm({
   const navigate = useNavigate();
   const create = useCreateSantaRule();
   const update = useUpdateSantaRule();
-  const [form, setForm] = useState<RuleFormState>(initial);
-  const [showErrors, setShowErrors] = useState(false);
   const [celDialogID, setCELDialogID] = useState<number | null>(null);
+  const form = useForm({
+    defaultValues: initial,
+    validators: {
+      onSubmit: ruleFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      const data = ruleFormSchema.parse(value);
+      const saved =
+        mode === "create"
+          ? await create.mutateAsync(ruleBody(data))
+          : await update.mutateAsync({ id: ruleId ?? 0, body: ruleBody(data) });
+      void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(saved.id) } });
+    },
+  });
   const pending = create.isPending || update.isPending;
-  const parsed = useMemo(() => ruleFormSchema.safeParse(form), [form]);
-  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
-  const identifierError = identifierErrorFor(parsed);
-  const identifierInvalid = identifierError !== undefined && (showErrors || form.identifier.trim() !== "");
-  const includeErrors = useMemo(() => includeErrorMap(parsed, form.includes), [parsed, form.includes]);
-  const includeLabelIDs = useMemo(() => selectedIncludeLabelIDs(form.includes), [form.includes]);
-  const canSave = parsed.success;
 
-  async function submit() {
-    if (!canSave) {
-      setShowErrors(true);
-      return;
-    }
-    const saved =
-      mode === "create"
-        ? await create.mutateAsync(ruleBody(form))
-        : await update.mutateAsync({ id: ruleId ?? 0, body: ruleBody(form) });
-    void navigate({ to: "/santa/rules/$ruleId", params: { ruleId: String(saved.id) } });
+  function setRuleTarget(next: RuleFormState) {
+    form.setFieldValue("rule_type", next.rule_type);
+    form.setFieldValue("identifier", next.identifier);
+    form.setFieldValue("name", next.name);
   }
 
-  function updateInclude(id: number, next: Partial<RuleIncludeForm>) {
+  function updateInclude(values: RuleFormState, id: number, next: Partial<RuleIncludeForm>) {
     if (next.policy && next.policy !== "cel" && celDialogID === id) {
       setCELDialogID(null);
     }
-    setForm({
-      ...form,
-      includes: form.includes.map((include) => (include.id === id ? { ...include, ...next } : include)),
-    });
+    form.setFieldValue(
+      "includes",
+      values.includes.map((include) => (include.id === id ? { ...include, ...next } : include)),
+    );
   }
 
   return (
@@ -208,172 +208,234 @@ function RuleForm({
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          void form.handleSubmit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New Rule" : form.name || "Rule"} />
+        <form.Subscribe selector={(state) => ({ values: state.values, submissionAttempts: state.submissionAttempts })}>
+          {({ values, submissionAttempts }) => {
+            const parsed = ruleFormSchema.safeParse(values);
+            const showErrors = submissionAttempts > 0;
+            const identifierError = identifierErrorFor(parsed);
+            const identifierInvalid = identifierError !== undefined && (showErrors || values.identifier.trim() !== "");
+            const includeErrors = includeErrorMap(parsed, values.includes);
+            const includeLabelIDs = selectedIncludeLabelIDs(values.includes);
 
-        <MutableResourceTabs
-          tabs={[
-            {
-              value: "options",
-              label: "Options",
-              content: (
-                <FieldGroup className="max-w-3xl">
-                  <Field data-invalid={showErrors && errors.name ? true : undefined}>
-                    <FieldLabel htmlFor="santa-rule-name" required>
-                      Name
-                    </FieldLabel>
-                    <Input
-                      id="santa-rule-name"
-                      required
-                      aria-invalid={showErrors && errors.name ? true : undefined}
-                      value={form.name}
-                      onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    />
-                    {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="santa-rule-description">Description</FieldLabel>
-                    <Textarea
-                      id="santa-rule-description"
-                      rows={3}
-                      value={form.description}
-                      onChange={(event) => setForm({ ...form, description: event.target.value })}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
-                    <Select
-                      value={form.rule_type}
-                      onValueChange={(rule_type) =>
-                        setForm({ ...form, rule_type: rule_type as RuleType, identifier: "" })
-                      }
+            return (
+              <>
+                <PageHeader title={mode === "create" ? "New Rule" : values.name || "Rule"} />
+
+                <MutableResourceTabs
+                  tabs={[
+                    {
+                      value: "options",
+                      label: "Options",
+                      content: (
+                        <FieldGroup className="max-w-3xl">
+                          <form.Field
+                            name="name"
+                            children={(field) => {
+                              const error = firstErrorMessage(field.state.meta.errors);
+                              return (
+                                <Field data-invalid={error ? true : undefined}>
+                                  <FieldLabel htmlFor="santa-rule-name" required>
+                                    Name
+                                  </FieldLabel>
+                                  <Input
+                                    id="santa-rule-name"
+                                    name={field.name}
+                                    required
+                                    aria-invalid={error ? true : undefined}
+                                    value={field.state.value}
+                                    onBlur={field.handleBlur}
+                                    onChange={(event) => field.handleChange(event.target.value)}
+                                  />
+                                  {error ? <FieldError>{error}</FieldError> : null}
+                                </Field>
+                              );
+                            }}
+                          />
+                          <form.Field
+                            name="description"
+                            children={(field) => (
+                              <Field>
+                                <FieldLabel htmlFor="santa-rule-description">Description</FieldLabel>
+                                <Textarea
+                                  id="santa-rule-description"
+                                  name={field.name}
+                                  rows={3}
+                                  value={field.state.value}
+                                  onBlur={field.handleBlur}
+                                  onChange={(event) => field.handleChange(event.target.value)}
+                                />
+                              </Field>
+                            )}
+                          />
+                          <form.Field
+                            name="rule_type"
+                            children={(field) => (
+                              <Field>
+                                <FieldLabel htmlFor="santa-rule-type">Rule Type</FieldLabel>
+                                <Select
+                                  value={field.state.value}
+                                  onValueChange={(ruleType) => {
+                                    field.handleChange(ruleType as RuleType);
+                                    form.setFieldValue("identifier", "");
+                                  }}
+                                >
+                                  <SelectTrigger id="santa-rule-type" className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectGroup>
+                                      {RULE_TYPE_OPTIONS.map((type) => (
+                                        <SelectItem key={type.value} value={type.value}>
+                                          {type.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
+                              </Field>
+                            )}
+                          />
+                          <RuleTargetPicker
+                            form={values}
+                            identifierError={identifierError}
+                            identifierInvalid={identifierInvalid}
+                            onChange={setRuleTarget}
+                          />
+                          <form.Field
+                            name="custom_url"
+                            children={(field) => (
+                              <Field>
+                                <FieldLabel htmlFor="santa-rule-custom-url">Custom URL</FieldLabel>
+                                <Input
+                                  id="santa-rule-custom-url"
+                                  name={field.name}
+                                  value={field.state.value}
+                                  onBlur={field.handleBlur}
+                                  onChange={(event) => field.handleChange(event.target.value)}
+                                />
+                              </Field>
+                            )}
+                          />
+                          <form.Field
+                            name="custom_message"
+                            children={(field) => (
+                              <Field>
+                                <FieldLabel htmlFor="santa-rule-custom-message">Custom Message</FieldLabel>
+                                <Textarea
+                                  id="santa-rule-custom-message"
+                                  name={field.name}
+                                  rows={3}
+                                  value={field.state.value}
+                                  onBlur={field.handleBlur}
+                                  onChange={(event) => field.handleChange(event.target.value)}
+                                />
+                              </Field>
+                            )}
+                          />
+                        </FieldGroup>
+                      ),
+                    },
+                    {
+                      value: "scope",
+                      label: "Scope",
+                      content: (
+                        <FieldGroup>
+                          <Field>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <FieldLabel>Targets</FieldLabel>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  form.setFieldValue("includes", [
+                                    ...values.includes,
+                                    { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
+                                  ])
+                                }
+                              >
+                                <Plus data-icon="inline-start" />
+                                Add Target
+                              </Button>
+                            </div>
+                            {values.includes.length === 0 ? (
+                              <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
+                                None
+                              </div>
+                            ) : (
+                              <IncludeTargetsTable
+                                includes={values.includes}
+                                showErrors={showErrors}
+                                includeErrors={includeErrors}
+                                excludeLabelIDs={values.exclude_label_ids}
+                                onChange={(includes) => form.setFieldValue("includes", includes)}
+                                onUpdate={(id, include) => updateInclude(values, id, include)}
+                                onEditCEL={setCELDialogID}
+                                onDelete={(id) => {
+                                  if (celDialogID === id) setCELDialogID(null);
+                                  form.setFieldValue(
+                                    "includes",
+                                    values.includes.filter((item) => item.id !== id),
+                                  );
+                                }}
+                              />
+                            )}
+                          </Field>
+                          <Separator />
+                          <form.Field
+                            name="exclude_label_ids"
+                            children={(field) => (
+                              <Field>
+                                <FieldLabel>Exclusions</FieldLabel>
+                                <LabelPicker
+                                  value={field.state.value}
+                                  unavailableLabelIDs={includeLabelIDs}
+                                  onChange={field.handleChange}
+                                />
+                              </Field>
+                            )}
+                          />
+                        </FieldGroup>
+                      ),
+                    },
+                  ]}
+                />
+
+                <div className="flex items-center gap-2 border-t pt-4">
+                  <Button type="submit" size="sm" disabled={pending}>
+                    {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                    Save
+                  </Button>
+                  {mode === "create" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void navigate({ to: "/santa/rules" })}
                     >
-                      <SelectTrigger id="santa-rule-type" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {RULE_TYPE_OPTIONS.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <RuleTargetPicker
-                    form={form}
-                    identifierError={identifierError}
-                    identifierInvalid={identifierInvalid}
-                    onChange={setForm}
-                  />
-                  <Field>
-                    <FieldLabel htmlFor="santa-rule-custom-url">Custom URL</FieldLabel>
-                    <Input
-                      id="santa-rule-custom-url"
-                      value={form.custom_url}
-                      onChange={(event) => setForm({ ...form, custom_url: event.target.value })}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="santa-rule-custom-message">Custom Message</FieldLabel>
-                    <Textarea
-                      id="santa-rule-custom-message"
-                      rows={3}
-                      value={form.custom_message}
-                      onChange={(event) => setForm({ ...form, custom_message: event.target.value })}
-                    />
-                  </Field>
-                </FieldGroup>
-              ),
-            },
-            {
-              value: "scope",
-              label: "Scope",
-              content: (
-                <FieldGroup>
-                  <Field>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <FieldLabel>Targets</FieldLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            includes: [
-                              ...form.includes,
-                              { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
-                            ],
-                          })
-                        }
-                      >
-                        <Plus data-icon="inline-start" />
-                        Add Target
-                      </Button>
-                    </div>
-                    {form.includes.length === 0 ? (
-                      <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
-                        None
-                      </div>
-                    ) : (
-                      <IncludeTargetsTable
-                        includes={form.includes}
-                        showErrors={showErrors}
-                        includeErrors={includeErrors}
-                        excludeLabelIDs={form.exclude_label_ids}
-                        onChange={(includes) => setForm({ ...form, includes })}
-                        onUpdate={updateInclude}
-                        onEditCEL={setCELDialogID}
-                        onDelete={(id) => {
-                          if (celDialogID === id) setCELDialogID(null);
-                          setForm({ ...form, includes: form.includes.filter((item) => item.id !== id) });
-                        }}
-                      />
-                    )}
-                  </Field>
-                  <Separator />
-                  <Field>
-                    <FieldLabel>Exclusions</FieldLabel>
-                    <LabelPicker
-                      value={form.exclude_label_ids}
-                      unavailableLabelIDs={includeLabelIDs}
-                      onChange={(exclude_label_ids) => setForm({ ...form, exclude_label_ids })}
-                    />
-                  </Field>
-                </FieldGroup>
-              ),
-            },
-          ]}
-        />
+                      Cancel
+                    </Button>
+                  ) : null}
+                </div>
 
-        <div className="flex items-center gap-2 border-t pt-4">
-          <Button type="submit" size="sm" disabled={pending}>
-            {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-            Save
-          </Button>
-          {mode === "create" ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => void navigate({ to: "/santa/rules" })}>
-              Cancel
-            </Button>
-          ) : null}
-        </div>
-
-        <CELDialog
-          include={form.includes.find((include) => include.id === celDialogID)}
-          error={celDialogID !== null ? includeErrors[celDialogID]?.cel_expression : undefined}
-          showRequiredError={showErrors}
-          onOpenChange={(open) => {
-            if (!open) setCELDialogID(null);
+                <CELDialog
+                  include={values.includes.find((include) => include.id === celDialogID)}
+                  error={celDialogID !== null ? includeErrors[celDialogID]?.cel_expression : undefined}
+                  showRequiredError={showErrors}
+                  onOpenChange={(open) => {
+                    if (!open) setCELDialogID(null);
+                  }}
+                  onChange={(celExpression) => {
+                    if (celDialogID !== null) updateInclude(values, celDialogID, { cel_expression: celExpression });
+                  }}
+                />
+              </>
+            );
           }}
-          onChange={(cel_expression) => {
-            if (celDialogID !== null) updateInclude(celDialogID, { cel_expression });
-          }}
-        />
+        </form.Subscribe>
       </form>
     </PageShell>
   );

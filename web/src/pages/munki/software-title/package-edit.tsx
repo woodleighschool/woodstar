@@ -1,19 +1,32 @@
 import { xml } from "@codemirror/lang-xml";
 import type { Extension } from "@codemirror/state";
-import { useNavigate } from "@tanstack/react-router";
-import { FileArchive, Plus, Trash2 } from "lucide-react";
+import { useForm } from "@tanstack/react-form";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { FileArchive, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { CodeEditor } from "@/components/editor/code-editor";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
+import { MutationError } from "@/components/mutation-error";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldContent, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
+import { FreeTextCombobox } from "@/components/ui/free-text-combobox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useCreateMunkiArtifact, useCreateMunkiArtifactUpload } from "@/hooks/munki/artifacts";
 import {
   useCreateMunkiPackage,
@@ -32,27 +45,9 @@ import type {
   PackageReceipt,
   PackageReference,
 } from "@/lib/api-client/types.gen";
-import { fieldErrors, requiredString } from "@/lib/form-validation";
+import { fieldErrors, firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-import {
-  CheckboxField,
-  DatalistTextField,
-  FileField,
-  FormActions,
-  MutationError,
-  SelectField,
-  TextAreaField,
-  TextField,
-} from "./edit-shared";
-import {
-  optionalText,
-  runSubmit,
-  uniqueOptions,
-  uploadSelectedArtifact,
-  usePackageIDParam,
-  useSoftwareIDParam,
-} from "./edit-utils";
 import {
   MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
   MUNKI_INSTALLER_TYPE_OPTIONS,
@@ -62,6 +57,7 @@ import {
   type MunkiRestartAction,
   type MunkiUninstallMethod,
 } from "./shared";
+import { optionalText, uniqueOptions, uploadSelectedArtifact, usePackageIDParam, useSoftwareIDParam } from "./utils";
 
 const xmlExtensions: Extension[] = [xml()];
 
@@ -161,10 +157,33 @@ const scriptFields: { key: ScriptKey; label: string }[] = [
   { key: "version_script", label: "Version" },
 ];
 
-const packageSchema = z.object({
+const packageIdentitySchema = z.object({
   name: requiredString("Name"),
   version: requiredString("Version"),
 });
+
+function validatePackageForm({ value }: { value: PackageFormState }) {
+  const result = packageIdentitySchema.safeParse(value);
+  if (result.success) return undefined;
+  return { fields: fieldErrors(result) };
+}
+
+function usePackageEditorForm(onSubmit: (value: PackageFormState) => Promise<void>) {
+  return useForm({
+    defaultValues: emptyPackageForm(),
+    validators: {
+      onSubmit: validatePackageForm,
+    },
+    onSubmit: ({ value }) => {
+      if (!packageIdentitySchema.safeParse(value).success) return;
+      return onSubmit(value);
+    },
+  });
+}
+
+type PackageEditorForm = ReturnType<typeof usePackageEditorForm>;
+
+type PackageFieldSetter = <K extends keyof PackageFormState>(field: K, value: PackageFormState[K]) => void;
 
 export function MunkiPackageNewPage() {
   const navigate = useNavigate();
@@ -173,15 +192,32 @@ export function MunkiPackageNewPage() {
   const create = useCreateMunkiPackage();
   const createUpload = useCreateMunkiArtifactUpload();
   const createArtifact = useCreateMunkiArtifact();
+  // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const [iconFile, setIconFile] = useState<File | null>(null);
-  const [form, setForm] = useState<PackageFormState>(emptyPackageForm());
-  const [showErrors, setShowErrors] = useState(false);
-  const parsed = useMemo(() => packageSchema.safeParse(form), [form]);
-  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
+  const form = usePackageEditorForm(async (value) => {
+    if (softwareID === null) return;
+    const installerArtifact = installerFile
+      ? await uploadSelectedArtifact(installerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const uninstallerArtifact = uninstallerFile
+      ? await uploadSelectedArtifact(uninstallerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const iconArtifact = iconFile
+      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    await create.mutateAsync(
+      packageMutationFromForm(value, softwareID, {
+        installerArtifactID: installerArtifact?.id,
+        uninstallerArtifactID: uninstallerArtifact?.id,
+        iconArtifactID: iconArtifact?.id,
+      }),
+    );
+    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
+  });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
     [titles.data?.items],
@@ -193,44 +229,22 @@ export function MunkiPackageNewPage() {
 
   useEffect(() => {
     if (!software.data) return;
-    setForm((current) => ({
-      ...current,
-      name: current.name || software.data.name,
-      display_name: current.display_name || software.data.display_name,
-      description: current.description || software.data.description,
-      category: current.category || software.data.category,
-      developer: current.developer || software.data.developer,
-    }));
-  }, [software.data]);
-
-  async function submit() {
-    const next = packageSchema.safeParse(form);
-    if (!next.success || softwareID === null) {
-      setShowErrors(true);
-      return;
-    }
-    const installerArtifact = installerFile
-      ? await uploadSelectedArtifact(installerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    const uninstallerArtifact = uninstallerFile
-      ? await uploadSelectedArtifact(uninstallerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    const iconArtifact = iconFile
-      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    await create.mutateAsync(
-      packageMutationFromForm(form, softwareID, {
-        installerArtifactID: installerArtifact?.id,
-        uninstallerArtifactID: uninstallerArtifact?.id,
-        iconArtifactID: iconArtifact?.id,
-      }),
-    );
-    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
-  }
+    form.setFieldValue("name", (current) => current || software.data.name, { dontUpdateMeta: true });
+    form.setFieldValue("display_name", (current) => current || software.data.display_name, { dontUpdateMeta: true });
+    form.setFieldValue("description", (current) => current || software.data.description, { dontUpdateMeta: true });
+    form.setFieldValue("category", (current) => current || software.data.category, { dontUpdateMeta: true });
+    form.setFieldValue("developer", (current) => current || software.data.developer, { dontUpdateMeta: true });
+  }, [form, software.data]);
 
   return (
     <PageShell asChild>
-      <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
         <PageHeader
           title="New Package"
           leading={
@@ -255,7 +269,6 @@ export function MunkiPackageNewPage() {
         />
         <PackageEditorTabs
           form={form}
-          errors={showErrors ? errors : {}}
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
           packageOptions={packages.data?.items ?? []}
@@ -265,12 +278,10 @@ export function MunkiPackageNewPage() {
           uninstallerArtifactLocation=""
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
-          onChange={setForm}
         />
-        <FormActions
+        <PackageFormActions
           pending={create.isPending || createUpload.isPending || createArtifact.isPending}
-          cancelTo="/munki/software-titles/$softwareId"
-          cancelParams={{ softwareId: String(softwareID ?? "") }}
+          softwareID={softwareID}
         />
       </form>
     </PageShell>
@@ -286,16 +297,32 @@ export function MunkiPackageEditPage() {
   const update = useUpdateMunkiPackage();
   const createUpload = useCreateMunkiArtifactUpload();
   const createArtifact = useCreateMunkiArtifact();
+  // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
   const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
-  const [form, setForm] = useState<PackageFormState>(emptyPackageForm());
-  const [showErrors, setShowErrors] = useState(false);
-  const parsed = useMemo(() => packageSchema.safeParse(form), [form]);
-  const errors = useMemo(() => fieldErrors(parsed), [parsed]);
+  const form = usePackageEditorForm(async (value) => {
+    if (softwareID === null || packageID === null) return;
+    const installerArtifact = installerFile
+      ? await uploadSelectedArtifact(installerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const uninstallerArtifact = uninstallerFile
+      ? await uploadSelectedArtifact(uninstallerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const iconArtifact = iconFile
+      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+      : null;
+    const body = packageMutationFromForm(value, softwareID, {
+      installerArtifactID: installerArtifact?.id ?? pkg.data?.installer_artifact_id,
+      uninstallerArtifactID: uninstallerArtifact?.id ?? pkg.data?.uninstaller_artifact_id,
+      iconArtifactID: iconArtifact?.id ?? (iconCleared ? undefined : pkg.data?.icon_artifact_id),
+    });
+    await update.mutateAsync({ id: packageID, body });
+    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
+  });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
     [titles.data?.items],
@@ -307,43 +334,25 @@ export function MunkiPackageEditPage() {
 
   useEffect(() => {
     if (!pkg.data) return;
-    setForm(packageFormFromPackage(pkg.data));
+    form.reset(packageFormFromPackage(pkg.data));
     setInstallerFile(null);
     setUninstallerFile(null);
     setIconFile(null);
     setIconCleared(false);
-  }, [pkg.data]);
-
-  async function submit() {
-    const next = packageSchema.safeParse(form);
-    if (!next.success || softwareID === null || packageID === null) {
-      setShowErrors(true);
-      return;
-    }
-    const installerArtifact = installerFile
-      ? await uploadSelectedArtifact(installerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    const uninstallerArtifact = uninstallerFile
-      ? await uploadSelectedArtifact(uninstallerFile, "package", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    const iconArtifact = iconFile
-      ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
-      : null;
-    const body = packageMutationFromForm(form, softwareID, {
-      installerArtifactID: installerArtifact?.id ?? pkg.data?.installer_artifact_id,
-      uninstallerArtifactID: uninstallerArtifact?.id ?? pkg.data?.uninstaller_artifact_id,
-      iconArtifactID: iconArtifact?.id ?? (iconCleared ? undefined : pkg.data?.icon_artifact_id),
-    });
-    await update.mutateAsync({ id: packageID, body });
-    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
-  }
+  }, [form, pkg.data]);
 
   const packageIconURL = iconCleared || !pkg.data?.icon_artifact_id ? undefined : pkg.data.icon_url;
   const packageIconClearable = !!iconFile || (!iconCleared && !!pkg.data?.icon_artifact_id);
 
   return (
     <PageShell asChild>
-      <form noValidate onSubmit={(event) => runSubmit(event, submit)}>
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
         <PageHeader
           title="Edit Package"
           leading={
@@ -376,7 +385,6 @@ export function MunkiPackageEditPage() {
         />
         <PackageEditorTabs
           form={form}
-          errors={showErrors ? errors : {}}
           categoryOptions={categoryOptions}
           developerOptions={developerOptions}
           packageOptions={(packages.data?.items ?? []).filter((item) => item.id !== packageID)}
@@ -386,12 +394,10 @@ export function MunkiPackageEditPage() {
           uninstallerArtifactLocation={pkg.data?.uninstaller_artifact_location ?? ""}
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
-          onChange={setForm}
         />
-        <FormActions
+        <PackageFormActions
           pending={update.isPending || createUpload.isPending || createArtifact.isPending || pkg.isLoading}
-          cancelTo="/munki/software-titles/$softwareId"
-          cancelParams={{ softwareId: String(softwareID ?? "") }}
+          softwareID={softwareID}
         />
       </form>
     </PageShell>
@@ -400,7 +406,6 @@ export function MunkiPackageEditPage() {
 
 function PackageEditorTabs({
   form,
-  errors,
   categoryOptions,
   developerOptions,
   packageOptions,
@@ -410,10 +415,8 @@ function PackageEditorTabs({
   uninstallerArtifactLocation,
   onInstallerFileChange,
   onUninstallerFileChange,
-  onChange,
 }: {
-  form: PackageFormState;
-  errors: Record<string, string | undefined>;
+  form: PackageEditorForm;
   categoryOptions: string[];
   developerOptions: string[];
   packageOptions: MunkiPackage[];
@@ -423,309 +426,483 @@ function PackageEditorTabs({
   uninstallerArtifactLocation: string;
   onInstallerFileChange: (file: File | null) => void;
   onUninstallerFileChange: (file: File | null) => void;
-  onChange: (next: PackageFormState) => void;
 }) {
   return (
-    <Tabs defaultValue="identity" className="max-w-5xl">
-      <TabsList className="flex-wrap">
-        <TabsTrigger value="identity">Identity</TabsTrigger>
-        <TabsTrigger value="payload">Payload</TabsTrigger>
-        <TabsTrigger value="requirements">Requirements</TabsTrigger>
-        <TabsTrigger value="evidence">Evidence</TabsTrigger>
-        <TabsTrigger value="scripts">Scripts</TabsTrigger>
-        <TabsTrigger value="alerts">Alerts</TabsTrigger>
-      </TabsList>
-      <TabsContent value="identity">
-        <FieldGroup>
-          <TextField
-            id="munki-package-name"
-            label="Name"
-            required
-            value={form.name}
-            error={errors.name}
-            onChange={(name) => onChange({ ...form, name })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-2">
-            <TextField
-              id="munki-package-version"
-              label="Version"
-              required
-              value={form.version}
-              error={errors.version}
-              onChange={(version) => onChange({ ...form, version })}
-            />
-            <TextField
-              id="munki-package-display-name"
-              label="Display Name"
-              value={form.display_name}
-              onChange={(display_name) => onChange({ ...form, display_name })}
-            />
-          </FieldGroup>
-          <TextAreaField
-            id="munki-package-description"
-            label="Description"
-            value={form.description}
-            onChange={(description) => onChange({ ...form, description })}
-          />
-          <FieldGroup className="grid gap-4 md:grid-cols-3">
-            <DatalistTextField
-              id="munki-package-category"
-              label="Category"
-              value={form.category}
-              options={categoryOptions}
-              onChange={(category) => onChange({ ...form, category })}
-            />
-            <DatalistTextField
-              id="munki-package-developer"
-              label="Developer"
-              value={form.developer}
-              options={developerOptions}
-              onChange={(developer) => onChange({ ...form, developer })}
-            />
-            <SelectField
-              id="munki-package-installer-type"
-              label="Installer Type"
-              value={form.installer_type}
-              options={MUNKI_INSTALLER_TYPE_OPTIONS}
-              onChange={(installer_type) => onChange({ ...form, installer_type })}
-            />
-          </FieldGroup>
-          <TextAreaField
-            id="munki-package-notes"
-            label="Notes"
-            value={form.notes}
-            onChange={(notes) => onChange({ ...form, notes })}
-          />
-        </FieldGroup>
-      </TabsContent>
-      <TabsContent value="payload">
-        <FieldGroup>
-          <FieldSet>
-            <FieldLegend>Artifacts</FieldLegend>
-            <FieldGroup>
-              <FileField
-                id="munki-package-installer-file"
-                label="Installer"
-                description={installerArtifactLocation || "No installer artifact selected."}
-                icon={<FileArchive className="size-4" />}
-                file={installerFile}
-                onChange={onInstallerFileChange}
-              />
-              <FileField
-                id="munki-package-uninstaller-file"
-                label="Uninstaller"
-                description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
-                icon={<FileArchive className="size-4" />}
-                file={uninstallerFile}
-                onChange={onUninstallerFileChange}
-              />
-            </FieldGroup>
-          </FieldSet>
-          <FieldSet>
-            <FieldLegend>Installer</FieldLegend>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <TextField
-                id="munki-package-payload-identifier"
-                label="Payload Identifier"
-                value={form.payload_identifier}
-                onChange={(payload_identifier) => onChange({ ...form, payload_identifier })}
-              />
-              <TextField
-                id="munki-package-package-path"
-                label="Package Path"
-                value={form.package_path}
-                onChange={(package_path) => onChange({ ...form, package_path })}
-              />
-            </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <NumberField
-                id="munki-package-installed-size"
-                label="Installed Size"
-                value={form.installed_size}
-                onChange={(installed_size) => onChange({ ...form, installed_size })}
-              />
-              <DateTimeField
-                id="munki-package-force-install-after"
-                label="Force Install After"
-                value={form.force_install_after_date}
-                onChange={(force_install_after_date) => onChange({ ...form, force_install_after_date })}
-              />
-            </FieldGroup>
-            <XMLField
-              value={form.installer_choices_xml}
-              onChange={(installer_choices_xml) => onChange({ ...form, installer_choices_xml })}
-            />
-            <InstallerEnvironmentEditor
-              rows={form.installer_environment}
-              onChange={(installer_environment) => onChange({ ...form, installer_environment })}
-            />
-          </FieldSet>
-        </FieldGroup>
-      </TabsContent>
-      <TabsContent value="requirements">
-        <FieldGroup>
-          <FieldSet>
-            <FieldLegend>Compatibility</FieldLegend>
-            <TextField
-              id="munki-package-minimum-munki-version"
-              label="Minimum Munki Version"
-              value={form.minimum_munki_version}
-              onChange={(minimum_munki_version) => onChange({ ...form, minimum_munki_version })}
-            />
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <TextField
-                id="munki-package-minimum-os"
-                label="Minimum OS"
-                value={form.minimum_os_version}
-                onChange={(minimum_os_version) => onChange({ ...form, minimum_os_version })}
-              />
-              <TextField
-                id="munki-package-maximum-os"
-                label="Maximum OS"
-                value={form.maximum_os_version}
-                onChange={(maximum_os_version) => onChange({ ...form, maximum_os_version })}
-              />
-            </FieldGroup>
-            <ArchitectureEditor
-              values={form.supported_architectures}
-              onChange={(supported_architectures) => onChange({ ...form, supported_architectures })}
-            />
-          </FieldSet>
-          <StringArrayEditor
-            legend="Blocking Applications"
-            addLabel="Application"
-            rows={form.blocking_applications}
-            onChange={(blocking_applications) => onChange({ ...form, blocking_applications })}
-          />
-          <PackageReferenceEditor
-            legend="Requires"
-            rows={form.requires}
-            packageOptions={packageOptions}
-            onChange={(requires) => onChange({ ...form, requires })}
-          />
-          <PackageReferenceEditor
-            legend="Update For"
-            rows={form.update_for}
-            packageOptions={packageOptions}
-            onChange={(update_for) => onChange({ ...form, update_for })}
-          />
-        </FieldGroup>
-      </TabsContent>
-      <TabsContent value="evidence">
-        <FieldGroup>
-          <InstallItemsEditor rows={form.installs} onChange={(installs) => onChange({ ...form, installs })} />
-          <ReceiptsEditor rows={form.receipts} onChange={(receipts) => onChange({ ...form, receipts })} />
-          <ItemsToCopyEditor
-            rows={form.items_to_copy}
-            onChange={(items_to_copy) => onChange({ ...form, items_to_copy })}
-          />
-        </FieldGroup>
-      </TabsContent>
-      <TabsContent value="scripts">
-        <ScriptTabs values={form} onChange={(key, value) => onChange({ ...form, [key]: value })} />
-      </TabsContent>
-      <TabsContent value="alerts">
-        <FieldGroup>
-          <AlertEditor
-            id="munki-package-preinstall-alert"
-            legend="Preinstall Alert"
-            alert={form.preinstall_alert}
-            onChange={(preinstall_alert) => onChange({ ...form, preinstall_alert })}
-          />
-          <AlertEditor
-            id="munki-package-preuninstall-alert"
-            legend="Preuninstall Alert"
-            alert={form.preuninstall_alert}
-            onChange={(preuninstall_alert) => onChange({ ...form, preuninstall_alert })}
-          />
-          <FieldSet>
-            <FieldLegend>Behavior</FieldLegend>
-            <CheckboxField
-              id="munki-package-eligible"
-              label="Available for assignment"
-              checked={form.eligible}
-              onChange={(eligible) => onChange({ ...form, eligible })}
-            />
-            <FieldGroup className="grid gap-4 md:grid-cols-3">
-              <CheckboxField
-                id="munki-package-unattended-install"
-                label="Unattended install"
-                checked={form.unattended_install}
-                onChange={(unattended_install) => onChange({ ...form, unattended_install })}
-              />
-              <CheckboxField
-                id="munki-package-unattended-uninstall"
-                label="Unattended uninstall"
-                checked={form.unattended_uninstall}
-                onChange={(unattended_uninstall) => onChange({ ...form, unattended_uninstall })}
-              />
-              <CheckboxField
-                id="munki-package-uninstallable"
-                label="Uninstallable"
-                checked={form.uninstallable}
-                onChange={(uninstallable) => onChange({ ...form, uninstallable })}
-              />
-            </FieldGroup>
-            <FieldGroup className="grid gap-4 md:grid-cols-2">
-              <SelectField
-                id="munki-package-uninstall-method"
-                label="Uninstall Method"
-                value={form.uninstall_method}
-                options={MUNKI_UNINSTALL_METHOD_OPTIONS}
-                onChange={(uninstall_method) => onChange({ ...form, uninstall_method })}
-              />
-              <SelectField
-                id="munki-package-restart-action"
-                label="Restart Action"
-                value={form.restart_action}
-                options={MUNKI_RESTART_ACTION_OPTIONS}
-                onChange={(restart_action) => onChange({ ...form, restart_action })}
-              />
-            </FieldGroup>
-            {form.uninstall_method === "custom" ? (
-              <TextField
-                id="munki-package-custom-uninstall-method"
-                label="Custom Uninstall Method"
-                value={form.custom_uninstall_method}
-                onChange={(custom_uninstall_method) => onChange({ ...form, custom_uninstall_method })}
-              />
-            ) : null}
-            <FieldGroup className="grid gap-4 md:grid-cols-3">
-              <CheckboxField
-                id="munki-package-on-demand"
-                label="On demand"
-                checked={form.on_demand}
-                onChange={(on_demand) => onChange({ ...form, on_demand })}
-              />
-              <CheckboxField
-                id="munki-package-precache"
-                label="Precache"
-                checked={form.precache}
-                onChange={(precache) => onChange({ ...form, precache })}
-              />
-              <CheckboxField
-                id="munki-package-autoremove"
-                label="Autoremove"
-                checked={form.autoremove}
-                onChange={(autoremove) => onChange({ ...form, autoremove })}
-              />
-              <CheckboxField
-                id="munki-package-apple-item"
-                label="Apple item"
-                checked={form.apple_item}
-                onChange={(apple_item) => onChange({ ...form, apple_item })}
-              />
-              <CheckboxField
-                id="munki-package-suppress-bundle-relocation"
-                label="Suppress bundle relocation"
-                checked={form.suppress_bundle_relocation}
-                onChange={(suppress_bundle_relocation) => onChange({ ...form, suppress_bundle_relocation })}
-              />
-            </FieldGroup>
-          </FieldSet>
-        </FieldGroup>
-      </TabsContent>
-    </Tabs>
+    <form.Subscribe selector={(state) => state.values}>
+      {(values) => {
+        const setField: PackageFieldSetter = (field, value) => {
+          form.setFieldValue(field as never, value as never);
+        };
+
+        return (
+          <Tabs defaultValue="identity" className="max-w-5xl">
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="identity">Identity</TabsTrigger>
+              <TabsTrigger value="payload">Payload</TabsTrigger>
+              <TabsTrigger value="requirements">Requirements</TabsTrigger>
+              <TabsTrigger value="evidence">Evidence</TabsTrigger>
+              <TabsTrigger value="scripts">Scripts</TabsTrigger>
+              <TabsTrigger value="alerts">Alerts</TabsTrigger>
+            </TabsList>
+            <TabsContent value="identity">
+              <FieldGroup>
+                <form.Field
+                  name="name"
+                  validators={{ onSubmit: requiredString("Name") }}
+                  children={(field) => {
+                    const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                    const error = firstErrorMessage(field.state.meta.errors);
+                    return (
+                      <Field data-invalid={invalid}>
+                        <FieldLabel htmlFor="munki-package-name" required>
+                          Name
+                        </FieldLabel>
+                        <Input
+                          id="munki-package-name"
+                          name={field.name}
+                          value={field.state.value}
+                          aria-invalid={invalid}
+                          onBlur={field.handleBlur}
+                          onChange={(event) => field.handleChange(event.target.value)}
+                        />
+                        {invalid && error ? <FieldError>{error}</FieldError> : null}
+                      </Field>
+                    );
+                  }}
+                />
+                <FieldGroup className="grid gap-4 md:grid-cols-2">
+                  <form.Field
+                    name="version"
+                    validators={{ onSubmit: requiredString("Version") }}
+                    children={(field) => {
+                      const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
+                      const error = firstErrorMessage(field.state.meta.errors);
+                      return (
+                        <Field data-invalid={invalid}>
+                          <FieldLabel htmlFor="munki-package-version" required>
+                            Version
+                          </FieldLabel>
+                          <Input
+                            id="munki-package-version"
+                            name={field.name}
+                            value={field.state.value}
+                            aria-invalid={invalid}
+                            onBlur={field.handleBlur}
+                            onChange={(event) => field.handleChange(event.target.value)}
+                          />
+                          {invalid && error ? <FieldError>{error}</FieldError> : null}
+                        </Field>
+                      );
+                    }}
+                  />
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-display-name">Display Name</FieldLabel>
+                    <Input
+                      id="munki-package-display-name"
+                      value={values.display_name}
+                      onChange={(event) => setField("display_name", event.target.value)}
+                    />
+                  </Field>
+                </FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="munki-package-description">Description</FieldLabel>
+                  <Textarea
+                    id="munki-package-description"
+                    value={values.description}
+                    onChange={(event) => setField("description", event.target.value)}
+                  />
+                </Field>
+                <FieldGroup className="grid gap-4 md:grid-cols-3">
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-category">Category</FieldLabel>
+                    <FreeTextCombobox
+                      id="munki-package-category"
+                      value={values.category}
+                      options={categoryOptions}
+                      onChange={(category) => setField("category", category)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-developer">Developer</FieldLabel>
+                    <FreeTextCombobox
+                      id="munki-package-developer"
+                      value={values.developer}
+                      options={developerOptions}
+                      onChange={(developer) => setField("developer", developer)}
+                    />
+                  </Field>
+                  <SelectControl
+                    id="munki-package-installer-type"
+                    label="Installer Type"
+                    value={values.installer_type}
+                    options={MUNKI_INSTALLER_TYPE_OPTIONS}
+                    onChange={(installer_type) => setField("installer_type", installer_type)}
+                  />
+                </FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="munki-package-notes">Notes</FieldLabel>
+                  <Textarea
+                    id="munki-package-notes"
+                    value={values.notes}
+                    onChange={(event) => setField("notes", event.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+            </TabsContent>
+            <TabsContent value="payload">
+              <FieldGroup>
+                <FieldSet>
+                  <FieldLegend>Artifacts</FieldLegend>
+                  <FieldGroup>
+                    <PackageFileField
+                      id="munki-package-installer-file"
+                      label="Installer"
+                      description={installerArtifactLocation || "No installer artifact selected."}
+                      icon={<FileArchive className="size-4" />}
+                      file={installerFile}
+                      onChange={onInstallerFileChange}
+                    />
+                    <PackageFileField
+                      id="munki-package-uninstaller-file"
+                      label="Uninstaller"
+                      description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
+                      icon={<FileArchive className="size-4" />}
+                      file={uninstallerFile}
+                      onChange={onUninstallerFileChange}
+                    />
+                  </FieldGroup>
+                </FieldSet>
+                <FieldSet>
+                  <FieldLegend>Installer</FieldLegend>
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="munki-package-payload-identifier">Payload Identifier</FieldLabel>
+                      <Input
+                        id="munki-package-payload-identifier"
+                        value={values.payload_identifier}
+                        onChange={(event) => setField("payload_identifier", event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="munki-package-package-path">Package Path</FieldLabel>
+                      <Input
+                        id="munki-package-package-path"
+                        value={values.package_path}
+                        onChange={(event) => setField("package_path", event.target.value)}
+                      />
+                    </Field>
+                  </FieldGroup>
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
+                    <NumberField
+                      id="munki-package-installed-size"
+                      label="Installed Size"
+                      value={values.installed_size}
+                      onChange={(installed_size) => setField("installed_size", installed_size)}
+                    />
+                    <DateTimeField
+                      id="munki-package-force-install-after"
+                      label="Force Install After"
+                      value={values.force_install_after_date}
+                      onChange={(force_install_after_date) =>
+                        setField("force_install_after_date", force_install_after_date)
+                      }
+                    />
+                  </FieldGroup>
+                  <XMLField
+                    value={values.installer_choices_xml}
+                    onChange={(installer_choices_xml) => setField("installer_choices_xml", installer_choices_xml)}
+                  />
+                  <InstallerEnvironmentEditor
+                    rows={values.installer_environment}
+                    onChange={(installer_environment) => setField("installer_environment", installer_environment)}
+                  />
+                </FieldSet>
+              </FieldGroup>
+            </TabsContent>
+            <TabsContent value="requirements">
+              <FieldGroup>
+                <FieldSet>
+                  <FieldLegend>Compatibility</FieldLegend>
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-minimum-munki-version">Minimum Munki Version</FieldLabel>
+                    <Input
+                      id="munki-package-minimum-munki-version"
+                      value={values.minimum_munki_version}
+                      onChange={(event) => setField("minimum_munki_version", event.target.value)}
+                    />
+                  </Field>
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="munki-package-minimum-os">Minimum OS</FieldLabel>
+                      <Input
+                        id="munki-package-minimum-os"
+                        value={values.minimum_os_version}
+                        onChange={(event) => setField("minimum_os_version", event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="munki-package-maximum-os">Maximum OS</FieldLabel>
+                      <Input
+                        id="munki-package-maximum-os"
+                        value={values.maximum_os_version}
+                        onChange={(event) => setField("maximum_os_version", event.target.value)}
+                      />
+                    </Field>
+                  </FieldGroup>
+                  <ArchitectureEditor
+                    values={values.supported_architectures}
+                    onChange={(supported_architectures) => setField("supported_architectures", supported_architectures)}
+                  />
+                </FieldSet>
+                <StringArrayEditor
+                  legend="Blocking Applications"
+                  addLabel="Application"
+                  rows={values.blocking_applications}
+                  onChange={(blocking_applications) => setField("blocking_applications", blocking_applications)}
+                />
+                <PackageReferenceEditor
+                  legend="Requires"
+                  rows={values.requires}
+                  packageOptions={packageOptions}
+                  onChange={(requires) => setField("requires", requires)}
+                />
+                <PackageReferenceEditor
+                  legend="Update For"
+                  rows={values.update_for}
+                  packageOptions={packageOptions}
+                  onChange={(update_for) => setField("update_for", update_for)}
+                />
+              </FieldGroup>
+            </TabsContent>
+            <TabsContent value="evidence">
+              <FieldGroup>
+                <InstallItemsEditor rows={values.installs} onChange={(installs) => setField("installs", installs)} />
+                <ReceiptsEditor rows={values.receipts} onChange={(receipts) => setField("receipts", receipts)} />
+                <ItemsToCopyEditor
+                  rows={values.items_to_copy}
+                  onChange={(items_to_copy) => setField("items_to_copy", items_to_copy)}
+                />
+              </FieldGroup>
+            </TabsContent>
+            <TabsContent value="scripts">
+              <ScriptTabs values={values} onChange={(key, value) => setField(key, value)} />
+            </TabsContent>
+            <TabsContent value="alerts">
+              <FieldGroup>
+                <AlertEditor
+                  id="munki-package-preinstall-alert"
+                  legend="Preinstall Alert"
+                  alert={values.preinstall_alert}
+                  onChange={(preinstall_alert) => setField("preinstall_alert", preinstall_alert)}
+                />
+                <AlertEditor
+                  id="munki-package-preuninstall-alert"
+                  legend="Preuninstall Alert"
+                  alert={values.preuninstall_alert}
+                  onChange={(preuninstall_alert) => setField("preuninstall_alert", preuninstall_alert)}
+                />
+                <FieldSet>
+                  <FieldLegend>Behavior</FieldLegend>
+                  <CheckboxControl
+                    id="munki-package-eligible"
+                    label="Available for assignment"
+                    checked={values.eligible}
+                    onChange={(eligible) => setField("eligible", eligible)}
+                  />
+                  <FieldGroup className="grid gap-4 md:grid-cols-3">
+                    <CheckboxControl
+                      id="munki-package-unattended-install"
+                      label="Unattended install"
+                      checked={values.unattended_install}
+                      onChange={(unattended_install) => setField("unattended_install", unattended_install)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-unattended-uninstall"
+                      label="Unattended uninstall"
+                      checked={values.unattended_uninstall}
+                      onChange={(unattended_uninstall) => setField("unattended_uninstall", unattended_uninstall)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-uninstallable"
+                      label="Uninstallable"
+                      checked={values.uninstallable}
+                      onChange={(uninstallable) => setField("uninstallable", uninstallable)}
+                    />
+                  </FieldGroup>
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
+                    <SelectControl
+                      id="munki-package-uninstall-method"
+                      label="Uninstall Method"
+                      value={values.uninstall_method}
+                      options={MUNKI_UNINSTALL_METHOD_OPTIONS}
+                      onChange={(uninstall_method) => setField("uninstall_method", uninstall_method)}
+                    />
+                    <SelectControl
+                      id="munki-package-restart-action"
+                      label="Restart Action"
+                      value={values.restart_action}
+                      options={MUNKI_RESTART_ACTION_OPTIONS}
+                      onChange={(restart_action) => setField("restart_action", restart_action)}
+                    />
+                  </FieldGroup>
+                  {values.uninstall_method === "custom" ? (
+                    <Field>
+                      <FieldLabel htmlFor="munki-package-custom-uninstall-method">Custom Uninstall Method</FieldLabel>
+                      <Input
+                        id="munki-package-custom-uninstall-method"
+                        value={values.custom_uninstall_method}
+                        onChange={(event) => setField("custom_uninstall_method", event.target.value)}
+                      />
+                    </Field>
+                  ) : null}
+                  <FieldGroup className="grid gap-4 md:grid-cols-3">
+                    <CheckboxControl
+                      id="munki-package-on-demand"
+                      label="On demand"
+                      checked={values.on_demand}
+                      onChange={(on_demand) => setField("on_demand", on_demand)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-precache"
+                      label="Precache"
+                      checked={values.precache}
+                      onChange={(precache) => setField("precache", precache)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-autoremove"
+                      label="Autoremove"
+                      checked={values.autoremove}
+                      onChange={(autoremove) => setField("autoremove", autoremove)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-apple-item"
+                      label="Apple item"
+                      checked={values.apple_item}
+                      onChange={(apple_item) => setField("apple_item", apple_item)}
+                    />
+                    <CheckboxControl
+                      id="munki-package-suppress-bundle-relocation"
+                      label="Suppress bundle relocation"
+                      checked={values.suppress_bundle_relocation}
+                      onChange={(suppress_bundle_relocation) =>
+                        setField("suppress_bundle_relocation", suppress_bundle_relocation)
+                      }
+                    />
+                  </FieldGroup>
+                </FieldSet>
+              </FieldGroup>
+            </TabsContent>
+          </Tabs>
+        );
+      }}
+    </form.Subscribe>
+  );
+}
+
+function PackageFormActions({ pending, softwareID }: { pending: boolean; softwareID: number | null }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+        Save
+      </Button>
+      <Button asChild type="button" variant="outline" size="sm">
+        <Link to="/munki/software-titles/$softwareId" params={{ softwareId: String(softwareID ?? "") }}>
+          Cancel
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+function PackageFileField({
+  id,
+  label,
+  description,
+  accept,
+  icon,
+  file,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  accept?: string;
+  icon: React.ReactNode;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <div className="flex items-center gap-3">
+        <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border">
+          {icon}
+        </div>
+        <Input id={id} type="file" accept={accept} onChange={(event) => onChange(event.target.files?.[0] ?? null)} />
+      </div>
+      <FieldDescription>{file ? file.name : description}</FieldDescription>
+    </Field>
+  );
+}
+
+function SelectControl<T extends string>({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Select value={value} onValueChange={(next) => onChange(next as T)}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+
+function CheckboxControl({
+  id,
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Field orientation="horizontal" className={disabled ? "opacity-60" : undefined}>
+      <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(value) => onChange(value === true)} />
+      <FieldContent>
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
+      </FieldContent>
+    </Field>
   );
 }
 
@@ -800,13 +977,13 @@ function ArchitectureEditor({
     <Field>
       <FieldLabel>Supported Architectures</FieldLabel>
       <div className="grid gap-3 md:grid-cols-2">
-        <CheckboxField
+        <CheckboxControl
           id="munki-package-arch-arm64"
           label="Apple silicon"
           checked={values.includes("arm64")}
           onChange={(checked) => onChange(toggleArray(values, "arm64", checked))}
         />
-        <CheckboxField
+        <CheckboxControl
           id="munki-package-arch-x86"
           label="Intel"
           checked={values.includes("x86_64")}
@@ -971,19 +1148,21 @@ function InstallItemsEditor({
         {rows.map((row, index) => (
           <div key={row.rowID} className="space-y-3 rounded-md border p-3">
             <div className="grid gap-2 md:grid-cols-[10rem_minmax(0,1fr)_auto]">
-              <SelectField
+              <SelectControl
                 id={`munki-install-item-type-${row.rowID}`}
                 label="Type"
                 value={row.type}
                 options={MUNKI_INSTALL_ITEM_TYPE_OPTIONS}
                 onChange={(type) => onChange(replaceAt(rows, index, { ...row, type }))}
               />
-              <TextField
-                id={`munki-install-item-path-${row.rowID}`}
-                label="Path"
-                value={row.path}
-                onChange={(path) => onChange(replaceAt(rows, index, { ...row, path }))}
-              />
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-path-${row.rowID}`}>Path</FieldLabel>
+                <Input
+                  id={`munki-install-item-path-${row.rowID}`}
+                  value={row.path}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, path: event.target.value }))}
+                />
+              </Field>
               <div className="flex items-end">
                 <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
                   <Trash2 />
@@ -991,44 +1170,62 @@ function InstallItemsEditor({
               </div>
             </div>
             <FieldGroup className="grid gap-3 md:grid-cols-3">
-              <TextField
-                id={`munki-install-item-bundle-id-${row.rowID}`}
-                label="Bundle ID"
-                value={row.bundle_identifier ?? ""}
-                onChange={(bundle_identifier) => onChange(replaceAt(rows, index, { ...row, bundle_identifier }))}
-              />
-              <TextField
-                id={`munki-install-item-short-version-${row.rowID}`}
-                label="Short Version"
-                value={row.bundle_short_version ?? ""}
-                onChange={(bundle_short_version) => onChange(replaceAt(rows, index, { ...row, bundle_short_version }))}
-              />
-              <TextField
-                id={`munki-install-item-version-${row.rowID}`}
-                label="Bundle Version"
-                value={row.bundle_version ?? ""}
-                onChange={(bundle_version) => onChange(replaceAt(rows, index, { ...row, bundle_version }))}
-              />
-              <TextField
-                id={`munki-install-item-comparison-${row.rowID}`}
-                label="Comparison Key"
-                value={row.version_comparison_key ?? ""}
-                onChange={(version_comparison_key) =>
-                  onChange(replaceAt(rows, index, { ...row, version_comparison_key }))
-                }
-              />
-              <TextField
-                id={`munki-install-item-md5-${row.rowID}`}
-                label="MD5"
-                value={row.md5checksum ?? ""}
-                onChange={(md5checksum) => onChange(replaceAt(rows, index, { ...row, md5checksum }))}
-              />
-              <TextField
-                id={`munki-install-item-min-os-${row.rowID}`}
-                label="Minimum OS"
-                value={row.minimum_os_version ?? ""}
-                onChange={(minimum_os_version) => onChange(replaceAt(rows, index, { ...row, minimum_os_version }))}
-              />
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-bundle-id-${row.rowID}`}>Bundle ID</FieldLabel>
+                <Input
+                  id={`munki-install-item-bundle-id-${row.rowID}`}
+                  value={row.bundle_identifier ?? ""}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, bundle_identifier: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-short-version-${row.rowID}`}>Short Version</FieldLabel>
+                <Input
+                  id={`munki-install-item-short-version-${row.rowID}`}
+                  value={row.bundle_short_version ?? ""}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, bundle_short_version: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-version-${row.rowID}`}>Bundle Version</FieldLabel>
+                <Input
+                  id={`munki-install-item-version-${row.rowID}`}
+                  value={row.bundle_version ?? ""}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, bundle_version: event.target.value }))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-comparison-${row.rowID}`}>Comparison Key</FieldLabel>
+                <Input
+                  id={`munki-install-item-comparison-${row.rowID}`}
+                  value={row.version_comparison_key ?? ""}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, version_comparison_key: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-md5-${row.rowID}`}>MD5</FieldLabel>
+                <Input
+                  id={`munki-install-item-md5-${row.rowID}`}
+                  value={row.md5checksum ?? ""}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, md5checksum: event.target.value }))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-install-item-min-os-${row.rowID}`}>Minimum OS</FieldLabel>
+                <Input
+                  id={`munki-install-item-min-os-${row.rowID}`}
+                  value={row.minimum_os_version ?? ""}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, minimum_os_version: event.target.value }))
+                  }
+                />
+              </Field>
             </FieldGroup>
           </div>
         ))}
@@ -1087,18 +1284,24 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
         {rows.map((row, index) => (
           <div key={row.rowID} className="space-y-3 rounded-md border p-3">
             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <TextField
-                id={`munki-copy-source-${row.rowID}`}
-                label="Source"
-                value={row.source_item}
-                onChange={(source_item) => onChange(replaceAt(rows, index, { ...row, source_item }))}
-              />
-              <TextField
-                id={`munki-copy-destination-${row.rowID}`}
-                label="Destination"
-                value={row.destination_path}
-                onChange={(destination_path) => onChange(replaceAt(rows, index, { ...row, destination_path }))}
-              />
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-source-${row.rowID}`}>Source</FieldLabel>
+                <Input
+                  id={`munki-copy-source-${row.rowID}`}
+                  value={row.source_item}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, source_item: event.target.value }))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-destination-${row.rowID}`}>Destination</FieldLabel>
+                <Input
+                  id={`munki-copy-destination-${row.rowID}`}
+                  value={row.destination_path}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, destination_path: event.target.value }))
+                  }
+                />
+              </Field>
               <div className="flex items-end">
                 <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
                   <Trash2 />
@@ -1106,30 +1309,40 @@ function ItemsToCopyEditor({ rows, onChange }: { rows: ItemToCopyRow[]; onChange
               </div>
             </div>
             <FieldGroup className="grid gap-3 md:grid-cols-4">
-              <TextField
-                id={`munki-copy-destination-item-${row.rowID}`}
-                label="Destination Item"
-                value={row.destination_item ?? ""}
-                onChange={(destination_item) => onChange(replaceAt(rows, index, { ...row, destination_item }))}
-              />
-              <TextField
-                id={`munki-copy-user-${row.rowID}`}
-                label="User"
-                value={row.user ?? ""}
-                onChange={(user) => onChange(replaceAt(rows, index, { ...row, user }))}
-              />
-              <TextField
-                id={`munki-copy-group-${row.rowID}`}
-                label="Group"
-                value={row.group ?? ""}
-                onChange={(group) => onChange(replaceAt(rows, index, { ...row, group }))}
-              />
-              <TextField
-                id={`munki-copy-mode-${row.rowID}`}
-                label="Mode"
-                value={row.mode ?? ""}
-                onChange={(mode) => onChange(replaceAt(rows, index, { ...row, mode }))}
-              />
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-destination-item-${row.rowID}`}>Destination Item</FieldLabel>
+                <Input
+                  id={`munki-copy-destination-item-${row.rowID}`}
+                  value={row.destination_item ?? ""}
+                  onChange={(event) =>
+                    onChange(replaceAt(rows, index, { ...row, destination_item: event.target.value }))
+                  }
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-user-${row.rowID}`}>User</FieldLabel>
+                <Input
+                  id={`munki-copy-user-${row.rowID}`}
+                  value={row.user ?? ""}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, user: event.target.value }))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-group-${row.rowID}`}>Group</FieldLabel>
+                <Input
+                  id={`munki-copy-group-${row.rowID}`}
+                  value={row.group ?? ""}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, group: event.target.value }))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`munki-copy-mode-${row.rowID}`}>Mode</FieldLabel>
+                <Input
+                  id={`munki-copy-mode-${row.rowID}`}
+                  value={row.mode ?? ""}
+                  onChange={(event) => onChange(replaceAt(rows, index, { ...row, mode: event.target.value }))}
+                />
+              </Field>
             </FieldGroup>
           </div>
         ))}
@@ -1190,7 +1403,7 @@ function AlertEditor({
   return (
     <FieldSet>
       <FieldLegend>{legend}</FieldLegend>
-      <CheckboxField
+      <CheckboxControl
         id={`${id}-enabled`}
         label="Enabled"
         checked={alert.enabled}
@@ -1198,30 +1411,38 @@ function AlertEditor({
       />
       {alert.enabled ? (
         <FieldGroup className="grid gap-4 md:grid-cols-2">
-          <TextField
-            id={`${id}-title`}
-            label="Title"
-            value={alert.title ?? ""}
-            onChange={(title) => onChange({ ...alert, title })}
-          />
-          <TextField
-            id={`${id}-ok`}
-            label="OK Label"
-            value={alert.ok_label ?? ""}
-            onChange={(ok_label) => onChange({ ...alert, ok_label })}
-          />
-          <TextField
-            id={`${id}-cancel`}
-            label="Cancel Label"
-            value={alert.cancel_label ?? ""}
-            onChange={(cancel_label) => onChange({ ...alert, cancel_label })}
-          />
-          <TextAreaField
-            id={`${id}-detail`}
-            label="Detail"
-            value={alert.detail ?? ""}
-            onChange={(detail) => onChange({ ...alert, detail })}
-          />
+          <Field>
+            <FieldLabel htmlFor={`${id}-title`}>Title</FieldLabel>
+            <Input
+              id={`${id}-title`}
+              value={alert.title ?? ""}
+              onChange={(event) => onChange({ ...alert, title: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-ok`}>OK Label</FieldLabel>
+            <Input
+              id={`${id}-ok`}
+              value={alert.ok_label ?? ""}
+              onChange={(event) => onChange({ ...alert, ok_label: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-cancel`}>Cancel Label</FieldLabel>
+            <Input
+              id={`${id}-cancel`}
+              value={alert.cancel_label ?? ""}
+              onChange={(event) => onChange({ ...alert, cancel_label: event.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-detail`}>Detail</FieldLabel>
+            <Textarea
+              id={`${id}-detail`}
+              value={alert.detail ?? ""}
+              onChange={(event) => onChange({ ...alert, detail: event.target.value })}
+            />
+          </Field>
         </FieldGroup>
       ) : null}
     </FieldSet>

@@ -1,5 +1,4 @@
 import { useParams } from "@tanstack/react-router";
-import { type SyntheticEvent } from "react";
 
 import type { MunkiArtifact, MunkiArtifactMutation, MunkiArtifactUploadMutation } from "@/hooks/munki/artifacts";
 
@@ -62,9 +61,4 @@ async function fileSHA256(file: File) {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
-}
-
-export function runSubmit(event: SyntheticEvent<HTMLFormElement>, submit: () => Promise<void>) {
-  event.preventDefault();
-  void submit();
 }
