@@ -1,7 +1,5 @@
 package assignments
 
-import "strings"
-
 // ResolveEffectivePackages applies assignment precedence to package candidates.
 func ResolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
 	resolved := make([][]EffectivePackage, 0, len(packages))
@@ -14,16 +12,12 @@ func ResolveEffectivePackages(packages []EffectivePackage) []EffectivePackage {
 		assignmentID, exists := selectedAssignments[pkg.SoftwareID]
 		if !exists {
 			selectedAssignments[pkg.SoftwareID] = pkg.AssignmentID
-			if pkg.Effect == AssignmentEffectExclude || strings.TrimSpace(pkg.Package.Name) == "" {
-				selectedIndexes[pkg.SoftwareID] = -1
-				continue
-			}
 			selectedIndexes[pkg.SoftwareID] = len(resolved)
 			resolved = append(resolved, []EffectivePackage{pkg})
 			continue
 		}
 		index := selectedIndexes[pkg.SoftwareID]
-		if assignmentID == pkg.AssignmentID && index >= 0 && pkg.Effect == AssignmentEffectInclude {
+		if assignmentID == pkg.AssignmentID && index >= 0 {
 			resolved[index] = appendUniqueEffectivePackage(resolved[index], pkg)
 		}
 	}

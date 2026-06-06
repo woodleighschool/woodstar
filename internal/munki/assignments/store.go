@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,11 +53,10 @@ func (s *Store) Create(ctx context.Context, params AssignmentMutation) (*Assignm
 		SoftwareID:       params.SoftwareID,
 		Priority:         params.Priority,
 		LabelID:          params.LabelID,
-		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
-		Action:           sqlcAction(params.Action),
+		Action:           sqlc.MunkiAssignmentAction(params.Action),
 		OptionalInstall:  params.OptionalInstall,
 		FeaturedItem:     params.FeaturedItem,
-		PackageSelection: sqlcPackageSelection(params.PackageSelection),
+		PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
 		PinnedPackageID:  params.PinnedPackageID,
 	})
 	if err != nil {
@@ -82,11 +82,10 @@ func (s *Store) Update(ctx context.Context, id int64, params AssignmentMutation)
 		ID:               id,
 		Priority:         params.Priority,
 		LabelID:          params.LabelID,
-		Effect:           sqlc.MunkiAssignmentEffect(params.Effect),
-		Action:           sqlcAction(params.Action),
+		Action:           sqlc.MunkiAssignmentAction(params.Action),
 		OptionalInstall:  params.OptionalInstall,
 		FeaturedItem:     params.FeaturedItem,
-		PackageSelection: sqlcPackageSelection(params.PackageSelection),
+		PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
 		PinnedPackageID:  params.PinnedPackageID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -161,22 +160,17 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 	}
 	effective := make([]EffectivePackage, 0, len(rows))
 	for _, row := range rows {
-		pkg := packages.Package{}
-		if row.AssignmentEffect == sqlc.MunkiAssignmentEffectInclude {
-			resolvedPackage, err := packages.FromEffectiveRow(row)
-			if err != nil {
-				return nil, err
-			}
-			pkg = resolvedPackage
+		pkg, err := packages.FromEffectiveRow(row)
+		if err != nil {
+			return nil, err
 		}
 		effective = append(effective, EffectivePackage{
 			AssignmentID:     row.AssignmentID,
 			SoftwareID:       row.AssignmentSoftwareID,
-			Effect:           AssignmentEffect(row.AssignmentEffect),
-			Action:           assignmentActionValue(row.Action),
+			Action:           AssignmentAction(row.Action),
 			OptionalInstall:  row.OptionalInstall,
 			FeaturedItem:     row.FeaturedItem,
-			PackageSelection: packageSelectionValue(row.PackageSelection),
+			PackageSelection: PackageSelection(row.PackageSelection),
 			PinnedPackageID:  row.PinnedPackageID,
 			Priority:         row.Priority,
 			Package:          pkg,
@@ -212,6 +206,108 @@ func (s *Store) Reorder(ctx context.Context, softwareID int64, orderedIDs []int6
 	})
 }
 
+func (s *Store) ExcludeLabelIDs(ctx context.Context, softwareID int64) ([]int64, error) {
+	if softwareID <= 0 {
+		return nil, dbutil.ErrNotFound
+	}
+	rows, err := s.q.ListMunkiAssignmentExcludeLabels(
+		ctx,
+		sqlc.ListMunkiAssignmentExcludeLabelsParams{SoftwareIds: []int64{softwareID}},
+	)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]int64, len(rows))
+	for i, row := range rows {
+		out[i] = row.LabelID
+	}
+	return out, nil
+}
+
+func (s *Store) ReplaceExcludeLabelIDs(ctx context.Context, softwareID int64, labelIDs []int64) ([]int64, error) {
+	if softwareID <= 0 {
+		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
+	}
+	if err := validateExcludeLabelIDs(labelIDs); err != nil {
+		return nil, err
+	}
+	if _, err := s.softwareTitles.GetByID(ctx, softwareID); err != nil {
+		return nil, err
+	}
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		if err := validateExcludeLabelsForSoftware(ctx, q, softwareID, labelIDs); err != nil {
+			return err
+		}
+		if err := q.DeleteMunkiAssignmentExcludeLabels(
+			ctx,
+			sqlc.DeleteMunkiAssignmentExcludeLabelsParams{SoftwareID: softwareID},
+		); err != nil {
+			return err
+		}
+		if len(labelIDs) == 0 {
+			return nil
+		}
+		return q.InsertMunkiAssignmentExcludeLabels(
+			ctx,
+			sqlc.InsertMunkiAssignmentExcludeLabelsParams{SoftwareID: softwareID, LabelIds: labelIDs},
+		)
+	})
+	if err != nil {
+		return nil, mapMutationError(err)
+	}
+	return s.ExcludeLabelIDs(ctx, softwareID)
+}
+
+func validateExcludeLabelIDs(labelIDs []int64) error {
+	seen := make(map[int64]struct{}, len(labelIDs))
+	for _, labelID := range labelIDs {
+		if labelID <= 0 {
+			return fmt.Errorf("%w: exclude_label_ids contains an invalid label_id", dbutil.ErrInvalidInput)
+		}
+		if _, ok := seen[labelID]; ok {
+			return fmt.Errorf("%w: duplicate exclude_label_ids entry", dbutil.ErrInvalidInput)
+		}
+		seen[labelID] = struct{}{}
+	}
+	return nil
+}
+
+func validateExcludeLabelsForSoftware(
+	ctx context.Context,
+	q *sqlc.Queries,
+	softwareID int64,
+	labelIDs []int64,
+) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	includeLabelIDs, err := q.ListMunkiAssignmentLabelIDsBySoftware(
+		ctx,
+		sqlc.ListMunkiAssignmentLabelIDsBySoftwareParams{SoftwareID: softwareID},
+	)
+	if err != nil {
+		return err
+	}
+	includes := make(map[int64]struct{}, len(includeLabelIDs))
+	for _, labelID := range includeLabelIDs {
+		includes[labelID] = struct{}{}
+	}
+	for _, labelID := range labelIDs {
+		if _, ok := includes[labelID]; ok {
+			return fmt.Errorf("%w: label_id is already assigned to this software", dbutil.ErrInvalidInput)
+		}
+	}
+	builtinExcludeIDs, err := q.ListBuiltinLabelIDs(ctx, sqlc.ListBuiltinLabelIDsParams{LabelIds: labelIDs})
+	if err != nil {
+		return err
+	}
+	if len(builtinExcludeIDs) > 0 {
+		return fmt.Errorf("%w: builtin labels cannot be excluded from Munki assignments", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
 func (s *Store) attachPackageRelations(
 	ctx context.Context,
 	effective []EffectivePackage,
@@ -239,15 +335,8 @@ func (s *Store) attachPackageRelations(
 }
 
 func cleanMutation(params AssignmentMutation) AssignmentMutation {
-	params.Effect = AssignmentEffect(strings.TrimSpace(string(params.Effect)))
-	if params.Action != nil {
-		action := AssignmentAction(strings.TrimSpace(string(*params.Action)))
-		params.Action = &action
-	}
-	if params.PackageSelection != nil {
-		selection := PackageSelection(strings.TrimSpace(string(*params.PackageSelection)))
-		params.PackageSelection = &selection
-	}
+	params.Action = AssignmentAction(strings.TrimSpace(string(params.Action)))
+	params.PackageSelection = PackageSelection(strings.TrimSpace(string(params.PackageSelection)))
 	return params
 }
 
@@ -262,8 +351,10 @@ func (s *Store) normalizeMutation(
 	if _, err := s.softwareTitles.GetByID(ctx, params.SoftwareID); err != nil {
 		return params, err
 	}
-	if params.Effect != AssignmentEffectInclude || params.PackageSelection == nil ||
-		*params.PackageSelection != PackageSelectionSpecific {
+	if err := s.validateAssignmentLabelNotExcluded(ctx, params.SoftwareID, params.LabelID); err != nil {
+		return params, err
+	}
+	if params.PackageSelection != PackageSelectionSpecific {
 		return params, nil
 	}
 	pkg, err := s.packages.GetByID(ctx, *params.PinnedPackageID)
@@ -279,6 +370,17 @@ func (s *Store) normalizeMutation(
 	return params, nil
 }
 
+func (s *Store) validateAssignmentLabelNotExcluded(ctx context.Context, softwareID int64, labelID int64) error {
+	excludeLabelIDs, err := s.ExcludeLabelIDs(ctx, softwareID)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(excludeLabelIDs, labelID) {
+		return fmt.Errorf("%w: label_id is already excluded from this software", dbutil.ErrInvalidInput)
+	}
+	return nil
+}
+
 func assignmentFromRecord(row assignmentRecord) Assignment {
 	return Assignment{
 		ID:                   row.ID,
@@ -286,63 +388,16 @@ func assignmentFromRecord(row assignmentRecord) Assignment {
 		SoftwareDisplayName:  row.SoftwareDisplayName,
 		Priority:             row.Priority,
 		LabelID:              row.LabelID,
-		Effect:               AssignmentEffect(row.Effect),
-		Action:               assignmentActionFromSQLC(row.Action),
+		Action:               AssignmentAction(row.Action),
 		OptionalInstall:      row.OptionalInstall,
 		FeaturedItem:         row.FeaturedItem,
-		PackageSelection:     assignmentPackageSelectionFromSQLC(row.PackageSelection),
+		PackageSelection:     PackageSelection(row.PackageSelection),
 		PinnedPackageID:      row.PinnedPackageID,
 		PinnedPackageName:    stringPtrValue(row.PinnedPackageName),
 		PinnedPackageVersion: stringPtrValue(row.PinnedPackageVersion),
 		CreatedAt:            row.CreatedAt,
 		UpdatedAt:            row.UpdatedAt,
 	}
-}
-
-func sqlcAction(action *AssignmentAction) *sqlc.MunkiAssignmentAction {
-	if action == nil {
-		return nil
-	}
-	value := sqlc.MunkiAssignmentAction(*action)
-	return &value
-}
-
-func sqlcPackageSelection(selection *PackageSelection) *sqlc.MunkiPackageSelection {
-	if selection == nil {
-		return nil
-	}
-	value := sqlc.MunkiPackageSelection(*selection)
-	return &value
-}
-
-func assignmentActionFromSQLC(action *sqlc.MunkiAssignmentAction) *AssignmentAction {
-	if action == nil {
-		return nil
-	}
-	value := AssignmentAction(*action)
-	return &value
-}
-
-func assignmentPackageSelectionFromSQLC(selection *sqlc.MunkiPackageSelection) *PackageSelection {
-	if selection == nil {
-		return nil
-	}
-	value := PackageSelection(*selection)
-	return &value
-}
-
-func assignmentActionValue(action *sqlc.MunkiAssignmentAction) AssignmentAction {
-	if action == nil {
-		return ""
-	}
-	return AssignmentAction(*action)
-}
-
-func packageSelectionValue(selection *sqlc.MunkiPackageSelection) PackageSelection {
-	if selection == nil {
-		return ""
-	}
-	return PackageSelection(*selection)
 }
 
 func assignmentListWhere(params AssignmentListParams) (string, []any) {
@@ -359,7 +414,6 @@ func assignmentListWhere(params AssignmentListParams) (string, []any) {
 			OR s.name ILIKE ` + search + `
 			OR s.display_name ILIKE ` + search + `
 			OR a.action::text ILIKE ` + search + `
-			OR a.effect::text ILIKE ` + search + `
 			OR a.package_selection::text ILIKE ` + search + `
 		)`)
 	}
@@ -371,7 +425,6 @@ func assignmentOrderKeys() map[string]dbutil.OrderExpr {
 		"priority":   {SQL: "a.priority"},
 		"name":       {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
 		"action":     {SQL: "a.action"},
-		"effect":     {SQL: "a.effect"},
 		"optional":   {SQL: "a.optional_install"},
 		"featured":   {SQL: "a.featured_item"},
 		"updated_at": {SQL: "a.updated_at"},
@@ -384,11 +437,10 @@ type assignmentRecord struct {
 	SoftwareDisplayName  string
 	Priority             int32
 	LabelID              int64
-	Effect               sqlc.MunkiAssignmentEffect
-	Action               *sqlc.MunkiAssignmentAction
+	Action               sqlc.MunkiAssignmentAction
 	OptionalInstall      bool
 	FeaturedItem         bool
-	PackageSelection     *sqlc.MunkiPackageSelection
+	PackageSelection     sqlc.MunkiPackageSelection
 	PinnedPackageID      *int64
 	PinnedPackageName    *string
 	PinnedPackageVersion *string
@@ -403,7 +455,6 @@ SELECT
 	COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
 	a.priority,
 	a.label_id,
-	a.effect,
 	a.action,
 	a.optional_install,
 	a.featured_item,

@@ -13,6 +13,7 @@ const (
 	munkiAssignmentPath   = "/api/munki/assignments"
 	munkiAssignmentIDPath = "/api/munki/assignments/{id}"
 	munkiAssignmentLabel  = "Munki assignment"
+	munkiExcludesLabel    = "Munki assignment exclude labels"
 )
 
 type munkiAssignmentListInput struct {
@@ -42,12 +43,25 @@ type munkiAssignmentReorderBody struct {
 	OrderedIDs []int64 `json:"ordered_ids"`
 }
 
+type munkiAssignmentExcludesInput struct {
+	ID   int64 `path:"id"`
+	Body munkiAssignmentExcludesBody
+}
+
+type munkiAssignmentExcludesBody struct {
+	ExcludeLabelIDs []int64 `json:"exclude_label_ids"`
+}
+
 type munkiAssignmentListOutput struct {
 	Body Page[assignments.Assignment]
 }
 
 type munkiAssignmentOutput struct {
 	Body assignments.Assignment
+}
+
+type munkiAssignmentExcludesOutput struct {
+	Body munkiAssignmentExcludesBody
 }
 
 func (input munkiAssignmentListInput) params() assignments.AssignmentListParams {
@@ -63,6 +77,7 @@ func registerMunkiAssignments(api huma.API, store *assignments.Store) {
 	registerGetMunkiAssignment(api, store)
 	registerPatchMunkiAssignment(api, store)
 	registerReorderMunkiAssignments(api, store)
+	registerUpdateMunkiAssignmentExcludes(api, store)
 }
 
 func registerListMunkiAssignments(api huma.API, store *assignments.Store) {
@@ -150,16 +165,41 @@ func registerPatchMunkiAssignment(api huma.API, store *assignments.Store) {
 
 func registerReorderMunkiAssignments(api huma.API, store *assignments.Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "reorder-munki-assignments",
+		OperationID: "reorder-munki-assignment-includes",
 		Method:      http.MethodPut,
-		Path:        "/api/munki/software-titles/{id}/assignments/order",
+		Path:        "/api/munki/software-titles/{id}/includes/order",
 		Tags:        []string{munkiTag},
-		Summary:     "Reorder Munki assignments",
+		Summary:     "Reorder Munki assignment includes",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiAssignmentReorderInput) (*struct{}, error) {
 		if err := store.Reorder(ctx, input.ID, input.Body.OrderedIDs); err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
 		return &struct{}{}, nil
+	})
+}
+
+func registerUpdateMunkiAssignmentExcludes(api huma.API, store *assignments.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "update-munki-assignment-exclude-labels",
+		Method:      http.MethodPut,
+		Path:        "/api/munki/software-titles/{id}/exclude-labels",
+		Tags:        []string{munkiTag},
+		Summary:     "Update Munki assignment exclude labels",
+		Errors: []int{
+			http.StatusBadRequest,
+			http.StatusUnauthorized,
+			http.StatusForbidden,
+			http.StatusNotFound,
+			http.StatusConflict,
+		},
+	}, func(ctx context.Context, input *munkiAssignmentExcludesInput) (*munkiAssignmentExcludesOutput, error) {
+		excludeLabelIDs, err := store.ReplaceExcludeLabelIDs(ctx, input.ID, input.Body.ExcludeLabelIDs)
+		if err != nil {
+			return nil, resourceMutationError(munkiExcludesLabel, err)
+		}
+		return &munkiAssignmentExcludesOutput{
+			Body: munkiAssignmentExcludesBody{ExcludeLabelIDs: excludeLabelIDs},
+		}, nil
 	})
 }

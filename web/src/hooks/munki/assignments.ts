@@ -1,6 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ApiError, MunkiAssignment, MunkiAssignmentMutation, MunkiAssignmentPage } from "@/lib/api";
+import type {
+  ApiError,
+  MunkiAssignment,
+  MunkiAssignmentExcludesBody,
+  MunkiAssignmentMutation,
+  MunkiAssignmentPage,
+} from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -66,13 +72,29 @@ export function useReorderMunkiAssignments() {
   return useMutation<void, ApiError, { softwareId: number; orderedIds: number[] }>({
     mutationFn: ({ softwareId, orderedIds }) =>
       unwrap(
-        apiClient.PUT("/api/munki/software-titles/{id}/assignments/order", {
+        apiClient.PUT("/api/munki/software-titles/{id}/includes/order", {
           params: { path: { id: softwareId } },
           body: { ordered_ids: orderedIds },
         }),
       ),
     onSuccess: (_result, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "assignments"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(variables.softwareId) });
+    },
+  });
+}
+
+export function useUpdateMunkiAssignmentExcludeLabels() {
+  const queryClient = useQueryClient();
+  return useMutation<MunkiAssignmentExcludesBody, ApiError, { softwareId: number; excludeLabelIds: number[] }>({
+    mutationFn: ({ softwareId, excludeLabelIds }) =>
+      unwrap(
+        apiClient.PUT("/api/munki/software-titles/{id}/exclude-labels", {
+          params: { path: { id: softwareId } },
+          body: { exclude_label_ids: excludeLabelIds },
+        }),
+      ),
+    onSuccess: (_result, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(variables.softwareId) });
     },
   });

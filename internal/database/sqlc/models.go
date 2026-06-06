@@ -267,48 +267,6 @@ func (ns NullMunkiAssignmentAction) Value() (driver.Value, error) {
 	return string(ns.MunkiAssignmentAction), nil
 }
 
-type MunkiAssignmentEffect string
-
-const (
-	MunkiAssignmentEffectInclude MunkiAssignmentEffect = "include"
-	MunkiAssignmentEffectExclude MunkiAssignmentEffect = "exclude"
-)
-
-func (e *MunkiAssignmentEffect) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MunkiAssignmentEffect(s)
-	case string:
-		*e = MunkiAssignmentEffect(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MunkiAssignmentEffect: %T", src)
-	}
-	return nil
-}
-
-type NullMunkiAssignmentEffect struct {
-	MunkiAssignmentEffect MunkiAssignmentEffect `json:"munki_assignment_effect"`
-	Valid                 bool                  `json:"valid"` // Valid is true if MunkiAssignmentEffect is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMunkiAssignmentEffect) Scan(value interface{}) error {
-	if value == nil {
-		ns.MunkiAssignmentEffect, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MunkiAssignmentEffect.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMunkiAssignmentEffect) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MunkiAssignmentEffect), nil
-}
-
 type MunkiPackageRelationKind string
 
 const (
@@ -1016,18 +974,23 @@ type MunkiArtifact struct {
 }
 
 type MunkiAssignment struct {
-	ID               int64                  `json:"id"`
-	SoftwareID       int64                  `json:"software_id"`
-	Priority         int32                  `json:"priority"`
-	LabelID          int64                  `json:"label_id"`
-	Effect           MunkiAssignmentEffect  `json:"effect"`
-	Action           *MunkiAssignmentAction `json:"action"`
-	OptionalInstall  bool                   `json:"optional_install"`
-	FeaturedItem     bool                   `json:"featured_item"`
-	PackageSelection *MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                 `json:"pinned_package_id"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
+	ID               int64                 `json:"id"`
+	SoftwareID       int64                 `json:"software_id"`
+	Priority         int32                 `json:"priority"`
+	LabelID          int64                 `json:"label_id"`
+	Action           MunkiAssignmentAction `json:"action"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
+	CreatedAt        time.Time             `json:"created_at"`
+	UpdatedAt        time.Time             `json:"updated_at"`
+}
+
+type MunkiAssignmentExcludeLabel struct {
+	SoftwareID int64     `json:"software_id"`
+	LabelID    int64     `json:"label_id"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type MunkiHostItem struct {

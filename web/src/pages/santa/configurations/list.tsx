@@ -13,7 +13,7 @@ import {
 } from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
+import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,

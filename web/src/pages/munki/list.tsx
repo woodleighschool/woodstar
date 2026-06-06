@@ -145,7 +145,7 @@ export function MunkiSoftwareTitlesPage() {
         }}
         count={selectedIDs.length}
         noun="software title"
-        description="Packages and assignments for the selected titles will also be removed."
+        description="Packages and assignment targeting for the selected titles will also be removed."
         pending={bulkDelete.isPending}
         onConfirm={deleteSelectedSoftwareTitles}
       />

@@ -126,3 +126,8 @@ JOIN label_membership lm_host ON lm_host.label_id = l.id AND lm_host.host_id = @
 LEFT JOIN label_membership lm_all ON lm_all.label_id = l.id
 GROUP BY l.id
 ORDER BY lower(l.name), l.id;
+
+-- name: ListBuiltinLabelIDs :many
+SELECT id
+FROM labels
+WHERE id = ANY(@label_ids::bigint[]) AND label_type = 'builtin';

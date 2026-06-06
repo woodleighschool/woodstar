@@ -7,9 +7,8 @@ export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_typ
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
 export type MunkiUninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
 export type MunkiInstallItemType = PackageInstallItem["type"];
-export type MunkiAssignmentAction = NonNullable<MunkiAssignmentMutation["action"]>;
-export type MunkiAssignmentEffect = MunkiAssignmentMutation["effect"];
-export type MunkiPackageSelection = NonNullable<MunkiAssignmentMutation["package_selection"]>;
+export type MunkiAssignmentAction = MunkiAssignmentMutation["action"];
+export type MunkiPackageSelection = MunkiAssignmentMutation["package_selection"];
 
 export const MUNKI_INSTALLER_TYPE_VALUES = [
   "pkg",
@@ -91,24 +90,6 @@ export const MUNKI_INSTALL_ITEM_TYPES = {
 
 export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = enumOptions(MUNKI_INSTALL_ITEM_TYPES);
 
-export const MUNKI_ASSIGNMENT_EFFECT_VALUES = [
-  "include",
-  "exclude",
-] as const satisfies readonly MunkiAssignmentEffect[];
-
-export const MUNKI_ASSIGNMENT_EFFECTS = {
-  include: {
-    name: "Include",
-    description: "Adds matching hosts to this software assignment.",
-  },
-  exclude: {
-    name: "Exclude",
-    description: "Stops matching hosts from receiving this software.",
-  },
-} satisfies EnumMetadataMap<MunkiAssignmentEffect>;
-
-export const MUNKI_ASSIGNMENT_EFFECT_OPTIONS = enumOptions(MUNKI_ASSIGNMENT_EFFECTS);
-
 export const MUNKI_ASSIGNMENT_ACTION_VALUES = [
   "install",
   "remove",
@@ -161,10 +142,6 @@ export function munkiInstallerTypeLabel(value: string | null | undefined) {
 
 export function munkiRestartActionLabel(value: string | null | undefined) {
   return enumLabel(MUNKI_RESTART_ACTIONS, value);
-}
-
-export function munkiAssignmentEffectLabel(value: string | null | undefined) {
-  return enumLabel(MUNKI_ASSIGNMENT_EFFECTS, value);
 }
 
 export function munkiAssignmentActionLabel(value: string | null | undefined) {

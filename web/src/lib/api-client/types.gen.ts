@@ -699,14 +699,13 @@ export type MunkiAssignment = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    action?: 'install' | 'remove' | 'update_if_present' | 'none';
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     created_at: string;
-    effect: 'include' | 'exclude';
     featured_item: boolean;
     id: number;
     label_id: number;
     optional_install: boolean;
-    package_selection?: 'latest_eligible' | 'specific_package';
+    package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
@@ -716,17 +715,24 @@ export type MunkiAssignment = {
     updated_at: string;
 };
 
+export type MunkiAssignmentExcludesBody = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    exclude_label_ids: Array<number> | null;
+};
+
 export type MunkiAssignmentMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    action?: 'install' | 'remove' | 'update_if_present' | 'none';
-    effect: 'include' | 'exclude';
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     featured_item?: boolean;
     label_id: number;
     optional_install?: boolean;
-    package_selection?: 'latest_eligible' | 'specific_package';
+    package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     priority: number;
     software_id: number;
@@ -908,18 +914,19 @@ export type MunkiSoftwareTitleDetail = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    assignments: Array<MunkiAssignment> | null;
     category: string;
     created_at: string;
     description: string;
     developer: string;
     display_name: string;
+    exclude_label_ids: Array<number> | null;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
     icon_name: string;
     icon_url?: string;
     id: number;
+    includes: Array<MunkiAssignment> | null;
     name: string;
     packages: Array<MunkiPackage> | null;
     updated_at: string;
@@ -1765,14 +1772,13 @@ export type MunkiArtifactUploadMutationWritable = {
 };
 
 export type MunkiAssignmentWritable = {
-    action?: 'install' | 'remove' | 'update_if_present' | 'none';
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     created_at: string;
-    effect: 'include' | 'exclude';
     featured_item: boolean;
     id: number;
     label_id: number;
     optional_install: boolean;
-    package_selection?: 'latest_eligible' | 'specific_package';
+    package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     pinned_package_name?: string;
     pinned_package_version?: string;
@@ -1782,13 +1788,16 @@ export type MunkiAssignmentWritable = {
     updated_at: string;
 };
 
+export type MunkiAssignmentExcludesBodyWritable = {
+    exclude_label_ids: Array<number> | null;
+};
+
 export type MunkiAssignmentMutationWritable = {
-    action?: 'install' | 'remove' | 'update_if_present' | 'none';
-    effect: 'include' | 'exclude';
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
     featured_item?: boolean;
     label_id: number;
     optional_install?: boolean;
-    package_selection?: 'latest_eligible' | 'specific_package';
+    package_selection: 'latest_eligible' | 'specific_package';
     pinned_package_id?: number;
     priority: number;
     software_id: number;
@@ -1946,18 +1955,19 @@ export type MunkiSoftwareTitleWritable = {
 };
 
 export type MunkiSoftwareTitleDetailWritable = {
-    assignments: Array<MunkiAssignmentWritable> | null;
     category: string;
     created_at: string;
     description: string;
     developer: string;
     display_name: string;
+    exclude_label_ids: Array<number> | null;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
     icon_name: string;
     icon_url?: string;
     id: number;
+    includes: Array<MunkiAssignmentWritable> | null;
     name: string;
     packages: Array<MunkiPackageWritable> | null;
     updated_at: string;
@@ -4402,16 +4412,67 @@ export type UpdateMunkiSoftwareTitleResponses = {
 
 export type UpdateMunkiSoftwareTitleResponse = UpdateMunkiSoftwareTitleResponses[keyof UpdateMunkiSoftwareTitleResponses];
 
-export type ReorderMunkiAssignmentsData = {
+export type UpdateMunkiAssignmentExcludeLabelsData = {
+    body: MunkiAssignmentExcludesBodyWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/software-titles/{id}/exclude-labels';
+};
+
+export type UpdateMunkiAssignmentExcludeLabelsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UpdateMunkiAssignmentExcludeLabelsError = UpdateMunkiAssignmentExcludeLabelsErrors[keyof UpdateMunkiAssignmentExcludeLabelsErrors];
+
+export type UpdateMunkiAssignmentExcludeLabelsResponses = {
+    /**
+     * OK
+     */
+    200: MunkiAssignmentExcludesBody;
+};
+
+export type UpdateMunkiAssignmentExcludeLabelsResponse = UpdateMunkiAssignmentExcludeLabelsResponses[keyof UpdateMunkiAssignmentExcludeLabelsResponses];
+
+export type ReorderMunkiAssignmentIncludesData = {
     body: MunkiAssignmentReorderBodyWritable;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/software-titles/{id}/assignments/order';
+    url: '/api/munki/software-titles/{id}/includes/order';
 };
 
-export type ReorderMunkiAssignmentsErrors = {
+export type ReorderMunkiAssignmentIncludesErrors = {
     /**
      * Bad Request
      */
@@ -4434,16 +4495,16 @@ export type ReorderMunkiAssignmentsErrors = {
     500: ErrorModel;
 };
 
-export type ReorderMunkiAssignmentsError = ReorderMunkiAssignmentsErrors[keyof ReorderMunkiAssignmentsErrors];
+export type ReorderMunkiAssignmentIncludesError = ReorderMunkiAssignmentIncludesErrors[keyof ReorderMunkiAssignmentIncludesErrors];
 
-export type ReorderMunkiAssignmentsResponses = {
+export type ReorderMunkiAssignmentIncludesResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type ReorderMunkiAssignmentsResponse = ReorderMunkiAssignmentsResponses[keyof ReorderMunkiAssignmentsResponses];
+export type ReorderMunkiAssignmentIncludesResponse = ReorderMunkiAssignmentIncludesResponses[keyof ReorderMunkiAssignmentIncludesResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

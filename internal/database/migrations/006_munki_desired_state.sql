@@ -17,11 +17,6 @@ CREATE TYPE munki_package_selection AS ENUM (
     'specific_package'
 );
 
-CREATE TYPE munki_assignment_effect AS ENUM (
-    'include',
-    'exclude'
-);
-
 CREATE TYPE munki_package_relation_kind AS ENUM (
     'requires',
     'update_for'
@@ -141,37 +136,34 @@ CREATE TABLE munki_assignments (
     software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
     priority INTEGER NOT NULL DEFAULT 1,
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    effect munki_assignment_effect NOT NULL DEFAULT 'include',
-    action munki_assignment_action,
+    action munki_assignment_action NOT NULL,
     optional_install BOOLEAN NOT NULL DEFAULT FALSE,
     featured_item BOOLEAN NOT NULL DEFAULT FALSE,
-    package_selection munki_package_selection,
+    package_selection munki_package_selection NOT NULL,
     pinned_package_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT munki_assignments_priority_check CHECK (priority >= 1),
-    CONSTRAINT munki_assignments_include_payload_check CHECK (
-        (
-            effect = 'include'
-            AND action IS NOT NULL
-            AND package_selection IS NOT NULL
-            AND (
-                (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
-                OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
-            )
-        )
-        OR (
-            effect = 'exclude'
-            AND action IS NULL
-            AND optional_install IS FALSE
-            AND featured_item IS FALSE
-            AND package_selection IS NULL
-            AND pinned_package_id IS NULL
-        )
+    CONSTRAINT munki_assignments_package_selection_check CHECK (
+        (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
+        OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
+    ),
+    CONSTRAINT munki_assignments_featured_item_check CHECK (
+        featured_item IS FALSE OR optional_install IS TRUE
+    ),
+    CONSTRAINT munki_assignments_remove_section_check CHECK (
+        action <> 'remove' OR (optional_install IS FALSE AND featured_item IS FALSE)
     ),
     CONSTRAINT munki_assignments_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
         REFERENCES munki_packages (software_id, id)
         ON DELETE RESTRICT
+);
+
+CREATE TABLE munki_assignment_exclude_labels (
+    software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (software_id, label_id)
 );
 
 CREATE INDEX munki_artifacts_kind_idx
@@ -196,5 +188,9 @@ CREATE INDEX munki_assignments_pinned_package_idx
     ON munki_assignments (pinned_package_id);
 CREATE INDEX munki_assignments_priority_idx
     ON munki_assignments (software_id, priority, id);
+CREATE UNIQUE INDEX munki_assignments_software_label_idx
+    ON munki_assignments (software_id, label_id);
 CREATE INDEX munki_assignments_label_idx
     ON munki_assignments (label_id);
+CREATE INDEX munki_assignment_exclude_labels_label_idx
+    ON munki_assignment_exclude_labels (label_id);

@@ -1836,11 +1836,6 @@ components:
         created_at:
           format: date-time
           type: string
-        effect:
-          enum:
-            - include
-            - exclude
-          type: string
         featured_item:
           type: boolean
         id:
@@ -1880,11 +1875,32 @@ components:
         - software_display_name
         - priority
         - label_id
-        - effect
+        - action
         - optional_install
         - featured_item
+        - package_selection
         - created_at
         - updated_at
+      type: object
+    MunkiAssignmentExcludesBody:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/MunkiAssignmentExcludesBody.json
+          format: uri
+          readOnly: true
+          type: string
+        exclude_label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
+      required:
+        - exclude_label_ids
       type: object
     MunkiAssignmentMutation:
       additionalProperties: false
@@ -1902,11 +1918,6 @@ components:
             - remove
             - update_if_present
             - none
-          type: string
-        effect:
-          enum:
-            - include
-            - exclude
           type: string
         featured_item:
           type: boolean
@@ -1933,7 +1944,8 @@ components:
         - software_id
         - priority
         - label_id
-        - effect
+        - action
+        - package_selection
       type: object
     MunkiAssignmentReorderBody:
       additionalProperties: false
@@ -2482,12 +2494,6 @@ components:
           format: uri
           readOnly: true
           type: string
-        assignments:
-          items:
-            $ref: "#/components/schemas/MunkiAssignment"
-          type:
-            - array
-            - "null"
         category:
           type: string
         created_at:
@@ -2499,6 +2505,13 @@ components:
           type: string
         display_name:
           type: string
+        exclude_label_ids:
+          items:
+            format: int64
+            type: integer
+          type:
+            - array
+            - "null"
         icon_artifact_id:
           format: int64
           type: integer
@@ -2513,6 +2526,12 @@ components:
         id:
           format: int64
           type: integer
+        includes:
+          items:
+            $ref: "#/components/schemas/MunkiAssignment"
+          type:
+            - array
+            - "null"
         name:
           type: string
         packages:
@@ -2526,7 +2545,8 @@ components:
           type: string
       required:
         - packages
-        - assignments
+        - includes
+        - exclude_label_ids
         - id
         - name
         - display_name
@@ -6922,9 +6942,77 @@ paths:
       summary: Update a Munki software title
       tags:
         - Munki
-  /api/munki/software-titles/{id}/assignments/order:
+  /api/munki/software-titles/{id}/exclude-labels:
     put:
-      operationId: reorder-munki-assignments
+      operationId: update-munki-assignment-exclude-labels
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiAssignmentExcludesBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiAssignmentExcludesBody"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Update Munki assignment exclude labels
+      tags:
+        - Munki
+  /api/munki/software-titles/{id}/includes/order:
+    put:
+      operationId: reorder-munki-assignment-includes
       parameters:
         - in: path
           name: id
@@ -6971,7 +7059,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
-      summary: Reorder Munki assignments
+      summary: Reorder Munki assignment includes
       tags:
         - Munki
   /api/osquery/checks:

@@ -292,6 +292,36 @@ func (q *Queries) ListApplicableDynamicLabels(ctx context.Context) ([]Label, err
 	return items, nil
 }
 
+const listBuiltinLabelIDs = `-- name: ListBuiltinLabelIDs :many
+SELECT id
+FROM labels
+WHERE id = ANY($1::bigint[]) AND label_type = 'builtin'
+`
+
+type ListBuiltinLabelIDsParams struct {
+	LabelIds []int64 `json:"label_ids"`
+}
+
+func (q *Queries) ListBuiltinLabelIDs(ctx context.Context, arg ListBuiltinLabelIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listBuiltinLabelIDs, arg.LabelIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDerivedLabels = `-- name: ListDerivedLabels :many
 SELECT id, criteria
 FROM labels

@@ -53,7 +53,6 @@ INSERT INTO munki_assignments (
     software_id,
     priority,
     label_id,
-    effect,
     action,
     optional_install,
     featured_item,
@@ -64,26 +63,24 @@ VALUES (
     $1,
     $2::integer,
     $3,
-    $4::munki_assignment_effect,
-    $5::munki_assignment_action,
+    $4::munki_assignment_action,
+    $5,
     $6,
-    $7,
-    $8::munki_package_selection,
-    $9::bigint
+    $7::munki_package_selection,
+    $8::bigint
 )
-RETURNING id, software_id, priority, label_id, effect, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
+RETURNING id, software_id, priority, label_id, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
 `
 
 type CreateMunkiAssignmentParams struct {
-	SoftwareID       int64                  `json:"software_id"`
-	Priority         int32                  `json:"priority"`
-	LabelID          int64                  `json:"label_id"`
-	Effect           MunkiAssignmentEffect  `json:"effect"`
-	Action           *MunkiAssignmentAction `json:"action"`
-	OptionalInstall  bool                   `json:"optional_install"`
-	FeaturedItem     bool                   `json:"featured_item"`
-	PackageSelection *MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                 `json:"pinned_package_id"`
+	SoftwareID       int64                 `json:"software_id"`
+	Priority         int32                 `json:"priority"`
+	LabelID          int64                 `json:"label_id"`
+	Action           MunkiAssignmentAction `json:"action"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
 }
 
 func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssignmentParams) (MunkiAssignment, error) {
@@ -91,7 +88,6 @@ func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssi
 		arg.SoftwareID,
 		arg.Priority,
 		arg.LabelID,
-		arg.Effect,
 		arg.Action,
 		arg.OptionalInstall,
 		arg.FeaturedItem,
@@ -104,7 +100,6 @@ func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssi
 		&i.SoftwareID,
 		&i.Priority,
 		&i.LabelID,
-		&i.Effect,
 		&i.Action,
 		&i.OptionalInstall,
 		&i.FeaturedItem,
@@ -526,6 +521,20 @@ func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiS
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteMunkiAssignmentExcludeLabels = `-- name: DeleteMunkiAssignmentExcludeLabels :exec
+DELETE FROM munki_assignment_exclude_labels
+WHERE software_id = $1
+`
+
+type DeleteMunkiAssignmentExcludeLabelsParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+func (q *Queries) DeleteMunkiAssignmentExcludeLabels(ctx context.Context, arg DeleteMunkiAssignmentExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiAssignmentExcludeLabels, arg.SoftwareID)
+	return err
 }
 
 const deleteMunkiAssignmentsBySoftware = `-- name: DeleteMunkiAssignmentsBySoftware :exec
@@ -954,6 +963,22 @@ func (q *Queries) GetMunkiSoftwareTitleByName(ctx context.Context, arg GetMunkiS
 	return i, err
 }
 
+const insertMunkiAssignmentExcludeLabels = `-- name: InsertMunkiAssignmentExcludeLabels :exec
+INSERT INTO munki_assignment_exclude_labels (software_id, label_id)
+SELECT $1, label_id
+FROM unnest($2::bigint[]) AS label_id
+`
+
+type InsertMunkiAssignmentExcludeLabelsParams struct {
+	SoftwareID int64   `json:"software_id"`
+	LabelIds   []int64 `json:"label_ids"`
+}
+
+func (q *Queries) InsertMunkiAssignmentExcludeLabels(ctx context.Context, arg InsertMunkiAssignmentExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiAssignmentExcludeLabels, arg.SoftwareID, arg.LabelIds)
+	return err
+}
+
 const insertMunkiHostItem = `-- name: InsertMunkiHostItem :exec
 INSERT INTO munki_host_items (
     host_id,
@@ -1002,7 +1027,6 @@ const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesFo
 SELECT
     a.id AS assignment_id,
     a.software_id AS assignment_software_id,
-    a.effect AS assignment_effect,
     a.action,
     a.optional_install,
     a.featured_item,
@@ -1079,8 +1103,7 @@ SELECT
 FROM munki_assignments a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
 JOIN munki_software_titles s ON s.id = a.software_id
-LEFT JOIN munki_packages p ON p.software_id = a.software_id
-    AND a.effect = 'include'
+JOIN munki_packages p ON p.software_id = a.software_id
     AND (
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
         OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
@@ -1089,8 +1112,15 @@ LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
-WHERE a.effect = 'exclude'
-   OR (a.effect = 'include' AND p.eligible)
+WHERE p.eligible
+  AND NOT EXISTS (
+      SELECT 1
+      FROM munki_assignment_exclude_labels excluded
+      JOIN label_membership excluded_lm
+        ON excluded_lm.label_id = excluded.label_id
+       AND excluded_lm.host_id = $1
+      WHERE excluded.software_id = a.software_id
+  )
 ORDER BY a.software_id, a.priority, a.id, lower(p.name), p.id
 `
 
@@ -1099,82 +1129,81 @@ type ListEffectiveMunkiPackagesForHostParams struct {
 }
 
 type ListEffectiveMunkiPackagesForHostRow struct {
-	AssignmentID                 int64                  `json:"assignment_id"`
-	AssignmentSoftwareID         int64                  `json:"assignment_software_id"`
-	AssignmentEffect             MunkiAssignmentEffect  `json:"assignment_effect"`
-	Action                       *MunkiAssignmentAction `json:"action"`
-	OptionalInstall              bool                   `json:"optional_install"`
-	FeaturedItem                 bool                   `json:"featured_item"`
-	PackageSelection             *MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID              *int64                 `json:"pinned_package_id"`
-	Priority                     int32                  `json:"priority"`
-	PackageID                    int64                  `json:"package_id"`
-	SoftwareID                   int64                  `json:"software_id"`
-	SoftwareName                 string                 `json:"software_name"`
-	SoftwareDisplayName          string                 `json:"software_display_name"`
-	SoftwareIconName             string                 `json:"software_icon_name"`
-	SoftwareIconHash             string                 `json:"software_icon_hash"`
-	SoftwareIconArtifactID       *int64                 `json:"software_icon_artifact_id"`
-	Name                         string                 `json:"name"`
-	Version                      string                 `json:"version"`
-	DisplayName                  string                 `json:"display_name"`
-	Description                  string                 `json:"description"`
-	Category                     string                 `json:"category"`
-	Developer                    string                 `json:"developer"`
-	InstallerType                string                 `json:"installer_type"`
-	UninstallMethod              string                 `json:"uninstall_method"`
-	CustomUninstallMethod        string                 `json:"custom_uninstall_method"`
-	RestartAction                string                 `json:"restart_action"`
-	MinimumMunkiVersion          string                 `json:"minimum_munki_version"`
-	MinimumOSVersion             string                 `json:"minimum_os_version"`
-	MaximumOSVersion             string                 `json:"maximum_os_version"`
-	SupportedArchitectures       []string               `json:"supported_architectures"`
-	BlockingApplications         []string               `json:"blocking_applications"`
-	UnattendedInstall            bool                   `json:"unattended_install"`
-	UnattendedUninstall          bool                   `json:"unattended_uninstall"`
-	Uninstallable                bool                   `json:"uninstallable"`
-	OnDemand                     bool                   `json:"on_demand"`
-	Precache                     bool                   `json:"precache"`
-	Autoremove                   bool                   `json:"autoremove"`
-	AppleItem                    bool                   `json:"apple_item"`
-	SuppressBundleRelocation     bool                   `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time             `json:"force_install_after_date"`
-	InstalledSize                int64                  `json:"installed_size"`
-	PayloadIdentifier            string                 `json:"payload_identifier"`
-	PackagePath                  string                 `json:"package_path"`
-	InstallerChoicesXml          string                 `json:"installer_choices_xml"`
-	InstallerEnvironment         []byte                 `json:"installer_environment"`
-	Installs                     []byte                 `json:"installs"`
-	Receipts                     []byte                 `json:"receipts"`
-	ItemsToCopy                  []byte                 `json:"items_to_copy"`
-	Notes                        string                 `json:"notes"`
-	InstallcheckScript           string                 `json:"installcheck_script"`
-	UninstallcheckScript         string                 `json:"uninstallcheck_script"`
-	PreinstallScript             string                 `json:"preinstall_script"`
-	PostinstallScript            string                 `json:"postinstall_script"`
-	PreuninstallScript           string                 `json:"preuninstall_script"`
-	PostuninstallScript          string                 `json:"postuninstall_script"`
-	UninstallScript              string                 `json:"uninstall_script"`
-	VersionScript                string                 `json:"version_script"`
-	PreinstallAlertEnabled       bool                   `json:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string                 `json:"preinstall_alert_title"`
-	PreinstallAlertDetail        string                 `json:"preinstall_alert_detail"`
-	PreinstallAlertOkLabel       string                 `json:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string                 `json:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool                   `json:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string                 `json:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string                 `json:"preuninstall_alert_detail"`
-	PreuninstallAlertOkLabel     string                 `json:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string                 `json:"preuninstall_alert_cancel_label"`
-	IconName                     string                 `json:"icon_name"`
-	IconHash                     string                 `json:"icon_hash"`
-	InstallerArtifactID          *int64                 `json:"installer_artifact_id"`
-	InstallerArtifactLocation    *string                `json:"installer_artifact_location"`
-	UninstallerArtifactID        *int64                 `json:"uninstaller_artifact_id"`
-	UninstallerArtifactLocation  *string                `json:"uninstaller_artifact_location"`
-	IconArtifactID               *int64                 `json:"icon_artifact_id"`
-	IconArtifactLocation         *string                `json:"icon_artifact_location"`
-	SoftwareIconArtifactLocation *string                `json:"software_icon_artifact_location"`
+	AssignmentID                 int64                 `json:"assignment_id"`
+	AssignmentSoftwareID         int64                 `json:"assignment_software_id"`
+	Action                       MunkiAssignmentAction `json:"action"`
+	OptionalInstall              bool                  `json:"optional_install"`
+	FeaturedItem                 bool                  `json:"featured_item"`
+	PackageSelection             MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID              *int64                `json:"pinned_package_id"`
+	Priority                     int32                 `json:"priority"`
+	PackageID                    int64                 `json:"package_id"`
+	SoftwareID                   int64                 `json:"software_id"`
+	SoftwareName                 string                `json:"software_name"`
+	SoftwareDisplayName          string                `json:"software_display_name"`
+	SoftwareIconName             string                `json:"software_icon_name"`
+	SoftwareIconHash             string                `json:"software_icon_hash"`
+	SoftwareIconArtifactID       *int64                `json:"software_icon_artifact_id"`
+	Name                         string                `json:"name"`
+	Version                      string                `json:"version"`
+	DisplayName                  string                `json:"display_name"`
+	Description                  string                `json:"description"`
+	Category                     string                `json:"category"`
+	Developer                    string                `json:"developer"`
+	InstallerType                string                `json:"installer_type"`
+	UninstallMethod              string                `json:"uninstall_method"`
+	CustomUninstallMethod        string                `json:"custom_uninstall_method"`
+	RestartAction                string                `json:"restart_action"`
+	MinimumMunkiVersion          string                `json:"minimum_munki_version"`
+	MinimumOSVersion             string                `json:"minimum_os_version"`
+	MaximumOSVersion             string                `json:"maximum_os_version"`
+	SupportedArchitectures       []string              `json:"supported_architectures"`
+	BlockingApplications         []string              `json:"blocking_applications"`
+	UnattendedInstall            bool                  `json:"unattended_install"`
+	UnattendedUninstall          bool                  `json:"unattended_uninstall"`
+	Uninstallable                bool                  `json:"uninstallable"`
+	OnDemand                     bool                  `json:"on_demand"`
+	Precache                     bool                  `json:"precache"`
+	Autoremove                   bool                  `json:"autoremove"`
+	AppleItem                    bool                  `json:"apple_item"`
+	SuppressBundleRelocation     bool                  `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate        *time.Time            `json:"force_install_after_date"`
+	InstalledSize                int64                 `json:"installed_size"`
+	PayloadIdentifier            string                `json:"payload_identifier"`
+	PackagePath                  string                `json:"package_path"`
+	InstallerChoicesXml          string                `json:"installer_choices_xml"`
+	InstallerEnvironment         []byte                `json:"installer_environment"`
+	Installs                     []byte                `json:"installs"`
+	Receipts                     []byte                `json:"receipts"`
+	ItemsToCopy                  []byte                `json:"items_to_copy"`
+	Notes                        string                `json:"notes"`
+	InstallcheckScript           string                `json:"installcheck_script"`
+	UninstallcheckScript         string                `json:"uninstallcheck_script"`
+	PreinstallScript             string                `json:"preinstall_script"`
+	PostinstallScript            string                `json:"postinstall_script"`
+	PreuninstallScript           string                `json:"preuninstall_script"`
+	PostuninstallScript          string                `json:"postuninstall_script"`
+	UninstallScript              string                `json:"uninstall_script"`
+	VersionScript                string                `json:"version_script"`
+	PreinstallAlertEnabled       bool                  `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle         string                `json:"preinstall_alert_title"`
+	PreinstallAlertDetail        string                `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel       string                `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel   string                `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled     bool                  `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle       string                `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail      string                `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel     string                `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel string                `json:"preuninstall_alert_cancel_label"`
+	IconName                     string                `json:"icon_name"`
+	IconHash                     string                `json:"icon_hash"`
+	InstallerArtifactID          *int64                `json:"installer_artifact_id"`
+	InstallerArtifactLocation    *string               `json:"installer_artifact_location"`
+	UninstallerArtifactID        *int64                `json:"uninstaller_artifact_id"`
+	UninstallerArtifactLocation  *string               `json:"uninstaller_artifact_location"`
+	IconArtifactID               *int64                `json:"icon_artifact_id"`
+	IconArtifactLocation         *string               `json:"icon_artifact_location"`
+	SoftwareIconArtifactLocation *string               `json:"software_icon_artifact_location"`
 }
 
 func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg ListEffectiveMunkiPackagesForHostParams) ([]ListEffectiveMunkiPackagesForHostRow, error) {
@@ -1189,7 +1218,6 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 		if err := rows.Scan(
 			&i.AssignmentID,
 			&i.AssignmentSoftwareID,
-			&i.AssignmentEffect,
 			&i.Action,
 			&i.OptionalInstall,
 			&i.FeaturedItem,
@@ -1317,6 +1345,42 @@ func (q *Queries) ListMunkiArtifacts(ctx context.Context, arg ListMunkiArtifacts
 	return items, nil
 }
 
+const listMunkiAssignmentExcludeLabels = `-- name: ListMunkiAssignmentExcludeLabels :many
+SELECT software_id, label_id
+FROM munki_assignment_exclude_labels
+WHERE software_id = ANY($1::bigint[])
+ORDER BY software_id, label_id
+`
+
+type ListMunkiAssignmentExcludeLabelsParams struct {
+	SoftwareIds []int64 `json:"software_ids"`
+}
+
+type ListMunkiAssignmentExcludeLabelsRow struct {
+	SoftwareID int64 `json:"software_id"`
+	LabelID    int64 `json:"label_id"`
+}
+
+func (q *Queries) ListMunkiAssignmentExcludeLabels(ctx context.Context, arg ListMunkiAssignmentExcludeLabelsParams) ([]ListMunkiAssignmentExcludeLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listMunkiAssignmentExcludeLabels, arg.SoftwareIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMunkiAssignmentExcludeLabelsRow{}
+	for rows.Next() {
+		var i ListMunkiAssignmentExcludeLabelsRow
+		if err := rows.Scan(&i.SoftwareID, &i.LabelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMunkiAssignmentIDsBySoftware = `-- name: ListMunkiAssignmentIDsBySoftware :many
 SELECT a.id
 FROM munki_assignments a
@@ -1341,6 +1405,37 @@ func (q *Queries) ListMunkiAssignmentIDsBySoftware(ctx context.Context, arg List
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMunkiAssignmentLabelIDsBySoftware = `-- name: ListMunkiAssignmentLabelIDsBySoftware :many
+SELECT a.label_id
+FROM munki_assignments a
+WHERE a.software_id = $1
+ORDER BY a.priority, a.id
+`
+
+type ListMunkiAssignmentLabelIDsBySoftwareParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+func (q *Queries) ListMunkiAssignmentLabelIDsBySoftware(ctx context.Context, arg ListMunkiAssignmentLabelIDsBySoftwareParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listMunkiAssignmentLabelIDsBySoftware, arg.SoftwareID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var label_id int64
+		if err := rows.Scan(&label_id); err != nil {
+			return nil, err
+		}
+		items = append(items, label_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -1454,34 +1549,31 @@ UPDATE munki_assignments
 SET
     priority = $1::integer,
     label_id = $2,
-    effect = $3::munki_assignment_effect,
-    action = $4::munki_assignment_action,
-    optional_install = $5,
-    featured_item = $6,
-    package_selection = $7::munki_package_selection,
-    pinned_package_id = $8::bigint,
+    action = $3::munki_assignment_action,
+    optional_install = $4,
+    featured_item = $5,
+    package_selection = $6::munki_package_selection,
+    pinned_package_id = $7::bigint,
     updated_at = now()
-WHERE id = $9
-RETURNING id, software_id, priority, label_id, effect, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
+WHERE id = $8
+RETURNING id, software_id, priority, label_id, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
 `
 
 type UpdateMunkiAssignmentParams struct {
-	Priority         int32                  `json:"priority"`
-	LabelID          int64                  `json:"label_id"`
-	Effect           MunkiAssignmentEffect  `json:"effect"`
-	Action           *MunkiAssignmentAction `json:"action"`
-	OptionalInstall  bool                   `json:"optional_install"`
-	FeaturedItem     bool                   `json:"featured_item"`
-	PackageSelection *MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                 `json:"pinned_package_id"`
-	ID               int64                  `json:"id"`
+	Priority         int32                 `json:"priority"`
+	LabelID          int64                 `json:"label_id"`
+	Action           MunkiAssignmentAction `json:"action"`
+	OptionalInstall  bool                  `json:"optional_install"`
+	FeaturedItem     bool                  `json:"featured_item"`
+	PackageSelection MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                `json:"pinned_package_id"`
+	ID               int64                 `json:"id"`
 }
 
 func (q *Queries) UpdateMunkiAssignment(ctx context.Context, arg UpdateMunkiAssignmentParams) (MunkiAssignment, error) {
 	row := q.db.QueryRow(ctx, updateMunkiAssignment,
 		arg.Priority,
 		arg.LabelID,
-		arg.Effect,
 		arg.Action,
 		arg.OptionalInstall,
 		arg.FeaturedItem,
@@ -1495,7 +1587,6 @@ func (q *Queries) UpdateMunkiAssignment(ctx context.Context, arg UpdateMunkiAssi
 		&i.SoftwareID,
 		&i.Priority,
 		&i.LabelID,
-		&i.Effect,
 		&i.Action,
 		&i.OptionalInstall,
 		&i.FeaturedItem,

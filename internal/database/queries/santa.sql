@@ -609,11 +609,6 @@ FROM santa_rule_exclude_labels
 WHERE rule_id = ANY(@rule_ids::bigint[])
 ORDER BY rule_id, label_id;
 
--- name: ListBuiltinLabelIDs :many
-SELECT id
-FROM labels
-WHERE id = ANY(@label_ids::bigint[]) AND label_type = 'builtin';
-
 -- name: IsSantaBundleComplete :one
 SELECT (uploaded_at IS NOT NULL)::boolean AS complete
 FROM santa_bundles

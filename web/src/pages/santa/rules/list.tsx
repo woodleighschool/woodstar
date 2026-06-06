@@ -13,7 +13,7 @@ import {
 } from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { TargetLabelsCell } from "@/components/santa/target-labels-cell";
+import { TargetLabelsCell } from "@/components/targeting/target-labels-cell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,18 +81,22 @@ export function SantaRulesPage() {
       cell: ({ row }) => row.original.identifier,
     },
     {
-      id: "includes",
+      id: "assignments",
       header: "Targets",
       enableSorting: false,
-      cell: ({ row }) =>
-        row.original.includes?.length ? (
-          <TargetLabelsCell
-            labelIDs={row.original.includes.map((include) => include.label_id)}
-            labelsByID={labelsByID}
-          />
+      cell: ({ row }) => {
+        const includes = row.original.includes ?? [];
+        const excludeLabelIDs = row.original.exclude_label_ids ?? [];
+        const targets = [
+          ...includes.map((include) => ({ label_id: include.label_id, effect: "include" as const })),
+          ...excludeLabelIDs.map((labelID) => ({ label_id: labelID, effect: "exclude" as const })),
+        ];
+        return includes.length ? (
+          <TargetLabelsCell targets={targets} labelsByID={labelsByID} />
         ) : (
           <Badge variant="secondary">Inactive</Badge>
-        ),
+        );
+      },
     },
   ];
 

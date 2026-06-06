@@ -54,9 +54,10 @@ type munkiSoftwareTitleDetailOutput struct {
 
 type munkiSoftwareTitleDetail struct {
 	softwaretitles.SoftwareTitle
-	IconURL     string                   `json:"icon_url,omitempty"`
-	Packages    []munkiPackage           `json:"packages"`
-	Assignments []assignments.Assignment `json:"assignments"`
+	IconURL         string                   `json:"icon_url,omitempty"`
+	Packages        []munkiPackage           `json:"packages"`
+	Includes        []assignments.Assignment `json:"includes"`
+	ExcludeLabelIDs []int64                  `json:"exclude_label_ids"`
 }
 
 type munkiSoftwareTitle struct {
@@ -153,8 +154,12 @@ func registerGetMunkiSoftwareTitle(
 		if err != nil {
 			return nil, resourceMutationError(munkiAssignmentLabel, err)
 		}
+		excludeLabelIDs, err := assignmentStore.ExcludeLabelIDs(ctx, input.ID)
+		if err != nil {
+			return nil, resourceMutationError(munkiExcludesLabel, err)
+		}
 		return &munkiSoftwareTitleDetailOutput{
-			Body: munkiSoftwareTitleDetailFromDomain(*title, packageRows, assignmentRows),
+			Body: munkiSoftwareTitleDetailFromDomain(*title, packageRows, assignmentRows, excludeLabelIDs),
 		}, nil
 	})
 }
@@ -223,13 +228,15 @@ func registerBulkDeleteMunkiSoftwareTitles(api huma.API, store *softwaretitles.S
 func munkiSoftwareTitleDetailFromDomain(
 	title softwaretitles.SoftwareTitle,
 	packageRows []packages.Package,
-	assignmentRows []assignments.Assignment,
+	includeRows []assignments.Assignment,
+	excludeLabelIDs []int64,
 ) munkiSoftwareTitleDetail {
 	return munkiSoftwareTitleDetail{
-		SoftwareTitle: title,
-		IconURL:       munkiSoftwareIconURL(title),
-		Packages:      munkiPackagesFromDomain(packageRows),
-		Assignments:   assignmentRows,
+		SoftwareTitle:   title,
+		IconURL:         munkiSoftwareIconURL(title),
+		Packages:        munkiPackagesFromDomain(packageRows),
+		Includes:        includeRows,
+		ExcludeLabelIDs: excludeLabelIDs,
 	}
 }
 

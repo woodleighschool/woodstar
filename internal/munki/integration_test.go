@@ -88,13 +88,16 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create pkg: %v", err)
 	}
-	exclude, err := stores.assignments.Create(ctx, excludeAssignment(title.ID, 1, label.ID))
+	excludeLabelIDs, err := stores.assignments.ReplaceExcludeLabelIDs(ctx, title.ID, []int64{label.ID})
 	if err != nil {
-		t.Fatalf("create exclude assignment: %v", err)
+		t.Fatalf("set exclude labels: %v", err)
+	}
+	if len(excludeLabelIDs) != 1 || excludeLabelIDs[0] != label.ID {
+		t.Fatalf("exclude labels = %v, want [%d]", excludeLabelIDs, label.ID)
 	}
 	include, err := stores.assignments.Create(ctx, includeAssignment(
 		title.ID,
-		2,
+		1,
 		allHostsID,
 		assignments.AssignmentActionInstall,
 	))
@@ -120,13 +123,8 @@ func TestDesiredStateCreateListAndResolveForHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list assignments: %v", err)
 	}
-	if assignmentCount != 2 || len(assignmentRows) != 2 || assignmentRows[0].ID != exclude.ID ||
-		assignmentRows[1].ID != include.ID {
-		t.Fatalf("assignments = %+v count = %d, want exclude then include", assignmentRows, assignmentCount)
-	}
-	if assignmentRows[0].Effect != assignments.AssignmentEffectExclude ||
-		assignmentRows[1].Effect != assignments.AssignmentEffectInclude {
-		t.Fatalf("assignment effects = %+v, want exclude/include", assignmentRows)
+	if assignmentCount != 1 || len(assignmentRows) != 1 || assignmentRows[0].ID != include.ID {
+		t.Fatalf("assignments = %+v count = %d, want one include row", assignmentRows, assignmentCount)
 	}
 
 	included, err := stores.assignments.EffectivePackagesForHost(ctx, includedHost.ID)
@@ -516,13 +514,21 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
 	}
-	label, err := labelStore.Create(ctx, labels.LabelMutation{
-		Name:                "Munki Row Order Test",
+	installLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Munki Row Order Install",
 		LabelMembershipType: labels.LabelMembershipTypeManual,
 		HostIDs:             []int64{host.ID},
 	})
 	if err != nil {
-		t.Fatalf("create label: %v", err)
+		t.Fatalf("create install label: %v", err)
+	}
+	removeLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Munki Row Order Remove",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+		HostIDs:             []int64{host.ID},
+	})
+	if err != nil {
+		t.Fatalf("create remove label: %v", err)
 	}
 	title, err := stores.softwareTitles.Create(ctx, softwaretitles.SoftwareTitleMutation{Name: "RowOrderApp"})
 	if err != nil {
@@ -534,7 +540,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	_, err = stores.assignments.Create(ctx, includeSpecificAssignment(
 		title.ID,
 		1,
-		label.ID,
+		installLabel.ID,
 		assignments.AssignmentActionInstall,
 		installPackage.ID,
 	))
@@ -544,7 +550,7 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	_, err = stores.assignments.Create(ctx, includeSpecificAssignment(
 		title.ID,
 		2,
-		label.ID,
+		removeLabel.ID,
 		assignments.AssignmentActionRemove,
 		removePackage.ID,
 	))
@@ -889,12 +895,72 @@ func TestUpdateAssignmentRejectsSoftwareMove(t *testing.T) {
 		second.ID,
 		assignment.Priority,
 		assignment.LabelID,
-		*assignment.Action,
+		assignment.Action,
 		*assignment.PinnedPackageID,
 	)
 	_, err = stores.assignments.Update(ctx, assignment.ID, mutation)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("UpdateAssignment error = %v, want invalid input", err)
+	}
+}
+
+func TestAssignmentExcludeLabelsRejectBuiltinAndIncludeOverlap(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	labelStore := labels.NewStore(db)
+	stores := newMunkiStores(db)
+
+	title, err := stores.softwareTitles.Create(
+		ctx,
+		softwaretitles.SoftwareTitleMutation{Name: "ExcludeOverlapApp"},
+	)
+	if err != nil {
+		t.Fatalf("create title: %v", err)
+	}
+	includeLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Exclude Overlap Include",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create include label: %v", err)
+	}
+	excludeLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Exclude Overlap Exclude",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create exclude label: %v", err)
+	}
+	if _, err := stores.assignments.ReplaceExcludeLabelIDs(
+		ctx,
+		title.ID,
+		[]int64{allHostsLabelID(t, ctx, labelStore)},
+	); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("ReplaceExcludeLabelIDs builtin error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := stores.assignments.Create(ctx, includeAssignment(
+		title.ID,
+		1,
+		includeLabel.ID,
+		assignments.AssignmentActionInstall,
+	)); err != nil {
+		t.Fatalf("create include assignment: %v", err)
+	}
+	if _, err := stores.assignments.ReplaceExcludeLabelIDs(ctx, title.ID, []int64{includeLabel.ID}); !errors.Is(
+		err,
+		dbutil.ErrInvalidInput,
+	) {
+		t.Fatalf("ReplaceExcludeLabelIDs overlap error = %v, want ErrInvalidInput", err)
+	}
+	if _, err := stores.assignments.ReplaceExcludeLabelIDs(ctx, title.ID, []int64{excludeLabel.ID}); err != nil {
+		t.Fatalf("set exclude labels: %v", err)
+	}
+	if _, err := stores.assignments.Create(ctx, includeAssignment(
+		title.ID,
+		2,
+		excludeLabel.ID,
+		assignments.AssignmentActionInstall,
+	)); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("Create include for excluded label error = %v, want ErrInvalidInput", err)
 	}
 }
 
@@ -1112,9 +1178,8 @@ func includeAssignment(
 		SoftwareID:       softwareID,
 		Priority:         priority,
 		LabelID:          labelID,
-		Effect:           assignments.AssignmentEffectInclude,
-		Action:           &action,
-		PackageSelection: &selection,
+		Action:           action,
+		PackageSelection: selection,
 	}
 }
 
@@ -1130,19 +1195,9 @@ func includeSpecificAssignment(
 		SoftwareID:       softwareID,
 		Priority:         priority,
 		LabelID:          labelID,
-		Effect:           assignments.AssignmentEffectInclude,
-		Action:           &action,
-		PackageSelection: &selection,
+		Action:           action,
+		PackageSelection: selection,
 		PinnedPackageID:  &pinnedPackageID,
-	}
-}
-
-func excludeAssignment(softwareID int64, priority int32, labelID int64) assignments.AssignmentMutation {
-	return assignments.AssignmentMutation{
-		SoftwareID: softwareID,
-		Priority:   priority,
-		LabelID:    labelID,
-		Effect:     assignments.AssignmentEffectExclude,
 	}
 }
 
@@ -1210,6 +1265,13 @@ func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores
 	}
 	if assignmentCount != 0 || len(assignmentRows) != 0 {
 		t.Fatalf("assignments after delete = %+v count = %d, want none", assignmentRows, assignmentCount)
+	}
+	excludeLabelIDs, err := stores.assignments.ExcludeLabelIDs(ctx, softwareID)
+	if err != nil {
+		t.Fatalf("list exclude labels after delete: %v", err)
+	}
+	if len(excludeLabelIDs) != 0 {
+		t.Fatalf("exclude labels after delete = %v, want none", excludeLabelIDs)
 	}
 }
 

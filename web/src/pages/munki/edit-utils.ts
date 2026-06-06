@@ -15,12 +15,6 @@ export function usePackageIDParam() {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-export function useAssignmentIDParam() {
-  const params = useParams({ strict: false });
-  const id = Number(params.assignmentId);
-  return Number.isFinite(id) && id > 0 ? id : null;
-}
-
 export function optionalText(value: string) {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;

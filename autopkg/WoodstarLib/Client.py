@@ -25,6 +25,9 @@ class WoodstarClient:
     def post(self, path, body=None):
         return self.request("POST", path, body)
 
+    def put(self, path, body=None):
+        return self.request("PUT", path, body)
+
     def patch(self, path, body=None):
         return self.request("PATCH", path, body)
 

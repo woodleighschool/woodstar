@@ -308,7 +308,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		"/api/munki/assignments",
 		fmt.Sprintf(
-			`{"software_id":%d,"priority":1,"label_id":%d,"effect":"include","action":"install","package_selection":"specific_package","pinned_package_id":%d}`,
+			`{"software_id":%d,"priority":1,"label_id":%d,"action":"install","package_selection":"specific_package","pinned_package_id":%d}`,
 			title.ID,
 			allHostsID,
 			pkg.ID,
@@ -320,7 +320,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		fmt.Sprintf("/api/munki/assignments/%d", assignment.ID),
 		fmt.Sprintf(
-			`{"software_id":%d,"priority":1,"label_id":%d,"effect":"include","action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}`,
+			`{"software_id":%d,"priority":1,"label_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}`,
 			title.ID,
 			allHostsID,
 			pkg.ID,
@@ -346,6 +346,26 @@ func TestMunkiAdminAPI(t *testing.T) {
 	}
 	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
 		t.Fatalf("assignments page = %+v, want created assignment", listed)
+	}
+
+	excludeLabel, err := labels.NewStore(database).Create(context.Background(), labels.LabelMutation{
+		Name:                "Munki API Exclude",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create exclude label: %v", err)
+	}
+	excludes := putMunkiJSON[struct {
+		ExcludeLabelIDs []int64 `json:"exclude_label_ids"`
+	}](
+		t,
+		server,
+		cookie,
+		fmt.Sprintf("/api/munki/software-titles/%d/exclude-labels", title.ID),
+		fmt.Sprintf(`{"exclude_label_ids":[%d]}`, excludeLabel.ID),
+	)
+	if len(excludes.ExcludeLabelIDs) != 1 || excludes.ExcludeLabelIDs[0] != excludeLabel.ID {
+		t.Fatalf("exclude labels = %+v, want [%d]", excludes.ExcludeLabelIDs, excludeLabel.ID)
 	}
 
 	detailRec := httptest.NewRecorder()
@@ -601,6 +621,24 @@ func patchMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, pa
 	var decoded T
 	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
 		t.Fatalf("decode PATCH %s: %v", path, err)
+	}
+	return decoded
+}
+
+func putMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var decoded T
+	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode PUT %s: %v", path, err)
 	}
 	return decoded
 }

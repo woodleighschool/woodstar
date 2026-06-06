@@ -536,7 +536,6 @@ INSERT INTO munki_assignments (
     software_id,
     priority,
     label_id,
-    effect,
     action,
     optional_install,
     featured_item,
@@ -547,11 +546,10 @@ VALUES (
     @software_id,
     @priority::integer,
     @label_id,
-    @effect::munki_assignment_effect,
-    sqlc.narg(action)::munki_assignment_action,
+    @action::munki_assignment_action,
     @optional_install,
     @featured_item,
-    sqlc.narg(package_selection)::munki_package_selection,
+    @package_selection::munki_package_selection,
     sqlc.narg(pinned_package_id)::bigint
 )
 RETURNING *;
@@ -561,11 +559,10 @@ UPDATE munki_assignments
 SET
     priority = @priority::integer,
     label_id = @label_id,
-    effect = @effect::munki_assignment_effect,
-    action = sqlc.narg(action)::munki_assignment_action,
+    action = @action::munki_assignment_action,
     optional_install = @optional_install,
     featured_item = @featured_item,
-    package_selection = sqlc.narg(package_selection)::munki_package_selection,
+    package_selection = @package_selection::munki_package_selection,
     pinned_package_id = sqlc.narg(pinned_package_id)::bigint,
     updated_at = now()
 WHERE id = @id
@@ -577,6 +574,12 @@ FROM munki_assignments a
 WHERE a.software_id = @software_id
 ORDER BY a.priority, a.id;
 
+-- name: ListMunkiAssignmentLabelIDsBySoftware :many
+SELECT a.label_id
+FROM munki_assignments a
+WHERE a.software_id = @software_id
+ORDER BY a.priority, a.id;
+
 -- name: SetMunkiAssignmentPriorities :exec
 UPDATE munki_assignments a
 SET priority = ordered.priority
@@ -584,11 +587,25 @@ FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, priority)
 WHERE a.id = ordered.id
   AND a.software_id = @software_id;
 
+-- name: DeleteMunkiAssignmentExcludeLabels :exec
+DELETE FROM munki_assignment_exclude_labels
+WHERE software_id = @software_id;
+
+-- name: InsertMunkiAssignmentExcludeLabels :exec
+INSERT INTO munki_assignment_exclude_labels (software_id, label_id)
+SELECT @software_id, label_id
+FROM unnest(@label_ids::bigint[]) AS label_id;
+
+-- name: ListMunkiAssignmentExcludeLabels :many
+SELECT software_id, label_id
+FROM munki_assignment_exclude_labels
+WHERE software_id = ANY(@software_ids::bigint[])
+ORDER BY software_id, label_id;
+
 -- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
     a.id AS assignment_id,
     a.software_id AS assignment_software_id,
-    a.effect AS assignment_effect,
     a.action,
     a.optional_install,
     a.featured_item,
@@ -665,8 +682,7 @@ SELECT
 FROM munki_assignments a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
 JOIN munki_software_titles s ON s.id = a.software_id
-LEFT JOIN munki_packages p ON p.software_id = a.software_id
-    AND a.effect = 'include'
+JOIN munki_packages p ON p.software_id = a.software_id
     AND (
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
         OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
@@ -675,8 +691,15 @@ LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
-WHERE a.effect = 'exclude'
-   OR (a.effect = 'include' AND p.eligible)
+WHERE p.eligible
+  AND NOT EXISTS (
+      SELECT 1
+      FROM munki_assignment_exclude_labels excluded
+      JOIN label_membership excluded_lm
+        ON excluded_lm.label_id = excluded.label_id
+       AND excluded_lm.host_id = @host_id
+      WHERE excluded.software_id = a.software_id
+  )
 ORDER BY a.software_id, a.priority, a.id, lower(p.name), p.id;
 
 -- name: UpsertMunkiHostStatus :exec
