@@ -56,6 +56,24 @@ SET
 WHERE id = @id
 RETURNING *;
 
+-- name: DeleteMunkiAssignmentsBySoftware :exec
+DELETE FROM munki_assignments
+WHERE software_id = @software_id;
+
+-- name: DeleteMunkiAssignmentsBySoftwareIDs :exec
+DELETE FROM munki_assignments
+WHERE software_id = ANY(@ids::bigint[]);
+
+-- name: DeleteMunkiSoftwareTitle :one
+DELETE FROM munki_software_titles
+WHERE id = @id
+RETURNING id;
+
+-- name: DeleteMunkiSoftwareTitles :many
+DELETE FROM munki_software_titles
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
+
 -- name: UpsertMunkiArtifact :one
 INSERT INTO munki_artifacts (
     kind,

@@ -118,6 +118,50 @@ func (s *Store) GetByName(ctx context.Context, name string) (*SoftwareTitle, err
 	return &title, nil
 }
 
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return dbutil.ErrNotFound
+	}
+	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		if err := qtx.DeleteMunkiAssignmentsBySoftware(
+			ctx,
+			sqlc.DeleteMunkiAssignmentsBySoftwareParams{SoftwareID: id},
+		); err != nil {
+			return err
+		}
+		_, err := qtx.DeleteMunkiSoftwareTitle(ctx, sqlc.DeleteMunkiSoftwareTitleParams{ID: id})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return dbutil.ErrNotFound
+		}
+		return err
+	})
+}
+
+// DeleteMany removes multiple software titles. Missing IDs are ignored for bulk idempotency.
+func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	var deleted int
+	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		if err := qtx.DeleteMunkiAssignmentsBySoftwareIDs(
+			ctx,
+			sqlc.DeleteMunkiAssignmentsBySoftwareIDsParams{Ids: ids},
+		); err != nil {
+			return err
+		}
+		deletedIDs, err := qtx.DeleteMunkiSoftwareTitles(ctx, sqlc.DeleteMunkiSoftwareTitlesParams{Ids: ids})
+		if err != nil {
+			return err
+		}
+		deleted = len(deletedIDs)
+		return nil
+	})
+	return deleted, err
+}
+
 func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]SoftwareTitle, int, error) {
 	params = dbutil.CleanListParams(params)
 	where, args := softwareTitleListWhere(params)

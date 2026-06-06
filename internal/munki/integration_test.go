@@ -898,6 +898,70 @@ func TestUpdateAssignmentRejectsSoftwareMove(t *testing.T) {
 	}
 }
 
+func TestDeleteSoftwareTitlesCleansPackagesAssignmentsAndIgnoresMissingBulkIDs(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	labelStore := labels.NewStore(db)
+	stores := newMunkiStores(db)
+	labelID := allHostsLabelID(t, ctx, labelStore)
+
+	first, err := stores.softwareTitles.Create(ctx, softwaretitles.SoftwareTitleMutation{Name: "DeletePinnedApp"})
+	if err != nil {
+		t.Fatalf("create first title: %v", err)
+	}
+	firstPkg := createMunkiPackage(t, ctx, stores, first.ID, "DeletePinnedApp", "1.0")
+	if _, err := stores.assignments.Create(ctx, includeSpecificAssignment(
+		first.ID,
+		1,
+		labelID,
+		assignments.AssignmentActionInstall,
+		firstPkg.ID,
+	)); err != nil {
+		t.Fatalf("create first assignment: %v", err)
+	}
+
+	if err := stores.softwareTitles.Delete(ctx, first.ID); err != nil {
+		t.Fatalf("delete first title: %v", err)
+	}
+	if _, err := stores.softwareTitles.GetByID(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("GetByID after delete error = %v, want ErrNotFound", err)
+	}
+	assertNoMunkiChildren(t, ctx, stores, first.ID)
+	if err := stores.softwareTitles.Delete(ctx, first.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("repeat delete error = %v, want ErrNotFound", err)
+	}
+
+	second, err := stores.softwareTitles.Create(ctx, softwaretitles.SoftwareTitleMutation{Name: "BulkPinnedApp"})
+	if err != nil {
+		t.Fatalf("create second title: %v", err)
+	}
+	secondPkg := createMunkiPackage(t, ctx, stores, second.ID, "BulkPinnedApp", "1.0")
+	if _, err := stores.assignments.Create(ctx, includeSpecificAssignment(
+		second.ID,
+		1,
+		labelID,
+		assignments.AssignmentActionInstall,
+		secondPkg.ID,
+	)); err != nil {
+		t.Fatalf("create second assignment: %v", err)
+	}
+	third, err := stores.softwareTitles.Create(ctx, softwaretitles.SoftwareTitleMutation{Name: "BulkPlainApp"})
+	if err != nil {
+		t.Fatalf("create third title: %v", err)
+	}
+
+	deleted, err := stores.softwareTitles.DeleteMany(ctx, []int64{second.ID, third.ID, third.ID + 999})
+	if err != nil {
+		t.Fatalf("bulk delete titles: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("bulk deleted = %d, want 2", deleted)
+	}
+	assertNoMunkiChildren(t, ctx, stores, second.ID)
+	if _, err := stores.softwareTitles.GetByID(ctx, third.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("GetByID third after bulk delete error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestAssignmentMissingLabelFallsThroughToNotFound(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -1126,6 +1190,27 @@ func createMunkiPackage(
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
 	return *pkg
+}
+
+func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores, softwareID int64) {
+	t.Helper()
+	pkgRows, pkgCount, err := stores.packages.List(ctx, packages.PackageListParams{SoftwareID: softwareID})
+	if err != nil {
+		t.Fatalf("list packages after delete: %v", err)
+	}
+	if pkgCount != 0 || len(pkgRows) != 0 {
+		t.Fatalf("packages after delete = %+v count = %d, want none", pkgRows, pkgCount)
+	}
+	assignmentRows, assignmentCount, err := stores.assignments.List(
+		ctx,
+		assignments.AssignmentListParams{SoftwareID: softwareID},
+	)
+	if err != nil {
+		t.Fatalf("list assignments after delete: %v", err)
+	}
+	if assignmentCount != 0 || len(assignmentRows) != 0 {
+		t.Fatalf("assignments after delete = %+v count = %d, want none", assignmentRows, assignmentCount)
+	}
 }
 
 func createMunkiIconArtifact(

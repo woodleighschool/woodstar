@@ -64,3 +64,24 @@ export function useUpdateMunkiSoftwareTitle() {
     },
   });
 }
+
+export function useDeleteMunkiSoftwareTitle() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number>({
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/munki/software-titles/{id}", { params: { path: { id } } })),
+    onSuccess: (_data, id) => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "software-titles"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(id) });
+    },
+  });
+}
+
+export function useBulkDeleteMunkiSoftwareTitles() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, number[]>({
+    mutationFn: (ids) => unwrap(apiClient.POST("/api/munki/software-titles/bulk-delete", { body: { ids } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["munki", "software-titles"] });
+    },
+  });
+}

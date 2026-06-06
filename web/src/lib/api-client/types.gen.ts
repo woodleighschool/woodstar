@@ -4224,6 +4224,90 @@ export type CreateMunkiSoftwareTitleResponses = {
 
 export type CreateMunkiSoftwareTitleResponse = CreateMunkiSoftwareTitleResponses[keyof CreateMunkiSoftwareTitleResponses];
 
+export type BulkDeleteMunkiSoftwareTitlesData = {
+    body: BulkIdsBodyWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/software-titles/bulk-delete';
+};
+
+export type BulkDeleteMunkiSoftwareTitlesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type BulkDeleteMunkiSoftwareTitlesError = BulkDeleteMunkiSoftwareTitlesErrors[keyof BulkDeleteMunkiSoftwareTitlesErrors];
+
+export type BulkDeleteMunkiSoftwareTitlesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type BulkDeleteMunkiSoftwareTitlesResponse = BulkDeleteMunkiSoftwareTitlesResponses[keyof BulkDeleteMunkiSoftwareTitlesResponses];
+
+export type DeleteMunkiSoftwareTitleData = {
+    body?: never;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/software-titles/{id}';
+};
+
+export type DeleteMunkiSoftwareTitleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiSoftwareTitleError = DeleteMunkiSoftwareTitleErrors[keyof DeleteMunkiSoftwareTitleErrors];
+
+export type DeleteMunkiSoftwareTitleResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiSoftwareTitleResponse = DeleteMunkiSoftwareTitleResponses[keyof DeleteMunkiSoftwareTitleResponses];
+
 export type GetMunkiSoftwareTitleData = {
     body?: never;
     path: {

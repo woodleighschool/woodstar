@@ -528,6 +528,34 @@ func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiS
 	return i, err
 }
 
+const deleteMunkiAssignmentsBySoftware = `-- name: DeleteMunkiAssignmentsBySoftware :exec
+DELETE FROM munki_assignments
+WHERE software_id = $1
+`
+
+type DeleteMunkiAssignmentsBySoftwareParams struct {
+	SoftwareID int64 `json:"software_id"`
+}
+
+func (q *Queries) DeleteMunkiAssignmentsBySoftware(ctx context.Context, arg DeleteMunkiAssignmentsBySoftwareParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiAssignmentsBySoftware, arg.SoftwareID)
+	return err
+}
+
+const deleteMunkiAssignmentsBySoftwareIDs = `-- name: DeleteMunkiAssignmentsBySoftwareIDs :exec
+DELETE FROM munki_assignments
+WHERE software_id = ANY($1::bigint[])
+`
+
+type DeleteMunkiAssignmentsBySoftwareIDsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteMunkiAssignmentsBySoftwareIDs(ctx context.Context, arg DeleteMunkiAssignmentsBySoftwareIDsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiAssignmentsBySoftwareIDs, arg.Ids)
+	return err
+}
+
 const deleteMunkiHostItems = `-- name: DeleteMunkiHostItems :exec
 DELETE FROM munki_host_items
 WHERE host_id = $1
@@ -556,6 +584,53 @@ type DeleteMunkiPackageRelationsByKindParams struct {
 func (q *Queries) DeleteMunkiPackageRelationsByKind(ctx context.Context, arg DeleteMunkiPackageRelationsByKindParams) error {
 	_, err := q.db.Exec(ctx, deleteMunkiPackageRelationsByKind, arg.PackageID, arg.RelationKind)
 	return err
+}
+
+const deleteMunkiSoftwareTitle = `-- name: DeleteMunkiSoftwareTitle :one
+DELETE FROM munki_software_titles
+WHERE id = $1
+RETURNING id
+`
+
+type DeleteMunkiSoftwareTitleParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteMunkiSoftwareTitle(ctx context.Context, arg DeleteMunkiSoftwareTitleParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteMunkiSoftwareTitle, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteMunkiSoftwareTitles = `-- name: DeleteMunkiSoftwareTitles :many
+DELETE FROM munki_software_titles
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteMunkiSoftwareTitlesParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteMunkiSoftwareTitles(ctx context.Context, arg DeleteMunkiSoftwareTitlesParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteMunkiSoftwareTitles, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getMunkiArtifactByID = `-- name: GetMunkiArtifactByID :one

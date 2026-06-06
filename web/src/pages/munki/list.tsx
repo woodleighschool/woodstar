@@ -1,13 +1,24 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PackageSearch, Plus } from "lucide-react";
+import { PackageSearch, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
-import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableSearch } from "@/components/data-table";
+import {
+  BulkDeleteDialog,
+  DataTable,
+  DataTableColumnHeader,
+  DataTableEmptyState,
+  DataTableSearch,
+} from "@/components/data-table";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useMunkiSoftwareTitles, type MunkiSoftwareTitle } from "@/hooks/munki/software-titles";
+import {
+  useBulkDeleteMunkiSoftwareTitles,
+  useMunkiSoftwareTitles,
+  type MunkiSoftwareTitle,
+} from "@/hooks/munki/software-titles";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";
@@ -16,6 +27,9 @@ export function MunkiSoftwareTitlesPage() {
   const search = useSearch({ strict: false });
   const { state, setters } = useTablePaginationParams();
   const [draft, setDraft] = useDebouncedSearchParam("q");
+  const [selectedSoftwareTitleIds, setSelectedSoftwareTitleIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const bulkDelete = useBulkDeleteMunkiSoftwareTitles();
   const query = useMunkiSoftwareTitles({
     q: typeof search.q === "string" ? search.q : undefined,
     ...tableQueryParams(state),
@@ -23,6 +37,16 @@ export function MunkiSoftwareTitlesPage() {
   const rows = query.data?.items ?? [];
   const totalCount = query.data?.count ?? 0;
   const hasFilters = !!search.q;
+  const selectedIDs = selectedSoftwareTitleIds.map(Number);
+
+  const deleteSelectedSoftwareTitles = () => {
+    bulkDelete.mutate(selectedIDs, {
+      onSuccess: () => {
+        setSelectedSoftwareTitleIds([]);
+        setDeleteOpen(false);
+      },
+    });
+  };
 
   const columns: ColumnDef<MunkiSoftwareTitle>[] = [
     {
@@ -90,6 +114,15 @@ export function MunkiSoftwareTitlesPage() {
           onPaginationChange={setters.setPagination}
           onSortingChange={setters.setSorting}
           isLoading={query.isLoading}
+          enableRowSelection
+          selectedRowIds={selectedSoftwareTitleIds}
+          onSelectedRowIdsChange={setSelectedSoftwareTitleIds}
+          bulkActions={
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={bulkDelete.isPending}>
+              <Trash2 data-icon="inline-start" />
+              Delete
+            </Button>
+          }
           rowHref={(row) => ({
             to: "/munki/software-titles/$softwareId",
             params: { softwareId: String(row.id) },
@@ -104,6 +137,18 @@ export function MunkiSoftwareTitlesPage() {
           }
         />
       )}
+      <BulkDeleteDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) bulkDelete.reset();
+          setDeleteOpen(open);
+        }}
+        count={selectedIDs.length}
+        noun="software title"
+        description="Packages and assignments for the selected titles will also be removed."
+        pending={bulkDelete.isPending}
+        onConfirm={deleteSelectedSoftwareTitles}
+      />
     </PageShell>
   );
 }

@@ -32,6 +32,14 @@ type munkiSoftwareTitlePatchInput struct {
 	Body softwaretitles.SoftwareTitleMutation
 }
 
+type munkiSoftwareTitleDeleteInput struct {
+	ID int64 `path:"id"`
+}
+
+type munkiSoftwareTitleBulkDeleteInput struct {
+	Body bulkIDsBody
+}
+
 type munkiSoftwareTitleListOutput struct {
 	Body Page[munkiSoftwareTitle]
 }
@@ -66,6 +74,8 @@ func registerMunkiSoftwareTitles(
 	registerCreateMunkiSoftwareTitle(api, store)
 	registerGetMunkiSoftwareTitle(api, store, packageStore, assignmentStore)
 	registerPatchMunkiSoftwareTitle(api, store)
+	registerDeleteMunkiSoftwareTitle(api, store)
+	registerBulkDeleteMunkiSoftwareTitles(api, store)
 }
 
 func registerListMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) {
@@ -169,6 +179,44 @@ func registerPatchMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) 
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
 		return &munkiSoftwareTitleOutput{Body: munkiSoftwareTitleFromDomain(*title)}, nil
+	})
+}
+
+func registerDeleteMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-munki-software-title",
+		Method:      http.MethodDelete,
+		Path:        munkiSoftwareTitleIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Delete a Munki software title",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiSoftwareTitleDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		if err := store.Delete(ctx, input.ID); err != nil {
+			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
+		}
+		return &struct{}{}, nil
+	})
+}
+
+func registerBulkDeleteMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "bulk-delete-munki-software-titles",
+		Method:      http.MethodPost,
+		Path:        munkiSoftwareTitlePath + "/bulk-delete",
+		Tags:        []string{munkiTag},
+		Summary:     "Delete Munki software titles",
+		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *munkiSoftwareTitleBulkDeleteInput) (*struct{}, error) {
+		if _, err := requireAdmin(ctx); err != nil {
+			return nil, err
+		}
+		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
+			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
+		}
+		return &struct{}{}, nil
 	})
 }
 
