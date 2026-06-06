@@ -26,50 +26,31 @@ import { fieldErrors } from "@/lib/form-validation";
 
 import { CheckboxField, FormActions, MutationError } from "./edit-shared";
 import { runSubmit, useAssignmentIDParam, useSoftwareIDParam } from "./edit-utils";
-
-type AssignmentAction = NonNullable<MunkiAssignmentMutation["action"]>;
-type AssignmentEffect = MunkiAssignmentMutation["effect"];
-type PackageSelection = NonNullable<MunkiAssignmentMutation["package_selection"]>;
-
-const actionOptions: { value: AssignmentAction; label: string; description: string }[] = [
-  { value: "install", label: "Managed Installs", description: "Forces installation by writing managed_installs." },
-  { value: "remove", label: "Managed Uninstalls", description: "Forces removal by writing managed_uninstalls." },
-  {
-    value: "update_if_present",
-    label: "Managed Updates",
-    description: "Updates installed items by writing managed_updates.",
-  },
-  {
-    value: "none",
-    label: "No managed section",
-    description: "Only Optional Installs and Featured Items section membership is rendered.",
-  },
-];
-
-const packageSelectionOptions: { value: PackageSelection; label: string; description: string }[] = [
-  {
-    value: "latest_eligible",
-    label: "Latest compatible",
-    description: "Render the Munki name and include all eligible pkginfos for the client to choose from.",
-  },
-  {
-    value: "specific_package",
-    label: "Pinned package",
-    description: "Render Name--Version and include only that pkginfo candidate.",
-  },
-];
+import {
+  MUNKI_ASSIGNMENT_ACTION_OPTIONS,
+  MUNKI_ASSIGNMENT_ACTION_VALUES,
+  MUNKI_ASSIGNMENT_EFFECT_OPTIONS,
+  MUNKI_ASSIGNMENT_EFFECT_VALUES,
+  MUNKI_PACKAGE_SELECTION_OPTIONS,
+  MUNKI_PACKAGE_SELECTION_VALUES,
+  munkiAssignmentActionDescription,
+  munkiPackageSelectionDescription,
+  type MunkiAssignmentAction,
+  type MunkiAssignmentEffect,
+  type MunkiPackageSelection,
+} from "./shared";
 
 const assignmentSchema = z
   .object({
     priority: z.number().int("Priority must be a whole number.").positive("Priority starts at 1."),
-    effect: z.enum(["include", "exclude"]),
+    effect: z.enum(MUNKI_ASSIGNMENT_EFFECT_VALUES),
     label_id: z
       .string()
       .trim()
       .refine((value) => value !== "", "Pick a label."),
-    package_selection: z.enum(["latest_eligible", "specific_package"]),
+    package_selection: z.enum(MUNKI_PACKAGE_SELECTION_VALUES),
     pinned_package_id: z.string().trim(),
-    action: z.enum(["install", "remove", "update_if_present", "none"]),
+    action: z.enum(MUNKI_ASSIGNMENT_ACTION_VALUES),
     optional_install: z.boolean(),
     featured_item: z.boolean(),
   })
@@ -96,11 +77,11 @@ const assignmentSchema = z
 
 interface AssignmentFormState {
   priority: number;
-  effect: AssignmentEffect;
+  effect: MunkiAssignmentEffect;
   label_id: string;
-  package_selection: PackageSelection;
+  package_selection: MunkiPackageSelection;
   pinned_package_id: string;
-  action: AssignmentAction;
+  action: MunkiAssignmentAction;
   optional_install: boolean;
   featured_item: boolean;
 }
@@ -299,7 +280,7 @@ function AssignmentFormFields({
           onValueChange={(effect) =>
             onChange({
               ...form,
-              effect: effect as AssignmentEffect,
+              effect: effect as MunkiAssignmentEffect,
               optional_install: effect === "exclude" ? false : form.optional_install,
               featured_item: effect === "exclude" ? false : form.featured_item,
             })
@@ -310,8 +291,11 @@ function AssignmentFormFields({
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="include">Include</SelectItem>
-              <SelectItem value="exclude">Exclude</SelectItem>
+              {MUNKI_ASSIGNMENT_EFFECT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -328,7 +312,7 @@ function AssignmentFormFields({
               onValueChange={(package_selection) =>
                 onChange({
                   ...form,
-                  package_selection: package_selection as PackageSelection,
+                  package_selection: package_selection as MunkiPackageSelection,
                   pinned_package_id: package_selection === "latest_eligible" ? "" : form.pinned_package_id,
                 })
               }
@@ -338,7 +322,7 @@ function AssignmentFormFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {packageSelectionOptions.map((option) => (
+                  {MUNKI_PACKAGE_SELECTION_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -346,7 +330,7 @@ function AssignmentFormFields({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>{packageSelectionDescription(form.package_selection)}</FieldDescription>
+            <FieldDescription>{munkiPackageSelectionDescription(form.package_selection)}</FieldDescription>
           </Field>
 
           {form.package_selection === "specific_package" ? (
@@ -385,7 +369,7 @@ function AssignmentFormFields({
               onValueChange={(action) =>
                 onChange({
                   ...form,
-                  action: action as AssignmentAction,
+                  action: action as MunkiAssignmentAction,
                   optional_install: action === "remove" ? false : form.optional_install,
                   featured_item: action === "remove" ? false : form.featured_item,
                 })
@@ -396,7 +380,7 @@ function AssignmentFormFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  {actionOptions.map((option) => (
+                  {MUNKI_ASSIGNMENT_ACTION_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -404,7 +388,7 @@ function AssignmentFormFields({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <FieldDescription>{actionDescription(form.action)}</FieldDescription>
+            <FieldDescription>{munkiAssignmentActionDescription(form.action)}</FieldDescription>
           </Field>
 
           <FieldSet>
@@ -465,12 +449,4 @@ function assignmentBody(softwareId: number, form: AssignmentFormState): MunkiAss
     package_selection: form.package_selection,
     pinned_package_id: form.package_selection === "specific_package" ? Number(form.pinned_package_id) : undefined,
   };
-}
-
-function packageSelectionDescription(value: PackageSelection) {
-  return packageSelectionOptions.find((option) => option.value === value)?.description;
-}
-
-function actionDescription(value: AssignmentAction) {
-  return actionOptions.find((option) => option.value === value)?.description;
 }

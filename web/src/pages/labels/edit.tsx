@@ -27,26 +27,22 @@ import { fieldErrors, requiredString, selectedIDArray } from "@/lib/form-validat
 import { sqlSyntaxError } from "@/lib/sql-validation";
 import { cn } from "@/lib/utils";
 import {
+  LABEL_DERIVED_ATTRIBUTE_OPTIONS,
+  LABEL_DERIVED_ATTRIBUTE_VALUES,
   LABEL_MEMBERSHIP_OPTIONS,
   LABEL_MEMBERSHIP_TYPES,
   LABEL_MEMBERSHIP_VALUES,
+  labelDerivedAttributeSelectorLabel,
+  type LabelDerivedAttribute,
   type LabelMembershipType,
 } from "@/pages/labels/shared";
-
-type DerivedAttribute = "user_department" | "directory_group" | "user";
-
-const DERIVED_ATTRIBUTE_OPTIONS: { value: DerivedAttribute; label: string }[] = [
-  { value: "user_department", label: "User Department" },
-  { value: "directory_group", label: "Group" },
-  { value: "user", label: "User" },
-];
 
 interface FormState {
   name: string;
   description: string;
   query: string;
   host_ids: number[];
-  derived_attribute: DerivedAttribute;
+  derived_attribute: LabelDerivedAttribute;
   derived_values: string[];
   label_membership_type: LabelMembershipType;
 }
@@ -69,7 +65,7 @@ const labelFormSchema = z
     description: z.string().trim(),
     query: z.string().trim(),
     host_ids: selectedIDArray("Host"),
-    derived_attribute: z.enum(["user_department", "directory_group", "user"]),
+    derived_attribute: z.enum(LABEL_DERIVED_ATTRIBUTE_VALUES),
     derived_values: z.array(requiredString("Derived value")),
     label_membership_type: z.enum(LABEL_MEMBERSHIP_VALUES),
   })
@@ -298,7 +294,7 @@ function LabelEditForm({
                 <Select
                   value={form.derived_attribute}
                   onValueChange={(value) =>
-                    setForm({ ...form, derived_attribute: value as DerivedAttribute, derived_values: [] })
+                    setForm({ ...form, derived_attribute: value as LabelDerivedAttribute, derived_values: [] })
                   }
                 >
                   <SelectTrigger id="label-derived-attribute" className="w-full">
@@ -306,7 +302,7 @@ function LabelEditForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
+                      {LABEL_DERIVED_ATTRIBUTE_OPTIONS.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -316,7 +312,7 @@ function LabelEditForm({
                 </Select>
               </Field>
               <Field data-invalid={showErrors && errors.derived_values ? true : undefined}>
-                <FieldLabel required>{derivedSelectorLabel(form.derived_attribute)}</FieldLabel>
+                <FieldLabel required>{labelDerivedAttributeSelectorLabel(form.derived_attribute)}</FieldLabel>
                 <DerivedSelector
                   attribute={form.derived_attribute}
                   value={form.derived_values}
@@ -443,7 +439,7 @@ function DerivedSelector({
   value,
   onChange,
 }: {
-  attribute: DerivedAttribute;
+  attribute: LabelDerivedAttribute;
   value: string[];
   onChange: (value: string[]) => void;
 }) {
@@ -763,17 +759,6 @@ function sortParam(sorting: SortingState) {
   return `${first.id}.${first.desc ? "desc" : "asc"}`;
 }
 
-function derivedSelectorLabel(attribute: DerivedAttribute) {
-  switch (attribute) {
-    case "directory_group":
-      return "Groups";
-    case "user":
-      return "Users";
-    default:
-      return "Departments";
-  }
-}
-
 function membershipFromString(value: string | undefined): LabelMembershipType {
   switch (value) {
     case "manual":
@@ -784,7 +769,7 @@ function membershipFromString(value: string | undefined): LabelMembershipType {
   }
 }
 
-function derivedAttributeFromString(value: string | undefined): DerivedAttribute {
+function derivedAttributeFromString(value: string | undefined): LabelDerivedAttribute {
   switch (value) {
     case "directory_group":
     case "user":

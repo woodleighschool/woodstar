@@ -18,17 +18,13 @@ import { useLabels } from "@/hooks/use-labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-const actionLabels: Record<string, string> = {
-  install: "Managed Installs",
-  remove: "Managed Uninstalls",
-  update_if_present: "Managed Updates",
-  none: "None",
-};
-
-const packageSelectionLabels: Record<string, string> = {
-  latest_eligible: "Latest compatible",
-  specific_package: "Pinned package",
-};
+import {
+  munkiAssignmentActionLabel,
+  munkiAssignmentEffectLabel,
+  munkiInstallerTypeLabel,
+  munkiPackageSelectionLabel,
+  munkiRestartActionLabel,
+} from "./shared";
 
 export function MunkiSoftwareTitleDetailPage() {
   const params = useParams({ strict: false });
@@ -88,7 +84,7 @@ export function MunkiSoftwareTitleDetailPage() {
       id: "installer_type",
       header: "Installer",
       enableSorting: false,
-      cell: ({ row }) => installerTypeLabel(row.original.installer_type),
+      cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
     },
     {
       id: "behavior",
@@ -137,7 +133,7 @@ export function MunkiSoftwareTitleDetailPage() {
       accessorKey: "effect",
       header: "Effect",
       enableSorting: false,
-      cell: ({ row }) => effectLabel(row.original.effect),
+      cell: ({ row }) => munkiAssignmentEffectLabel(row.original.effect),
     },
     {
       id: "label",
@@ -310,23 +306,19 @@ export function MunkiSoftwareTitleDetailPage() {
   );
 }
 
-function effectLabel(effect: MunkiAssignment["effect"]) {
-  return effect === "include" ? "Include" : "Exclude";
-}
-
 function assignmentPackageLabel(assignment: MunkiAssignment) {
   if (assignment.effect === "exclude") return <span className="text-muted-foreground">None</span>;
   if (assignment.package_selection === "specific_package") {
     return assignment.pinned_package_version
       ? `${assignment.pinned_package_name ?? "Pinned"} ${assignment.pinned_package_version}`
-      : "Pinned package";
+      : munkiPackageSelectionLabel(assignment.package_selection);
   }
-  return packageSelectionLabels[assignment.package_selection ?? ""] ?? assignment.package_selection;
+  return munkiPackageSelectionLabel(assignment.package_selection);
 }
 
 function assignmentActionLabel(assignment: MunkiAssignment) {
   if (assignment.effect === "exclude") return <span className="text-muted-foreground">Excluded</span>;
-  return actionLabels[assignment.action ?? ""] ?? assignment.action;
+  return munkiAssignmentActionLabel(assignment.action);
 }
 
 function assignmentMSCSections(assignment: MunkiAssignment) {
@@ -346,7 +338,7 @@ function PackageBehavior({ pkg }: { pkg: MunkiPackage }) {
     pkg.unattended_install ? "Unattended" : "",
     pkg.uninstallable ? "Uninstallable" : "",
     pkg.on_demand ? "On demand" : "",
-    pkg.restart_action && pkg.restart_action !== "None" ? pkg.restart_action : "",
+    pkg.restart_action && pkg.restart_action !== "None" ? munkiRestartActionLabel(pkg.restart_action) : "",
   ].filter(Boolean);
   if (values.length === 0) {
     return <span className="text-muted-foreground">Standard</span>;
@@ -360,9 +352,4 @@ function PackageBehavior({ pkg }: { pkg: MunkiPackage }) {
       ))}
     </div>
   );
-}
-
-function installerTypeLabel(value: MunkiPackage["installer_type"]) {
-  if (value === "pkg") return "Package";
-  return value;
 }

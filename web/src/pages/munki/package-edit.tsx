@@ -24,8 +24,8 @@ import {
 import { useMunkiSoftwareTitle, useMunkiSoftwareTitles } from "@/hooks/munki/software-titles";
 import type {
   PackageAlert,
-  PackageInstallItem,
   PackageInstallerEnvironmentVariable,
+  PackageInstallItem,
   PackageItemToCopy,
   PackageReceipt,
   PackageReference,
@@ -51,11 +51,16 @@ import {
   usePackageIDParam,
   useSoftwareIDParam,
 } from "./edit-utils";
+import {
+  MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
+  MUNKI_INSTALLER_TYPE_OPTIONS,
+  MUNKI_RESTART_ACTION_OPTIONS,
+  MUNKI_UNINSTALL_METHOD_OPTIONS,
+  type MunkiInstallerType,
+  type MunkiRestartAction,
+  type MunkiUninstallMethod,
+} from "./shared";
 
-type InstallerType = NonNullable<MunkiPackageMutation["installer_type"]>;
-type RestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
-type UninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
-type InstallItemType = PackageInstallItem["type"];
 type Architecture = "arm64" | "x86_64";
 type ScriptKey =
   | "installcheck_script"
@@ -99,10 +104,10 @@ interface PackageFormState {
   description: string;
   category: string;
   developer: string;
-  installer_type: InstallerType;
-  uninstall_method: UninstallMethod;
+  installer_type: MunkiInstallerType;
+  uninstall_method: MunkiUninstallMethod;
   custom_uninstall_method: string;
-  restart_action: RestartAction;
+  restart_action: MunkiRestartAction;
   minimum_munki_version: string;
   minimum_os_version: string;
   maximum_os_version: string;
@@ -140,42 +145,6 @@ interface PackageFormState {
   preinstall_alert: PackageAlert;
   preuninstall_alert: PackageAlert;
 }
-
-const installerTypeOptions: { value: InstallerType; label: string }[] = [
-  { value: "pkg", label: "Package" },
-  { value: "nopkg", label: "No package" },
-  { value: "copy_from_dmg", label: "Copy from DMG" },
-  { value: "profile", label: "Profile" },
-  { value: "apple_update_metadata", label: "Apple update metadata" },
-  { value: "startosinstall", label: "Start OS install" },
-  { value: "stage_os_installer", label: "Stage OS installer" },
-];
-
-const restartActionOptions: { value: RestartAction; label: string }[] = [
-  { value: "None", label: "None" },
-  { value: "RequireLogout", label: "Require logout" },
-  { value: "RecommendRestart", label: "Recommend restart" },
-  { value: "RequireRestart", label: "Require restart" },
-  { value: "RequireShutdown", label: "Require shutdown" },
-];
-
-const uninstallMethodOptions: { value: UninstallMethod; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "removepackages", label: "Remove packages" },
-  { value: "remove_copied_items", label: "Remove copied items" },
-  { value: "remove_profile", label: "Remove profile" },
-  { value: "remove_app", label: "Remove app" },
-  { value: "uninstall_script", label: "Uninstall script" },
-  { value: "uninstall_package", label: "Uninstall package" },
-  { value: "custom", label: "Custom" },
-];
-
-const installItemTypeOptions: { value: InstallItemType; label: string }[] = [
-  { value: "application", label: "Application" },
-  { value: "bundle", label: "Bundle" },
-  { value: "plist", label: "Plist" },
-  { value: "file", label: "File" },
-];
 
 const scriptFields: { key: ScriptKey; label: string }[] = [
   { key: "installcheck_script", label: "Install Check" },
@@ -513,7 +482,7 @@ function PackageEditorTabs({
               id="munki-package-installer-type"
               label="Installer Type"
               value={form.installer_type}
-              options={installerTypeOptions}
+              options={MUNKI_INSTALLER_TYPE_OPTIONS}
               onChange={(installer_type) => onChange({ ...form, installer_type })}
             />
           </FieldGroup>
@@ -698,14 +667,14 @@ function PackageEditorTabs({
                 id="munki-package-uninstall-method"
                 label="Uninstall Method"
                 value={form.uninstall_method}
-                options={uninstallMethodOptions}
+                options={MUNKI_UNINSTALL_METHOD_OPTIONS}
                 onChange={(uninstall_method) => onChange({ ...form, uninstall_method })}
               />
               <SelectField
                 id="munki-package-restart-action"
                 label="Restart Action"
                 value={form.restart_action}
-                options={restartActionOptions}
+                options={MUNKI_RESTART_ACTION_OPTIONS}
                 onChange={(restart_action) => onChange({ ...form, restart_action })}
               />
             </FieldGroup>
@@ -996,7 +965,7 @@ function InstallItemsEditor({
                 id={`munki-install-item-type-${row.rowID}`}
                 label="Type"
                 value={row.type}
-                options={installItemTypeOptions}
+                options={MUNKI_INSTALL_ITEM_TYPE_OPTIONS}
                 onChange={(type) => onChange(replaceAt(rows, index, { ...row, type }))}
               />
               <TextField

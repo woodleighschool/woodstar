@@ -21,9 +21,13 @@ import {
 } from "@/hooks/use-santa";
 import { fieldErrors, integerRange, optionalText, requiredString } from "@/lib/form-validation";
 
-import { CLIENT_MODE_OPTIONS, CLIENT_MODE_VALUES } from "./shared";
-
-type MediaAction = "none" | "allow" | "block" | "remount";
+import {
+  CLIENT_MODE_OPTIONS,
+  CLIENT_MODE_VALUES,
+  MEDIA_ACTION_OPTIONS,
+  MEDIA_ACTION_VALUES,
+  type SantaMediaAction,
+} from "./shared";
 
 interface ConfigurationFormState {
   name: string;
@@ -37,21 +41,13 @@ interface ConfigurationFormState {
   batch_size: number;
   allowed_path_regex: string;
   blocked_path_regex: string;
-  removable_media_action: MediaAction;
+  removable_media_action: SantaMediaAction;
   removable_media_remount_flags: string;
-  encrypted_removable_media_action: MediaAction;
+  encrypted_removable_media_action: SantaMediaAction;
   encrypted_removable_media_remount_flags: string;
   event_detail_url: string;
   event_detail_text: string;
 }
-
-const MEDIA_ACTION_OPTIONS: { value: MediaAction; label: string }[] = [
-  { value: "none", label: "No Policy" },
-  { value: "allow", label: "Allow" },
-  { value: "block", label: "Block" },
-  { value: "remount", label: "Remount" },
-];
-const MEDIA_ACTION_VALUES = ["none", "allow", "block", "remount"] as const;
 
 const configurationFormSchema = z
   .object({
@@ -438,16 +434,16 @@ function MediaActionField({
   id: string;
   label: string;
   description: string;
-  action: MediaAction;
+  action: SantaMediaAction;
   flags: string;
   flagsError?: string;
-  onActionChange: (value: MediaAction) => void;
+  onActionChange: (value: SantaMediaAction) => void;
   onFlagsChange: (value: string) => void;
 }) {
   return (
     <Field data-invalid={flagsError ? true : undefined}>
       <FieldLabel htmlFor={`${id}-action`}>{label}</FieldLabel>
-      <Select value={action} onValueChange={(value) => onActionChange(value as MediaAction)}>
+      <Select value={action} onValueChange={(value) => onActionChange(value as SantaMediaAction)}>
         <SelectTrigger id={`${id}-action`} className="w-full">
           <SelectValue />
         </SelectTrigger>
@@ -530,7 +526,7 @@ function configurationBody(form: ConfigurationFormState): SantaConfigurationMuta
   };
 }
 
-function removableMediaPolicyBody(action: MediaAction, flags: string) {
+function removableMediaPolicyBody(action: SantaMediaAction, flags: string) {
   if (action === "none") return undefined;
   return { action, remount_flags: splitWords(flags) };
 }
