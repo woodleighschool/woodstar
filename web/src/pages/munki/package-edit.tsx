@@ -1,3 +1,5 @@
+import { xml } from "@codemirror/lang-xml";
+import type { Extension } from "@codemirror/state";
 import { useNavigate } from "@tanstack/react-router";
 import { FileArchive, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -60,6 +62,8 @@ import {
   type MunkiRestartAction,
   type MunkiUninstallMethod,
 } from "./shared";
+
+const xmlExtensions: Extension[] = [xml()];
 
 type Architecture = "arm64" | "x86_64";
 type ScriptKey =
@@ -774,7 +778,13 @@ function XMLField({ value, onChange }: { value: string; onChange: (value: string
   return (
     <Field>
       <FieldLabel>Installer Choices XML</FieldLabel>
-      <CodeEditor value={value} onChange={onChange} lineNumbers={false} className="[&_.cm-content]:min-h-28" />
+      <CodeEditor
+        value={value}
+        onChange={onChange}
+        extensions={xmlExtensions}
+        lineNumbers={false}
+        className="[&_.cm-content]:min-h-28"
+      />
     </Field>
   );
 }
