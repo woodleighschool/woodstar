@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Download, FileCode2, Play, Settings2 } from "lucide-react";
+import { Download, FileCode2, Play } from "lucide-react";
 import { lazy, Suspense, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -90,25 +90,6 @@ export function LiveRunButton({
       <Link to={to} params={params} search={search}>
         <Play data-icon="inline-start" />
         Run Live
-      </Link>
-    </Button>
-  );
-}
-
-export function EditButton({
-  to,
-  params,
-  children,
-}: {
-  to: string;
-  params?: Record<string, string>;
-  children: string;
-}) {
-  return (
-    <Button asChild size="sm">
-      <Link to={to} params={params}>
-        <Settings2 data-icon="inline-start" />
-        {children}
       </Link>
     </Button>
   );

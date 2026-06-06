@@ -1,16 +1,20 @@
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Loader2, PackageCheck, Pencil, Plus } from "lucide-react";
+import { Loader2, PackageCheck, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState, DataTableRowDragHandle } from "@/components/data-table";
 import type { LabelChip } from "@/components/labels/label-chip-utils";
 import { LabelPicker } from "@/components/labels/label-picker";
+import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FieldGroup } from "@/components/ui/field";
+import { useCreateMunkiArtifact, useCreateMunkiArtifactUpload } from "@/hooks/munki/artifacts";
 import {
   useCreateMunkiAssignment,
   useReorderMunkiAssignments,
@@ -19,13 +23,18 @@ import {
   type MunkiAssignment,
 } from "@/hooks/munki/assignments";
 import { type MunkiPackage } from "@/hooks/munki/packages";
-import { useMunkiSoftwareTitle } from "@/hooks/munki/software-titles";
+import {
+  useMunkiSoftwareTitle,
+  useMunkiSoftwareTitles,
+  useUpdateMunkiSoftwareTitle,
+  type MunkiSoftwareTitleMutation,
+} from "@/hooks/munki/software-titles";
 import { useLabels } from "@/hooks/use-labels";
 import { fieldErrors } from "@/lib/form-validation";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MunkiAssignmentFormFields } from "./assignment-form";
 import {
   emptyMunkiAssignmentForm,
@@ -33,25 +42,40 @@ import {
   munkiAssignmentFormSchema,
   munkiAssignmentMutation,
 } from "./assignment-form-model";
-import { MutationError } from "./edit-shared";
+import { DatalistTextField, MutationError, TextAreaField, TextField } from "./edit-shared";
+import { uniqueOptions, uploadSelectedArtifact } from "./edit-utils";
 import {
   munkiAssignmentActionLabel,
   munkiInstallerTypeLabel,
   munkiPackageSelectionLabel,
   munkiRestartActionLabel,
 } from "./shared";
+import {
+  emptySoftwareTitleForm,
+  softwareTitleFormFromTitle,
+  softwareTitleSchema,
+  type SoftwareTitleFormState,
+} from "./software-title-form";
 
 export function MunkiSoftwareTitleDetailPage() {
   const params = useParams({ strict: false });
   const softwareId = Number(params.softwareId);
   const query = useMunkiSoftwareTitle(Number.isFinite(softwareId) ? softwareId : null);
+  const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const labels = useLabels({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const updateSoftware = useUpdateMunkiSoftwareTitle();
+  const createUpload = useCreateMunkiArtifactUpload();
+  const createArtifact = useCreateMunkiArtifact();
   const reorder = useReorderMunkiAssignments();
   const createAssignment = useCreateMunkiAssignment();
   const updateAssignment = useUpdateMunkiAssignment();
   const updateExcludes = useUpdateMunkiAssignmentExcludeLabels();
   const [reorderEnabled, setReorderEnabled] = useState(false);
   const [orderedIncludes, setOrderedIncludes] = useState<MunkiAssignment[]>([]);
+  const [softwareForm, setSoftwareForm] = useState<SoftwareTitleFormState>(() => emptySoftwareTitleForm());
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconCleared, setIconCleared] = useState(false);
+  const [showSoftwareErrors, setShowSoftwareErrors] = useState(false);
   const [assignmentSheetOpen, setAssignmentSheetOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<MunkiAssignment | null>(null);
   const [assignmentForm, setAssignmentForm] = useState(() => emptyMunkiAssignmentForm());
@@ -64,15 +88,36 @@ export function MunkiSoftwareTitleDetailPage() {
   const includeLabelIDs = useMemo(() => includes.map((assignment) => assignment.label_id), [includes]);
   const includeIDs = useMemo(() => includes.map((assignment) => assignment.id), [includes]);
   const orderedIncludeIDs = useMemo(() => orderedIncludes.map((assignment) => assignment.id), [orderedIncludes]);
+  const softwareParsed = useMemo(() => softwareTitleSchema.safeParse(softwareForm), [softwareForm]);
+  const softwareErrors = useMemo(() => fieldErrors(softwareParsed), [softwareParsed]);
+  const softwareDirty =
+    !!software &&
+    (iconFile !== null ||
+      iconCleared ||
+      softwareForm.name !== software.name ||
+      softwareForm.display_name !== software.display_name ||
+      softwareForm.description !== software.description ||
+      softwareForm.category !== software.category ||
+      softwareForm.developer !== software.developer);
   const assignmentParsed = useMemo(() => munkiAssignmentFormSchema.safeParse(assignmentForm), [assignmentForm]);
   const assignmentErrors = useMemo(() => fieldErrors(assignmentParsed), [assignmentParsed]);
   const assignmentPending = createAssignment.isPending || updateAssignment.isPending;
   const assignmentMutationError = createAssignment.error?.message ?? updateAssignment.error?.message;
   const excludeDirty = !sameNumberSet(excludeForm, excludeLabelIDs);
   const orderDirty = !sameNumberSequence(orderedIncludeIDs, includeIDs);
-  const pageDirty = excludeDirty || orderDirty;
-  const pagePending = updateExcludes.isPending || reorder.isPending;
-  const pageMutationError = updateExcludes.error?.message ?? reorder.error?.message;
+  const pageDirty = softwareDirty || excludeDirty || orderDirty;
+  const pagePending =
+    updateSoftware.isPending ||
+    createUpload.isPending ||
+    createArtifact.isPending ||
+    updateExcludes.isPending ||
+    reorder.isPending;
+  const pageMutationError =
+    updateSoftware.error?.message ??
+    createUpload.error?.message ??
+    createArtifact.error?.message ??
+    updateExcludes.error?.message ??
+    reorder.error?.message;
   const assignmentUnavailableLabelIDs = useMemo(
     () => [...excludeForm, ...includeLabelIDs.filter((labelID) => labelID !== editingAssignment?.label_id)],
     [editingAssignment?.label_id, excludeForm, includeLabelIDs],
@@ -80,6 +125,14 @@ export function MunkiSoftwareTitleDetailPage() {
   const labelsByID = useMemo<ReadonlyMap<number, LabelChip>>(
     () => new Map((labels.data?.items ?? []).map((label) => [label.id, label])),
     [labels.data?.items],
+  );
+  const categoryOptions = useMemo(
+    () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
+    [titles.data?.items],
+  );
+  const developerOptions = useMemo(
+    () => uniqueOptions((titles.data?.items ?? []).map((item) => item.developer)),
+    [titles.data?.items],
   );
   let title = "Software";
   if (software?.name) title = software.name;
@@ -92,6 +145,14 @@ export function MunkiSoftwareTitleDetailPage() {
   useEffect(() => {
     setExcludeForm(excludeLabelIDs);
   }, [excludeLabelIDs]);
+
+  useEffect(() => {
+    if (!software) return;
+    setSoftwareForm(softwareTitleFormFromTitle(software));
+    setIconFile(null);
+    setIconCleared(false);
+    setShowSoftwareErrors(false);
+  }, [software]);
 
   function moveAssignments(next: MunkiAssignment[]) {
     reorder.reset();
@@ -132,8 +193,25 @@ export function MunkiSoftwareTitleDetailPage() {
     setAssignmentSheetOpen(false);
   }
 
-  async function saveAssignmentPage() {
+  async function savePage() {
     if (!software) return;
+    if (softwareDirty) {
+      const next = softwareTitleSchema.safeParse(softwareForm);
+      if (!next.success) {
+        setShowSoftwareErrors(true);
+        return;
+      }
+      const iconArtifact = iconFile
+        ? await uploadSelectedArtifact(iconFile, "icon", createUpload.mutateAsync, createArtifact.mutateAsync)
+        : null;
+      const body: MunkiSoftwareTitleMutation = {
+        ...next.data,
+        icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
+      };
+      await updateSoftware.mutateAsync({ id: software.id, body });
+      setIconFile(null);
+      setIconCleared(false);
+    }
     if (orderDirty) {
       await reorder.mutateAsync({ softwareId: software.id, orderedIds: orderedIncludeIDs });
     }
@@ -147,6 +225,15 @@ export function MunkiSoftwareTitleDetailPage() {
   function resetAssignmentPage() {
     reorder.reset();
     updateExcludes.reset();
+    updateSoftware.reset();
+    createUpload.reset();
+    createArtifact.reset();
+    if (software) {
+      setSoftwareForm(softwareTitleFormFromTitle(software));
+    }
+    setIconFile(null);
+    setIconCleared(false);
+    setShowSoftwareErrors(false);
     setOrderedIncludes(includes);
     setExcludeForm(excludeLabelIDs);
     setReorderEnabled(false);
@@ -248,23 +335,7 @@ export function MunkiSoftwareTitleDetailPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title={title}
-        description="Software is targeted once. Packages provide the versioned Munki candidates each assignment can resolve."
-        leading={software ? <MunkiIcon iconUrl={software.icon_url} size="lg" /> : undefined}
-        actions={
-          software ? (
-            <>
-              <Button asChild size="sm" variant="outline">
-                <Link to="/munki/software-titles/$softwareId/edit" params={{ softwareId: String(software.id) }}>
-                  <Pencil data-icon="inline-start" />
-                  Edit
-                </Link>
-              </Button>
-            </>
-          ) : null
-        }
-      />
+      <PageHeader title={title} />
 
       {query.error ? (
         <Alert variant="destructive">
@@ -272,141 +343,200 @@ export function MunkiSoftwareTitleDetailPage() {
           <AlertDescription>{query.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="flex flex-col gap-8">
-          <section className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold">Packages</h2>
-                <p className="text-muted-foreground max-w-3xl text-sm">
-                  Each row is one pkginfo. Multiple versions can share the same Munki name.
-                </p>
-              </div>
-              {software ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link
-                    to="/munki/software-titles/$softwareId/packages/new"
-                    params={{ softwareId: String(software.id) }}
-                  >
-                    <Plus data-icon="inline-start" />
-                    Add Package
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-            <DataTable
-              columns={packageColumns}
-              data={packages}
-              totalCount={packages.length}
-              pagination={{ pageIndex: 0, pageSize: Math.max(packages.length, 1) }}
-              sorting={[]}
-              onPaginationChange={() => undefined}
-              onSortingChange={() => undefined}
-              isLoading={query.isLoading}
-              clientSort
-              rowHref={(row) => ({
-                to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
-                params: { softwareId: String(row.software_id), packageId: String(row.id) },
-              })}
-              empty={
-                <DataTableEmptyState
-                  icon={<PackageCheck />}
-                  title="No Packages"
-                  description="Add at least one pkginfo before assigning this software."
-                />
-              }
-            />
-          </section>
+        <div className="flex flex-col gap-5">
+          <MutableResourceTabs
+            tabs={[
+              {
+                value: "options",
+                label: "Options",
+                content: (
+                  <FieldGroup className="max-w-3xl">
+                    <div className="flex items-start gap-4">
+                      <EditableMunkiIcon
+                        title="software icon"
+                        iconUrl={iconCleared ? undefined : software?.icon_url}
+                        file={iconFile}
+                        clearable={!!iconFile || (!iconCleared && !!software?.icon_artifact_id)}
+                        onFileChange={(file) => {
+                          setIconFile(file);
+                          setIconCleared(false);
+                        }}
+                        onClear={() => {
+                          setIconFile(null);
+                          setIconCleared(!!software?.icon_artifact_id);
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <TextField
+                          id="munki-software-name"
+                          label="Name"
+                          required
+                          value={softwareForm.name}
+                          error={showSoftwareErrors ? softwareErrors.name : undefined}
+                          onChange={(name) => setSoftwareForm({ ...softwareForm, name })}
+                        />
+                      </div>
+                    </div>
+                    <TextField
+                      id="munki-software-display-name"
+                      label="Display Name"
+                      value={softwareForm.display_name}
+                      onChange={(display_name) => setSoftwareForm({ ...softwareForm, display_name })}
+                    />
+                    <TextAreaField
+                      id="munki-software-description"
+                      label="Description"
+                      value={softwareForm.description}
+                      onChange={(description) => setSoftwareForm({ ...softwareForm, description })}
+                    />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <DatalistTextField
+                        id="munki-software-category"
+                        label="Category"
+                        value={softwareForm.category}
+                        options={categoryOptions}
+                        onChange={(category) => setSoftwareForm({ ...softwareForm, category })}
+                      />
+                      <DatalistTextField
+                        id="munki-software-developer"
+                        label="Developer"
+                        value={softwareForm.developer}
+                        options={developerOptions}
+                        onChange={(developer) => setSoftwareForm({ ...softwareForm, developer })}
+                      />
+                    </div>
+                  </FieldGroup>
+                ),
+              },
+              {
+                value: "scope",
+                label: "Scope",
+                content: (
+                  <div className="flex flex-col gap-6">
+                    <section className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-base font-semibold">Targets</h2>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openNewAssignment}
+                            disabled={!software || query.isLoading}
+                          >
+                            <Plus data-icon="inline-start" />
+                            Add Target
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={reorderEnabled || orderedIncludes.length < 2 || query.isLoading}
+                            onClick={() => setReorderEnabled(true)}
+                          >
+                            Order
+                          </Button>
+                          {reorderEnabled ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={pagePending}
+                              onClick={resetAssignmentPage}
+                            >
+                              Cancel Order
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <DataTable
+                        columns={includeColumns}
+                        data={reorderEnabled ? orderedIncludes : includes}
+                        totalCount={includes.length}
+                        pagination={{ pageIndex: 0, pageSize: Math.max(includes.length, 1) }}
+                        sorting={[]}
+                        onPaginationChange={() => undefined}
+                        onSortingChange={() => undefined}
+                        isLoading={query.isLoading}
+                        clientSort
+                        onRowClick={
+                          reorderEnabled
+                            ? undefined
+                            : (row) => {
+                                openEditAssignment(row);
+                              }
+                        }
+                        rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedIncludes.length <= 1}
+                        onRowReorder={moveAssignments}
+                        empty={<CompactMunkiEmptyState title="No Targets" />}
+                        emptyClassName="min-h-32 py-4"
+                      />
+                    </section>
+                    <section className="flex max-w-3xl flex-col gap-3">
+                      <h2 className="text-base font-semibold">Exclusions</h2>
+                      <LabelPicker
+                        value={excludeForm}
+                        includeBuiltins={false}
+                        unavailableLabelIDs={includeLabelIDs}
+                        placeholder="Add Exclusion"
+                        emptyMessage="No Labels Found."
+                        onChange={(next) => {
+                          updateExcludes.reset();
+                          setExcludeForm(next);
+                        }}
+                      />
+                    </section>
+                  </div>
+                ),
+              },
+              {
+                value: "packages",
+                label: "Packages",
+                content: (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-base font-semibold">Packages</h2>
+                      {software ? (
+                        <Button asChild size="sm" variant="outline">
+                          <Link
+                            to="/munki/software-titles/$softwareId/packages/new"
+                            params={{ softwareId: String(software.id) }}
+                          >
+                            <Plus data-icon="inline-start" />
+                            Add Package
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                    <DataTable
+                      columns={packageColumns}
+                      data={packages}
+                      totalCount={packages.length}
+                      pagination={{ pageIndex: 0, pageSize: Math.max(packages.length, 1) }}
+                      sorting={[]}
+                      onPaginationChange={() => undefined}
+                      onSortingChange={() => undefined}
+                      isLoading={query.isLoading}
+                      clientSort
+                      rowHref={(row) => ({
+                        to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
+                        params: { softwareId: String(row.software_id), packageId: String(row.id) },
+                      })}
+                      empty={<CompactMunkiEmptyState title="No Packages" />}
+                      emptyClassName="min-h-32 py-4"
+                    />
+                  </div>
+                ),
+              },
+            ]}
+          />
 
-          <section className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold">Includes</h2>
-                <p className="text-muted-foreground max-w-3xl text-sm">
-                  Woodstar resolves this list top to bottom for each device. Latest-compatible includes render the Munki
-                  name and let the client choose from eligible pkginfos.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                <Button type="button" size="sm" onClick={openNewAssignment} disabled={!software || query.isLoading}>
-                  <Plus data-icon="inline-start" />
-                  Add Include
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={reorderEnabled || orderedIncludes.length < 2 || query.isLoading}
-                  onClick={() => setReorderEnabled(true)}
-                >
-                  Edit Order
-                </Button>
-                {reorderEnabled ? (
-                  <Button type="button" size="sm" variant="ghost" disabled={pagePending} onClick={resetAssignmentPage}>
-                    Cancel Order
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-            <DataTable
-              columns={includeColumns}
-              data={reorderEnabled ? orderedIncludes : includes}
-              totalCount={includes.length}
-              pagination={{ pageIndex: 0, pageSize: Math.max(includes.length, 1) }}
-              sorting={[]}
-              onPaginationChange={() => undefined}
-              onSortingChange={() => undefined}
-              isLoading={query.isLoading}
-              clientSort
-              onRowClick={
-                reorderEnabled
-                  ? undefined
-                  : (row) => {
-                      openEditAssignment(row);
-                    }
-              }
-              rowReorderDisabled={!reorderEnabled || reorder.isPending || orderedIncludes.length <= 1}
-              onRowReorder={moveAssignments}
-              empty={
-                <DataTableEmptyState
-                  icon={<PackageCheck />}
-                  title="No Includes"
-                  description="Add an include row to put this software into matching host manifests."
-                />
-              }
-            />
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold">Excludes</h2>
-                <p className="text-muted-foreground max-w-3xl text-sm">
-                  Labels selected here are removed from this software target set.
-                </p>
-              </div>
-            </div>
-            <div className="max-w-3xl">
-              <LabelPicker
-                value={excludeForm}
-                includeBuiltins={false}
-                unavailableLabelIDs={includeLabelIDs}
-                placeholder="Add Exclude Label"
-                emptyMessage="No Labels Found."
-                onChange={(next) => {
-                  updateExcludes.reset();
-                  setExcludeForm(next);
-                }}
-              />
-            </div>
-          </section>
-
-          <MutationError title="Failed to Save Assignments" message={pageMutationError} />
+          <MutationError title="Failed to Save Software" message={pageMutationError} />
           <div className="flex items-center gap-2 border-t pt-4">
             <Button
               type="button"
               size="sm"
               disabled={!pageDirty || pagePending || query.isLoading}
-              onClick={() => void saveAssignmentPage()}
+              onClick={() => void savePage()}
             >
               {pagePending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
               Save
@@ -435,9 +565,6 @@ export function MunkiSoftwareTitleDetailPage() {
           >
             <SheetHeader>
               <SheetTitle>{editingAssignment ? "Edit Include" : "New Include"}</SheetTitle>
-              <SheetDescription>
-                Each include targets one label and carries the Munki behavior for matching hosts.
-              </SheetDescription>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <MutationError title="Failed to Save Include" message={assignmentMutationError} />
@@ -497,6 +624,10 @@ function sameNumberSet(a: readonly number[], b: readonly number[]) {
 
 function sameNumberSequence(a: readonly number[], b: readonly number[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function CompactMunkiEmptyState({ title }: { title: string }) {
+  return <DataTableEmptyState icon={<PackageCheck />} title={title} className="gap-3 p-4 md:p-4" />;
 }
 
 function PackageIconView({ pkg }: { pkg: MunkiPackage }) {

@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { CheckDetailPage } from "@/pages/osquery/checks/detail";
+import { createFileRoute, lazyRouteComponent } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/osquery/checks/$checkId/")({
-  component: CheckDetailPage,
+  component: lazyRouteComponent(() => import("@/pages/osquery/checks/form"), "CheckResourcePage"),
 });

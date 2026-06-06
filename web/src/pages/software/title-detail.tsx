@@ -356,7 +356,7 @@ function SantaRulesTable({ rules }: { rules: RuleReference[] }) {
         <TableRow key={rule.id}>
           <TableCell className="min-w-0">
             <Link
-              to="/santa/rules/$ruleId/edit"
+              to="/santa/rules/$ruleId"
               params={{ ruleId: String(rule.id) }}
               className="hover:text-primary block truncate font-medium hover:underline"
             >

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { SantaRuleEditPage } from "@/pages/santa/rules/edit";
+import { SantaRuleResourcePage } from "@/pages/santa/rules/form";
 import { RULE_TYPE_VALUES } from "@/pages/santa/rules/shared";
 
 const searchSchema = z.object({
@@ -12,5 +12,5 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/_authenticated/santa/rules/new")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: () => <SantaRuleEditPage mode="create" />,
+  component: () => <SantaRuleResourcePage mode="create" />,
 });

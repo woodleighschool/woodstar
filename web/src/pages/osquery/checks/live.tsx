@@ -37,8 +37,8 @@ export function CheckLivePage() {
       sql={check.data.query}
       editAction={
         <Button asChild variant="outline" size="sm">
-          <Link to="/osquery/checks/$checkId/edit" params={{ checkId }}>
-            Edit Check
+          <Link to="/osquery/checks/$checkId" params={{ checkId }}>
+            Check
           </Link>
         </Button>
       }

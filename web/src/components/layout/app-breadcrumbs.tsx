@@ -104,19 +104,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "checks", label: "Checks", to: "/osquery/checks" },
         { key: `check-${params.checkId}`, label: <CheckCrumb id={params.checkId} /> },
       ];
-    case "/_authenticated/osquery/checks/$checkId/edit":
-      return [
-        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
-        { key: "checks", label: "Checks", to: "/osquery/checks" },
-        {
-          key: `check-${params.checkId}`,
-          label: <CheckCrumb id={params.checkId} />,
-          to: "/osquery/checks/$checkId",
-          params: { checkId: params.checkId },
-        },
-        { key: `check-${params.checkId}-edit`, label: "Edit" },
-      ];
-
     // Osquery reports
     case "/_authenticated/osquery/reports/new":
       return [
@@ -129,18 +116,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "osquery", label: "Osquery", to: "/osquery/reports" },
         { key: "reports", label: "Reports", to: "/osquery/reports" },
         { key: `report-${params.reportId}`, label: <ReportCrumb id={params.reportId} /> },
-      ];
-    case "/_authenticated/osquery/reports/$reportId/edit":
-      return [
-        { key: "osquery", label: "Osquery", to: "/osquery/reports" },
-        { key: "reports", label: "Reports", to: "/osquery/reports" },
-        {
-          key: `report-${params.reportId}`,
-          label: <ReportCrumb id={params.reportId} />,
-          to: "/osquery/reports/$reportId",
-          params: { reportId: params.reportId },
-        },
-        { key: `report-${params.reportId}-edit`, label: "Edit" },
       ];
     case "/_authenticated/osquery/reports/$reportId/live":
       return [
@@ -167,18 +142,6 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "munki", label: "Munki", to: "/munki/software-titles" },
         { key: "munki-software", label: "Software", to: "/munki/software-titles" },
         { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
-      ];
-    case "/_authenticated/munki/software-titles/$softwareId_/edit":
-      return [
-        { key: "munki", label: "Munki", to: "/munki/software-titles" },
-        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
-        {
-          key: `munki-software-${params.softwareId}`,
-          label: <MunkiSoftwareCrumb id={params.softwareId} />,
-          to: "/munki/software-titles/$softwareId",
-          params: { softwareId: params.softwareId },
-        },
-        { key: `munki-software-${params.softwareId}-edit`, label: "Edit" },
       ];
     case "/_authenticated/munki/software-titles/$softwareId_/packages/new":
       return [
@@ -211,7 +174,7 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "santa-configurations", label: "Configurations", to: "/santa/configurations" },
         { key: "santa-configurations-new", label: "New" },
       ];
-    case "/_authenticated/santa/configurations/$configurationId/edit":
+    case "/_authenticated/santa/configurations/$configurationId":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
         { key: "santa-configurations", label: "Configurations", to: "/santa/configurations" },
@@ -226,7 +189,7 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "santa-rules", label: "Rules", to: "/santa/rules" },
         { key: "santa-rules-new", label: "New" },
       ];
-    case "/_authenticated/santa/rules/$ruleId/edit":
+    case "/_authenticated/santa/rules/$ruleId":
       return [
         { key: "santa", label: "Santa", to: "/santa/configurations" },
         { key: "santa-rules", label: "Rules", to: "/santa/rules" },

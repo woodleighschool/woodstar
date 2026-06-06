@@ -65,7 +65,6 @@ export function ReportsPage() {
     <PageShell>
       <PageHeader
         title="Reports"
-        description="Gather data about your hosts."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/reports/new">

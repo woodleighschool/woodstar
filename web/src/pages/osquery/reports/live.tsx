@@ -37,8 +37,8 @@ export function ReportLivePage() {
       sql={report.data.query}
       editAction={
         <Button asChild variant="outline" size="sm">
-          <Link to="/osquery/reports/$reportId/edit" params={{ reportId }}>
-            Edit Report
+          <Link to="/osquery/reports/$reportId" params={{ reportId }}>
+            Report
           </Link>
         </Button>
       }

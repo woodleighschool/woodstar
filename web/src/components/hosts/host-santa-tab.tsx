@@ -149,7 +149,7 @@ export function HostSantaTab({ hostId, host }: { hostId: number | null; host: Ho
               isLoading={rules.isLoading}
               getRowId={(rule) => `${rule.rule_id}-${rule.matched_include_id}`}
               rowHref={(rule) => ({
-                to: "/santa/rules/$ruleId/edit",
+                to: "/santa/rules/$ruleId",
                 params: { ruleId: String(rule.rule_id) },
               })}
               empty={

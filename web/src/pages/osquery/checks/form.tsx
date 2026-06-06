@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { Loader2 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -6,9 +6,10 @@ import { z } from "zod";
 
 import { SchemaSidebar } from "@/components/editor/schema-sidebar";
 import { SQLEditor } from "@/components/editor/sql-editor";
+import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LiveRunButton } from "@/components/queries/query-ui";
-import { TargetLabelRowEditor } from "@/components/targeting/target-label-row-editor";
+import { LiveRunButton, SettingItem } from "@/components/queries/query-ui";
+import { LabelScopeEditor } from "@/components/targeting/label-scope-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -52,7 +53,7 @@ export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
     if (!detail.data) {
       return (
         <PageShell className="text-muted-foreground flex-row items-center gap-2 text-sm">
-          <Loader2 className="size-4 animate-spin" /> Loading Check...
+          <Loader2 className="animate-spin" /> Loading Check...
         </PageShell>
       );
     }
@@ -68,26 +69,40 @@ export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
         }
       : emptyCheck;
 
-  return <CheckEditForm key={checkId || "new"} mode={mode} checkId={checkID} checkParam={checkId} initial={initial} />;
+  return (
+    <CheckForm
+      key={checkId || "new"}
+      mode={mode}
+      checkId={checkID}
+      checkParam={checkId}
+      passingHostCount={detail.data?.passing_host_count ?? 0}
+      failingHostCount={detail.data?.failing_host_count ?? 0}
+      initial={initial}
+    />
+  );
 }
 
 export function CheckNewPage() {
   return <CheckMutationPage mode="create" />;
 }
 
-export function CheckEditPage() {
+export function CheckResourcePage() {
   return <CheckMutationPage mode="edit" />;
 }
 
-function CheckEditForm({
+function CheckForm({
   mode,
   checkId,
   checkParam,
+  passingHostCount,
+  failingHostCount,
   initial,
 }: {
   mode: "create" | "edit";
   checkId: number | null;
   checkParam: string;
+  passingHostCount: number;
+  failingHostCount: number;
   initial: CheckMutation;
 }) {
   const navigate = useNavigate();
@@ -102,6 +117,7 @@ function CheckEditForm({
   const pending = createCheck.isPending || updateCheck.isPending;
   const parsed = useMemo(() => checkFormSchema.safeParse(form), [form]);
   const errors = useMemo(() => fieldErrors(parsed), [parsed]);
+  const title = mode === "create" ? "New Check" : form.name || "Check";
 
   async function submit() {
     const payload = trimCheck(form);
@@ -140,58 +156,92 @@ function CheckEditForm({
           void submit();
         }}
       >
-        <PageHeader title={mode === "create" ? "New Check" : "Edit Check"} />
-        <FieldGroup>
-          <Field data-invalid={showErrors && errors.name ? true : undefined}>
-            <FieldLabel htmlFor="check-name" required>
-              Name
-            </FieldLabel>
-            <Input
-              id="check-name"
-              required
-              aria-invalid={showErrors && errors.name ? true : undefined}
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-            {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
-          </Field>
-
-          <Field>
-            <FieldLabel htmlFor="check-description">Description</FieldLabel>
-            <Textarea
-              id="check-description"
-              rows={3}
-              placeholder="What failure means"
-              value={form.description ?? ""}
-              onChange={(event) => setForm({ ...form, description: event.target.value })}
-            />
-          </Field>
-        </FieldGroup>
-
-        <TargetLabelRowEditor
-          value={form.targets ?? []}
-          onChange={(targets) => setForm({ ...form, targets })}
-          noun="check"
+        <PageHeader
+          title={title}
+          context={
+            mode === "edit" ? (
+              <>
+                <SettingItem label="Pass">
+                  <HostCount checkId={checkId} response="pass" value={passingHostCount} />
+                </SettingItem>
+                <SettingItem label="Fail">
+                  <HostCount checkId={checkId} response="fail" value={failingHostCount} />
+                </SettingItem>
+              </>
+            ) : null
+          }
+          actions={
+            mode === "edit" ? (
+              <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
+            ) : null
+          }
         />
 
-        <Field data-invalid={showErrors && errors.query ? true : undefined}>
-          <FieldLabel required>Query</FieldLabel>
-          <SQLEditor
-            ref={editorRef}
-            value={form.query}
-            onChange={(query) => setForm({ ...form, query })}
-            onTableMetaClick={selectSchemaTable}
-            placeholder="SELECT ..."
-            invalid={showErrors && errors.query ? true : undefined}
-          />
-          {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
-        </Field>
+        <MutableResourceTabs
+          tabs={[
+            {
+              value: "options",
+              label: "Options",
+              content: (
+                <div className="flex max-w-5xl flex-col gap-6">
+                  <FieldGroup className="max-w-3xl">
+                    <Field data-invalid={showErrors && errors.name ? true : undefined}>
+                      <FieldLabel htmlFor="check-name" required>
+                        Name
+                      </FieldLabel>
+                      <Input
+                        id="check-name"
+                        required
+                        aria-invalid={showErrors && errors.name ? true : undefined}
+                        value={form.name}
+                        onChange={(event) => setForm({ ...form, name: event.target.value })}
+                      />
+                      {showErrors && errors.name ? <FieldError>{errors.name}</FieldError> : null}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="check-description">Description</FieldLabel>
+                      <Textarea
+                        id="check-description"
+                        rows={3}
+                        value={form.description ?? ""}
+                        onChange={(event) => setForm({ ...form, description: event.target.value })}
+                      />
+                    </Field>
+                  </FieldGroup>
+
+                  <Field data-invalid={showErrors && errors.query ? true : undefined}>
+                    <FieldLabel required>Query</FieldLabel>
+                    <SQLEditor
+                      ref={editorRef}
+                      value={form.query}
+                      onChange={(query) => setForm({ ...form, query })}
+                      onTableMetaClick={selectSchemaTable}
+                      placeholder="SELECT ..."
+                      invalid={showErrors && errors.query ? true : undefined}
+                    />
+                    {showErrors && errors.query ? <FieldError>{errors.query}</FieldError> : null}
+                  </Field>
+                </div>
+              ),
+            },
+            {
+              value: "scope",
+              label: "Scope",
+              content: (
+                <LabelScopeEditor value={form.targets ?? []} onChange={(targets) => setForm({ ...form, targets })} />
+              ),
+            },
+          ]}
+        />
         <div className="flex items-center gap-2 border-t pt-4">
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Saving..." : "Save"}
           </Button>
-          {mode === "edit" ? (
-            <LiveRunButton to="/osquery/checks/$checkId/live" params={{ checkId: checkParam }} />
+          {mode === "create" ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => void navigate({ to: "/osquery/checks" })}>
+              Cancel
+            </Button>
           ) : null}
         </div>
         <SchemaSidebar
@@ -203,6 +253,15 @@ function CheckEditForm({
         />
       </form>
     </PageShell>
+  );
+}
+
+function HostCount({ checkId, response, value }: { checkId: number | null; response: "pass" | "fail"; value: number }) {
+  if (checkId === null) return value;
+  return (
+    <Link to="/hosts" search={{ check_id: checkId, check_response: response }} className="hover:underline">
+      {value}
+    </Link>
   );
 }
 

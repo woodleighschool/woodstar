@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { SantaConfigurationEditPage } from "@/pages/santa/configurations/edit";
+import { SantaConfigurationResourcePage } from "@/pages/santa/configurations/form";
 
 export const Route = createFileRoute("/_authenticated/santa/configurations/new")({
-  component: () => <SantaConfigurationEditPage mode="create" />,
+  component: () => <SantaConfigurationResourcePage mode="create" />,
 });

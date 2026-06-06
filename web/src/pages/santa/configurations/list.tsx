@@ -159,7 +159,6 @@ export function SantaConfigurationsPage() {
     <PageShell>
       <PageHeader
         title="Configurations"
-        description="Configuration order runs top to bottom. The first configuration whose labels match a host is applied."
         actions={
           <>
             <ButtonGroup>
@@ -249,7 +248,7 @@ export function SantaConfigurationsPage() {
             </Button>
           }
           rowHref={(row) => ({
-            to: "/santa/configurations/$configurationId/edit",
+            to: "/santa/configurations/$configurationId",
             params: { configurationId: String(row.id) },
           })}
           toolbar={

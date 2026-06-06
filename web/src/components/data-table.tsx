@@ -842,16 +842,17 @@ export function DataTableSearch({ value, onChange, placeholder, className }: Dat
 interface DataTableEmptyStateProps {
   icon: ReactNode;
   title: ReactNode;
-  description: ReactNode;
+  description?: ReactNode;
+  className?: string;
 }
 
-export function DataTableEmptyState({ icon, title, description }: DataTableEmptyStateProps) {
+export function DataTableEmptyState({ icon, title, description, className }: DataTableEmptyStateProps) {
   return (
-    <Empty>
+    <Empty className={className}>
       <EmptyHeader>
         <EmptyMedia variant="icon">{icon}</EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
+        {description ? <EmptyDescription>{description}</EmptyDescription> : null}
       </EmptyHeader>
     </Empty>
   );

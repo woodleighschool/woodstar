@@ -88,7 +88,6 @@ export function MunkiSoftwareTitlesPage() {
     <PageShell>
       <PageHeader
         title="Software"
-        description="Author software titles, package versions, and label-scoped assignments. Woodstar renders the Munki repository view from this model."
         actions={
           <Button asChild size="sm">
             <Link to="/munki/software-titles/new">

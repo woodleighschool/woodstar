@@ -104,7 +104,6 @@ export function SantaRulesPage() {
     <PageShell>
       <PageHeader
         title="Rules"
-        description="Control which Santa decisions apply to labeled hosts."
         actions={
           <Button asChild size="sm">
             <Link to="/santa/rules/new">
@@ -139,7 +138,7 @@ export function SantaRulesPage() {
               Delete
             </Button>
           }
-          rowHref={(row) => ({ to: "/santa/rules/$ruleId/edit", params: { ruleId: String(row.id) } })}
+          rowHref={(row) => ({ to: "/santa/rules/$ruleId", params: { ruleId: String(row.id) } })}
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
               <DataTableSearch value={draft} onChange={setDraft} placeholder="Search" />

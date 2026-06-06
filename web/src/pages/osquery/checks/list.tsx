@@ -87,7 +87,6 @@ export function ChecksPage() {
     <PageShell>
       <PageHeader
         title="Checks"
-        description="Detect device health issues."
         actions={
           <Button asChild size="sm">
             <Link to="/osquery/checks/new">
