@@ -6,10 +6,10 @@ import { useMemo, useState } from "react";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
+import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { MutationError } from "@/components/mutation-error";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { FreeTextCombobox } from "@/components/ui/free-text-combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
@@ -18,10 +18,9 @@ import {
   useMunkiSoftwareTitles,
   type MunkiSoftwareTitleMutation,
 } from "@/hooks/munki/software-titles";
+import { uniqueOptions } from "@/lib/form-validation";
+import { emptySoftwareTitleForm, softwareTitleSchema } from "@/lib/munki-software-title-form";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-
-import { emptySoftwareTitleForm, softwareTitleSchema } from "./form-model";
-import { uniqueOptions } from "./utils";
 
 export function MunkiSoftwareTitleNewPage() {
   const navigate = useNavigate();

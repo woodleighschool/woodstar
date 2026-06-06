@@ -2,9 +2,8 @@ import { Link } from "@tanstack/react-router";
 
 import { EnumBadge } from "@/components/enum-badge";
 import type { SantaExecutionDecision, SantaFileAccessDecision, SantaHostSummary } from "@/hooks/use-santa";
+import { EXECUTION_DECISIONS, FILE_ACCESS_DECISIONS } from "@/lib/santa-events";
 import { formatRelative } from "@/lib/utils";
-
-import { EXECUTION_DECISIONS, FILE_ACCESS_DECISIONS } from "./constants";
 
 export function ExecutionDecisionBadge({ decision }: { decision: SantaExecutionDecision }) {
   return <EnumBadge value={decision} metadata={EXECUTION_DECISIONS} />;

@@ -7,7 +7,7 @@ import {
   MUNKI_PACKAGE_SELECTION_VALUES,
   type MunkiAssignmentAction,
   type MunkiPackageSelection,
-} from "./shared";
+} from "@/lib/munki-software-title";
 
 export const munkiAssignmentFormSchema = z
   .object({

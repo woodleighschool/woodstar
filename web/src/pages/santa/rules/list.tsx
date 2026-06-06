@@ -23,7 +23,7 @@ import { useBulkDeleteSantaRules, useSantaRules, type SantaRule } from "@/hooks/
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "./shared";
+import { RULE_TYPE_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
 
 export function SantaRulesPage() {
   const search = useSearch({ from: "/_authenticated/santa/rules/" });

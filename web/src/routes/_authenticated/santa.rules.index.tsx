@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { RULE_TYPE_VALUES } from "@/lib/santa-rules";
 import { SantaRulesPage } from "@/pages/santa/rules/list";
-import { RULE_TYPE_VALUES } from "@/pages/santa/rules/shared";
 
 const searchSchema = z.object({
   q: z.string().optional(),

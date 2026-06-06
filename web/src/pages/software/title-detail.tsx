@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { SantaRuleType } from "@/hooks/use-santa";
 import {
   useSoftwareSantaReference,
   useSoftwareTitle,
@@ -18,9 +19,9 @@ import {
   type SoftwareTitle,
   type SoftwareVersion,
 } from "@/hooks/use-software";
+import { ruleTypeLabel } from "@/lib/santa-rules";
 import { softwareSourceLabel } from "@/lib/software-source-labels";
 import { formatRelative } from "@/lib/utils";
-import { ruleTypeLabel, type RuleType } from "@/pages/santa/rules/shared";
 
 type BundleReference = NonNullable<SoftwareSantaReference["bundles"]>[number];
 type CertificateReference = NonNullable<SoftwareSantaReference["certificates"]>[number];
@@ -378,7 +379,7 @@ function SantaRulesTable({ rules }: { rules: RuleReference[] }) {
 function SantaReferenceTable({ title, empty, children }: { title: string; empty: string; children: ReactNode }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
-    <div className="min-w-0 space-y-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <h2 className="text-sm font-medium">{title}</h2>
       {hasRows ? (
         <div className="rounded-md border">
@@ -398,7 +399,7 @@ function QuickAddRuleButton({
   identifier,
   name,
 }: {
-  targetType: RuleType;
+  targetType: SantaRuleType;
   identifier: string;
   name?: string;
 }) {

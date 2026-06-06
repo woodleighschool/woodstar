@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { DECISION_FILTER_VALUES } from "@/pages/santa/events/constants";
+import { DECISION_FILTER_VALUES } from "@/lib/santa-events";
 import { SantaEventsPage } from "@/pages/santa/events/list";
 
 const searchSchema = z.object({

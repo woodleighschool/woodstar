@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaEvent, type SantaEvent } from "@/hooks/use-santa";
 
-import { executableLabel, fileName } from "./constants";
-import { ExecutionDecisionBadge, HostLink, Timestamp } from "./event-ui";
+import { ExecutionDecisionBadge, HostLink, Timestamp } from "@/components/santa/events/event-ui";
+import { executableLabel, fileName } from "@/lib/santa-events";
 
 interface Tile {
   label: string;

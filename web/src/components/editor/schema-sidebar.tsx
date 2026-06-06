@@ -168,7 +168,7 @@ function TableDetail({ table, onInsertColumn }: { table: OsqueryTable; onInsertC
     ) : null,
   ].filter(Boolean);
   return (
-    <div className="space-y-5 p-4">
+    <div className="flex flex-col gap-5 p-4">
       {badges.length ? <div className="flex flex-wrap items-center gap-2">{badges}</div> : null}
 
       {table.description ? (
@@ -302,7 +302,7 @@ function renderColumnTooltip(column: OsqueryColumn): React.ReactNode | null {
   if (column.hidden) lines.push({ key: "hide", text: "Not returned by SELECT *." });
   if (!lines.length) return null;
   return (
-    <div className="space-y-1">
+    <div className="flex flex-col gap-1">
       {lines.map((line) => (
         <div key={line.key}>{line.text}</div>
       ))}

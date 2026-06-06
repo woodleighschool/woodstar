@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-import type { MunkiAssignmentFormState } from "./assignment-form-model";
+import type { MunkiAssignmentFormState } from "@/lib/munki-assignment-form";
 import {
   MUNKI_ASSIGNMENT_ACTION_OPTIONS,
   MUNKI_PACKAGE_SELECTION_OPTIONS,
@@ -22,7 +22,7 @@ import {
   munkiPackageSelectionDescription,
   type MunkiAssignmentAction,
   type MunkiPackageSelection,
-} from "./shared";
+} from "@/lib/munki-software-title";
 
 export interface MunkiAssignmentPackageOption {
   id: number;

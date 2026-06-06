@@ -77,10 +77,7 @@ export const POLICIES = {
 
 export const POLICY_OPTIONS = enumOptions(POLICIES);
 
-export type RuleType = SantaRuleType;
-export type RulePolicy = SantaRulePolicy;
-
-export const RULE_IDENTIFIER_RULES: Record<RuleType, { pattern: RegExp; hint: string }> = {
+export const RULE_IDENTIFIER_RULES: Record<SantaRuleType, { pattern: RegExp; hint: string }> = {
   binary: {
     pattern: /^[0-9a-fA-F]{64}$/,
     hint: "Use a 64 character SHA-256 hex hash.",

@@ -12,6 +12,7 @@ import {
 } from "@/components/data-table";
 import { FilterChip } from "@/components/filter-controls";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
+import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "@/components/santa/events/event-ui";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
@@ -24,9 +25,8 @@ import {
   type SantaHostSummary,
 } from "@/hooks/use-santa";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "@/lib/santa-events";
 import { formatRelative } from "@/lib/utils";
-import { DECISION_FILTERS, FILE_ACCESS_DECISION_FILTERS, fileName } from "./constants";
-import { ExecutionDecisionBadge, FileAccessDecisionBadge } from "./event-ui";
 
 type EventListKind = "execution" | "file-access";
 

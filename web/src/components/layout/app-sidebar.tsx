@@ -34,8 +34,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { runtime } from "@/lib/runtime";
+import { userRoleLabel } from "@/lib/users";
 import { nonEmpty } from "@/lib/utils";
-import { userRoleLabel } from "@/pages/users/shared";
 
 export function AppSidebar() {
   const { location } = useRouterState();

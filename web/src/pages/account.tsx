@@ -12,9 +12,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccount, useUpdateAccount, type Account } from "@/hooks/use-account";
+import { directorySourceLabel } from "@/lib/directory";
+import { USER_ACCESS_ROLES, userAccessRole } from "@/lib/users";
 import { formatRelative, nonEmpty } from "@/lib/utils";
-import { directorySourceLabel } from "@/pages/directory/shared";
-import { USER_ACCESS_ROLES, userAccessRole } from "@/pages/users/shared";
 
 export function AccountPage() {
   const account = useAccount();

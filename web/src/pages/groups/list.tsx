@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useGroups, type Group } from "@/hooks/use-groups";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { DIRECTORY_SOURCES } from "@/lib/directory";
 import { nonEmpty } from "@/lib/utils";
-import { DIRECTORY_SOURCES } from "@/pages/directory/shared";
 
 export function GroupsPage() {
   const search = useSearch({ from: "/_authenticated/directory/groups/" });

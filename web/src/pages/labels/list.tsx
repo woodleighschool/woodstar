@@ -33,8 +33,8 @@ import {
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { useDeleteLabel, useLabels, type Label } from "@/hooks/use-labels";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
+import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/lib/labels";
 import { formatRelative } from "@/lib/utils";
-import { LABEL_MEMBERSHIP_OPTIONS, labelMembershipLabel } from "@/pages/labels/shared";
 
 export function LabelsPage() {
   const search = useSearch({ from: "/_authenticated/labels/" });

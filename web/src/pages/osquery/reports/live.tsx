@@ -2,10 +2,10 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
 
 import { PageShell } from "@/components/layout/page-layout";
+import { LiveRunner } from "@/components/osquery/live-runner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useReport } from "@/hooks/use-reports";
-import { LiveRunner } from "@/pages/osquery/live-runner";
 
 export function ReportLivePage() {
   const { reportId } = useParams({ from: "/_authenticated/osquery/reports/$reportId" });

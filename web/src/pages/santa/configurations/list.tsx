@@ -39,7 +39,7 @@ import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pa
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { clientModeLabel } from "./shared";
+import { clientModeLabel } from "@/lib/santa-configurations";
 
 export function SantaConfigurationsPage() {
   const search = useSearch({ strict: false });

@@ -15,16 +15,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserDeleteDialog } from "@/components/users/user-delete-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateUser, useUser, type User } from "@/hooks/use-users";
-import { formatRelative, nonEmpty } from "@/lib/utils";
-import { AccountPage } from "@/pages/account";
-import { directorySourceLabel } from "@/pages/directory/shared";
+import { directorySourceLabel } from "@/lib/directory";
 import {
   USER_ACCESS_ROLES,
   USER_ACCESS_ROLE_OPTIONS,
   userAccessRole,
   userMutationRole,
   type UserAccessRole,
-} from "@/pages/users/shared";
+} from "@/lib/users";
+import { formatRelative, nonEmpty } from "@/lib/utils";
+import { AccountPage } from "@/pages/account";
 
 export function UserEditPage() {
   const params = useParams({ strict: false });

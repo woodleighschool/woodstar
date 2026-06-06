@@ -35,8 +35,7 @@ import {
   useUpdateAgentSecret,
   type AgentSecret,
 } from "@/hooks/use-agent-secrets";
-
-import { deleteDescription, integrationLabel, secretUsageDescription, type Integration } from "./types";
+import { deleteDescription, integrationLabel, secretUsageDescription, type Integration } from "@/lib/enrollments";
 
 const MIN_SECRET_LENGTH = 32;
 const SECRET_MASK = "••••••••••••••••••••••••";

@@ -8,9 +8,8 @@ import type { ReactNode } from "react";
 import { CodeEditor } from "@/components/editor/code-editor";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { Integration } from "@/lib/enrollments";
 import { cn } from "@/lib/utils";
-
-import type { Integration } from "./types";
 
 const FLEETCTL_INSTALL_URL = "https://fleetdm.com/guides/fleetctl#installing-fleetctl";
 const PUBLIC_URL_PLACEHOLDER = "REPLACE_WITH_PUBLIC_URL";
@@ -37,7 +36,7 @@ export function DeploymentInstructions({ integration, publicURL }: { integration
 function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
+      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
         <p>Build the Orbit package once. Keep the Woodstar URL, enroll secret, and user email in the profile.</p>
       </div>
 
@@ -69,7 +68,7 @@ function OrbitDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
+      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
         <p>Deploy Santa with a profile for Woodstar and a bearer secret.</p>
       </div>
 
@@ -87,7 +86,7 @@ function SantaDeploymentInstructions({ publicURL }: { publicURL?: string }) {
 function MunkiDeploymentInstructions({ publicURL }: { publicURL?: string }) {
   return (
     <section className="grid gap-6">
-      <div className="text-muted-foreground max-w-3xl space-y-2 text-sm leading-relaxed">
+      <div className="text-muted-foreground flex max-w-3xl flex-col gap-2 text-sm leading-relaxed">
         <p>Deploy Munki with a profile for Woodstar.</p>
       </div>
 
@@ -122,7 +121,7 @@ function DeploymentArtifact({
   return (
     <Card className="grid min-w-0 gap-3 rounded-lg p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <h2 id={titleID} className="text-base font-medium">
             {title}
           </h2>

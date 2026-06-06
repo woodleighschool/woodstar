@@ -14,14 +14,14 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateUser, useUpdateUser, type User, type UserCreate, type UserMutation } from "@/hooks/use-users";
-import { directorySourceLabel } from "@/pages/directory/shared";
+import { directorySourceLabel } from "@/lib/directory";
 import {
   USER_ACCESS_ROLE_OPTIONS,
   USER_ROLE_OPTIONS,
   userAccessRole,
   userMutationRole,
   type UserAccessRole,
-} from "@/pages/users/shared";
+} from "@/lib/users";
 
 interface BaseProps {
   open: boolean;

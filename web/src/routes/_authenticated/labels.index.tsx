@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { LABEL_MEMBERSHIP_VALUES } from "@/lib/labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { LabelsPage } from "@/pages/labels/list";
-import { LABEL_MEMBERSHIP_VALUES } from "@/pages/labels/shared";
 
 const searchSchema = z.object({
   q: z.string().optional(),

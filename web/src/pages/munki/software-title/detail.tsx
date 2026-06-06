@@ -10,12 +10,12 @@ import { LabelPicker } from "@/components/labels/label-picker";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
+import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { MutationError } from "@/components/mutation-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { FreeTextCombobox } from "@/components/ui/free-text-combobox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
@@ -35,26 +35,25 @@ import {
   type MunkiSoftwareTitleMutation,
 } from "@/hooks/munki/software-titles";
 import { useLabels } from "@/hooks/use-labels";
-import { fieldErrors } from "@/lib/form-validation";
-import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { formatRelative } from "@/lib/utils";
-
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { MunkiAssignmentFormFields } from "./assignment-form";
+import { fieldErrors, uniqueOptions } from "@/lib/form-validation";
 import {
   emptyMunkiAssignmentForm,
   munkiAssignmentFormFromAssignment,
   munkiAssignmentFormSchema,
   munkiAssignmentMutation,
-} from "./assignment-form-model";
-import { softwareTitleFormFromTitle, softwareTitleSchema } from "./form-model";
+} from "@/lib/munki-assignment-form";
+import { softwareTitleFormFromTitle, softwareTitleSchema } from "@/lib/munki-software-title-form";
+import { MAX_PAGE_SIZE } from "@/lib/pagination";
+import { formatRelative } from "@/lib/utils";
+
+import { MunkiAssignmentFormFields } from "@/components/munki/software-title/assignment-form";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   munkiAssignmentActionLabel,
   munkiInstallerTypeLabel,
   munkiPackageSelectionLabel,
   munkiRestartActionLabel,
-} from "./shared";
-import { uniqueOptions } from "./utils";
+} from "@/lib/munki-software-title";
 
 export function MunkiSoftwareTitleDetailPage() {
   const params = useParams({ strict: false });

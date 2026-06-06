@@ -28,7 +28,7 @@ import {
   MEDIA_ACTION_OPTIONS,
   MEDIA_ACTION_VALUES,
   type SantaMediaAction,
-} from "./shared";
+} from "@/lib/santa-configurations";
 
 interface ConfigurationFormState {
   name: string;

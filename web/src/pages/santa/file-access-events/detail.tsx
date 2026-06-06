@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSantaFileAccessEvent } from "@/hooks/use-santa";
 
-import { fileAccessEventLabel, fileName } from "../events/constants";
-import { FileAccessDecisionBadge, HostLink, Timestamp } from "../events/event-ui";
+import { FileAccessDecisionBadge, HostLink, Timestamp } from "@/components/santa/events/event-ui";
+import { fileAccessEventLabel, fileName } from "@/lib/santa-events";
 
 export function SantaFileAccessEventDetailPage() {
   const { eventId } = useParams({ from: "/_authenticated/santa/events/file-access/$eventId" });

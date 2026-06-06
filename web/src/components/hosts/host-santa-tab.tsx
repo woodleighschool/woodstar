@@ -11,9 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHostSantaRules, type HostDetail, type HostSantaRule } from "@/hooks/use-hosts";
 import { tableQueryParams } from "@/hooks/use-table-pagination-params";
+import { clientModeLabel } from "@/lib/santa-configurations";
+import { policyLabel, ruleTypeLabel } from "@/lib/santa-rules";
 import { formatRelative } from "@/lib/utils";
-import { clientModeLabel } from "@/pages/santa/configurations/shared";
-import { policyLabel, ruleTypeLabel } from "@/pages/santa/rules/shared";
 
 const HOST_SANTA_RULES_PAGE_SIZE = 25;
 
