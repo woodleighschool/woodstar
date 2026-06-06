@@ -10,6 +10,7 @@
 /woodstar
 /tmp/
 /.gocache/
+__pycache__/
 build-errors.log
 
 # Go workspace overrides
