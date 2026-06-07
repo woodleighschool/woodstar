@@ -27,10 +27,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
@@ -510,7 +510,7 @@ func (fakeMunkiStorage) Stat(_ context.Context, _ string) (artifacts.ArtifactObj
 type unavailableMunkiStorage struct{}
 
 func (unavailableMunkiStorage) PresignGet(context.Context, artifacts.Artifact) (string, error) {
-	return "", munkistorage.ErrUnavailable
+	return "", storage.ErrUnavailable
 }
 
 func (unavailableMunkiStorage) PresignPut(
@@ -519,11 +519,11 @@ func (unavailableMunkiStorage) PresignPut(
 	string,
 	string,
 ) (artifacts.ArtifactUploadURL, error) {
-	return artifacts.ArtifactUploadURL{}, munkistorage.ErrUnavailable
+	return artifacts.ArtifactUploadURL{}, storage.ErrUnavailable
 }
 
 func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.ArtifactObject, error) {
-	return artifacts.ArtifactObject{}, munkistorage.ErrUnavailable
+	return artifacts.ArtifactObject{}, storage.ErrUnavailable
 }
 
 type munkiTestStores struct {

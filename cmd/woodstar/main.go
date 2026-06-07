@@ -30,10 +30,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -363,10 +363,10 @@ func newMunki(
 	softwareStore *munkisoftware.Store,
 	artifactStore *artifacts.Store,
 	logger *slog.Logger,
-) (*munki.Service, munkistorage.ArtifactStorage) {
-	storage, err := munkistorage.NewArtifactStorage(ctx, munkistorage.Config{
+) (*munki.Service, storage.ArtifactStorage) {
+	artifactStorage, err := storage.NewArtifactStorage(ctx, storage.Config{
 		Enabled: cfg.MunkiS3Enabled(),
-		S3: munkistorage.S3Config{
+		S3: storage.S3Config{
 			Bucket:         cfg.MunkiS3Bucket,
 			Region:         cfg.MunkiS3Region,
 			Endpoint:       cfg.MunkiS3Endpoint,
@@ -387,10 +387,10 @@ func newMunki(
 
 	options := []munki.ServiceOption{
 		munki.WithArtifactStore(artifactStore),
-		munki.WithArtifactPresigner(storage),
+		munki.WithArtifactPresigner(artifactStorage),
 	}
 
-	return munki.NewService(hosts, softwareStore, options...), storage
+	return munki.NewService(hosts, softwareStore, options...), artifactStorage
 }
 
 func santaCleanup(

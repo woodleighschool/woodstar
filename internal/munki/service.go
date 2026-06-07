@@ -11,9 +11,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 // ErrNotFound reports that a requested Munki repository object does not exist.
@@ -174,14 +174,14 @@ func (s *Service) ArtifactRedirect(
 		}
 	}
 	if s.presigner == nil {
-		return "", munkistorage.ErrUnavailable
+		return "", storage.ErrUnavailable
 	}
 	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(storageURL) == "" {
-		return "", munkistorage.ErrUnavailable
+		return "", storage.ErrUnavailable
 	}
 	return storageURL, nil
 }

@@ -13,9 +13,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
-	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
 func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
@@ -459,7 +459,7 @@ func TestMunkiHTTPRedirectsIconArtifactWithNestedIconName(t *testing.T) {
 
 func TestMunkiHTTPMapsMissingArtifactStorageToUnavailable(t *testing.T) {
 	repository := newStaticRepository("C02MUNKI")
-	repository.artifactErr = munkistorage.ErrUnavailable
+	repository.artifactErr = storage.ErrUnavailable
 	router := newMunkiContractRouter(
 		staticVerifier{agent: agentauth.AgentMunki, token: "munki-secret"},
 		repository,

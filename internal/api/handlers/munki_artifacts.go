@@ -4,16 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mime"
 	"net/http"
-	"path"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
+	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 )
 
 const (
@@ -121,7 +118,14 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 		if uploads == nil {
 			return nil, munkiArtifactStorageUnavailable()
 		}
-		target, err := input.Body.target()
+		target, err := artifacts.BuildUploadTarget(artifacts.UploadTargetInput{
+			Kind:        input.Body.Kind,
+			Filename:    input.Body.Filename,
+			DisplayName: input.Body.DisplayName,
+			ContentType: input.Body.ContentType,
+			SizeBytes:   input.Body.SizeBytes,
+			SHA256:      input.Body.SHA256,
+		})
 		if err != nil {
 			return nil, resourceMutationError(munkiArtifactLabel, err)
 		}
@@ -177,7 +181,7 @@ func verifyMunkiArtifactObject(
 		return munkiArtifactStorageUnavailable()
 	}
 	object, err := artifactStorage.Stat(ctx, mutation.StorageKey)
-	if errors.Is(err, munkistorage.ErrObjectNotFound) {
+	if errors.Is(err, storage.ErrObjectNotFound) {
 		return resourceMutationError(
 			munkiArtifactLabel,
 			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
@@ -206,70 +210,8 @@ func munkiArtifactStorageUnavailable() error {
 }
 
 func munkiArtifactStorageError(err error) error {
-	if errors.Is(err, munkistorage.ErrUnavailable) {
+	if errors.Is(err, storage.ErrUnavailable) {
 		return munkiArtifactStorageUnavailable()
 	}
 	return err
-}
-
-func (body munkiArtifactUploadMutation) target() (artifacts.ArtifactMutation, error) {
-	filename := cleanArtifactFilename(body.Filename)
-	if filename == "" {
-		return artifacts.ArtifactMutation{}, fmt.Errorf("%w: filename is required", dbutil.ErrInvalidInput)
-	}
-	contentType := strings.TrimSpace(body.ContentType)
-	if contentType == "" {
-		contentType = artifactContentType(filename)
-	}
-	target := artifacts.ArtifactMutation{
-		Kind:        body.Kind,
-		DisplayName: body.DisplayName,
-		Location:    artifactUploadLocation(body.SHA256, filename),
-		ContentType: contentType,
-		SizeBytes:   body.SizeBytes,
-		SHA256:      strings.TrimSpace(body.SHA256),
-	}
-	target.StorageKey = artifactStorageKey(target.Kind, target.Location)
-	if target.DisplayName == "" {
-		target.DisplayName = filename
-	}
-	if err := target.Validate(); err != nil {
-		return artifacts.ArtifactMutation{}, err
-	}
-	return target, nil
-}
-
-func cleanArtifactFilename(filename string) string {
-	filename = strings.TrimSpace(strings.ReplaceAll(filename, `\`, "/"))
-	filename = path.Base(filename)
-	if filename == "." || filename == "/" || filename == "" {
-		return ""
-	}
-	return filename
-}
-
-func artifactUploadLocation(sha256 string, filename string) string {
-	sha256 = strings.TrimSpace(sha256)
-	if len(sha256) >= 12 {
-		return sha256[:12] + "/" + filename
-	}
-	return filename
-}
-
-func artifactStorageKey(kind artifacts.ArtifactKind, location string) string {
-	switch kind {
-	case artifacts.ArtifactKindPackage:
-		return "pkgs/" + location
-	case artifacts.ArtifactKindIcon:
-		return "icons/" + location
-	default:
-		return string(kind) + "/" + location
-	}
-}
-
-func artifactContentType(filename string) string {
-	if contentType := mime.TypeByExtension(path.Ext(filename)); contentType != "" {
-		return contentType
-	}
-	return "application/octet-stream"
 }
