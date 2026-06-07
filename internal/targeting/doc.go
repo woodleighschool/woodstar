@@ -1,2 +1,2 @@
-// Package targeting will own shared include/exclude label targeting primitives.
+// Package targeting defines shared include/exclude label targeting behavior.
 package targeting
