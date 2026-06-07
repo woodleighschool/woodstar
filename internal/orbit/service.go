@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
@@ -28,10 +29,10 @@ func NewEnrollmentService(
 // keys stop authenticating immediately.
 func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
 	if req.HardwareUUID == "" {
-		return nil, "", ErrMissingHardwareUUID
+		return nil, "", enrollment.ErrMissingHardwareUUID
 	}
 
-	nodeKey, err := IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
+	nodeKey, err := enrollment.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
 	if err != nil {
 		return nil, "", err
 	}

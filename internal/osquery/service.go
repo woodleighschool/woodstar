@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
@@ -27,7 +27,7 @@ type AgentService struct {
 	reportStore        reportStore
 	checkStore         checkStore
 	liveQueries        liveQueries
-	secretStore        orbit.SecretVerifier
+	secretStore        enrollment.SecretVerifier
 	logger             *slog.Logger
 }
 
@@ -38,7 +38,7 @@ type Dependencies struct {
 	ReportStore        reportStore
 	CheckStore         checkStore
 	LiveQueries        liveQueries
-	SecretStore        orbit.SecretVerifier
+	SecretStore        enrollment.SecretVerifier
 	Logger             *slog.Logger
 }
 
@@ -89,7 +89,7 @@ func NewAgentService(deps Dependencies) *AgentService {
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
 func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
-	nodeKey, err := orbit.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
+	nodeKey, err := enrollment.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +99,7 @@ func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, e
 		update.Hardware.UUID = req.HostIdentifier
 	}
 	if update.Hardware.UUID == "" {
-		return "", orbit.ErrMissingHardwareUUID
+		return "", enrollment.ErrMissingHardwareUUID
 	}
 	update.OsqueryNodeKey = nodeKey
 

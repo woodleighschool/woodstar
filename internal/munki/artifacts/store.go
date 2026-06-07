@@ -100,7 +100,7 @@ func (s *Store) GetByLocation(ctx context.Context, kind ArtifactKind, location s
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	rows, err := s.q.DeleteMunkiArtifact(ctx, sqlc.DeleteMunkiArtifactParams{ID: id})
 	if err != nil {
-		return mapMutationError(err)
+		return mapDeleteError(err)
 	}
 	if rows == 0 {
 		return dbutil.ErrNotFound
@@ -150,4 +150,15 @@ func mapMutationError(err error) error {
 		return fmt.Errorf("%w: %w", dbutil.ErrInvalidInput, err)
 	}
 	return err
+}
+
+func mapDeleteError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation, pgerrcode.RestrictViolation:
+		return fmt.Errorf("%w: Munki artifact is still referenced", dbutil.ErrConflict)
+	}
+	return mapMutationError(err)
 }

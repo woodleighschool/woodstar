@@ -12,8 +12,8 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/httpjson"
-	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 )
 
@@ -51,7 +51,7 @@ func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.H
 			)
 			httpjson.WriteError(w, http.StatusUnauthorized, "invalid enroll secret")
 			return
-		case errors.Is(err, orbit.ErrMissingHardwareUUID):
+		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
 			httpjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case err != nil:

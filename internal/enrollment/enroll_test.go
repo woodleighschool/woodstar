@@ -1,4 +1,4 @@
-package orbit
+package enrollment
 
 import (
 	"context"

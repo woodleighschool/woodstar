@@ -203,7 +203,8 @@ func mapDeleteError(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dbutil.ErrNotFound
 	}
-	if database.SQLState(err) == pgerrcode.ForeignKeyViolation {
+	switch database.SQLState(err) {
+	case pgerrcode.ForeignKeyViolation, pgerrcode.RestrictViolation:
 		return fmt.Errorf("%w: Munki package is still referenced", dbutil.ErrConflict)
 	}
 	return mapMutationError(err)

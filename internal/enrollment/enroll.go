@@ -1,4 +1,5 @@
-package orbit
+// Package enrollment owns shared host-enrollment primitives.
+package enrollment
 
 import (
 	"context"
@@ -17,7 +18,7 @@ type SecretVerifier interface {
 	Verify(context.Context, agentauth.Agent, string) (bool, error)
 }
 
-// IssueNodeKey verifies the Orbit enrollment secret and returns a fresh node key.
+// IssueNodeKey verifies the shared Orbit enrollment secret and returns a fresh node key.
 func IssueNodeKey(ctx context.Context, verifier SecretVerifier, enrollSecret string) (string, error) {
 	ok, err := verifier.Verify(ctx, agentauth.AgentOrbit, enrollSecret)
 	if err != nil {

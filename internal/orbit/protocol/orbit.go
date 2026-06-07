@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/enrollment"
 	"github.com/woodleighschool/woodstar/internal/httpjson"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 )
@@ -40,7 +41,7 @@ func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.
 
 		host, nodeKey, err := svc.Enroll(r.Context(), req)
 		switch {
-		case errors.Is(err, orbit.ErrMissingHardwareUUID):
+		case errors.Is(err, enrollment.ErrMissingHardwareUUID):
 			httpjson.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		case errors.Is(err, agentauth.ErrInvalidSecret):

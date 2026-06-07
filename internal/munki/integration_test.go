@@ -634,6 +634,52 @@ func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
 	}
 }
 
+func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	title, err := stores.softwareTitles.Create(ctx, munkisoftware.SoftwareMutation{Name: "DeleteArtifactApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact.pkg", "b")
+	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact-uninstall.pkg", "c")
+	pkg, err := stores.packages.Import(ctx, packages.PackageImportMutation{
+		SoftwareID:            title.ID,
+		InstallerArtifactID:   &installerArtifact.ID,
+		UninstallerArtifactID: &uninstallerArtifact.ID,
+		Pkginfo: []byte(`{
+			"name": "DeleteArtifactApp",
+			"version": "1.0",
+			"uninstall_method": "uninstall_package"
+		}`),
+	})
+	if err != nil {
+		t.Fatalf("import package: %v", err)
+	}
+
+	references := []struct {
+		name string
+		id   int64
+	}{
+		{name: "installer", id: installerArtifact.ID},
+		{name: "uninstaller", id: uninstallerArtifact.ID},
+	}
+	for _, ref := range references {
+		if err := stores.artifacts.Delete(ctx, ref.id); !errors.Is(err, dbutil.ErrConflict) {
+			t.Fatalf("delete referenced %s artifact error = %v, want ErrConflict", ref.name, err)
+		}
+	}
+	if err := stores.packages.Delete(ctx, pkg.ID); err != nil {
+		t.Fatalf("delete package: %v", err)
+	}
+	for _, ref := range references {
+		if err := stores.artifacts.Delete(ctx, ref.id); err != nil {
+			t.Fatalf("delete unreferenced %s artifact: %v", ref.name, err)
+		}
+	}
+}
+
 func TestCreatePackageRejectsInvalidSoftwareID(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
@@ -1351,6 +1397,27 @@ func createMunkiPackage(
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
 	return *pkg
+}
+
+func createMunkiPackageArtifact(
+	t *testing.T,
+	ctx context.Context,
+	stores munkiStores,
+	location string,
+	hashChar string,
+) *artifacts.Artifact {
+	t.Helper()
+	artifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
+		Kind:       artifacts.ArtifactKindPackage,
+		Location:   location,
+		SizeBytes:  512,
+		SHA256:     strings.Repeat(hashChar, 64),
+		StorageKey: location,
+	})
+	if err != nil {
+		t.Fatalf("create package artifact: %v", err)
+	}
+	return artifact
 }
 
 func assertNoMunkiChildren(t *testing.T, ctx context.Context, stores munkiStores, softwareID int64) {
