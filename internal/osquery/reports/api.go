@@ -90,9 +90,7 @@ func registerCreateReport(api huma.API, reportStore *Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportCreateInput) (*reportOutput, error) {
-		params := input.Body
-		params.CreatedByUserID = adminctx.CurrentUserID(ctx)
-		report, err := reportStore.Create(ctx, params)
+		report, err := reportStore.Create(ctx, input.Body, adminctx.CurrentUserID(ctx))
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
@@ -126,8 +124,7 @@ func registerUpdateReport(api huma.API, reportStore *Store) {
 		Summary:     "Replace a report",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
-		params := input.Body
-		report, err := reportStore.Update(ctx, input.ReportID, params)
+		report, err := reportStore.Update(ctx, input.ReportID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}

@@ -24,7 +24,7 @@ func TestListIncludesTargets(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create report: %v", err)
 	}
 
@@ -49,7 +49,7 @@ func TestUpdateReplacesTargets(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{matching.ID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
 	if _, err := store.Create(ctx, ReportMutation{
@@ -98,7 +98,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Query:            "select 2;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{other.ID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create nonmatching report: %v", err)
 	}
 	if _, err := store.Create(ctx, ReportMutation{
@@ -106,7 +106,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Query:            "select 3;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{matching.ID}, []int64{excluded.ID}),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create excluded report: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets(nil, []int64{excluded.ID}),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create exclude-only report: %v", err)
 	}
 
@@ -153,7 +153,7 @@ func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{999_999}, nil),
-	})
+	}, nil)
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
@@ -168,7 +168,7 @@ func TestCreateReportRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 		Query:            "select 1;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{label.ID}, []int64{label.ID}),
-	})
+	}, nil)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
 	}
@@ -185,7 +185,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
 		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
 	if _, err := store.Create(ctx, ReportMutation{
@@ -193,7 +193,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Query:            "select 2;",
 		ScheduleInterval: 0,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
 	if _, err := store.Create(ctx, ReportMutation{
@@ -202,7 +202,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
 		Targets:           reportTargets([]int64{allHostsID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create version-gated report: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
 		Targets:          reportTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestOverwriteResultsReplacesHostSnapshot(t *testing.T) {
 		Name:             "Overwrite report",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create report: %v", err)
 	}

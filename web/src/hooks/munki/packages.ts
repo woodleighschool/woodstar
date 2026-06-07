@@ -45,8 +45,9 @@ export function useMunkiPackage(id: number | null) {
 
 export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, MunkiPackageMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages", { body })),
+  return useMutation<MunkiPackage, ApiError, { softwareID: number; body: MunkiPackageMutation }>({
+    mutationFn: ({ softwareID, body }) =>
+      unwrap(apiClient.POST("/api/munki/software/{id}/packages", { params: { path: { id: softwareID } }, body })),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
@@ -68,8 +69,11 @@ export function useUpdateMunkiPackage() {
 
 export function useImportMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, MunkiPackageImportMutation>({
-    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages/import", { body })),
+  return useMutation<MunkiPackage, ApiError, { softwareID: number; body: MunkiPackageImportMutation }>({
+    mutationFn: ({ softwareID, body }) =>
+      unwrap(
+        apiClient.POST("/api/munki/software/{id}/packages/import", { params: { path: { id: softwareID } }, body }),
+      ),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });

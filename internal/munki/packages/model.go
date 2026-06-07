@@ -160,7 +160,6 @@ type PackageAlert struct {
 
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
-	SoftwareID               int64                                 `json:"software_id"`
 	Version                  string                                `json:"version"                              minLength:"1"`
 	InstallerType            InstallerType                         `json:"installer_type,omitempty"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
@@ -208,7 +207,6 @@ type PackageMutation struct {
 
 // PackageImportMutation imports one existing Munki pkginfo item as a Woodstar package row.
 type PackageImportMutation struct {
-	SoftwareID            int64           `json:"software_id"                       minimum:"1"`
 	Pkginfo               json.RawMessage `json:"pkginfo"`
 	InstallerArtifactID   *int64          `json:"installer_artifact_id,omitempty"`
 	UninstallerArtifactID *int64          `json:"uninstaller_artifact_id,omitempty"`
@@ -292,9 +290,6 @@ type PackageListParams struct {
 }
 
 func (m PackageMutation) Validate() error {
-	if m.SoftwareID <= 0 {
-		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
 	if !validInstallerType(m.InstallerType) {
 		return fmt.Errorf("%w: unsupported installer_type %q", dbutil.ErrInvalidInput, m.InstallerType)
 	}
@@ -424,9 +419,6 @@ func (m PackageMutation) validateUninstallSemantics() error {
 }
 
 func (m PackageImportMutation) Validate() error {
-	if m.SoftwareID <= 0 {
-		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
 	if len(m.Pkginfo) == 0 || !json.Valid(m.Pkginfo) {
 		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
 	}

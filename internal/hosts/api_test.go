@@ -124,7 +124,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		t.Fatalf("enroll unevaluated host: %v", err)
 	}
 
-	check, err := checkStore.Create(ctx, checks.CheckMutation{Name: "Filter Test Check", Query: "select 1"})
+	check, err := checkStore.Create(ctx, checks.CheckMutation{Name: "Filter Test Check", Query: "select 1"}, nil)
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}

@@ -97,7 +97,7 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Check, error) {
 	return check, nil
 }
 
-func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error) {
+func (s *Store) Create(ctx context.Context, params CheckMutation, createdByUserID *int64) (*Check, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 			Name:            params.Name,
 			Description:     params.Description,
 			Query:           params.Query,
-			CreatedByUserID: params.CreatedByUserID,
+			CreatedByUserID: createdByUserID,
 		})
 		if err != nil {
 			return err

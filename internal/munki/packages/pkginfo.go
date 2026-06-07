@@ -229,7 +229,10 @@ func referenceName(ref PackageReference) string {
 }
 
 // Import imports one Munki pkginfo item into selected Woodstar-managed Munki software.
-func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Package, error) {
+func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImportMutation) (*Package, error) {
+	if softwareID <= 0 {
+		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
+	}
 	params = cleanImportMutation(params)
 	if err := params.Validate(); err != nil {
 		return nil, err
@@ -238,7 +241,6 @@ func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Pack
 	if err != nil {
 		return nil, err
 	}
-	mutation.SoftwareID = params.SoftwareID
 	mutation.InstallerArtifactID = params.InstallerArtifactID
 	mutation.UninstallerArtifactID = params.UninstallerArtifactID
 	mutation.IconArtifactID = params.IconArtifactID
@@ -246,7 +248,7 @@ func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Pack
 	if params.Eligible != nil {
 		mutation.Eligible = *params.Eligible
 	}
-	return s.Upsert(ctx, mutation)
+	return s.Upsert(ctx, softwareID, mutation)
 }
 
 func packageMutationFromPkginfo(raw json.RawMessage) (PackageMutation, error) {

@@ -91,7 +91,7 @@ func (s *Store) getByID(ctx context.Context, id int64) (*Report, error) {
 	return reportFromSQLC(row), nil
 }
 
-func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, error) {
+func (s *Store) Create(ctx context.Context, params ReportMutation, createdByUserID *int64) (*Report, error) {
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 			Query:             params.Query,
 			MinOsqueryVersion: params.MinOsqueryVersion,
 			ScheduleInterval:  params.ScheduleInterval,
-			CreatedByUserID:   params.CreatedByUserID,
+			CreatedByUserID:   createdByUserID,
 		})
 		if err != nil {
 			return err

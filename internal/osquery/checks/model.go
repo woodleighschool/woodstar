@@ -26,11 +26,10 @@ type Check struct {
 
 // CheckMutation is the editable check state used by create and update.
 type CheckMutation struct {
-	Name            string       `json:"name"`
-	Description     string       `json:"description,omitempty"`
-	Query           string       `json:"query"`
-	Targets         CheckTargets `json:"targets"`
-	CreatedByUserID *int64       `json:"-"`
+	Name        string       `json:"name"`
+	Description string       `json:"description,omitempty"`
+	Query       string       `json:"query"`
+	Targets     CheckTargets `json:"targets"`
 }
 
 func (p CheckMutation) Validate() error {

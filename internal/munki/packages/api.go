@@ -13,7 +13,8 @@ import (
 const (
 	munkiTag               = "Munki"
 	munkiPackagePath       = "/api/munki/packages"
-	munkiPackageImportPath = "/api/munki/packages/import"
+	munkiPackageCreatePath = "/api/munki/software/{id}/packages"
+	munkiPackageImportPath = munkiPackageCreatePath + "/import"
 	munkiPackageIDPath     = "/api/munki/packages/{id}"
 	munkiPackageLabel      = "Munki package"
 )
@@ -28,7 +29,8 @@ type munkiPackageGetInput struct {
 }
 
 type munkiPackageCreateInput struct {
-	Body PackageMutation
+	SoftwareID int64 `path:"id"`
+	Body       PackageMutation
 }
 
 type munkiPackagePutInput struct {
@@ -41,7 +43,8 @@ type munkiPackageDeleteInput struct {
 }
 
 type munkiPackageImportInput struct {
-	Body PackageImportMutation
+	SoftwareID int64 `path:"id"`
+	Body       PackageImportMutation
 }
 
 type munkiPackageListOutput struct {
@@ -98,7 +101,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
-		Path:          munkiPackagePath,
+		Path:          munkiPackageCreatePath,
 		Tags:          []string{munkiTag},
 		Summary:       "Create a Munki package",
 		DefaultStatus: http.StatusCreated,
@@ -110,7 +113,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Create(ctx, input.Body)
+		pkg, err := store.Create(ctx, input.SoftwareID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
@@ -134,7 +137,7 @@ func registerImportMunkiPackage(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackageImportInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Import(ctx, input.Body)
+		pkg, err := store.Import(ctx, input.SoftwareID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}

@@ -23,7 +23,7 @@ func TestListIncludesTargets(t *testing.T) {
 		Name:    "Targeted check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{labelA.ID}, []int64{labelB.ID}),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestUpdateReplacesTargets(t *testing.T) {
 		Name:    "Replacement check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -98,21 +98,21 @@ func TestApplicableForHostUsesTargetRows(t *testing.T) {
 		Name:    "Matching check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{matching.ID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
 	if _, err := store.Create(ctx, CheckMutation{
 		Name:    "Nonmatching check",
 		Query:   "select 2;",
 		Targets: checkTargets([]int64{other.ID}, nil),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create nonmatching check: %v", err)
 	}
 	if _, err := store.Create(ctx, CheckMutation{
 		Name:    "Excluded check",
 		Query:   "select 3;",
 		Targets: checkTargets([]int64{matching.ID}, []int64{excluded.ID}),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create excluded check: %v", err)
 	}
 
@@ -137,7 +137,7 @@ func TestApplicableForHostRequiresIncludeTarget(t *testing.T) {
 		Name:    "Exclude-only check",
 		Query:   "select 1;",
 		Targets: checkTargets(nil, []int64{excluded.ID}),
-	}); err != nil {
+	}, nil); err != nil {
 		t.Fatalf("create exclude-only check: %v", err)
 	}
 
@@ -157,7 +157,7 @@ func TestCreateCheckWithMissingLabelReturnsNotFound(t *testing.T) {
 		Name:    "Missing label target",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{999_999}, nil),
-	})
+	}, nil)
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
 	}
@@ -171,7 +171,7 @@ func TestCreateCheckRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 		Name:    "Overlapping check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{label.ID}, []int64{label.ID}),
-	})
+	}, nil)
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
 	}
@@ -186,7 +186,7 @@ func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 		Name:    "Matching check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create matching check: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 		Name:    "Passing check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create passing check: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 		Name:    "Failing check",
 		Query:   "select 0;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create failing check: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestHostChecksIncludeMembershipState(t *testing.T) {
 		Name:    "Unevaluated check",
 		Query:   "select 2;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create unevaluated check: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 		Name:    "Status list check",
 		Query:   "select 1;",
 		Targets: checkTargets([]int64{allHostsID}, nil),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 
 func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
 	store, _, hostStore, ctx := newIntegrationCheckStore(t)
-	check, err := store.Create(ctx, CheckMutation{Name: "Host ID status check", Query: "select 1"})
+	check, err := store.Create(ctx, CheckMutation{Name: "Host ID status check", Query: "select 1"}, nil)
 	if err != nil {
 		t.Fatalf("create check: %v", err)
 	}

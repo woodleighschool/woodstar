@@ -784,7 +784,6 @@ export type MunkiPackageImportMutation = {
     icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
-    software_id: number;
     uninstaller_artifact_id?: number;
 };
 
@@ -825,7 +824,6 @@ export type MunkiPackageMutation = {
     receipts?: Array<PackageReceipt> | null;
     requires?: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_id: number;
     supported_architectures?: Array<string> | null;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
@@ -1787,7 +1785,6 @@ export type MunkiPackageImportMutationWritable = {
     icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
-    software_id: number;
     uninstaller_artifact_id?: number;
 };
 
@@ -1824,7 +1821,6 @@ export type MunkiPackageMutationWritable = {
     receipts?: Array<PackageReceipt> | null;
     requires?: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_id: number;
     supported_architectures?: Array<string> | null;
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
@@ -3774,104 +3770,6 @@ export type ListMunkiPackagesResponses = {
 
 export type ListMunkiPackagesResponse = ListMunkiPackagesResponses[keyof ListMunkiPackagesResponses];
 
-export type CreateMunkiPackageData = {
-    body: MunkiPackageMutationWritable;
-    path?: never;
-    query?: never;
-    url: '/api/munki/packages';
-};
-
-export type CreateMunkiPackageErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiPackageError = CreateMunkiPackageErrors[keyof CreateMunkiPackageErrors];
-
-export type CreateMunkiPackageResponses = {
-    /**
-     * Created
-     */
-    201: MunkiPackage;
-};
-
-export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
-
-export type ImportMunkiPackageData = {
-    body: MunkiPackageImportMutationWritable;
-    path?: never;
-    query?: never;
-    url: '/api/munki/packages/import';
-};
-
-export type ImportMunkiPackageErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ImportMunkiPackageError = ImportMunkiPackageErrors[keyof ImportMunkiPackageErrors];
-
-export type ImportMunkiPackageResponses = {
-    /**
-     * Created
-     */
-    201: MunkiPackage;
-};
-
-export type ImportMunkiPackageResponse = ImportMunkiPackageResponses[keyof ImportMunkiPackageResponses];
-
 export type DeleteMunkiPackageData = {
     body?: never;
     path: {
@@ -4281,6 +4179,108 @@ export type UpdateMunkiSoftwareResponses = {
 };
 
 export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
+
+export type CreateMunkiPackageData = {
+    body: MunkiPackageMutationWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/software/{id}/packages';
+};
+
+export type CreateMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiPackageError = CreateMunkiPackageErrors[keyof CreateMunkiPackageErrors];
+
+export type CreateMunkiPackageResponses = {
+    /**
+     * Created
+     */
+    201: MunkiPackage;
+};
+
+export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
+
+export type ImportMunkiPackageData = {
+    body: MunkiPackageImportMutationWritable;
+    path: {
+        id: number;
+    };
+    query?: never;
+    url: '/api/munki/software/{id}/packages/import';
+};
+
+export type ImportMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ImportMunkiPackageError = ImportMunkiPackageErrors[keyof ImportMunkiPackageErrors];
+
+export type ImportMunkiPackageResponses = {
+    /**
+     * Created
+     */
+    201: MunkiPackage;
+};
+
+export type ImportMunkiPackageResponse = ImportMunkiPackageResponses[keyof ImportMunkiPackageResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

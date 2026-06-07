@@ -144,7 +144,6 @@ export function packageSubmitPreflightError(
 
 export function packageMutationFromForm(
   form: PackageFormState,
-  softwareID: number,
   artifacts: {
     installerArtifactID?: number;
     uninstallerArtifactID?: number;
@@ -159,7 +158,6 @@ export function packageMutationFromForm(
   const usesUninstallerArtifact = uninstallMethod === "uninstall_package";
 
   return {
-    software_id: softwareID,
     version: form.version,
     installer_type: installerType,
     uninstall_method: uninstallMethod,

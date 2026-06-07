@@ -102,7 +102,7 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 		Targets: reports.ReportTargets{
 			Include: []targeting.LabelRef{{LabelID: allHostsID}},
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		Targets: reports.ReportTargets{
 			Include: []targeting.LabelRef{{LabelID: allHostsID}},
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
 	}

@@ -56,13 +56,14 @@ export function MunkiPackageNewPage() {
         ? await packageUpload.upload(uninstallerFile)
         : null;
     const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    await create.mutateAsync(
-      packageMutationFromForm(value, softwareID, {
+    await create.mutateAsync({
+      softwareID,
+      body: packageMutationFromForm(value, {
         installerArtifactID: installerArtifact?.id,
         uninstallerArtifactID: uninstallerArtifact?.id,
         iconArtifactID: iconArtifact?.id,
       }),
-    );
+    });
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
   });
   return (
@@ -199,7 +200,7 @@ function MunkiPackageEditForm({
         ? await packageUpload.upload(uninstallerFile)
         : null;
     const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    const body = packageMutationFromForm(value, softwareID, {
+    const body = packageMutationFromForm(value, {
       installerArtifactID: installerArtifact?.id ?? pkg.installer_artifact_id,
       uninstallerArtifactID: uninstallerArtifact?.id ?? pkg.uninstaller_artifact_id,
       iconArtifactID: iconArtifact?.id ?? (iconCleared ? undefined : pkg.icon_artifact_id),

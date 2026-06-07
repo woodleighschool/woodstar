@@ -29,7 +29,6 @@ type ReportMutation struct {
 	MinOsqueryVersion *string       `json:"min_osquery_version,omitempty"`
 	ScheduleInterval  int32         `json:"schedule_interval,omitempty"`
 	Targets           ReportTargets `json:"targets"`
-	CreatedByUserID   *int64        `json:"-"`
 }
 
 func (p ReportMutation) Validate() error {
