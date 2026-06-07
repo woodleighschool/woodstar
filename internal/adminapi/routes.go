@@ -7,6 +7,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api/handlers"
+	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 )
@@ -23,9 +24,9 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	admin := huma.NewGroup(protected)
 	admin.UseMiddleware(RequireAdmin(humaAPI))
 
-	handlers.RegisterPublicAuth(humaAPI, deps.Auth.AuthService)
-	handlers.RegisterSSO(r, deps.Auth.AuthService)
-	handlers.RegisterAccount(protected, deps.Auth.AuthService, deps.Auth.UserService)
+	auth.RegisterPublicAdminRoutes(humaAPI, deps.Auth.AuthService)
+	RegisterSSO(r, deps.Auth.AuthService)
+	auth.RegisterAccountAdminRoutes(protected, deps.Auth.AuthService, deps.Auth.UserService)
 	directory.RegisterUserAdminRoutes(admin, deps.Auth.UserService)
 	directory.RegisterGroupAdminRoutes(admin, deps.Directory.Store)
 	handlers.RegisterHosts(

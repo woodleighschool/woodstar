@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
@@ -620,6 +621,12 @@ func loginSantaTestUser(
 		t.Fatalf("commit session: %v", err)
 	}
 	return &http.Cookie{Name: sessionManager.Cookie.Name, Value: token}
+}
+
+func testSessionManager() *scs.SessionManager {
+	sm := scs.New()
+	sm.Store = memstore.New()
+	return sm
 }
 
 func santaAdminRequest(

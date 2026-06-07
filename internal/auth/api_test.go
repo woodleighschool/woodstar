@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"bytes"
@@ -10,12 +10,13 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
 func TestLoginInvalidCredentialsMessage(t *testing.T) {
@@ -32,7 +33,7 @@ func TestLoginInvalidCredentialsMessage(t *testing.T) {
 
 	router := chi.NewRouter()
 	api := humachi.New(router, testHumaConfig())
-	RegisterPublicAuth(api, auth.NewService(userService, testSessionManager()))
+	RegisterPublicAdminRoutes(api, NewService(userService, testSessionManager()))
 
 	body := strings.NewReader(`{"email":"admin@example.test","password":"wrong-password"}`)
 	rec := httptest.NewRecorder()
@@ -53,4 +54,12 @@ func testSessionManager() *scs.SessionManager {
 	sm := scs.New()
 	sm.Store = memstore.New()
 	return sm
+}
+
+func testHumaConfig() huma.Config {
+	cfg := huma.DefaultConfig("test", "test")
+	cfg.Components = &huma.Components{
+		Schemas: huma.NewMapRegistry("#/components/schemas/", humaschema.WoodstarSchemaNamer),
+	}
+	return cfg
 }

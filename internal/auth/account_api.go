@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
@@ -24,17 +23,17 @@ type accountPutInput struct {
 	Body directory.AccountMutation
 }
 
-// RegisterAccount registers self-service endpoints scoped to the signed-in
-// user. The API key is intended for non-browser callers; the SPA continues to
-// authenticate via the scs session cookie.
-func RegisterAccount(api huma.API, authService *auth.Service, userService *directory.UserService) {
+// RegisterAccountAdminRoutes registers self-service endpoints scoped to the
+// signed-in user. The API key is intended for non-browser callers; the SPA
+// continues to authenticate via the scs session cookie.
+func RegisterAccountAdminRoutes(api huma.API, authService *Service, userService *directory.UserService) {
 	registerGetAccount(api, authService)
 	registerPutAccount(api, userService)
 	registerRotateAPIKey(api, authService)
 	registerRevokeAPIKey(api, authService)
 }
 
-func registerGetAccount(api huma.API, authService *auth.Service) {
+func registerGetAccount(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-account",
 		Method:      http.MethodGet,
@@ -80,7 +79,7 @@ func registerPutAccount(api huma.API, userService *directory.UserService) {
 	})
 }
 
-func registerRotateAPIKey(api huma.API, authService *auth.Service) {
+func registerRotateAPIKey(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "rotate-account-api-key",
 		Method:        http.MethodPost,
@@ -102,7 +101,7 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
+func registerRevokeAPIKey(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "revoke-account-api-key",
 		Method:      http.MethodDelete,

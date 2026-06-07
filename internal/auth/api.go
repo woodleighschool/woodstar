@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
@@ -45,13 +44,13 @@ const (
 	setupTag = "Setup"
 )
 
-func RegisterPublicAuth(api huma.API, authService *auth.Service) {
+func RegisterPublicAdminRoutes(api huma.API, authService *Service) {
 	registerSetup(api, authService)
 	registerSession(api, authService)
 	registerLogin(api, authService)
 }
 
-func registerSetup(api huma.API, authService *auth.Service) {
+func registerSetup(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "complete-setup",
 		Method:        http.MethodPost,
@@ -61,7 +60,7 @@ func registerSetup(api huma.API, authService *auth.Service) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusConflict},
 	}, func(ctx context.Context, input *setupInput) (*authUserOutput, error) {
-		user, err := authService.Setup(ctx, auth.SetupParams{
+		user, err := authService.Setup(ctx, SetupParams{
 			Email:    input.Body.Email,
 			Name:     input.Body.Name,
 			Password: input.Body.Password,
@@ -73,7 +72,7 @@ func registerSetup(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerSession(api huma.API, authService *auth.Service) {
+func registerSession(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-session",
 		Method:      http.MethodGet,
@@ -94,7 +93,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 		}
 		user, err := authService.CurrentUser(ctx)
 		if err != nil {
-			if errors.Is(err, auth.ErrNotAuthenticated) {
+			if errors.Is(err, ErrNotAuthenticated) {
 				return out, nil
 			}
 			return nil, err
@@ -104,7 +103,7 @@ func registerSession(api huma.API, authService *auth.Service) {
 	})
 }
 
-func registerLogin(api huma.API, authService *auth.Service) {
+func registerLogin(api huma.API, authService *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "create-session",
 		Method:      http.MethodPost,
@@ -135,13 +134,13 @@ func registerLogin(api huma.API, authService *auth.Service) {
 
 func authError(err error) error {
 	switch {
-	case errors.Is(err, auth.ErrInvalidCredentials):
+	case errors.Is(err, ErrInvalidCredentials):
 		return huma.Error401Unauthorized("invalid email or password")
-	case errors.Is(err, auth.ErrNotAuthenticated):
+	case errors.Is(err, ErrNotAuthenticated):
 		return huma.Error401Unauthorized("not authenticated")
-	case errors.Is(err, auth.ErrNotSetup):
+	case errors.Is(err, ErrNotSetup):
 		return huma.Error409Conflict("setup required")
-	case errors.Is(err, auth.ErrAlreadySetup):
+	case errors.Is(err, ErrAlreadySetup):
 		return huma.Error409Conflict("woodstar is already set up")
 	case errors.Is(err, directory.ErrWeakPassword):
 		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
