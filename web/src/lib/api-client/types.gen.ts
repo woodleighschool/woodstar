@@ -1225,14 +1225,6 @@ export type ReportTargets = {
 
 export type RuleInclude = {
     cel_expression?: string;
-    id: number;
-    label_id: number;
-    policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
-    position: number;
-};
-
-export type RuleIncludeWrite = {
-    cel_expression?: string;
     label_id: number;
     policy: 'allowlist' | 'allowlist_compiler' | 'blocklist' | 'silent_blocklist' | 'cel';
 };
@@ -1245,11 +1237,10 @@ export type RuleMutation = {
     custom_message?: string;
     custom_url?: string;
     description?: string;
-    exclude_label_ids?: Array<number> | null;
     identifier: string;
-    includes?: Array<RuleIncludeWrite> | null;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: RuleTargets;
 };
 
 export type RuleReference = {
@@ -1299,6 +1290,11 @@ export type RuleTarget = {
     rule_count: number;
     target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     version?: string;
+};
+
+export type RuleTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<RuleInclude>;
 };
 
 export type SantaConfiguration = {
@@ -1352,12 +1348,11 @@ export type SantaRule = {
     custom_message: string;
     custom_url: string;
     description: string;
-    exclude_label_ids: Array<number> | null;
     id: number;
     identifier: string;
-    includes: Array<RuleInclude> | null;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: RuleTargets;
     updated_at: string;
 };
 
@@ -1998,11 +1993,10 @@ export type RuleMutationWritable = {
     custom_message?: string;
     custom_url?: string;
     description?: string;
-    exclude_label_ids?: Array<number> | null;
     identifier: string;
-    includes?: Array<RuleIncludeWrite> | null;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: RuleTargets;
 };
 
 export type SantaConfigurationWritable = {
@@ -2036,12 +2030,11 @@ export type SantaRuleWritable = {
     custom_message: string;
     custom_url: string;
     description: string;
-    exclude_label_ids: Array<number> | null;
     id: number;
     identifier: string;
-    includes: Array<RuleInclude> | null;
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    targets: RuleTargets;
     updated_at: string;
 };
 

@@ -165,20 +165,20 @@ function ruleTargetDescriptionParts(target: SantaRuleTarget) {
 }
 
 export function IncludeTargetsTable({
-  includes,
+  includeRows,
   showErrors,
   includeErrors,
-  excludeLabelIDs,
+  excludedLabelIDs,
   onChange,
   onUpdate,
   onEditCEL,
   onDelete,
 }: {
-  includes: RuleIncludeForm[];
+  includeRows: RuleIncludeForm[];
   showErrors: boolean;
   includeErrors: Partial<Record<number, RuleIncludeErrors>>;
-  excludeLabelIDs: number[];
-  onChange: (includes: RuleIncludeForm[]) => void;
+  excludedLabelIDs: number[];
+  onChange: (includeRows: RuleIncludeForm[]) => void;
   onUpdate: (id: number, include: Partial<RuleIncludeForm>) => void;
   onEditCEL: (id: number) => void;
   onDelete: (id: number) => void;
@@ -250,8 +250,8 @@ export function IncludeTargetsTable({
 
   return (
     <LabelTargetRowsTable
-      rows={includes}
-      excludeLabelIDs={excludeLabelIDs}
+      rows={includeRows}
+      excludeLabelIDs={excludedLabelIDs}
       labelErrors={includeLabelErrors(showErrors, includeErrors)}
       columnsBeforeLabel={policyColumns}
       onChange={onChange}

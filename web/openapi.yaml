@@ -3297,36 +3297,9 @@ components:
       properties:
         cel_expression:
           type: string
-        id:
-          format: int64
-          type: integer
         label_id:
           format: int64
-          type: integer
-        policy:
-          enum:
-            - allowlist
-            - allowlist_compiler
-            - blocklist
-            - silent_blocklist
-            - cel
-          type: string
-        position:
-          format: int32
-          type: integer
-      required:
-        - id
-        - position
-        - policy
-        - label_id
-      type: object
-    RuleIncludeWrite:
-      additionalProperties: false
-      properties:
-        cel_expression:
-          type: string
-        label_id:
-          format: int64
+          minimum: 1
           type: integer
         policy:
           enum:
@@ -3356,21 +3329,8 @@ components:
           type: string
         description:
           type: string
-        exclude_label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
         identifier:
           type: string
-        includes:
-          items:
-            $ref: "#/components/schemas/RuleIncludeWrite"
-          type:
-            - array
-            - "null"
         name:
           type: string
         rule_type:
@@ -3382,10 +3342,13 @@ components:
             - cdhash
             - bundle
           type: string
+        targets:
+          $ref: "#/components/schemas/RuleTargets"
       required:
         - rule_type
         - identifier
         - name
+        - targets
       type: object
     RuleReference:
       additionalProperties: false
@@ -3540,6 +3503,21 @@ components:
         - rule_count
         - complete
       type: object
+    RuleTargets:
+      additionalProperties: false
+      properties:
+        exclude:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+        include:
+          items:
+            $ref: "#/components/schemas/RuleInclude"
+          type: array
+      required:
+        - include
+        - exclude
+      type: object
     SantaConfiguration:
       additionalProperties: false
       properties:
@@ -3676,24 +3654,11 @@ components:
           type: string
         description:
           type: string
-        exclude_label_ids:
-          items:
-            format: int64
-            type: integer
-          type:
-            - array
-            - "null"
         id:
           format: int64
           type: integer
         identifier:
           type: string
-        includes:
-          items:
-            $ref: "#/components/schemas/RuleInclude"
-          type:
-            - array
-            - "null"
         name:
           type: string
         rule_type:
@@ -3705,6 +3670,8 @@ components:
             - cdhash
             - bundle
           type: string
+        targets:
+          $ref: "#/components/schemas/RuleTargets"
         updated_at:
           format: date-time
           type: string
@@ -3716,8 +3683,7 @@ components:
         - description
         - custom_message
         - custom_url
-        - includes
-        - exclude_label_ids
+        - targets
         - created_at
         - updated_at
       type: object
@@ -8318,7 +8284,7 @@ paths:
       summary: Get a Santa rule
       tags:
         - Santa
-    patch:
+    put:
       operationId: update-santa-rule
       parameters:
         - in: path

@@ -375,8 +375,6 @@ func (q *Queries) ListSantaRuleExcludeLabels(ctx context.Context, arg ListSantaR
 const listSantaRuleIncludes = `-- name: ListSantaRuleIncludes :many
 SELECT
     rule_id,
-    position::bigint AS id,
-    position,
     policy::text,
     COALESCE(cel_expression, '') AS cel_expression,
     label_id
@@ -392,8 +390,6 @@ type ListSantaRuleIncludesParams struct {
 
 type ListSantaRuleIncludesRow struct {
 	RuleID        int64  `json:"rule_id"`
-	ID            int64  `json:"id"`
-	Position      int32  `json:"position"`
 	Policy        string `json:"policy"`
 	CelExpression string `json:"cel_expression"`
 	LabelID       int64  `json:"label_id"`
@@ -410,8 +406,6 @@ func (q *Queries) ListSantaRuleIncludes(ctx context.Context, arg ListSantaRuleIn
 		var i ListSantaRuleIncludesRow
 		if err := rows.Scan(
 			&i.RuleID,
-			&i.ID,
-			&i.Position,
 			&i.Policy,
 			&i.CelExpression,
 			&i.LabelID,

@@ -33,7 +33,7 @@ type santaRuleCreateInput struct {
 	Body santarules.RuleMutation
 }
 
-type santaRulePatchInput struct {
+type santaRuleUpdateInput struct {
 	ID   int64 `path:"id"`
 	Body santarules.RuleMutation
 }
@@ -78,7 +78,7 @@ func RegisterSantaRules(api huma.API, store *santarules.Store) {
 	registerListSantaRuleTargets(api, store)
 	registerCreateSantaRule(api, store)
 	registerGetSantaRule(api, store)
-	registerPatchSantaRule(api, store)
+	registerUpdateSantaRule(api, store)
 	registerDeleteSantaRule(api, store)
 	registerBulkDeleteSantaRules(api, store)
 }
@@ -158,10 +158,10 @@ func registerGetSantaRule(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerPatchSantaRule(api huma.API, store *santarules.Store) {
+func registerUpdateSantaRule(api huma.API, store *santarules.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-santa-rule",
-		Method:      http.MethodPatch,
+		Method:      http.MethodPut,
 		Path:        santaRuleIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Update a Santa rule",
@@ -172,7 +172,7 @@ func registerPatchSantaRule(api huma.API, store *santarules.Store) {
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *santaRulePatchInput) (*santaRuleOutput, error) {
+	}, func(ctx context.Context, input *santaRuleUpdateInput) (*santaRuleOutput, error) {
 		rule, err := store.UpdateRule(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)

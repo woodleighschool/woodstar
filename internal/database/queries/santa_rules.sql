@@ -371,8 +371,6 @@ FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, position);
 -- name: ListSantaRuleIncludes :many
 SELECT
     rule_id,
-    position::bigint AS id,
-    position,
     policy::text,
     COALESCE(cel_expression, '') AS cel_expression,
     label_id

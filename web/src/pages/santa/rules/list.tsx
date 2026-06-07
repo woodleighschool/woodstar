@@ -81,17 +81,12 @@ export function SantaRulesPage() {
       cell: ({ row }) => row.original.identifier,
     },
     {
-      id: "assignments",
+      id: "targets",
       header: "Targets",
       enableSorting: false,
       cell: ({ row }) => {
-        const includes = row.original.includes ?? [];
-        const excludeLabelIDs = row.original.exclude_label_ids ?? [];
-        const targets = [
-          ...includes.map((include) => ({ label_id: include.label_id, effect: "include" as const })),
-          ...excludeLabelIDs.map((labelID) => ({ label_id: labelID, effect: "exclude" as const })),
-        ];
-        return includes.length ? (
+        const targets = row.original.targets;
+        return targets.include.length ? (
           <TargetLabelsCell targets={targets} labelsByID={labelsByID} />
         ) : (
           <Badge variant="secondary">Inactive</Badge>

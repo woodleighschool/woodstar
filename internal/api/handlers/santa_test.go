@@ -122,6 +122,95 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 	}
 }
 
+func TestSantaRuleEndpointReplacesTargetsOnPut(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	router, protected, cookie := santaAdminTestAPI(t, db, "rule-update-admin@example.test")
+	RegisterSantaRules(protected, santarules.NewStore(db))
+
+	labelStore := labels.NewStore(db)
+	firstLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Rule Endpoint First",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create first label: %v", err)
+	}
+	secondLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Rule Endpoint Second",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create second label: %v", err)
+	}
+	excludeLabel, err := labelStore.Create(ctx, labels.LabelMutation{
+		Name:                "Rule Endpoint Exclude",
+		LabelMembershipType: labels.LabelMembershipTypeManual,
+	})
+	if err != nil {
+		t.Fatalf("create exclude label: %v", err)
+	}
+
+	createBody := santaRuleBody(
+		"Endpoint Rule",
+		string(santarules.RuleTypeBinary),
+		strings.Repeat("6", 64),
+		string(santarules.PolicyAllowlist),
+		firstLabel.ID,
+		"",
+	)
+	rec := santaAdminRequest(t, router, cookie, http.MethodPost, "/api/santa/rules", createBody)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	var created santarules.Rule
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created rule: %v", err)
+	}
+	if len(created.Targets.Include) != 1 ||
+		created.Targets.Include[0].LabelID != firstLabel.ID ||
+		created.Targets.Include[0].Policy != santarules.PolicyAllowlist ||
+		len(created.Targets.Exclude) != 0 {
+		t.Fatalf("created targets = %+v, want canonical include-only target set", created.Targets)
+	}
+
+	celExpression := "target.path.startsWith('/Applications')"
+	updateBody := santaRuleBody(
+		"Endpoint Rule Updated",
+		string(santarules.RuleTypeSigningID),
+		"ABCDE12345:com.example.updated",
+		string(santarules.PolicyCEL),
+		secondLabel.ID,
+		celExpression,
+		excludeLabel.ID,
+	)
+	rec = santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodPut,
+		fmt.Sprintf("/api/santa/rules/%d", created.ID),
+		updateBody,
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var updated santarules.Rule
+	if err := json.Unmarshal(rec.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode updated rule: %v", err)
+	}
+	if updated.RuleType != santarules.RuleTypeSigningID || updated.Identifier != "ABCDE12345:com.example.updated" {
+		t.Fatalf("updated identity = %s %q, want signing ID", updated.RuleType, updated.Identifier)
+	}
+	if len(updated.Targets.Include) != 1 ||
+		updated.Targets.Include[0].LabelID != secondLabel.ID ||
+		updated.Targets.Include[0].Policy != santarules.PolicyCEL ||
+		updated.Targets.Include[0].CELExpression != celExpression ||
+		len(updated.Targets.Exclude) != 1 ||
+		updated.Targets.Exclude[0].LabelID != excludeLabel.ID {
+		t.Fatalf("updated targets = %+v, want replaced include/exclude target set", updated.Targets)
+	}
+}
+
 func TestSoftwareSantaReferenceEndpoint(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router, protected, cookie := santaTestAPIWith(t, db, "software-santa-admin@example.test", false)
@@ -418,6 +507,34 @@ func santaConfigurationBody(name string, labelID int64) string {
 		"batch_size": 50,
 		"targets": {"include": [{"label_id": %d}], "exclude": []}
 	}`, name, labelID)
+}
+
+func santaRuleBody(
+	name string,
+	ruleType string,
+	identifier string,
+	policy string,
+	includeLabelID int64,
+	celExpression string,
+	excludeLabelIDs ...int64,
+) string {
+	celField := ""
+	if celExpression != "" {
+		celField = fmt.Sprintf(`, "cel_expression": %q`, celExpression)
+	}
+	excludeRows := make([]string, len(excludeLabelIDs))
+	for i, labelID := range excludeLabelIDs {
+		excludeRows[i] = fmt.Sprintf(`{"label_id": %d}`, labelID)
+	}
+	return fmt.Sprintf(`{
+			"name": %q,
+			"rule_type": %q,
+			"identifier": %q,
+			"targets": {
+				"include": [{"label_id": %d, "policy": %q%s}],
+				"exclude": [%s]
+			}
+		}`, name, ruleType, identifier, includeLabelID, policy, celField, strings.Join(excludeRows, ","))
 }
 
 func santaAuthedRouter(t *testing.T, db *database.DB, email string, register func(huma.API)) (*chi.Mux, *http.Cookie) {

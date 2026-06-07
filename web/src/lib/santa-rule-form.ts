@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 import type { SantaRule, SantaRuleMutation, SantaRulePolicy, SantaRuleType } from "@/hooks/use-santa";
-import { optionalText, requiredString, selectedIDArray } from "@/lib/form-validation";
+import type { LabelRef } from "@/lib/api";
+import { optionalText, requiredString } from "@/lib/form-validation";
 import { santaCELExpressionError } from "@/lib/santa-cel";
 import { POLICY_VALUES, RULE_IDENTIFIER_RULES, RULE_TYPE_VALUES } from "@/lib/santa-rules";
 
@@ -10,7 +11,7 @@ const includeSchema = z
     id: z.number(),
     policy: z.enum(POLICY_VALUES),
     cel_expression: z.string().trim(),
-    label_id: z.number().int("Label selection is invalid.").nullable(),
+    label_id: z.number().int("Label selection is invalid.").positive("Pick a label.").nullable(),
   })
   .refine((value) => value.label_id !== null, {
     message: "Pick a label.",
@@ -36,8 +37,10 @@ export const ruleFormSchema = z
     description: z.string().trim(),
     custom_message: z.string().trim(),
     custom_url: z.string().trim(),
-    exclude_label_ids: selectedIDArray("Label"),
-    includes: z.array(includeSchema),
+    targets: z.object({
+      include: z.array(includeSchema),
+      exclude: z.array(z.object({ label_id: z.number().int("Label selection is invalid.").positive("Pick a label.") })),
+    }),
   })
   .superRefine((value, ctx) => {
     if (value.identifier === "") return;
@@ -64,8 +67,10 @@ export interface RuleFormState {
   description: string;
   custom_message: string;
   custom_url: string;
-  exclude_label_ids: number[];
-  includes: RuleIncludeForm[];
+  targets: {
+    include: RuleIncludeForm[];
+    exclude: LabelRef[];
+  };
 }
 
 export const emptyRuleForm: RuleFormState = {
@@ -75,8 +80,10 @@ export const emptyRuleForm: RuleFormState = {
   description: "",
   custom_message: "",
   custom_url: "",
-  exclude_label_ids: [],
-  includes: [],
+  targets: {
+    include: [],
+    exclude: [],
+  },
 };
 
 export function formFromSearch(search: Record<string, unknown>): RuleFormState {
@@ -102,13 +109,15 @@ export function formFromRule(rule: SantaRule): RuleFormState {
     description: rule.description,
     custom_message: rule.custom_message,
     custom_url: rule.custom_url,
-    exclude_label_ids: rule.exclude_label_ids ?? [],
-    includes: (rule.includes ?? []).map((include) => ({
-      id: include.id,
-      policy: include.policy,
-      cel_expression: include.cel_expression ?? "",
-      label_id: include.label_id,
-    })),
+    targets: {
+      include: rule.targets.include.map((include, index) => ({
+        id: index + 1,
+        policy: include.policy,
+        cel_expression: include.cel_expression ?? "",
+        label_id: include.label_id,
+      })),
+      exclude: rule.targets.exclude,
+    },
   };
 }
 
@@ -120,8 +129,10 @@ export function ruleBody(form: RuleFormState): SantaRuleMutation {
     description: optionalText(form.description),
     custom_message: optionalText(form.custom_message),
     custom_url: optionalText(form.custom_url),
-    exclude_label_ids: form.exclude_label_ids,
-    includes: form.includes.map(includeBody),
+    targets: {
+      include: form.targets.include.map(includeBody),
+      exclude: form.targets.exclude,
+    },
   };
 }
 
@@ -138,17 +149,17 @@ function includeBody(include: RuleIncludeForm) {
 
 export function includeErrorMap(
   result: RuleFormParse,
-  includes: RuleIncludeForm[],
+  includeRows: RuleIncludeForm[],
 ): Partial<Record<number, RuleIncludeErrors>> {
   if (result.success) return {};
   const out: Partial<Record<number, RuleIncludeErrors>> = {};
   for (const issue of result.error.issues) {
-    if (issue.path[0] !== "includes") continue;
-    const index = issue.path[1];
-    if (typeof index !== "number" || index >= includes.length) continue;
-    const include = includes[index];
+    if (issue.path[0] !== "targets" || issue.path[1] !== "include") continue;
+    const index = issue.path[2];
+    if (typeof index !== "number" || index >= includeRows.length) continue;
+    const include = includeRows[index];
     const entry = out[include.id] ?? {};
-    const field = issue.path[2];
+    const field = issue.path[3];
     if (field === "cel_expression" && !entry.cel_expression) entry.cel_expression = issue.message;
     if (field === "label_id" && !entry.label_id) entry.label_id = issue.message;
     out[include.id] = entry;
@@ -156,8 +167,16 @@ export function includeErrorMap(
   return out;
 }
 
-export function selectedIncludeLabelIDs(includes: RuleIncludeForm[]) {
-  return includes.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
+export function selectedIncludeLabelIDs(includeRows: RuleIncludeForm[]) {
+  return includeRows.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
+}
+
+export function labelRefsFromIDs(labelIDs: number[]): LabelRef[] {
+  return labelIDs.map((labelID) => ({ label_id: labelID }));
+}
+
+export function labelIDsFromRefs(refs: LabelRef[]) {
+  return refs.map((ref) => ref.label_id);
 }
 
 export function ruleIdentifierHint(ruleType: SantaRuleType) {

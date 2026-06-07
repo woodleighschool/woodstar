@@ -62,42 +62,26 @@ type RuleListParams struct {
 }
 
 type RuleMutation struct {
-	RuleType        RuleType           `json:"rule_type"`
-	Identifier      string             `json:"identifier"`
-	Name            string             `json:"name"`
-	Description     string             `json:"description,omitempty"`
-	CustomMessage   string             `json:"custom_message,omitempty"`
-	CustomURL       string             `json:"custom_url,omitempty"`
-	Includes        []RuleIncludeWrite `json:"includes,omitempty"`
-	ExcludeLabelIDs []int64            `json:"exclude_label_ids,omitempty"`
-}
-
-type RuleIncludeWrite struct {
-	Policy        Policy `json:"policy"`
-	CELExpression string `json:"cel_expression,omitempty"`
-	LabelID       int64  `json:"label_id"`
+	RuleType      RuleType    `json:"rule_type"`
+	Identifier    string      `json:"identifier"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description,omitempty"`
+	CustomMessage string      `json:"custom_message,omitempty"`
+	CustomURL     string      `json:"custom_url,omitempty"`
+	Targets       RuleTargets `json:"targets"`
 }
 
 type Rule struct {
-	ID              int64         `json:"id"`
-	RuleType        RuleType      `json:"rule_type"`
-	Identifier      string        `json:"identifier"`
-	Name            string        `json:"name"`
-	Description     string        `json:"description"`
-	CustomMessage   string        `json:"custom_message"`
-	CustomURL       string        `json:"custom_url"`
-	Includes        []RuleInclude `json:"includes"`
-	ExcludeLabelIDs []int64       `json:"exclude_label_ids"`
-	CreatedAt       time.Time     `json:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at"`
-}
-
-type RuleInclude struct {
-	ID            int64  `json:"id"`
-	Position      int32  `json:"position"`
-	Policy        Policy `json:"policy"`
-	CELExpression string `json:"cel_expression,omitempty"`
-	LabelID       int64  `json:"label_id"`
+	ID            int64       `json:"id"`
+	RuleType      RuleType    `json:"rule_type"`
+	Identifier    string      `json:"identifier"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description"`
+	CustomMessage string      `json:"custom_message"`
+	CustomURL     string      `json:"custom_url"`
+	Targets       RuleTargets `json:"targets"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
 type HostRule struct {

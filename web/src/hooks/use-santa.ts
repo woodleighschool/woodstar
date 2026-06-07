@@ -41,7 +41,7 @@ export type SantaClientMode = SantaHostState["client_mode_reported"] | SantaConf
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
 export type SantaRuleType = SantaRule["rule_type"];
-export type SantaRulePolicy = NonNullable<SantaRule["includes"]>[number]["policy"];
+export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
 
 export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
@@ -238,7 +238,7 @@ export function useCreateSantaRule() {
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
-    mutationFn: ({ id, body }) => unwrap(apiClient.PATCH("/api/santa/rules/{id}", { params: { path: { id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
     onSuccess: (rule) => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });

@@ -67,10 +67,12 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		Identifier:    binaryIdentifier,
 		Name:          "Blocked binary",
 		CustomMessage: "Blocked",
-		Includes: []santarules.RuleIncludeWrite{{
-			Policy:  santarules.PolicyBlocklist,
-			LabelID: labelID,
-		}},
+		Targets: santarules.RuleTargets{
+			Include: []santarules.RuleInclude{{
+				Policy:  santarules.PolicyBlocklist,
+				LabelID: labelID,
+			}},
+		},
 	}); err != nil {
 		t.Fatalf("create rule: %v", err)
 	}
@@ -131,10 +133,12 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 		RuleType:   santarules.RuleTypeCertificate,
 		Identifier: certificateIdentifier,
 		Name:       "Blocked certificate",
-		Includes: []santarules.RuleIncludeWrite{{
-			Policy:  santarules.PolicyBlocklist,
-			LabelID: labelID,
-		}},
+		Targets: santarules.RuleTargets{
+			Include: []santarules.RuleInclude{{
+				Policy:  santarules.PolicyBlocklist,
+				LabelID: labelID,
+			}},
+		},
 	}); err != nil {
 		t.Fatalf("create post-preflight rule: %v", err)
 	}

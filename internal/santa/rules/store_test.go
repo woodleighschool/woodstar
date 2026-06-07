@@ -11,12 +11,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	store := rules.NewStore(db)
 	labelID := createSantaRuleLabel(t, db, "Santa Rule Validation")
+	replacementLabelID := createSantaRuleLabel(t, db, "Santa Rule Replacement")
 	excludeLabelID := createSantaRuleLabel(t, db, "Santa Rule Exclude")
 	allHostsLabelID := santaRuleAllHostsLabelID(t, db)
 	binaryIdentifier := strings.Repeat("a", 64)
@@ -43,7 +45,7 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
 				Name:       "CEL Without Expression",
-				Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyCEL, LabelID: labelID}},
+				Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyCEL, LabelID: labelID}}),
 			},
 		},
 		{
@@ -52,11 +54,11 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
 				Name:       "Non CEL With Expression",
-				Includes: []rules.RuleIncludeWrite{{
+				Targets: ruleTargets([]rules.RuleInclude{{
 					Policy:        rules.PolicyAllowlist,
 					CELExpression: "target.path == '/Applications'",
 					LabelID:       labelID,
-				}},
+				}}),
 			},
 		},
 		{
@@ -65,30 +67,47 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 				RuleType:   rules.RuleTypeBinary,
 				Identifier: binaryIdentifier,
 				Name:       "Duplicate Include Label",
-				Includes: []rules.RuleIncludeWrite{
+				Targets: ruleTargets([]rules.RuleInclude{
 					{Policy: rules.PolicyAllowlist, LabelID: labelID},
 					{Policy: rules.PolicyBlocklist, LabelID: labelID},
-				},
+				}),
+			},
+		},
+		{
+			name: "duplicate exclude label",
+			params: rules.RuleMutation{
+				RuleType:   rules.RuleTypeBinary,
+				Identifier: binaryIdentifier,
+				Name:       "Duplicate Exclude Label",
+				Targets: ruleTargets(
+					[]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+					excludeLabelID,
+					excludeLabelID,
+				),
 			},
 		},
 		{
 			name: "include and exclude overlap",
 			params: rules.RuleMutation{
-				RuleType:        rules.RuleTypeBinary,
-				Identifier:      binaryIdentifier,
-				Name:            "Include Exclude Overlap",
-				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
-				ExcludeLabelIDs: []int64{labelID},
+				RuleType:   rules.RuleTypeBinary,
+				Identifier: binaryIdentifier,
+				Name:       "Include Exclude Overlap",
+				Targets: ruleTargets(
+					[]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+					labelID,
+				),
 			},
 		},
 		{
 			name: "builtin exclude",
 			params: rules.RuleMutation{
-				RuleType:        rules.RuleTypeBinary,
-				Identifier:      binaryIdentifier,
-				Name:            "Builtin Exclude",
-				Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
-				ExcludeLabelIDs: []int64{allHostsLabelID},
+				RuleType:   rules.RuleTypeBinary,
+				Identifier: binaryIdentifier,
+				Name:       "Builtin Exclude",
+				Targets: ruleTargets(
+					[]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
+					allHostsLabelID,
+				),
 			},
 		},
 	}
@@ -108,10 +127,10 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		Description:   "Example rule",
 		CustomMessage: "Blocked",
 		CustomURL:     "https://example.test",
-		Includes: []rules.RuleIncludeWrite{{
+		Targets: ruleTargets([]rules.RuleInclude{{
 			Policy:  rules.PolicyAllowlist,
 			LabelID: labelID,
-		}},
+		}}),
 	})
 	if err != nil {
 		t.Fatalf("create rule: %v", err)
@@ -121,8 +140,11 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		rule.CustomURL != "https://example.test" {
 		t.Fatalf("rule = %+v, want persisted binary rule metadata", rule)
 	}
-	if len(rule.Includes) != 1 || rule.Includes[0].Position != 0 || rule.Includes[0].Policy != rules.PolicyAllowlist {
-		t.Fatalf("includes = %+v, want one allowlist include at position 0", rule.Includes)
+	if len(rule.Targets.Include) != 1 || rule.Targets.Include[0].Policy != rules.PolicyAllowlist {
+		t.Fatalf("include targets = %+v, want one allowlist include", rule.Targets.Include)
+	}
+	if rule.Targets.Exclude == nil {
+		t.Fatalf("exclude targets = nil, want empty array")
 	}
 
 	_, err = store.CreateRule(ctx, rules.RuleMutation{
@@ -141,12 +163,11 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 		Name:          "Updated",
 		Description:   "Updated rule",
 		CustomMessage: "Updated message",
-		Includes: []rules.RuleIncludeWrite{{
+		Targets: ruleTargets([]rules.RuleInclude{{
 			Policy:        rules.PolicyCEL,
 			CELExpression: celExpression,
-			LabelID:       labelID,
-		}},
-		ExcludeLabelIDs: []int64{excludeLabelID},
+			LabelID:       replacementLabelID,
+		}}, excludeLabelID),
 	})
 	if err != nil {
 		t.Fatalf("update rule: %v", err)
@@ -157,11 +178,13 @@ func TestRuleStoreValidatesAndReplacesEditableShape(t *testing.T) {
 	if updated.Description != "Updated rule" {
 		t.Fatalf("updated description = %q, want Updated rule", updated.Description)
 	}
-	if len(updated.Includes) != 1 || updated.Includes[0].CELExpression != celExpression {
-		t.Fatalf("updated include = %+v, want CEL expression", updated.Includes)
+	if len(updated.Targets.Include) != 1 ||
+		updated.Targets.Include[0].CELExpression != celExpression ||
+		updated.Targets.Include[0].LabelID != replacementLabelID {
+		t.Fatalf("updated include = %+v, want replacement label and CEL expression", updated.Targets.Include)
 	}
-	if len(updated.ExcludeLabelIDs) != 1 || updated.ExcludeLabelIDs[0] != excludeLabelID {
-		t.Fatalf("exclude labels = %v, want [%d]", updated.ExcludeLabelIDs, excludeLabelID)
+	if len(updated.Targets.Exclude) != 1 || updated.Targets.Exclude[0].LabelID != excludeLabelID {
+		t.Fatalf("exclude targets = %v, want [%d]", updated.Targets.Exclude, excludeLabelID)
 	}
 }
 
@@ -173,7 +196,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("d", 64),
 		Name:       "Missing Include Label",
-		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: 999_999}},
+		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: 999_999}}),
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("missing include label error = %v, want ErrNotFound", err)
@@ -181,11 +204,10 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 
 	labelID := createSantaRuleLabel(t, db, "Rule Missing Exclude Include")
 	_, err = store.CreateRule(ctx, rules.RuleMutation{
-		RuleType:        rules.RuleTypeBinary,
-		Identifier:      strings.Repeat("e", 64),
-		Name:            "Missing Exclude Label",
-		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
-		ExcludeLabelIDs: []int64{999_999},
+		RuleType:   rules.RuleTypeBinary,
+		Identifier: strings.Repeat("e", 64),
+		Name:       "Missing Exclude Label",
+		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: labelID}}, 999_999),
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("missing exclude label error = %v, want ErrNotFound", err)
@@ -197,11 +219,11 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("a", 64),
 		Name:       "CEL Rule",
-		Includes: []rules.RuleIncludeWrite{{
+		Targets: ruleTargets([]rules.RuleInclude{{
 			Policy:        rules.PolicyCEL,
 			CELExpression: "target.signing_id == 'ABCDE12345:com.example.app'",
 			LabelID:       1,
-		}},
+		}}),
 	}
 
 	if err := base.Validate(); err != nil {
@@ -215,25 +237,25 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 		{
 			name: "malformed cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Includes[0].CELExpression = "target.signing_id =="
+				params.Targets.Include[0].CELExpression = "target.signing_id =="
 			},
 		},
 		{
 			name: "empty cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Includes[0].CELExpression = ""
+				params.Targets.Include[0].CELExpression = ""
 			},
 		},
 		{
 			name: "blank cel",
 			mutate: func(params *rules.RuleMutation) {
-				params.Includes[0].CELExpression = "  "
+				params.Targets.Include[0].CELExpression = "  "
 			},
 		},
 		{
 			name: "non cel with expression",
 			mutate: func(params *rules.RuleMutation) {
-				params.Includes[0].Policy = rules.PolicyAllowlist
+				params.Targets.Include[0].Policy = rules.PolicyAllowlist
 			},
 		},
 		{
@@ -255,7 +277,8 @@ func TestRuleMutationValidatesCELSyntax(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			params := base
-			params.Includes = append([]rules.RuleIncludeWrite(nil), base.Includes...)
+			params.Targets.Include = append([]rules.RuleInclude(nil), base.Targets.Include...)
+			params.Targets.Exclude = append([]targeting.LabelRef(nil), base.Targets.Exclude...)
 			tt.mutate(&params)
 
 			err := params.Validate()
@@ -290,20 +313,22 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 		RuleType:   rules.RuleTypeBinary,
 		Name:       "Scoped Binary",
 		Identifier: strings.Repeat("1", 64),
-		Includes: []rules.RuleIncludeWrite{
+		Targets: ruleTargets([]rules.RuleInclude{
 			{Policy: rules.PolicyBlocklist, LabelID: firstLabelID},
 			{Policy: rules.PolicySilentBlocklist, LabelID: secondLabelID},
-		},
+		}),
 	})
 	if err != nil {
 		t.Fatalf("create host rule: %v", err)
 	}
 	excludedRule, err := store.CreateRule(ctx, rules.RuleMutation{
-		RuleType:        rules.RuleTypeTeamID,
-		Identifier:      "TEAMID1234",
-		Name:            "Excluded Team",
-		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: secondLabelID}},
-		ExcludeLabelIDs: []int64{excludeLabelID},
+		RuleType:   rules.RuleTypeTeamID,
+		Identifier: "TEAMID1234",
+		Name:       "Excluded Team",
+		Targets: ruleTargets(
+			[]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: secondLabelID}},
+			excludeLabelID,
+		),
 	})
 	if err != nil {
 		t.Fatalf("create excluded rule: %v", err)
@@ -346,7 +371,7 @@ func TestRuleResolverAllowsAllHostsInclude(t *testing.T) {
 		RuleType:   rules.RuleTypeTeamID,
 		Identifier: "ALLHOST123",
 		Name:       "All Hosts Team",
-		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: allHostsLabelID}},
+		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyAllowlist, LabelID: allHostsLabelID}}),
 	})
 	if err != nil {
 		t.Fatalf("create all hosts rule: %v", err)
@@ -426,7 +451,7 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 		RuleType:   rules.RuleTypeBundle,
 		Identifier: bundleHash,
 		Name:       "Bundle Rule",
-		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyBlocklist, LabelID: labelID}},
+		Targets:    ruleTargets([]rules.RuleInclude{{Policy: rules.PolicyBlocklist, LabelID: labelID}}),
 	})
 	if err != nil {
 		t.Fatalf("create bundle rule: %v", err)
@@ -715,4 +740,19 @@ func santaRuleAllHostsLabelID(t *testing.T, db *database.DB) int64 {
 		t.Fatalf("get All Hosts label: %v", err)
 	}
 	return id
+}
+
+func ruleTargets(includes []rules.RuleInclude, excludedLabelIDs ...int64) rules.RuleTargets {
+	return rules.RuleTargets{
+		Include: includes,
+		Exclude: ruleLabelRefs(excludedLabelIDs...),
+	}
+}
+
+func ruleLabelRefs(labelIDs ...int64) []targeting.LabelRef {
+	refs := make([]targeting.LabelRef, len(labelIDs))
+	for i, labelID := range labelIDs {
+		refs[i] = targeting.LabelRef{LabelID: labelID}
+	}
+	return refs
 }

@@ -21,6 +21,8 @@ import {
   formFromSearch,
   identifierErrorFor,
   includeErrorMap,
+  labelIDsFromRefs,
+  labelRefsFromIDs,
   ruleBody,
   ruleFormSchema,
   selectedIncludeLabelIDs,
@@ -100,10 +102,10 @@ function RuleForm({
     if (next.policy && next.policy !== "cel" && celDialogID === id) {
       setCELDialogID(null);
     }
-    form.setFieldValue(
-      "includes",
-      values.includes.map((include) => (include.id === id ? { ...include, ...next } : include)),
-    );
+    form.setFieldValue("targets", {
+      ...values.targets,
+      include: values.targets.include.map((include) => (include.id === id ? { ...include, ...next } : include)),
+    });
   }
 
   return (
@@ -121,8 +123,8 @@ function RuleForm({
             const showErrors = submissionAttempts > 0;
             const identifierError = identifierErrorFor(parsed);
             const identifierInvalid = identifierError !== undefined && (showErrors || values.identifier.trim() !== "");
-            const includeErrors = includeErrorMap(parsed, values.includes);
-            const includeLabelIDs = selectedIncludeLabelIDs(values.includes);
+            const includeErrors = includeErrorMap(parsed, values.targets.include);
+            const includeLabelIDs = selectedIncludeLabelIDs(values.targets.include);
 
             return (
               <>
@@ -243,8 +245,8 @@ function RuleForm({
                       ),
                     },
                     {
-                      value: "scope",
-                      label: "Scope",
+                      value: "targets",
+                      label: "Targets",
                       content: (
                         <FieldGroup>
                           <Field>
@@ -255,49 +257,56 @@ function RuleForm({
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  form.setFieldValue("includes", [
-                                    ...values.includes,
-                                    { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
-                                  ])
+                                  form.setFieldValue("targets", {
+                                    ...values.targets,
+                                    include: [
+                                      ...values.targets.include,
+                                      { id: Date.now(), policy: "allowlist", cel_expression: "", label_id: null },
+                                    ],
+                                  })
                                 }
                               >
                                 <Plus data-icon="inline-start" />
                                 Add Target
                               </Button>
                             </div>
-                            {values.includes.length === 0 ? (
+                            {values.targets.include.length === 0 ? (
                               <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
                                 None
                               </div>
                             ) : (
                               <IncludeTargetsTable
-                                includes={values.includes}
+                                includeRows={values.targets.include}
                                 showErrors={showErrors}
                                 includeErrors={includeErrors}
-                                excludeLabelIDs={values.exclude_label_ids}
-                                onChange={(includes) => form.setFieldValue("includes", includes)}
+                                excludedLabelIDs={labelIDsFromRefs(values.targets.exclude)}
+                                onChange={(includeRows) =>
+                                  form.setFieldValue("targets", { ...values.targets, include: includeRows })
+                                }
                                 onUpdate={(id, include) => updateInclude(values, id, include)}
                                 onEditCEL={setCELDialogID}
                                 onDelete={(id) => {
                                   if (celDialogID === id) setCELDialogID(null);
-                                  form.setFieldValue(
-                                    "includes",
-                                    values.includes.filter((item) => item.id !== id),
-                                  );
+                                  form.setFieldValue("targets", {
+                                    ...values.targets,
+                                    include: values.targets.include.filter((item) => item.id !== id),
+                                  });
                                 }}
                               />
                             )}
                           </Field>
                           <Separator />
                           <form.Field
-                            name="exclude_label_ids"
+                            name="targets"
                             children={(field) => (
                               <Field>
                                 <FieldLabel>Exclusions</FieldLabel>
                                 <LabelPicker
-                                  value={field.state.value}
+                                  value={labelIDsFromRefs(field.state.value.exclude)}
                                   unavailableLabelIDs={includeLabelIDs}
-                                  onChange={field.handleChange}
+                                  onChange={(labelIDs) =>
+                                    field.handleChange({ ...field.state.value, exclude: labelRefsFromIDs(labelIDs) })
+                                  }
                                 />
                               </Field>
                             )}
@@ -326,7 +335,7 @@ function RuleForm({
                 </div>
 
                 <CELDialog
-                  include={values.includes.find((include) => include.id === celDialogID)}
+                  include={values.targets.include.find((include) => include.id === celDialogID)}
                   error={celDialogID !== null ? includeErrors[celDialogID]?.cel_expression : undefined}
                   showRequiredError={showErrors}
                   onOpenChange={(open) => {

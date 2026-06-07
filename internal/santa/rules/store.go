@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -15,6 +14,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 // Store persists Santa rule definitions and resolves host rule state.
@@ -69,7 +69,7 @@ func (s *Store) ListRules(ctx context.Context, params RuleListParams) ([]Rule, i
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
-	if err := s.attachRuleChildren(ctx, rules, ruleIDs); err != nil {
+	if err := s.attachRuleTargets(ctx, rules, ruleIDs); err != nil {
 		return nil, 0, err
 	}
 	return rules, count, nil
@@ -81,7 +81,7 @@ func (s *Store) GetRuleByID(ctx context.Context, id int64) (*Rule, error) {
 		return nil, err
 	}
 	rules := []Rule{*rule}
-	if err := s.attachRuleChildren(ctx, rules, []int64{rule.ID}); err != nil {
+	if err := s.attachRuleTargets(ctx, rules, []int64{rule.ID}); err != nil {
 		return nil, err
 	}
 	return &rules[0], nil
@@ -146,7 +146,7 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 			return err
 		}
 		ruleID = row.ID
-		return replaceRuleChildren(ctx, tx, ruleID, params.Includes, params.ExcludeLabelIDs)
+		return replaceRuleTargets(ctx, tx, ruleID, params.Targets)
 	})
 	if err != nil {
 		return nil, mapRuleMutationError(err)
@@ -181,7 +181,7 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 		if err != nil {
 			return err
 		}
-		return replaceRuleChildren(ctx, tx, row.ID, params.Includes, params.ExcludeLabelIDs)
+		return replaceRuleTargets(ctx, tx, row.ID, params.Targets)
 	})
 	if err != nil {
 		return nil, mapRuleMutationError(err)
@@ -300,13 +300,17 @@ func (s *Store) appliedSyncTargetSet(ctx context.Context, hostID int64) (map[str
 	return syncstate.TargetSet(applied), nil
 }
 
-func replaceRuleChildren(
+func replaceRuleTargets(
 	ctx context.Context,
 	tx pgx.Tx,
 	ruleID int64,
-	includes []RuleIncludeWrite,
-	excludeLabelIDs []int64,
+	targets RuleTargets,
 ) error {
+	targets = normalizeRuleTargets(targets)
+	if err := targets.validate(); err != nil {
+		return err
+	}
+
 	q := sqlc.New(tx)
 	if err := q.DeleteSantaRuleExcludeLabels(ctx, sqlc.DeleteSantaRuleExcludeLabelsParams{RuleID: ruleID}); err != nil {
 		return err
@@ -314,11 +318,11 @@ func replaceRuleChildren(
 	if err := q.DeleteSantaRuleIncludes(ctx, sqlc.DeleteSantaRuleIncludesParams{RuleID: ruleID}); err != nil {
 		return err
 	}
-	if len(includes) > 0 {
-		policies := make([]string, len(includes))
-		celExpressions := make([]string, len(includes))
-		labelIDs := make([]int64, len(includes))
-		for i, include := range includes {
+	if len(targets.Include) > 0 {
+		policies := make([]string, len(targets.Include))
+		celExpressions := make([]string, len(targets.Include))
+		labelIDs := make([]int64, len(targets.Include))
+		for i, include := range targets.Include {
 			policies[i] = string(include.Policy)
 			celExpressions[i] = include.CELExpression
 			labelIDs[i] = include.LabelID
@@ -332,22 +336,23 @@ func replaceRuleChildren(
 			return err
 		}
 	}
-	if len(excludeLabelIDs) == 0 {
+	if len(targets.Exclude) == 0 {
 		return nil
 	}
 	return q.InsertSantaRuleExcludeLabels(ctx, sqlc.InsertSantaRuleExcludeLabelsParams{
 		RuleID:   ruleID,
-		LabelIds: excludeLabelIDs,
+		LabelIds: labelRefIDs(targets.Exclude),
 	})
 }
 
-func (s *Store) attachRuleChildren(ctx context.Context, rules []Rule, ruleIDs []int64) error {
+func (s *Store) attachRuleTargets(ctx context.Context, rules []Rule, ruleIDs []int64) error {
 	if len(ruleIDs) == 0 {
 		return nil
 	}
 	ruleIndexes := make(map[int64]int, len(rules))
 	for i := range rules {
 		ruleIndexes[rules[i].ID] = i
+		rules[i].Targets = emptyRuleTargets()
 	}
 
 	includes, err := s.loadRuleIncludes(ctx, ruleIDs)
@@ -356,17 +361,21 @@ func (s *Store) attachRuleChildren(ctx context.Context, rules []Rule, ruleIDs []
 	}
 	for ruleID, values := range includes {
 		if i, ok := ruleIndexes[ruleID]; ok {
-			rules[i].Includes = values
+			targets := rules[i].Targets
+			targets.Include = values
+			rules[i].Targets = targets
 		}
 	}
 
-	excludes, err := s.loadRuleExcludeLabels(ctx, ruleIDs)
+	excludes, err := s.loadRuleExcludes(ctx, ruleIDs)
 	if err != nil {
 		return err
 	}
 	for ruleID, values := range excludes {
 		if i, ok := ruleIndexes[ruleID]; ok {
-			rules[i].ExcludeLabelIDs = values
+			targets := rules[i].Targets
+			targets.Exclude = values
+			rules[i].Targets = targets
 		}
 	}
 	return nil
@@ -381,8 +390,6 @@ func (s *Store) loadRuleIncludes(ctx context.Context, ruleIDs []int64) (map[int6
 	out := map[int64][]RuleInclude{}
 	for _, row := range rows {
 		out[row.RuleID] = append(out[row.RuleID], RuleInclude{
-			ID:            row.ID,
-			Position:      row.Position,
 			Policy:        Policy(row.Policy),
 			CELExpression: row.CelExpression,
 			LabelID:       row.LabelID,
@@ -391,15 +398,15 @@ func (s *Store) loadRuleIncludes(ctx context.Context, ruleIDs []int64) (map[int6
 	return out, nil
 }
 
-func (s *Store) loadRuleExcludeLabels(ctx context.Context, ruleIDs []int64) (map[int64][]int64, error) {
+func (s *Store) loadRuleExcludes(ctx context.Context, ruleIDs []int64) (map[int64][]targeting.LabelRef, error) {
 	rows, err := s.q.ListSantaRuleExcludeLabels(ctx, sqlc.ListSantaRuleExcludeLabelsParams{RuleIds: ruleIDs})
 	if err != nil {
 		return nil, err
 	}
 
-	out := map[int64][]int64{}
+	out := map[int64][]targeting.LabelRef{}
 	for _, row := range rows {
-		out[row.RuleID] = append(out[row.RuleID], row.LabelID)
+		out[row.RuleID] = append(out[row.RuleID], targeting.LabelRef{LabelID: row.LabelID})
 	}
 	return out, nil
 }
@@ -417,38 +424,8 @@ func (p RuleMutation) Validate() error {
 	if err := validateRuleIdentifier(p.RuleType, p.Identifier); err != nil {
 		return err
 	}
-	labelIDs := make(map[int64]struct{}, len(p.Includes)+len(p.ExcludeLabelIDs))
-	for _, include := range p.Includes {
-		if include.LabelID <= 0 {
-			return fmt.Errorf("%w: include label_id is required", dbutil.ErrInvalidInput)
-		}
-		if !validPolicy(include.Policy) {
-			return fmt.Errorf("%w: include policy is required", dbutil.ErrInvalidInput)
-		}
-		if include.Policy == PolicyCEL && strings.TrimSpace(include.CELExpression) == "" {
-			return fmt.Errorf("%w: cel_expression is required for cel policy", dbutil.ErrInvalidInput)
-		}
-		if include.Policy == PolicyCEL {
-			if err := validateCELSyntax(include.CELExpression); err != nil {
-				return err
-			}
-		}
-		if include.Policy != PolicyCEL && include.CELExpression != "" {
-			return fmt.Errorf("%w: cel_expression is only valid for cel policy", dbutil.ErrInvalidInput)
-		}
-		if _, ok := labelIDs[include.LabelID]; ok {
-			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
-		}
-		labelIDs[include.LabelID] = struct{}{}
-	}
-	for _, labelID := range p.ExcludeLabelIDs {
-		if labelID <= 0 {
-			return fmt.Errorf("%w: exclude_label_ids contains an invalid label_id", dbutil.ErrInvalidInput)
-		}
-		if _, ok := labelIDs[labelID]; ok {
-			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
-		}
-		labelIDs[labelID] = struct{}{}
+	if err := p.Targets.validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -498,12 +475,12 @@ func validateRuleIdentifier(ruleType RuleType, identifier string) error {
 }
 
 func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
-	if len(params.ExcludeLabelIDs) == 0 {
+	if len(params.Targets.Exclude) == 0 {
 		return nil
 	}
 	builtinExcludeIDs, err := sqlc.New(tx).ListBuiltinLabelIDs(
 		ctx,
-		sqlc.ListBuiltinLabelIDsParams{LabelIds: params.ExcludeLabelIDs},
+		sqlc.ListBuiltinLabelIDsParams{LabelIds: labelRefIDs(params.Targets.Exclude)},
 	)
 	if err != nil {
 		return err
