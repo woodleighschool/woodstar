@@ -1,4 +1,4 @@
-// Package livequery runs ephemeral browser-scoped live queries in-process.
+// Package livequery runs ephemeral browser-session live queries in-process.
 package livequery
 
 import (
@@ -67,7 +67,7 @@ type liveQuery struct {
 	cleanupTimer *time.Timer
 }
 
-// NewManager returns a manager for ephemeral browser-scoped live runs.
+// NewManager returns a manager for ephemeral browser-session live runs.
 func NewManager() *Manager {
 	return newManager(orphanCleanupAfter)
 }

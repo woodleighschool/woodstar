@@ -21,7 +21,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	sqlDB := stdlib.OpenDBFromPool(db.pool)
 	defer sqlDB.Close()
 
-	// Pin to a single connection so the session-scoped advisory lock taken
+	// Pin to a single connection so the connection-bound advisory lock taken
 	// below is held across every query goose issues.
 	sqlDB.SetMaxOpenConns(1)
 

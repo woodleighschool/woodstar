@@ -311,7 +311,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 
 	hostRule, err := store.CreateRule(ctx, rules.RuleMutation{
 		RuleType:   rules.RuleTypeBinary,
-		Name:       "Scoped Binary",
+		Name:       "Targeted Binary",
 		Identifier: strings.Repeat("1", 64),
 		Targets: ruleTargets([]rules.RuleInclude{
 			{Policy: rules.PolicyBlocklist, LabelID: firstLabelID},
@@ -344,7 +344,7 @@ func TestRuleResolverUsesExcludeAndIncludePriority(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("host rules = %+v, want exactly one", got)
 	}
-	if got[0].RuleID != hostRule.ID || got[0].Name != "Scoped Binary" ||
+	if got[0].RuleID != hostRule.ID || got[0].Name != "Targeted Binary" ||
 		got[0].Policy != rules.PolicySilentBlocklist {
 		t.Fatalf("host rule = %+v, want second include to win", got[0])
 	}

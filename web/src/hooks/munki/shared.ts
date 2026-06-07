@@ -7,7 +7,7 @@ export interface MunkiListParams {
   sort?: string;
 }
 
-export interface MunkiScopedListParams extends MunkiListParams {
+export interface MunkiSoftwareListParams extends MunkiListParams {
   software_id?: number;
 }
 
@@ -20,7 +20,7 @@ export function queryParams(params: MunkiListParams) {
   };
 }
 
-export function scopedQueryParams(params: MunkiScopedListParams) {
+export function softwareQueryParams(params: MunkiSoftwareListParams) {
   return {
     ...queryParams(params),
     software_id: params.software_id === 0 ? undefined : params.software_id,

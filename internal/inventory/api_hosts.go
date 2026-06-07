@@ -31,7 +31,7 @@ type hostSoftwareOutput struct {
 	Body apitypes.Page[HostSoftwareRow]
 }
 
-// RegisterHostAdminRoutes registers host-scoped software inventory endpoints.
+// RegisterHostAdminRoutes registers software inventory endpoints for a host.
 func RegisterHostAdminRoutes(api huma.API, softwareStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",

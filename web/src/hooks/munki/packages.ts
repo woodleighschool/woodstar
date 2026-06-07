@@ -10,12 +10,12 @@ import type {
 import { apiClient, unwrap } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
-import { scopedQueryParams, type MunkiScopedListParams } from "./shared";
+import { softwareQueryParams, type MunkiSoftwareListParams } from "./shared";
 
 export type { MunkiPackage, MunkiPackageImportMutation, MunkiPackageMutation };
 
-export function useMunkiPackages(params: MunkiScopedListParams = {}) {
-  const query = scopedQueryParams(params);
+export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
+  const query = softwareQueryParams(params);
   return useQuery<MunkiPackagePage, ApiError>({
     queryKey: queryKeys.munkiPackages(query),
     queryFn: ({ signal }) =>

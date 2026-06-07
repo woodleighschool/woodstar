@@ -23,7 +23,7 @@ type accountPutInput struct {
 	Body directory.AccountMutation
 }
 
-// RegisterAccountAdminRoutes registers self-service endpoints scoped to the
+// RegisterAccountAdminRoutes registers self-service endpoints for the
 // signed-in user. The API key is intended for non-browser callers; the SPA
 // continues to authenticate via the scs session cookie.
 func RegisterAccountAdminRoutes(api huma.API, authService *Service, userService *directory.UserService) {

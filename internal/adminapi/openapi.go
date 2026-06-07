@@ -32,7 +32,7 @@ func humaConfig(version string) huma.Config {
 }
 
 // BuildSchemaAPI builds the admin API for OpenAPI schema generation only.
-// Stores are nil; handlers are never invoked.
+// Stores are nil; route functions are never invoked.
 func BuildSchemaAPI(version string) huma.API {
 	r := chi.NewRouter()
 	humaAPI := humachi.New(r, humaConfig(version))
