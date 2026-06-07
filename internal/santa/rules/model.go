@@ -108,14 +108,14 @@ type RuleStatusListParams struct {
 	dbutil.ListParams
 }
 
-type RuleTargetListParams struct {
-	Q          string
-	TargetType RuleType
-	Limit      int
+type RuleReferenceListParams struct {
+	Q        string
+	RuleType RuleType
+	Limit    int
 }
 
-type RuleTarget struct {
-	TargetType                    RuleType `json:"target_type"`
+type RuleReferenceCandidate struct {
+	RuleType                      RuleType `json:"rule_type"`
 	Identifier                    string   `json:"identifier"`
 	DisplayName                   string   `json:"display_name,omitempty"`
 	CertificateCommonName         string   `json:"certificate_common_name,omitempty"`

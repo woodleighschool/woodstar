@@ -391,10 +391,10 @@ SELECT (uploaded_at IS NOT NULL)::boolean AS complete
 FROM santa_bundles
 WHERE sha256 = @sha256;
 
--- name: ListSantaRuleTargets :many
+-- name: ListSantaRuleReferences :many
 WITH candidate_sources AS (
     SELECT
-        'binary'::text AS target_type,
+        'binary'::text AS rule_type,
         e.sha256 AS identifier,
         NULLIF(e.file_bundle_name, '') AS display_name,
         NULL::text AS certificate_common_name,
@@ -576,9 +576,9 @@ WITH candidate_sources AS (
     WHERE b.sha256 <> ''
     GROUP BY b.id
 ),
-targets AS (
+candidates AS (
     SELECT
-        target_type,
+        rule_type,
         identifier,
         COALESCE(
             CASE WHEN COUNT(DISTINCT NULLIF(display_name, '')) = 1 THEN MIN(NULLIF(display_name, '')) END,
@@ -646,10 +646,10 @@ targets AS (
         )::text AS search_text
     FROM candidate_sources
     WHERE identifier <> ''
-    GROUP BY target_type, identifier
+    GROUP BY rule_type, identifier
 )
 SELECT
-    t.target_type,
+    t.rule_type,
     t.identifier,
     t.display_name,
     t.certificate_common_name,
@@ -663,9 +663,9 @@ SELECT
     t.collected_binary_count,
     COUNT(r.id)::integer AS rule_count,
     t.complete
-FROM targets t
+FROM candidates t
 LEFT JOIN santa_rules r
-    ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
+    ON r.rule_type::text = t.rule_type AND r.identifier = t.identifier
 WHERE
     (@q::text = ''
         OR t.identifier ILIKE '%' || @q::text || '%'
@@ -678,9 +678,9 @@ WHERE
         OR t.path ILIKE '%' || @q::text || '%'
         OR t.version ILIKE '%' || @q::text || '%'
         OR t.search_text ILIKE '%' || @q::text || '%')
-    AND (@target_type::text = '' OR t.target_type = @target_type::text)
+    AND (@rule_type::text = '' OR t.rule_type = @rule_type::text)
 GROUP BY
-    t.target_type,
+    t.rule_type,
     t.identifier,
     t.display_name,
     t.certificate_common_name,
@@ -694,7 +694,7 @@ GROUP BY
     t.collected_binary_count,
     t.complete
 ORDER BY
-    CASE t.target_type
+    CASE t.rule_type
         WHEN 'bundle' THEN 1
         WHEN 'signingid' THEN 2
         WHEN 'teamid' THEN 3

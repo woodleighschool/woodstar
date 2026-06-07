@@ -441,8 +441,8 @@ matched_certificates AS (
     JOIN santa_signing_chain_entries sce ON sce.signing_chain_id = esc.signing_chain_id
     JOIN santa_certificates c ON c.id = sce.certificate_id
 ),
-matched_targets AS (
-    SELECT 'binary'::text AS target_type, unnest($1::text[]) AS identifier
+matched_rule_references AS (
+    SELECT 'binary'::text AS rule_type, unnest($1::text[]) AS identifier
     UNION
     SELECT 'cdhash'::text, unnest($2::text[])
     UNION
@@ -486,8 +486,8 @@ SELECT
 FROM santa_rules r
 WHERE EXISTS (
     SELECT 1
-    FROM matched_targets mt
-    WHERE mt.target_type = r.rule_type::text AND mt.identifier = r.identifier
+    FROM matched_rule_references mt
+    WHERE mt.rule_type = r.rule_type::text AND mt.identifier = r.identifier
 )
 ORDER BY r.rule_type::text, lower(COALESCE(NULLIF(r.name, ''), r.identifier)), r.identifier
 `
@@ -563,7 +563,7 @@ WITH matched_executables AS (
 ),
 identities AS (
     SELECT
-        'teamid'::text AS target_type,
+        'teamid'::text AS rule_type,
         e.team_id AS identifier,
         COALESCE(NULLIF(e.file_bundle_name, ''), NULLIF(e.file_name, ''), e.team_id) AS name,
         e.id AS executable_id
@@ -590,15 +590,15 @@ identities AS (
     WHERE e.cdhash <> ''
 )
 SELECT
-    i.target_type,
+    i.rule_type,
     i.identifier,
     COALESCE(NULLIF(MAX(i.name), ''), i.identifier) AS name,
     COUNT(DISTINCT i.executable_id)::integer AS executable_count,
     COUNT(DISTINCT r.id)::integer AS rule_count
 FROM identities i
-LEFT JOIN santa_rules r ON r.rule_type::text = i.target_type AND r.identifier = i.identifier
-GROUP BY i.target_type, i.identifier
-ORDER BY i.target_type, lower(COALESCE(NULLIF(MAX(i.name), ''), i.identifier)), i.identifier
+LEFT JOIN santa_rules r ON r.rule_type::text = i.rule_type AND r.identifier = i.identifier
+GROUP BY i.rule_type, i.identifier
+ORDER BY i.rule_type, lower(COALESCE(NULLIF(MAX(i.name), ''), i.identifier)), i.identifier
 `
 
 type ListSoftwareReferenceSigningIdentitiesParams struct {
@@ -611,7 +611,7 @@ type ListSoftwareReferenceSigningIdentitiesParams struct {
 }
 
 type ListSoftwareReferenceSigningIdentitiesRow struct {
-	TargetType      string `json:"target_type"`
+	RuleType        string `json:"rule_type"`
 	Identifier      string `json:"identifier"`
 	Name            string `json:"name"`
 	ExecutableCount int32  `json:"executable_count"`
@@ -635,7 +635,7 @@ func (q *Queries) ListSoftwareReferenceSigningIdentities(ctx context.Context, ar
 	for rows.Next() {
 		var i ListSoftwareReferenceSigningIdentitiesRow
 		if err := rows.Scan(
-			&i.TargetType,
+			&i.RuleType,
 			&i.Identifier,
 			&i.Name,
 			&i.ExecutableCount,

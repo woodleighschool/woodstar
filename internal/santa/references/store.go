@@ -272,7 +272,7 @@ func (s *Store) signingIdentities(ctx context.Context, facts softwareFacts) ([]S
 	identities := make([]SigningIdentityReference, len(rows))
 	for i, row := range rows {
 		identities[i] = SigningIdentityReference{
-			TargetType:      santarules.RuleType(row.TargetType),
+			RuleType:        santarules.RuleType(row.RuleType),
 			Identifier:      row.Identifier,
 			Name:            row.Name,
 			ExecutableCount: row.ExecutableCount,

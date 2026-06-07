@@ -483,14 +483,14 @@ func TestBundleRuleExpandsToBinaryHostRules(t *testing.T) {
 	}
 }
 
-func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
+func TestRuleReferencesSearchBundlesAndSoftwareInventory(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	store := rules.NewStore(db)
 
 	host, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
-		Hardware:     hosts.HostHardware{UUID: "santa-rule-target-software-host"},
-		OrbitNodeKey: "santa-rule-target-software-orbit",
+		Hardware:     hosts.HostHardware{UUID: "santa-rule-reference-software-host"},
+		OrbitNodeKey: "santa-rule-reference-software-orbit",
 	})
 	if err != nil {
 		t.Fatalf("enroll host: %v", err)
@@ -527,21 +527,21 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 		t.Fatalf("insert incomplete bundle: %v", err)
 	}
 
-	targets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          "Target Bundle",
-		TargetType: rules.RuleTypeBundle,
+	references, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        "Target Bundle",
+		RuleType: rules.RuleTypeBundle,
 	})
 	if err != nil {
-		t.Fatalf("list bundle targets: %v", err)
+		t.Fatalf("list bundle references: %v", err)
 	}
-	if len(targets) != 1 ||
-		targets[0].Identifier != completeBundleHash ||
-		targets[0].DisplayName != "Target Bundle" ||
-		targets[0].BundleIdentifier != "com.example.target" ||
-		targets[0].BinaryCount != 1 ||
-		targets[0].CollectedBinaryCount != 1 ||
-		!targets[0].Complete {
-		t.Fatalf("bundle targets = %+v, want complete bundle candidate", targets)
+	if len(references) != 1 ||
+		references[0].Identifier != completeBundleHash ||
+		references[0].DisplayName != "Target Bundle" ||
+		references[0].BundleIdentifier != "com.example.target" ||
+		references[0].BinaryCount != 1 ||
+		references[0].CollectedBinaryCount != 1 ||
+		!references[0].Complete {
+		t.Fatalf("bundle references = %+v, want complete bundle candidate", references)
 	}
 
 	_, err = store.CreateRule(ctx, rules.RuleMutation{
@@ -585,46 +585,46 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 		t.Fatalf("insert software path: %v", err)
 	}
 
-	softwareTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          softwareHash,
-		TargetType: rules.RuleTypeBinary,
+	softwareReferences, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        softwareHash,
+		RuleType: rules.RuleTypeBinary,
 	})
 	if err != nil {
-		t.Fatalf("list software-backed targets: %v", err)
+		t.Fatalf("list software-backed references: %v", err)
 	}
-	if len(softwareTargets) != 1 ||
-		softwareTargets[0].Identifier != softwareHash ||
-		softwareTargets[0].DisplayName != "Software Target" ||
-		softwareTargets[0].BundleIdentifier != "com.example.software" ||
-		softwareTargets[0].Path != "/Applications/Software Target.app/Contents/MacOS/Software Target" {
-		t.Fatalf("software targets = %+v, want osquery binary candidate", softwareTargets)
+	if len(softwareReferences) != 1 ||
+		softwareReferences[0].Identifier != softwareHash ||
+		softwareReferences[0].DisplayName != "Software Target" ||
+		softwareReferences[0].BundleIdentifier != "com.example.software" ||
+		softwareReferences[0].Path != "/Applications/Software Target.app/Contents/MacOS/Software Target" {
+		t.Fatalf("software references = %+v, want osquery binary candidate", softwareReferences)
 	}
 
-	teamTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          "TEAMSOFT12",
-		TargetType: rules.RuleTypeTeamID,
+	teamReferences, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        "TEAMSOFT12",
+		RuleType: rules.RuleTypeTeamID,
 	})
 	if err != nil {
-		t.Fatalf("list team targets: %v", err)
+		t.Fatalf("list team references: %v", err)
 	}
-	if len(teamTargets) != 1 ||
-		teamTargets[0].Identifier != "TEAMSOFT12" ||
-		teamTargets[0].DisplayName != "" ||
-		teamTargets[0].BundleIdentifier != "com.example.software" {
-		t.Fatalf("team targets = %+v, want publisher identity without app display fallback", teamTargets)
+	if len(teamReferences) != 1 ||
+		teamReferences[0].Identifier != "TEAMSOFT12" ||
+		teamReferences[0].DisplayName != "" ||
+		teamReferences[0].BundleIdentifier != "com.example.software" {
+		t.Fatalf("team references = %+v, want publisher identity without app display fallback", teamReferences)
 	}
 
-	signingTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          "TEAMSOFT12:com.example.software",
-		TargetType: rules.RuleTypeSigningID,
+	signingReferences, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        "TEAMSOFT12:com.example.software",
+		RuleType: rules.RuleTypeSigningID,
 	})
 	if err != nil {
-		t.Fatalf("list signing targets: %v", err)
+		t.Fatalf("list signing references: %v", err)
 	}
-	if len(signingTargets) != 1 ||
-		signingTargets[0].Identifier != "TEAMSOFT12:com.example.software" ||
-		signingTargets[0].DisplayName != "Software Target" {
-		t.Fatalf("signing targets = %+v, want signing ID plus software display name", signingTargets)
+	if len(signingReferences) != 1 ||
+		signingReferences[0].Identifier != "TEAMSOFT12:com.example.software" ||
+		signingReferences[0].DisplayName != "Software Target" {
+		t.Fatalf("signing references = %+v, want signing ID plus software display name", signingReferences)
 	}
 	if _, err := db.Pool().Exec(ctx, `
 		INSERT INTO santa_executables (
@@ -639,20 +639,20 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	`, strings.Repeat("7", 64)); err != nil {
 		t.Fatalf("insert observed signing target: %v", err)
 	}
-	ambiguousSigningTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          "Observed Software Target",
-		TargetType: rules.RuleTypeSigningID,
+	ambiguousSigningReferences, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        "Observed Software Target",
+		RuleType: rules.RuleTypeSigningID,
 	})
 	if err != nil {
-		t.Fatalf("list ambiguous signing targets: %v", err)
+		t.Fatalf("list ambiguous signing references: %v", err)
 	}
-	if len(ambiguousSigningTargets) != 1 ||
-		ambiguousSigningTargets[0].Identifier != "TEAMSOFT12:com.example.software" ||
-		ambiguousSigningTargets[0].DisplayName != "" ||
-		ambiguousSigningTargets[0].BundleIdentifier != "com.example.software" {
+	if len(ambiguousSigningReferences) != 1 ||
+		ambiguousSigningReferences[0].Identifier != "TEAMSOFT12:com.example.software" ||
+		ambiguousSigningReferences[0].DisplayName != "" ||
+		ambiguousSigningReferences[0].BundleIdentifier != "com.example.software" {
 		t.Fatalf(
-			"ambiguous signing targets = %+v, want searchable context without display fallback",
-			ambiguousSigningTargets,
+			"ambiguous signing references = %+v, want searchable context without display fallback",
+			ambiguousSigningReferences,
 		)
 	}
 
@@ -663,20 +663,20 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 	`, certificateHash); err != nil {
 		t.Fatalf("insert certificate: %v", err)
 	}
-	certificateTargets, err := store.ListRuleTargets(ctx, rules.RuleTargetListParams{
-		Q:          "Developer ID",
-		TargetType: rules.RuleTypeCertificate,
+	certificateReferences, err := store.ListRuleReferences(ctx, rules.RuleReferenceListParams{
+		Q:        "Developer ID",
+		RuleType: rules.RuleTypeCertificate,
 	})
 	if err != nil {
-		t.Fatalf("list certificate targets: %v", err)
+		t.Fatalf("list certificate references: %v", err)
 	}
-	if len(certificateTargets) != 1 ||
-		certificateTargets[0].Identifier != certificateHash ||
-		certificateTargets[0].CertificateCommonName != "Developer ID Application: Example" ||
-		certificateTargets[0].CertificateOrganization != "Example Org" ||
-		certificateTargets[0].CertificateOrganizationalUnit != "TEAMSOFT12" ||
-		certificateTargets[0].DisplayName != "" {
-		t.Fatalf("certificate targets = %+v, want fingerprint plus certificate common name", certificateTargets)
+	if len(certificateReferences) != 1 ||
+		certificateReferences[0].Identifier != certificateHash ||
+		certificateReferences[0].CertificateCommonName != "Developer ID Application: Example" ||
+		certificateReferences[0].CertificateOrganization != "Example Org" ||
+		certificateReferences[0].CertificateOrganizationalUnit != "TEAMSOFT12" ||
+		certificateReferences[0].DisplayName != "" {
+		t.Fatalf("certificate references = %+v, want fingerprint plus certificate common name", certificateReferences)
 	}
 }
 

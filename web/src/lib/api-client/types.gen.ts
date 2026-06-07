@@ -1248,6 +1248,23 @@ export type RuleReference = {
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
+export type RuleReferenceCandidate = {
+    binary_count?: number;
+    bundle_identifier?: string;
+    certificate_common_name?: string;
+    certificate_organization?: string;
+    certificate_organizational_unit?: string;
+    collected_binary_count?: number;
+    complete: boolean;
+    display_name?: string;
+    file_name?: string;
+    identifier: string;
+    path?: string;
+    rule_count: number;
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    version?: string;
+};
+
 export type RuleStatus = {
     applied: boolean;
     cel_expression?: string;
@@ -1269,23 +1286,6 @@ export type RuleSyncSummary = {
     desired_count: number;
     last_clean_sync_at?: string;
     pending_count: number;
-};
-
-export type RuleTarget = {
-    binary_count?: number;
-    bundle_identifier?: string;
-    certificate_common_name?: string;
-    certificate_organization?: string;
-    certificate_organizational_unit?: string;
-    collected_binary_count?: number;
-    complete: boolean;
-    display_name?: string;
-    file_name?: string;
-    identifier: string;
-    path?: string;
-    rule_count: number;
-    target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
-    version?: string;
 };
 
 export type RuleTargets = {
@@ -1386,7 +1386,7 @@ export type SigningIdentityReference = {
     identifier: string;
     name: string;
     rule_count: number;
-    target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+    rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
 };
 
 export type SoftwarePackageSelector = {
@@ -5361,18 +5361,18 @@ export type GetSantaFileAccessEventResponses = {
 
 export type GetSantaFileAccessEventResponse = GetSantaFileAccessEventResponses[keyof GetSantaFileAccessEventResponses];
 
-export type ListSantaRuleTargetsData = {
+export type ListSantaRuleReferencesData = {
     body?: never;
     path?: never;
     query?: {
         q?: string;
-        target_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+        rule_type?: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
         limit?: number;
     };
-    url: '/api/santa/rule-targets';
+    url: '/api/santa/rule-references';
 };
 
-export type ListSantaRuleTargetsErrors = {
+export type ListSantaRuleReferencesErrors = {
     /**
      * Bad Request
      */
@@ -5395,16 +5395,16 @@ export type ListSantaRuleTargetsErrors = {
     500: ErrorModel;
 };
 
-export type ListSantaRuleTargetsError = ListSantaRuleTargetsErrors[keyof ListSantaRuleTargetsErrors];
+export type ListSantaRuleReferencesError = ListSantaRuleReferencesErrors[keyof ListSantaRuleReferencesErrors];
 
-export type ListSantaRuleTargetsResponses = {
+export type ListSantaRuleReferencesResponses = {
     /**
      * OK
      */
-    200: Array<RuleTarget> | null;
+    200: Array<RuleReferenceCandidate> | null;
 };
 
-export type ListSantaRuleTargetsResponse = ListSantaRuleTargetsResponses[keyof ListSantaRuleTargetsResponses];
+export type ListSantaRuleReferencesResponse = ListSantaRuleReferencesResponses[keyof ListSantaRuleReferencesResponses];
 
 export type ListSantaRulesData = {
     body?: never;

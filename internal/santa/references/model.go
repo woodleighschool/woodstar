@@ -45,7 +45,7 @@ type ExecutableReference struct {
 }
 
 type SigningIdentityReference struct {
-	TargetType      santarules.RuleType `json:"target_type"`
+	RuleType        santarules.RuleType `json:"rule_type"`
 	Identifier      string              `json:"identifier"`
 	Name            string              `json:"name"`
 	ExecutableCount int32               `json:"executable_count"`

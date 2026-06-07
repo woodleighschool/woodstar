@@ -18,7 +18,12 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSantaRuleTargets, type SantaRulePolicy, type SantaRuleTarget, type SantaRuleType } from "@/hooks/use-santa";
+import {
+  useSantaRuleReferences,
+  type SantaRulePolicy,
+  type SantaRuleReference,
+  type SantaRuleType,
+} from "@/hooks/use-santa";
 import {
   ruleIdentifierHint,
   type RuleFormState,
@@ -27,7 +32,7 @@ import {
 } from "@/lib/santa-rule-form";
 import { POLICY_OPTIONS, ruleTypeLabel } from "@/lib/santa-rules";
 
-export function RuleTargetPicker({
+export function RuleReferencePicker({
   form,
   identifierError,
   identifierInvalid,
@@ -38,129 +43,135 @@ export function RuleTargetPicker({
   identifierInvalid: boolean;
   onChange: (form: RuleFormState) => void;
 }) {
-  const targets = useSantaRuleTargets({ target_type: form.rule_type, limit: 50 });
-  const rows = targets.data ?? [];
+  const references = useSantaRuleReferences({ rule_type: form.rule_type, limit: 50 });
+  const rows = references.data ?? [];
   const selected =
-    rows.find((target) => target.target_type === form.rule_type && target.identifier === form.identifier) ??
-    currentRuleTarget(form);
+    rows.find((candidate) => candidate.rule_type === form.rule_type && candidate.identifier === form.identifier) ??
+    currentRuleReferenceCandidate(form);
   const items =
     selected &&
-    !rows.some((target) => target.target_type === selected.target_type && target.identifier === selected.identifier)
+    !rows.some(
+      (candidate) => candidate.rule_type === selected.rule_type && candidate.identifier === selected.identifier,
+    )
       ? [selected, ...rows]
       : rows;
 
   return (
     <Field data-invalid={identifierInvalid}>
-      <FieldLabel htmlFor="santa-rule-target" required>
-        Target
+      <FieldLabel htmlFor="santa-rule-reference" required>
+        Identifier
       </FieldLabel>
       <Combobox
         items={items}
         value={selected}
-        itemToStringLabel={targetLabel}
-        itemToStringValue={(target) => target.identifier}
-        onValueChange={(target) => {
-          if (!target) {
+        itemToStringLabel={referenceLabel}
+        itemToStringValue={(candidate) => candidate.identifier}
+        onValueChange={(candidate) => {
+          if (!candidate) {
             onChange({ ...form, identifier: "" });
             return;
           }
           onChange({
             ...form,
-            rule_type: target.target_type,
-            identifier: target.identifier,
-            name: form.name.trim() === "" && target.display_name ? target.display_name : form.name,
+            rule_type: candidate.rule_type,
+            identifier: candidate.identifier,
+            name: form.name.trim() === "" && candidate.display_name ? candidate.display_name : form.name,
           });
         }}
       >
         <ComboboxInput
-          id="santa-rule-target"
+          id="santa-rule-reference"
           required
           aria-invalid={identifierInvalid ? true : undefined}
           showClear
-          disabled={targets.isLoading}
-          placeholder={targets.isLoading ? "Loading Targets" : "Select Target"}
+          disabled={references.isLoading}
+          placeholder={references.isLoading ? "Loading References" : "Select Identifier"}
         />
         <ComboboxContent>
           <ComboboxEmpty>
-            {targets.error ? targets.error.message : targets.isLoading ? "Loading Targets..." : "No Targets Found."}
+            {references.error
+              ? references.error.message
+              : references.isLoading
+                ? "Loading References..."
+                : "No References Found."}
           </ComboboxEmpty>
-          <ComboboxList>{ruleTargetItem}</ComboboxList>
+          <ComboboxList>{ruleReferenceItem}</ComboboxList>
         </ComboboxContent>
       </Combobox>
-      <FieldDescription>{ruleTargetDescription(selected, form.rule_type)}</FieldDescription>
+      <FieldDescription>{ruleReferenceDescription(selected, form.rule_type)}</FieldDescription>
       {identifierInvalid && identifierError ? <FieldError>{identifierError}</FieldError> : null}
     </Field>
   );
 }
 
-function currentRuleTarget(form: RuleFormState): SantaRuleTarget | null {
+function currentRuleReferenceCandidate(form: RuleFormState): SantaRuleReference | null {
   const identifier = form.identifier.trim();
   if (identifier === "") return null;
   return {
-    target_type: form.rule_type,
+    rule_type: form.rule_type,
     identifier,
     rule_count: 0,
     complete: true,
   };
 }
 
-function targetLabel(target: SantaRuleTarget) {
-  return target.identifier;
+function referenceLabel(reference: SantaRuleReference) {
+  return reference.identifier;
 }
 
-function ruleTargetItem(target: SantaRuleTarget) {
-  const disabled = target.target_type === "bundle" && !target.complete;
-  const secondary = ruleTargetSecondary(target);
+function ruleReferenceItem(reference: SantaRuleReference) {
+  const disabled = reference.rule_type === "bundle" && !reference.complete;
+  const secondary = ruleReferenceSecondary(reference);
   return (
-    <ComboboxItem key={`${target.target_type}:${target.identifier}`} value={target} disabled={disabled}>
+    <ComboboxItem key={`${reference.rule_type}:${reference.identifier}`} value={reference} disabled={disabled}>
       <span className="min-w-0 flex-1">
-        <span className="block break-all leading-snug">{targetLabel(target)}</span>
+        <span className="block break-all leading-snug">{referenceLabel(reference)}</span>
         {secondary ? <span className="text-muted-foreground block truncate text-xs">{secondary}</span> : null}
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        {target.target_type === "bundle" ? (
+        {reference.rule_type === "bundle" ? (
           <span className="text-muted-foreground text-xs tabular-nums">
-            {target.collected_binary_count ?? 0}/{target.binary_count ?? 0}
+            {reference.collected_binary_count ?? 0}/{reference.binary_count ?? 0}
           </span>
         ) : null}
         <Badge variant={disabled ? "outline" : "secondary"} className="font-normal">
-          {ruleTypeLabel(target.target_type)}
+          {ruleTypeLabel(reference.rule_type)}
         </Badge>
       </span>
     </ComboboxItem>
   );
 }
 
-function ruleTargetSecondary(target: SantaRuleTarget) {
-  if (target.target_type === "teamid") return undefined;
-  if (!target.display_name) return undefined;
-  return target.display_name;
+function ruleReferenceSecondary(reference: SantaRuleReference) {
+  if (reference.rule_type === "teamid") return undefined;
+  if (!reference.display_name) return undefined;
+  return reference.display_name;
 }
 
-function ruleTargetDescription(target: SantaRuleTarget | null, ruleType: SantaRuleType) {
-  if (!target) return ruleIdentifierHint(ruleType);
-  if (target.target_type === "bundle" && !target.complete) {
-    return "Bundle target is incomplete.";
+function ruleReferenceDescription(reference: SantaRuleReference | null, ruleType: SantaRuleType) {
+  if (!reference) return ruleIdentifierHint(ruleType);
+  if (reference.rule_type === "bundle" && !reference.complete) {
+    return "Bundle reference is incomplete.";
   }
-  const description = ruleTargetDescriptionParts(target).join(" | ");
-  return description || ruleIdentifierHint(target.target_type);
+  const description = ruleReferenceDescriptionParts(reference).join(" | ");
+  return description || ruleIdentifierHint(reference.rule_type);
 }
 
-function ruleTargetDescriptionParts(target: SantaRuleTarget) {
+function ruleReferenceDescriptionParts(reference: SantaRuleReference) {
   const parts: string[] = [];
-  if (target.target_type === "teamid") {
-    if (target.certificate_organization) parts.push(target.certificate_organization);
+  if (reference.rule_type === "teamid") {
+    if (reference.certificate_organization) parts.push(reference.certificate_organization);
     return parts;
   }
-  if (target.target_type === "certificate" && target.certificate_common_name) {
-    parts.push(target.certificate_common_name);
+  if (reference.rule_type === "certificate" && reference.certificate_common_name) {
+    parts.push(reference.certificate_common_name);
   }
-  if (target.target_type === "certificate" && target.certificate_organization) {
-    parts.push(target.certificate_organization);
+  if (reference.rule_type === "certificate" && reference.certificate_organization) {
+    parts.push(reference.certificate_organization);
   }
-  if (target.bundle_identifier) parts.push(target.bundle_identifier);
-  if (target.version) parts.push(target.version);
-  if (target.path) parts.push(target.path);
+  if (reference.bundle_identifier) parts.push(reference.bundle_identifier);
+  if (reference.version) parts.push(reference.version);
+  if (reference.path) parts.push(reference.path);
   return parts;
 }
 

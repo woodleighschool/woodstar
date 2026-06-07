@@ -20,10 +20,10 @@ type santaRuleListInput struct {
 	RuleType RuleType `query:"rule_type,omitempty"`
 }
 
-type santaRuleTargetListInput struct {
-	Q          string   `query:"q,omitempty"`
-	TargetType RuleType `query:"target_type,omitempty"`
-	Limit      int      `query:"limit,omitempty"       minimum:"1" maximum:"50"`
+type santaRuleReferenceListInput struct {
+	Q        string   `query:"q,omitempty"`
+	RuleType RuleType `query:"rule_type,omitempty"`
+	Limit    int      `query:"limit,omitempty"     minimum:"1" maximum:"50"`
 }
 
 type santaRuleGetInput struct {
@@ -55,8 +55,8 @@ type santaRuleOutput struct {
 	Body Rule
 }
 
-type santaRuleTargetListOutput struct {
-	Body []RuleTarget
+type santaRuleReferenceListOutput struct {
+	Body []RuleReferenceCandidate
 }
 
 func (input santaRuleListInput) params() RuleListParams {
@@ -66,13 +66,13 @@ func (input santaRuleListInput) params() RuleListParams {
 	}
 }
 
-func (input santaRuleTargetListInput) params() RuleTargetListParams {
-	return RuleTargetListParams(input)
+func (input santaRuleReferenceListInput) params() RuleReferenceListParams {
+	return RuleReferenceListParams(input)
 }
 
 func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListSantaRules(api, store)
-	registerListSantaRuleTargets(api, store)
+	registerListSantaRuleReferences(api, store)
 	registerCreateSantaRule(api, store)
 	registerGetSantaRule(api, store)
 	registerUpdateSantaRule(api, store)
@@ -97,20 +97,20 @@ func registerListSantaRules(api huma.API, store *Store) {
 	})
 }
 
-func registerListSantaRuleTargets(api huma.API, store *Store) {
+func registerListSantaRuleReferences(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
-		OperationID: "list-santa-rule-targets",
+		OperationID: "list-santa-rule-references",
 		Method:      http.MethodGet,
-		Path:        "/api/santa/rule-targets",
+		Path:        "/api/santa/rule-references",
 		Tags:        []string{santaTag},
-		Summary:     "List Santa rule targets",
+		Summary:     "List Santa rule references",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, input *santaRuleTargetListInput) (*santaRuleTargetListOutput, error) {
-		targets, err := store.ListRuleTargets(ctx, input.params())
+	}, func(ctx context.Context, input *santaRuleReferenceListInput) (*santaRuleReferenceListOutput, error) {
+		candidates, err := store.ListRuleReferences(ctx, input.params())
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleTargetListOutput{Body: targets}, nil
+		return &santaRuleReferenceListOutput{Body: candidates}, nil
 	})
 }
 

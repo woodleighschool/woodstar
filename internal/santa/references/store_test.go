@@ -203,12 +203,12 @@ func TestSoftwareReferenceJoinsSoftwareInventoryToSantaEvidence(t *testing.T) {
 
 func hasSigningIdentity(
 	identities []references.SigningIdentityReference,
-	targetType santarules.RuleType,
+	ruleType santarules.RuleType,
 	identifier string,
 	ruleCount int32,
 ) bool {
 	for _, identity := range identities {
-		if identity.TargetType == targetType && identity.Identifier == identifier && identity.RuleCount == ruleCount {
+		if identity.RuleType == ruleType && identity.Identifier == identifier && identity.RuleCount == ruleCount {
 			return true
 		}
 	}

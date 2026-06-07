@@ -20,7 +20,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
-func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
+func TestSantaRuleReferencesEndpointReturnsCandidates(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router := santaRulesAPI(t, func(api huma.API) {
 		rules.RegisterAdminRoutes(api, rules.NewStore(db))
@@ -38,23 +38,23 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 		t,
 		router,
 		http.MethodGet,
-		"/api/santa/rule-targets?target_type=binary&q=Endpoint",
+		"/api/santa/rule-references?rule_type=binary&q=Endpoint",
 		"",
 	)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var body []rules.RuleTarget
+	var body []rules.RuleReferenceCandidate
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
 	if len(body) != 1 || body[0].Identifier != identifier {
-		t.Fatalf("targets = %+v, want endpoint executable", body)
+		t.Fatalf("references = %+v, want endpoint executable", body)
 	}
 	if body[0].DisplayName != "" ||
 		body[0].FileName != "Endpoint Target" ||
 		body[0].BundleIdentifier != "com.example.endpoint" {
-		t.Fatalf("target metadata = %+v, want semantic executable fields", body[0])
+		t.Fatalf("reference metadata = %+v, want semantic executable fields", body[0])
 	}
 }
 

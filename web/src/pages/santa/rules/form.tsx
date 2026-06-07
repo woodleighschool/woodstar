@@ -6,7 +6,7 @@ import { useState } from "react";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { CELDialog, IncludeTargetsTable, RuleTargetPicker } from "@/components/santa/rules/rule-form-fields";
+import { CELDialog, IncludeTargetsTable, RuleReferencePicker } from "@/components/santa/rules/rule-form-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -92,7 +92,7 @@ function RuleForm({
   });
   const pending = create.isPending || update.isPending;
 
-  function setRuleTarget(next: RuleFormState) {
+  function setRuleReference(next: RuleFormState) {
     form.setFieldValue("rule_type", next.rule_type);
     form.setFieldValue("identifier", next.identifier);
     form.setFieldValue("name", next.name);
@@ -204,11 +204,11 @@ function RuleForm({
                               </Field>
                             )}
                           />
-                          <RuleTargetPicker
+                          <RuleReferencePicker
                             form={values}
                             identifierError={identifierError}
                             identifierInvalid={identifierInvalid}
-                            onChange={setRuleTarget}
+                            onChange={setRuleReference}
                           />
                           <form.Field
                             name="custom_url"

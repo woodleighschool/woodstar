@@ -87,26 +87,29 @@ func (s *Store) GetRuleByID(ctx context.Context, id int64) (*Rule, error) {
 	return &rules[0], nil
 }
 
-func (s *Store) ListRuleTargets(ctx context.Context, params RuleTargetListParams) ([]RuleTarget, error) {
-	if params.TargetType != "" && !validRuleType(params.TargetType) {
-		return nil, fmt.Errorf("%w: unknown target_type", dbutil.ErrInvalidInput)
+func (s *Store) ListRuleReferences(
+	ctx context.Context,
+	params RuleReferenceListParams,
+) ([]RuleReferenceCandidate, error) {
+	if params.RuleType != "" && !validRuleType(params.RuleType) {
+		return nil, fmt.Errorf("%w: unknown rule_type", dbutil.ErrInvalidInput)
 	}
 	if params.Limit <= 0 || params.Limit > 50 {
 		params.Limit = 20
 	}
-	rows, err := s.q.ListSantaRuleTargets(ctx, sqlc.ListSantaRuleTargetsParams{
+	rows, err := s.q.ListSantaRuleReferences(ctx, sqlc.ListSantaRuleReferencesParams{
 		Q:          params.Q,
-		TargetType: string(params.TargetType),
+		RuleType:   string(params.RuleType),
 		LimitCount: int32(params.Limit),
 	})
 	if err != nil {
 		return nil, err
 	}
-	targets := make([]RuleTarget, len(rows))
+	candidates := make([]RuleReferenceCandidate, len(rows))
 	for i, row := range rows {
-		targets[i] = ruleTargetFromSQLC(row)
+		candidates[i] = ruleReferenceCandidateFromSQLC(row)
 	}
-	return targets, nil
+	return candidates, nil
 }
 
 func (s *Store) getRuleByID(ctx context.Context, id int64) (*Rule, error) {
@@ -128,10 +131,10 @@ func (s *Store) CreateRule(ctx context.Context, params RuleMutation) (*Rule, err
 
 	var ruleID int64
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+		if err := validateRuleTargetingLabels(ctx, tx, params); err != nil {
 			return err
 		}
-		if err := validateRuleTarget(ctx, tx, params); err != nil {
+		if err := validateRuleReference(ctx, tx, params); err != nil {
 			return err
 		}
 		row, err := s.q.WithTx(tx).CreateSantaRule(ctx, sqlc.CreateSantaRuleParams{
@@ -160,10 +163,10 @@ func (s *Store) UpdateRule(ctx context.Context, id int64, params RuleMutation) (
 	}
 
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		if err := validateRuleTargetLabels(ctx, tx, params); err != nil {
+		if err := validateRuleTargetingLabels(ctx, tx, params); err != nil {
 			return err
 		}
-		if err := validateRuleTarget(ctx, tx, params); err != nil {
+		if err := validateRuleReference(ctx, tx, params); err != nil {
 			return err
 		}
 		row, err := s.q.WithTx(tx).UpdateSantaRule(ctx, sqlc.UpdateSantaRuleParams{
@@ -474,7 +477,7 @@ func validateRuleIdentifier(ruleType RuleType, identifier string) error {
 	return nil
 }
 
-func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
+func validateRuleTargetingLabels(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
 	if len(params.Targets.Exclude) == 0 {
 		return nil
 	}
@@ -491,7 +494,7 @@ func validateRuleTargetLabels(ctx context.Context, tx pgx.Tx, params RuleMutatio
 	return nil
 }
 
-func validateRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
+func validateRuleReference(ctx context.Context, tx pgx.Tx, params RuleMutation) error {
 	if params.RuleType != RuleTypeBundle {
 		return nil
 	}
@@ -500,13 +503,13 @@ func validateRuleTarget(ctx context.Context, tx pgx.Tx, params RuleMutation) err
 		sqlc.IsSantaBundleCompleteParams{Sha256: params.Identifier},
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return fmt.Errorf("%w: bundle target is not collected", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: bundle reference is not collected", dbutil.ErrInvalidInput)
 	}
 	if err != nil {
 		return err
 	}
 	if !complete {
-		return fmt.Errorf("%w: bundle target is incomplete", dbutil.ErrInvalidInput)
+		return fmt.Errorf("%w: bundle reference is incomplete", dbutil.ErrInvalidInput)
 	}
 	return nil
 }
@@ -565,9 +568,9 @@ func scanRule(row pgx.Row) (Rule, error) {
 	return rule, err
 }
 
-func ruleTargetFromSQLC(row sqlc.ListSantaRuleTargetsRow) RuleTarget {
-	return RuleTarget{
-		TargetType:                    RuleType(row.TargetType),
+func ruleReferenceCandidateFromSQLC(row sqlc.ListSantaRuleReferencesRow) RuleReferenceCandidate {
+	return RuleReferenceCandidate{
+		RuleType:                      RuleType(row.RuleType),
 		Identifier:                    row.Identifier,
 		DisplayName:                   row.DisplayName,
 		CertificateCommonName:         row.CertificateCommonName,

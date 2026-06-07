@@ -10,7 +10,7 @@ import type {
   Page,
   Rule,
   RuleMutation,
-  RuleTarget,
+  RuleReferenceCandidate,
   SantaHostState,
 } from "@/lib/api";
 import { apiClient, unwrap } from "@/lib/api";
@@ -18,8 +18,8 @@ import type {
   ListSantaConfigurationsData,
   ListSantaEventsData,
   ListSantaFileAccessEventsData,
+  ListSantaRuleReferencesData,
   ListSantaRulesData,
-  ListSantaRuleTargetsData,
 } from "@/lib/api-client/types.gen";
 import { queryKeys } from "@/lib/query-keys";
 import { nonEmpty } from "@/lib/utils";
@@ -35,8 +35,8 @@ export type SantaHostSummary = HostSummary;
 export type SantaRule = Rule;
 export type SantaRuleMutation = RuleMutation;
 export type SantaRuleListResult = Page<SantaRule>;
-export type SantaRuleTarget = RuleTarget;
-export type SantaRuleTargetListResult = SantaRuleTarget[];
+export type SantaRuleReference = RuleReferenceCandidate;
+export type SantaRuleReferenceListResult = SantaRuleReference[];
 export type SantaClientMode = SantaHostState["client_mode_reported"] | SantaConfiguration["client_mode"];
 export type SantaExecutionDecision = SantaEvent["decision"];
 export type SantaFileAccessDecision = SantaFileAccessEvent["decision"];
@@ -45,7 +45,7 @@ export type SantaRulePolicy = SantaRule["targets"]["include"][number]["policy"];
 
 export type SantaListParams = NonNullable<ListSantaConfigurationsData["query"]>;
 export type SantaRuleListParams = NonNullable<ListSantaRulesData["query"]>;
-export type SantaRuleTargetListParams = NonNullable<ListSantaRuleTargetsData["query"]>;
+export type SantaRuleReferenceListParams = NonNullable<ListSantaRuleReferencesData["query"]>;
 export type SantaEventListParams = NonNullable<ListSantaEventsData["query"]>;
 export type SantaFileAccessEventListParams = NonNullable<ListSantaFileAccessEventsData["query"]>;
 export type SantaEventDecisionFilter = NonNullable<NonNullable<SantaEventListParams["decisions"]>[number]>;
@@ -110,17 +110,17 @@ export function useSantaRule(id: number | null) {
   });
 }
 
-export function useSantaRuleTargets(params: SantaRuleTargetListParams = {}) {
+export function useSantaRuleReferences(params: SantaRuleReferenceListParams = {}) {
   const queryParams = {
     q: nonEmpty(params.q),
-    target_type: params.target_type,
+    rule_type: params.rule_type,
     limit: params.limit ?? 20,
   };
 
-  return useQuery<SantaRuleTargetListResult, ApiError>({
-    queryKey: queryKeys.santaRuleTargets(queryParams),
+  return useQuery<SantaRuleReferenceListResult, ApiError>({
+    queryKey: queryKeys.santaRuleReferences(queryParams),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/santa/rule-targets", { params: { query: queryParams }, signal })),
+      unwrap(apiClient.GET("/api/santa/rule-references", { params: { query: queryParams }, signal })),
     placeholderData: keepPreviousData,
   });
 }

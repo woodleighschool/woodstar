@@ -420,10 +420,10 @@ func (q *Queries) ListSantaRuleIncludes(ctx context.Context, arg ListSantaRuleIn
 	return items, nil
 }
 
-const listSantaRuleTargets = `-- name: ListSantaRuleTargets :many
+const listSantaRuleReferences = `-- name: ListSantaRuleReferences :many
 WITH candidate_sources AS (
     SELECT
-        'binary'::text AS target_type,
+        'binary'::text AS rule_type,
         e.sha256 AS identifier,
         NULLIF(e.file_bundle_name, '') AS display_name,
         NULL::text AS certificate_common_name,
@@ -605,9 +605,9 @@ WITH candidate_sources AS (
     WHERE b.sha256 <> ''
     GROUP BY b.id
 ),
-targets AS (
+candidates AS (
     SELECT
-        target_type,
+        rule_type,
         identifier,
         COALESCE(
             CASE WHEN COUNT(DISTINCT NULLIF(display_name, '')) = 1 THEN MIN(NULLIF(display_name, '')) END,
@@ -675,10 +675,10 @@ targets AS (
         )::text AS search_text
     FROM candidate_sources
     WHERE identifier <> ''
-    GROUP BY target_type, identifier
+    GROUP BY rule_type, identifier
 )
 SELECT
-    t.target_type,
+    t.rule_type,
     t.identifier,
     t.display_name,
     t.certificate_common_name,
@@ -692,9 +692,9 @@ SELECT
     t.collected_binary_count,
     COUNT(r.id)::integer AS rule_count,
     t.complete
-FROM targets t
+FROM candidates t
 LEFT JOIN santa_rules r
-    ON r.rule_type::text = t.target_type AND r.identifier = t.identifier
+    ON r.rule_type::text = t.rule_type AND r.identifier = t.identifier
 WHERE
     ($1::text = ''
         OR t.identifier ILIKE '%' || $1::text || '%'
@@ -707,9 +707,9 @@ WHERE
         OR t.path ILIKE '%' || $1::text || '%'
         OR t.version ILIKE '%' || $1::text || '%'
         OR t.search_text ILIKE '%' || $1::text || '%')
-    AND ($2::text = '' OR t.target_type = $2::text)
+    AND ($2::text = '' OR t.rule_type = $2::text)
 GROUP BY
-    t.target_type,
+    t.rule_type,
     t.identifier,
     t.display_name,
     t.certificate_common_name,
@@ -723,7 +723,7 @@ GROUP BY
     t.collected_binary_count,
     t.complete
 ORDER BY
-    CASE t.target_type
+    CASE t.rule_type
         WHEN 'bundle' THEN 1
         WHEN 'signingid' THEN 2
         WHEN 'teamid' THEN 3
@@ -737,14 +737,14 @@ ORDER BY
 LIMIT $3
 `
 
-type ListSantaRuleTargetsParams struct {
+type ListSantaRuleReferencesParams struct {
 	Q          string `json:"q"`
-	TargetType string `json:"target_type"`
+	RuleType   string `json:"rule_type"`
 	LimitCount int32  `json:"limit_count"`
 }
 
-type ListSantaRuleTargetsRow struct {
-	TargetType                    string `json:"target_type"`
+type ListSantaRuleReferencesRow struct {
+	RuleType                      string `json:"rule_type"`
 	Identifier                    string `json:"identifier"`
 	DisplayName                   string `json:"display_name"`
 	CertificateCommonName         string `json:"certificate_common_name"`
@@ -760,17 +760,17 @@ type ListSantaRuleTargetsRow struct {
 	Complete                      bool   `json:"complete"`
 }
 
-func (q *Queries) ListSantaRuleTargets(ctx context.Context, arg ListSantaRuleTargetsParams) ([]ListSantaRuleTargetsRow, error) {
-	rows, err := q.db.Query(ctx, listSantaRuleTargets, arg.Q, arg.TargetType, arg.LimitCount)
+func (q *Queries) ListSantaRuleReferences(ctx context.Context, arg ListSantaRuleReferencesParams) ([]ListSantaRuleReferencesRow, error) {
+	rows, err := q.db.Query(ctx, listSantaRuleReferences, arg.Q, arg.RuleType, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSantaRuleTargetsRow{}
+	items := []ListSantaRuleReferencesRow{}
 	for rows.Next() {
-		var i ListSantaRuleTargetsRow
+		var i ListSantaRuleReferencesRow
 		if err := rows.Scan(
-			&i.TargetType,
+			&i.RuleType,
 			&i.Identifier,
 			&i.DisplayName,
 			&i.CertificateCommonName,

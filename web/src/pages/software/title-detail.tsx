@@ -254,11 +254,7 @@ function SantaBundlesTable({ bundles }: { bundles: BundleReference[] }) {
           </TableCell>
           <TableCell className="w-10 text-right">
             {bundle.complete ? (
-              <QuickAddRuleButton
-                targetType="bundle"
-                identifier={bundle.sha256}
-                name={bundle.name || bundle.bundle_id}
-              />
+              <QuickAddRuleButton ruleType="bundle" identifier={bundle.sha256} name={bundle.name || bundle.bundle_id} />
             ) : null}
           </TableCell>
         </TableRow>
@@ -282,7 +278,7 @@ function SantaExecutablesTable({ executables }: { executables: ExecutableReferen
             <span>{executable.block_count}</span>
           </TableCell>
           <TableCell className="w-10 text-right">
-            <QuickAddRuleButton targetType="binary" identifier={executable.sha256} name={executable.file_bundle_name} />
+            <QuickAddRuleButton ruleType="binary" identifier={executable.sha256} name={executable.file_bundle_name} />
           </TableCell>
         </TableRow>
       ))}
@@ -294,11 +290,11 @@ function SantaSigningTable({ identities }: { identities: SigningIdentityReferenc
   return (
     <SantaReferenceTable title="Signing" empty="No signing identities.">
       {identities.map((identity) => (
-        <TableRow key={`${identity.target_type}:${identity.identifier}`}>
+        <TableRow key={`${identity.rule_type}:${identity.identifier}`}>
           <TableCell className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <Badge variant="secondary" className="font-normal">
-                {ruleTypeLabel(identity.target_type)}
+                {ruleTypeLabel(identity.rule_type)}
               </Badge>
               <span className="truncate font-medium">{identity.identifier}</span>
             </div>
@@ -307,7 +303,7 @@ function SantaSigningTable({ identities }: { identities: SigningIdentityReferenc
           <TableCell className="text-right text-xs tabular-nums">{identity.rule_count}</TableCell>
           <TableCell className="w-10 text-right">
             <QuickAddRuleButton
-              targetType={identity.target_type}
+              ruleType={identity.rule_type}
               identifier={identity.identifier}
               name={identity.name || identity.identifier}
             />
@@ -338,11 +334,7 @@ function SantaCertificatesTable({ certificates }: { certificates: CertificateRef
           </TableCell>
           <TableCell className="text-right text-xs tabular-nums">{certificate.rule_count}</TableCell>
           <TableCell className="w-10 text-right">
-            <QuickAddRuleButton
-              targetType="certificate"
-              identifier={certificate.sha256}
-              name={certificate.common_name}
-            />
+            <QuickAddRuleButton ruleType="certificate" identifier={certificate.sha256} name={certificate.common_name} />
           </TableCell>
         </TableRow>
       ))}
@@ -395,11 +387,11 @@ function SantaReferenceTable({ title, empty, children }: { title: string; empty:
 }
 
 function QuickAddRuleButton({
-  targetType,
+  ruleType,
   identifier,
   name,
 }: {
-  targetType: SantaRuleType;
+  ruleType: SantaRuleType;
   identifier: string;
   name?: string;
 }) {
@@ -407,12 +399,12 @@ function QuickAddRuleButton({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button asChild type="button" variant="ghost" size="icon-sm">
-          <Link to="/santa/rules/new" search={{ rule_type: targetType, identifier, name }}>
+          <Link to="/santa/rules/new" search={{ rule_type: ruleType, identifier, name }}>
             <Plus />
           </Link>
         </Button>
       </TooltipTrigger>
-      <TooltipContent>New {ruleTypeLabel(targetType)} Rule</TooltipContent>
+      <TooltipContent>New {ruleTypeLabel(ruleType)} Rule</TooltipContent>
     </Tooltip>
   );
 }
