@@ -106,7 +106,7 @@ func resolveSelectedLabelTargets(ctx context.Context, q *sqlc.Queries, labelIDs 
 	regularIDs := make([]int64, 0, len(labelIDs))
 	for _, row := range rows {
 		if labels.LabelType(row.LabelType) == labels.LabelTypeBuiltin {
-			if row.Name == "All Hosts" {
+			if row.BuiltinKey != nil && labels.BuiltinKey(*row.BuiltinKey) == labels.BuiltinKeyAllHosts {
 				return allActiveHostIDs(ctx, q)
 			}
 			builtinIDs = append(builtinIDs, row.ID)

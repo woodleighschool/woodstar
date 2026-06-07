@@ -1470,6 +1470,11 @@ components:
           format: uri
           readOnly: true
           type: string
+        builtin_key:
+          enum:
+            - all-hosts
+          readOnly: true
+          type: string
         created_at:
           format: date-time
           type: string

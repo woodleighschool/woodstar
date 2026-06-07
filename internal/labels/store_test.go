@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgerrcode"
+
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
@@ -132,6 +134,60 @@ func TestCreateManualLabelStoresHostIDs(t *testing.T) {
 	if !equalInt64s(label.HostIDs, wantHostIDs) {
 		t.Fatalf("HostIDs = %v, want %v", label.HostIDs, wantHostIDs)
 	}
+	if label.BuiltinKey != nil {
+		t.Fatalf("BuiltinKey = %q, want nil", *label.BuiltinKey)
+	}
+}
+
+func TestBuiltinLabelUsesStableKey(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	store := NewStore(db)
+
+	rows, _, err := store.List(ctx, ListParams{LabelType: LabelTypeBuiltin})
+	if err != nil {
+		t.Fatalf("list builtin labels: %v", err)
+	}
+
+	for _, row := range rows {
+		if row.BuiltinKey != nil && *row.BuiltinKey == BuiltinKeyAllHosts {
+			if row.Name != "All Hosts" {
+				t.Fatalf("All Hosts name = %q, want display name", row.Name)
+			}
+			if row.LabelMembershipType != LabelMembershipTypeManual {
+				t.Fatalf("All Hosts membership type = %q, want manual", row.LabelMembershipType)
+			}
+			return
+		}
+	}
+	t.Fatalf("builtin key %q not found in labels: %+v", BuiltinKeyAllHosts, rows)
+}
+
+func TestBuiltinKeyConstraints(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+
+	_, err := db.Pool().Exec(ctx, `
+		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
+		VALUES ('Bad Regular Key', 'bad-regular', 'regular', 'manual')
+	`)
+	expectLabelSQLState(t, err, pgerrcode.CheckViolation)
+
+	_, err = db.Pool().Exec(ctx, `
+		INSERT INTO labels (name, label_type, label_membership_type)
+		VALUES ('Missing Builtin Key', 'builtin', 'manual')
+	`)
+	expectLabelSQLState(t, err, pgerrcode.CheckViolation)
+
+	_, err = db.Pool().Exec(ctx, `
+		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
+		VALUES ('Duplicate All Hosts', 'all-hosts', 'builtin', 'manual')
+	`)
+	expectLabelSQLState(t, err, pgerrcode.UniqueViolation)
+
+	_, err = db.Pool().Exec(ctx, `
+		INSERT INTO labels (name, builtin_key, label_type, label_membership_type)
+		VALUES ('Unknown Builtin', 'unknown-builtin', 'builtin', 'manual')
+	`)
+	expectLabelSQLState(t, err, pgerrcode.CheckViolation)
 }
 
 func TestCreateManualLabelWithMissingHostReturnsNotFound(t *testing.T) {
@@ -336,6 +392,13 @@ SELECT EXISTS (
     WHERE host_id = $1 AND label_id = $2
 )`, hostID, labelID).Scan(&exists)
 	return exists, err
+}
+
+func expectLabelSQLState(t testing.TB, err error, code string) {
+	t.Helper()
+	if got := database.SQLState(err); got != code {
+		t.Fatalf("SQLState = %q, want %q from err %v", got, code, err)
+	}
 }
 
 func equalInt64s(a []int64, b []int64) bool {

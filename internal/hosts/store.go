@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 // Store persists hosts.
@@ -38,7 +39,10 @@ func (s *Store) UpsertOnOrbitEnroll(ctx context.Context, update InventoryUpdate)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
+	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{
+		HostID:     row.ID,
+		BuiltinKey: string(labels.BuiltinKeyAllHosts),
+	}); err != nil {
 		return nil, err
 	}
 	return new(hostFromSQLC(row)), nil
@@ -72,7 +76,10 @@ func (s *Store) UpsertOnOsqueryEnroll(ctx context.Context, update InventoryUpdat
 	if err != nil {
 		return nil, err
 	}
-	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{HostID: row.ID}); err != nil {
+	if err := s.q.AddHostToAllHostsLabel(ctx, sqlc.AddHostToAllHostsLabelParams{
+		HostID:     row.ID,
+		BuiltinKey: string(labels.BuiltinKeyAllHosts),
+	}); err != nil {
 		return nil, err
 	}
 	return new(hostFromSQLC(row)), nil

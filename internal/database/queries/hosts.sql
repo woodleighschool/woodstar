@@ -359,7 +359,7 @@ ORDER BY common_name, sha1, id;
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, @host_id
 FROM labels
-WHERE name = 'All Hosts' AND label_type = 'builtin' AND label_membership_type = 'manual'
+WHERE builtin_key = @builtin_key::text AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING;
 
 -- name: ListSelectedHostIDs :many
@@ -384,7 +384,7 @@ FROM hosts
 WHERE id = ANY(@host_ids::bigint[]);
 
 -- name: ListSelectedLabels :many
-SELECT id, name, label_type
+SELECT id, name, label_type, builtin_key
 FROM labels
 WHERE id = ANY(@label_ids::bigint[])
 ORDER BY id;

@@ -980,6 +980,7 @@ type HostUserLink struct {
 type Label struct {
 	ID                  int64     `json:"id"`
 	Name                string    `json:"name"`
+	BuiltinKey          *string   `json:"builtin_key"`
 	Description         string    `json:"description"`
 	Query               *string   `json:"query"`
 	Criteria            []byte    `json:"criteria"`

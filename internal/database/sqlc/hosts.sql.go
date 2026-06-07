@@ -14,16 +14,17 @@ const addHostToAllHostsLabel = `-- name: AddHostToAllHostsLabel :exec
 INSERT INTO label_membership (label_id, host_id)
 SELECT id, $1
 FROM labels
-WHERE name = 'All Hosts' AND label_type = 'builtin' AND label_membership_type = 'manual'
+WHERE builtin_key = $2::text AND label_type = 'builtin' AND label_membership_type = 'manual'
 ON CONFLICT (label_id, host_id) DO NOTHING
 `
 
 type AddHostToAllHostsLabelParams struct {
-	HostID int64 `json:"host_id"`
+	HostID     int64  `json:"host_id"`
+	BuiltinKey string `json:"builtin_key"`
 }
 
 func (q *Queries) AddHostToAllHostsLabel(ctx context.Context, arg AddHostToAllHostsLabelParams) error {
-	_, err := q.db.Exec(ctx, addHostToAllHostsLabel, arg.HostID)
+	_, err := q.db.Exec(ctx, addHostToAllHostsLabel, arg.HostID, arg.BuiltinKey)
 	return err
 }
 
@@ -922,7 +923,7 @@ func (q *Queries) ListSelectedHostIDs(ctx context.Context, arg ListSelectedHostI
 }
 
 const listSelectedLabels = `-- name: ListSelectedLabels :many
-SELECT id, name, label_type
+SELECT id, name, label_type, builtin_key
 FROM labels
 WHERE id = ANY($1::bigint[])
 ORDER BY id
@@ -933,9 +934,10 @@ type ListSelectedLabelsParams struct {
 }
 
 type ListSelectedLabelsRow struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	LabelType string `json:"label_type"`
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	LabelType  string  `json:"label_type"`
+	BuiltinKey *string `json:"builtin_key"`
 }
 
 func (q *Queries) ListSelectedLabels(ctx context.Context, arg ListSelectedLabelsParams) ([]ListSelectedLabelsRow, error) {
@@ -947,7 +949,12 @@ func (q *Queries) ListSelectedLabels(ctx context.Context, arg ListSelectedLabels
 	items := []ListSelectedLabelsRow{}
 	for rows.Next() {
 		var i ListSelectedLabelsRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.LabelType); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.LabelType,
+			&i.BuiltinKey,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

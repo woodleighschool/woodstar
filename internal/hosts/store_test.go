@@ -94,7 +94,8 @@ func TestEnrollAddsHostToAllHosts(t *testing.T) {
 
 	var found bool
 	for _, l := range hostLabels {
-		if l.Name == "All Hosts" &&
+		if l.BuiltinKey != nil &&
+			*l.BuiltinKey == labels.BuiltinKeyAllHosts &&
 			l.LabelType == labels.LabelTypeBuiltin &&
 			l.LabelMembershipType == labels.LabelMembershipTypeManual {
 			found = true

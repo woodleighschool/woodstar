@@ -317,6 +317,7 @@ CREATE INDEX host_software_installed_paths_host_software_idx
 CREATE TABLE labels (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
+    builtin_key TEXT,
     description TEXT NOT NULL DEFAULT '',
     query TEXT,
     criteria JSONB,
@@ -328,11 +329,16 @@ CREATE TABLE labels (
         (label_membership_type = 'dynamic' AND NULLIF(btrim(query), '') IS NOT NULL AND criteria IS NULL)
         OR (label_membership_type = 'manual' AND query IS NULL AND criteria IS NULL)
         OR (label_membership_type = 'derived' AND query IS NULL AND criteria IS NOT NULL)
+    ),
+    CHECK (
+        (label_type = 'builtin' AND builtin_key IS NOT NULL AND builtin_key IN ('all-hosts'))
+        OR (label_type = 'regular' AND builtin_key IS NULL)
     )
 );
 
 CREATE INDEX labels_label_type_idx ON labels (label_type);
 CREATE INDEX labels_label_membership_type_idx ON labels (label_membership_type);
+CREATE UNIQUE INDEX labels_builtin_key_unique_idx ON labels (builtin_key) WHERE builtin_key IS NOT NULL;
 
 CREATE TABLE label_membership (
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
@@ -344,9 +350,9 @@ CREATE TABLE label_membership (
 
 CREATE INDEX label_membership_host_idx ON label_membership (host_id);
 
-INSERT INTO labels (name, description, query, label_type, label_membership_type)
+INSERT INTO labels (name, builtin_key, description, query, label_type, label_membership_type)
 VALUES
-    ('All Hosts', 'Every enrolled host.', NULL, 'builtin', 'manual');
+    ('All Hosts', 'all-hosts', 'Every enrolled host.', NULL, 'builtin', 'manual');
 
 -- Reports / Checks -----------------------------------------------------------
 

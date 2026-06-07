@@ -34,6 +34,7 @@ import {
   type LiveQueryTargetCount,
   type LiveQueryTargetSelection,
 } from "@/hooks/use-live-queries";
+import { isAllHostsLabel } from "@/lib/labels";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
 type LiveRunKind = "report" | "check";
@@ -442,7 +443,7 @@ function TargetPicker({
   }, [grouped.allHosts, onLabelsChange, selectedHosts.length, selectedLabels.length]);
 
   function toggleLabel(label: Label) {
-    const isAllHosts = label.label_type === "builtin" && label.name === "All Hosts";
+    const isAllHosts = isAllHostsLabel(label);
     const alreadySelected = selectedLabels.some((item) => item.id === label.id);
     if (alreadySelected) {
       onLabelsChange(selectedLabels.filter((item) => item.id !== label.id));
@@ -453,12 +454,12 @@ function TargetPicker({
       onLabelsChange([label]);
       return;
     }
-    onLabelsChange([...selectedLabels.filter((item) => item.name !== "All Hosts"), label]);
+    onLabelsChange([...selectedLabels.filter((item) => !isAllHostsLabel(item)), label]);
   }
 
   function addHost(host: Host) {
     if (selectedHosts.some((item) => item.id === host.id)) return;
-    onLabelsChange(selectedLabels.filter((item) => item.name !== "All Hosts"));
+    onLabelsChange(selectedLabels.filter((item) => !isAllHostsLabel(item)));
     onHostsChange([...selectedHosts, host]);
     setHostSearch("");
   }
@@ -704,8 +705,8 @@ function RunEmptyState({ title, description }: { title: string; description: str
 
 function groupLabels(labels: Label[]) {
   return {
-    allHosts: labels.filter((label) => label.label_type === "builtin" && label.name === "All Hosts"),
-    other: labels.filter((label) => label.name !== "All Hosts"),
+    allHosts: labels.filter(isAllHostsLabel),
+    other: labels.filter((label) => !isAllHostsLabel(label)),
   };
 }
 

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
 import { LabelChips } from "@/components/labels/label-chips";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { isAllHostsLabel } from "@/lib/labels";
 import { targetLabelIDs, targetSummary, type FlatLabelTarget, type LabelTargetSet } from "@/lib/targeting";
 
 export function TargetLabelsCell({
@@ -24,8 +25,8 @@ export function TargetLabelsCell({
   }
 
   const labels = labelsFromIDs(ids, labelsByID);
-  if (!targets && labels.length === 1 && labels[0].name === "All Hosts") {
-    return <span className="text-sm">All Hosts</span>;
+  if (!targets && labels.length === 1 && isAllHostsLabel(labels[0])) {
+    return <span className="text-sm">{labels[0].name}</span>;
   }
 
   return (

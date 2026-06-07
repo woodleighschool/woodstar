@@ -558,6 +558,7 @@ export type Label = {
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
+    readonly builtin_key?: 'all-hosts';
     created_at?: string;
     criteria?: Criteria;
     description: string;

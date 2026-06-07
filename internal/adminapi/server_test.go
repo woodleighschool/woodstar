@@ -975,7 +975,7 @@ func apiTestAllHostsLabelID(t *testing.T, ctx context.Context, store *labels.Sto
 		t.Fatalf("list labels: %v", err)
 	}
 	for _, row := range rows {
-		if row.Name == "All Hosts" {
+		if row.BuiltinKey != nil && *row.BuiltinKey == labels.BuiltinKeyAllHosts {
 			return row.ID
 		}
 	}

@@ -10,6 +10,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 )
 
+// BuiltinKey identifies a built-in label independent of display text.
+type BuiltinKey string
+
 // LabelType marks builtin vs regular labels.
 type (
 	LabelType           string
@@ -21,7 +24,13 @@ const (
 	LabelTypeRegular LabelType = "regular"
 )
 
-var LabelTypeValues = []LabelType{LabelTypeBuiltin, LabelTypeRegular}
+// BuiltinKeyAllHosts identifies the built-in label matching every enrolled host.
+const BuiltinKeyAllHosts BuiltinKey = "all-hosts"
+
+var (
+	builtinKeyValues = []BuiltinKey{BuiltinKeyAllHosts}
+	LabelTypeValues  = []LabelType{LabelTypeBuiltin, LabelTypeRegular}
+)
 
 // Label membership types.
 const (
@@ -47,6 +56,7 @@ const (
 type Label struct {
 	ID                  int64               `json:"id"`
 	Name                string              `json:"name"`
+	BuiltinKey          *BuiltinKey         `json:"builtin_key,omitempty" readOnly:"true"`
 	Description         string              `json:"description"`
 	Query               *string             `json:"query,omitempty"`
 	Criteria            *Criteria           `json:"criteria,omitempty"`
@@ -84,6 +94,10 @@ type LabelMutation struct {
 	Criteria            *Criteria           `json:"criteria,omitempty"`
 	HostIDs             []int64             `json:"host_ids,omitempty"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type,omitempty"`
+}
+
+func (BuiltinKey) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(builtinKeyValues...)
 }
 
 func (LabelType) Schema(_ huma.Registry) *huma.Schema {

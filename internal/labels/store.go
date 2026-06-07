@@ -343,6 +343,7 @@ func labelListQuery(params ListParams, where string, args []any) dbutil.ListQuer
 		SelectSQL: `SELECT
 	l.id,
 	l.name,
+	l.builtin_key,
 	l.description,
 	l.query,
 	l.criteria,
@@ -386,6 +387,7 @@ func labelListWhere(params ListParams) (string, []any) {
 type labelListRecord struct {
 	ID                  int64
 	Name                string
+	BuiltinKey          *string
 	Description         string
 	Query               *string
 	Criteria            []byte
@@ -405,9 +407,15 @@ func labelFromSQLC(s sqlc.Label) (*Label, error) {
 		}
 		criteria = &decoded
 	}
+	var builtinKey *BuiltinKey
+	if s.BuiltinKey != nil {
+		key := BuiltinKey(*s.BuiltinKey)
+		builtinKey = &key
+	}
 	return &Label{
 		ID:                  s.ID,
 		Name:                s.Name,
+		BuiltinKey:          builtinKey,
 		Description:         s.Description,
 		Query:               s.Query,
 		Criteria:            criteria,
@@ -422,6 +430,7 @@ func labelFromListRecord(s labelListRecord) (Label, error) {
 	label, err := labelFromSQLC(sqlc.Label{
 		ID:                  s.ID,
 		Name:                s.Name,
+		BuiltinKey:          s.BuiltinKey,
 		Description:         s.Description,
 		Query:               s.Query,
 		Criteria:            s.Criteria,

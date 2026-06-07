@@ -2,7 +2,10 @@ import type { Label } from "@/hooks/use-labels";
 import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
 
 export type LabelMembershipType = Label["label_membership_type"];
+export type LabelBuiltinKey = NonNullable<Label["builtin_key"]>;
 export type LabelDerivedAttribute = "user_department" | "directory_group" | "user";
+
+export const BUILTIN_KEY_ALL_HOSTS = "all-hosts" as const satisfies LabelBuiltinKey;
 
 export const LABEL_MEMBERSHIP_VALUES = [
   "dynamic",
@@ -54,4 +57,8 @@ export function labelDerivedAttributeSelectorLabel(attribute: LabelDerivedAttrib
     default:
       return "Departments";
   }
+}
+
+export function isAllHostsLabel(label: Pick<Label, "builtin_key">) {
+  return label.builtin_key === BUILTIN_KEY_ALL_HOSTS;
 }

@@ -1199,7 +1199,7 @@ func allHostsLabelID(t *testing.T, ctx context.Context, labelStore *labels.Store
 		t.Fatalf("list labels: %v", err)
 	}
 	for _, row := range rows {
-		if row.Name == "All Hosts" {
+		if row.BuiltinKey != nil && *row.BuiltinKey == labels.BuiltinKeyAllHosts {
 			return row.ID
 		}
 	}

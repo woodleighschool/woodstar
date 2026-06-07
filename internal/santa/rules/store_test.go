@@ -734,7 +734,8 @@ func santaRuleAllHostsLabelID(t *testing.T, db *database.DB) int64 {
 	var id int64
 	err := db.Pool().QueryRow(
 		t.Context(),
-		`SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 'builtin'`,
+		`SELECT id FROM labels WHERE builtin_key = $1 AND label_type = 'builtin'`,
+		string(labels.BuiltinKeyAllHosts),
 	).Scan(&id)
 	if err != nil {
 		t.Fatalf("get All Hosts label: %v", err)
