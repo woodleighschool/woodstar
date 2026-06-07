@@ -1,4 +1,4 @@
-package handlers
+package reports
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
 const (
@@ -26,12 +25,12 @@ type reportGetInput struct {
 }
 
 type reportCreateInput struct {
-	Body reports.ReportMutation
+	Body ReportMutation
 }
 
 type reportPutInput struct {
 	ID   int64 `path:"id"`
-	Body reports.ReportMutation
+	Body ReportMutation
 }
 
 type reportDeleteInput struct {
@@ -43,18 +42,18 @@ type reportBulkDeleteInput struct {
 }
 
 type reportListOutput struct {
-	Body apitypes.Page[reports.Report]
+	Body apitypes.Page[Report]
 }
 
 type reportOutput struct {
-	Body reports.Report
+	Body Report
 }
 
 type reportResultsOutput struct {
-	Body []reports.ReportResult
+	Body []ReportResult
 }
 
-func RegisterReports(api huma.API, reportStore *reports.Store) {
+func RegisterAdminRoutes(api huma.API, reportStore *Store) {
 	registerListReports(api, reportStore)
 	registerCreateReport(api, reportStore)
 	registerGetReport(api, reportStore)
@@ -64,7 +63,7 @@ func RegisterReports(api huma.API, reportStore *reports.Store) {
 	registerReportResults(api, reportStore)
 }
 
-func registerListReports(api huma.API, reportStore *reports.Store) {
+func registerListReports(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-reports",
 		Method:      http.MethodGet,
@@ -77,11 +76,11 @@ func registerListReports(api huma.API, reportStore *reports.Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
-		return &reportListOutput{Body: apitypes.Page[reports.Report]{Items: items, Count: count}}, nil
+		return &reportListOutput{Body: apitypes.Page[Report]{Items: items, Count: count}}, nil
 	})
 }
 
-func registerCreateReport(api huma.API, reportStore *reports.Store) {
+func registerCreateReport(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-osquery-report",
 		Method:        http.MethodPost,
@@ -101,7 +100,7 @@ func registerCreateReport(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func registerGetReport(api huma.API, reportStore *reports.Store) {
+func registerGetReport(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-osquery-report",
 		Method:      http.MethodGet,
@@ -118,7 +117,7 @@ func registerGetReport(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func registerUpdateReport(api huma.API, reportStore *reports.Store) {
+func registerUpdateReport(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-osquery-report",
 		Method:      http.MethodPut,
@@ -136,7 +135,7 @@ func registerUpdateReport(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func registerDeleteReport(api huma.API, reportStore *reports.Store) {
+func registerDeleteReport(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-osquery-report",
 		Method:      http.MethodDelete,
@@ -152,7 +151,7 @@ func registerDeleteReport(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
+func registerBulkDeleteReports(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-osquery-reports",
 		Method:      http.MethodPost,
@@ -171,7 +170,7 @@ func registerBulkDeleteReports(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func registerReportResults(api huma.API, reportStore *reports.Store) {
+func registerReportResults(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-report-results",
 		Method:      http.MethodGet,
@@ -188,8 +187,8 @@ func registerReportResults(api huma.API, reportStore *reports.Store) {
 	})
 }
 
-func (input reportListInput) params() reports.ReportListParams {
-	return reports.ReportListParams{
+func (input reportListInput) params() ReportListParams {
+	return ReportListParams{
 		ListParams: input.ListQueryInput.Params(),
 	}
 }

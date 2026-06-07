@@ -10,6 +10,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
+	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -41,11 +44,11 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)
 	labels.RegisterAdminRoutes(protected, deps.Inventory.Labels)
 	agentauth.RegisterAdminRoutes(admin, deps.AgentAuth.Store)
-	handlers.RegisterReports(protected, deps.Osquery.Reports)
-	handlers.RegisterHostReports(protected, deps.Osquery.Reports, deps.Inventory.Hosts)
-	handlers.RegisterChecks(protected, deps.Osquery.Checks)
-	handlers.RegisterHostChecks(protected, deps.Osquery.Checks, deps.Inventory.Hosts)
-	handlers.RegisterLiveQueries(protected, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
+	reports.RegisterAdminRoutes(protected, deps.Osquery.Reports)
+	reports.RegisterHostAdminRoutes(protected, deps.Osquery.Reports, deps.Inventory.Hosts)
+	checks.RegisterAdminRoutes(protected, deps.Osquery.Checks)
+	checks.RegisterHostAdminRoutes(protected, deps.Osquery.Checks, deps.Inventory.Hosts)
+	livequery.RegisterAdminRoutes(protected, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
 	handlers.RegisterSantaConfigurations(admin, deps.Santa.Configurations)
 	handlers.RegisterSantaRules(admin, deps.Santa.Rules)
 	handlers.RegisterSantaEvents(admin, deps.Santa.Events)

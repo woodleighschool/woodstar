@@ -1,4 +1,4 @@
-package handlers
+package checks
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
 const (
@@ -26,12 +25,12 @@ type checkGetInput struct {
 }
 
 type checkCreateInput struct {
-	Body checks.CheckMutation
+	Body CheckMutation
 }
 
 type checkPutInput struct {
 	ID   int64 `path:"id"`
-	Body checks.CheckMutation
+	Body CheckMutation
 }
 
 type checkDeleteInput struct {
@@ -43,18 +42,18 @@ type checkBulkDeleteInput struct {
 }
 
 type checkListOutput struct {
-	Body apitypes.Page[checks.Check]
+	Body apitypes.Page[Check]
 }
 
 type checkOutput struct {
-	Body checks.Check
+	Body Check
 }
 
 type checkHostsOutput struct {
-	Body []checks.CheckHostStatus
+	Body []CheckHostStatus
 }
 
-func RegisterChecks(api huma.API, checkStore *checks.Store) {
+func RegisterAdminRoutes(api huma.API, checkStore *Store) {
 	registerListChecks(api, checkStore)
 	registerCreateCheck(api, checkStore)
 	registerGetCheck(api, checkStore)
@@ -64,7 +63,7 @@ func RegisterChecks(api huma.API, checkStore *checks.Store) {
 	registerCheckHosts(api, checkStore)
 }
 
-func registerListChecks(api huma.API, checkStore *checks.Store) {
+func registerListChecks(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-checks",
 		Method:      http.MethodGet,
@@ -77,11 +76,11 @@ func registerListChecks(api huma.API, checkStore *checks.Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}
-		return &checkListOutput{Body: apitypes.Page[checks.Check]{Items: items, Count: count}}, nil
+		return &checkListOutput{Body: apitypes.Page[Check]{Items: items, Count: count}}, nil
 	})
 }
 
-func registerCreateCheck(api huma.API, checkStore *checks.Store) {
+func registerCreateCheck(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-osquery-check",
 		Method:        http.MethodPost,
@@ -101,7 +100,7 @@ func registerCreateCheck(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func registerGetCheck(api huma.API, checkStore *checks.Store) {
+func registerGetCheck(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-osquery-check",
 		Method:      http.MethodGet,
@@ -118,7 +117,7 @@ func registerGetCheck(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
+func registerUpdateCheck(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-osquery-check",
 		Method:      http.MethodPut,
@@ -136,7 +135,7 @@ func registerUpdateCheck(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
+func registerDeleteCheck(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-osquery-check",
 		Method:      http.MethodDelete,
@@ -152,7 +151,7 @@ func registerDeleteCheck(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
+func registerBulkDeleteChecks(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-osquery-checks",
 		Method:      http.MethodPost,
@@ -171,7 +170,7 @@ func registerBulkDeleteChecks(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func registerCheckHosts(api huma.API, checkStore *checks.Store) {
+func registerCheckHosts(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-check-hosts",
 		Method:      http.MethodGet,
@@ -188,8 +187,8 @@ func registerCheckHosts(api huma.API, checkStore *checks.Store) {
 	})
 }
 
-func (input checkListInput) params() checks.CheckListParams {
-	return checks.CheckListParams{
+func (input checkListInput) params() CheckListParams {
+	return CheckListParams{
 		ListParams: input.ListQueryInput.Params(),
 	}
 }

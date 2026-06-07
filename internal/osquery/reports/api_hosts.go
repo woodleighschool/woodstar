@@ -1,4 +1,4 @@
-package handlers
+package reports
 
 import (
 	"context"
@@ -10,11 +10,10 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
 type hostReportsOutput struct {
-	Body []reports.HostReport
+	Body []HostReport
 }
 
 type hostReportResultsOutput struct {
@@ -22,11 +21,11 @@ type hostReportResultsOutput struct {
 }
 
 type hostReportResultsBody struct {
-	ReportID    int64                  `json:"report_id"`
-	HostID      int64                  `json:"host_id"`
-	HostName    string                 `json:"host_name"`
-	LastFetched *time.Time             `json:"last_fetched,omitempty"`
-	Items       []reports.ReportResult `json:"items"`
+	ReportID    int64          `json:"report_id"`
+	HostID      int64          `json:"host_id"`
+	HostName    string         `json:"host_name"`
+	LastFetched *time.Time     `json:"last_fetched,omitempty"`
+	Items       []ReportResult `json:"items"`
 }
 
 type hostReportResultsInput struct {
@@ -34,12 +33,18 @@ type hostReportResultsInput struct {
 	ReportID int64 `path:"report_id"`
 }
 
-func RegisterHostReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
+const hostsTag = "Hosts"
+
+type hostGetInput struct {
+	ID int64 `path:"id"`
+}
+
+func RegisterHostAdminRoutes(api huma.API, reportStore *Store, hostStore *hosts.Store) {
 	registerHostReports(api, reportStore, hostStore)
 	registerHostReportResults(api, reportStore, hostStore)
 }
 
-func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
+func registerHostReports(api huma.API, reportStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
@@ -63,7 +68,7 @@ func registerHostReports(api huma.API, reportStore *reports.Store, hostStore *ho
 	})
 }
 
-func registerHostReportResults(api huma.API, reportStore *reports.Store, hostStore *hosts.Store) {
+func registerHostReportResults(api huma.API, reportStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-report-results",
 		Method:      http.MethodGet,

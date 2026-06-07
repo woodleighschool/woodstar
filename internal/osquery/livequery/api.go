@@ -1,4 +1,4 @@
-package handlers
+package livequery
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
-	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 )
 
 const liveQueriesTag = "Live Queries"
@@ -43,7 +42,7 @@ type liveQueryCreateInput struct {
 }
 
 type liveQueryCreateOutput struct {
-	Body livequery.Handle
+	Body Handle
 }
 
 type liveQueryTargetCountInput struct {
@@ -118,11 +117,10 @@ func (liveQueryResultStatus) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(liveQueryResultStatusValues...)
 }
 
-// RegisterLiveQueries registers the one-shot live query create endpoint. The
-// matching SSE stream endpoint is registered through Huma's SSE support.
-func RegisterLiveQueries(
+// RegisterAdminRoutes registers live query admin endpoints.
+func RegisterAdminRoutes(
 	api huma.API,
-	manager *livequery.Manager,
+	manager *Manager,
 	hostStore *hosts.Store,
 ) {
 	huma.Register(api, huma.Operation{
@@ -211,7 +209,7 @@ func (body liveQuerySelectedBody) targetSelection() hosts.TargetSelection {
 
 func streamLiveQuery(
 	ctx context.Context,
-	manager *livequery.Manager,
+	manager *Manager,
 	id int64,
 	send sse.Sender,
 ) {
@@ -245,7 +243,7 @@ func streamLiveQuery(
 	}
 }
 
-func liveQueryResultEventFromDomain(event livequery.Event) liveQueryResultEvent {
+func liveQueryResultEventFromDomain(event Event) liveQueryResultEvent {
 	return liveQueryResultEvent{
 		HostID:   event.HostID,
 		HostName: event.HostName,

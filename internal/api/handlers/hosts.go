@@ -157,7 +157,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.
 			}
 			checkHostIDs, err := checkStore.HostIDsByStatus(ctx, input.CheckID, status)
 			if err != nil {
-				return nil, apitypes.ResourceMutationError(checkResource, err)
+				return nil, apitypes.ResourceMutationError("check", err)
 			}
 			params.IDs = intersectHostIDs(params.IDs, checkHostIDs)
 			if len(params.IDs) == 0 {

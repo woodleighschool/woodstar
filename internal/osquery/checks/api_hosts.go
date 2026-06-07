@@ -1,4 +1,4 @@
-package handlers
+package checks
 
 import (
 	"context"
@@ -9,10 +9,15 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
-func RegisterHostChecks(api huma.API, checkStore *checks.Store, hostStore *hosts.Store) {
+const hostsTag = "Hosts"
+
+type hostGetInput struct {
+	ID int64 `path:"id"`
+}
+
+func RegisterHostAdminRoutes(api huma.API, checkStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-checks",
 		Method:      http.MethodGet,
