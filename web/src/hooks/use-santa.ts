@@ -265,19 +265,3 @@ export function useBulkDeleteSantaRules() {
     },
   });
 }
-
-export function useReorderSantaRuleIncludes(ruleID: number | null) {
-  const queryClient = useQueryClient();
-  return useMutation<void, ApiError, number[]>({
-    mutationFn: (ordered_include_ids) =>
-      unwrap(
-        apiClient.PUT("/api/santa/rules/{id}/includes/order", {
-          params: { path: { id: ruleID ?? 0 } },
-          body: { ordered_include_ids },
-        }),
-      ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
-    },
-  });
-}

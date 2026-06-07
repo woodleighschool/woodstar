@@ -114,15 +114,9 @@ func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssi
 const createMunkiPackage = `-- name: CreateMunkiPackage :one
 INSERT INTO munki_packages (
     software_id,
-    name,
     version,
-    display_name,
-    description,
-    category,
-    developer,
     installer_type,
     uninstall_method,
-    custom_uninstall_method,
     restart_action,
     minimum_munki_version,
     minimum_os_version,
@@ -131,7 +125,6 @@ INSERT INTO munki_packages (
     blocking_applications,
     unattended_install,
     unattended_uninstall,
-    uninstallable,
     on_demand,
     precache,
     autoremove,
@@ -139,7 +132,6 @@ INSERT INTO munki_packages (
     suppress_bundle_relocation,
     force_install_after_date,
     installed_size,
-    payload_identifier,
     package_path,
     installer_choices_xml,
     installer_environment,
@@ -181,31 +173,31 @@ VALUES (
     $6,
     $7,
     $8,
-    $9,
-    $10,
+    $9::text[],
+    $10::text[],
     $11,
     $12,
     $13,
     $14,
-    $15::text[],
-    $16::text[],
+    $15,
+    $16,
     $17,
-    $18,
+    $18::timestamptz,
     $19,
     $20,
     $21,
-    $22,
-    $23,
-    $24,
-    $25::timestamptz,
+    $22::jsonb,
+    $23::jsonb,
+    $24::jsonb,
+    $25::jsonb,
     $26,
     $27,
     $28,
     $29,
-    $30::jsonb,
-    $31::jsonb,
-    $32::jsonb,
-    $33::jsonb,
+    $30,
+    $31,
+    $32,
+    $33,
     $34,
     $35,
     $36,
@@ -219,33 +211,19 @@ VALUES (
     $44,
     $45,
     $46,
-    $47,
-    $48,
-    $49,
-    $50,
-    $51,
-    $52,
-    $53,
-    $54,
-    $55::bigint,
-    $56::bigint,
-    $57::bigint,
-    $58
+    $47::bigint,
+    $48::bigint,
+    $49::bigint,
+    $50
 )
-RETURNING id, software_id, name, version, display_name, description, category, developer, installer_type, uninstall_method, custom_uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, payload_identifier, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
 `
 
 type CreateMunkiPackageParams struct {
 	SoftwareID                   int64      `json:"software_id"`
-	Name                         string     `json:"name"`
 	Version                      string     `json:"version"`
-	DisplayName                  string     `json:"display_name"`
-	Description                  string     `json:"description"`
-	Category                     string     `json:"category"`
-	Developer                    string     `json:"developer"`
 	InstallerType                string     `json:"installer_type"`
 	UninstallMethod              string     `json:"uninstall_method"`
-	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
 	RestartAction                string     `json:"restart_action"`
 	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
 	MinimumOSVersion             string     `json:"minimum_os_version"`
@@ -254,7 +232,6 @@ type CreateMunkiPackageParams struct {
 	BlockingApplications         []string   `json:"blocking_applications"`
 	UnattendedInstall            bool       `json:"unattended_install"`
 	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	Uninstallable                bool       `json:"uninstallable"`
 	OnDemand                     bool       `json:"on_demand"`
 	Precache                     bool       `json:"precache"`
 	Autoremove                   bool       `json:"autoremove"`
@@ -262,7 +239,6 @@ type CreateMunkiPackageParams struct {
 	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
 	InstalledSize                int64      `json:"installed_size"`
-	PayloadIdentifier            string     `json:"payload_identifier"`
 	PackagePath                  string     `json:"package_path"`
 	InstallerChoicesXml          string     `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte     `json:"installer_environment"`
@@ -299,15 +275,9 @@ type CreateMunkiPackageParams struct {
 func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackageParams) (MunkiPackage, error) {
 	row := q.db.QueryRow(ctx, createMunkiPackage,
 		arg.SoftwareID,
-		arg.Name,
 		arg.Version,
-		arg.DisplayName,
-		arg.Description,
-		arg.Category,
-		arg.Developer,
 		arg.InstallerType,
 		arg.UninstallMethod,
-		arg.CustomUninstallMethod,
 		arg.RestartAction,
 		arg.MinimumMunkiVersion,
 		arg.MinimumOSVersion,
@@ -316,7 +286,6 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.BlockingApplications,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
-		arg.Uninstallable,
 		arg.OnDemand,
 		arg.Precache,
 		arg.Autoremove,
@@ -324,7 +293,6 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.SuppressBundleRelocation,
 		arg.ForceInstallAfterDate,
 		arg.InstalledSize,
-		arg.PayloadIdentifier,
 		arg.PackagePath,
 		arg.InstallerChoicesXml,
 		arg.InstallerEnvironment,
@@ -361,15 +329,9 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
-		&i.Name,
 		&i.Version,
-		&i.DisplayName,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
 		&i.InstallerType,
 		&i.UninstallMethod,
-		&i.CustomUninstallMethod,
 		&i.RestartAction,
 		&i.MinimumMunkiVersion,
 		&i.MinimumOSVersion,
@@ -378,7 +340,6 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.BlockingApplications,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
-		&i.Uninstallable,
 		&i.OnDemand,
 		&i.Precache,
 		&i.Autoremove,
@@ -386,7 +347,6 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.SuppressBundleRelocation,
 		&i.ForceInstallAfterDate,
 		&i.InstalledSize,
-		&i.PayloadIdentifier,
 		&i.PackagePath,
 		&i.InstallerChoicesXml,
 		&i.InstallerEnvironment,
@@ -429,23 +389,20 @@ INSERT INTO munki_package_relations (
     package_id,
     relation_kind,
     target_package_id,
-    name,
     position
 )
 VALUES (
     $1,
     $2::munki_package_relation_kind,
-    $3::bigint,
-    $4,
-    $5::integer
+    $3,
+    $4::integer
 )
 `
 
 type CreateMunkiPackageRelationParams struct {
 	PackageID       int64                    `json:"package_id"`
 	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
-	TargetPackageID *int64                   `json:"target_package_id"`
-	Name            string                   `json:"name"`
+	TargetPackageID int64                    `json:"target_package_id"`
 	Position        int32                    `json:"position"`
 }
 
@@ -454,7 +411,6 @@ func (q *Queries) CreateMunkiPackageRelation(ctx context.Context, arg CreateMunk
 		arg.PackageID,
 		arg.RelationKind,
 		arg.TargetPackageID,
-		arg.Name,
 		arg.Position,
 	)
 	return err
@@ -463,7 +419,6 @@ func (q *Queries) CreateMunkiPackageRelation(ctx context.Context, arg CreateMunk
 const createMunkiSoftwareTitle = `-- name: CreateMunkiSoftwareTitle :one
 INSERT INTO munki_software_titles (
     name,
-    display_name,
     description,
     category,
     developer,
@@ -478,15 +433,13 @@ VALUES (
     $4,
     $5,
     $6,
-    $7,
-    $8::bigint
+    $7::bigint
 )
-RETURNING id, name, display_name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
 `
 
 type CreateMunkiSoftwareTitleParams struct {
 	Name           string `json:"name"`
-	DisplayName    string `json:"display_name"`
 	Description    string `json:"description"`
 	Category       string `json:"category"`
 	Developer      string `json:"developer"`
@@ -498,7 +451,6 @@ type CreateMunkiSoftwareTitleParams struct {
 func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiSoftwareTitleParams) (MunkiSoftwareTitle, error) {
 	row := q.db.QueryRow(ctx, createMunkiSoftwareTitle,
 		arg.Name,
-		arg.DisplayName,
 		arg.Description,
 		arg.Category,
 		arg.Developer,
@@ -510,7 +462,6 @@ func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiS
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.DisplayName,
 		&i.Description,
 		&i.Category,
 		&i.Developer,
@@ -731,9 +682,11 @@ func (q *Queries) GetMunkiHostStatus(ctx context.Context, arg GetMunkiHostStatus
 
 const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
 SELECT
-    p.id, p.software_id, p.name, p.version, p.display_name, p.description, p.category, p.developer, p.installer_type, p.uninstall_method, p.custom_uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.unattended_install, p.unattended_uninstall, p.uninstallable, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.payload_identifier, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.icon_name, p.icon_hash, p.installer_artifact_id, p.uninstaller_artifact_id, p.icon_artifact_id, p.eligible, p.created_at, p.updated_at,
+    p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.icon_name, p.icon_hash, p.installer_artifact_id, p.uninstaller_artifact_id, p.icon_artifact_id, p.eligible, p.created_at, p.updated_at,
     s.name AS software_name,
-    s.display_name AS software_display_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
     s.icon_artifact_id AS software_icon_artifact_id,
@@ -757,15 +710,9 @@ type GetMunkiPackageByIDParams struct {
 type GetMunkiPackageByIDRow struct {
 	ID                           int64      `json:"id"`
 	SoftwareID                   int64      `json:"software_id"`
-	Name                         string     `json:"name"`
 	Version                      string     `json:"version"`
-	DisplayName                  string     `json:"display_name"`
-	Description                  string     `json:"description"`
-	Category                     string     `json:"category"`
-	Developer                    string     `json:"developer"`
 	InstallerType                string     `json:"installer_type"`
 	UninstallMethod              string     `json:"uninstall_method"`
-	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
 	RestartAction                string     `json:"restart_action"`
 	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
 	MinimumOSVersion             string     `json:"minimum_os_version"`
@@ -774,7 +721,6 @@ type GetMunkiPackageByIDRow struct {
 	BlockingApplications         []string   `json:"blocking_applications"`
 	UnattendedInstall            bool       `json:"unattended_install"`
 	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	Uninstallable                bool       `json:"uninstallable"`
 	OnDemand                     bool       `json:"on_demand"`
 	Precache                     bool       `json:"precache"`
 	Autoremove                   bool       `json:"autoremove"`
@@ -782,7 +728,6 @@ type GetMunkiPackageByIDRow struct {
 	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
 	InstalledSize                int64      `json:"installed_size"`
-	PayloadIdentifier            string     `json:"payload_identifier"`
 	PackagePath                  string     `json:"package_path"`
 	InstallerChoicesXml          string     `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte     `json:"installer_environment"`
@@ -817,7 +762,9 @@ type GetMunkiPackageByIDRow struct {
 	CreatedAt                    time.Time  `json:"created_at"`
 	UpdatedAt                    time.Time  `json:"updated_at"`
 	SoftwareName                 string     `json:"software_name"`
-	SoftwareDisplayName          string     `json:"software_display_name"`
+	SoftwareDescription          string     `json:"software_description"`
+	SoftwareCategory             string     `json:"software_category"`
+	SoftwareDeveloper            string     `json:"software_developer"`
 	SoftwareIconName             string     `json:"software_icon_name"`
 	SoftwareIconHash             string     `json:"software_icon_hash"`
 	SoftwareIconArtifactID       *int64     `json:"software_icon_artifact_id"`
@@ -833,15 +780,9 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
-		&i.Name,
 		&i.Version,
-		&i.DisplayName,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
 		&i.InstallerType,
 		&i.UninstallMethod,
-		&i.CustomUninstallMethod,
 		&i.RestartAction,
 		&i.MinimumMunkiVersion,
 		&i.MinimumOSVersion,
@@ -850,7 +791,6 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.BlockingApplications,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
-		&i.Uninstallable,
 		&i.OnDemand,
 		&i.Precache,
 		&i.Autoremove,
@@ -858,7 +798,6 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.SuppressBundleRelocation,
 		&i.ForceInstallAfterDate,
 		&i.InstalledSize,
-		&i.PayloadIdentifier,
 		&i.PackagePath,
 		&i.InstallerChoicesXml,
 		&i.InstallerEnvironment,
@@ -893,7 +832,9 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SoftwareName,
-		&i.SoftwareDisplayName,
+		&i.SoftwareDescription,
+		&i.SoftwareCategory,
+		&i.SoftwareDeveloper,
 		&i.SoftwareIconName,
 		&i.SoftwareIconHash,
 		&i.SoftwareIconArtifactID,
@@ -906,7 +847,7 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 }
 
 const getMunkiSoftwareTitleByID = `-- name: GetMunkiSoftwareTitleByID :one
-SELECT id, name, display_name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+SELECT id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
 FROM munki_software_titles
 WHERE id = $1
 `
@@ -921,36 +862,6 @@ func (q *Queries) GetMunkiSoftwareTitleByID(ctx context.Context, arg GetMunkiSof
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.DisplayName,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
-		&i.IconName,
-		&i.IconHash,
-		&i.IconArtifactID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getMunkiSoftwareTitleByName = `-- name: GetMunkiSoftwareTitleByName :one
-SELECT id, name, display_name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
-FROM munki_software_titles
-WHERE name = $1
-`
-
-type GetMunkiSoftwareTitleByNameParams struct {
-	Name string `json:"name"`
-}
-
-func (q *Queries) GetMunkiSoftwareTitleByName(ctx context.Context, arg GetMunkiSoftwareTitleByNameParams) (MunkiSoftwareTitle, error) {
-	row := q.db.QueryRow(ctx, getMunkiSoftwareTitleByName, arg.Name)
-	var i MunkiSoftwareTitle
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.DisplayName,
 		&i.Description,
 		&i.Category,
 		&i.Developer,
@@ -1036,19 +947,15 @@ SELECT
     COALESCE(p.id, 0)::bigint AS package_id,
     COALESCE(p.software_id, a.software_id)::bigint AS software_id,
     s.name AS software_name,
-    COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
     s.icon_artifact_id AS software_icon_artifact_id,
-    COALESCE(p.name, '') AS name,
     COALESCE(p.version, '') AS version,
-    COALESCE(p.display_name, '') AS display_name,
-    COALESCE(p.description, '') AS description,
-    COALESCE(p.category, '') AS category,
-    COALESCE(p.developer, '') AS developer,
     COALESCE(p.installer_type, 'pkg') AS installer_type,
     COALESCE(p.uninstall_method, '') AS uninstall_method,
-    COALESCE(p.custom_uninstall_method, '') AS custom_uninstall_method,
     COALESCE(p.restart_action, '') AS restart_action,
     COALESCE(p.minimum_munki_version, '') AS minimum_munki_version,
     COALESCE(p.minimum_os_version, '') AS minimum_os_version,
@@ -1057,7 +964,6 @@ SELECT
     COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
     COALESCE(p.unattended_install, false) AS unattended_install,
     COALESCE(p.unattended_uninstall, false) AS unattended_uninstall,
-    COALESCE(p.uninstallable, false) AS uninstallable,
     COALESCE(p.on_demand, false) AS on_demand,
     COALESCE(p.precache, false) AS precache,
     COALESCE(p.autoremove, false) AS autoremove,
@@ -1065,7 +971,6 @@ SELECT
     COALESCE(p.suppress_bundle_relocation, false) AS suppress_bundle_relocation,
     p.force_install_after_date,
     COALESCE(p.installed_size, 0)::bigint AS installed_size,
-    COALESCE(p.payload_identifier, '') AS payload_identifier,
     COALESCE(p.package_path, '') AS package_path,
     COALESCE(p.installer_choices_xml, '') AS installer_choices_xml,
     COALESCE(p.installer_environment, '[]'::jsonb) AS installer_environment,
@@ -1121,7 +1026,7 @@ WHERE p.eligible
        AND excluded_lm.host_id = $1
       WHERE excluded.software_id = a.software_id
   )
-ORDER BY a.software_id, a.priority, a.id, lower(p.name), p.id
+ORDER BY a.software_id, a.priority, a.id, p.id
 `
 
 type ListEffectiveMunkiPackagesForHostParams struct {
@@ -1140,19 +1045,15 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	PackageID                    int64                 `json:"package_id"`
 	SoftwareID                   int64                 `json:"software_id"`
 	SoftwareName                 string                `json:"software_name"`
-	SoftwareDisplayName          string                `json:"software_display_name"`
+	SoftwareDescription          string                `json:"software_description"`
+	SoftwareCategory             string                `json:"software_category"`
+	SoftwareDeveloper            string                `json:"software_developer"`
 	SoftwareIconName             string                `json:"software_icon_name"`
 	SoftwareIconHash             string                `json:"software_icon_hash"`
 	SoftwareIconArtifactID       *int64                `json:"software_icon_artifact_id"`
-	Name                         string                `json:"name"`
 	Version                      string                `json:"version"`
-	DisplayName                  string                `json:"display_name"`
-	Description                  string                `json:"description"`
-	Category                     string                `json:"category"`
-	Developer                    string                `json:"developer"`
 	InstallerType                string                `json:"installer_type"`
 	UninstallMethod              string                `json:"uninstall_method"`
-	CustomUninstallMethod        string                `json:"custom_uninstall_method"`
 	RestartAction                string                `json:"restart_action"`
 	MinimumMunkiVersion          string                `json:"minimum_munki_version"`
 	MinimumOSVersion             string                `json:"minimum_os_version"`
@@ -1161,7 +1062,6 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	BlockingApplications         []string              `json:"blocking_applications"`
 	UnattendedInstall            bool                  `json:"unattended_install"`
 	UnattendedUninstall          bool                  `json:"unattended_uninstall"`
-	Uninstallable                bool                  `json:"uninstallable"`
 	OnDemand                     bool                  `json:"on_demand"`
 	Precache                     bool                  `json:"precache"`
 	Autoremove                   bool                  `json:"autoremove"`
@@ -1169,7 +1069,6 @@ type ListEffectiveMunkiPackagesForHostRow struct {
 	SuppressBundleRelocation     bool                  `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time            `json:"force_install_after_date"`
 	InstalledSize                int64                 `json:"installed_size"`
-	PayloadIdentifier            string                `json:"payload_identifier"`
 	PackagePath                  string                `json:"package_path"`
 	InstallerChoicesXml          string                `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte                `json:"installer_environment"`
@@ -1227,19 +1126,15 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.PackageID,
 			&i.SoftwareID,
 			&i.SoftwareName,
-			&i.SoftwareDisplayName,
+			&i.SoftwareDescription,
+			&i.SoftwareCategory,
+			&i.SoftwareDeveloper,
 			&i.SoftwareIconName,
 			&i.SoftwareIconHash,
 			&i.SoftwareIconArtifactID,
-			&i.Name,
 			&i.Version,
-			&i.DisplayName,
-			&i.Description,
-			&i.Category,
-			&i.Developer,
 			&i.InstallerType,
 			&i.UninstallMethod,
-			&i.CustomUninstallMethod,
 			&i.RestartAction,
 			&i.MinimumMunkiVersion,
 			&i.MinimumOSVersion,
@@ -1248,7 +1143,6 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.BlockingApplications,
 			&i.UnattendedInstall,
 			&i.UnattendedUninstall,
-			&i.Uninstallable,
 			&i.OnDemand,
 			&i.Precache,
 			&i.Autoremove,
@@ -1256,7 +1150,6 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 			&i.SuppressBundleRelocation,
 			&i.ForceInstallAfterDate,
 			&i.InstalledSize,
-			&i.PayloadIdentifier,
 			&i.PackagePath,
 			&i.InstallerChoicesXml,
 			&i.InstallerEnvironment,
@@ -1381,68 +1274,6 @@ func (q *Queries) ListMunkiAssignmentExcludeLabels(ctx context.Context, arg List
 	return items, nil
 }
 
-const listMunkiAssignmentIDsBySoftware = `-- name: ListMunkiAssignmentIDsBySoftware :many
-SELECT a.id
-FROM munki_assignments a
-WHERE a.software_id = $1
-ORDER BY a.priority, a.id
-`
-
-type ListMunkiAssignmentIDsBySoftwareParams struct {
-	SoftwareID int64 `json:"software_id"`
-}
-
-func (q *Queries) ListMunkiAssignmentIDsBySoftware(ctx context.Context, arg ListMunkiAssignmentIDsBySoftwareParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentIDsBySoftware, arg.SoftwareID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listMunkiAssignmentLabelIDsBySoftware = `-- name: ListMunkiAssignmentLabelIDsBySoftware :many
-SELECT a.label_id
-FROM munki_assignments a
-WHERE a.software_id = $1
-ORDER BY a.priority, a.id
-`
-
-type ListMunkiAssignmentLabelIDsBySoftwareParams struct {
-	SoftwareID int64 `json:"software_id"`
-}
-
-func (q *Queries) ListMunkiAssignmentLabelIDsBySoftware(ctx context.Context, arg ListMunkiAssignmentLabelIDsBySoftwareParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentLabelIDsBySoftware, arg.SoftwareID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var label_id int64
-		if err := rows.Scan(&label_id); err != nil {
-			return nil, err
-		}
-		items = append(items, label_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listMunkiHostItems = `-- name: ListMunkiHostItems :many
 SELECT host_id, name, installed, installed_version, run_ended_at, last_seen_at, updated_at
 FROM munki_host_items
@@ -1483,9 +1314,9 @@ func (q *Queries) ListMunkiHostItems(ctx context.Context, arg ListMunkiHostItems
 }
 
 const listMunkiSoftwareTitles = `-- name: ListMunkiSoftwareTitles :many
-SELECT id, name, display_name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+SELECT id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
 FROM munki_software_titles
-ORDER BY lower(COALESCE(NULLIF(display_name, ''), name)), lower(name), id
+ORDER BY lower(name), id
 LIMIT $2 OFFSET $1
 `
 
@@ -1506,7 +1337,6 @@ func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoft
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.DisplayName,
 			&i.Description,
 			&i.Category,
 			&i.Developer,
@@ -1526,153 +1356,67 @@ func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoft
 	return items, nil
 }
 
-const setMunkiAssignmentPriorities = `-- name: SetMunkiAssignmentPriorities :exec
-UPDATE munki_assignments a
-SET priority = ordered.priority
-FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, priority)
-WHERE a.id = ordered.id
-  AND a.software_id = $1
-`
-
-type SetMunkiAssignmentPrioritiesParams struct {
-	SoftwareID int64   `json:"software_id"`
-	OrderedIds []int64 `json:"ordered_ids"`
-}
-
-func (q *Queries) SetMunkiAssignmentPriorities(ctx context.Context, arg SetMunkiAssignmentPrioritiesParams) error {
-	_, err := q.db.Exec(ctx, setMunkiAssignmentPriorities, arg.SoftwareID, arg.OrderedIds)
-	return err
-}
-
-const updateMunkiAssignment = `-- name: UpdateMunkiAssignment :one
-UPDATE munki_assignments
-SET
-    priority = $1::integer,
-    label_id = $2,
-    action = $3::munki_assignment_action,
-    optional_install = $4,
-    featured_item = $5,
-    package_selection = $6::munki_package_selection,
-    pinned_package_id = $7::bigint,
-    updated_at = now()
-WHERE id = $8
-RETURNING id, software_id, priority, label_id, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
-`
-
-type UpdateMunkiAssignmentParams struct {
-	Priority         int32                 `json:"priority"`
-	LabelID          int64                 `json:"label_id"`
-	Action           MunkiAssignmentAction `json:"action"`
-	OptionalInstall  bool                  `json:"optional_install"`
-	FeaturedItem     bool                  `json:"featured_item"`
-	PackageSelection MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                `json:"pinned_package_id"`
-	ID               int64                 `json:"id"`
-}
-
-func (q *Queries) UpdateMunkiAssignment(ctx context.Context, arg UpdateMunkiAssignmentParams) (MunkiAssignment, error) {
-	row := q.db.QueryRow(ctx, updateMunkiAssignment,
-		arg.Priority,
-		arg.LabelID,
-		arg.Action,
-		arg.OptionalInstall,
-		arg.FeaturedItem,
-		arg.PackageSelection,
-		arg.PinnedPackageID,
-		arg.ID,
-	)
-	var i MunkiAssignment
-	err := row.Scan(
-		&i.ID,
-		&i.SoftwareID,
-		&i.Priority,
-		&i.LabelID,
-		&i.Action,
-		&i.OptionalInstall,
-		&i.FeaturedItem,
-		&i.PackageSelection,
-		&i.PinnedPackageID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const updateMunkiPackage = `-- name: UpdateMunkiPackage :one
 UPDATE munki_packages
 SET
-    name = $1,
-    version = $2,
-    display_name = $3,
-    description = $4,
-    category = $5,
-    developer = $6,
-    installer_type = $7,
-    uninstall_method = $8,
-    custom_uninstall_method = $9,
-    restart_action = $10,
-    minimum_munki_version = $11,
-    minimum_os_version = $12,
-    maximum_os_version = $13,
-    supported_architectures = $14::text[],
-    blocking_applications = $15::text[],
-    unattended_install = $16,
-    unattended_uninstall = $17,
-    uninstallable = $18,
-    on_demand = $19,
-    precache = $20,
-    autoremove = $21,
-    apple_item = $22,
-    suppress_bundle_relocation = $23,
-    force_install_after_date = $24::timestamptz,
-    installed_size = $25,
-    payload_identifier = $26,
-    package_path = $27,
-    installer_choices_xml = $28,
-    installer_environment = $29::jsonb,
-    installs = $30::jsonb,
-    receipts = $31::jsonb,
-    items_to_copy = $32::jsonb,
-    notes = $33,
-    installcheck_script = $34,
-    uninstallcheck_script = $35,
-    preinstall_script = $36,
-    postinstall_script = $37,
-    preuninstall_script = $38,
-    postuninstall_script = $39,
-    uninstall_script = $40,
-    version_script = $41,
-    preinstall_alert_enabled = $42,
-    preinstall_alert_title = $43,
-    preinstall_alert_detail = $44,
-    preinstall_alert_ok_label = $45,
-    preinstall_alert_cancel_label = $46,
-    preuninstall_alert_enabled = $47,
-    preuninstall_alert_title = $48,
-    preuninstall_alert_detail = $49,
-    preuninstall_alert_ok_label = $50,
-    preuninstall_alert_cancel_label = $51,
-    icon_name = $52,
-    icon_hash = $53,
-    installer_artifact_id = $54::bigint,
-    uninstaller_artifact_id = $55::bigint,
-    icon_artifact_id = $56::bigint,
-    eligible = $57,
+    version = $1,
+    installer_type = $2,
+    uninstall_method = $3,
+    restart_action = $4,
+    minimum_munki_version = $5,
+    minimum_os_version = $6,
+    maximum_os_version = $7,
+    supported_architectures = $8::text[],
+    blocking_applications = $9::text[],
+    unattended_install = $10,
+    unattended_uninstall = $11,
+    on_demand = $12,
+    precache = $13,
+    autoremove = $14,
+    apple_item = $15,
+    suppress_bundle_relocation = $16,
+    force_install_after_date = $17::timestamptz,
+    installed_size = $18,
+    package_path = $19,
+    installer_choices_xml = $20,
+    installer_environment = $21::jsonb,
+    installs = $22::jsonb,
+    receipts = $23::jsonb,
+    items_to_copy = $24::jsonb,
+    notes = $25,
+    installcheck_script = $26,
+    uninstallcheck_script = $27,
+    preinstall_script = $28,
+    postinstall_script = $29,
+    preuninstall_script = $30,
+    postuninstall_script = $31,
+    uninstall_script = $32,
+    version_script = $33,
+    preinstall_alert_enabled = $34,
+    preinstall_alert_title = $35,
+    preinstall_alert_detail = $36,
+    preinstall_alert_ok_label = $37,
+    preinstall_alert_cancel_label = $38,
+    preuninstall_alert_enabled = $39,
+    preuninstall_alert_title = $40,
+    preuninstall_alert_detail = $41,
+    preuninstall_alert_ok_label = $42,
+    preuninstall_alert_cancel_label = $43,
+    icon_name = $44,
+    icon_hash = $45,
+    installer_artifact_id = $46::bigint,
+    uninstaller_artifact_id = $47::bigint,
+    icon_artifact_id = $48::bigint,
+    eligible = $49,
     updated_at = now()
-WHERE id = $58
-RETURNING id, software_id, name, version, display_name, description, category, developer, installer_type, uninstall_method, custom_uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, payload_identifier, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+WHERE id = $50
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
 `
 
 type UpdateMunkiPackageParams struct {
-	Name                         string     `json:"name"`
 	Version                      string     `json:"version"`
-	DisplayName                  string     `json:"display_name"`
-	Description                  string     `json:"description"`
-	Category                     string     `json:"category"`
-	Developer                    string     `json:"developer"`
 	InstallerType                string     `json:"installer_type"`
 	UninstallMethod              string     `json:"uninstall_method"`
-	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
 	RestartAction                string     `json:"restart_action"`
 	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
 	MinimumOSVersion             string     `json:"minimum_os_version"`
@@ -1681,7 +1425,6 @@ type UpdateMunkiPackageParams struct {
 	BlockingApplications         []string   `json:"blocking_applications"`
 	UnattendedInstall            bool       `json:"unattended_install"`
 	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	Uninstallable                bool       `json:"uninstallable"`
 	OnDemand                     bool       `json:"on_demand"`
 	Precache                     bool       `json:"precache"`
 	Autoremove                   bool       `json:"autoremove"`
@@ -1689,7 +1432,6 @@ type UpdateMunkiPackageParams struct {
 	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
 	InstalledSize                int64      `json:"installed_size"`
-	PayloadIdentifier            string     `json:"payload_identifier"`
 	PackagePath                  string     `json:"package_path"`
 	InstallerChoicesXml          string     `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte     `json:"installer_environment"`
@@ -1726,15 +1468,9 @@ type UpdateMunkiPackageParams struct {
 
 func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackageParams) (MunkiPackage, error) {
 	row := q.db.QueryRow(ctx, updateMunkiPackage,
-		arg.Name,
 		arg.Version,
-		arg.DisplayName,
-		arg.Description,
-		arg.Category,
-		arg.Developer,
 		arg.InstallerType,
 		arg.UninstallMethod,
-		arg.CustomUninstallMethod,
 		arg.RestartAction,
 		arg.MinimumMunkiVersion,
 		arg.MinimumOSVersion,
@@ -1743,7 +1479,6 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		arg.BlockingApplications,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
-		arg.Uninstallable,
 		arg.OnDemand,
 		arg.Precache,
 		arg.Autoremove,
@@ -1751,7 +1486,6 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		arg.SuppressBundleRelocation,
 		arg.ForceInstallAfterDate,
 		arg.InstalledSize,
-		arg.PayloadIdentifier,
 		arg.PackagePath,
 		arg.InstallerChoicesXml,
 		arg.InstallerEnvironment,
@@ -1789,15 +1523,9 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
-		&i.Name,
 		&i.Version,
-		&i.DisplayName,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
 		&i.InstallerType,
 		&i.UninstallMethod,
-		&i.CustomUninstallMethod,
 		&i.RestartAction,
 		&i.MinimumMunkiVersion,
 		&i.MinimumOSVersion,
@@ -1806,7 +1534,6 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		&i.BlockingApplications,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
-		&i.Uninstallable,
 		&i.OnDemand,
 		&i.Precache,
 		&i.Autoremove,
@@ -1814,7 +1541,6 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		&i.SuppressBundleRelocation,
 		&i.ForceInstallAfterDate,
 		&i.InstalledSize,
-		&i.PayloadIdentifier,
 		&i.PackagePath,
 		&i.InstallerChoicesXml,
 		&i.InstallerEnvironment,
@@ -1856,21 +1582,19 @@ const updateMunkiSoftwareTitle = `-- name: UpdateMunkiSoftwareTitle :one
 UPDATE munki_software_titles
 SET
     name = $1,
-    display_name = $2,
-    description = $3,
-    category = $4,
-    developer = $5,
-    icon_name = $6,
-    icon_hash = $7,
-    icon_artifact_id = $8::bigint,
+    description = $2,
+    category = $3,
+    developer = $4,
+    icon_name = $5,
+    icon_hash = $6,
+    icon_artifact_id = $7::bigint,
     updated_at = now()
-WHERE id = $9
-RETURNING id, name, display_name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+WHERE id = $8
+RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
 `
 
 type UpdateMunkiSoftwareTitleParams struct {
 	Name           string `json:"name"`
-	DisplayName    string `json:"display_name"`
 	Description    string `json:"description"`
 	Category       string `json:"category"`
 	Developer      string `json:"developer"`
@@ -1883,7 +1607,6 @@ type UpdateMunkiSoftwareTitleParams struct {
 func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiSoftwareTitleParams) (MunkiSoftwareTitle, error) {
 	row := q.db.QueryRow(ctx, updateMunkiSoftwareTitle,
 		arg.Name,
-		arg.DisplayName,
 		arg.Description,
 		arg.Category,
 		arg.Developer,
@@ -1896,7 +1619,6 @@ func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiS
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.DisplayName,
 		&i.Description,
 		&i.Category,
 		&i.Developer,
@@ -2042,15 +1764,9 @@ func (q *Queries) UpsertMunkiHostStatus(ctx context.Context, arg UpsertMunkiHost
 const upsertMunkiPackage = `-- name: UpsertMunkiPackage :one
 INSERT INTO munki_packages (
     software_id,
-    name,
     version,
-    display_name,
-    description,
-    category,
-    developer,
     installer_type,
     uninstall_method,
-    custom_uninstall_method,
     restart_action,
     minimum_munki_version,
     minimum_os_version,
@@ -2059,7 +1775,6 @@ INSERT INTO munki_packages (
     blocking_applications,
     unattended_install,
     unattended_uninstall,
-    uninstallable,
     on_demand,
     precache,
     autoremove,
@@ -2067,7 +1782,6 @@ INSERT INTO munki_packages (
     suppress_bundle_relocation,
     force_install_after_date,
     installed_size,
-    payload_identifier,
     package_path,
     installer_choices_xml,
     installer_environment,
@@ -2109,31 +1823,31 @@ VALUES (
     $6,
     $7,
     $8,
-    $9,
-    $10,
+    $9::text[],
+    $10::text[],
     $11,
     $12,
     $13,
     $14,
-    $15::text[],
-    $16::text[],
+    $15,
+    $16,
     $17,
-    $18,
+    $18::timestamptz,
     $19,
     $20,
     $21,
-    $22,
-    $23,
-    $24,
-    $25::timestamptz,
+    $22::jsonb,
+    $23::jsonb,
+    $24::jsonb,
+    $25::jsonb,
     $26,
     $27,
     $28,
     $29,
-    $30::jsonb,
-    $31::jsonb,
-    $32::jsonb,
-    $33::jsonb,
+    $30,
+    $31,
+    $32,
+    $33,
     $34,
     $35,
     $36,
@@ -2147,27 +1861,14 @@ VALUES (
     $44,
     $45,
     $46,
-    $47,
-    $48,
-    $49,
-    $50,
-    $51,
-    $52,
-    $53,
-    $54,
-    $55::bigint,
-    $56::bigint,
-    $57::bigint,
-    $58
+    $47::bigint,
+    $48::bigint,
+    $49::bigint,
+    $50
 )
-ON CONFLICT (software_id, name, version) DO UPDATE SET
-    display_name = EXCLUDED.display_name,
-    description = EXCLUDED.description,
-    category = EXCLUDED.category,
-    developer = EXCLUDED.developer,
+ON CONFLICT (software_id, version) DO UPDATE SET
     installer_type = EXCLUDED.installer_type,
     uninstall_method = EXCLUDED.uninstall_method,
-    custom_uninstall_method = EXCLUDED.custom_uninstall_method,
     restart_action = EXCLUDED.restart_action,
     minimum_munki_version = EXCLUDED.minimum_munki_version,
     minimum_os_version = EXCLUDED.minimum_os_version,
@@ -2176,7 +1877,6 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     blocking_applications = EXCLUDED.blocking_applications,
     unattended_install = EXCLUDED.unattended_install,
     unattended_uninstall = EXCLUDED.unattended_uninstall,
-    uninstallable = EXCLUDED.uninstallable,
     on_demand = EXCLUDED.on_demand,
     precache = EXCLUDED.precache,
     autoremove = EXCLUDED.autoremove,
@@ -2184,7 +1884,6 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     suppress_bundle_relocation = EXCLUDED.suppress_bundle_relocation,
     force_install_after_date = EXCLUDED.force_install_after_date,
     installed_size = EXCLUDED.installed_size,
-    payload_identifier = EXCLUDED.payload_identifier,
     package_path = EXCLUDED.package_path,
     installer_choices_xml = EXCLUDED.installer_choices_xml,
     installer_environment = EXCLUDED.installer_environment,
@@ -2217,20 +1916,14 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     icon_artifact_id = EXCLUDED.icon_artifact_id,
     eligible = EXCLUDED.eligible,
     updated_at = now()
-RETURNING id, software_id, name, version, display_name, description, category, developer, installer_type, uninstall_method, custom_uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, uninstallable, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, payload_identifier, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
 `
 
 type UpsertMunkiPackageParams struct {
 	SoftwareID                   int64      `json:"software_id"`
-	Name                         string     `json:"name"`
 	Version                      string     `json:"version"`
-	DisplayName                  string     `json:"display_name"`
-	Description                  string     `json:"description"`
-	Category                     string     `json:"category"`
-	Developer                    string     `json:"developer"`
 	InstallerType                string     `json:"installer_type"`
 	UninstallMethod              string     `json:"uninstall_method"`
-	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
 	RestartAction                string     `json:"restart_action"`
 	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
 	MinimumOSVersion             string     `json:"minimum_os_version"`
@@ -2239,7 +1932,6 @@ type UpsertMunkiPackageParams struct {
 	BlockingApplications         []string   `json:"blocking_applications"`
 	UnattendedInstall            bool       `json:"unattended_install"`
 	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	Uninstallable                bool       `json:"uninstallable"`
 	OnDemand                     bool       `json:"on_demand"`
 	Precache                     bool       `json:"precache"`
 	Autoremove                   bool       `json:"autoremove"`
@@ -2247,7 +1939,6 @@ type UpsertMunkiPackageParams struct {
 	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
 	InstalledSize                int64      `json:"installed_size"`
-	PayloadIdentifier            string     `json:"payload_identifier"`
 	PackagePath                  string     `json:"package_path"`
 	InstallerChoicesXml          string     `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte     `json:"installer_environment"`
@@ -2284,15 +1975,9 @@ type UpsertMunkiPackageParams struct {
 func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackageParams) (MunkiPackage, error) {
 	row := q.db.QueryRow(ctx, upsertMunkiPackage,
 		arg.SoftwareID,
-		arg.Name,
 		arg.Version,
-		arg.DisplayName,
-		arg.Description,
-		arg.Category,
-		arg.Developer,
 		arg.InstallerType,
 		arg.UninstallMethod,
-		arg.CustomUninstallMethod,
 		arg.RestartAction,
 		arg.MinimumMunkiVersion,
 		arg.MinimumOSVersion,
@@ -2301,7 +1986,6 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		arg.BlockingApplications,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
-		arg.Uninstallable,
 		arg.OnDemand,
 		arg.Precache,
 		arg.Autoremove,
@@ -2309,7 +1993,6 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		arg.SuppressBundleRelocation,
 		arg.ForceInstallAfterDate,
 		arg.InstalledSize,
-		arg.PayloadIdentifier,
 		arg.PackagePath,
 		arg.InstallerChoicesXml,
 		arg.InstallerEnvironment,
@@ -2346,15 +2029,9 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 	err := row.Scan(
 		&i.ID,
 		&i.SoftwareID,
-		&i.Name,
 		&i.Version,
-		&i.DisplayName,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
 		&i.InstallerType,
 		&i.UninstallMethod,
-		&i.CustomUninstallMethod,
 		&i.RestartAction,
 		&i.MinimumMunkiVersion,
 		&i.MinimumOSVersion,
@@ -2363,7 +2040,6 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		&i.BlockingApplications,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
-		&i.Uninstallable,
 		&i.OnDemand,
 		&i.Precache,
 		&i.Autoremove,
@@ -2371,7 +2047,6 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		&i.SuppressBundleRelocation,
 		&i.ForceInstallAfterDate,
 		&i.InstalledSize,
-		&i.PayloadIdentifier,
 		&i.PackagePath,
 		&i.InstallerChoicesXml,
 		&i.InstallerEnvironment,

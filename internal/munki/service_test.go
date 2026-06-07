@@ -37,7 +37,7 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package: packages.Package{
 					ID:                        10,
-					Name:                      "GoogleChrome",
+					SoftwareName:              "GoogleChrome",
 					InstallerArtifactID:       &artifactID,
 					InstallerArtifactLocation: "apps/GoogleChrome.pkg",
 				},

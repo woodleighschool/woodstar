@@ -13,7 +13,7 @@ __all__ = ["WoodstarMunkiAppUploader"]
 
 
 class WoodstarMunkiAppUploader(Processor):
-    description = "Upserts a Woodstar Munki software title, icon, and assignments."
+    description = "Upserts a Woodstar Munki software title, icon, and targets."
 
     input_variables = {
         "WOODSTAR_URL": {
@@ -26,11 +26,7 @@ class WoodstarMunkiAppUploader(Processor):
         },
         "name": {
             "required": False,
-            "description": "Woodstar/Munki software name. Defaults to pkginfo name or NAME.",
-        },
-        "display_name": {
-            "required": False,
-            "description": "Display name. Defaults to pkginfo display_name or name.",
+            "description": "Woodstar software title name. Defaults to pkginfo display_name, pkginfo name, or NAME.",
         },
         "description": {"required": False, "description": "Software description."},
         "category": {"required": False, "description": "Software category."},
@@ -41,14 +37,14 @@ class WoodstarMunkiAppUploader(Processor):
         },
         "assignments": {
             "required": False,
-            "description": "Optional assignment object with includes and exclude labels.",
+            "description": "Optional full target object with includes and exclude labels.",
         },
     }
     output_variables = {
         "woodstar_software": {"description": "Software title response."},
         "woodstar_software_id": {"description": "Woodstar software title ID."},
         "woodstar_icon_artifact": {"description": "Uploaded icon artifact response."},
-        "woodstar_assignments": {"description": "Created or updated assignment includes and exclude labels."},
+        "woodstar_assignments": {"description": "Software title includes and exclude labels."},
         "woodstarmunkiappuploader_summary_result": {
             "description": "Summary of Woodstar app changes.",
         },
@@ -57,7 +53,7 @@ class WoodstarMunkiAppUploader(Processor):
     def main(self):
         client = client_from_env(self.env)
         pkginfo = self.env.get("munki_info") or self.env.get("pkginfo") or {}
-        name = self.env.get("name") or pkginfo.get("name") or self.env.get("NAME")
+        name = self.software_name(pkginfo)
         if not name:
             raise ProcessorError("name is required")
 
@@ -68,18 +64,20 @@ class WoodstarMunkiAppUploader(Processor):
             self.env["woodstar_icon_artifact"] = icon_artifact
 
         software = self.upsert_software(client, pkginfo, name, icon_artifact)
-        assignments = self.upsert_assignments(client, software)
+        assignments = {
+            "includes": software.get("includes") or [],
+            "exclude_label_ids": software.get("exclude_label_ids") or [],
+        }
 
         self.env["woodstar_software"] = software
         self.env["woodstar_software_id"] = software["id"]
         self.env["woodstar_assignments"] = assignments
         self.env["woodstarmunkiappuploader_summary_result"] = {
             "summary_text": "Woodstar Munki app processed",
-            "report_fields": ["id", "name", "display_name", "includes", "exclude_labels"],
+            "report_fields": ["id", "name", "includes", "exclude_labels"],
             "data": {
                 "id": str(software["id"]),
                 "name": software["name"],
-                "display_name": software.get("display_name", ""),
                 "includes": str(len(assignments["includes"])),
                 "exclude_labels": str(len(assignments.get("exclude_label_ids") or [])),
             },
@@ -89,7 +87,6 @@ class WoodstarMunkiAppUploader(Processor):
     def upsert_software(self, client, pkginfo, name, icon_artifact):
         body = {
             "name": name,
-            "display_name": self.env.get("display_name") or pkginfo.get("display_name") or name,
             "description": self.env.get("description") or pkginfo.get("description") or "",
             "category": self.env.get("category") or pkginfo.get("category") or "",
             "developer": self.env.get("developer") or pkginfo.get("developer") or "",
@@ -97,56 +94,48 @@ class WoodstarMunkiAppUploader(Processor):
         if icon_artifact:
             body["icon_artifact_id"] = icon_artifact["id"]
         existing = find_exact(client, "/api/munki/software-titles", "name", name)
+        existing_detail = None
+        if existing:
+            existing_detail = client.get(f"/api/munki/software-titles/{existing['id']}")
+        body.update(self.target_body(client, existing_detail))
         if existing:
             self.output(f"Updating Woodstar software title: {name}")
             return client.patch(f"/api/munki/software-titles/{existing['id']}", body)
         self.output(f"Creating Woodstar software title: {name}")
         return client.post("/api/munki/software-titles", body)
 
-    def upsert_assignments(self, client, software):
+    def software_name(self, pkginfo):
+        return (
+            self.env.get("name")
+            or pkginfo.get("display_name")
+            or pkginfo.get("name")
+            or self.env.get("NAME")
+        )
+
+    def target_body(self, client, existing):
         assignment_config = self.env.get("assignments")
         if not assignment_config:
-            return {"includes": [], "exclude_label_ids": []}
+            return {
+                "includes": self.existing_includes(existing),
+                "exclude_label_ids": (existing or {}).get("exclude_label_ids") or [],
+            }
         if not isinstance(assignment_config, dict):
             raise ProcessorError("assignments must be a dictionary")
         include_inputs = assignment_config.get("includes") or []
         if not isinstance(include_inputs, list):
             raise ProcessorError("assignments.includes must be a list")
 
-        existing_page = client.get(
-            "/api/munki/assignments",
-            {"software_id": software["id"], "page_size": 1000, "sort": "priority.asc"},
-        )
-        existing = existing_page.get("items", [])
-        includes = []
-        for index, assignment in enumerate(include_inputs, start=1):
-            body = self.include_body(client, software["id"], assignment, existing, index)
-            match = self.match_assignment(existing, body)
-            if match:
-                self.output(f"Updating include for label {body['label_id']}")
-                includes.append(client.patch(f"/api/munki/assignments/{match['id']}", body))
-            else:
-                self.output(f"Creating include for label {body['label_id']}")
-                includes.append(client.post("/api/munki/assignments", body))
-
-        exclude_label_ids = []
-        if "exclude_label_ids" in assignment_config or "exclude_label_names" in assignment_config:
-            exclude_label_ids = self.exclude_label_ids(client, assignment_config)
-            response = client.put(
-                f"/api/munki/software-titles/{software['id']}/exclude-labels",
-                {"exclude_label_ids": exclude_label_ids},
-            )
-            exclude_label_ids = response.get("exclude_label_ids") or []
-
+        includes = [self.include_body(client, assignment) for assignment in include_inputs]
+        exclude_label_ids = self.exclude_label_ids(client, assignment_config)
         return {"includes": includes, "exclude_label_ids": exclude_label_ids}
 
-    def include_body(self, client, software_id, assignment, existing, index):
+    def include_body(self, client, assignment):
         if not isinstance(assignment, dict):
             raise ProcessorError("assignments.includes entries must be dictionaries")
+        if "priority" in assignment:
+            raise ProcessorError("assignments.includes priority is not supported; order the includes list instead")
         label_id = int(self.label_id(client, assignment))
         body = {
-            "software_id": software_id,
-            "priority": int(assignment.get("priority") or self.existing_priority(existing, label_id) or index),
             "label_id": label_id,
             "action": assignment.get("action", "install"),
             "optional_install": truthy(assignment.get("optional_install", False)),
@@ -167,6 +156,22 @@ class WoodstarMunkiAppUploader(Processor):
             raise ProcessorError("assignments exclude labels contain duplicates")
         return values
 
+    @staticmethod
+    def existing_includes(existing):
+        includes = []
+        for item in (existing or {}).get("includes") or []:
+            body = {
+                "label_id": item["label_id"],
+                "action": item["action"],
+                "optional_install": truthy(item.get("optional_install", False)),
+                "featured_item": truthy(item.get("featured_item", False)),
+                "package_selection": item.get("package_selection", "latest_eligible"),
+            }
+            if item.get("pinned_package_id"):
+                body["pinned_package_id"] = int(item["pinned_package_id"])
+            includes.append(body)
+        return includes
+
     def label_id(self, client, assignment):
         label_id = assignment.get("label_id")
         if label_id:
@@ -181,20 +186,6 @@ class WoodstarMunkiAppUploader(Processor):
         if not label:
             raise ProcessorError(f"Woodstar label not found: {label_name}")
         return label["id"]
-
-    @staticmethod
-    def match_assignment(existing, body):
-        for item in existing:
-            if item.get("label_id") == body["label_id"]:
-                return item
-        return None
-
-    @staticmethod
-    def existing_priority(existing, label_id):
-        for item in existing:
-            if item.get("label_id") == int(label_id):
-                return item.get("priority")
-        return None
 
 
 if __name__ == "__main__":

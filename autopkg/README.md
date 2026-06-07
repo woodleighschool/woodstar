@@ -1,7 +1,7 @@
 # Woodstar AutoPkg Processors
 
 This contains processors that can be used in AutoPkg to upload a pkginfo to Woodstar
-and optionally create Munki software assignments.
+and optionally set Munki software targets.
 
 ## Setup
 
@@ -15,9 +15,15 @@ defaults write com.github.autopkg WOODSTAR_URL -string "http://localhost:8080"
 
 ## Recipe Flow
 
-Run the normal Munki import first. `WoodstarMunkiPackageUploader` expects the
-environment produced by `MunkiImporter`, including pkginfo and package paths.
-Exclude labels can be supplied as `exclude_label_ids` or `exclude_label_names`.
+Run the normal Munki import first. `WoodstarMunkiAppUploader` creates or updates
+the Woodstar software title using the pkginfo `display_name` as the title name
+when it is present. `WoodstarMunkiPackageUploader` then imports the pkginfo into
+that title using `woodstar_software_id`.
+
+`requires` and `update_for` must contain Woodstar package IDs, matching what
+Woodstar will render as Munki item names. `nopkg` items are imported without a
+package artifact. `uninstall_package` items upload `uninstaller_pkg_path` as a
+separate uninstaller artifact.
 
 ```yaml
 Process:
@@ -27,8 +33,7 @@ Process:
     Arguments:
       assignments:
         includes:
-          - priority: 1
-            label_name: All Hosts
+          - label_name: All Hosts
             action: install
             package_selection: latest_eligible
         exclude_label_ids: []

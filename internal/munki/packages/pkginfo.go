@@ -4,26 +4,33 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 )
 
 const pkginfoReceiptPackageIDKey = "package" + "id"
 
+// MunkiName returns the stable internal pkginfo name Woodstar gives Munki.
+func MunkiName(packageID int64) string {
+	if packageID <= 0 {
+		return ""
+	}
+	return strconv.FormatInt(packageID, 10)
+}
+
 func Pkginfo(pkg Package) map[string]any {
 	item := make(map[string]any)
-	item["name"] = pkg.Name
+	item["name"] = MunkiName(pkg.ID)
 	item["version"] = pkg.Version
 
-	addPkginfoString(item, "display_name", pkg.DisplayName)
-	addPkginfoString(item, "description", pkg.Description)
-	addPkginfoString(item, "category", pkg.Category)
-	addPkginfoString(item, "developer", pkg.Developer)
+	addPkginfoString(item, "display_name", pkg.SoftwareName)
+	addPkginfoString(item, "description", pkg.SoftwareDescription)
+	addPkginfoString(item, "category", pkg.SoftwareCategory)
+	addPkginfoString(item, "developer", pkg.SoftwareDeveloper)
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
 		item["installer_type"] = pkg.InstallerType
 	}
@@ -40,7 +47,7 @@ func Pkginfo(pkg Package) map[string]any {
 	addPkginfoStrings(item, "update_for", referenceNames(pkg.UpdateFor))
 	addPkginfoBool(item, "unattended_install", pkg.UnattendedInstall)
 	addPkginfoBool(item, "unattended_uninstall", pkg.UnattendedUninstall)
-	addPkginfoBool(item, "uninstallable", pkg.Uninstallable)
+	addPkginfoBool(item, "uninstallable", pkg.UninstallMethod != "" && pkg.UninstallMethod != UninstallMethodNone)
 	addPkginfoBool(item, "OnDemand", pkg.OnDemand)
 	addPkginfoBool(item, "precache", pkg.Precache)
 	addPkginfoBool(item, "autoremove", pkg.Autoremove)
@@ -52,7 +59,6 @@ func Pkginfo(pkg Package) map[string]any {
 	if pkg.InstalledSize > 0 {
 		item["installed_size"] = pkg.InstalledSize
 	}
-	addPkginfoString(item, "payload_identifier", pkg.PayloadIdentifier)
 	addPkginfoString(item, "package_path", pkg.PackagePath)
 	addPkginfoString(item, "installer_choices_xml", pkg.InstallerChoicesXML)
 	addPkginfoInstallerEnvironment(item, pkg.InstallerEnvironment)
@@ -87,8 +93,6 @@ func packageIconFields(pkg Package) (string, string) {
 func addPkginfoUninstallMethod(item map[string]any, pkg Package) {
 	switch pkg.UninstallMethod {
 	case "", UninstallMethodNone:
-	case UninstallMethodCustom:
-		addPkginfoString(item, "uninstall_method", pkg.CustomUninstallMethod)
 	default:
 		addPkginfoString(item, "uninstall_method", string(pkg.UninstallMethod))
 	}
@@ -221,22 +225,10 @@ func referenceNames(references []PackageReference) []string {
 }
 
 func referenceName(ref PackageReference) string {
-	if ref.PackageID != nil {
-		name := strings.TrimSpace(ref.PackageName)
-		version := strings.TrimSpace(ref.PackageVersion)
-		if name == "" {
-			return ""
-		}
-		if version == "" {
-			return name
-		}
-		return name + "--" + version
-	}
-	return strings.TrimSpace(ref.Name)
+	return MunkiName(ref.PackageID)
 }
 
-// Import imports one Munki pkginfo item and upserts it by title, name,
-// and version.
+// Import imports one Munki pkginfo item into a selected Woodstar software title.
 func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Package, error) {
 	params = cleanImportMutation(params)
 	if err := params.Validate(); err != nil {
@@ -246,12 +238,9 @@ func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Pack
 	if err != nil {
 		return nil, err
 	}
-	title, err := s.importPackageSoftwareTitle(ctx, params.SoftwareID, mutation)
-	if err != nil {
-		return nil, err
-	}
-	mutation.SoftwareID = title.ID
+	mutation.SoftwareID = params.SoftwareID
 	mutation.InstallerArtifactID = params.InstallerArtifactID
+	mutation.UninstallerArtifactID = params.UninstallerArtifactID
 	mutation.IconArtifactID = params.IconArtifactID
 	mutation.Eligible = true
 	if params.Eligible != nil {
@@ -270,15 +259,9 @@ func packageMutationFromPkginfo(raw json.RawMessage) (PackageMutation, error) {
 
 func packageMutationFromPkginfoFields(item map[string]any) (PackageMutation, error) {
 	mutation := PackageMutation{
-		Name:                     pkginfoString(item, "name"),
 		Version:                  pkginfoString(item, "version"),
-		DisplayName:              pkginfoString(item, "display_name"),
-		Description:              pkginfoString(item, "description"),
-		Category:                 pkginfoString(item, "category"),
-		Developer:                pkginfoString(item, "developer"),
 		InstallerType:            InstallerType(pkginfoString(item, "installer_type")),
 		UninstallMethod:          pkginfoUninstallMethod(item),
-		CustomUninstallMethod:    pkginfoCustomUninstallMethod(item),
 		RestartAction:            RestartAction(pkginfoString(item, "RestartAction")),
 		MinimumMunkiVersion:      pkginfoString(item, "minimum_munki_version"),
 		MinimumOSVersion:         pkginfoString(item, "minimum_os_version"),
@@ -287,14 +270,12 @@ func packageMutationFromPkginfoFields(item map[string]any) (PackageMutation, err
 		IconHash:                 pkginfoString(item, "icon_hash"),
 		UnattendedInstall:        pkginfoBool(item, "unattended_install"),
 		UnattendedUninstall:      pkginfoBool(item, "unattended_uninstall"),
-		Uninstallable:            pkginfoBool(item, "uninstallable"),
 		OnDemand:                 pkginfoBool(item, "OnDemand"),
 		Precache:                 pkginfoBool(item, "precache"),
 		Autoremove:               pkginfoBool(item, "autoremove"),
 		AppleItem:                pkginfoBool(item, "apple_item"),
 		SuppressBundleRelocation: pkginfoBool(item, "suppress_bundle_relocation"),
 		InstalledSize:            pkginfoInt64(item, "installed_size"),
-		PayloadIdentifier:        pkginfoString(item, "payload_identifier"),
 		PackagePath:              pkginfoString(item, "package_path"),
 		InstallerChoicesXML:      pkginfoString(item, "installer_choices_xml"),
 		Notes:                    pkginfoString(item, "notes"),
@@ -306,6 +287,9 @@ func packageMutationFromPkginfoFields(item map[string]any) (PackageMutation, err
 		PostuninstallScript:      pkginfoString(item, "postuninstall_script"),
 		UninstallScript:          pkginfoString(item, "uninstall_script"),
 		VersionScript:            pkginfoString(item, "version_script"),
+	}
+	if mutation.Version == "" {
+		return PackageMutation{}, fmt.Errorf("%w: pkginfo version is required", dbutil.ErrInvalidInput)
 	}
 	var err error
 	if mutation.SupportedArchitectures, err = pkginfoStringList(item, "supported_architectures"); err != nil {
@@ -361,30 +345,6 @@ func decodePkginfoObject(raw json.RawMessage) (map[string]any, error) {
 	return item, nil
 }
 
-func (s *Store) importPackageSoftwareTitle(
-	ctx context.Context,
-	softwareID int64,
-	mutation PackageMutation,
-) (*softwaretitles.SoftwareTitle, error) {
-	if softwareID > 0 {
-		return s.softwareTitles.GetByID(ctx, softwareID)
-	}
-	title, err := s.softwareTitles.GetByName(ctx, mutation.Name)
-	if err == nil {
-		return title, nil
-	}
-	if !errors.Is(err, dbutil.ErrNotFound) {
-		return nil, err
-	}
-	return s.softwareTitles.Create(ctx, softwaretitles.SoftwareTitleMutation{
-		Name:        mutation.Name,
-		DisplayName: mutation.DisplayName,
-		Description: mutation.Description,
-		Category:    mutation.Category,
-		Developer:   mutation.Developer,
-	})
-}
-
 func cleanImportMutation(params PackageImportMutation) PackageImportMutation {
 	params.Pkginfo = bytes.TrimSpace(params.Pkginfo)
 	return params
@@ -435,22 +395,12 @@ func pkginfoUninstallMethod(item map[string]any) UninstallMethod {
 		return UninstallMethodNone
 	case UninstallMethodRemovePackages,
 		UninstallMethodRemoveCopiedItems,
-		UninstallMethodRemoveProfile,
-		UninstallMethodRemoveApp,
 		UninstallMethodUninstallScript,
 		UninstallMethodUninstallPackage:
 		return UninstallMethod(method)
 	default:
-		return UninstallMethodCustom
+		return UninstallMethod(method)
 	}
-}
-
-func pkginfoCustomUninstallMethod(item map[string]any) string {
-	method := pkginfoString(item, "uninstall_method")
-	if pkginfoUninstallMethod(item) == UninstallMethodCustom {
-		return method
-	}
-	return ""
 }
 
 func pkginfoStringList(item map[string]any, key string) ([]string, error) {
@@ -480,7 +430,15 @@ func pkginfoReferences(item map[string]any, key string) ([]PackageReference, err
 	}
 	out := make([]PackageReference, 0, len(values))
 	for _, value := range values {
-		out = append(out, PackageReference{Name: value})
+		packageID, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || packageID <= 0 {
+			return nil, fmt.Errorf(
+				"%w: pkginfo %s entries must be Woodstar package IDs",
+				dbutil.ErrInvalidInput,
+				key,
+			)
+		}
+		out = append(out, PackageReference{PackageID: packageID})
 	}
 	return out, nil
 }

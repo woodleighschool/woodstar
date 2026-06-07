@@ -18,23 +18,15 @@ import (
 type InstallerType string
 
 const (
-	InstallerTypePkg                 InstallerType = "pkg"
-	InstallerTypeNoPkg               InstallerType = "nopkg"
-	InstallerTypeCopyFromDMG         InstallerType = "copy_from_dmg"
-	InstallerTypeProfile             InstallerType = "profile"
-	InstallerTypeAppleUpdateMetadata InstallerType = "apple_update_metadata"
-	InstallerTypeStartOSInstall      InstallerType = "startosinstall"
-	InstallerTypeStageOSInstaller    InstallerType = "stage_os_installer"
+	InstallerTypePkg         InstallerType = "pkg"
+	InstallerTypeNoPkg       InstallerType = "nopkg"
+	InstallerTypeCopyFromDMG InstallerType = "copy_from_dmg"
 )
 
 var installerTypeValues = []InstallerType{
 	InstallerTypePkg,
 	InstallerTypeNoPkg,
 	InstallerTypeCopyFromDMG,
-	InstallerTypeProfile,
-	InstallerTypeAppleUpdateMetadata,
-	InstallerTypeStartOSInstall,
-	InstallerTypeStageOSInstaller,
 }
 
 func (InstallerType) Schema(_ huma.Registry) *huma.Schema {
@@ -71,33 +63,27 @@ const (
 	UninstallMethodNone              UninstallMethod = "none"
 	UninstallMethodRemovePackages    UninstallMethod = "removepackages"
 	UninstallMethodRemoveCopiedItems UninstallMethod = "remove_copied_items"
-	UninstallMethodRemoveProfile     UninstallMethod = "remove_profile"
-	UninstallMethodRemoveApp         UninstallMethod = "remove_app"
 	UninstallMethodUninstallScript   UninstallMethod = "uninstall_script"
 	UninstallMethodUninstallPackage  UninstallMethod = "uninstall_package"
-	UninstallMethodCustom            UninstallMethod = "custom"
 )
 
 var uninstallMethodValues = []UninstallMethod{
 	UninstallMethodNone,
 	UninstallMethodRemovePackages,
 	UninstallMethodRemoveCopiedItems,
-	UninstallMethodRemoveProfile,
-	UninstallMethodRemoveApp,
 	UninstallMethodUninstallScript,
 	UninstallMethodUninstallPackage,
-	UninstallMethodCustom,
 }
 
 func (UninstallMethod) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(uninstallMethodValues...)
 }
 
-// PackageReference points to either another Woodstar-authored package or a literal Munki item name.
+// PackageReference points to another Woodstar-authored package.
 type PackageReference struct {
-	PackageID      *int64 `json:"package_id,omitempty"`
-	Name           string `json:"name,omitempty"`
-	PackageName    string `json:"package_name,omitempty"`
+	PackageID      int64  `json:"package_id"`
+	SoftwareID     int64  `json:"software_id,omitempty"`
+	SoftwareName   string `json:"software_name,omitempty"`
 	PackageVersion string `json:"package_version,omitempty"`
 }
 
@@ -175,18 +161,11 @@ type PackageAlert struct {
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
 	SoftwareID               int64                                 `json:"software_id"`
-	Name                     string                                `json:"name"`
-	Version                  string                                `json:"version"`
-	DisplayName              string                                `json:"display_name,omitempty"`
-	Description              string                                `json:"description,omitempty"`
-	Category                 string                                `json:"category,omitempty"`
-	Developer                string                                `json:"developer,omitempty"`
+	Version                  string                                `json:"version"                              minLength:"1"`
 	InstallerType            InstallerType                         `json:"installer_type,omitempty"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
-	Uninstallable            bool                                  `json:"uninstallable,omitempty"`
 	UninstallMethod          UninstallMethod                       `json:"uninstall_method,omitempty"`
-	CustomUninstallMethod    string                                `json:"custom_uninstall_method,omitempty"`
 	RestartAction            RestartAction                         `json:"restart_action,omitempty"`
 	MinimumMunkiVersion      string                                `json:"minimum_munki_version,omitempty"`
 	MinimumOSVersion         string                                `json:"minimum_os_version,omitempty"`
@@ -202,7 +181,6 @@ type PackageMutation struct {
 	SuppressBundleRelocation bool                                  `json:"suppress_bundle_relocation,omitempty"`
 	ForceInstallAfterDate    *time.Time                            `json:"force_install_after_date,omitempty"`
 	InstalledSize            int64                                 `json:"installed_size,omitempty"`
-	PayloadIdentifier        string                                `json:"payload_identifier,omitempty"`
 	PackagePath              string                                `json:"package_path,omitempty"`
 	InstallerChoicesXML      string                                `json:"installer_choices_xml,omitempty"`
 	InstallerEnvironment     []PackageInstallerEnvironmentVariable `json:"installer_environment,omitempty"`
@@ -230,11 +208,12 @@ type PackageMutation struct {
 
 // PackageImportMutation imports one existing Munki pkginfo item as a Woodstar package row.
 type PackageImportMutation struct {
-	SoftwareID          int64           `json:"software_id,omitempty"`
-	Pkginfo             json.RawMessage `json:"pkginfo"`
-	InstallerArtifactID *int64          `json:"installer_artifact_id,omitempty"`
-	IconArtifactID      *int64          `json:"icon_artifact_id,omitempty"`
-	Eligible            *bool           `json:"eligible,omitempty"`
+	SoftwareID            int64           `json:"software_id"                       minimum:"1"`
+	Pkginfo               json.RawMessage `json:"pkginfo"`
+	InstallerArtifactID   *int64          `json:"installer_artifact_id,omitempty"`
+	UninstallerArtifactID *int64          `json:"uninstaller_artifact_id,omitempty"`
+	IconArtifactID        *int64          `json:"icon_artifact_id,omitempty"`
+	Eligible              *bool           `json:"eligible,omitempty"`
 }
 
 // Package is one Woodstar-authored Munki package version available for assignment.
@@ -242,19 +221,14 @@ type Package struct {
 	ID                           int64                                 `json:"id"`
 	SoftwareID                   int64                                 `json:"software_id"`
 	SoftwareName                 string                                `json:"software_name"`
-	SoftwareDisplayName          string                                `json:"software_display_name"`
-	Name                         string                                `json:"name"`
+	SoftwareDescription          string                                `json:"software_description"`
+	SoftwareCategory             string                                `json:"software_category"`
+	SoftwareDeveloper            string                                `json:"software_developer"`
 	Version                      string                                `json:"version"`
-	DisplayName                  string                                `json:"display_name"`
-	Description                  string                                `json:"description"`
-	Category                     string                                `json:"category"`
-	Developer                    string                                `json:"developer"`
 	InstallerType                InstallerType                         `json:"installer_type"`
 	UnattendedInstall            bool                                  `json:"unattended_install"`
 	UnattendedUninstall          bool                                  `json:"unattended_uninstall"`
-	Uninstallable                bool                                  `json:"uninstallable"`
 	UninstallMethod              UninstallMethod                       `json:"uninstall_method"`
-	CustomUninstallMethod        string                                `json:"custom_uninstall_method"`
 	RestartAction                RestartAction                         `json:"restart_action,omitempty"`
 	MinimumMunkiVersion          string                                `json:"minimum_munki_version"`
 	MinimumOSVersion             string                                `json:"minimum_os_version"`
@@ -270,7 +244,6 @@ type Package struct {
 	SuppressBundleRelocation     bool                                  `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time                            `json:"force_install_after_date,omitempty"`
 	InstalledSize                int64                                 `json:"installed_size"`
-	PayloadIdentifier            string                                `json:"payload_identifier"`
 	PackagePath                  string                                `json:"package_path"`
 	InstallerChoicesXML          string                                `json:"installer_choices_xml"`
 	InstallerEnvironment         []PackageInstallerEnvironmentVariable `json:"installer_environment"`
@@ -319,11 +292,8 @@ type PackageListParams struct {
 }
 
 func (m PackageMutation) Validate() error {
-	if strings.TrimSpace(m.Name) == "" {
-		return fmt.Errorf("%w: name is required", dbutil.ErrInvalidInput)
-	}
-	if strings.TrimSpace(m.Version) == "" {
-		return fmt.Errorf("%w: version is required", dbutil.ErrInvalidInput)
+	if m.SoftwareID <= 0 {
+		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
 	if !validInstallerType(m.InstallerType) {
 		return fmt.Errorf("%w: unsupported installer_type %q", dbutil.ErrInvalidInput, m.InstallerType)
@@ -351,6 +321,12 @@ func (m PackageMutation) Validate() error {
 	if err := validateReferences("update_for", m.UpdateFor); err != nil {
 		return err
 	}
+	if err := m.validateInstallerSemantics(); err != nil {
+		return err
+	}
+	if err := m.validateUninstallSemantics(); err != nil {
+		return err
+	}
 	for _, item := range m.Installs {
 		if !validInstallItemType(item.Type) {
 			return fmt.Errorf("%w: unsupported installs type %q", dbutil.ErrInvalidInput, item.Type)
@@ -375,7 +351,82 @@ func (m PackageMutation) Validate() error {
 	return nil
 }
 
+func (m PackageMutation) validateInstallerSemantics() error {
+	switch m.InstallerType {
+	case InstallerTypePkg:
+		if m.InstallerArtifactID == nil {
+			return fmt.Errorf("%w: pkg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
+		}
+		if len(m.ItemsToCopy) > 0 {
+			return fmt.Errorf("%w: pkg installer_type cannot set items_to_copy", dbutil.ErrInvalidInput)
+		}
+	case InstallerTypeCopyFromDMG:
+		if m.InstallerArtifactID == nil {
+			return fmt.Errorf("%w: copy_from_dmg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
+		}
+		if len(m.ItemsToCopy) == 0 {
+			return fmt.Errorf("%w: copy_from_dmg installer_type requires items_to_copy", dbutil.ErrInvalidInput)
+		}
+	case InstallerTypeNoPkg:
+		if m.InstallerArtifactID != nil {
+			return fmt.Errorf("%w: nopkg installer_type cannot set installer_artifact_id", dbutil.ErrInvalidInput)
+		}
+		if m.PackagePath != "" {
+			return fmt.Errorf("%w: nopkg installer_type cannot set package_path", dbutil.ErrInvalidInput)
+		}
+		if m.InstallerChoicesXML != "" {
+			return fmt.Errorf("%w: nopkg installer_type cannot set installer_choices_xml", dbutil.ErrInvalidInput)
+		}
+		if len(m.InstallerEnvironment) > 0 {
+			return fmt.Errorf("%w: nopkg installer_type cannot set installer_environment", dbutil.ErrInvalidInput)
+		}
+		if strings.TrimSpace(m.InstallcheckScript) == "" && len(m.Installs) == 0 && len(m.Receipts) == 0 &&
+			!m.OnDemand {
+			return fmt.Errorf(
+				"%w: nopkg installer_type requires installcheck_script, installs, receipts, or on_demand",
+				dbutil.ErrInvalidInput,
+			)
+		}
+	}
+	return nil
+}
+
+func (m PackageMutation) validateUninstallSemantics() error {
+	if m.UninstallMethod != UninstallMethodUninstallPackage && m.UninstallerArtifactID != nil {
+		return fmt.Errorf(
+			"%w: uninstaller_artifact_id requires uninstall_package uninstall_method",
+			dbutil.ErrInvalidInput,
+		)
+	}
+	switch m.UninstallMethod {
+	case "", UninstallMethodNone:
+	case UninstallMethodRemovePackages:
+		if len(m.Receipts) == 0 {
+			return fmt.Errorf("%w: removepackages uninstall_method requires receipts", dbutil.ErrInvalidInput)
+		}
+	case UninstallMethodRemoveCopiedItems:
+		if len(m.ItemsToCopy) == 0 {
+			return fmt.Errorf("%w: remove_copied_items uninstall_method requires items_to_copy", dbutil.ErrInvalidInput)
+		}
+	case UninstallMethodUninstallScript:
+		if strings.TrimSpace(m.UninstallScript) == "" {
+			return fmt.Errorf("%w: uninstall_script uninstall_method requires uninstall_script", dbutil.ErrInvalidInput)
+		}
+	case UninstallMethodUninstallPackage:
+		if m.UninstallerArtifactID == nil {
+			return fmt.Errorf(
+				"%w: uninstall_package uninstall_method requires uninstaller_artifact_id",
+				dbutil.ErrInvalidInput,
+			)
+		}
+	}
+	return nil
+}
+
 func (m PackageImportMutation) Validate() error {
+	if m.SoftwareID <= 0 {
+		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
+	}
 	if len(m.Pkginfo) == 0 || !json.Valid(m.Pkginfo) {
 		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
 	}
@@ -407,12 +458,8 @@ func validInstallItemType(itemType PackageInstallItemType) bool {
 
 func validateReferences(field string, references []PackageReference) error {
 	for _, ref := range references {
-		name := strings.TrimSpace(ref.Name)
-		if ref.PackageID == nil && name == "" {
-			return fmt.Errorf("%w: %s entries require package_id or name", dbutil.ErrInvalidInput, field)
-		}
-		if ref.PackageID != nil && name != "" {
-			return fmt.Errorf("%w: %s entries cannot set both package_id and name", dbutil.ErrInvalidInput, field)
+		if ref.PackageID <= 0 {
+			return fmt.Errorf("%w: %s entries require package_id", dbutil.ErrInvalidInput, field)
 		}
 	}
 	return nil

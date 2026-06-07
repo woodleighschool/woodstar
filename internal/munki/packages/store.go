@@ -15,32 +15,23 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
 )
-
-type softwareTitleStore interface {
-	GetByID(context.Context, int64) (*softwaretitles.SoftwareTitle, error)
-	GetByName(context.Context, string) (*softwaretitles.SoftwareTitle, error)
-	Create(context.Context, softwaretitles.SoftwareTitleMutation) (*softwaretitles.SoftwareTitle, error)
-}
 
 type artifactStore interface {
 	GetByID(context.Context, int64) (*artifacts.Artifact, error)
 }
 
 type Store struct {
-	db             *database.DB
-	q              *sqlc.Queries
-	softwareTitles softwareTitleStore
-	artifacts      artifactStore
+	db        *database.DB
+	q         *sqlc.Queries
+	artifacts artifactStore
 }
 
-func NewStore(db *database.DB, softwareTitles softwareTitleStore, artifacts artifactStore) *Store {
+func NewStore(db *database.DB, artifacts artifactStore) *Store {
 	return &Store{
-		db:             db,
-		q:              db.Queries(),
-		softwareTitles: softwareTitles,
-		artifacts:      artifacts,
+		db:        db,
+		q:         db.Queries(),
+		artifacts: artifacts,
 	}
 }
 
@@ -92,7 +83,7 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	if params.SoftwareID != 0 && params.SoftwareID != existing.SoftwareID {
 		return nil, fmt.Errorf("%w: software_id cannot be changed", dbutil.ErrInvalidInput)
 	}
-	params = mergePackageUpdate(*existing, params)
+	params.SoftwareID = existing.SoftwareID
 	params, fields, err := s.prepareMutation(ctx, params)
 	if err != nil {
 		return nil, err
@@ -206,7 +197,7 @@ func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, 
 		Args:      args,
 		OrderKeys: packageOrderKeys(),
 		DefaultOrder: []dbutil.OrderExpr{
-			{SQL: "lower(COALESCE(NULLIF(p.display_name, ''), p.name))"},
+			{SQL: "lower(s.name)"},
 			{SQL: "lower(p.version)"},
 			{SQL: "p.id"},
 		},
@@ -248,12 +239,7 @@ func (s *Store) prepareMutation(
 	if err := params.Validate(); err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
-	title, err := s.softwareTitles.GetByID(ctx, params.SoftwareID)
-	if err != nil {
-		return PackageMutation{}, packageJSONFields{}, err
-	}
-	params = fillPackageDefaults(params, *title)
-	params, err = s.normalizePackageArtifacts(ctx, params)
+	params, err := s.normalizePackageArtifacts(ctx, params)
 	if err != nil {
 		return PackageMutation{}, packageJSONFields{}, err
 	}
@@ -307,15 +293,7 @@ func (s *Store) normalizePackageArtifacts(ctx context.Context, params PackageMut
 }
 
 func cleanMutation(params PackageMutation) PackageMutation {
-	params.Name = strings.TrimSpace(params.Name)
 	params.Version = strings.TrimSpace(params.Version)
-	params.DisplayName = strings.TrimSpace(params.DisplayName)
-	if params.DisplayName == "" {
-		params.DisplayName = params.Name
-	}
-	params.Description = strings.TrimSpace(params.Description)
-	params.Category = strings.TrimSpace(params.Category)
-	params.Developer = strings.TrimSpace(params.Developer)
 	params.InstallerType = InstallerType(strings.TrimSpace(string(params.InstallerType)))
 	if params.InstallerType == "" {
 		params.InstallerType = InstallerTypePkg
@@ -324,7 +302,6 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	if params.UninstallMethod == "" {
 		params.UninstallMethod = UninstallMethodNone
 	}
-	params.CustomUninstallMethod = strings.TrimSpace(params.CustomUninstallMethod)
 	params.RestartAction = RestartAction(strings.TrimSpace(string(params.RestartAction)))
 	params.MinimumMunkiVersion = strings.TrimSpace(params.MinimumMunkiVersion)
 	params.MinimumOSVersion = strings.TrimSpace(params.MinimumOSVersion)
@@ -333,7 +310,6 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	params.BlockingApplications = cleanStringList(params.BlockingApplications)
 	params.Requires = cleanReferences(params.Requires)
 	params.UpdateFor = cleanReferences(params.UpdateFor)
-	params.PayloadIdentifier = strings.TrimSpace(params.PayloadIdentifier)
 	params.PackagePath = strings.TrimSpace(params.PackagePath)
 	params.Notes = strings.TrimSpace(params.Notes)
 	params.InstallerEnvironment = cleanInstallerEnvironment(params.InstallerEnvironment)
@@ -344,61 +320,9 @@ func cleanMutation(params PackageMutation) PackageMutation {
 	params.PreuninstallAlert = cleanAlert(params.PreuninstallAlert)
 	if strings.TrimSpace(params.UninstallScript) != "" && params.UninstallMethod == UninstallMethodNone {
 		params.UninstallMethod = UninstallMethodUninstallScript
-		params.Uninstallable = true
 	}
 	params.IconName = strings.TrimSpace(params.IconName)
 	params.IconHash = strings.TrimSpace(params.IconHash)
-	return params
-}
-
-func mergePackageUpdate(existing Package, params PackageMutation) PackageMutation {
-	params.SoftwareID = existing.SoftwareID
-	if params.MinimumMunkiVersion == "" {
-		params.MinimumMunkiVersion = existing.MinimumMunkiVersion
-	}
-	if params.BlockingApplications == nil {
-		params.BlockingApplications = existing.BlockingApplications
-	}
-	if params.Requires == nil {
-		params.Requires = existing.Requires
-	}
-	if params.UpdateFor == nil {
-		params.UpdateFor = existing.UpdateFor
-	}
-	if params.InstallerEnvironment == nil {
-		params.InstallerEnvironment = existing.InstallerEnvironment
-	}
-	if params.Installs == nil {
-		params.Installs = existing.Installs
-	}
-	if params.Receipts == nil {
-		params.Receipts = existing.Receipts
-	}
-	if params.ItemsToCopy == nil {
-		params.ItemsToCopy = existing.ItemsToCopy
-	}
-	if params.InstallerArtifactID == nil {
-		params.InstallerArtifactID = existing.InstallerArtifactID
-	}
-	if params.UninstallerArtifactID == nil {
-		params.UninstallerArtifactID = existing.UninstallerArtifactID
-	}
-	return params
-}
-
-func fillPackageDefaults(params PackageMutation, title softwaretitles.SoftwareTitle) PackageMutation {
-	if params.DisplayName == "" {
-		params.DisplayName = title.DisplayName
-	}
-	if params.Description == "" {
-		params.Description = title.Description
-	}
-	if params.Category == "" {
-		params.Category = title.Category
-	}
-	if params.Developer == "" {
-		params.Developer = title.Developer
-	}
 	return params
 }
 
@@ -423,19 +347,14 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		ID:                           row.ID,
 		SoftwareID:                   row.SoftwareID,
 		SoftwareName:                 row.SoftwareName,
-		SoftwareDisplayName:          row.SoftwareDisplayName,
-		Name:                         row.Name,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
 		Version:                      row.Version,
-		DisplayName:                  row.DisplayName,
-		Description:                  row.Description,
-		Category:                     row.Category,
-		Developer:                    row.Developer,
 		InstallerType:                InstallerType(row.InstallerType),
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
-		Uninstallable:                row.Uninstallable,
 		UninstallMethod:              UninstallMethod(row.UninstallMethod),
-		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                RestartAction(row.RestartAction),
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
@@ -451,7 +370,6 @@ func packageFromRecord(row packageRecord) (Package, error) {
 		SuppressBundleRelocation:     row.SuppressBundleRelocation,
 		ForceInstallAfterDate:        row.ForceInstallAfterDate,
 		InstalledSize:                row.InstalledSize,
-		PayloadIdentifier:            row.PayloadIdentifier,
 		PackagePath:                  row.PackagePath,
 		InstallerChoicesXML:          row.InstallerChoicesXML,
 		InstallerEnvironment:         installerEnvironment,
@@ -516,16 +434,13 @@ func packageListWhere(params PackageListParams) (string, []any) {
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
 		where.Add(`(
-			p.name ILIKE ` + search + `
-			OR p.version ILIKE ` + search + `
-			OR p.display_name ILIKE ` + search + `
-			OR p.description ILIKE ` + search + `
-			OR p.category ILIKE ` + search + `
-			OR p.developer ILIKE ` + search + `
+			p.version ILIKE ` + search + `
 			OR p.installer_type ILIKE ` + search + `
 			OR p.icon_name ILIKE ` + search + `
 			OR s.name ILIKE ` + search + `
-			OR s.display_name ILIKE ` + search + `
+			OR s.description ILIKE ` + search + `
+			OR s.category ILIKE ` + search + `
+			OR s.developer ILIKE ` + search + `
 		)`)
 	}
 	return where.Build()
@@ -533,9 +448,9 @@ func packageListWhere(params PackageListParams) (string, []any) {
 
 func packageOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"name":       {SQL: "lower(COALESCE(NULLIF(p.display_name, ''), p.name))"},
+		"name":       {SQL: "lower(s.name)"},
 		"version":    {SQL: "lower(p.version)"},
-		"software":   {SQL: "lower(COALESCE(NULLIF(s.display_name, ''), s.name))"},
+		"software":   {SQL: "lower(s.name)"},
 		"updated_at": {SQL: "p.updated_at"},
 	}
 }
@@ -596,15 +511,9 @@ func decodePackageJSON[T any](raw []byte) ([]T, error) {
 func createMunkiPackageParams(params PackageMutation, fields packageJSONFields) sqlc.CreateMunkiPackageParams {
 	return sqlc.CreateMunkiPackageParams{
 		SoftwareID:                   params.SoftwareID,
-		Name:                         params.Name,
 		Version:                      params.Version,
-		DisplayName:                  params.DisplayName,
-		Description:                  params.Description,
-		Category:                     params.Category,
-		Developer:                    params.Developer,
 		InstallerType:                sqlcString(params.InstallerType),
 		UninstallMethod:              sqlcString(params.UninstallMethod),
-		CustomUninstallMethod:        params.CustomUninstallMethod,
 		RestartAction:                sqlcString(params.RestartAction),
 		MinimumMunkiVersion:          params.MinimumMunkiVersion,
 		MinimumOSVersion:             params.MinimumOSVersion,
@@ -613,7 +522,6 @@ func createMunkiPackageParams(params PackageMutation, fields packageJSONFields) 
 		BlockingApplications:         params.BlockingApplications,
 		UnattendedInstall:            params.UnattendedInstall,
 		UnattendedUninstall:          params.UnattendedUninstall,
-		Uninstallable:                params.Uninstallable,
 		OnDemand:                     params.OnDemand,
 		Precache:                     params.Precache,
 		Autoremove:                   params.Autoremove,
@@ -621,7 +529,6 @@ func createMunkiPackageParams(params PackageMutation, fields packageJSONFields) 
 		SuppressBundleRelocation:     params.SuppressBundleRelocation,
 		ForceInstallAfterDate:        params.ForceInstallAfterDate,
 		InstalledSize:                params.InstalledSize,
-		PayloadIdentifier:            params.PayloadIdentifier,
 		PackagePath:                  params.PackagePath,
 		InstallerChoicesXml:          params.InstallerChoicesXML,
 		InstallerEnvironment:         fields.InstallerEnvironment,
@@ -663,15 +570,9 @@ func updateMunkiPackageParams(
 ) sqlc.UpdateMunkiPackageParams {
 	base := createMunkiPackageParams(params, fields)
 	return sqlc.UpdateMunkiPackageParams{
-		Name:                         base.Name,
 		Version:                      base.Version,
-		DisplayName:                  base.DisplayName,
-		Description:                  base.Description,
-		Category:                     base.Category,
-		Developer:                    base.Developer,
 		InstallerType:                base.InstallerType,
 		UninstallMethod:              base.UninstallMethod,
-		CustomUninstallMethod:        base.CustomUninstallMethod,
 		RestartAction:                base.RestartAction,
 		MinimumMunkiVersion:          base.MinimumMunkiVersion,
 		MinimumOSVersion:             base.MinimumOSVersion,
@@ -680,7 +581,6 @@ func updateMunkiPackageParams(
 		BlockingApplications:         base.BlockingApplications,
 		UnattendedInstall:            base.UnattendedInstall,
 		UnattendedUninstall:          base.UnattendedUninstall,
-		Uninstallable:                base.Uninstallable,
 		OnDemand:                     base.OnDemand,
 		Precache:                     base.Precache,
 		Autoremove:                   base.Autoremove,
@@ -688,7 +588,6 @@ func updateMunkiPackageParams(
 		SuppressBundleRelocation:     base.SuppressBundleRelocation,
 		ForceInstallAfterDate:        base.ForceInstallAfterDate,
 		InstalledSize:                base.InstalledSize,
-		PayloadIdentifier:            base.PayloadIdentifier,
 		PackagePath:                  base.PackagePath,
 		InstallerChoicesXml:          base.InstallerChoicesXml,
 		InstallerEnvironment:         base.InstallerEnvironment,
@@ -732,16 +631,12 @@ type packageRecord struct {
 	ID                           int64
 	SoftwareID                   int64
 	SoftwareName                 string
-	SoftwareDisplayName          string
-	Name                         string
+	SoftwareDescription          string
+	SoftwareCategory             string
+	SoftwareDeveloper            string
 	Version                      string
-	DisplayName                  string
-	Description                  string
-	Category                     string
-	Developer                    string
 	InstallerType                string
 	UninstallMethod              string
-	CustomUninstallMethod        string
 	RestartAction                string
 	MinimumMunkiVersion          string
 	MinimumOSVersion             string
@@ -750,7 +645,6 @@ type packageRecord struct {
 	BlockingApplications         []string
 	UnattendedInstall            bool
 	UnattendedUninstall          bool
-	Uninstallable                bool
 	OnDemand                     bool
 	Precache                     bool
 	Autoremove                   bool
@@ -758,7 +652,6 @@ type packageRecord struct {
 	SuppressBundleRelocation     bool
 	ForceInstallAfterDate        *time.Time
 	InstalledSize                int64
-	PayloadIdentifier            string
 	PackagePath                  string
 	InstallerChoicesXML          string `db:"installer_choices_xml"`
 	InstallerEnvironment         []byte
@@ -826,20 +719,16 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		ID:                           row.ID,
 		SoftwareID:                   row.SoftwareID,
 		SoftwareName:                 row.SoftwareName,
-		SoftwareDisplayName:          row.SoftwareDisplayName,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
 		SoftwareIconName:             row.SoftwareIconName,
 		SoftwareIconHash:             row.SoftwareIconHash,
 		SoftwareIconArtifactID:       row.SoftwareIconArtifactID,
 		SoftwareIconArtifactLocation: row.SoftwareIconArtifactLocation,
-		Name:                         row.Name,
 		Version:                      row.Version,
-		DisplayName:                  row.DisplayName,
-		Description:                  row.Description,
-		Category:                     row.Category,
-		Developer:                    row.Developer,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
-		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                row.RestartAction,
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
@@ -848,7 +737,6 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		BlockingApplications:         row.BlockingApplications,
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
-		Uninstallable:                row.Uninstallable,
 		OnDemand:                     row.OnDemand,
 		Precache:                     row.Precache,
 		Autoremove:                   row.Autoremove,
@@ -856,7 +744,6 @@ func packageRecordFromSQLC(row sqlc.GetMunkiPackageByIDRow) packageRecord {
 		SuppressBundleRelocation:     row.SuppressBundleRelocation,
 		ForceInstallAfterDate:        row.ForceInstallAfterDate,
 		InstalledSize:                row.InstalledSize,
-		PayloadIdentifier:            row.PayloadIdentifier,
 		PackagePath:                  row.PackagePath,
 		InstallerChoicesXML:          row.InstallerChoicesXml,
 		InstallerEnvironment:         row.InstallerEnvironment,
@@ -901,20 +788,16 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		ID:                           row.PackageID,
 		SoftwareID:                   row.SoftwareID,
 		SoftwareName:                 row.SoftwareName,
-		SoftwareDisplayName:          row.SoftwareDisplayName,
+		SoftwareDescription:          row.SoftwareDescription,
+		SoftwareCategory:             row.SoftwareCategory,
+		SoftwareDeveloper:            row.SoftwareDeveloper,
 		SoftwareIconName:             row.SoftwareIconName,
 		SoftwareIconHash:             row.SoftwareIconHash,
 		SoftwareIconArtifactID:       row.SoftwareIconArtifactID,
 		SoftwareIconArtifactLocation: row.SoftwareIconArtifactLocation,
-		Name:                         row.Name,
 		Version:                      row.Version,
-		DisplayName:                  row.DisplayName,
-		Description:                  row.Description,
-		Category:                     row.Category,
-		Developer:                    row.Developer,
 		InstallerType:                row.InstallerType,
 		UninstallMethod:              row.UninstallMethod,
-		CustomUninstallMethod:        row.CustomUninstallMethod,
 		RestartAction:                row.RestartAction,
 		MinimumMunkiVersion:          row.MinimumMunkiVersion,
 		MinimumOSVersion:             row.MinimumOSVersion,
@@ -923,7 +806,6 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		BlockingApplications:         row.BlockingApplications,
 		UnattendedInstall:            row.UnattendedInstall,
 		UnattendedUninstall:          row.UnattendedUninstall,
-		Uninstallable:                row.Uninstallable,
 		OnDemand:                     row.OnDemand,
 		Precache:                     row.Precache,
 		Autoremove:                   row.Autoremove,
@@ -931,7 +813,6 @@ func packageRecordFromEffectiveSQLC(row sqlc.ListEffectiveMunkiPackagesForHostRo
 		SuppressBundleRelocation:     row.SuppressBundleRelocation,
 		ForceInstallAfterDate:        row.ForceInstallAfterDate,
 		InstalledSize:                row.InstalledSize,
-		PayloadIdentifier:            row.PayloadIdentifier,
 		PackagePath:                  row.PackagePath,
 		InstallerChoicesXML:          row.InstallerChoicesXml,
 		InstallerEnvironment:         row.InstallerEnvironment,
@@ -974,19 +855,15 @@ SELECT
 	p.id,
 	p.software_id,
 	s.name AS software_name,
-	COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
+	s.description AS software_description,
+	s.category AS software_category,
+	s.developer AS software_developer,
 	s.icon_name AS software_icon_name,
 	s.icon_hash AS software_icon_hash,
 	s.icon_artifact_id AS software_icon_artifact_id,
-	p.name,
 	p.version,
-	p.display_name,
-	p.description,
-	p.category,
-	p.developer,
 	p.installer_type,
 	p.uninstall_method,
-	p.custom_uninstall_method,
 	p.restart_action,
 	p.minimum_munki_version,
 	p.minimum_os_version,
@@ -995,7 +872,6 @@ SELECT
 	p.blocking_applications,
 	p.unattended_install,
 	p.unattended_uninstall,
-	p.uninstallable,
 	p.on_demand,
 	p.precache,
 	p.autoremove,
@@ -1003,7 +879,6 @@ SELECT
 	p.suppress_bundle_relocation,
 	p.force_install_after_date,
 	p.installed_size,
-	p.payload_identifier,
 	p.package_path,
 	p.installer_choices_xml,
 	p.installer_environment,
@@ -1062,15 +937,10 @@ func replacePackageRelations(
 		return err
 	}
 	for position, ref := range references {
-		name := strings.TrimSpace(ref.Name)
-		if ref.PackageID != nil {
-			name = ""
-		}
 		if err := q.CreateMunkiPackageRelation(ctx, sqlc.CreateMunkiPackageRelationParams{
 			PackageID:       packageID,
 			RelationKind:    kind,
 			TargetPackageID: ref.PackageID,
-			Name:            name,
 			Position:        int32(position),
 		}); err != nil {
 			return err
@@ -1082,9 +952,9 @@ func replacePackageRelations(
 type packageRelationRecord struct {
 	PackageID       int64
 	RelationKind    sqlc.MunkiPackageRelationKind
-	TargetPackageID *int64
-	Name            string
-	TargetName      string
+	TargetPackageID int64
+	SoftwareID      int64
+	SoftwareName    string
 	TargetVersion   string
 }
 
@@ -1119,11 +989,12 @@ func (s *Store) packageRelationsByPackage(
 			r.package_id,
 			r.relation_kind,
 			r.target_package_id,
-			r.name,
-			COALESCE(target.name, '') AS target_name,
-			COALESCE(target.version, '') AS target_version
+			target.software_id,
+			target_software.name AS software_name,
+			target.version AS target_version
 		FROM munki_package_relations r
-		LEFT JOIN munki_packages target ON target.id = r.target_package_id
+		JOIN munki_packages target ON target.id = r.target_package_id
+		JOIN munki_software_titles target_software ON target_software.id = target.software_id
 		WHERE r.package_id = ANY($1::bigint[])
 		ORDER BY r.package_id, r.relation_kind, r.position, r.id
 	`, packageIDs)
@@ -1138,8 +1009,8 @@ func (s *Store) packageRelationsByPackage(
 	for _, record := range records {
 		reference := PackageReference{
 			PackageID:      record.TargetPackageID,
-			Name:           record.Name,
-			PackageName:    record.TargetName,
+			SoftwareID:     record.SoftwareID,
+			SoftwareName:   record.SoftwareName,
 			PackageVersion: record.TargetVersion,
 		}
 		rel := out[record.PackageID]
@@ -1172,24 +1043,14 @@ func packageIDs(packages []Package) []int64 {
 
 func cleanReferences(values []PackageReference) []PackageReference {
 	out := make([]PackageReference, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
+	seen := make(map[int64]struct{}, len(values))
 	for _, value := range values {
-		name := strings.TrimSpace(value.Name)
-		key := name
-		if value.PackageID != nil {
-			name = ""
-			key = fmt.Sprintf("id:%d", *value.PackageID)
-		}
-		if key == "" {
+		if _, ok := seen[value.PackageID]; ok {
 			continue
 		}
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
+		seen[value.PackageID] = struct{}{}
 		out = append(out, PackageReference{
 			PackageID: value.PackageID,
-			Name:      name,
 		})
 	}
 	return out

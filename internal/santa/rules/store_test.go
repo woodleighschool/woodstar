@@ -173,7 +173,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 		RuleType:   rules.RuleTypeBinary,
 		Identifier: strings.Repeat("d", 64),
 		Name:       "Missing Include Label",
-		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: 0}},
+		Includes:   []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: 999_999}},
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("missing include label error = %v, want ErrNotFound", err)
@@ -652,45 +652,6 @@ func TestRuleTargetsSearchBundlesAndSoftwareInventory(t *testing.T) {
 		certificateTargets[0].CertificateOrganizationalUnit != "TEAMSOFT12" ||
 		certificateTargets[0].DisplayName != "" {
 		t.Fatalf("certificate targets = %+v, want fingerprint plus certificate common name", certificateTargets)
-	}
-}
-
-func TestRuleIncludeReorderRequiresExactSet(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	store := rules.NewStore(db)
-	firstLabelID := createSantaRuleLabel(t, db, "Santa Reorder First")
-	secondLabelID := createSantaRuleLabel(t, db, "Santa Reorder Second")
-
-	rule, err := store.CreateRule(ctx, rules.RuleMutation{
-		RuleType:   rules.RuleTypeCertificate,
-		Identifier: strings.Repeat("2", 64),
-		Name:       "Reorder Certificate",
-		Includes: []rules.RuleIncludeWrite{
-			{Policy: rules.PolicyAllowlist, LabelID: firstLabelID},
-			{Policy: rules.PolicyBlocklist, LabelID: secondLabelID},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create rule: %v", err)
-	}
-
-	err = store.ReorderRuleIncludes(ctx, rule.ID, []int64{rule.Includes[0].ID})
-	if !errors.Is(err, dbutil.ErrInvalidInput) {
-		t.Fatalf("partial reorder error = %v, want ErrInvalidInput", err)
-	}
-	if err := store.ReorderRuleIncludes(ctx, rule.ID+9999, nil); !errors.Is(err, dbutil.ErrNotFound) {
-		t.Fatalf("missing rule reorder error = %v, want ErrNotFound", err)
-	}
-	if err := store.ReorderRuleIncludes(ctx, rule.ID, []int64{rule.Includes[1].ID, rule.Includes[0].ID}); err != nil {
-		t.Fatalf("reorder includes: %v", err)
-	}
-
-	got, err := store.GetRuleByID(ctx, rule.ID)
-	if err != nil {
-		t.Fatalf("get rule: %v", err)
-	}
-	if got.Includes[0].ID != rule.Includes[1].ID || got.Includes[0].Position != 0 {
-		t.Fatalf("includes after reorder = %+v", got.Includes)
 	}
 }
 

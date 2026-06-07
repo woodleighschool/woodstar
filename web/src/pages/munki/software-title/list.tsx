@@ -51,14 +51,16 @@ export function MunkiSoftwareTitlesPage() {
   const columns: ColumnDef<MunkiSoftwareTitle>[] = [
     {
       id: "name",
-      accessorKey: "display_name",
+      accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Software" />,
       cell: ({ row }) => (
         <div className="flex min-w-0 items-center gap-2">
           <MunkiIcon iconUrl={row.original.icon_url} />
           <div className="min-w-0">
-            <div className="truncate font-medium">{row.original.display_name || row.original.name}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.name}</div>
+            <div className="truncate font-medium">{row.original.name}</div>
+            {row.original.developer ? (
+              <div className="text-muted-foreground truncate text-xs">{row.original.developer}</div>
+            ) : null}
           </div>
         </div>
       ),

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { MunkiAssignment, MunkiAssignmentMutation } from "@/hooks/munki/assignments";
+import type { MunkiAssignmentIncludeMutation } from "@/lib/api";
 
 import {
   MUNKI_ASSIGNMENT_ACTION_VALUES,
@@ -8,6 +8,16 @@ import {
   type MunkiAssignmentAction,
   type MunkiPackageSelection,
 } from "@/lib/munki-software-title";
+
+const munkiAssignmentDetailsFields = {
+  package_selection: z.enum(MUNKI_PACKAGE_SELECTION_VALUES),
+  pinned_package_id: z.string().trim(),
+  action: z.enum(MUNKI_ASSIGNMENT_ACTION_VALUES),
+  optional_install: z.boolean(),
+  featured_item: z.boolean(),
+};
+
+export const munkiAssignmentDetailsFormSchema = z.object(munkiAssignmentDetailsFields).superRefine(validateDetails);
 
 export const munkiAssignmentFormSchema = z
   .object({
@@ -18,31 +28,9 @@ export const munkiAssignmentFormSchema = z
       .positive("Pick a label.")
       .nullable()
       .refine((value) => value !== null, "Pick a label."),
-    package_selection: z.enum(MUNKI_PACKAGE_SELECTION_VALUES),
-    pinned_package_id: z.string().trim(),
-    action: z.enum(MUNKI_ASSIGNMENT_ACTION_VALUES),
-    optional_install: z.boolean(),
-    featured_item: z.boolean(),
+    ...munkiAssignmentDetailsFields,
   })
-  .superRefine((value, ctx) => {
-    if (value.package_selection === "specific_package" && !Number(value.pinned_package_id)) {
-      ctx.addIssue({ code: "custom", message: "Package is required.", path: ["pinned_package_id"] });
-    }
-    if (value.featured_item && !value.optional_install) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Featured Items must also be Optional Installs.",
-        path: ["featured_item"],
-      });
-    }
-    if (value.action === "remove" && (value.optional_install || value.featured_item)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Managed Uninstalls cannot also be Optional Installs or Featured Items.",
-        path: ["optional_install"],
-      });
-    }
-  });
+  .superRefine(validateDetails);
 
 export interface MunkiAssignmentFormState {
   priority: number;
@@ -53,6 +41,11 @@ export interface MunkiAssignmentFormState {
   optional_install: boolean;
   featured_item: boolean;
 }
+
+type MunkiAssignmentDetailsFormState = Pick<
+  MunkiAssignmentFormState,
+  "package_selection" | "pinned_package_id" | "action" | "optional_install" | "featured_item"
+>;
 
 export function emptyMunkiAssignmentForm(position = 1): MunkiAssignmentFormState {
   return {
@@ -66,22 +59,8 @@ export function emptyMunkiAssignmentForm(position = 1): MunkiAssignmentFormState
   };
 }
 
-export function munkiAssignmentFormFromAssignment(assignment: MunkiAssignment): MunkiAssignmentFormState {
+export function munkiAssignmentIncludeMutation(form: MunkiAssignmentFormState): MunkiAssignmentIncludeMutation {
   return {
-    priority: assignment.priority,
-    label_id: assignment.label_id,
-    package_selection: assignment.package_selection,
-    pinned_package_id: assignment.pinned_package_id ? String(assignment.pinned_package_id) : "",
-    action: assignment.action,
-    optional_install: assignment.optional_install,
-    featured_item: assignment.featured_item,
-  };
-}
-
-export function munkiAssignmentMutation(softwareId: number, form: MunkiAssignmentFormState): MunkiAssignmentMutation {
-  const body: MunkiAssignmentMutation = {
-    software_id: softwareId,
-    priority: form.priority,
     label_id: form.label_id ?? 0,
     action: form.action,
     optional_install: form.optional_install,
@@ -89,5 +68,24 @@ export function munkiAssignmentMutation(softwareId: number, form: MunkiAssignmen
     package_selection: form.package_selection,
     pinned_package_id: form.package_selection === "specific_package" ? Number(form.pinned_package_id) : undefined,
   };
-  return body;
+}
+
+function validateDetails(value: MunkiAssignmentDetailsFormState, ctx: z.RefinementCtx) {
+  if (value.package_selection === "specific_package" && !Number(value.pinned_package_id)) {
+    ctx.addIssue({ code: "custom", message: "Package is required.", path: ["pinned_package_id"] });
+  }
+  if (value.featured_item && !value.optional_install) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Featured Items must also be Optional Installs.",
+      path: ["featured_item"],
+    });
+  }
+  if (value.action === "remove" && (value.optional_install || value.featured_item)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Managed Uninstalls cannot also be Optional Installs or Featured Items.",
+      path: ["optional_install"],
+    });
+  }
 }

@@ -1,4 +1,3 @@
-import { LabelPicker } from "@/components/labels/label-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
@@ -10,7 +9,6 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +25,7 @@ import {
 export interface MunkiAssignmentPackageOption {
   id: number;
   version: string;
-  display_name?: string;
-  name: string;
+  software_name: string;
 }
 
 export function MunkiAssignmentFormFields({
@@ -37,55 +34,19 @@ export function MunkiAssignmentFormFields({
   showErrors,
   errors,
   loadingPackages,
-  unavailableLabelIDs = [],
   className,
   onChange,
 }: {
   form: MunkiAssignmentFormState;
   packages: MunkiAssignmentPackageOption[];
   showErrors: boolean;
-  errors: Record<string, string>;
+  errors: Partial<Record<string, string>>;
   loadingPackages: boolean;
-  unavailableLabelIDs?: readonly number[];
   className?: string;
   onChange: (next: MunkiAssignmentFormState) => void;
 }) {
   return (
     <FieldGroup className={cn("max-w-3xl", className)}>
-      <Field data-invalid={showErrors && errors.priority ? true : undefined}>
-        <FieldLabel htmlFor="munki-assignment-priority" required>
-          Priority
-        </FieldLabel>
-        <Input
-          id="munki-assignment-priority"
-          type="number"
-          min={1}
-          step={1}
-          required
-          inputMode="numeric"
-          aria-invalid={showErrors && errors.priority ? true : undefined}
-          value={form.priority}
-          onChange={(event) => onChange({ ...form, priority: Number(event.target.value) })}
-        />
-        {showErrors && errors.priority ? <FieldError>{errors.priority}</FieldError> : null}
-      </Field>
-
-      <Field data-invalid={showErrors && errors.label_id ? true : undefined}>
-        <FieldLabel required>Label</FieldLabel>
-        <LabelPicker
-          value={form.label_id === null ? [] : [form.label_id]}
-          selectionMode="single"
-          includeBuiltins
-          required
-          placeholder="Select Label"
-          emptyMessage="No Labels Found."
-          unavailableLabelIDs={unavailableLabelIDs}
-          invalid={showErrors && errors.label_id ? true : undefined}
-          onChange={(labelIDs) => onChange({ ...form, label_id: labelIDs[0] ?? null })}
-        />
-        {showErrors && errors.label_id ? <FieldError>{errors.label_id}</FieldError> : null}
-      </Field>
-
       <Field>
         <FieldLabel htmlFor="munki-assignment-selection" required>
           Package Selection
@@ -132,13 +93,13 @@ export function MunkiAssignmentFormFields({
               <SelectGroup>
                 {packages.map((pkg) => (
                   <SelectItem key={pkg.id} value={String(pkg.id)}>
-                    {pkg.version} · {pkg.display_name ?? pkg.name}
+                    {pkg.version} · {pkg.software_name}
                   </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
-          <FieldDescription>Rendered as Name--Version in the manifest.</FieldDescription>
+          <FieldDescription>Rendered as that package ID in the manifest.</FieldDescription>
           {showErrors && errors.pinned_package_id ? <FieldError>{errors.pinned_package_id}</FieldError> : null}
         </Field>
       ) : null}

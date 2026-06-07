@@ -5,7 +5,6 @@ import { FileArchive, Loader2, Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { CodeEditor } from "@/components/editor/code-editor";
-import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,7 +33,6 @@ import {
   emptyReceiptRow,
   emptyStringRow,
   packageLabel,
-  packageReferenceLabel,
   removeAt,
   replaceAt,
   scriptFields,
@@ -62,8 +60,6 @@ type PackageFieldSetter = <K extends keyof PackageFormState>(field: K, value: Pa
 
 export function PackageEditorTabs({
   form,
-  categoryOptions,
-  developerOptions,
   packageOptions,
   installerFile,
   uninstallerFile,
@@ -73,8 +69,6 @@ export function PackageEditorTabs({
   onUninstallerFileChange,
 }: {
   form: PackageEditorForm;
-  categoryOptions: string[];
-  developerOptions: string[];
   packageOptions: MunkiPackage[];
   installerFile: File | null;
   uninstallerFile: File | null;
@@ -102,30 +96,6 @@ export function PackageEditorTabs({
             </TabsList>
             <TabsContent value="identity">
               <FieldGroup>
-                <form.Field
-                  name="name"
-                  validators={{ onSubmit: requiredString("Name") }}
-                  children={(field) => {
-                    const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                    const error = firstErrorMessage(field.state.meta.errors);
-                    return (
-                      <Field data-invalid={invalid}>
-                        <FieldLabel htmlFor="munki-package-name" required>
-                          Name
-                        </FieldLabel>
-                        <Input
-                          id="munki-package-name"
-                          name={field.name}
-                          value={field.state.value}
-                          aria-invalid={invalid}
-                          onBlur={field.handleBlur}
-                          onChange={(event) => field.handleChange(event.target.value)}
-                        />
-                        {invalid && error ? <FieldError>{error}</FieldError> : null}
-                      </Field>
-                    );
-                  }}
-                />
                 <FieldGroup className="grid gap-4 md:grid-cols-2">
                   <form.Field
                     name="version"
@@ -151,42 +121,6 @@ export function PackageEditorTabs({
                       );
                     }}
                   />
-                  <Field>
-                    <FieldLabel htmlFor="munki-package-display-name">Display Name</FieldLabel>
-                    <Input
-                      id="munki-package-display-name"
-                      value={values.display_name}
-                      onChange={(event) => setField("display_name", event.target.value)}
-                    />
-                  </Field>
-                </FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="munki-package-description">Description</FieldLabel>
-                  <Textarea
-                    id="munki-package-description"
-                    value={values.description}
-                    onChange={(event) => setField("description", event.target.value)}
-                  />
-                </Field>
-                <FieldGroup className="grid gap-4 md:grid-cols-3">
-                  <Field>
-                    <FieldLabel htmlFor="munki-package-category">Category</FieldLabel>
-                    <FreeTextCombobox
-                      id="munki-package-category"
-                      value={values.category}
-                      options={categoryOptions}
-                      onChange={(category) => setField("category", category)}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="munki-package-developer">Developer</FieldLabel>
-                    <FreeTextCombobox
-                      id="munki-package-developer"
-                      value={values.developer}
-                      options={developerOptions}
-                      onChange={(developer) => setField("developer", developer)}
-                    />
-                  </Field>
                   <SelectControl
                     id="munki-package-installer-type"
                     label="Installer Type"
@@ -207,38 +141,36 @@ export function PackageEditorTabs({
             </TabsContent>
             <TabsContent value="payload">
               <FieldGroup>
-                <FieldSet>
-                  <FieldLegend>Artifacts</FieldLegend>
-                  <FieldGroup>
-                    <PackageFileField
-                      id="munki-package-installer-file"
-                      label="Installer"
-                      description={installerArtifactLocation || "No installer artifact selected."}
-                      icon={<FileArchive className="size-4" />}
-                      file={installerFile}
-                      onChange={onInstallerFileChange}
-                    />
-                    <PackageFileField
-                      id="munki-package-uninstaller-file"
-                      label="Uninstaller"
-                      description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
-                      icon={<FileArchive className="size-4" />}
-                      file={uninstallerFile}
-                      onChange={onUninstallerFileChange}
-                    />
-                  </FieldGroup>
-                </FieldSet>
+                {values.installer_type !== "nopkg" || values.uninstall_method === "uninstall_package" ? (
+                  <FieldSet>
+                    <FieldLegend>Artifacts</FieldLegend>
+                    <FieldGroup>
+                      {values.installer_type !== "nopkg" ? (
+                        <PackageFileField
+                          id="munki-package-installer-file"
+                          label="Installer"
+                          description={installerArtifactLocation || "No installer artifact selected."}
+                          icon={<FileArchive className="size-4" />}
+                          file={installerFile}
+                          onChange={onInstallerFileChange}
+                        />
+                      ) : null}
+                      {values.uninstall_method === "uninstall_package" ? (
+                        <PackageFileField
+                          id="munki-package-uninstaller-file"
+                          label="Uninstaller"
+                          description={uninstallerArtifactLocation || "No uninstaller artifact selected."}
+                          icon={<FileArchive className="size-4" />}
+                          file={uninstallerFile}
+                          onChange={onUninstallerFileChange}
+                        />
+                      ) : null}
+                    </FieldGroup>
+                  </FieldSet>
+                ) : null}
                 <FieldSet>
                   <FieldLegend>Installer</FieldLegend>
-                  <FieldGroup className="grid gap-4 md:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="munki-package-payload-identifier">Payload Identifier</FieldLabel>
-                      <Input
-                        id="munki-package-payload-identifier"
-                        value={values.payload_identifier}
-                        onChange={(event) => setField("payload_identifier", event.target.value)}
-                      />
-                    </Field>
+                  {values.installer_type !== "nopkg" ? (
                     <Field>
                       <FieldLabel htmlFor="munki-package-package-path">Package Path</FieldLabel>
                       <Input
@@ -247,7 +179,7 @@ export function PackageEditorTabs({
                         onChange={(event) => setField("package_path", event.target.value)}
                       />
                     </Field>
-                  </FieldGroup>
+                  ) : null}
                   <FieldGroup className="grid gap-4 md:grid-cols-2">
                     <NumberField
                       id="munki-package-installed-size"
@@ -264,14 +196,18 @@ export function PackageEditorTabs({
                       }
                     />
                   </FieldGroup>
-                  <XMLField
-                    value={values.installer_choices_xml}
-                    onChange={(installer_choices_xml) => setField("installer_choices_xml", installer_choices_xml)}
-                  />
-                  <InstallerEnvironmentEditor
-                    rows={values.installer_environment}
-                    onChange={(installer_environment) => setField("installer_environment", installer_environment)}
-                  />
+                  {values.installer_type !== "nopkg" ? (
+                    <>
+                      <XMLField
+                        value={values.installer_choices_xml}
+                        onChange={(installer_choices_xml) => setField("installer_choices_xml", installer_choices_xml)}
+                      />
+                      <InstallerEnvironmentEditor
+                        rows={values.installer_environment}
+                        onChange={(installer_environment) => setField("installer_environment", installer_environment)}
+                      />
+                    </>
+                  ) : null}
                 </FieldSet>
               </FieldGroup>
             </TabsContent>
@@ -334,10 +270,12 @@ export function PackageEditorTabs({
               <FieldGroup>
                 <InstallItemsEditor rows={values.installs} onChange={(installs) => setField("installs", installs)} />
                 <ReceiptsEditor rows={values.receipts} onChange={(receipts) => setField("receipts", receipts)} />
-                <ItemsToCopyEditor
-                  rows={values.items_to_copy}
-                  onChange={(items_to_copy) => setField("items_to_copy", items_to_copy)}
-                />
+                {values.installer_type === "copy_from_dmg" || values.uninstall_method === "remove_copied_items" ? (
+                  <ItemsToCopyEditor
+                    rows={values.items_to_copy}
+                    onChange={(items_to_copy) => setField("items_to_copy", items_to_copy)}
+                  />
+                ) : null}
               </FieldGroup>
             </TabsContent>
             <TabsContent value="scripts">
@@ -378,12 +316,6 @@ export function PackageEditorTabs({
                       checked={values.unattended_uninstall}
                       onChange={(unattended_uninstall) => setField("unattended_uninstall", unattended_uninstall)}
                     />
-                    <CheckboxControl
-                      id="munki-package-uninstallable"
-                      label="Uninstallable"
-                      checked={values.uninstallable}
-                      onChange={(uninstallable) => setField("uninstallable", uninstallable)}
-                    />
                   </FieldGroup>
                   <FieldGroup className="grid gap-4 md:grid-cols-2">
                     <SelectControl
@@ -401,16 +333,6 @@ export function PackageEditorTabs({
                       onChange={(restart_action) => setField("restart_action", restart_action)}
                     />
                   </FieldGroup>
-                  {values.uninstall_method === "custom" ? (
-                    <Field>
-                      <FieldLabel htmlFor="munki-package-custom-uninstall-method">Custom Uninstall Method</FieldLabel>
-                      <Input
-                        id="munki-package-custom-uninstall-method"
-                        value={values.custom_uninstall_method}
-                        onChange={(event) => setField("custom_uninstall_method", event.target.value)}
-                      />
-                    </Field>
-                  ) : null}
                   <FieldGroup className="grid gap-4 md:grid-cols-3">
                     <CheckboxControl
                       id="munki-package-on-demand"
@@ -701,15 +623,13 @@ function PackageReferenceEditor({
       <FieldLegend>{legend}</FieldLegend>
       <div className="flex flex-col gap-3">
         {rows.map((row, index) => (
-          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto]">
+          <div key={row.rowID} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
             <Select
-              value={row.package_id ? String(row.package_id) : "literal"}
+              value={row.package_id ? String(row.package_id) : "select"}
               onValueChange={(value) => {
-                const next =
-                  value === "literal"
-                    ? { ...row, package_id: undefined }
-                    : { ...row, package_id: Number(value), name: "" };
-                onChange(replaceAt(rows, index, next));
+                onChange(
+                  replaceAt(rows, index, { ...row, package_id: value === "select" ? undefined : Number(value) }),
+                );
               }}
             >
               <SelectTrigger className="w-full">
@@ -717,7 +637,7 @@ function PackageReferenceEditor({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="literal">Literal name</SelectItem>
+                  <SelectItem value="select">Select package</SelectItem>
                   {packageOptions.map((option) => (
                     <SelectItem key={option.id} value={String(option.id)}>
                       {packageLabel(option)}
@@ -726,11 +646,6 @@ function PackageReferenceEditor({
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <Input
-              value={row.package_id ? packageReferenceLabel(row, packageOptions) : (row.name ?? "")}
-              disabled={!!row.package_id}
-              onChange={(event) => onChange(replaceAt(rows, index, { ...row, name: event.target.value }))}
-            />
             <IconButton label="Remove" onClick={() => onChange(removeAt(rows, index))}>
               <Trash2 />
             </IconButton>

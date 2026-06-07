@@ -51,6 +51,15 @@ export type AgentSecretMutation = {
     value: string;
 };
 
+export type AssignmentIncludeMutation = {
+    action: 'install' | 'remove' | 'update_if_present' | 'none';
+    featured_item?: boolean;
+    label_id: number;
+    optional_install?: boolean;
+    package_selection: 'latest_eligible' | 'specific_package';
+    pinned_package_id?: number;
+};
+
 export type BulkIdsBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -695,10 +704,6 @@ export type MunkiArtifactUploadMutation = {
 };
 
 export type MunkiAssignment = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     action: 'install' | 'remove' | 'update_if_present' | 'none';
     created_at: string;
     featured_item: boolean;
@@ -710,40 +715,9 @@ export type MunkiAssignment = {
     pinned_package_name?: string;
     pinned_package_version?: string;
     priority: number;
-    software_display_name: string;
     software_id: number;
+    software_name: string;
     updated_at: string;
-};
-
-export type MunkiAssignmentExcludesBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    exclude_label_ids: Array<number> | null;
-};
-
-export type MunkiAssignmentMutation = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    featured_item?: boolean;
-    label_id: number;
-    optional_install?: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
-    pinned_package_id?: number;
-    priority: number;
-    software_id: number;
-};
-
-export type MunkiAssignmentReorderBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    ordered_ids: Array<number> | null;
 };
 
 export type MunkiPackage = {
@@ -754,12 +728,7 @@ export type MunkiPackage = {
     apple_item: boolean;
     autoremove: boolean;
     blocking_applications: Array<string> | null;
-    category: string;
     created_at: string;
-    custom_uninstall_method: string;
-    description: string;
-    developer: string;
-    display_name: string;
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
@@ -774,17 +743,15 @@ export type MunkiPackage = {
     installer_artifact_location?: string;
     installer_choices_xml: string;
     installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
-    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<PackageInstallItem> | null;
     items_to_copy: Array<PackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
-    name: string;
     notes: string;
     on_demand: boolean;
     package_path: string;
-    payload_identifier: string;
     postinstall_script: string;
     postuninstall_script: string;
     precache: boolean;
@@ -795,7 +762,9 @@ export type MunkiPackage = {
     receipts: Array<PackageReceipt> | null;
     requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_display_name: string;
+    software_category: string;
+    software_description: string;
+    software_developer: string;
     software_icon_artifact_id?: number;
     software_icon_artifact_location?: string;
     software_icon_hash?: string;
@@ -806,9 +775,8 @@ export type MunkiPackage = {
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
     uninstall_script: string;
-    uninstallable: boolean;
     uninstallcheck_script: string;
     uninstaller_artifact_id?: number;
     uninstaller_artifact_location?: string;
@@ -827,7 +795,8 @@ export type MunkiPackageImportMutation = {
     icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
-    software_id?: number;
+    software_id: number;
+    uninstaller_artifact_id?: number;
 };
 
 export type MunkiPackageMutation = {
@@ -838,11 +807,6 @@ export type MunkiPackageMutation = {
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
-    category?: string;
-    custom_uninstall_method?: string;
-    description?: string;
-    developer?: string;
-    display_name?: string;
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
@@ -853,17 +817,15 @@ export type MunkiPackageMutation = {
     installer_artifact_id?: number;
     installer_choices_xml?: string;
     installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<PackageInstallItem> | null;
     items_to_copy?: Array<PackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
-    name: string;
     notes?: string;
     on_demand?: boolean;
     package_path?: string;
-    payload_identifier?: string;
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
@@ -879,9 +841,8 @@ export type MunkiPackageMutation = {
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
     uninstall_script?: string;
-    uninstallable?: boolean;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
     update_for?: Array<PackageReference> | null;
@@ -890,15 +851,10 @@ export type MunkiPackageMutation = {
 };
 
 export type MunkiSoftwareTitle = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
     category: string;
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
@@ -918,7 +874,6 @@ export type MunkiSoftwareTitleDetail = {
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
     exclude_label_ids: Array<number> | null;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
@@ -940,10 +895,11 @@ export type MunkiSoftwareTitleMutation = {
     category?: string;
     description?: string;
     developer?: string;
-    display_name?: string;
+    exclude_label_ids?: Array<number> | null;
     icon_artifact_id?: number;
     icon_hash?: string;
     icon_name?: string;
+    includes?: Array<AssignmentIncludeMutation> | null;
     name: string;
 };
 
@@ -1060,19 +1016,10 @@ export type PackageReceipt = {
 };
 
 export type PackageReference = {
-    name?: string;
-    package_id?: number;
-    package_name?: string;
+    package_id: number;
     package_version?: string;
-};
-
-export type PageAssignment = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    count: number;
-    items: Array<MunkiAssignment> | null;
+    software_id?: number;
+    software_name?: string;
 };
 
 export type PageCheck = {
@@ -1393,14 +1340,6 @@ export type SantaRule = {
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     updated_at: string;
-};
-
-export type SantaRuleReorderIncludesBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    ordered_include_ids: Array<number> | null;
 };
 
 export type SessionBody = {
@@ -1771,52 +1710,11 @@ export type MunkiArtifactUploadMutationWritable = {
     size_bytes: number;
 };
 
-export type MunkiAssignmentWritable = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    created_at: string;
-    featured_item: boolean;
-    id: number;
-    label_id: number;
-    optional_install: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
-    pinned_package_id?: number;
-    pinned_package_name?: string;
-    pinned_package_version?: string;
-    priority: number;
-    software_display_name: string;
-    software_id: number;
-    updated_at: string;
-};
-
-export type MunkiAssignmentExcludesBodyWritable = {
-    exclude_label_ids: Array<number> | null;
-};
-
-export type MunkiAssignmentMutationWritable = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    featured_item?: boolean;
-    label_id: number;
-    optional_install?: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
-    pinned_package_id?: number;
-    priority: number;
-    software_id: number;
-};
-
-export type MunkiAssignmentReorderBodyWritable = {
-    ordered_ids: Array<number> | null;
-};
-
 export type MunkiPackageWritable = {
     apple_item: boolean;
     autoremove: boolean;
     blocking_applications: Array<string> | null;
-    category: string;
     created_at: string;
-    custom_uninstall_method: string;
-    description: string;
-    developer: string;
-    display_name: string;
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
@@ -1831,17 +1729,15 @@ export type MunkiPackageWritable = {
     installer_artifact_location?: string;
     installer_choices_xml: string;
     installer_environment: Array<PackageInstallerEnvironmentVariable> | null;
-    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installer_type: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs: Array<PackageInstallItem> | null;
     items_to_copy: Array<PackageItemToCopy> | null;
     maximum_os_version: string;
     minimum_munki_version: string;
     minimum_os_version: string;
-    name: string;
     notes: string;
     on_demand: boolean;
     package_path: string;
-    payload_identifier: string;
     postinstall_script: string;
     postuninstall_script: string;
     precache: boolean;
@@ -1852,7 +1748,9 @@ export type MunkiPackageWritable = {
     receipts: Array<PackageReceipt> | null;
     requires: Array<PackageReference> | null;
     restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
-    software_display_name: string;
+    software_category: string;
+    software_description: string;
+    software_developer: string;
     software_icon_artifact_id?: number;
     software_icon_artifact_location?: string;
     software_icon_hash?: string;
@@ -1863,9 +1761,8 @@ export type MunkiPackageWritable = {
     suppress_bundle_relocation: boolean;
     unattended_install: boolean;
     unattended_uninstall: boolean;
-    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_method: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
     uninstall_script: string;
-    uninstallable: boolean;
     uninstallcheck_script: string;
     uninstaller_artifact_id?: number;
     uninstaller_artifact_location?: string;
@@ -1880,18 +1777,14 @@ export type MunkiPackageImportMutationWritable = {
     icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
-    software_id?: number;
+    software_id: number;
+    uninstaller_artifact_id?: number;
 };
 
 export type MunkiPackageMutationWritable = {
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
-    category?: string;
-    custom_uninstall_method?: string;
-    description?: string;
-    developer?: string;
-    display_name?: string;
     eligible: boolean;
     force_install_after_date?: string;
     icon_artifact_id?: number;
@@ -1902,17 +1795,15 @@ export type MunkiPackageMutationWritable = {
     installer_artifact_id?: number;
     installer_choices_xml?: string;
     installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
-    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg' | 'profile' | 'apple_update_metadata' | 'startosinstall' | 'stage_os_installer';
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
     installs?: Array<PackageInstallItem> | null;
     items_to_copy?: Array<PackageItemToCopy> | null;
     maximum_os_version?: string;
     minimum_munki_version?: string;
     minimum_os_version?: string;
-    name: string;
     notes?: string;
     on_demand?: boolean;
     package_path?: string;
-    payload_identifier?: string;
     postinstall_script?: string;
     postuninstall_script?: string;
     precache?: boolean;
@@ -1928,9 +1819,8 @@ export type MunkiPackageMutationWritable = {
     suppress_bundle_relocation?: boolean;
     unattended_install?: boolean;
     unattended_uninstall?: boolean;
-    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'remove_profile' | 'remove_app' | 'uninstall_script' | 'uninstall_package' | 'custom';
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
     uninstall_script?: string;
-    uninstallable?: boolean;
     uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
     update_for?: Array<PackageReference> | null;
@@ -1938,28 +1828,11 @@ export type MunkiPackageMutationWritable = {
     version_script?: string;
 };
 
-export type MunkiSoftwareTitleWritable = {
-    category: string;
-    created_at: string;
-    description: string;
-    developer: string;
-    display_name: string;
-    icon_artifact_id?: number;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
-    icon_url?: string;
-    id: number;
-    name: string;
-    updated_at: string;
-};
-
 export type MunkiSoftwareTitleDetailWritable = {
     category: string;
     created_at: string;
     description: string;
     developer: string;
-    display_name: string;
     exclude_label_ids: Array<number> | null;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
@@ -1967,7 +1840,7 @@ export type MunkiSoftwareTitleDetailWritable = {
     icon_name: string;
     icon_url?: string;
     id: number;
-    includes: Array<MunkiAssignmentWritable> | null;
+    includes: Array<MunkiAssignment> | null;
     name: string;
     packages: Array<MunkiPackageWritable> | null;
     updated_at: string;
@@ -1977,10 +1850,11 @@ export type MunkiSoftwareTitleMutationWritable = {
     category?: string;
     description?: string;
     developer?: string;
-    display_name?: string;
+    exclude_label_ids?: Array<number> | null;
     icon_artifact_id?: number;
     icon_hash?: string;
     icon_name?: string;
+    includes?: Array<AssignmentIncludeMutation> | null;
     name: string;
 };
 
@@ -2024,11 +1898,6 @@ export type OsqueryReportMutationWritable = {
     query: string;
     schedule_interval?: number;
     targets: Array<TargetLabel> | null;
-};
-
-export type PageAssignmentWritable = {
-    count: number;
-    items: Array<MunkiAssignmentWritable> | null;
 };
 
 export type PageCheckWritable = {
@@ -2083,7 +1952,7 @@ export type PageMunkiPackageWritable = {
 
 export type PageMunkiSoftwareTitleWritable = {
     count: number;
-    items: Array<MunkiSoftwareTitleWritable> | null;
+    items: Array<MunkiSoftwareTitle> | null;
 };
 
 export type PageReportWritable = {
@@ -2160,10 +2029,6 @@ export type SantaRuleWritable = {
     name: string;
     rule_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
     updated_at: string;
-};
-
-export type SantaRuleReorderIncludesBodyWritable = {
-    ordered_include_ids: Array<number> | null;
 };
 
 export type SessionBodyWritable = {
@@ -3722,192 +3587,6 @@ export type GetMunkiArtifactContentResponses = {
 
 export type GetMunkiArtifactContentResponse = GetMunkiArtifactContentResponses[keyof GetMunkiArtifactContentResponses];
 
-export type ListMunkiAssignmentsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        q?: string;
-        page_index?: number;
-        page_size?: number;
-        sort?: string;
-        software_id?: number;
-    };
-    url: '/api/munki/assignments';
-};
-
-export type ListMunkiAssignmentsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListMunkiAssignmentsError = ListMunkiAssignmentsErrors[keyof ListMunkiAssignmentsErrors];
-
-export type ListMunkiAssignmentsResponses = {
-    /**
-     * OK
-     */
-    200: PageAssignment;
-};
-
-export type ListMunkiAssignmentsResponse = ListMunkiAssignmentsResponses[keyof ListMunkiAssignmentsResponses];
-
-export type CreateMunkiAssignmentData = {
-    body: MunkiAssignmentMutationWritable;
-    path?: never;
-    query?: never;
-    url: '/api/munki/assignments';
-};
-
-export type CreateMunkiAssignmentErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiAssignmentError = CreateMunkiAssignmentErrors[keyof CreateMunkiAssignmentErrors];
-
-export type CreateMunkiAssignmentResponses = {
-    /**
-     * Created
-     */
-    201: MunkiAssignment;
-};
-
-export type CreateMunkiAssignmentResponse = CreateMunkiAssignmentResponses[keyof CreateMunkiAssignmentResponses];
-
-export type GetMunkiAssignmentData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/assignments/{id}';
-};
-
-export type GetMunkiAssignmentErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type GetMunkiAssignmentError = GetMunkiAssignmentErrors[keyof GetMunkiAssignmentErrors];
-
-export type GetMunkiAssignmentResponses = {
-    /**
-     * OK
-     */
-    200: MunkiAssignment;
-};
-
-export type GetMunkiAssignmentResponse = GetMunkiAssignmentResponses[keyof GetMunkiAssignmentResponses];
-
-export type UpdateMunkiAssignmentData = {
-    body: MunkiAssignmentMutationWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/assignments/{id}';
-};
-
-export type UpdateMunkiAssignmentErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type UpdateMunkiAssignmentError = UpdateMunkiAssignmentErrors[keyof UpdateMunkiAssignmentErrors];
-
-export type UpdateMunkiAssignmentResponses = {
-    /**
-     * OK
-     */
-    200: MunkiAssignment;
-};
-
-export type UpdateMunkiAssignmentResponse = UpdateMunkiAssignmentResponses[keyof UpdateMunkiAssignmentResponses];
-
 export type ListMunkiPackagesData = {
     body?: never;
     path?: never;
@@ -4229,7 +3908,7 @@ export type CreateMunkiSoftwareTitleResponses = {
     /**
      * Created
      */
-    201: MunkiSoftwareTitle;
+    201: MunkiSoftwareTitleDetail;
 };
 
 export type CreateMunkiSoftwareTitleResponse = CreateMunkiSoftwareTitleResponses[keyof CreateMunkiSoftwareTitleResponses];
@@ -4407,104 +4086,10 @@ export type UpdateMunkiSoftwareTitleResponses = {
     /**
      * OK
      */
-    200: MunkiSoftwareTitle;
+    200: MunkiSoftwareTitleDetail;
 };
 
 export type UpdateMunkiSoftwareTitleResponse = UpdateMunkiSoftwareTitleResponses[keyof UpdateMunkiSoftwareTitleResponses];
-
-export type UpdateMunkiAssignmentExcludeLabelsData = {
-    body: MunkiAssignmentExcludesBodyWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/software-titles/{id}/exclude-labels';
-};
-
-export type UpdateMunkiAssignmentExcludeLabelsErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type UpdateMunkiAssignmentExcludeLabelsError = UpdateMunkiAssignmentExcludeLabelsErrors[keyof UpdateMunkiAssignmentExcludeLabelsErrors];
-
-export type UpdateMunkiAssignmentExcludeLabelsResponses = {
-    /**
-     * OK
-     */
-    200: MunkiAssignmentExcludesBody;
-};
-
-export type UpdateMunkiAssignmentExcludeLabelsResponse = UpdateMunkiAssignmentExcludeLabelsResponses[keyof UpdateMunkiAssignmentExcludeLabelsResponses];
-
-export type ReorderMunkiAssignmentIncludesData = {
-    body: MunkiAssignmentReorderBodyWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/software-titles/{id}/includes/order';
-};
-
-export type ReorderMunkiAssignmentIncludesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ReorderMunkiAssignmentIncludesError = ReorderMunkiAssignmentIncludesErrors[keyof ReorderMunkiAssignmentIncludesErrors];
-
-export type ReorderMunkiAssignmentIncludesResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type ReorderMunkiAssignmentIncludesResponse = ReorderMunkiAssignmentIncludesResponses[keyof ReorderMunkiAssignmentIncludesResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;
@@ -5903,53 +5488,6 @@ export type UpdateSantaRuleResponses = {
 };
 
 export type UpdateSantaRuleResponse = UpdateSantaRuleResponses[keyof UpdateSantaRuleResponses];
-
-export type ReorderSantaRuleIncludesData = {
-    body: SantaRuleReorderIncludesBodyWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/santa/rules/{id}/includes/order';
-};
-
-export type ReorderSantaRuleIncludesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ReorderSantaRuleIncludesError = ReorderSantaRuleIncludesErrors[keyof ReorderSantaRuleIncludesErrors];
-
-export type ReorderSantaRuleIncludesResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type ReorderSantaRuleIncludesResponse = ReorderSantaRuleIncludesResponses[keyof ReorderSantaRuleIncludesResponses];
 
 export type CompleteSetupData = {
     body: SetupInputBodyWritable;

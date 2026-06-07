@@ -46,15 +46,6 @@ type santaRuleBulkDeleteInput struct {
 	Body bulkIDsBody
 }
 
-type santaRuleReorderIncludesInput struct {
-	ID   int64 `path:"id"`
-	Body santaRuleReorderIncludesBody
-}
-
-type santaRuleReorderIncludesBody struct {
-	OrderedIncludeIDs []int64 `json:"ordered_include_ids"`
-}
-
 type santaRuleListOutput struct {
 	Body Page[santarules.Rule]
 }
@@ -90,7 +81,6 @@ func RegisterSantaRules(api huma.API, store *santarules.Store) {
 	registerPatchSantaRule(api, store)
 	registerDeleteSantaRule(api, store)
 	registerBulkDeleteSantaRules(api, store)
-	registerReorderSantaRuleIncludes(api, store)
 }
 
 func registerListSantaRules(api huma.API, store *santarules.Store) {
@@ -217,22 +207,6 @@ func registerBulkDeleteSantaRules(api huma.API, store *santarules.Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *santaRuleBulkDeleteInput) (*struct{}, error) {
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, resourceMutationError(santaRuleResource, err)
-		}
-		return &struct{}{}, nil
-	})
-}
-
-func registerReorderSantaRuleIncludes(api huma.API, store *santarules.Store) {
-	huma.Register(api, huma.Operation{
-		OperationID: "reorder-santa-rule-includes",
-		Method:      http.MethodPut,
-		Path:        "/api/santa/rules/{id}/includes/order",
-		Tags:        []string{santaTag},
-		Summary:     "Reorder Santa rule includes",
-		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
-	}, func(ctx context.Context, input *santaRuleReorderIncludesInput) (*struct{}, error) {
-		if err := store.ReorderRuleIncludes(ctx, input.ID, input.Body.OrderedIncludeIDs); err != nil {
 			return nil, resourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil

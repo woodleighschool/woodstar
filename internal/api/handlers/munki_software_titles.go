@@ -17,6 +17,8 @@ const (
 	munkiSoftwareTitlePath   = "/api/munki/software-titles"
 	munkiSoftwareTitleIDPath = "/api/munki/software-titles/{id}"
 	munkiSoftwareTitleLabel  = "Munki software title"
+	munkiAssignmentLabel     = "Munki assignment"
+	munkiExcludesLabel       = "Munki assignment exclude labels"
 )
 
 type munkiSoftwareTitleGetInput struct {
@@ -44,10 +46,6 @@ type munkiSoftwareTitleListOutput struct {
 	Body Page[munkiSoftwareTitle]
 }
 
-type munkiSoftwareTitleOutput struct {
-	Body munkiSoftwareTitle
-}
-
 type munkiSoftwareTitleDetailOutput struct {
 	Body munkiSoftwareTitleDetail
 }
@@ -72,9 +70,9 @@ func registerMunkiSoftwareTitles(
 	assignmentStore *assignments.Store,
 ) {
 	registerListMunkiSoftwareTitles(api, store)
-	registerCreateMunkiSoftwareTitle(api, store)
+	registerCreateMunkiSoftwareTitle(api, store, packageStore, assignmentStore)
 	registerGetMunkiSoftwareTitle(api, store, packageStore, assignmentStore)
-	registerPatchMunkiSoftwareTitle(api, store)
+	registerPatchMunkiSoftwareTitle(api, store, packageStore, assignmentStore)
 	registerDeleteMunkiSoftwareTitle(api, store)
 	registerBulkDeleteMunkiSoftwareTitles(api, store)
 }
@@ -98,7 +96,12 @@ func registerListMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) 
 	})
 }
 
-func registerCreateMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
+func registerCreateMunkiSoftwareTitle(
+	api huma.API,
+	store *softwaretitles.Store,
+	packageStore *packages.Store,
+	assignmentStore *assignments.Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-software-title",
 		Method:        http.MethodPost,
@@ -113,12 +116,12 @@ func registerCreateMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store)
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *munkiSoftwareTitleCreateInput) (*munkiSoftwareTitleOutput, error) {
+	}, func(ctx context.Context, input *munkiSoftwareTitleCreateInput) (*munkiSoftwareTitleDetailOutput, error) {
 		title, err := store.Create(ctx, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
-		return &munkiSoftwareTitleOutput{Body: munkiSoftwareTitleFromDomain(*title)}, nil
+		return loadMunkiSoftwareTitleDetail(ctx, title.ID, store, packageStore, assignmentStore)
 	})
 }
 
@@ -136,35 +139,16 @@ func registerGetMunkiSoftwareTitle(
 		Summary:     "Get a Munki software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareTitleGetInput) (*munkiSoftwareTitleDetailOutput, error) {
-		title, err := store.GetByID(ctx, input.ID)
-		if err != nil {
-			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
-		}
-		packageRows, _, err := packageStore.List(ctx, packages.PackageListParams{
-			ListParams: dbutil.ListParams{PageSize: 1000},
-			SoftwareID: input.ID,
-		})
-		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
-		}
-		assignmentRows, _, err := assignmentStore.List(ctx, assignments.AssignmentListParams{
-			ListParams: dbutil.ListParams{PageSize: 1000, Sort: "priority.asc"},
-			SoftwareID: input.ID,
-		})
-		if err != nil {
-			return nil, resourceMutationError(munkiAssignmentLabel, err)
-		}
-		excludeLabelIDs, err := assignmentStore.ExcludeLabelIDs(ctx, input.ID)
-		if err != nil {
-			return nil, resourceMutationError(munkiExcludesLabel, err)
-		}
-		return &munkiSoftwareTitleDetailOutput{
-			Body: munkiSoftwareTitleDetailFromDomain(*title, packageRows, assignmentRows, excludeLabelIDs),
-		}, nil
+		return loadMunkiSoftwareTitleDetail(ctx, input.ID, store, packageStore, assignmentStore)
 	})
 }
 
-func registerPatchMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
+func registerPatchMunkiSoftwareTitle(
+	api huma.API,
+	store *softwaretitles.Store,
+	packageStore *packages.Store,
+	assignmentStore *assignments.Store,
+) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-software-title",
 		Method:      http.MethodPatch,
@@ -178,12 +162,12 @@ func registerPatchMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) 
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *munkiSoftwareTitlePatchInput) (*munkiSoftwareTitleOutput, error) {
+	}, func(ctx context.Context, input *munkiSoftwareTitlePatchInput) (*munkiSoftwareTitleDetailOutput, error) {
 		title, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
 		}
-		return &munkiSoftwareTitleOutput{Body: munkiSoftwareTitleFromDomain(*title)}, nil
+		return loadMunkiSoftwareTitleDetail(ctx, title.ID, store, packageStore, assignmentStore)
 	})
 }
 
@@ -238,6 +222,37 @@ func munkiSoftwareTitleDetailFromDomain(
 		Includes:        includeRows,
 		ExcludeLabelIDs: excludeLabelIDs,
 	}
+}
+
+func loadMunkiSoftwareTitleDetail(
+	ctx context.Context,
+	id int64,
+	store *softwaretitles.Store,
+	packageStore *packages.Store,
+	assignmentStore *assignments.Store,
+) (*munkiSoftwareTitleDetailOutput, error) {
+	title, err := store.GetByID(ctx, id)
+	if err != nil {
+		return nil, resourceMutationError(munkiSoftwareTitleLabel, err)
+	}
+	packageRows, _, err := packageStore.List(ctx, packages.PackageListParams{
+		ListParams: dbutil.ListParams{PageSize: 1000},
+		SoftwareID: id,
+	})
+	if err != nil {
+		return nil, resourceMutationError(munkiPackageLabel, err)
+	}
+	assignmentRows, err := assignmentStore.ListForSoftwareTitle(ctx, id)
+	if err != nil {
+		return nil, resourceMutationError(munkiAssignmentLabel, err)
+	}
+	excludeLabelIDs, err := assignmentStore.ExcludeLabelIDs(ctx, id)
+	if err != nil {
+		return nil, resourceMutationError(munkiExcludesLabel, err)
+	}
+	return &munkiSoftwareTitleDetailOutput{
+		Body: munkiSoftwareTitleDetailFromDomain(*title, packageRows, assignmentRows, excludeLabelIDs),
+	}, nil
 }
 
 func munkiSoftwareTitleFromDomain(title softwaretitles.SoftwareTitle) munkiSoftwareTitle {

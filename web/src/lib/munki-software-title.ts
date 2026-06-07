@@ -1,5 +1,5 @@
-import type { MunkiAssignmentMutation } from "@/hooks/munki/assignments";
 import type { MunkiPackageMutation } from "@/hooks/munki/packages";
+import type { MunkiAssignmentIncludeMutation } from "@/lib/api";
 import type { PackageInstallItem } from "@/lib/api-client/types.gen";
 import { enumLabel, enumOptions, type EnumMetadataMap } from "@/lib/enum-metadata";
 
@@ -7,27 +7,19 @@ export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_typ
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
 export type MunkiUninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
 export type MunkiInstallItemType = PackageInstallItem["type"];
-export type MunkiAssignmentAction = MunkiAssignmentMutation["action"];
-export type MunkiPackageSelection = MunkiAssignmentMutation["package_selection"];
+export type MunkiAssignmentAction = MunkiAssignmentIncludeMutation["action"];
+export type MunkiPackageSelection = MunkiAssignmentIncludeMutation["package_selection"];
 
 export const MUNKI_INSTALLER_TYPE_VALUES = [
   "pkg",
   "nopkg",
   "copy_from_dmg",
-  "profile",
-  "apple_update_metadata",
-  "startosinstall",
-  "stage_os_installer",
 ] as const satisfies readonly MunkiInstallerType[];
 
 export const MUNKI_INSTALLER_TYPES = {
   pkg: { name: "Package" },
   nopkg: { name: "No package" },
   copy_from_dmg: { name: "Copy from DMG" },
-  profile: { name: "Profile" },
-  apple_update_metadata: { name: "Apple update metadata" },
-  startosinstall: { name: "Start OS install" },
-  stage_os_installer: { name: "Stage OS installer" },
 } satisfies EnumMetadataMap<MunkiInstallerType>;
 
 export const MUNKI_INSTALLER_TYPE_OPTIONS = enumOptions(MUNKI_INSTALLER_TYPES);
@@ -54,22 +46,16 @@ export const MUNKI_UNINSTALL_METHOD_VALUES = [
   "none",
   "removepackages",
   "remove_copied_items",
-  "remove_profile",
-  "remove_app",
   "uninstall_script",
   "uninstall_package",
-  "custom",
 ] as const satisfies readonly MunkiUninstallMethod[];
 
 export const MUNKI_UNINSTALL_METHODS = {
   none: { name: "None" },
   removepackages: { name: "Remove packages" },
   remove_copied_items: { name: "Remove copied items" },
-  remove_profile: { name: "Remove profile" },
-  remove_app: { name: "Remove app" },
   uninstall_script: { name: "Uninstall script" },
   uninstall_package: { name: "Uninstall package" },
-  custom: { name: "Custom" },
 } satisfies EnumMetadataMap<MunkiUninstallMethod>;
 
 export const MUNKI_UNINSTALL_METHOD_OPTIONS = enumOptions(MUNKI_UNINSTALL_METHODS);
@@ -126,11 +112,11 @@ export const MUNKI_PACKAGE_SELECTION_VALUES = [
 export const MUNKI_PACKAGE_SELECTIONS = {
   latest_eligible: {
     name: "Latest compatible",
-    description: "Render the Munki name and include all eligible pkginfos for the client to choose from.",
+    description: "Render the resolved package ID and include eligible pkginfo candidates for the client.",
   },
   specific_package: {
     name: "Pinned package",
-    description: "Render Name--Version and include only that pkginfo candidate.",
+    description: "Render that package ID and include only that pkginfo candidate.",
   },
 } satisfies EnumMetadataMap<MunkiPackageSelection>;
 

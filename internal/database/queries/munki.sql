@@ -1,7 +1,6 @@
 -- name: CreateMunkiSoftwareTitle :one
 INSERT INTO munki_software_titles (
     name,
-    display_name,
     description,
     category,
     developer,
@@ -11,7 +10,6 @@ INSERT INTO munki_software_titles (
 )
 VALUES (
     @name,
-    @display_name,
     @description,
     @category,
     @developer,
@@ -24,7 +22,7 @@ RETURNING *;
 -- name: ListMunkiSoftwareTitles :many
 SELECT *
 FROM munki_software_titles
-ORDER BY lower(COALESCE(NULLIF(display_name, ''), name)), lower(name), id
+ORDER BY lower(name), id
 LIMIT @limit_rows OFFSET @offset_rows;
 
 -- name: CountMunkiSoftwareTitles :one
@@ -36,16 +34,10 @@ SELECT *
 FROM munki_software_titles
 WHERE id = @id;
 
--- name: GetMunkiSoftwareTitleByName :one
-SELECT *
-FROM munki_software_titles
-WHERE name = @name;
-
 -- name: UpdateMunkiSoftwareTitle :one
 UPDATE munki_software_titles
 SET
     name = @name,
-    display_name = @display_name,
     description = @description,
     category = @category,
     developer = @developer,
@@ -126,15 +118,9 @@ WHERE kind = @kind::munki_artifact_kind
 -- name: CreateMunkiPackage :one
 INSERT INTO munki_packages (
     software_id,
-    name,
     version,
-    display_name,
-    description,
-    category,
-    developer,
     installer_type,
     uninstall_method,
-    custom_uninstall_method,
     restart_action,
     minimum_munki_version,
     minimum_os_version,
@@ -143,7 +129,6 @@ INSERT INTO munki_packages (
     blocking_applications,
     unattended_install,
     unattended_uninstall,
-    uninstallable,
     on_demand,
     precache,
     autoremove,
@@ -151,7 +136,6 @@ INSERT INTO munki_packages (
     suppress_bundle_relocation,
     force_install_after_date,
     installed_size,
-    payload_identifier,
     package_path,
     installer_choices_xml,
     installer_environment,
@@ -186,15 +170,9 @@ INSERT INTO munki_packages (
 )
 VALUES (
     @software_id,
-    @name,
     @version,
-    @display_name,
-    @description,
-    @category,
-    @developer,
     @installer_type,
     @uninstall_method,
-    @custom_uninstall_method,
     @restart_action,
     @minimum_munki_version,
     @minimum_os_version,
@@ -203,7 +181,6 @@ VALUES (
     @blocking_applications::text[],
     @unattended_install,
     @unattended_uninstall,
-    @uninstallable,
     @on_demand,
     @precache,
     @autoremove,
@@ -211,7 +188,6 @@ VALUES (
     @suppress_bundle_relocation,
     sqlc.narg(force_install_after_date)::timestamptz,
     @installed_size,
-    @payload_identifier,
     @package_path,
     @installer_choices_xml,
     @installer_environment::jsonb,
@@ -249,15 +225,9 @@ RETURNING *;
 -- name: UpsertMunkiPackage :one
 INSERT INTO munki_packages (
     software_id,
-    name,
     version,
-    display_name,
-    description,
-    category,
-    developer,
     installer_type,
     uninstall_method,
-    custom_uninstall_method,
     restart_action,
     minimum_munki_version,
     minimum_os_version,
@@ -266,7 +236,6 @@ INSERT INTO munki_packages (
     blocking_applications,
     unattended_install,
     unattended_uninstall,
-    uninstallable,
     on_demand,
     precache,
     autoremove,
@@ -274,7 +243,6 @@ INSERT INTO munki_packages (
     suppress_bundle_relocation,
     force_install_after_date,
     installed_size,
-    payload_identifier,
     package_path,
     installer_choices_xml,
     installer_environment,
@@ -309,15 +277,9 @@ INSERT INTO munki_packages (
 )
 VALUES (
     @software_id,
-    @name,
     @version,
-    @display_name,
-    @description,
-    @category,
-    @developer,
     @installer_type,
     @uninstall_method,
-    @custom_uninstall_method,
     @restart_action,
     @minimum_munki_version,
     @minimum_os_version,
@@ -326,7 +288,6 @@ VALUES (
     @blocking_applications::text[],
     @unattended_install,
     @unattended_uninstall,
-    @uninstallable,
     @on_demand,
     @precache,
     @autoremove,
@@ -334,7 +295,6 @@ VALUES (
     @suppress_bundle_relocation,
     sqlc.narg(force_install_after_date)::timestamptz,
     @installed_size,
-    @payload_identifier,
     @package_path,
     @installer_choices_xml,
     @installer_environment::jsonb,
@@ -367,14 +327,9 @@ VALUES (
     sqlc.narg(icon_artifact_id)::bigint,
     @eligible
 )
-ON CONFLICT (software_id, name, version) DO UPDATE SET
-    display_name = EXCLUDED.display_name,
-    description = EXCLUDED.description,
-    category = EXCLUDED.category,
-    developer = EXCLUDED.developer,
+ON CONFLICT (software_id, version) DO UPDATE SET
     installer_type = EXCLUDED.installer_type,
     uninstall_method = EXCLUDED.uninstall_method,
-    custom_uninstall_method = EXCLUDED.custom_uninstall_method,
     restart_action = EXCLUDED.restart_action,
     minimum_munki_version = EXCLUDED.minimum_munki_version,
     minimum_os_version = EXCLUDED.minimum_os_version,
@@ -383,7 +338,6 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     blocking_applications = EXCLUDED.blocking_applications,
     unattended_install = EXCLUDED.unattended_install,
     unattended_uninstall = EXCLUDED.unattended_uninstall,
-    uninstallable = EXCLUDED.uninstallable,
     on_demand = EXCLUDED.on_demand,
     precache = EXCLUDED.precache,
     autoremove = EXCLUDED.autoremove,
@@ -391,7 +345,6 @@ ON CONFLICT (software_id, name, version) DO UPDATE SET
     suppress_bundle_relocation = EXCLUDED.suppress_bundle_relocation,
     force_install_after_date = EXCLUDED.force_install_after_date,
     installed_size = EXCLUDED.installed_size,
-    payload_identifier = EXCLUDED.payload_identifier,
     package_path = EXCLUDED.package_path,
     installer_choices_xml = EXCLUDED.installer_choices_xml,
     installer_environment = EXCLUDED.installer_environment,
@@ -429,15 +382,9 @@ RETURNING *;
 -- name: UpdateMunkiPackage :one
 UPDATE munki_packages
 SET
-    name = @name,
     version = @version,
-    display_name = @display_name,
-    description = @description,
-    category = @category,
-    developer = @developer,
     installer_type = @installer_type,
     uninstall_method = @uninstall_method,
-    custom_uninstall_method = @custom_uninstall_method,
     restart_action = @restart_action,
     minimum_munki_version = @minimum_munki_version,
     minimum_os_version = @minimum_os_version,
@@ -446,7 +393,6 @@ SET
     blocking_applications = @blocking_applications::text[],
     unattended_install = @unattended_install,
     unattended_uninstall = @unattended_uninstall,
-    uninstallable = @uninstallable,
     on_demand = @on_demand,
     precache = @precache,
     autoremove = @autoremove,
@@ -454,7 +400,6 @@ SET
     suppress_bundle_relocation = @suppress_bundle_relocation,
     force_install_after_date = sqlc.narg(force_install_after_date)::timestamptz,
     installed_size = @installed_size,
-    payload_identifier = @payload_identifier,
     package_path = @package_path,
     installer_choices_xml = @installer_choices_xml,
     installer_environment = @installer_environment::jsonb,
@@ -494,7 +439,9 @@ RETURNING *;
 SELECT
     p.*,
     s.name AS software_name,
-    s.display_name AS software_display_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
     s.icon_artifact_id AS software_icon_artifact_id,
@@ -520,14 +467,12 @@ INSERT INTO munki_package_relations (
     package_id,
     relation_kind,
     target_package_id,
-    name,
     position
 )
 VALUES (
     @package_id,
     @relation_kind::munki_package_relation_kind,
-    sqlc.narg(target_package_id)::bigint,
-    @name,
+    @target_package_id,
     @position::integer
 );
 
@@ -553,39 +498,6 @@ VALUES (
     sqlc.narg(pinned_package_id)::bigint
 )
 RETURNING *;
-
--- name: UpdateMunkiAssignment :one
-UPDATE munki_assignments
-SET
-    priority = @priority::integer,
-    label_id = @label_id,
-    action = @action::munki_assignment_action,
-    optional_install = @optional_install,
-    featured_item = @featured_item,
-    package_selection = @package_selection::munki_package_selection,
-    pinned_package_id = sqlc.narg(pinned_package_id)::bigint,
-    updated_at = now()
-WHERE id = @id
-RETURNING *;
-
--- name: ListMunkiAssignmentIDsBySoftware :many
-SELECT a.id
-FROM munki_assignments a
-WHERE a.software_id = @software_id
-ORDER BY a.priority, a.id;
-
--- name: ListMunkiAssignmentLabelIDsBySoftware :many
-SELECT a.label_id
-FROM munki_assignments a
-WHERE a.software_id = @software_id
-ORDER BY a.priority, a.id;
-
--- name: SetMunkiAssignmentPriorities :exec
-UPDATE munki_assignments a
-SET priority = ordered.priority
-FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, priority)
-WHERE a.id = ordered.id
-  AND a.software_id = @software_id;
 
 -- name: DeleteMunkiAssignmentExcludeLabels :exec
 DELETE FROM munki_assignment_exclude_labels
@@ -615,19 +527,15 @@ SELECT
     COALESCE(p.id, 0)::bigint AS package_id,
     COALESCE(p.software_id, a.software_id)::bigint AS software_id,
     s.name AS software_name,
-    COALESCE(NULLIF(s.display_name, ''), s.name) AS software_display_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
     s.icon_name AS software_icon_name,
     s.icon_hash AS software_icon_hash,
     s.icon_artifact_id AS software_icon_artifact_id,
-    COALESCE(p.name, '') AS name,
     COALESCE(p.version, '') AS version,
-    COALESCE(p.display_name, '') AS display_name,
-    COALESCE(p.description, '') AS description,
-    COALESCE(p.category, '') AS category,
-    COALESCE(p.developer, '') AS developer,
     COALESCE(p.installer_type, 'pkg') AS installer_type,
     COALESCE(p.uninstall_method, '') AS uninstall_method,
-    COALESCE(p.custom_uninstall_method, '') AS custom_uninstall_method,
     COALESCE(p.restart_action, '') AS restart_action,
     COALESCE(p.minimum_munki_version, '') AS minimum_munki_version,
     COALESCE(p.minimum_os_version, '') AS minimum_os_version,
@@ -636,7 +544,6 @@ SELECT
     COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
     COALESCE(p.unattended_install, false) AS unattended_install,
     COALESCE(p.unattended_uninstall, false) AS unattended_uninstall,
-    COALESCE(p.uninstallable, false) AS uninstallable,
     COALESCE(p.on_demand, false) AS on_demand,
     COALESCE(p.precache, false) AS precache,
     COALESCE(p.autoremove, false) AS autoremove,
@@ -644,7 +551,6 @@ SELECT
     COALESCE(p.suppress_bundle_relocation, false) AS suppress_bundle_relocation,
     p.force_install_after_date,
     COALESCE(p.installed_size, 0)::bigint AS installed_size,
-    COALESCE(p.payload_identifier, '') AS payload_identifier,
     COALESCE(p.package_path, '') AS package_path,
     COALESCE(p.installer_choices_xml, '') AS installer_choices_xml,
     COALESCE(p.installer_environment, '[]'::jsonb) AS installer_environment,
@@ -700,7 +606,7 @@ WHERE p.eligible
        AND excluded_lm.host_id = @host_id
       WHERE excluded.software_id = a.software_id
   )
-ORDER BY a.software_id, a.priority, a.id, lower(p.name), p.id;
+ORDER BY a.software_id, a.priority, a.id, p.id;
 
 -- name: UpsertMunkiHostStatus :exec
 INSERT INTO munki_host_status (

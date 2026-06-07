@@ -38,8 +38,7 @@ CREATE TABLE munki_artifacts (
 
 CREATE TABLE munki_software_titles (
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    display_name TEXT NOT NULL DEFAULT '',
+    name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
     developer TEXT NOT NULL DEFAULT '',
@@ -53,15 +52,9 @@ CREATE TABLE munki_software_titles (
 CREATE TABLE munki_packages (
     id BIGSERIAL PRIMARY KEY,
     software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
     version TEXT NOT NULL,
-    display_name TEXT NOT NULL DEFAULT '',
-    description TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT '',
-    developer TEXT NOT NULL DEFAULT '',
     installer_type TEXT NOT NULL DEFAULT 'pkg',
     uninstall_method TEXT NOT NULL DEFAULT 'none',
-    custom_uninstall_method TEXT NOT NULL DEFAULT '',
     restart_action TEXT NOT NULL DEFAULT '',
     minimum_munki_version TEXT NOT NULL DEFAULT '',
     minimum_os_version TEXT NOT NULL DEFAULT '',
@@ -70,7 +63,6 @@ CREATE TABLE munki_packages (
     blocking_applications TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     unattended_install BOOLEAN NOT NULL DEFAULT FALSE,
     unattended_uninstall BOOLEAN NOT NULL DEFAULT FALSE,
-    uninstallable BOOLEAN NOT NULL DEFAULT FALSE,
     on_demand BOOLEAN NOT NULL DEFAULT FALSE,
     precache BOOLEAN NOT NULL DEFAULT FALSE,
     autoremove BOOLEAN NOT NULL DEFAULT FALSE,
@@ -78,7 +70,6 @@ CREATE TABLE munki_packages (
     suppress_bundle_relocation BOOLEAN NOT NULL DEFAULT FALSE,
     force_install_after_date TIMESTAMPTZ,
     installed_size BIGINT NOT NULL DEFAULT 0 CHECK (installed_size >= 0),
-    payload_identifier TEXT NOT NULL DEFAULT '',
     package_path TEXT NOT NULL DEFAULT '',
     installer_choices_xml TEXT NOT NULL DEFAULT '',
     installer_environment JSONB NOT NULL DEFAULT '[]'::JSONB CHECK (jsonb_typeof(installer_environment) = 'array'),
@@ -112,7 +103,7 @@ CREATE TABLE munki_packages (
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (software_id, name, version),
+    UNIQUE (software_id, version),
     UNIQUE (software_id, id)
 );
 
@@ -120,15 +111,10 @@ CREATE TABLE munki_package_relations (
     id BIGSERIAL PRIMARY KEY,
     package_id BIGINT NOT NULL REFERENCES munki_packages (id) ON DELETE CASCADE,
     relation_kind munki_package_relation_kind NOT NULL,
-    target_package_id BIGINT REFERENCES munki_packages (id) ON DELETE RESTRICT,
-    name TEXT NOT NULL DEFAULT '',
+    target_package_id BIGINT NOT NULL REFERENCES munki_packages (id) ON DELETE RESTRICT,
     position INTEGER NOT NULL DEFAULT 0 CHECK (position >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT munki_package_relations_target_check CHECK (
-        (target_package_id IS NOT NULL AND btrim(name) = '')
-        OR (target_package_id IS NULL AND btrim(name) <> '')
-    )
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE munki_assignments (

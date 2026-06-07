@@ -29,7 +29,6 @@ func RegisterMunki(api huma.API, stores MunkiStores, artifactStorage munkiArtifa
 	registerMunkiSoftwareTitles(api, stores.SoftwareTitles, stores.Packages, stores.Assignments)
 	registerMunkiArtifacts(api, stores.Artifacts, artifactStorage)
 	registerMunkiPackages(api, stores.Packages)
-	registerMunkiAssignments(api, stores.Assignments)
 }
 
 func (input munkiListInput) params() dbutil.ListParams {

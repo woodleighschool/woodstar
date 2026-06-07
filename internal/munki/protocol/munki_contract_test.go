@@ -96,7 +96,7 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 				PackageSelection: assignments.PackageSelectionLatestEligible,
 				Package: packages.Package{
 					ID:                        20,
-					Name:                      "GoogleChrome",
+					SoftwareName:              "GoogleChrome",
 					Version:                   "148.0.0.1",
 					InstallerType:             packages.InstallerTypeNoPkg,
 					InstallerArtifactID:       &artifactID,
@@ -182,17 +182,17 @@ func assertManifestPlist(t *testing.T, body []byte) {
 	if decoded.DisplayName != "Test MacBook" {
 		t.Fatalf("display_name = %q, want Test MacBook", decoded.DisplayName)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"GoogleChrome"}) {
-		t.Fatalf("managed_installs = %v, want [GoogleChrome]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
+		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
 	}
-	if !sameStrings(decoded.OptionalInstalls, []string{"Slack", "FeaturedApp"}) {
-		t.Fatalf("optional_installs = %v, want [Slack FeaturedApp]", decoded.OptionalInstalls)
+	if !sameStrings(decoded.OptionalInstalls, []string{"21", "23"}) {
+		t.Fatalf("optional_installs = %v, want [21 23]", decoded.OptionalInstalls)
 	}
-	if !sameStrings(decoded.ManagedUninstalls, []string{"LegacyVPN"}) {
-		t.Fatalf("managed_uninstalls = %v, want [LegacyVPN]", decoded.ManagedUninstalls)
+	if !sameStrings(decoded.ManagedUninstalls, []string{"22"}) {
+		t.Fatalf("managed_uninstalls = %v, want [22]", decoded.ManagedUninstalls)
 	}
-	if !sameStrings(decoded.FeaturedItems, []string{"FeaturedApp"}) {
-		t.Fatalf("featured_items = %v, want [FeaturedApp]", decoded.FeaturedItems)
+	if !sameStrings(decoded.FeaturedItems, []string{"23"}) {
+		t.Fatalf("featured_items = %v, want [23]", decoded.FeaturedItems)
 	}
 }
 
@@ -205,8 +205,10 @@ func assertCatalogPlist(t *testing.T, body []byte) {
 	if len(decoded) != 4 {
 		t.Fatalf("catalog items = %d, want 4", len(decoded))
 	}
-	if decoded[0]["name"] != "GoogleChrome" || decoded[0]["version"] != "148.0.0.1" {
-		t.Fatalf("first catalog item = %+v, want GoogleChrome 148.0.0.1", decoded[0])
+	if decoded[0]["name"] != "20" ||
+		decoded[0]["display_name"] != "GoogleChrome" ||
+		decoded[0]["version"] != "148.0.0.1" {
+		t.Fatalf("first catalog item = %+v, want package 20 / GoogleChrome 148.0.0.1", decoded[0])
 	}
 }
 
@@ -256,8 +258,8 @@ func TestMunkiHTTPRendersFirstOverlappingEffectivePackage(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"OverlapApp"}) {
-		t.Fatalf("managed_installs = %v, want [OverlapApp]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
+		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
 	}
 	if len(decoded.ManagedUninstalls) != 0 || len(decoded.OptionalInstalls) != 0 {
 		t.Fatalf("manifest still has later conflicting rows: %+v", decoded)
@@ -293,8 +295,8 @@ func TestMunkiHTTPRendersPinnedPackageName(t *testing.T) {
 	if _, err := plist.Unmarshal(rec.Body.Bytes(), &decoded); err != nil {
 		t.Fatalf("response is not a manifest plist: %v", err)
 	}
-	if !sameStrings(decoded.ManagedInstalls, []string{"PinnedApp--1.0"}) {
-		t.Fatalf("managed_installs = %v, want [PinnedApp--1.0]", decoded.ManagedInstalls)
+	if !sameStrings(decoded.ManagedInstalls, []string{"20"}) {
+		t.Fatalf("managed_installs = %v, want [20]", decoded.ManagedInstalls)
 	}
 }
 
@@ -591,9 +593,10 @@ func (r staticPackageResolver) EffectivePackagesForHost(
 func staticMunkiPackage(id int64, name string, version string) packages.Package {
 	return packages.Package{
 		ID:            id,
-		Name:          name,
+		SoftwareName:  name,
 		Version:       version,
 		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
 	}
 }
 

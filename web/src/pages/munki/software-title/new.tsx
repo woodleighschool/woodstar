@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import {
   useCreateMunkiSoftwareTitle,
@@ -48,6 +49,8 @@ export function MunkiSoftwareTitleNewPage() {
       const body: MunkiSoftwareTitleMutation = {
         ...data,
         icon_artifact_id: iconArtifact?.id,
+        includes: [],
+        exclude_label_ids: [],
       };
       const title = await create.mutateAsync(body);
       void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(title.id) } });
@@ -106,32 +109,26 @@ export function MunkiSoftwareTitleNewPage() {
                     </div>
                   </div>
                   <form.Field
-                    name="display_name"
-                    children={(field) => {
-                      const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
-                      return (
-                        <Field data-invalid={invalid}>
-                          <FieldLabel htmlFor="munki-software-display-name">Display Name</FieldLabel>
-                          <Input
-                            id="munki-software-display-name"
-                            name={field.name}
-                            value={field.state.value}
-                            aria-invalid={invalid}
-                            onBlur={field.handleBlur}
-                            onChange={(event) => field.handleChange(event.target.value)}
-                          />
-                          {invalid ? <FieldError errors={field.state.meta.errors} /> : null}
-                        </Field>
-                      );
-                    }}
-                  />
-                  <form.Field
                     name="description"
                     children={(field) => {
                       const invalid = field.state.meta.isTouched && !field.state.meta.isValid;
                       return (
                         <Field data-invalid={invalid}>
-                          <FieldLabel htmlFor="munki-software-description">Description</FieldLabel>
+                          <FieldLabel htmlFor="munki-software-description">
+                            Description
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground hover:text-foreground inline-flex"
+                                  aria-label="Description help"
+                                >
+                                  <Info className="size-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Description is shown in Managed Software Center.</TooltipContent>
+                            </Tooltip>
+                          </FieldLabel>
                           <Textarea
                             id="munki-software-description"
                             name={field.name}

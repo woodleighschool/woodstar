@@ -160,19 +160,6 @@ export function selectedIncludeLabelIDs(includes: RuleIncludeForm[]) {
   return includes.flatMap((include) => (include.label_id === null ? [] : [include.label_id]));
 }
 
-export function unavailableIncludeLabelIDs(
-  includes: RuleIncludeForm[],
-  excludeLabelIDs: number[],
-  currentIncludeID: number,
-) {
-  return [
-    ...excludeLabelIDs,
-    ...includes.flatMap((include) =>
-      include.id === currentIncludeID || include.label_id === null ? [] : [include.label_id],
-    ),
-  ];
-}
-
 export function ruleIdentifierHint(ruleType: SantaRuleType) {
   return RULE_IDENTIFIER_RULES[ruleType].hint;
 }

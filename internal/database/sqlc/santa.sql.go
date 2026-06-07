@@ -776,37 +776,6 @@ func (q *Queries) ListSantaRuleExcludeLabels(ctx context.Context, arg ListSantaR
 	return items, nil
 }
 
-const listSantaRuleIncludeIDs = `-- name: ListSantaRuleIncludeIDs :many
-SELECT id
-FROM santa_rule_includes
-WHERE rule_id = $1
-ORDER BY position, id
-`
-
-type ListSantaRuleIncludeIDsParams struct {
-	RuleID int64 `json:"rule_id"`
-}
-
-func (q *Queries) ListSantaRuleIncludeIDs(ctx context.Context, arg ListSantaRuleIncludeIDsParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, listSantaRuleIncludeIDs, arg.RuleID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listSantaRuleIncludes = `-- name: ListSantaRuleIncludes :many
 SELECT
     rule_id,
@@ -1546,21 +1515,6 @@ func (q *Queries) NormalizeSantaConfigurationPositions(ctx context.Context) erro
 	return err
 }
 
-const normalizeSantaRuleIncludePositions = `-- name: NormalizeSantaRuleIncludePositions :exec
-UPDATE santa_rule_includes
-SET position = -position - 1
-WHERE rule_id = $1
-`
-
-type NormalizeSantaRuleIncludePositionsParams struct {
-	RuleID int64 `json:"rule_id"`
-}
-
-func (q *Queries) NormalizeSantaRuleIncludePositions(ctx context.Context, arg NormalizeSantaRuleIncludePositionsParams) error {
-	_, err := q.db.Exec(ctx, normalizeSantaRuleIncludePositions, arg.RuleID)
-	return err
-}
-
 const resolveSantaConfigurationForHost = `-- name: ResolveSantaConfigurationForHost :one
 SELECT
     c.id, c.name, c.description, c.position, c.client_mode, c.enable_bundles, c.enable_transitive_rules, c.enable_all_event_upload, c.full_sync_interval_seconds, c.batch_size, c.allowed_path_regex, c.blocked_path_regex, c.removable_media_action, c.removable_media_remount_flags, c.encrypted_removable_media_action, c.encrypted_removable_media_remount_flags, c.event_detail_url, c.event_detail_text, c.created_at, c.updated_at,
@@ -1662,23 +1616,6 @@ type SetSantaConfigurationPositionsParams struct {
 
 func (q *Queries) SetSantaConfigurationPositions(ctx context.Context, arg SetSantaConfigurationPositionsParams) error {
 	_, err := q.db.Exec(ctx, setSantaConfigurationPositions, arg.OrderedIds)
-	return err
-}
-
-const setSantaRuleIncludePositions = `-- name: SetSantaRuleIncludePositions :exec
-UPDATE santa_rule_includes i
-SET position = -ordered.position
-FROM unnest($2::bigint[]) WITH ORDINALITY AS ordered(id, position)
-WHERE i.id = ordered.id AND i.rule_id = $1
-`
-
-type SetSantaRuleIncludePositionsParams struct {
-	RuleID     int64   `json:"rule_id"`
-	OrderedIds []int64 `json:"ordered_ids"`
-}
-
-func (q *Queries) SetSantaRuleIncludePositions(ctx context.Context, arg SetSantaRuleIncludePositionsParams) error {
-	_, err := q.db.Exec(ctx, setSantaRuleIncludePositions, arg.RuleID, arg.OrderedIds)
 	return err
 }
 

@@ -23,7 +23,8 @@ export type ScriptKey =
   | "uninstall_script"
   | "version_script";
 
-export interface PackageReferenceRow extends PackageReference {
+export interface PackageReferenceRow extends Omit<PackageReference, "package_id"> {
+  package_id?: number;
   rowID: string;
 }
 
@@ -49,15 +50,9 @@ export interface ItemToCopyRow extends PackageItemToCopy {
 }
 
 export interface PackageFormState {
-  name: string;
   version: string;
-  display_name: string;
-  description: string;
-  category: string;
-  developer: string;
   installer_type: MunkiInstallerType;
   uninstall_method: MunkiUninstallMethod;
-  custom_uninstall_method: string;
   restart_action: MunkiRestartAction;
   minimum_munki_version: string;
   minimum_os_version: string;
@@ -69,7 +64,6 @@ export interface PackageFormState {
   eligible: boolean;
   unattended_install: boolean;
   unattended_uninstall: boolean;
-  uninstallable: boolean;
   on_demand: boolean;
   precache: boolean;
   autoremove: boolean;
@@ -77,7 +71,6 @@ export interface PackageFormState {
   suppress_bundle_relocation: boolean;
   force_install_after_date: string;
   installed_size: string;
-  payload_identifier: string;
   package_path: string;
   installer_choices_xml: string;
   installer_environment: InstallerEnvironmentRow[];
@@ -109,7 +102,6 @@ export const scriptFields: { key: ScriptKey; label: string }[] = [
 ];
 
 export const packageIdentitySchema = z.object({
-  name: requiredString("Name"),
   version: requiredString("Version"),
 });
 
@@ -117,6 +109,37 @@ export function validatePackageForm({ value }: { value: PackageFormState }) {
   const result = packageIdentitySchema.safeParse(value);
   if (result.success) return undefined;
   return { fields: fieldErrors(result) };
+}
+
+export function packageSubmitPreflightError(
+  form: PackageFormState,
+  artifacts: { hasInstallerArtifact: boolean; hasUninstallerArtifact: boolean },
+) {
+  if (form.installer_type !== "nopkg" && !artifacts.hasInstallerArtifact) {
+    return `${installerTypeLabel(form.installer_type)} packages require an installer artifact.`;
+  }
+  if (form.installer_type === "copy_from_dmg" && cleanItemsToCopy(form.items_to_copy).length === 0) {
+    return "Copy from DMG packages require at least one item to copy.";
+  }
+  if (form.installer_type === "nopkg" && !hasNoPkgEvidence(form)) {
+    return "No package items require an install check script, installs, receipts, or On Demand.";
+  }
+  if (form.uninstall_method === "removepackages" && cleanReceipts(form.receipts).length === 0) {
+    return "Remove packages uninstall requires at least one receipt.";
+  }
+  if (form.uninstall_method === "remove_copied_items" && cleanItemsToCopy(form.items_to_copy).length === 0) {
+    return "Remove copied items uninstall requires at least one item to copy.";
+  }
+  if (form.uninstall_method === "remove_copied_items" && form.installer_type !== "copy_from_dmg") {
+    return "Remove copied items uninstall requires Copy from DMG installer type.";
+  }
+  if (form.uninstall_method === "uninstall_script" && optionalText(form.uninstall_script) === undefined) {
+    return "Uninstall script method requires an uninstall script.";
+  }
+  if (form.uninstall_method === "uninstall_package" && !artifacts.hasUninstallerArtifact) {
+    return "Uninstall package method requires an uninstaller artifact.";
+  }
+  return undefined;
 }
 
 export function packageMutationFromForm(
@@ -128,17 +151,18 @@ export function packageMutationFromForm(
     iconArtifactID?: number;
   },
 ): MunkiPackageMutation {
+  const installerType = form.installer_type;
+  const uninstallMethod = form.uninstall_method;
+  const usesInstallerArtifact = installerType !== "nopkg";
+  const usesInstallerOptions = installerType !== "nopkg";
+  const usesItemsToCopy = installerType === "copy_from_dmg" || uninstallMethod === "remove_copied_items";
+  const usesUninstallerArtifact = uninstallMethod === "uninstall_package";
+
   return {
     software_id: softwareID,
-    name: form.name,
     version: form.version,
-    display_name: optionalText(form.display_name),
-    description: optionalText(form.description),
-    category: optionalText(form.category),
-    developer: optionalText(form.developer),
-    installer_type: form.installer_type,
-    uninstall_method: form.uninstall_method,
-    custom_uninstall_method: optionalText(form.custom_uninstall_method),
+    installer_type: installerType,
+    uninstall_method: uninstallMethod,
     restart_action: form.restart_action === "None" ? undefined : form.restart_action,
     minimum_munki_version: optionalText(form.minimum_munki_version),
     minimum_os_version: optionalText(form.minimum_os_version),
@@ -150,7 +174,6 @@ export function packageMutationFromForm(
     eligible: form.eligible,
     unattended_install: form.unattended_install,
     unattended_uninstall: form.unattended_uninstall,
-    uninstallable: form.uninstallable,
     on_demand: form.on_demand,
     precache: form.precache,
     autoremove: form.autoremove,
@@ -158,13 +181,12 @@ export function packageMutationFromForm(
     suppress_bundle_relocation: form.suppress_bundle_relocation,
     force_install_after_date: dateTimeLocalToISO(form.force_install_after_date),
     installed_size: numberOrUndefined(form.installed_size),
-    payload_identifier: optionalText(form.payload_identifier),
-    package_path: optionalText(form.package_path),
-    installer_choices_xml: optionalText(form.installer_choices_xml),
-    installer_environment: cleanInstallerEnvironment(form.installer_environment),
+    package_path: usesInstallerOptions ? optionalText(form.package_path) : undefined,
+    installer_choices_xml: usesInstallerOptions ? optionalText(form.installer_choices_xml) : undefined,
+    installer_environment: usesInstallerOptions ? cleanInstallerEnvironment(form.installer_environment) : [],
     installs: cleanInstallItems(form.installs),
     receipts: cleanReceipts(form.receipts),
-    items_to_copy: cleanItemsToCopy(form.items_to_copy),
+    items_to_copy: usesItemsToCopy ? cleanItemsToCopy(form.items_to_copy) : [],
     notes: optionalText(form.notes),
     installcheck_script: optionalText(form.installcheck_script),
     uninstallcheck_script: optionalText(form.uninstallcheck_script),
@@ -172,27 +194,21 @@ export function packageMutationFromForm(
     postinstall_script: optionalText(form.postinstall_script),
     preuninstall_script: optionalText(form.preuninstall_script),
     postuninstall_script: optionalText(form.postuninstall_script),
-    uninstall_script: optionalText(form.uninstall_script),
+    uninstall_script: uninstallMethod === "uninstall_script" ? optionalText(form.uninstall_script) : undefined,
     version_script: optionalText(form.version_script),
     preinstall_alert: cleanAlert(form.preinstall_alert),
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
-    installer_artifact_id: artifacts.installerArtifactID,
-    uninstaller_artifact_id: artifacts.uninstallerArtifactID,
+    installer_artifact_id: usesInstallerArtifact ? artifacts.installerArtifactID : undefined,
+    uninstaller_artifact_id: usesUninstallerArtifact ? artifacts.uninstallerArtifactID : undefined,
     icon_artifact_id: artifacts.iconArtifactID,
   };
 }
 
 export function emptyPackageForm(): PackageFormState {
   return {
-    name: "",
     version: "",
-    display_name: "",
-    description: "",
-    category: "",
-    developer: "",
     installer_type: "pkg",
     uninstall_method: "none",
-    custom_uninstall_method: "",
     restart_action: "None",
     minimum_munki_version: "",
     minimum_os_version: "",
@@ -204,7 +220,6 @@ export function emptyPackageForm(): PackageFormState {
     eligible: true,
     unattended_install: true,
     unattended_uninstall: true,
-    uninstallable: false,
     on_demand: false,
     precache: false,
     autoremove: false,
@@ -212,7 +227,6 @@ export function emptyPackageForm(): PackageFormState {
     suppress_bundle_relocation: false,
     force_install_after_date: "",
     installed_size: "",
-    payload_identifier: "",
     package_path: "",
     installer_choices_xml: "",
     installer_environment: [],
@@ -235,15 +249,9 @@ export function emptyPackageForm(): PackageFormState {
 
 export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
   return {
-    name: pkg.name,
     version: pkg.version,
-    display_name: pkg.display_name,
-    description: pkg.description,
-    category: pkg.category,
-    developer: pkg.developer,
     installer_type: pkg.installer_type,
     uninstall_method: pkg.uninstall_method,
-    custom_uninstall_method: pkg.custom_uninstall_method,
     restart_action: pkg.restart_action ?? "None",
     minimum_munki_version: pkg.minimum_munki_version,
     minimum_os_version: pkg.minimum_os_version,
@@ -255,7 +263,6 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     eligible: pkg.eligible,
     unattended_install: pkg.unattended_install,
     unattended_uninstall: pkg.unattended_uninstall,
-    uninstallable: pkg.uninstallable,
     on_demand: pkg.on_demand,
     precache: pkg.precache,
     autoremove: pkg.autoremove,
@@ -263,7 +270,6 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     suppress_bundle_relocation: pkg.suppress_bundle_relocation,
     force_install_after_date: isoToDateTimeLocal(pkg.force_install_after_date),
     installed_size: pkg.installed_size > 0 ? String(pkg.installed_size) : "",
-    payload_identifier: pkg.payload_identifier,
     package_path: pkg.package_path,
     installer_choices_xml: pkg.installer_choices_xml,
     installer_environment: installerEnvironmentRows(pkg.installer_environment ?? []),
@@ -293,7 +299,7 @@ export function emptyStringRow(): StringRow {
 }
 
 export function emptyPackageReferenceRow(): PackageReferenceRow {
-  return { rowID: rowID(), name: "" };
+  return { rowID: rowID() };
 }
 
 export function emptyInstallerEnvironmentRow(): InstallerEnvironmentRow {
@@ -341,10 +347,7 @@ function cleanPackageReferences(rows: PackageReferenceRow[]): PackageReference[]
   for (const row of rows) {
     if (row.package_id) {
       out.push({ package_id: row.package_id });
-      continue;
     }
-    const name = row.name?.trim();
-    if (name) out.push({ name });
   }
   return out;
 }
@@ -397,6 +400,26 @@ function cleanStringRows(values: StringRow[]) {
   return values.map((row) => row.value.trim()).filter(Boolean);
 }
 
+function hasNoPkgEvidence(form: PackageFormState) {
+  return (
+    optionalText(form.installcheck_script) !== undefined ||
+    cleanInstallItems(form.installs).length > 0 ||
+    cleanReceipts(form.receipts).length > 0 ||
+    form.on_demand
+  );
+}
+
+function installerTypeLabel(installerType: MunkiInstallerType) {
+  switch (installerType) {
+    case "copy_from_dmg":
+      return "Copy from DMG";
+    case "nopkg":
+      return "No package";
+    default:
+      return "Package";
+  }
+}
+
 function numberOrUndefined(value: string) {
   if (value.trim() === "") return undefined;
   const parsed = Number(value);
@@ -436,14 +459,7 @@ export function toggleArray<T>(values: T[], value: T, enabled: boolean) {
 }
 
 export function packageLabel(pkg: MunkiPackage) {
-  return `${pkg.name} ${pkg.version}`;
-}
-
-export function packageReferenceLabel(row: PackageReferenceRow, packages: MunkiPackage[]) {
-  const pkg = packages.find((item) => item.id === row.package_id);
-  if (pkg) return packageLabel(pkg);
-  if (row.package_name) return `${row.package_name} ${row.package_version ?? ""}`.trim();
-  return "";
+  return `${pkg.software_name} ${pkg.version}`;
 }
 
 function isArchitecture(value: string): value is Architecture {

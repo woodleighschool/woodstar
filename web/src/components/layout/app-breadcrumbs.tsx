@@ -249,7 +249,7 @@ function SoftwareCrumb({ id }: { id: string }) {
 function MunkiSoftwareCrumb({ id }: { id: string }) {
   const { data, isLoading } = useMunkiSoftwareTitle(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
-  return <span>{data.display_name || data.name || id}</span>;
+  return <span>{data.name || id}</span>;
 }
 
 function CheckCrumb({ id }: { id: string }) {

@@ -45,7 +45,7 @@ export function useMunkiSoftwareTitle(id: number | null) {
 
 export function useCreateMunkiSoftwareTitle() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiSoftwareTitle, ApiError, MunkiSoftwareTitleMutation>({
+  return useMutation<MunkiSoftwareTitleDetail, ApiError, MunkiSoftwareTitleMutation>({
     mutationFn: (body) => unwrap(apiClient.POST("/api/munki/software-titles", { body })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "software-titles"] });
@@ -55,7 +55,7 @@ export function useCreateMunkiSoftwareTitle() {
 
 export function useUpdateMunkiSoftwareTitle() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiSoftwareTitle, ApiError, { id: number; body: MunkiSoftwareTitleMutation }>({
+  return useMutation<MunkiSoftwareTitleDetail, ApiError, { id: number; body: MunkiSoftwareTitleMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(apiClient.PATCH("/api/munki/software-titles/{id}", { params: { path: { id } }, body })),
     onSuccess: (title) => {

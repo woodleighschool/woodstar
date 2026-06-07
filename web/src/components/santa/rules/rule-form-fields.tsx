@@ -2,9 +2,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Code2, ExternalLink, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
-import { DataTable, DataTableRowDragHandle } from "@/components/data-table";
 import { CodeEditor } from "@/components/editor/code-editor";
-import { LabelPicker } from "@/components/labels/label-picker";
+import { LabelTargetRowsTable } from "@/components/targeting/label-target-rows-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +21,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useSantaRuleTargets, type SantaRulePolicy, type SantaRuleTarget, type SantaRuleType } from "@/hooks/use-santa";
 import {
   ruleIdentifierHint,
-  unavailableIncludeLabelIDs,
   type RuleFormState,
   type RuleIncludeErrors,
   type RuleIncludeForm,
@@ -185,16 +183,8 @@ export function IncludeTargetsTable({
   onEditCEL: (id: number) => void;
   onDelete: (id: number) => void;
 }) {
-  const columns = useMemo<ColumnDef<RuleIncludeForm>[]>(
+  const policyColumns = useMemo<ColumnDef<RuleIncludeForm>[]>(
     () => [
-      {
-        id: "drag",
-        header: () => null,
-        enableSorting: false,
-        enableHiding: false,
-        cell: () => <DataTableRowDragHandle />,
-        meta: { headClassName: "w-10", cellClassName: "w-10 align-top pt-3" },
-      },
       {
         id: "policy",
         header: "Policy",
@@ -254,73 +244,36 @@ export function IncludeTargetsTable({
           );
         },
       },
-      {
-        id: "labels",
-        header: () => (
-          <span className="inline-flex items-center gap-1">
-            Labels
-            <span aria-hidden="true" className="text-destructive">
-              *
-            </span>
-          </span>
-        ),
-        enableSorting: false,
-        cell: ({ row }) => {
-          const error = showErrors ? includeErrors[row.original.id]?.label_id : undefined;
-          const unavailableLabelIDs = unavailableIncludeLabelIDs(includes, excludeLabelIDs, row.original.id);
-
-          return (
-            <Field data-invalid={error ? true : undefined} className="min-w-72 gap-1">
-              <LabelPicker
-                value={row.original.label_id === null ? [] : [row.original.label_id]}
-                selectionMode="single"
-                includeBuiltins
-                required
-                unavailableLabelIDs={unavailableLabelIDs}
-                placeholder="Select Label"
-                emptyMessage="No Unused Labels Available."
-                emptyPlaceholder="No Unused Labels"
-                invalid={error ? true : undefined}
-                onChange={(label_ids) => onUpdate(row.original.id, { label_id: label_ids[0] ?? null })}
-              />
-              {error ? <FieldError>{error}</FieldError> : null}
-            </Field>
-          );
-        },
-      },
-      {
-        id: "actions",
-        header: () => null,
-        enableSorting: false,
-        enableHiding: false,
-        cell: ({ row }) => (
-          <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(row.original.id)}>
-            <Trash2 />
-          </Button>
-        ),
-        meta: { headClassName: "w-10", cellClassName: "w-10 align-top pt-3" },
-      },
     ],
-    [excludeLabelIDs, includeErrors, includes, onDelete, onEditCEL, onUpdate, showErrors],
+    [includeErrors, onEditCEL, onUpdate, showErrors],
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={includes}
-      totalCount={includes.length}
-      pagination={{ pageIndex: 0, pageSize: Math.max(includes.length, 1) }}
-      sorting={[]}
-      onPaginationChange={() => undefined}
-      onSortingChange={() => undefined}
-      getRowId={(include) => String(include.id)}
-      clientSort
-      rowReorderDisabled={includes.length <= 1}
-      onRowReorder={onChange}
+    <LabelTargetRowsTable
+      rows={includes}
+      excludeLabelIDs={excludeLabelIDs}
+      labelErrors={includeLabelErrors(showErrors, includeErrors)}
+      columnsBeforeLabel={policyColumns}
+      onChange={onChange}
+      onLabelChange={(id, labelID) => onUpdate(id, { label_id: labelID })}
+      renderActions={(row) => (
+        <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(row.id)}>
+          <Trash2 />
+        </Button>
+      )}
       empty={<span className="text-muted-foreground text-sm">No Include Targets.</span>}
       emptyClassName="min-h-24 items-center py-6"
     />
   );
+}
+
+function includeLabelErrors(showErrors: boolean, includeErrors: Partial<Record<number, RuleIncludeErrors>>) {
+  if (!showErrors) return {};
+  const errors: Partial<Record<number, string>> = {};
+  for (const [id, error] of Object.entries(includeErrors)) {
+    if (error?.label_id) errors[Number(id)] = error.label_id;
+  }
+  return errors;
 }
 
 export function CELDialog({

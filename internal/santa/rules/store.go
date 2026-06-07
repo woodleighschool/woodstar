@@ -223,37 +223,6 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	return len(deletedIDs), nil
 }
 
-func (s *Store) ReorderRuleIncludes(ctx context.Context, ruleID int64, orderedIncludeIDs []int64) error {
-	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
-		q := s.q.WithTx(tx)
-		exists, err := q.SantaRuleExists(ctx, sqlc.SantaRuleExistsParams{ID: ruleID})
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return dbutil.ErrNotFound
-		}
-
-		currentIDs, err := q.ListSantaRuleIncludeIDs(ctx, sqlc.ListSantaRuleIncludeIDsParams{RuleID: ruleID})
-		if err != nil {
-			return err
-		}
-		if !dbutil.SameInt64Set(orderedIncludeIDs, currentIDs) {
-			return fmt.Errorf("%w: ordered_include_ids must exactly match existing include IDs", dbutil.ErrInvalidInput)
-		}
-		if err := q.SetSantaRuleIncludePositions(ctx, sqlc.SetSantaRuleIncludePositionsParams{
-			RuleID:     ruleID,
-			OrderedIds: orderedIncludeIDs,
-		}); err != nil {
-			return err
-		}
-		return q.NormalizeSantaRuleIncludePositions(
-			ctx,
-			sqlc.NormalizeSantaRuleIncludePositionsParams{RuleID: ruleID},
-		)
-	})
-}
-
 func (s *Store) ResolveRulesForHost(ctx context.Context, hostID int64) ([]HostRule, error) {
 	rows, err := s.q.ListSantaRulesForHost(ctx, sqlc.ListSantaRulesForHostParams{HostID: hostID})
 	if err != nil {
@@ -450,6 +419,9 @@ func (p RuleMutation) Validate() error {
 	}
 	labelIDs := make(map[int64]struct{}, len(p.Includes)+len(p.ExcludeLabelIDs))
 	for _, include := range p.Includes {
+		if include.LabelID <= 0 {
+			return fmt.Errorf("%w: include label_id is required", dbutil.ErrInvalidInput)
+		}
 		if !validPolicy(include.Policy) {
 			return fmt.Errorf("%w: include policy is required", dbutil.ErrInvalidInput)
 		}
@@ -470,6 +442,9 @@ func (p RuleMutation) Validate() error {
 		labelIDs[include.LabelID] = struct{}{}
 	}
 	for _, labelID := range p.ExcludeLabelIDs {
+		if labelID <= 0 {
+			return fmt.Errorf("%w: exclude_label_ids contains an invalid label_id", dbutil.ErrInvalidInput)
+		}
 		if _, ok := labelIDs[labelID]; ok {
 			return fmt.Errorf("%w: label_id is already assigned to this rule", dbutil.ErrInvalidInput)
 		}

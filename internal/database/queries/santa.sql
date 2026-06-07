@@ -251,23 +251,6 @@ SELECT EXISTS (
     WHERE id = @id
 );
 
--- name: ListSantaRuleIncludeIDs :many
-SELECT id
-FROM santa_rule_includes
-WHERE rule_id = @rule_id
-ORDER BY position, id;
-
--- name: SetSantaRuleIncludePositions :exec
-UPDATE santa_rule_includes i
-SET position = -ordered.position
-FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, position)
-WHERE i.id = ordered.id AND i.rule_id = @rule_id;
-
--- name: NormalizeSantaRuleIncludePositions :exec
-UPDATE santa_rule_includes
-SET position = -position - 1
-WHERE rule_id = @rule_id;
-
 -- name: CountSantaRulesForHost :one
 WITH host_labels AS (
     SELECT label_id

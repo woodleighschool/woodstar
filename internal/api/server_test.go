@@ -273,7 +273,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		server,
 		cookie,
 		"/api/munki/software-titles",
-		`{"name":"GoogleChrome","display_name":"Google Chrome"}`,
+		`{"name":"Google Chrome"}`,
 	)
 	pkg := postMunkiJSON[packages.Package](
 		t,
@@ -281,12 +281,12 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		"/api/munki/packages",
 		fmt.Sprintf(
-			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.1","installer_type":"nopkg","eligible":true}`,
+			`{"software_id":%d,"version":"148.0.0.1","installer_type":"nopkg","on_demand":true,"eligible":true}`,
 			title.ID,
 		),
 	)
-	if pkg.Name != "GoogleChrome" || pkg.Version != "148.0.0.1" {
-		t.Fatalf("pkg = %+v, want GoogleChrome 148.0.0.1", pkg)
+	if pkg.SoftwareName != "Google Chrome" || pkg.Version != "148.0.0.1" {
+		t.Fatalf("pkg = %+v, want Google Chrome 148.0.0.1", pkg)
 	}
 	pkg = patchMunkiJSON[packages.Package](
 		t,
@@ -294,60 +294,13 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		fmt.Sprintf("/api/munki/packages/%d", pkg.ID),
 		fmt.Sprintf(
-			`{"software_id":%d,"name":"GoogleChrome","version":"148.0.0.2","installer_type":"nopkg","eligible":true}`,
+			`{"software_id":%d,"version":"148.0.0.2","installer_type":"nopkg","on_demand":true,"eligible":true}`,
 			title.ID,
 		),
 	)
 	if pkg.Version != "148.0.0.2" {
 		t.Fatalf("updated pkg = %+v, want version 148.0.0.2", pkg)
 	}
-	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
-	assignment := postMunkiJSON[assignments.Assignment](
-		t,
-		server,
-		cookie,
-		"/api/munki/assignments",
-		fmt.Sprintf(
-			`{"software_id":%d,"priority":1,"label_id":%d,"action":"install","package_selection":"specific_package","pinned_package_id":%d}`,
-			title.ID,
-			allHostsID,
-			pkg.ID,
-		),
-	)
-	assignment = patchMunkiJSON[assignments.Assignment](
-		t,
-		server,
-		cookie,
-		fmt.Sprintf("/api/munki/assignments/%d", assignment.ID),
-		fmt.Sprintf(
-			`{"software_id":%d,"priority":1,"label_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}`,
-			title.ID,
-			allHostsID,
-			pkg.ID,
-		),
-	)
-	if !assignment.OptionalInstall || !assignment.FeaturedItem {
-		t.Fatalf("updated assignment = %+v, want optional_install and featured_item", assignment)
-	}
-
-	listRec := httptest.NewRecorder()
-	listReq := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/munki/assignments", nil)
-	listReq.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(listRec, listReq)
-	if listRec.Code != http.StatusOK {
-		t.Fatalf("list assignments status = %d, want %d; body = %q", listRec.Code, http.StatusOK, listRec.Body.String())
-	}
-	var listed struct {
-		Items []assignments.Assignment `json:"items"`
-		Count int                      `json:"count"`
-	}
-	if err := json.NewDecoder(listRec.Body).Decode(&listed); err != nil {
-		t.Fatalf("decode assignments page: %v", err)
-	}
-	if listed.Count != 1 || len(listed.Items) != 1 || listed.Items[0].ID != assignment.ID {
-		t.Fatalf("assignments page = %+v, want created assignment", listed)
-	}
-
 	excludeLabel, err := labels.NewStore(database).Create(context.Background(), labels.LabelMutation{
 		Name:                "Munki API Exclude",
 		LabelMembershipType: labels.LabelMembershipTypeManual,
@@ -355,17 +308,31 @@ func TestMunkiAdminAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create exclude label: %v", err)
 	}
-	excludes := putMunkiJSON[struct {
-		ExcludeLabelIDs []int64 `json:"exclude_label_ids"`
+	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
+	updatedTitle := patchMunkiJSON[struct {
+		Includes        []assignments.Assignment `json:"includes"`
+		ExcludeLabelIDs []int64                  `json:"exclude_label_ids"`
 	}](
 		t,
 		server,
 		cookie,
-		fmt.Sprintf("/api/munki/software-titles/%d/exclude-labels", title.ID),
-		fmt.Sprintf(`{"exclude_label_ids":[%d]}`, excludeLabel.ID),
+		fmt.Sprintf("/api/munki/software-titles/%d", title.ID),
+		fmt.Sprintf(
+			`{"name":"Google Chrome","description":"","category":"","developer":"","includes":[{"label_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}],"exclude_label_ids":[%d]}`,
+			allHostsID,
+			pkg.ID,
+			excludeLabel.ID,
+		),
 	)
-	if len(excludes.ExcludeLabelIDs) != 1 || excludes.ExcludeLabelIDs[0] != excludeLabel.ID {
-		t.Fatalf("exclude labels = %+v, want [%d]", excludes.ExcludeLabelIDs, excludeLabel.ID)
+	if len(updatedTitle.Includes) != 1 {
+		t.Fatalf("includes = %+v, want one assignment", updatedTitle.Includes)
+	}
+	assignment := updatedTitle.Includes[0]
+	if !assignment.OptionalInstall || !assignment.FeaturedItem {
+		t.Fatalf("assignment = %+v, want optional_install and featured_item", assignment)
+	}
+	if len(updatedTitle.ExcludeLabelIDs) != 1 || updatedTitle.ExcludeLabelIDs[0] != excludeLabel.ID {
+		t.Fatalf("exclude labels = %+v, want [%d]", updatedTitle.ExcludeLabelIDs, excludeLabel.ID)
 	}
 
 	detailRec := httptest.NewRecorder()
@@ -571,9 +538,9 @@ type munkiTestStores struct {
 
 func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 	artifactStore := artifacts.NewStore(db)
-	softwareTitleStore := softwaretitles.NewStore(db, artifactStore)
-	packageStore := packages.NewStore(db, softwareTitleStore, artifactStore)
-	assignmentStore := assignments.NewStore(db, softwareTitleStore, packageStore)
+	packageStore := packages.NewStore(db, artifactStore)
+	softwareTitleStore := softwaretitles.NewStore(db, artifactStore, packageStore)
+	assignmentStore := assignments.NewStore(db, packageStore)
 	stores := munkiTestStores{
 		artifacts:      artifactStore,
 		assignments:    assignmentStore,
@@ -621,24 +588,6 @@ func patchMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, pa
 	var decoded T
 	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
 		t.Fatalf("decode PATCH %s: %v", path, err)
-	}
-	return decoded
-}
-
-func putMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
-	t.Helper()
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, path, strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("PUT %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
-	}
-	var decoded T
-	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
-		t.Fatalf("decode PUT %s: %v", path, err)
 	}
 	return decoded
 }

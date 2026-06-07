@@ -196,10 +196,14 @@ func (s *Service) clientCanFetchPackageArtifact(
 		return false, err
 	}
 	for _, pkg := range packages {
-		if pkg.Package.InstallerArtifactID == nil || *pkg.Package.InstallerArtifactID != artifact.ID {
-			continue
+		if pkg.Package.InstallerArtifactID != nil &&
+			*pkg.Package.InstallerArtifactID == artifact.ID &&
+			pkg.Package.InstallerArtifactLocation == artifact.Location {
+			return true, nil
 		}
-		if pkg.Package.InstallerArtifactLocation == artifact.Location {
+		if pkg.Package.UninstallerArtifactID != nil &&
+			*pkg.Package.UninstallerArtifactID == artifact.ID &&
+			pkg.Package.UninstallerArtifactLocation == artifact.Location {
 			return true, nil
 		}
 	}
@@ -239,18 +243,7 @@ func addManifestPackage(manifest *renderedManifest, pkg assignments.EffectivePac
 }
 
 func manifestItemName(pkg assignments.EffectivePackage) string {
-	name := strings.TrimSpace(pkg.Package.Name)
-	if name == "" {
-		return ""
-	}
-	if pkg.PackageSelection != assignments.PackageSelectionSpecific {
-		return name
-	}
-	version := strings.TrimSpace(pkg.Package.Version)
-	if version == "" {
-		return name
-	}
-	return name + "--" + version
+	return packages.MunkiName(pkg.Package.ID)
 }
 
 func (s *Service) catalogItems(effective []assignments.EffectivePackage) ([]map[string]any, error) {
@@ -269,6 +262,11 @@ func (s *Service) catalogItems(effective []assignments.EffectivePackage) ([]map[
 			if pkg.Package.InstallerArtifactLocation != "" {
 				item["installer_item_location"] = pkg.Package.InstallerArtifactLocation
 			}
+		}
+		if pkg.Package.UninstallMethod == packages.UninstallMethodUninstallPackage &&
+			pkg.Package.UninstallerArtifactID != nil &&
+			pkg.Package.UninstallerArtifactLocation != "" {
+			item["uninstaller_item_location"] = pkg.Package.UninstallerArtifactLocation
 		}
 		items = append(items, item)
 	}

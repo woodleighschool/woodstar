@@ -1020,15 +1020,9 @@ type MunkiHostStatus struct {
 type MunkiPackage struct {
 	ID                           int64      `json:"id"`
 	SoftwareID                   int64      `json:"software_id"`
-	Name                         string     `json:"name"`
 	Version                      string     `json:"version"`
-	DisplayName                  string     `json:"display_name"`
-	Description                  string     `json:"description"`
-	Category                     string     `json:"category"`
-	Developer                    string     `json:"developer"`
 	InstallerType                string     `json:"installer_type"`
 	UninstallMethod              string     `json:"uninstall_method"`
-	CustomUninstallMethod        string     `json:"custom_uninstall_method"`
 	RestartAction                string     `json:"restart_action"`
 	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
 	MinimumOSVersion             string     `json:"minimum_os_version"`
@@ -1037,7 +1031,6 @@ type MunkiPackage struct {
 	BlockingApplications         []string   `json:"blocking_applications"`
 	UnattendedInstall            bool       `json:"unattended_install"`
 	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	Uninstallable                bool       `json:"uninstallable"`
 	OnDemand                     bool       `json:"on_demand"`
 	Precache                     bool       `json:"precache"`
 	Autoremove                   bool       `json:"autoremove"`
@@ -1045,7 +1038,6 @@ type MunkiPackage struct {
 	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
 	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
 	InstalledSize                int64      `json:"installed_size"`
-	PayloadIdentifier            string     `json:"payload_identifier"`
 	PackagePath                  string     `json:"package_path"`
 	InstallerChoicesXml          string     `json:"installer_choices_xml"`
 	InstallerEnvironment         []byte     `json:"installer_environment"`
@@ -1085,8 +1077,7 @@ type MunkiPackageRelation struct {
 	ID              int64                    `json:"id"`
 	PackageID       int64                    `json:"package_id"`
 	RelationKind    MunkiPackageRelationKind `json:"relation_kind"`
-	TargetPackageID *int64                   `json:"target_package_id"`
-	Name            string                   `json:"name"`
+	TargetPackageID int64                    `json:"target_package_id"`
 	Position        int32                    `json:"position"`
 	CreatedAt       time.Time                `json:"created_at"`
 	UpdatedAt       time.Time                `json:"updated_at"`
@@ -1095,7 +1086,6 @@ type MunkiPackageRelation struct {
 type MunkiSoftwareTitle struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
-	DisplayName    string    `json:"display_name"`
 	Description    string    `json:"description"`
 	Category       string    `json:"category"`
 	Developer      string    `json:"developer"`

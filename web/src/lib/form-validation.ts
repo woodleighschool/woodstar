@@ -23,7 +23,9 @@ export function integerRange(label: string, min: number, max?: number) {
   return max === undefined ? schema : schema.max(max, `${label} must be at most ${max}.`);
 }
 
-export function fieldErrors(result: { success: true } | { success: false; error: ZodError }): Record<string, string> {
+export function fieldErrors(
+  result: { success: true } | { success: false; error: ZodError },
+): Partial<Record<string, string>> {
   if (result.success) return {};
   const out: Record<string, string> = {};
   for (const issue of result.error.issues) {

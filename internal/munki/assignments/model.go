@@ -63,11 +63,22 @@ type AssignmentMutation struct {
 	PinnedPackageID  *int64           `json:"pinned_package_id,omitempty"`
 }
 
+// AssignmentIncludeMutation is one assignment row inside a software title's
+// ordered include set. Its position is the slice order.
+type AssignmentIncludeMutation struct {
+	LabelID          int64            `json:"label_id"`
+	Action           AssignmentAction `json:"action"`
+	OptionalInstall  bool             `json:"optional_install,omitempty"`
+	FeaturedItem     bool             `json:"featured_item,omitempty"`
+	PackageSelection PackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64           `json:"pinned_package_id,omitempty"`
+}
+
 // Assignment links one Munki software title, one include label, and its Munki payload.
 type Assignment struct {
 	ID                   int64            `json:"id"`
 	SoftwareID           int64            `json:"software_id"`
-	SoftwareDisplayName  string           `json:"software_display_name"`
+	SoftwareName         string           `json:"software_name"`
 	Priority             int32            `json:"priority"`
 	LabelID              int64            `json:"label_id"`
 	Action               AssignmentAction `json:"action"`
@@ -106,6 +117,9 @@ func (m AssignmentMutation) Validate() error {
 	if m.Priority < 1 {
 		return fmt.Errorf("%w: priority must be at least 1", dbutil.ErrInvalidInput)
 	}
+	if m.LabelID <= 0 {
+		return fmt.Errorf("%w: label_id is required", dbutil.ErrInvalidInput)
+	}
 	if !validAction(m.Action) {
 		return fmt.Errorf("%w: unsupported assignment action %q", dbutil.ErrInvalidInput, m.Action)
 	}
@@ -117,6 +131,19 @@ func (m AssignmentMutation) Validate() error {
 		)
 	}
 	return m.validatePackagePayload()
+}
+
+func (m AssignmentIncludeMutation) Mutation(softwareID int64, priority int32) AssignmentMutation {
+	return AssignmentMutation{
+		SoftwareID:       softwareID,
+		Priority:         priority,
+		LabelID:          m.LabelID,
+		Action:           m.Action,
+		OptionalInstall:  m.OptionalInstall,
+		FeaturedItem:     m.FeaturedItem,
+		PackageSelection: m.PackageSelection,
+		PinnedPackageID:  m.PinnedPackageID,
+	}
 }
 
 func validAction(action AssignmentAction) bool {
