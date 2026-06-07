@@ -58,6 +58,15 @@ func TestConfigurationStoreValidatesConflictsAndReplacesEditableShape(t *testing
 		t.Fatalf("invalid label ID error = %v, want ErrNotFound", err)
 	}
 
+	overlappingTargets := baseline("overlapping targets")
+	overlappingTargets.Targets = []scope.TargetLabel{
+		{LabelID: firstLabelID, Effect: scope.TargetLabelInclude},
+		{LabelID: firstLabelID, Effect: scope.TargetLabelExclude},
+	}
+	if _, err := store.CreateConfiguration(ctx, overlappingTargets); !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("overlapping target error = %v, want ErrInvalidInput", err)
+	}
+
 	remountWithoutFlags := baseline("remount without flags")
 	remountWithoutFlags.RemovableMediaPolicy = configurations.RemovableMediaPolicy{
 		Action: configurations.RemovableMediaActionRemount,

@@ -38,7 +38,7 @@ func (s *Store) List(ctx context.Context, params AssignmentListParams) ([]Assign
 		WhereSQL:     where,
 		Args:         args,
 		OrderKeys:    assignmentOrderKeys(),
-		DefaultOrder: []dbutil.OrderExpr{{SQL: "a.priority"}, {SQL: "a.id"}},
+		DefaultOrder: []dbutil.OrderExpr{{SQL: "a.position"}, {SQL: "a.label_id"}},
 		Params:       params.ListParams,
 	}
 	var count int
@@ -71,7 +71,7 @@ func (s *Store) ListForSoftwareTitle(ctx context.Context, softwareID int64) ([]A
 	}
 	rows, err := s.db.Pool().Query(
 		ctx,
-		assignmentSelectSQL+"\nWHERE a.software_id = $1\nORDER BY a.priority, a.id",
+		assignmentSelectSQL+"\nWHERE a.direction = 'include' AND a.software_id = $1\nORDER BY a.position, a.label_id",
 		softwareID,
 	)
 	if err != nil {
@@ -182,6 +182,7 @@ func assignmentFromRecord(row assignmentRecord) Assignment {
 
 func assignmentListWhere(params AssignmentListParams) (string, []any) {
 	var where dbutil.WhereBuilder
+	where.Add("a.direction = 'include'")
 	if params.SoftwareID > 0 {
 		where.Add("a.software_id = " + where.Arg(params.SoftwareID))
 	}
@@ -199,7 +200,7 @@ func assignmentListWhere(params AssignmentListParams) (string, []any) {
 
 func assignmentOrderKeys() map[string]dbutil.OrderExpr {
 	return map[string]dbutil.OrderExpr{
-		"priority":   {SQL: "a.priority"},
+		"priority":   {SQL: "a.position"},
 		"name":       {SQL: "lower(s.name)"},
 		"action":     {SQL: "a.action"},
 		"optional":   {SQL: "a.optional_install"},
@@ -227,10 +228,10 @@ type assignmentRecord struct {
 
 const assignmentSelectSQL = `
 SELECT
-	a.id,
+	(a.position + 1)::bigint AS id,
 	a.software_id,
 	s.name AS software_name,
-	a.priority,
+	(a.position + 1)::integer AS priority,
 	a.label_id,
 	a.action,
 	a.optional_install,
@@ -241,7 +242,7 @@ SELECT
 	p.version AS pinned_package_version,
 	a.created_at,
 	a.updated_at
-FROM munki_assignments a
+FROM munki_software_targets a
 JOIN munki_software_titles s ON s.id = a.software_id
 LEFT JOIN munki_packages p ON p.id = a.pinned_package_id
 LEFT JOIN munki_software_titles pinned_software ON pinned_software.id = p.software_id`

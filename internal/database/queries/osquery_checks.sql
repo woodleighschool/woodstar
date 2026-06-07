@@ -77,17 +77,17 @@ FROM checks c
 JOIN host_row h ON true
 WHERE EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'include'
+        AND ct.direction = 'include'
   )
   AND NOT EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'exclude'
+        AND ct.direction = 'exclude'
   )
 ORDER BY c.id;
 
@@ -132,17 +132,17 @@ JOIN host_rows h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'include'
+        AND ct.direction = 'include'
   )
   AND NOT EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'exclude'
+        AND ct.direction = 'exclude'
   )
 ORDER BY
     CASE
@@ -173,17 +173,17 @@ JOIN host_row h ON true
 LEFT JOIN check_membership m ON m.host_id = h.id AND m.check_id = c.id
 WHERE EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'include'
+        AND ct.direction = 'include'
   )
   AND NOT EXISTS (
       SELECT 1
-      FROM check_targets ct
+      FROM osquery_check_targets ct
       JOIN label_membership lm ON lm.label_id = ct.label_id AND lm.host_id = h.id
       WHERE ct.check_id = c.id
-        AND ct.effect = 'exclude'
+        AND ct.direction = 'exclude'
   )
 ORDER BY
     CASE
@@ -195,18 +195,21 @@ ORDER BY
     c.id;
 
 -- name: ListCheckTargets :many
-SELECT check_id, label_id, effect
-FROM check_targets
+SELECT check_id, label_id, direction::text AS effect
+FROM osquery_check_targets
 WHERE check_id = ANY(@check_ids::bigint[])
-ORDER BY check_id, effect, label_id;
+ORDER BY
+    check_id,
+    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    position;
 
 -- name: DeleteCheckTargets :exec
-DELETE FROM check_targets
+DELETE FROM osquery_check_targets
 WHERE check_id = @check_id;
 
 -- name: InsertCheckTargets :exec
-INSERT INTO check_targets (check_id, label_id, effect)
-SELECT @check_id, labels.label_id, effects.effect
+INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
+SELECT @check_id, labels.label_id, effects.effect::target_direction, labels.ord - 1
 FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
 JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
 

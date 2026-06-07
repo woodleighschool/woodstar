@@ -68,15 +68,15 @@ func replaceReportTargets(ctx context.Context, tx pgx.Tx, reportID int64, target
 }
 
 func validateTargets(targets []scope.TargetLabel) error {
-	seen := make(map[scope.TargetLabel]struct{}, len(targets))
+	seen := make(map[int64]struct{}, len(targets))
 	for _, target := range targets {
 		if !scope.ValidTargetLabelEffect(target.Effect) {
 			return fmt.Errorf("%w: unsupported target effect %q", dbutil.ErrInvalidInput, target.Effect)
 		}
-		if _, ok := seen[target]; ok {
+		if _, ok := seen[target.LabelID]; ok {
 			return fmt.Errorf("%w: duplicate target row", dbutil.ErrInvalidInput)
 		}
-		seen[target] = struct{}{}
+		seen[target.LabelID] = struct{}{}
 	}
 	return nil
 }

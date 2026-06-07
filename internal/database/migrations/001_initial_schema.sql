@@ -5,6 +5,7 @@ CREATE TYPE directory_source AS ENUM ('local', 'entra');
 CREATE TYPE agent AS ENUM ('orbit', 'santa');
 CREATE TYPE host_user_affinity_source AS ENUM ('manual', 'orbit_profile', 'santa_primary_user');
 CREATE TYPE host_user_link_source AS ENUM ('manual', 'reported_user_affinity');
+CREATE TYPE target_direction AS ENUM ('include', 'exclude');
 
 -- Users, sessions, Enrollment ------------------------------------------
 
@@ -402,22 +403,24 @@ CREATE TABLE check_membership (
 CREATE INDEX check_membership_passes_idx
     ON check_membership (check_id, passes);
 
-CREATE TABLE report_targets (
+CREATE TABLE osquery_report_targets (
     report_id BIGINT NOT NULL REFERENCES reports (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
-    PRIMARY KEY (report_id, label_id, effect)
+    direction target_direction NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    PRIMARY KEY (report_id, direction, position),
+    UNIQUE (report_id, label_id)
 );
 
-CREATE INDEX report_targets_label_idx ON report_targets (label_id);
-CREATE INDEX report_targets_report_effect_idx ON report_targets (report_id, effect);
+CREATE INDEX osquery_report_targets_label_idx ON osquery_report_targets (label_id);
 
-CREATE TABLE check_targets (
+CREATE TABLE osquery_check_targets (
     check_id BIGINT NOT NULL REFERENCES checks (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
-    PRIMARY KEY (check_id, label_id, effect)
+    direction target_direction NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    PRIMARY KEY (check_id, direction, position),
+    UNIQUE (check_id, label_id)
 );
 
-CREATE INDEX check_targets_label_idx ON check_targets (label_id);
-CREATE INDEX check_targets_check_effect_idx ON check_targets (check_id, effect);
+CREATE INDEX osquery_check_targets_label_idx ON osquery_check_targets (label_id);

@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 const completeSantaSync = `-- name: CompleteSantaSync :exec
@@ -73,6 +74,57 @@ func (q *Queries) DeleteSantaSyncTargetsByPhase(ctx context.Context, arg DeleteS
 	return err
 }
 
+const getHostIDByMachineID = `-- name: GetHostIDByMachineID :one
+SELECT id
+FROM hosts
+WHERE hardware_uuid = $1
+`
+
+type GetHostIDByMachineIDParams struct {
+	MachineID string `json:"machine_id"`
+}
+
+func (q *Queries) GetHostIDByMachineID(ctx context.Context, arg GetHostIDByMachineIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getHostIDByMachineID, arg.MachineID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getObservedSantaHostState = `-- name: GetObservedSantaHostState :one
+SELECT
+    sh.santa_version,
+    sh.client_mode_reported,
+    sh.last_seen_at,
+    ss.last_clean_sync_at
+FROM santa_hosts sh
+LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
+WHERE sh.host_id = $1
+`
+
+type GetObservedSantaHostStateParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type GetObservedSantaHostStateRow struct {
+	SantaVersion       string          `json:"santa_version"`
+	ClientModeReported SantaClientMode `json:"client_mode_reported"`
+	LastSeenAt         *time.Time      `json:"last_seen_at"`
+	LastCleanSyncAt    *time.Time      `json:"last_clean_sync_at"`
+}
+
+func (q *Queries) GetObservedSantaHostState(ctx context.Context, arg GetObservedSantaHostStateParams) (GetObservedSantaHostStateRow, error) {
+	row := q.db.QueryRow(ctx, getObservedSantaHostState, arg.HostID)
+	var i GetObservedSantaHostStateRow
+	err := row.Scan(
+		&i.SantaVersion,
+		&i.ClientModeReported,
+		&i.LastSeenAt,
+		&i.LastCleanSyncAt,
+	)
+	return i, err
+}
+
 const getSantaPendingState = `-- name: GetSantaPendingState :one
 SELECT pending_payload_rule_count, pending_full_sync
 FROM santa_sync_state
@@ -92,6 +144,30 @@ func (q *Queries) GetSantaPendingState(ctx context.Context, arg GetSantaPendingS
 	row := q.db.QueryRow(ctx, getSantaPendingState, arg.HostID)
 	var i GetSantaPendingStateRow
 	err := row.Scan(&i.PendingPayloadRuleCount, &i.PendingFullSync)
+	return i, err
+}
+
+const getSantaSyncSummary = `-- name: GetSantaSyncSummary :one
+SELECT
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'desired') AS desired_count,
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = $1 AND st.phase = 'applied') AS applied_count,
+    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = $1) AS pending_count
+`
+
+type GetSantaSyncSummaryParams struct {
+	SummaryHostID int64 `json:"summary_host_id"`
+}
+
+type GetSantaSyncSummaryRow struct {
+	DesiredCount int32 `json:"desired_count"`
+	AppliedCount int32 `json:"applied_count"`
+	PendingCount int32 `json:"pending_count"`
+}
+
+func (q *Queries) GetSantaSyncSummary(ctx context.Context, arg GetSantaSyncSummaryParams) (GetSantaSyncSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getSantaSyncSummary, arg.SummaryHostID)
+	var i GetSantaSyncSummaryRow
+	err := row.Scan(&i.DesiredCount, &i.AppliedCount, &i.PendingCount)
 	return i, err
 }
 
@@ -213,6 +289,64 @@ func (q *Queries) InsertSantaSyncTarget(ctx context.Context, arg InsertSantaSync
 		arg.PayloadHash,
 	)
 	return err
+}
+
+const listAppliedSantaSyncTargets = `-- name: ListAppliedSantaSyncTargets :many
+SELECT
+    rule_type::text,
+    identifier,
+    policy::text,
+    cel_expression,
+    custom_message,
+    custom_url,
+    notification_app_name,
+    payload_hash
+FROM santa_sync_targets
+WHERE host_id = $1 AND phase = 'applied'
+`
+
+type ListAppliedSantaSyncTargetsParams struct {
+	HostID int64 `json:"host_id"`
+}
+
+type ListAppliedSantaSyncTargetsRow struct {
+	RuleType            string `json:"rule_type"`
+	Identifier          string `json:"identifier"`
+	Policy              string `json:"policy"`
+	CelExpression       string `json:"cel_expression"`
+	CustomMessage       string `json:"custom_message"`
+	CustomURL           string `json:"custom_url"`
+	NotificationAppName string `json:"notification_app_name"`
+	PayloadHash         string `json:"payload_hash"`
+}
+
+func (q *Queries) ListAppliedSantaSyncTargets(ctx context.Context, arg ListAppliedSantaSyncTargetsParams) ([]ListAppliedSantaSyncTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listAppliedSantaSyncTargets, arg.HostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAppliedSantaSyncTargetsRow{}
+	for rows.Next() {
+		var i ListAppliedSantaSyncTargetsRow
+		if err := rows.Scan(
+			&i.RuleType,
+			&i.Identifier,
+			&i.Policy,
+			&i.CelExpression,
+			&i.CustomMessage,
+			&i.CustomURL,
+			&i.NotificationAppName,
+			&i.PayloadHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSantaPendingPayloadPage = `-- name: ListSantaPendingPayloadPage :many
@@ -427,6 +561,78 @@ func (q *Queries) SantaSyncStateExists(ctx context.Context, arg SantaSyncStateEx
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const upsertSantaHostObservation = `-- name: UpsertSantaHostObservation :exec
+INSERT INTO santa_hosts (
+    host_id,
+    machine_id,
+    serial_number,
+    santa_version,
+    client_mode_reported,
+    primary_user,
+    primary_user_groups,
+    sip_status,
+    os_build,
+    model_identifier,
+    last_seen_at
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5::santa_client_mode,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    COALESCE($11::timestamptz, now())
+)
+ON CONFLICT (host_id) DO UPDATE SET
+    machine_id = EXCLUDED.machine_id,
+    serial_number = EXCLUDED.serial_number,
+    santa_version = EXCLUDED.santa_version,
+    client_mode_reported = EXCLUDED.client_mode_reported,
+    primary_user = EXCLUDED.primary_user,
+    primary_user_groups = EXCLUDED.primary_user_groups,
+    sip_status = EXCLUDED.sip_status,
+    os_build = EXCLUDED.os_build,
+    model_identifier = EXCLUDED.model_identifier,
+    last_seen_at = EXCLUDED.last_seen_at,
+    updated_at = now()
+`
+
+type UpsertSantaHostObservationParams struct {
+	HostID             int64           `json:"host_id"`
+	MachineID          string          `json:"machine_id"`
+	SerialNumber       string          `json:"serial_number"`
+	SantaVersion       string          `json:"santa_version"`
+	ClientModeReported SantaClientMode `json:"client_mode_reported"`
+	PrimaryUser        string          `json:"primary_user"`
+	PrimaryUserGroups  []string        `json:"primary_user_groups"`
+	SipStatus          *int16          `json:"sip_status"`
+	OSBuild            string          `json:"os_build"`
+	ModelIdentifier    string          `json:"model_identifier"`
+	LastSeenAt         *time.Time      `json:"last_seen_at"`
+}
+
+func (q *Queries) UpsertSantaHostObservation(ctx context.Context, arg UpsertSantaHostObservationParams) error {
+	_, err := q.db.Exec(ctx, upsertSantaHostObservation,
+		arg.HostID,
+		arg.MachineID,
+		arg.SerialNumber,
+		arg.SantaVersion,
+		arg.ClientModeReported,
+		arg.PrimaryUser,
+		arg.PrimaryUserGroups,
+		arg.SipStatus,
+		arg.OSBuild,
+		arg.ModelIdentifier,
+		arg.LastSeenAt,
+	)
+	return err
 }
 
 const upsertSantaSyncPreflight = `-- name: UpsertSantaSyncPreflight :exec

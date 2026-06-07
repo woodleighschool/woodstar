@@ -117,39 +117,56 @@ CREATE TABLE munki_package_relations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE munki_assignments (
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE munki_software_targets (
     software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
-    priority INTEGER NOT NULL DEFAULT 1,
+    direction target_direction NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    action munki_assignment_action NOT NULL,
-    optional_install BOOLEAN NOT NULL DEFAULT FALSE,
-    featured_item BOOLEAN NOT NULL DEFAULT FALSE,
-    package_selection munki_package_selection NOT NULL,
+    action munki_assignment_action,
+    optional_install BOOLEAN,
+    featured_item BOOLEAN,
+    package_selection munki_package_selection,
     pinned_package_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT munki_assignments_priority_check CHECK (priority >= 1),
-    CONSTRAINT munki_assignments_package_selection_check CHECK (
+    PRIMARY KEY (software_id, direction, position),
+    UNIQUE (software_id, label_id),
+    CONSTRAINT munki_software_targets_direction_metadata_check CHECK (
+        (
+            direction = 'include'
+            AND action IS NOT NULL
+            AND optional_install IS NOT NULL
+            AND featured_item IS NOT NULL
+            AND package_selection IS NOT NULL
+        )
+        OR (
+            direction = 'exclude'
+            AND action IS NULL
+            AND optional_install IS NULL
+            AND featured_item IS NULL
+            AND package_selection IS NULL
+            AND pinned_package_id IS NULL
+        )
+    ),
+    CONSTRAINT munki_software_targets_package_selection_check CHECK (
+        direction <> 'include'
+        OR
         (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
         OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
     ),
-    CONSTRAINT munki_assignments_featured_item_check CHECK (
+    CONSTRAINT munki_software_targets_featured_item_check CHECK (
+        direction <> 'include'
+        OR
         featured_item IS FALSE OR optional_install IS TRUE
     ),
-    CONSTRAINT munki_assignments_remove_section_check CHECK (
+    CONSTRAINT munki_software_targets_remove_section_check CHECK (
+        direction <> 'include'
+        OR
         action <> 'remove' OR (optional_install IS FALSE AND featured_item IS FALSE)
     ),
-    CONSTRAINT munki_assignments_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
+    CONSTRAINT munki_software_targets_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
         REFERENCES munki_packages (software_id, id)
         ON DELETE RESTRICT
-);
-
-CREATE TABLE munki_assignment_exclude_labels (
-    software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (software_id, label_id)
 );
 
 CREATE INDEX munki_artifacts_kind_idx
@@ -168,15 +185,7 @@ CREATE INDEX munki_package_relations_package_idx
     ON munki_package_relations (package_id, relation_kind, position, id);
 CREATE INDEX munki_package_relations_target_package_idx
     ON munki_package_relations (target_package_id);
-CREATE INDEX munki_assignments_software_idx
-    ON munki_assignments (software_id);
-CREATE INDEX munki_assignments_pinned_package_idx
-    ON munki_assignments (pinned_package_id);
-CREATE INDEX munki_assignments_priority_idx
-    ON munki_assignments (software_id, priority, id);
-CREATE UNIQUE INDEX munki_assignments_software_label_idx
-    ON munki_assignments (software_id, label_id);
-CREATE INDEX munki_assignments_label_idx
-    ON munki_assignments (label_id);
-CREATE INDEX munki_assignment_exclude_labels_label_idx
-    ON munki_assignment_exclude_labels (label_id);
+CREATE INDEX munki_software_targets_label_idx
+    ON munki_software_targets (label_id);
+CREATE INDEX munki_software_targets_pinned_package_idx
+    ON munki_software_targets (pinned_package_id);

@@ -1,3 +1,77 @@
+-- name: UpsertSantaHostObservation :exec
+INSERT INTO santa_hosts (
+    host_id,
+    machine_id,
+    serial_number,
+    santa_version,
+    client_mode_reported,
+    primary_user,
+    primary_user_groups,
+    sip_status,
+    os_build,
+    model_identifier,
+    last_seen_at
+)
+VALUES (
+    @host_id,
+    @machine_id,
+    @serial_number,
+    @santa_version,
+    @client_mode_reported::santa_client_mode,
+    @primary_user,
+    @primary_user_groups,
+    @sip_status,
+    @os_build,
+    @model_identifier,
+    COALESCE(sqlc.narg(last_seen_at)::timestamptz, now())
+)
+ON CONFLICT (host_id) DO UPDATE SET
+    machine_id = EXCLUDED.machine_id,
+    serial_number = EXCLUDED.serial_number,
+    santa_version = EXCLUDED.santa_version,
+    client_mode_reported = EXCLUDED.client_mode_reported,
+    primary_user = EXCLUDED.primary_user,
+    primary_user_groups = EXCLUDED.primary_user_groups,
+    sip_status = EXCLUDED.sip_status,
+    os_build = EXCLUDED.os_build,
+    model_identifier = EXCLUDED.model_identifier,
+    last_seen_at = EXCLUDED.last_seen_at,
+    updated_at = now();
+
+-- name: GetHostIDByMachineID :one
+SELECT id
+FROM hosts
+WHERE hardware_uuid = @machine_id;
+
+-- name: GetObservedSantaHostState :one
+SELECT
+    sh.santa_version,
+    sh.client_mode_reported,
+    sh.last_seen_at,
+    ss.last_clean_sync_at
+FROM santa_hosts sh
+LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
+WHERE sh.host_id = @host_id;
+
+-- name: GetSantaSyncSummary :one
+SELECT
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'desired') AS desired_count,
+    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'applied') AS applied_count,
+    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = @summary_host_id) AS pending_count;
+
+-- name: ListAppliedSantaSyncTargets :many
+SELECT
+    rule_type::text,
+    identifier,
+    policy::text,
+    cel_expression,
+    custom_message,
+    custom_url,
+    notification_app_name,
+    payload_hash
+FROM santa_sync_targets
+WHERE host_id = @host_id AND phase = 'applied';
+
 -- name: SantaSyncStateExists :one
 SELECT EXISTS (
     SELECT 1

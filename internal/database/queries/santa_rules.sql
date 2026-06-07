@@ -1,122 +1,3 @@
--- name: UpsertSantaHostObservation :exec
-INSERT INTO santa_hosts (
-    host_id,
-    machine_id,
-    serial_number,
-    santa_version,
-    client_mode_reported,
-    primary_user,
-    primary_user_groups,
-    sip_status,
-    os_build,
-    model_identifier,
-    last_seen_at
-)
-VALUES (
-    @host_id,
-    @machine_id,
-    @serial_number,
-    @santa_version,
-    @client_mode_reported::santa_client_mode,
-    @primary_user,
-    @primary_user_groups,
-    @sip_status,
-    @os_build,
-    @model_identifier,
-    COALESCE(sqlc.narg(last_seen_at)::timestamptz, now())
-)
-ON CONFLICT (host_id) DO UPDATE SET
-    machine_id = EXCLUDED.machine_id,
-    serial_number = EXCLUDED.serial_number,
-    santa_version = EXCLUDED.santa_version,
-    client_mode_reported = EXCLUDED.client_mode_reported,
-    primary_user = EXCLUDED.primary_user,
-    primary_user_groups = EXCLUDED.primary_user_groups,
-    sip_status = EXCLUDED.sip_status,
-    os_build = EXCLUDED.os_build,
-    model_identifier = EXCLUDED.model_identifier,
-    last_seen_at = EXCLUDED.last_seen_at,
-    updated_at = now();
-
--- name: CreateSantaConfiguration :one
-INSERT INTO santa_configurations (
-    name,
-    description,
-    position,
-    client_mode,
-    enable_bundles,
-    enable_transitive_rules,
-    enable_all_event_upload,
-    full_sync_interval_seconds,
-    batch_size,
-    allowed_path_regex,
-    blocked_path_regex,
-    removable_media_action,
-    removable_media_remount_flags,
-    encrypted_removable_media_action,
-    encrypted_removable_media_remount_flags,
-    event_detail_url,
-    event_detail_text
-)
-VALUES (
-    @name,
-    @description,
-    (SELECT COALESCE(MAX(position) + 1, 0) FROM santa_configurations),
-    @client_mode::santa_client_mode,
-    @enable_bundles,
-    @enable_transitive_rules,
-    @enable_all_event_upload,
-    @full_sync_interval_seconds::integer,
-    @batch_size::integer,
-    @allowed_path_regex,
-    @blocked_path_regex,
-    sqlc.narg(removable_media_action)::santa_removable_media_action,
-    sqlc.narg(removable_media_remount_flags)::text[],
-    sqlc.narg(encrypted_removable_media_action)::santa_removable_media_action,
-    sqlc.narg(encrypted_removable_media_remount_flags)::text[],
-    @event_detail_url,
-    @event_detail_text
-)
-RETURNING *;
-
--- name: GetSantaConfigurationByID :one
-SELECT *
-FROM santa_configurations
-WHERE id = @id;
-
--- name: UpdateSantaConfiguration :one
-UPDATE santa_configurations
-SET
-    name = @name,
-    description = @description,
-    client_mode = @client_mode::santa_client_mode,
-    enable_bundles = @enable_bundles,
-    enable_transitive_rules = @enable_transitive_rules,
-    enable_all_event_upload = @enable_all_event_upload,
-    full_sync_interval_seconds = @full_sync_interval_seconds::integer,
-    batch_size = @batch_size::integer,
-    allowed_path_regex = @allowed_path_regex,
-    blocked_path_regex = @blocked_path_regex,
-    removable_media_action = sqlc.narg(removable_media_action)::santa_removable_media_action,
-    removable_media_remount_flags = sqlc.narg(removable_media_remount_flags)::text[],
-    encrypted_removable_media_action = sqlc.narg(encrypted_removable_media_action)::santa_removable_media_action,
-    encrypted_removable_media_remount_flags = sqlc.narg(encrypted_removable_media_remount_flags)::text[],
-    event_detail_url = @event_detail_url,
-    event_detail_text = @event_detail_text,
-    updated_at = now()
-WHERE id = @id
-RETURNING *;
-
--- name: DeleteSantaConfiguration :one
-DELETE FROM santa_configurations
-WHERE id = @id
-RETURNING id;
-
--- name: DeleteSantaConfigurations :many
-DELETE FROM santa_configurations
-WHERE id = ANY(@ids::bigint[])
-RETURNING id;
-
 -- name: CreateSantaRule :one
 INSERT INTO santa_rules (
     rule_type,
@@ -164,86 +45,6 @@ DELETE FROM santa_rules
 WHERE id = ANY(@ids::bigint[])
 RETURNING id;
 
--- name: GetHostIDByMachineID :one
-SELECT id
-FROM hosts
-WHERE hardware_uuid = @machine_id;
-
--- name: GetObservedSantaHostState :one
-SELECT
-    sh.santa_version,
-    sh.client_mode_reported,
-    sh.last_seen_at,
-    ss.last_clean_sync_at
-FROM santa_hosts sh
-LEFT JOIN santa_sync_state ss ON ss.host_id = sh.host_id
-WHERE sh.host_id = @host_id;
-
--- name: GetSantaSyncSummary :one
-SELECT
-    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'desired') AS desired_count,
-    (SELECT count(*)::integer FROM santa_sync_targets st WHERE st.host_id = @summary_host_id AND st.phase = 'applied') AS applied_count,
-    (SELECT count(*)::integer FROM santa_sync_pending_rules pr WHERE pr.host_id = @summary_host_id) AS pending_count;
-
--- name: ListSantaConfigurationIDsByPosition :many
-SELECT id
-FROM santa_configurations
-ORDER BY position, id;
-
--- name: SetSantaConfigurationPositions :exec
-UPDATE santa_configurations c
-SET position = -ordered.position
-FROM unnest(@ordered_ids::bigint[]) WITH ORDINALITY AS ordered(id, position)
-WHERE c.id = ordered.id;
-
--- name: NormalizeSantaConfigurationPositions :exec
-UPDATE santa_configurations
-SET position = -position - 1;
-
--- name: ResolveSantaConfigurationForHost :one
-SELECT
-    sqlc.embed(c),
-    l.id AS label_id,
-    l.name AS label_name
-FROM santa_configurations c
-JOIN LATERAL (
-    SELECT
-        include_label.id,
-        include_label.name
-    FROM santa_configuration_targets t
-    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = @host_id
-    JOIN labels include_label ON include_label.id = t.label_id
-    WHERE t.configuration_id = c.id
-      AND t.effect = 'include'
-    ORDER BY include_label.name, include_label.id
-    LIMIT 1
-) l ON true
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM santa_configuration_targets t
-    JOIN label_membership lm ON lm.label_id = t.label_id AND lm.host_id = @host_id
-    WHERE t.configuration_id = c.id
-      AND t.effect = 'exclude'
-)
-ORDER BY c.position, c.id
-LIMIT 1;
-
--- name: DeleteSantaConfigurationTargets :exec
-DELETE FROM santa_configuration_targets
-WHERE configuration_id = @configuration_id;
-
--- name: InsertSantaConfigurationTargets :exec
-INSERT INTO santa_configuration_targets (configuration_id, label_id, effect)
-SELECT @configuration_id, labels.label_id, effects.effect
-FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
-
--- name: ListSantaConfigurationTargets :many
-SELECT configuration_id, label_id, effect
-FROM santa_configuration_targets
-WHERE configuration_id = ANY(@configuration_ids::bigint[])
-ORDER BY configuration_id, effect, label_id;
-
 -- name: SantaRuleExists :one
 SELECT EXISTS (
     SELECT 1
@@ -268,7 +69,7 @@ matching_includes AS (
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
         r.custom_url,
-        i.id AS matched_include_id,
+        i.position::bigint AS matched_include_id,
         CASE r.rule_type
             WHEN 'cdhash' THEN 1
             WHEN 'binary' THEN 2
@@ -278,15 +79,16 @@ matching_includes AS (
             WHEN 'bundle' THEN 6
             ELSE 7
         END AS rule_type_sort,
-        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position) AS include_rank
     FROM santa_rules r
-    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN santa_rule_targets i ON i.rule_id = r.id AND i.direction = 'include'
     JOIN host_labels include_hl ON include_hl.label_id = i.label_id
     WHERE NOT EXISTS (
         SELECT 1
-        FROM santa_rule_exclude_labels el
+        FROM santa_rule_targets el
         JOIN host_labels hl ON hl.label_id = el.label_id
         WHERE el.rule_id = r.id
+          AND el.direction = 'exclude'
     )
 ),
 selected_includes AS (
@@ -351,7 +153,7 @@ matching_includes AS (
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
         r.custom_url,
-        i.id AS matched_include_id,
+        i.position::bigint AS matched_include_id,
         CASE r.rule_type
             WHEN 'cdhash' THEN 1
             WHEN 'binary' THEN 2
@@ -361,15 +163,16 @@ matching_includes AS (
             WHEN 'bundle' THEN 6
             ELSE 7
         END AS rule_type_sort,
-        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position) AS include_rank
     FROM santa_rules r
-    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN santa_rule_targets i ON i.rule_id = r.id AND i.direction = 'include'
     JOIN host_labels include_hl ON include_hl.label_id = i.label_id
     WHERE NOT EXISTS (
         SELECT 1
-        FROM santa_rule_exclude_labels el
+        FROM santa_rule_targets el
         JOIN host_labels hl ON hl.label_id = el.label_id
         WHERE el.rule_id = r.id
+          AND el.direction = 'exclude'
     )
 ),
 selected_includes AS (
@@ -447,7 +250,7 @@ matching_includes AS (
         COALESCE(i.cel_expression, '') AS cel_expression,
         r.custom_message,
         r.custom_url,
-        i.id AS matched_include_id,
+        i.position::bigint AS matched_include_id,
         CASE r.rule_type
             WHEN 'cdhash' THEN 1
             WHEN 'binary' THEN 2
@@ -457,15 +260,16 @@ matching_includes AS (
             WHEN 'bundle' THEN 6
             ELSE 7
         END AS rule_type_sort,
-        row_number() OVER (PARTITION BY r.id ORDER BY i.position, i.id) AS include_rank
+        row_number() OVER (PARTITION BY r.id ORDER BY i.position) AS include_rank
     FROM santa_rules r
-    JOIN santa_rule_includes i ON i.rule_id = r.id
+    JOIN santa_rule_targets i ON i.rule_id = r.id AND i.direction = 'include'
     JOIN host_labels include_hl ON include_hl.label_id = i.label_id
     WHERE NOT EXISTS (
         SELECT 1
-        FROM santa_rule_exclude_labels el
+        FROM santa_rule_targets el
         JOIN host_labels hl ON hl.label_id = el.label_id
         WHERE el.rule_id = r.id
+          AND el.direction = 'exclude'
     )
 ),
 selected_includes AS (
@@ -527,26 +331,15 @@ FROM expanded_rules
 ORDER BY rule_type_sort, identifier, rule_id
 LIMIT @limit_count OFFSET @offset_count;
 
--- name: ListAppliedSantaSyncTargets :many
-SELECT
-    rule_type::text,
-    identifier,
-    policy::text,
-    cel_expression,
-    custom_message,
-    custom_url,
-    notification_app_name,
-    payload_hash
-FROM santa_sync_targets
-WHERE host_id = @host_id AND phase = 'applied';
-
 -- name: DeleteSantaRuleExcludeLabels :exec
-DELETE FROM santa_rule_exclude_labels
-WHERE rule_id = @rule_id;
+DELETE FROM santa_rule_targets
+WHERE rule_id = @rule_id
+  AND direction = 'exclude';
 
 -- name: DeleteSantaRuleIncludes :exec
-DELETE FROM santa_rule_includes
-WHERE rule_id = @rule_id;
+DELETE FROM santa_rule_targets
+WHERE rule_id = @rule_id
+  AND direction = 'include';
 
 -- name: InsertSantaRuleIncludes :exec
 WITH input AS (
@@ -559,9 +352,10 @@ WITH input AS (
     JOIN unnest(@cel_expressions::text[]) WITH ORDINALITY AS ce(cel_expression, position) USING (position)
     JOIN unnest(@label_ids::bigint[]) WITH ORDINALITY AS l(label_id, position) USING (position)
 )
-INSERT INTO santa_rule_includes (rule_id, position, policy, cel_expression, label_id)
+INSERT INTO santa_rule_targets (rule_id, direction, position, policy, cel_expression, label_id)
 SELECT
     @rule_id,
+    'include',
     position - 1,
     policy::santa_policy,
     NULLIF(cel_expression, ''),
@@ -570,27 +364,29 @@ FROM input
 ORDER BY position;
 
 -- name: InsertSantaRuleExcludeLabels :exec
-INSERT INTO santa_rule_exclude_labels (rule_id, label_id)
-SELECT @rule_id, label_id
-FROM unnest(@label_ids::bigint[]) AS label_id;
+INSERT INTO santa_rule_targets (rule_id, direction, position, label_id)
+SELECT @rule_id, 'exclude', labels.position - 1, labels.label_id
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, position);
 
 -- name: ListSantaRuleIncludes :many
 SELECT
     rule_id,
-    id,
+    position::bigint AS id,
     position,
     policy::text,
     COALESCE(cel_expression, '') AS cel_expression,
     label_id
-FROM santa_rule_includes
+FROM santa_rule_targets
 WHERE rule_id = ANY(@rule_ids::bigint[])
-ORDER BY rule_id, position, id;
+  AND direction = 'include'
+ORDER BY rule_id, position;
 
 -- name: ListSantaRuleExcludeLabels :many
 SELECT rule_id, label_id
-FROM santa_rule_exclude_labels
+FROM santa_rule_targets
 WHERE rule_id = ANY(@rule_ids::bigint[])
-ORDER BY rule_id, label_id;
+  AND direction = 'exclude'
+ORDER BY rule_id, position;
 
 -- name: IsSantaBundleComplete :one
 SELECT (uploaded_at IS NOT NULL)::boolean AS complete

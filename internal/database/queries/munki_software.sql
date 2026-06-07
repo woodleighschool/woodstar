@@ -1,0 +1,205 @@
+-- name: CreateMunkiSoftwareTitle :one
+INSERT INTO munki_software_titles (
+    name,
+    description,
+    category,
+    developer,
+    icon_name,
+    icon_hash,
+    icon_artifact_id
+)
+VALUES (
+    @name,
+    @description,
+    @category,
+    @developer,
+    @icon_name,
+    @icon_hash,
+    sqlc.narg(icon_artifact_id)::bigint
+)
+RETURNING *;
+
+-- name: ListMunkiSoftwareTitles :many
+SELECT *
+FROM munki_software_titles
+ORDER BY lower(name), id
+LIMIT @limit_rows OFFSET @offset_rows;
+
+-- name: CountMunkiSoftwareTitles :one
+SELECT COUNT(*)::integer
+FROM munki_software_titles;
+
+-- name: GetMunkiSoftwareTitleByID :one
+SELECT *
+FROM munki_software_titles
+WHERE id = @id;
+
+-- name: UpdateMunkiSoftwareTitle :one
+UPDATE munki_software_titles
+SET
+    name = @name,
+    description = @description,
+    category = @category,
+    developer = @developer,
+    icon_name = @icon_name,
+    icon_hash = @icon_hash,
+    icon_artifact_id = sqlc.narg(icon_artifact_id)::bigint,
+    updated_at = now()
+WHERE id = @id
+RETURNING *;
+
+-- name: DeleteMunkiAssignmentsBySoftware :exec
+DELETE FROM munki_software_targets
+WHERE software_id = @software_id;
+
+-- name: DeleteMunkiAssignmentsBySoftwareIDs :exec
+DELETE FROM munki_software_targets
+WHERE software_id = ANY(@ids::bigint[]);
+
+-- name: DeleteMunkiSoftwareTitle :one
+DELETE FROM munki_software_titles
+WHERE id = @id
+RETURNING id;
+
+-- name: DeleteMunkiSoftwareTitles :many
+DELETE FROM munki_software_titles
+WHERE id = ANY(@ids::bigint[])
+RETURNING id;
+
+-- name: CreateMunkiAssignment :one
+INSERT INTO munki_software_targets (
+    software_id,
+    direction,
+    position,
+    label_id,
+    action,
+    optional_install,
+    featured_item,
+    package_selection,
+    pinned_package_id
+)
+VALUES (
+    @software_id,
+    'include',
+    (@priority)::integer - 1,
+    @label_id,
+    @action::munki_assignment_action,
+    @optional_install::boolean,
+    @featured_item::boolean,
+    @package_selection::munki_package_selection,
+    sqlc.narg(pinned_package_id)::bigint
+)
+RETURNING *;
+
+-- name: DeleteMunkiAssignmentExcludeLabels :exec
+DELETE FROM munki_software_targets
+WHERE software_id = @software_id
+  AND direction = 'exclude';
+
+-- name: InsertMunkiAssignmentExcludeLabels :exec
+INSERT INTO munki_software_targets (software_id, direction, position, label_id)
+SELECT @software_id, 'exclude', labels.position - 1, labels.label_id
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, position);
+
+-- name: ListMunkiAssignmentExcludeLabels :many
+SELECT software_id, label_id
+FROM munki_software_targets
+WHERE software_id = ANY(@software_ids::bigint[])
+  AND direction = 'exclude'
+ORDER BY software_id, position;
+
+-- name: ListEffectiveMunkiPackagesForHost :many
+SELECT
+    (a.position + 1)::bigint AS assignment_id,
+    a.software_id AS assignment_software_id,
+    a.action::munki_assignment_action AS action,
+    a.optional_install::boolean AS optional_install,
+    a.featured_item::boolean AS featured_item,
+    a.package_selection::munki_package_selection AS package_selection,
+    a.pinned_package_id,
+    (a.position + 1)::integer AS priority,
+    COALESCE(p.id, 0)::bigint AS package_id,
+    COALESCE(p.software_id, a.software_id)::bigint AS software_id,
+    s.name AS software_name,
+    s.description AS software_description,
+    s.category AS software_category,
+    s.developer AS software_developer,
+    s.icon_name AS software_icon_name,
+    s.icon_hash AS software_icon_hash,
+    s.icon_artifact_id AS software_icon_artifact_id,
+    COALESCE(p.version, '') AS version,
+    COALESCE(p.installer_type, 'pkg') AS installer_type,
+    COALESCE(p.uninstall_method, '') AS uninstall_method,
+    COALESCE(p.restart_action, '') AS restart_action,
+    COALESCE(p.minimum_munki_version, '') AS minimum_munki_version,
+    COALESCE(p.minimum_os_version, '') AS minimum_os_version,
+    COALESCE(p.maximum_os_version, '') AS maximum_os_version,
+    COALESCE(p.supported_architectures, ARRAY[]::text[]) AS supported_architectures,
+    COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
+    COALESCE(p.unattended_install, false) AS unattended_install,
+    COALESCE(p.unattended_uninstall, false) AS unattended_uninstall,
+    COALESCE(p.on_demand, false) AS on_demand,
+    COALESCE(p.precache, false) AS precache,
+    COALESCE(p.autoremove, false) AS autoremove,
+    COALESCE(p.apple_item, false) AS apple_item,
+    COALESCE(p.suppress_bundle_relocation, false) AS suppress_bundle_relocation,
+    p.force_install_after_date,
+    COALESCE(p.installed_size, 0)::bigint AS installed_size,
+    COALESCE(p.package_path, '') AS package_path,
+    COALESCE(p.installer_choices_xml, '') AS installer_choices_xml,
+    COALESCE(p.installer_environment, '[]'::jsonb) AS installer_environment,
+    COALESCE(p.installs, '[]'::jsonb) AS installs,
+    COALESCE(p.receipts, '[]'::jsonb) AS receipts,
+    COALESCE(p.items_to_copy, '[]'::jsonb) AS items_to_copy,
+    COALESCE(p.notes, '') AS notes,
+    COALESCE(p.installcheck_script, '') AS installcheck_script,
+    COALESCE(p.uninstallcheck_script, '') AS uninstallcheck_script,
+    COALESCE(p.preinstall_script, '') AS preinstall_script,
+    COALESCE(p.postinstall_script, '') AS postinstall_script,
+    COALESCE(p.preuninstall_script, '') AS preuninstall_script,
+    COALESCE(p.postuninstall_script, '') AS postuninstall_script,
+    COALESCE(p.uninstall_script, '') AS uninstall_script,
+    COALESCE(p.version_script, '') AS version_script,
+    COALESCE(p.preinstall_alert_enabled, false) AS preinstall_alert_enabled,
+    COALESCE(p.preinstall_alert_title, '') AS preinstall_alert_title,
+    COALESCE(p.preinstall_alert_detail, '') AS preinstall_alert_detail,
+    COALESCE(p.preinstall_alert_ok_label, '') AS preinstall_alert_ok_label,
+    COALESCE(p.preinstall_alert_cancel_label, '') AS preinstall_alert_cancel_label,
+    COALESCE(p.preuninstall_alert_enabled, false) AS preuninstall_alert_enabled,
+    COALESCE(p.preuninstall_alert_title, '') AS preuninstall_alert_title,
+    COALESCE(p.preuninstall_alert_detail, '') AS preuninstall_alert_detail,
+    COALESCE(p.preuninstall_alert_ok_label, '') AS preuninstall_alert_ok_label,
+    COALESCE(p.preuninstall_alert_cancel_label, '') AS preuninstall_alert_cancel_label,
+    COALESCE(p.icon_name, '') AS icon_name,
+    COALESCE(p.icon_hash, '') AS icon_hash,
+    p.installer_artifact_id,
+    art.location AS installer_artifact_location,
+    p.uninstaller_artifact_id,
+    uninstaller.location AS uninstaller_artifact_location,
+    p.icon_artifact_id,
+    icon.location AS icon_artifact_location,
+    software_icon.location AS software_icon_artifact_location
+FROM munki_software_targets a
+JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
+JOIN munki_software_titles s ON s.id = a.software_id
+JOIN munki_packages p ON p.software_id = a.software_id
+    AND (
+        (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
+        OR (a.package_selection = 'specific_package' AND p.id = a.pinned_package_id)
+    )
+LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
+LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
+LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
+LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
+WHERE a.direction = 'include'
+  AND p.eligible
+  AND NOT EXISTS (
+      SELECT 1
+      FROM munki_software_targets excluded
+      JOIN label_membership excluded_lm
+        ON excluded_lm.label_id = excluded.label_id
+       AND excluded_lm.host_id = @host_id
+      WHERE excluded.software_id = a.software_id
+        AND excluded.direction = 'exclude'
+  )
+ORDER BY a.software_id, a.position, p.id;

@@ -148,13 +148,12 @@ CREATE TABLE santa_configurations (
 
 CREATE TABLE santa_configuration_targets (
     configuration_id BIGINT NOT NULL REFERENCES santa_configurations (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    effect TEXT NOT NULL CHECK (effect IN ('include', 'exclude')),
-    PRIMARY KEY (configuration_id, label_id, effect)
+    direction target_direction NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    PRIMARY KEY (configuration_id, direction, position),
+    UNIQUE (configuration_id, label_id)
 );
-
-CREATE INDEX santa_configuration_targets_configuration_idx
-    ON santa_configuration_targets (configuration_id);
 
 CREATE INDEX santa_configuration_targets_label_idx
     ON santa_configuration_targets (label_id);
@@ -174,34 +173,29 @@ CREATE TABLE santa_rules (
     CHECK (NULLIF(btrim(identifier), '') IS NOT NULL)
 );
 
-CREATE TABLE santa_rule_includes (
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE santa_rule_targets (
     rule_id BIGINT NOT NULL REFERENCES santa_rules (id) ON DELETE CASCADE,
-    position INT NOT NULL,
-    policy santa_policy NOT NULL,
+    direction target_direction NOT NULL,
+    position INTEGER NOT NULL CHECK (position >= 0),
+    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
+    policy santa_policy,
     cel_expression TEXT,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    UNIQUE (rule_id, position),
+    PRIMARY KEY (rule_id, direction, position),
+    UNIQUE (rule_id, label_id),
     CHECK (
+        (direction = 'include' AND policy IS NOT NULL)
+        OR (direction = 'exclude' AND policy IS NULL AND cel_expression IS NULL)
+    ),
+    CHECK (
+        direction <> 'include'
+        OR
         (policy = 'cel' AND NULLIF(btrim(COALESCE(cel_expression, '')), '') IS NOT NULL)
         OR (policy <> 'cel' AND NULLIF(btrim(COALESCE(cel_expression, '')), '') IS NULL)
     )
 );
 
-CREATE UNIQUE INDEX santa_rule_includes_rule_label_idx
-    ON santa_rule_includes (rule_id, label_id);
-
-CREATE INDEX santa_rule_includes_label_idx
-    ON santa_rule_includes (label_id);
-
-CREATE TABLE santa_rule_exclude_labels (
-    rule_id BIGINT NOT NULL REFERENCES santa_rules (id) ON DELETE CASCADE,
-    label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
-    PRIMARY KEY (rule_id, label_id)
-);
-
-CREATE INDEX santa_rule_exclude_labels_label_idx
-    ON santa_rule_exclude_labels (label_id);
+CREATE INDEX santa_rule_targets_label_idx
+    ON santa_rule_targets (label_id);
 
 -- Santa execution events
 CREATE TABLE santa_executables (

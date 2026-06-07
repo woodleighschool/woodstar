@@ -185,7 +185,7 @@ func TestRuleMissingLabelFallsThroughToNotFound(t *testing.T) {
 		Identifier:      strings.Repeat("e", 64),
 		Name:            "Missing Exclude Label",
 		Includes:        []rules.RuleIncludeWrite{{Policy: rules.PolicyAllowlist, LabelID: labelID}},
-		ExcludeLabelIDs: []int64{0},
+		ExcludeLabelIDs: []int64{999_999},
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("missing exclude label error = %v, want ErrNotFound", err)

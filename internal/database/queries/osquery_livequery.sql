@@ -1,0 +1,1 @@
+-- Live query state is in-memory today; no persistent sqlc queries yet.

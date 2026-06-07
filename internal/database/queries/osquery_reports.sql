@@ -92,33 +92,36 @@ JOIN host_row h ON true
 WHERE r.schedule_interval > 0
   AND EXISTS (
       SELECT 1
-      FROM report_targets rt
+      FROM osquery_report_targets rt
       JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
       WHERE rt.report_id = r.id
-        AND rt.effect = 'include'
+        AND rt.direction = 'include'
   )
   AND NOT EXISTS (
       SELECT 1
-      FROM report_targets rt
+      FROM osquery_report_targets rt
       JOIN label_membership lm ON lm.label_id = rt.label_id AND lm.host_id = h.id
       WHERE rt.report_id = r.id
-        AND rt.effect = 'exclude'
+        AND rt.direction = 'exclude'
   )
 ORDER BY r.id;
 
 -- name: ListReportTargets :many
-SELECT report_id, label_id, effect
-FROM report_targets
+SELECT report_id, label_id, direction::text AS effect
+FROM osquery_report_targets
 WHERE report_id = ANY(@report_ids::bigint[])
-ORDER BY report_id, effect, label_id;
+ORDER BY
+    report_id,
+    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    position;
 
 -- name: DeleteReportTargets :exec
-DELETE FROM report_targets
+DELETE FROM osquery_report_targets
 WHERE report_id = @report_id;
 
 -- name: InsertReportTargets :exec
-INSERT INTO report_targets (report_id, label_id, effect)
-SELECT @report_id, labels.label_id, effects.effect
+INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
+SELECT @report_id, labels.label_id, effects.effect::target_direction, labels.ord - 1
 FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
 JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
 

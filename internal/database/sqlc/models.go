@@ -717,6 +717,48 @@ func (ns NullSantaSyncTargetPhase) Value() (driver.Value, error) {
 	return string(ns.SantaSyncTargetPhase), nil
 }
 
+type TargetDirection string
+
+const (
+	TargetDirectionInclude TargetDirection = "include"
+	TargetDirectionExclude TargetDirection = "exclude"
+)
+
+func (e *TargetDirection) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TargetDirection(s)
+	case string:
+		*e = TargetDirection(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TargetDirection: %T", src)
+	}
+	return nil
+}
+
+type NullTargetDirection struct {
+	TargetDirection TargetDirection `json:"target_direction"`
+	Valid           bool            `json:"valid"` // Valid is true if TargetDirection is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTargetDirection) Scan(value interface{}) error {
+	if value == nil {
+		ns.TargetDirection, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TargetDirection.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTargetDirection) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TargetDirection), nil
+}
+
 type UserRole string
 
 const (
@@ -783,12 +825,6 @@ type CheckMembership struct {
 	Passes    *bool     `json:"passes"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type CheckTarget struct {
-	CheckID int64  `json:"check_id"`
-	LabelID int64  `json:"label_id"`
-	Effect  string `json:"effect"`
 }
 
 type DirectoryGroup struct {
@@ -973,26 +1009,6 @@ type MunkiArtifact struct {
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
-type MunkiAssignment struct {
-	ID               int64                 `json:"id"`
-	SoftwareID       int64                 `json:"software_id"`
-	Priority         int32                 `json:"priority"`
-	LabelID          int64                 `json:"label_id"`
-	Action           MunkiAssignmentAction `json:"action"`
-	OptionalInstall  bool                  `json:"optional_install"`
-	FeaturedItem     bool                  `json:"featured_item"`
-	PackageSelection MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                `json:"pinned_package_id"`
-	CreatedAt        time.Time             `json:"created_at"`
-	UpdatedAt        time.Time             `json:"updated_at"`
-}
-
-type MunkiAssignmentExcludeLabel struct {
-	SoftwareID int64     `json:"software_id"`
-	LabelID    int64     `json:"label_id"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
 type MunkiHostItem struct {
 	HostID           int64     `json:"host_id"`
 	Name             string    `json:"name"`
@@ -1083,6 +1099,20 @@ type MunkiPackageRelation struct {
 	UpdatedAt       time.Time                `json:"updated_at"`
 }
 
+type MunkiSoftwareTarget struct {
+	SoftwareID       int64                  `json:"software_id"`
+	Direction        TargetDirection        `json:"direction"`
+	Position         int32                  `json:"position"`
+	LabelID          int64                  `json:"label_id"`
+	Action           *MunkiAssignmentAction `json:"action"`
+	OptionalInstall  *bool                  `json:"optional_install"`
+	FeaturedItem     *bool                  `json:"featured_item"`
+	PackageSelection *MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                 `json:"pinned_package_id"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+}
+
 type MunkiSoftwareTitle struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
@@ -1094,6 +1124,20 @@ type MunkiSoftwareTitle struct {
 	IconArtifactID *int64    `json:"icon_artifact_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type OsqueryCheckTarget struct {
+	CheckID   int64           `json:"check_id"`
+	Direction TargetDirection `json:"direction"`
+	Position  int32           `json:"position"`
+	LabelID   int64           `json:"label_id"`
+}
+
+type OsqueryReportTarget struct {
+	ReportID  int64           `json:"report_id"`
+	Direction TargetDirection `json:"direction"`
+	Position  int32           `json:"position"`
+	LabelID   int64           `json:"label_id"`
 }
 
 type Report struct {
@@ -1114,12 +1158,6 @@ type ReportResult struct {
 	HostID      int64     `json:"host_id"`
 	Data        []byte    `json:"data"`
 	LastFetched time.Time `json:"last_fetched"`
-}
-
-type ReportTarget struct {
-	ReportID int64  `json:"report_id"`
-	LabelID  int64  `json:"label_id"`
-	Effect   string `json:"effect"`
 }
 
 type SantaBundle struct {
@@ -1179,9 +1217,10 @@ type SantaConfiguration struct {
 }
 
 type SantaConfigurationTarget struct {
-	ConfigurationID int64  `json:"configuration_id"`
-	LabelID         int64  `json:"label_id"`
-	Effect          string `json:"effect"`
+	ConfigurationID int64           `json:"configuration_id"`
+	Direction       TargetDirection `json:"direction"`
+	Position        int32           `json:"position"`
+	LabelID         int64           `json:"label_id"`
 }
 
 type SantaExecutable struct {
@@ -1276,18 +1315,13 @@ type SantaRule struct {
 	UpdatedAt     time.Time     `json:"updated_at"`
 }
 
-type SantaRuleExcludeLabel struct {
-	RuleID  int64 `json:"rule_id"`
-	LabelID int64 `json:"label_id"`
-}
-
-type SantaRuleInclude struct {
-	ID            int64       `json:"id"`
-	RuleID        int64       `json:"rule_id"`
-	Position      int32       `json:"position"`
-	Policy        SantaPolicy `json:"policy"`
-	CelExpression *string     `json:"cel_expression"`
-	LabelID       int64       `json:"label_id"`
+type SantaRuleTarget struct {
+	RuleID        int64           `json:"rule_id"`
+	Direction     TargetDirection `json:"direction"`
+	Position      int32           `json:"position"`
+	LabelID       int64           `json:"label_id"`
+	Policy        *SantaPolicy    `json:"policy"`
+	CelExpression *string         `json:"cel_expression"`
 }
 
 type SantaSigningChain struct {

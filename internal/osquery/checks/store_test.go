@@ -148,6 +148,23 @@ func TestCreateCheckWithMissingTargetLabelReturnsNotFound(t *testing.T) {
 	}
 }
 
+func TestCreateCheckRejectsIncludeExcludeTargetOverlap(t *testing.T) {
+	store, labelStore, _, ctx := newIntegrationCheckStore(t)
+	label := createManualLabel(t, ctx, labelStore, "Check Overlap")
+
+	_, err := store.Create(ctx, CheckMutation{
+		Name:  "Overlapping check",
+		Query: "select 1;",
+		Targets: []scope.TargetLabel{
+			{LabelID: label.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: label.ID, Effect: scope.TargetLabelExclude},
+		},
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func TestHostChecksIncludesMatchingChecks(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationCheckStore(t)
 	host := enrollTestHostDetail(t, ctx, hostStore, "check-applicable-host", "5.22.1")

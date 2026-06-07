@@ -17,6 +17,7 @@ func TestListIncludesTargets(t *testing.T) {
 	store, labelStore, _, ctx := newIntegrationReportStore(t)
 	labelA := createManualLabel(t, ctx, labelStore, "Report A")
 	labelB := createManualLabel(t, ctx, labelStore, "Report B")
+	labelC := createManualLabel(t, ctx, labelStore, "Report C")
 
 	if _, err := store.Create(ctx, ReportMutation{
 		Name:             "Scoped report",
@@ -25,7 +26,7 @@ func TestListIncludesTargets(t *testing.T) {
 		Targets: []scope.TargetLabel{
 			{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
 			{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
-			{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
+			{LabelID: labelC.ID, Effect: scope.TargetLabelExclude},
 		},
 	}); err != nil {
 		t.Fatalf("create report: %v", err)
@@ -39,9 +40,9 @@ func TestListIncludesTargets(t *testing.T) {
 		t.Fatalf("List returned count=%d len=%d, want one report", count, len(got))
 	}
 	assertTargets(t, got[0].Targets, []scope.TargetLabel{
-		{LabelID: labelB.ID, Effect: scope.TargetLabelExclude},
-		{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+		{LabelID: labelC.ID, Effect: scope.TargetLabelExclude},
 		{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
+		{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
 	})
 }
 
@@ -136,6 +137,24 @@ func TestCreateReportWithMissingTargetLabelReturnsNotFound(t *testing.T) {
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreateReportRejectsIncludeExcludeTargetOverlap(t *testing.T) {
+	store, labelStore, _, ctx := newIntegrationReportStore(t)
+	label := createManualLabel(t, ctx, labelStore, "Report Overlap")
+
+	_, err := store.Create(ctx, ReportMutation{
+		Name:             "Overlapping report",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		Targets: []scope.TargetLabel{
+			{LabelID: label.ID, Effect: scope.TargetLabelInclude},
+			{LabelID: label.ID, Effect: scope.TargetLabelExclude},
+		},
+	})
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
 	}
 }
 
