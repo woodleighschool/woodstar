@@ -108,6 +108,13 @@ ON CONFLICT (check_id, host_id) DO UPDATE SET
     passes = EXCLUDED.passes,
     updated_at = now();
 
+-- name: ListCheckHostIDsByPasses :many
+SELECT host_id
+FROM check_membership
+WHERE check_id = @check_id
+  AND passes = @passes::boolean
+ORDER BY host_id;
+
 -- name: ListCheckHostStatuses :many
 WITH check_row AS (
     SELECT *

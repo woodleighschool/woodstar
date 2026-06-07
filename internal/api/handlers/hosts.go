@@ -12,6 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 )
 
@@ -63,8 +64,26 @@ func (i hostListInput) params() hosts.ListParams {
 		SoftwareTitleID: i.SoftwareTitleID,
 		SoftwareID:      i.SoftwareID,
 		IDs:             i.IDs,
-		CheckID:         i.CheckID,
-		CheckResponse:   hosts.CheckResponse(i.CheckResponse),
+	}
+}
+
+func (i hostListInput) checkStatusFilter() (checks.CheckStatus, bool, error) {
+	hasCheckID := i.CheckID != 0
+	hasResponse := i.CheckResponse != ""
+	if hasCheckID != hasResponse {
+		return "", false, huma.Error400BadRequest("check_id and check_response must be provided together")
+	}
+	if !hasCheckID {
+		return "", false, nil
+	}
+
+	switch i.CheckResponse {
+	case string(checks.CheckStatusPass):
+		return checks.CheckStatusPass, true, nil
+	case string(checks.CheckStatusFail):
+		return checks.CheckStatusFail, true, nil
+	default:
+		return "", false, huma.Error400BadRequest("unknown check_response")
 	}
 }
 
@@ -104,9 +123,10 @@ func RegisterHosts(
 	hostStore *hosts.Store,
 	userAffinities *hosts.UserAffinityStore,
 	softwareStore *inventory.Store,
+	checkStore *checks.Store,
 	contributors ...HostDetailContributor,
 ) {
-	registerListHosts(api, hostStore)
+	registerListHosts(api, hostStore, checkStore)
 	registerGetHost(api, hostStore, contributors)
 	registerPutHostUserAffinity(api, hostStore, userAffinities, contributors)
 	registerDeleteHostUserAffinity(api, hostStore, userAffinities, contributors)
@@ -115,7 +135,7 @@ func RegisterHosts(
 	registerHostSoftware(api, hostStore, softwareStore)
 }
 
-func registerListHosts(api huma.API, hostStore *hosts.Store) {
+func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -124,12 +144,52 @@ func registerListHosts(api huma.API, hostStore *hosts.Store) {
 		Summary:     "List enrolled hosts",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, input *hostListInput) (*hostListOutput, error) {
-		rows, count, err := hostStore.List(ctx, input.params())
+		params := input.params()
+		status, hasCheckFilter, err := input.checkStatusFilter()
+		if err != nil {
+			return nil, err
+		}
+		if hasCheckFilter {
+			if checkStore == nil {
+				return nil, errors.New("check store is not configured")
+			}
+			checkHostIDs, err := checkStore.HostIDsByStatus(ctx, input.CheckID, status)
+			if err != nil {
+				return nil, resourceMutationError(checkResource, err)
+			}
+			params.IDs = intersectHostIDs(params.IDs, checkHostIDs)
+			if len(params.IDs) == 0 {
+				return &hostListOutput{Body: Page[hosts.Host]{Items: []hosts.Host{}, Count: 0}}, nil
+			}
+		}
+
+		rows, count, err := hostStore.List(ctx, params)
 		if err != nil {
 			return nil, resourceMutationError("host", err)
 		}
 		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
+}
+
+func intersectHostIDs(requestedIDs []int64, checkHostIDs []int64) []int64 {
+	if len(requestedIDs) == 0 {
+		return checkHostIDs
+	}
+	if len(checkHostIDs) == 0 {
+		return nil
+	}
+
+	checkIDs := make(map[int64]struct{}, len(checkHostIDs))
+	for _, id := range checkHostIDs {
+		checkIDs[id] = struct{}{}
+	}
+	ids := make([]int64, 0, len(requestedIDs))
+	for _, id := range requestedIDs {
+		if _, ok := checkIDs[id]; ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func loadHostDetailBody(

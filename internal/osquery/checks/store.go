@@ -224,6 +224,21 @@ func (s *Store) HostStatuses(ctx context.Context, checkID int64) ([]CheckHostSta
 	return checkHostStatusesFromCheckRows(rows), nil
 }
 
+// HostIDsByStatus returns host IDs with the latest persisted status for checkID.
+func (s *Store) HostIDsByStatus(ctx context.Context, checkID int64, status CheckStatus) ([]int64, error) {
+	if checkID <= 0 {
+		return nil, fmt.Errorf("%w: check_id must be positive", dbutil.ErrInvalidInput)
+	}
+	passes, err := passesForCheckStatus(status)
+	if err != nil {
+		return nil, err
+	}
+	return s.q.ListCheckHostIDsByPasses(ctx, sqlc.ListCheckHostIDsByPassesParams{
+		CheckID: checkID,
+		Passes:  passes,
+	})
+}
+
 func (s *Store) HostChecks(ctx context.Context, host *hosts.Host) ([]CheckHostStatus, error) {
 	rows, err := s.q.ListHostCheckStatusesForHost(ctx, sqlc.ListHostCheckStatusesForHostParams{HostID: host.ID})
 	if err != nil {
@@ -297,6 +312,17 @@ func checkStatusFromPasses(passes *bool) *CheckStatus {
 		status = CheckStatusPass
 	}
 	return &status
+}
+
+func passesForCheckStatus(status CheckStatus) (bool, error) {
+	switch status {
+	case CheckStatusPass:
+		return true, nil
+	case CheckStatusFail:
+		return false, nil
+	default:
+		return false, fmt.Errorf("%w: unknown check_response %q", dbutil.ErrInvalidInput, status)
+	}
 }
 
 type checkCounts struct {

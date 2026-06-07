@@ -23,6 +23,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
@@ -448,7 +449,14 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 
 	hostState := santa.NewHostStateService(santaStore, configurations.NewStore(db))
 	router, cookie := santaAuthedRouter(t, db, "enricher-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, hosts.NewUserAffinityStore(db), nil, SantaHostDetailContributor(hostState))
+		RegisterHosts(
+			api,
+			hostStore,
+			hosts.NewUserAffinityStore(db),
+			nil,
+			checks.NewStore(db),
+			SantaHostDetailContributor(hostState),
+		)
 	})
 	rec := santaAdminRequest(t, router, cookie, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
 	if rec.Code != http.StatusOK {

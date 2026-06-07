@@ -275,6 +275,39 @@ func (q *Queries) ListCheckCounts(ctx context.Context, arg ListCheckCountsParams
 	return items, nil
 }
 
+const listCheckHostIDsByPasses = `-- name: ListCheckHostIDsByPasses :many
+SELECT host_id
+FROM check_membership
+WHERE check_id = $1
+  AND passes = $2::boolean
+ORDER BY host_id
+`
+
+type ListCheckHostIDsByPassesParams struct {
+	CheckID int64 `json:"check_id"`
+	Passes  bool  `json:"passes"`
+}
+
+func (q *Queries) ListCheckHostIDsByPasses(ctx context.Context, arg ListCheckHostIDsByPassesParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listCheckHostIDsByPasses, arg.CheckID, arg.Passes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var host_id int64
+		if err := rows.Scan(&host_id); err != nil {
+			return nil, err
+		}
+		items = append(items, host_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCheckHostStatuses = `-- name: ListCheckHostStatuses :many
 WITH check_row AS (
     SELECT id, name, description, query, created_by_user_id, created_at, updated_at

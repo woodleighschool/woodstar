@@ -465,44 +465,8 @@ func hostListWhere(params ListParams) (string, []any, error) {
 			WHERE hs.host_id = hosts.id AND s.title_id = ` + softwareTitleID + `::bigint
 		)`)
 	}
-	if err := addCheckFilter(&where, params); err != nil {
-		return "", nil, err
-	}
 	whereSQL, args := where.Build()
 	return whereSQL, args, nil
-}
-
-func addCheckFilter(where *dbutil.WhereBuilder, params ListParams) error {
-	hasCheckID := params.CheckID != 0
-	hasResponse := params.CheckResponse != ""
-	if hasCheckID != hasResponse {
-		return fmt.Errorf("%w: check_id and check_response must be provided together", dbutil.ErrInvalidInput)
-	}
-	if !hasCheckID {
-		return nil
-	}
-	if params.CheckID < 0 {
-		return fmt.Errorf("%w: check_id must be positive", dbutil.ErrInvalidInput)
-	}
-
-	checkID := where.Arg(params.CheckID)
-	switch params.CheckResponse {
-	case CheckResponsePass:
-		where.Add(`id IN (
-			SELECT cm.host_id
-			FROM check_membership cm
-			WHERE cm.check_id = ` + checkID + `::bigint AND cm.passes IS TRUE
-		)`)
-	case CheckResponseFail:
-		where.Add(`id IN (
-			SELECT cm.host_id
-			FROM check_membership cm
-			WHERE cm.check_id = ` + checkID + `::bigint AND cm.passes IS FALSE
-		)`)
-	default:
-		return fmt.Errorf("%w: unknown check_response %q", dbutil.ErrInvalidInput, params.CheckResponse)
-	}
-	return nil
 }
 
 // inventoryDisplayName persists the canonical host label exposed by the API.

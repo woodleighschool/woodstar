@@ -10,6 +10,7 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
 
 func TestHostUserAffinityManualOverride(t *testing.T) {
@@ -34,7 +35,7 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 	}
 
 	router, cookie := santaAuthedRouter(t, db, "host-mapping-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, userAffinities, nil)
+		RegisterHosts(api, hostStore, userAffinities, nil, checks.NewStore(db))
 	})
 	rec := santaAdminRequest(
 		t,
@@ -88,6 +89,7 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 func TestHostListCheckResponseFilter(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
+	checkStore := checks.NewStore(db)
 
 	passingHost, err := hostStore.UpsertOnOrbitEnroll(ctx, hosts.InventoryUpdate{
 		Hardware:     hosts.HostHardware{UUID: "host-check-filter-passing"},
@@ -111,34 +113,35 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		t.Fatalf("enroll unevaluated host: %v", err)
 	}
 
-	var checkID int64
-	if err := db.Pool().QueryRow(ctx, `
-		INSERT INTO checks (name, query)
-		VALUES ('Filter Test Check', 'select 1')
-		RETURNING id
-	`).Scan(&checkID); err != nil {
-		t.Fatalf("insert check: %v", err)
+	check, err := checkStore.Create(ctx, checks.CheckMutation{Name: "Filter Test Check", Query: "select 1"})
+	if err != nil {
+		t.Fatalf("create check: %v", err)
 	}
-	if _, err := db.Pool().Exec(ctx, `
-		INSERT INTO check_membership (check_id, host_id, passes)
-		VALUES ($1, $2, TRUE), ($1, $3, FALSE), ($1, $4, NULL)
-	`, checkID, passingHost.ID, failingHost.ID, unevaluatedHost.ID); err != nil {
-		t.Fatalf("insert check membership: %v", err)
+	passes := true
+	if err := checkStore.UpsertMembership(ctx, check.ID, passingHost.ID, &passes); err != nil {
+		t.Fatalf("upsert passing membership: %v", err)
+	}
+	fails := false
+	if err := checkStore.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
+		t.Fatalf("upsert failing membership: %v", err)
+	}
+	if err := checkStore.UpsertMembership(ctx, check.ID, unevaluatedHost.ID, nil); err != nil {
+		t.Fatalf("upsert unevaluated membership: %v", err)
 	}
 
 	router, cookie := santaAuthedRouter(t, db, "host-check-filter-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, hosts.NewUserAffinityStore(db), nil)
+		RegisterHosts(api, hostStore, hosts.NewUserAffinityStore(db), nil, checkStore)
 	})
 
 	tests := []struct {
 		response string
 		wantID   int64
 	}{
-		{response: string(hosts.CheckResponsePass), wantID: passingHost.ID},
-		{response: string(hosts.CheckResponseFail), wantID: failingHost.ID},
+		{response: string(checks.CheckStatusPass), wantID: passingHost.ID},
+		{response: string(checks.CheckStatusFail), wantID: failingHost.ID},
 	}
 	for _, tt := range tests {
-		path := fmt.Sprintf("/api/hosts?check_id=%d&check_response=%s", checkID, tt.response)
+		path := fmt.Sprintf("/api/hosts?check_id=%d&check_response=%s", check.ID, tt.response)
 		rec := santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
@@ -152,14 +155,49 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		}
 	}
 
+	path := fmt.Sprintf(
+		"/api/hosts?ids=%d&ids=%d&check_id=%d&check_response=pass",
+		passingHost.ID,
+		failingHost.ID,
+		check.ID,
+	)
+	rec := santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var intersected Page[hosts.Host]
+	if err := json.Unmarshal(rec.Body.Bytes(), &intersected); err != nil {
+		t.Fatalf("decode intersected hosts body: %v", err)
+	}
+	if intersected.Count != 1 || len(intersected.Items) != 1 || intersected.Items[0].ID != passingHost.ID {
+		t.Fatalf("%s hosts = %+v count=%d, want passing host only", path, intersected.Items, intersected.Count)
+	}
+
+	path = fmt.Sprintf(
+		"/api/hosts?ids=%d&check_id=%d&check_response=pass",
+		failingHost.ID,
+		check.ID,
+	)
+	rec = santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var empty Page[hosts.Host]
+	if err := json.Unmarshal(rec.Body.Bytes(), &empty); err != nil {
+		t.Fatalf("decode empty hosts body: %v", err)
+	}
+	if empty.Count != 0 || len(empty.Items) != 0 {
+		t.Fatalf("%s hosts = %+v count=%d, want no hosts", path, empty.Items, empty.Count)
+	}
+
 	badPaths := []struct {
 		path string
 		want int
 	}{
-		{path: fmt.Sprintf("/api/hosts?check_id=%d", checkID), want: http.StatusBadRequest},
+		{path: fmt.Sprintf("/api/hosts?check_id=%d", check.ID), want: http.StatusBadRequest},
 		{path: "/api/hosts?check_response=pass", want: http.StatusBadRequest},
 		{
-			path: fmt.Sprintf("/api/hosts?check_id=%d&check_response=unknown", checkID),
+			path: fmt.Sprintf("/api/hosts?check_id=%d&check_response=unknown", check.ID),
 			want: http.StatusUnprocessableEntity,
 		},
 	}

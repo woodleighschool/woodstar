@@ -336,6 +336,50 @@ func TestHostStatusesIncludeMembershipState(t *testing.T) {
 	}
 }
 
+func TestHostIDsByStatusUsesMembershipStatus(t *testing.T) {
+	store, _, hostStore, ctx := newIntegrationCheckStore(t)
+	check, err := store.Create(ctx, CheckMutation{Name: "Host ID status check", Query: "select 1"})
+	if err != nil {
+		t.Fatalf("create check: %v", err)
+	}
+	passingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-passing", "5.22.1")
+	failingHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-failing", "5.22.1")
+	unevaluatedHost := enrollTestHostDetail(t, ctx, hostStore, "check-host-id-unevaluated", "5.22.1")
+
+	passes := true
+	if err := store.UpsertMembership(ctx, check.ID, passingHost.ID, &passes); err != nil {
+		t.Fatalf("upsert passing membership: %v", err)
+	}
+	fails := false
+	if err := store.UpsertMembership(ctx, check.ID, failingHost.ID, &fails); err != nil {
+		t.Fatalf("upsert failing membership: %v", err)
+	}
+	if err := store.UpsertMembership(ctx, check.ID, unevaluatedHost.ID, nil); err != nil {
+		t.Fatalf("upsert unevaluated membership: %v", err)
+	}
+
+	passingIDs, err := store.HostIDsByStatus(ctx, check.ID, CheckStatusPass)
+	if err != nil {
+		t.Fatalf("pass host ids: %v", err)
+	}
+	if !sameInt64s(passingIDs, []int64{passingHost.ID}) {
+		t.Fatalf("pass host ids = %+v, want [%d]", passingIDs, passingHost.ID)
+	}
+
+	failingIDs, err := store.HostIDsByStatus(ctx, check.ID, CheckStatusFail)
+	if err != nil {
+		t.Fatalf("fail host ids: %v", err)
+	}
+	if !sameInt64s(failingIDs, []int64{failingHost.ID}) {
+		t.Fatalf("fail host ids = %+v, want [%d]", failingIDs, failingHost.ID)
+	}
+
+	_, err = store.HostIDsByStatus(ctx, check.ID, CheckStatus("unknown"))
+	if !errors.Is(err, dbutil.ErrInvalidInput) {
+		t.Fatalf("unknown status error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 	switch {
 	case a == nil && b == nil:
@@ -345,6 +389,18 @@ func equalCheckStatusPtr(a *CheckStatus, b *CheckStatus) bool {
 	default:
 		return *a == *b
 	}
+}
+
+func sameInt64s(got []int64, want []int64) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func newIntegrationCheckStore(t *testing.T) (*Store, *labels.Store, *hosts.Store, context.Context) {

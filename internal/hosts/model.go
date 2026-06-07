@@ -17,17 +17,7 @@ type ListParams struct {
 	SoftwareTitleID int64
 	SoftwareID      int64
 	IDs             []int64
-	CheckID         int64
-	CheckResponse   CheckResponse
 }
-
-// CheckResponse filters hosts by their latest osquery check result.
-type CheckResponse string
-
-const (
-	CheckResponsePass CheckResponse = "pass"
-	CheckResponseFail CheckResponse = "fail"
-)
 
 // InventoryUpdate is inventory reported by enrolling agents and osquery detail queries.
 type InventoryUpdate struct {
