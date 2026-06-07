@@ -19,7 +19,7 @@ type hostSantaRulesOutput struct {
 }
 
 type hostSantaRulesInput struct {
-	HostID int64 `path:"host_id"`
+	HostID int64 `path:"id"`
 	apitypes.ListQueryInput
 }
 
@@ -27,7 +27,7 @@ func RegisterHostAdminRoutes(api huma.API, ruleStore *Store, hostStore *hosts.St
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-santa-rules",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{host_id}/santa/rules",
+		Path:        "/api/hosts/{id}/santa/rules",
 		Tags:        []string{hostsTag},
 		Summary:     "List Santa rules for a host",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},

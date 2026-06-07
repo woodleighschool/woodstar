@@ -34,8 +34,8 @@ export function useMunkiPackage(id: number | null) {
     queryKey: queryKeys.munkiPackage(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/munki/packages/{package_id}", {
-          params: { path: { package_id: id ?? 0 } },
+        apiClient.GET("/api/munki/packages/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -57,8 +57,7 @@ export function useCreateMunkiPackage() {
 export function useUpdateMunkiPackage() {
   const queryClient = useQueryClient();
   return useMutation<MunkiPackage, ApiError, { id: number; body: MunkiPackageMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/munki/packages/{package_id}", { params: { path: { package_id: id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(apiClient.PUT("/api/munki/packages/{id}", { params: { path: { id } }, body })),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) });

@@ -71,8 +71,8 @@ export function useSantaConfiguration(id: number | null) {
     queryKey: queryKeys.santaConfiguration(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/configurations/{configuration_id}", {
-          params: { path: { configuration_id: id ?? 0 } },
+        apiClient.GET("/api/santa/configurations/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -101,8 +101,8 @@ export function useSantaRule(id: number | null) {
     queryKey: queryKeys.santaRule(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/rules/{rule_id}", {
-          params: { path: { rule_id: id ?? 0 } },
+        apiClient.GET("/api/santa/rules/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -149,8 +149,8 @@ export function useSantaEvent(id: number | null) {
     queryKey: queryKeys.santaEvent(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/events/{event_id}", {
-          params: { path: { event_id: id ?? 0 } },
+        apiClient.GET("/api/santa/events/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -182,8 +182,8 @@ export function useSantaFileAccessEvent(id: number | null) {
     queryKey: queryKeys.santaFileAccessEvent(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/santa/file-access-events/{event_id}", {
-          params: { path: { event_id: id ?? 0 } },
+        apiClient.GET("/api/santa/file-access-events/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -207,8 +207,8 @@ export function useUpdateSantaConfiguration() {
   return useMutation<SantaConfiguration, ApiError, { id: number; body: SantaConfigurationMutation }>({
     mutationFn: ({ id, body }) =>
       unwrap(
-        apiClient.PUT("/api/santa/configurations/{configuration_id}", {
-          params: { path: { configuration_id: id } },
+        apiClient.PUT("/api/santa/configurations/{id}", {
+          params: { path: { id } },
           body,
         }),
       ),
@@ -224,8 +224,8 @@ export function useDeleteSantaConfiguration() {
   return useMutation<void, ApiError, number>({
     mutationFn: (id) =>
       unwrap(
-        apiClient.DELETE("/api/santa/configurations/{configuration_id}", {
-          params: { path: { configuration_id: id } },
+        apiClient.DELETE("/api/santa/configurations/{id}", {
+          params: { path: { id } },
         }),
       ),
     onSuccess: () => {
@@ -268,8 +268,7 @@ export function useCreateSantaRule() {
 export function useUpdateSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<SantaRule, ApiError, { id: number; body: SantaRuleMutation }>({
-    mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PUT("/api/santa/rules/{rule_id}", { params: { path: { rule_id: id } }, body })),
+    mutationFn: ({ id, body }) => unwrap(apiClient.PUT("/api/santa/rules/{id}", { params: { path: { id } }, body })),
     onSuccess: (rule) => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaRule(rule.id) });
@@ -280,7 +279,7 @@ export function useUpdateSantaRule() {
 export function useDeleteSantaRule() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{rule_id}", { params: { path: { rule_id: id } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/santa/rules/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "rules"] });
     },

@@ -29,14 +29,14 @@ type hostReportResultsBody struct {
 }
 
 type hostReportResultsInput struct {
-	HostID   int64 `path:"host_id"`
+	HostID   int64 `path:"id"`
 	ReportID int64 `path:"report_id"`
 }
 
 const hostsTag = "Hosts"
 
 type hostGetInput struct {
-	HostID int64 `path:"host_id"`
+	HostID int64 `path:"id"`
 }
 
 func RegisterHostAdminRoutes(api huma.API, reportStore *Store, hostStore *hosts.Store) {
@@ -48,7 +48,7 @@ func registerHostReports(api huma.API, reportStore *Store, hostStore *hosts.Stor
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{host_id}/osquery/reports",
+		Path:        "/api/hosts/{id}/osquery/reports",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
@@ -72,7 +72,7 @@ func registerHostReportResults(api huma.API, reportStore *Store, hostStore *host
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{host_id}/osquery/reports/{report_id}",
+		Path:        "/api/hosts/{id}/osquery/reports/{report_id}",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List report rows for one host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

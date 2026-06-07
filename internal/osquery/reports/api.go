@@ -13,7 +13,7 @@ import (
 const (
 	reportsTag     = "Reports"
 	reportResource = "report"
-	reportIDPath   = "/api/osquery/reports/{report_id}"
+	reportIDPath   = "/api/osquery/reports/{id}"
 )
 
 type reportListInput struct {
@@ -21,7 +21,7 @@ type reportListInput struct {
 }
 
 type reportGetInput struct {
-	ReportID int64 `path:"report_id"`
+	ReportID int64 `path:"id"`
 }
 
 type reportCreateInput struct {
@@ -29,12 +29,12 @@ type reportCreateInput struct {
 }
 
 type reportPutInput struct {
-	ReportID int64 `path:"report_id"`
+	ReportID int64 `path:"id"`
 	Body     ReportMutation
 }
 
 type reportDeleteInput struct {
-	ReportID int64 `path:"report_id"`
+	ReportID int64 `path:"id"`
 }
 
 type reportBulkDeleteInput struct {
@@ -174,7 +174,7 @@ func registerReportResults(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/osquery/reports/{report_id}/results",
+		Path:        "/api/osquery/reports/{id}/results",
 		Tags:        []string{reportsTag},
 		Summary:     "List latest snapshots for a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

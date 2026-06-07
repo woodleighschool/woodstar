@@ -12,7 +12,7 @@ import (
 const (
 	santaTag                   = "Santa"
 	santaConfigurationResource = "Santa configuration"
-	santaConfigurationIDPath   = "/api/santa/configurations/{configuration_id}"
+	santaConfigurationIDPath   = "/api/santa/configurations/{id}"
 )
 
 type santaConfigurationListInput struct {
@@ -20,7 +20,7 @@ type santaConfigurationListInput struct {
 }
 
 type santaConfigurationGetInput struct {
-	ConfigurationID int64 `path:"configuration_id"`
+	ConfigurationID int64 `path:"id"`
 }
 
 type santaConfigurationCreateInput struct {
@@ -28,12 +28,12 @@ type santaConfigurationCreateInput struct {
 }
 
 type santaConfigurationUpdateInput struct {
-	ConfigurationID int64 `path:"configuration_id"`
+	ConfigurationID int64 `path:"id"`
 	Body            ConfigurationMutation
 }
 
 type santaConfigurationDeleteInput struct {
-	ConfigurationID int64 `path:"configuration_id"`
+	ConfigurationID int64 `path:"id"`
 }
 
 type santaConfigurationBulkDeleteInput struct {

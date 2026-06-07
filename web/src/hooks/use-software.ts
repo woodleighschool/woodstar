@@ -44,8 +44,8 @@ export function useSoftwareTitle(id: number | null) {
     queryKey: queryKeys.softwareTitle(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/software/{software_id}", {
-          params: { path: { software_id: id ?? 0 } },
+        apiClient.GET("/api/software/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -60,8 +60,8 @@ export function useSoftwareSantaReference(id: number | null) {
     queryKey: queryKeys.softwareSantaReference(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/software/{software_id}/santa", {
-          params: { path: { software_id: id ?? 0 } },
+        apiClient.GET("/api/software/{id}/santa", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),

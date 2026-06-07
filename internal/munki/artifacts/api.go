@@ -15,8 +15,8 @@ import (
 const (
 	munkiTag                 = "Munki"
 	munkiArtifactPath        = "/api/munki/artifacts"
-	munkiArtifactIDPath      = "/api/munki/artifacts/{artifact_id}"
-	munkiArtifactContentPath = "/api/munki/artifacts/{artifact_id}/content"
+	munkiArtifactIDPath      = "/api/munki/artifacts/{id}"
+	munkiArtifactContentPath = "/api/munki/artifacts/{id}/content"
 	munkiArtifactUploadPath  = "/api/munki/artifact-uploads"
 	munkiArtifactLabel       = "Munki artifact"
 )
@@ -36,7 +36,7 @@ type munkiArtifactListInput struct {
 }
 
 type munkiArtifactGetInput struct {
-	ArtifactID int64 `path:"artifact_id"`
+	ArtifactID int64 `path:"id"`
 }
 
 type munkiArtifactUploadInput struct {
@@ -44,11 +44,11 @@ type munkiArtifactUploadInput struct {
 }
 
 type munkiArtifactContentInput struct {
-	ArtifactID int64 `path:"artifact_id"`
+	ArtifactID int64 `path:"id"`
 }
 
 type munkiArtifactDeleteInput struct {
-	ArtifactID int64 `path:"artifact_id"`
+	ArtifactID int64 `path:"id"`
 }
 
 type munkiArtifactListOutput struct {

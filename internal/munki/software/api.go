@@ -17,7 +17,7 @@ const (
 	munkiTag            = "Munki"
 	munkiPackageLabel   = "Munki package"
 	munkiSoftwarePath   = "/api/munki/software"
-	munkiSoftwareIDPath = "/api/munki/software/{software_id}"
+	munkiSoftwareIDPath = "/api/munki/software/{id}"
 	munkiSoftwareLabel  = "Munki software"
 )
 
@@ -26,7 +26,7 @@ type munkiSoftwareListInput struct {
 }
 
 type munkiSoftwareGetInput struct {
-	SoftwareID int64 `path:"software_id"`
+	SoftwareID int64 `path:"id"`
 }
 
 type munkiSoftwareCreateInput struct {
@@ -34,12 +34,12 @@ type munkiSoftwareCreateInput struct {
 }
 
 type munkiSoftwarePutInput struct {
-	SoftwareID int64 `path:"software_id"`
+	SoftwareID int64 `path:"id"`
 	Body       SoftwareMutation
 }
 
 type munkiSoftwareDeleteInput struct {
-	SoftwareID int64 `path:"software_id"`
+	SoftwareID int64 `path:"id"`
 }
 
 type munkiSoftwareBulkDeleteInput struct {

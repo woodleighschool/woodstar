@@ -15,9 +15,9 @@ import (
 const (
 	santaTag                   = "Santa"
 	santaEventResource         = "Santa event"
-	santaEventIDPath           = "/api/santa/events/{event_id}"
+	santaEventIDPath           = "/api/santa/events/{id}"
 	santaFileAccessEventPath   = "/api/santa/file-access-events"
-	santaFileAccessEventIDPath = "/api/santa/file-access-events/{event_id}"
+	santaFileAccessEventIDPath = "/api/santa/file-access-events/{id}"
 )
 
 type santaEventListInput struct {
@@ -33,7 +33,7 @@ type santaEventListOutput struct {
 }
 
 type santaEventGetInput struct {
-	EventID int64 `path:"event_id"`
+	EventID int64 `path:"id"`
 }
 
 type santaEventGetOutput struct {
@@ -52,7 +52,7 @@ type santaFileAccessEventListOutput struct {
 }
 
 type santaFileAccessEventGetInput struct {
-	EventID int64 `path:"event_id"`
+	EventID int64 `path:"id"`
 }
 
 type santaFileAccessEventGetOutput struct {

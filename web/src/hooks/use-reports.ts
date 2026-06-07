@@ -36,8 +36,8 @@ export function useReport(id: number | null) {
     queryKey: queryKeys.report(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/reports/{report_id}", {
-          params: { path: { report_id: id ?? 0 } },
+        apiClient.GET("/api/osquery/reports/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -50,8 +50,8 @@ export function useReportResults(id: number | null) {
     queryKey: queryKeys.reportResults(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/reports/{report_id}/results", {
-          params: { path: { report_id: id ?? 0 } },
+        apiClient.GET("/api/osquery/reports/{id}/results", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -74,8 +74,8 @@ export function useUpdateReport(id: number | null) {
   return useMutation<Report, ApiError, ReportMutation>({
     mutationFn: (body) =>
       unwrap(
-        apiClient.PUT("/api/osquery/reports/{report_id}", {
-          params: { path: { report_id: id ?? 0 } },
+        apiClient.PUT("/api/osquery/reports/{id}", {
+          params: { path: { id: id ?? 0 } },
           body,
         }),
       ),
@@ -90,8 +90,7 @@ export function useUpdateReport(id: number | null) {
 export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/osquery/reports/{report_id}", { params: { path: { report_id: id } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },

@@ -14,14 +14,14 @@ import (
 const hostsTag = "Hosts"
 
 type hostGetInput struct {
-	HostID int64 `path:"host_id"`
+	HostID int64 `path:"id"`
 }
 
 func RegisterHostAdminRoutes(api huma.API, checkStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-checks",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{host_id}/osquery/checks",
+		Path:        "/api/hosts/{id}/osquery/checks",
 		Tags:        []string{checksTag, hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

@@ -14,7 +14,7 @@ const (
 	munkiTag               = "Munki"
 	munkiPackagePath       = "/api/munki/packages"
 	munkiPackageImportPath = "/api/munki/packages/import"
-	munkiPackageIDPath     = "/api/munki/packages/{package_id}"
+	munkiPackageIDPath     = "/api/munki/packages/{id}"
 	munkiPackageLabel      = "Munki package"
 )
 
@@ -24,7 +24,7 @@ type munkiPackageListInput struct {
 }
 
 type munkiPackageGetInput struct {
-	PackageID int64 `path:"package_id"`
+	PackageID int64 `path:"id"`
 }
 
 type munkiPackageCreateInput struct {
@@ -32,12 +32,12 @@ type munkiPackageCreateInput struct {
 }
 
 type munkiPackagePutInput struct {
-	PackageID int64 `path:"package_id"`
+	PackageID int64 `path:"id"`
 	Body      PackageMutation
 }
 
 type munkiPackageDeleteInput struct {
-	PackageID int64 `path:"package_id"`
+	PackageID int64 `path:"id"`
 }
 
 type munkiPackageImportInput struct {

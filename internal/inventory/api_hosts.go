@@ -15,7 +15,7 @@ import (
 const hostsTag = "Hosts"
 
 type hostSoftwareInput struct {
-	HostID int64 `path:"host_id"`
+	HostID int64 `path:"id"`
 	apitypes.ListQueryInput
 	Source []string `query:"source,omitempty"`
 }
@@ -36,7 +36,7 @@ func RegisterHostAdminRoutes(api huma.API, softwareStore *Store, hostStore *host
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{host_id}/software",
+		Path:        "/api/hosts/{id}/software",
 		Tags:        []string{hostsTag},
 		Summary:     "List software installed on a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

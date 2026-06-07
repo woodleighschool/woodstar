@@ -13,7 +13,7 @@ import (
 const (
 	checksTag     = "Checks"
 	checkResource = "check"
-	checkIDPath   = "/api/osquery/checks/{check_id}"
+	checkIDPath   = "/api/osquery/checks/{id}"
 )
 
 type checkListInput struct {
@@ -21,7 +21,7 @@ type checkListInput struct {
 }
 
 type checkGetInput struct {
-	CheckID int64 `path:"check_id"`
+	CheckID int64 `path:"id"`
 }
 
 type checkCreateInput struct {
@@ -29,12 +29,12 @@ type checkCreateInput struct {
 }
 
 type checkPutInput struct {
-	CheckID int64 `path:"check_id"`
+	CheckID int64 `path:"id"`
 	Body    CheckMutation
 }
 
 type checkDeleteInput struct {
-	CheckID int64 `path:"check_id"`
+	CheckID int64 `path:"id"`
 }
 
 type checkBulkDeleteInput struct {
@@ -174,7 +174,7 @@ func registerCheckHosts(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-check-hosts",
 		Method:      http.MethodGet,
-		Path:        "/api/osquery/checks/{check_id}/hosts",
+		Path:        "/api/osquery/checks/{id}/hosts",
 		Tags:        []string{checksTag},
 		Summary:     "List check host status",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

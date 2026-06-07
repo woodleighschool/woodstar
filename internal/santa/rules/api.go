@@ -12,7 +12,7 @@ import (
 const (
 	santaTag          = "Santa"
 	santaRuleResource = "Santa rule"
-	santaRuleIDPath   = "/api/santa/rules/{rule_id}"
+	santaRuleIDPath   = "/api/santa/rules/{id}"
 )
 
 type santaRuleListInput struct {
@@ -27,7 +27,7 @@ type santaRuleReferenceListInput struct {
 }
 
 type santaRuleGetInput struct {
-	RuleID int64 `path:"rule_id"`
+	RuleID int64 `path:"id"`
 }
 
 type santaRuleCreateInput struct {
@@ -35,12 +35,12 @@ type santaRuleCreateInput struct {
 }
 
 type santaRuleUpdateInput struct {
-	RuleID int64 `path:"rule_id"`
+	RuleID int64 `path:"id"`
 	Body   RuleMutation
 }
 
 type santaRuleDeleteInput struct {
-	RuleID int64 `path:"rule_id"`
+	RuleID int64 `path:"id"`
 }
 
 type santaRuleBulkDeleteInput struct {

@@ -36,8 +36,8 @@ export function useCheck(id: number | null) {
     queryKey: queryKeys.check(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/checks/{check_id}", {
-          params: { path: { check_id: id ?? 0 } },
+        apiClient.GET("/api/osquery/checks/{id}", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -50,8 +50,8 @@ export function useCheckHosts(id: number | null) {
     queryKey: queryKeys.checkHosts(id),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/osquery/checks/{check_id}/hosts", {
-          params: { path: { check_id: id ?? 0 } },
+        apiClient.GET("/api/osquery/checks/{id}/hosts", {
+          params: { path: { id: id ?? 0 } },
           signal,
         }),
       ),
@@ -74,8 +74,8 @@ export function useUpdateCheck(id: number | null) {
   return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) =>
       unwrap(
-        apiClient.PUT("/api/osquery/checks/{check_id}", {
-          params: { path: { check_id: id ?? 0 } },
+        apiClient.PUT("/api/osquery/checks/{id}", {
+          params: { path: { id: id ?? 0 } },
           body,
         }),
       ),
@@ -90,8 +90,7 @@ export function useUpdateCheck(id: number | null) {
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) =>
-      unwrap(apiClient.DELETE("/api/osquery/checks/{check_id}", { params: { path: { check_id: id } } })),
+    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["checks"] });
     },

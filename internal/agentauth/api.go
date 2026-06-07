@@ -13,7 +13,7 @@ import (
 const (
 	agentSecretsTag   = "Agent secrets"
 	agentSecretPath   = "/api/agent-secrets"
-	agentSecretIDPath = agentSecretPath + "/{agent_secret_id}"
+	agentSecretIDPath = agentSecretPath + "/{id}"
 )
 
 type agentSecretListOutput struct {
@@ -29,12 +29,12 @@ type agentSecretCreateOutput struct {
 }
 
 type agentSecretUpdateInput struct {
-	AgentSecretID int64 `path:"agent_secret_id"`
+	AgentSecretID int64 `path:"id"`
 	Body          AgentSecretMutation
 }
 
 type agentSecretDeleteInput struct {
-	AgentSecretID int64 `path:"agent_secret_id"`
+	AgentSecretID int64 `path:"id"`
 }
 
 func RegisterAdminRoutes(api huma.API, store *Store) {
