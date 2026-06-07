@@ -1,28 +1,24 @@
 package software
 
-import (
-	"time"
+import "time"
 
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
-)
-
-// SoftwareTitleMutation is the input shape for creating or updating a Munki software title.
-type SoftwareTitleMutation struct {
-	Name            string                                  `json:"name"                        minLength:"1"`
-	Description     string                                  `json:"description,omitempty"`
-	Category        string                                  `json:"category,omitempty"`
-	Developer       string                                  `json:"developer,omitempty"`
-	IconName        string                                  `json:"icon_name,omitempty"`
-	IconHash        string                                  `json:"icon_hash,omitempty"`
-	IconArtifactID  *int64                                  `json:"icon_artifact_id,omitempty"`
-	Includes        []assignments.AssignmentIncludeMutation `json:"includes,omitempty"`
-	ExcludeLabelIDs []int64                                 `json:"exclude_label_ids,omitempty"`
+// SoftwareMutation is the input shape for creating or updating Munki software.
+type SoftwareMutation struct {
+	Name           string          `json:"name"                       minLength:"1"`
+	Description    string          `json:"description,omitempty"`
+	Category       string          `json:"category,omitempty"`
+	Developer      string          `json:"developer,omitempty"`
+	IconName       string          `json:"icon_name,omitempty"`
+	IconHash       string          `json:"icon_hash,omitempty"`
+	IconArtifactID *int64          `json:"icon_artifact_id,omitempty"`
+	Targets        SoftwareTargets `json:"targets"                                  nullable:"false"`
 }
 
 // SoftwareTitle is Woodstar-managed metadata for a Munki software item.
 type SoftwareTitle struct {
 	ID                   int64     `json:"id"`
 	Name                 string    `json:"name"`
+	DisplayName          string    `json:"display_name"`
 	Description          string    `json:"description"`
 	Category             string    `json:"category"`
 	Developer            string    `json:"developer"`

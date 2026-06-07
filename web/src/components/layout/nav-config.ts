@@ -56,7 +56,7 @@ export const navSections: NavMenu[] = [
         label: "Munki",
         icon: PackageSearch,
         adminOnly: true,
-        items: [{ label: "Software", to: "/munki/software-titles" }],
+        items: [{ label: "Software", to: "/munki/software" }],
       },
     ],
   },

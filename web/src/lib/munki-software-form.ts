@@ -1,23 +1,23 @@
 import { z } from "zod";
 
-import type { MunkiSoftwareTitleDetail } from "@/hooks/munki/software-titles";
+import type { MunkiSoftwareDetail } from "@/hooks/munki/software";
 import { requiredString } from "@/lib/form-validation";
 
-export const softwareTitleSchema = z.object({
+export const munkiSoftwareSchema = z.object({
   name: requiredString("Name"),
   description: z.string().trim(),
   category: z.string().trim(),
   developer: z.string().trim(),
 });
 
-export interface SoftwareTitleFormState {
+export interface MunkiSoftwareFormState {
   name: string;
   description: string;
   category: string;
   developer: string;
 }
 
-export function emptySoftwareTitleForm(): SoftwareTitleFormState {
+export function emptyMunkiSoftwareForm(): MunkiSoftwareFormState {
   return {
     name: "",
     description: "",
@@ -26,7 +26,7 @@ export function emptySoftwareTitleForm(): SoftwareTitleFormState {
   };
 }
 
-export function softwareTitleFormFromTitle(title: MunkiSoftwareTitleDetail): SoftwareTitleFormState {
+export function munkiSoftwareFormFromSoftware(title: MunkiSoftwareDetail): MunkiSoftwareFormState {
   return {
     name: title.name,
     description: title.description,

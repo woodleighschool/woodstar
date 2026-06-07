@@ -16,7 +16,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -91,7 +90,6 @@ type OsqueryDependencies struct {
 type MunkiDependencies struct {
 	Repository      *munki.Service
 	Artifacts       *artifacts.Store
-	Assignments     *assignments.Store
 	HostState       *hoststate.Store
 	Packages        *packages.Store
 	SoftwareTitles  *munkisoftware.Store

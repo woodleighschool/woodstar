@@ -7,7 +7,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -35,9 +34,14 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 			want: "MunkiArtifact",
 		},
 		{
-			name: "munki assignment",
-			typ:  reflect.TypeFor[assignments.Assignment](),
-			want: "MunkiAssignment",
+			name: "munki software include",
+			typ:  reflect.TypeFor[munkisoftware.SoftwareInclude](),
+			want: "MunkiSoftwareInclude",
+		},
+		{
+			name: "munki software targets",
+			typ:  reflect.TypeFor[munkisoftware.SoftwareTargets](),
+			want: "MunkiSoftwareTargets",
 		},
 		{
 			name: "munki package mutation",
@@ -45,9 +49,9 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 			want: "MunkiPackageMutation",
 		},
 		{
-			name: "munki software title mutation",
-			typ:  reflect.TypeFor[munkisoftware.SoftwareTitleMutation](),
-			want: "MunkiSoftwareTitleMutation",
+			name: "munki software mutation",
+			typ:  reflect.TypeFor[munkisoftware.SoftwareMutation](),
+			want: "MunkiSoftwareMutation",
 		},
 		{
 			name: "osquery check",

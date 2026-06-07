@@ -53,6 +53,8 @@ export function useSoftwareTitle(id: number | null) {
   });
 }
 
+export const useObservedSoftware = useSoftwareTitle;
+
 export function useSoftwareSantaReference(id: number | null) {
   return useQuery<SoftwareSantaReference, ApiError>({
     queryKey: queryKeys.softwareSantaReference(id),

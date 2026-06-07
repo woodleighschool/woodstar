@@ -417,7 +417,7 @@ func packagesFromRecords(records []packageRecord) ([]Package, error) {
 	return packages, nil
 }
 
-// FromEffectiveRow maps the assignment-effective package query row into the package domain type.
+// FromEffectiveRow maps the host-effective package query row into the package domain type.
 func FromEffectiveRow(row sqlc.ListEffectiveMunkiPackagesForHostRow) (Package, error) {
 	return packageFromRecord(packageRecordFromEffectiveSQLC(row))
 }

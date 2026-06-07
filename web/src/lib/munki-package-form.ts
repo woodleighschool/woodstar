@@ -10,7 +10,7 @@ import type {
   PackageReference,
 } from "@/lib/api-client/types.gen";
 import { fieldErrors, optionalText, requiredString } from "@/lib/form-validation";
-import type { MunkiInstallerType, MunkiRestartAction, MunkiUninstallMethod } from "@/lib/munki-software-title";
+import type { MunkiInstallerType, MunkiRestartAction, MunkiUninstallMethod } from "@/lib/munki-software";
 
 export type Architecture = "arm64" | "x86_64";
 export type ScriptKey =

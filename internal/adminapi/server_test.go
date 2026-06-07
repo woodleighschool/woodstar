@@ -27,7 +27,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -272,8 +271,8 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t,
 		server,
 		cookie,
-		"/api/munki/software-titles",
-		`{"name":"Google Chrome"}`,
+		"/api/munki/software",
+		`{"name":"Google Chrome","targets":{"include":[],"exclude":[]}}`,
 	)
 	pkg := postMunkiJSON[packages.Package](
 		t,
@@ -309,37 +308,36 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t.Fatalf("create exclude label: %v", err)
 	}
 	allHostsID := apiTestAllHostsLabelID(t, context.Background(), labels.NewStore(database))
-	updatedTitle := patchMunkiJSON[struct {
-		Includes        []assignments.Assignment `json:"includes"`
-		ExcludeLabelIDs []int64                  `json:"exclude_label_ids"`
+	updatedTitle := putMunkiJSON[struct {
+		Targets munkisoftware.SoftwareTargets `json:"targets"`
 	}](
 		t,
 		server,
 		cookie,
-		fmt.Sprintf("/api/munki/software-titles/%d", title.ID),
+		fmt.Sprintf("/api/munki/software/%d", title.ID),
 		fmt.Sprintf(
-			`{"name":"Google Chrome","description":"","category":"","developer":"","includes":[{"label_id":%d,"action":"install","optional_install":true,"featured_item":true,"package_selection":"specific_package","pinned_package_id":%d}],"exclude_label_ids":[%d]}`,
+			`{"name":"Google Chrome","description":"","category":"","developer":"","targets":{"include":[{"label_id":%d,"package":{"strategy":"specific","package_id":%d},"state":"optional_install","featured":true}],"exclude":[{"label_id":%d}]}}`,
 			allHostsID,
 			pkg.ID,
 			excludeLabel.ID,
 		),
 	)
-	if len(updatedTitle.Includes) != 1 {
-		t.Fatalf("includes = %+v, want one assignment", updatedTitle.Includes)
+	if len(updatedTitle.Targets.Include) != 1 {
+		t.Fatalf("includes = %+v, want one target", updatedTitle.Targets.Include)
 	}
-	assignment := updatedTitle.Includes[0]
-	if !assignment.OptionalInstall || !assignment.FeaturedItem {
-		t.Fatalf("assignment = %+v, want optional_install and featured_item", assignment)
+	include := updatedTitle.Targets.Include[0]
+	if include.State != munkisoftware.SoftwareStateOptionalInstall || !include.Featured {
+		t.Fatalf("include = %+v, want optional_install and featured", include)
 	}
-	if len(updatedTitle.ExcludeLabelIDs) != 1 || updatedTitle.ExcludeLabelIDs[0] != excludeLabel.ID {
-		t.Fatalf("exclude labels = %+v, want [%d]", updatedTitle.ExcludeLabelIDs, excludeLabel.ID)
+	if len(updatedTitle.Targets.Exclude) != 1 || updatedTitle.Targets.Exclude[0].LabelID != excludeLabel.ID {
+		t.Fatalf("exclude labels = %+v, want [%d]", updatedTitle.Targets.Exclude, excludeLabel.ID)
 	}
 
 	detailRec := httptest.NewRecorder()
 	detailReq := httptest.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		fmt.Sprintf("/api/munki/software-titles/%d", title.ID),
+		fmt.Sprintf("/api/munki/software/%d", title.ID),
 		nil,
 	)
 	detailReq.AddCookie(cookie)
@@ -530,7 +528,6 @@ func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.Artifact
 
 type munkiTestStores struct {
 	artifacts      *artifacts.Store
-	assignments    *assignments.Store
 	hoststate      *hoststate.Store
 	packages       *packages.Store
 	softwareTitles *munkisoftware.Store
@@ -540,16 +537,13 @@ func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 	artifactStore := artifacts.NewStore(db)
 	packageStore := packages.NewStore(db, artifactStore)
 	softwareTitleStore := munkisoftware.NewStore(db, artifactStore, packageStore)
-	assignmentStore := assignments.NewStore(db, packageStore)
 	stores := munkiTestStores{
 		artifacts:      artifactStore,
-		assignments:    assignmentStore,
 		hoststate:      hoststate.NewStore(db),
 		packages:       packageStore,
 		softwareTitles: softwareTitleStore,
 	}
 	deps.Munki.Artifacts = stores.artifacts
-	deps.Munki.Assignments = stores.assignments
 	deps.Munki.HostState = stores.hoststate
 	deps.Munki.Packages = stores.packages
 	deps.Munki.SoftwareTitles = stores.softwareTitles
@@ -570,6 +564,24 @@ func postMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, pat
 	var decoded T
 	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
 		t.Fatalf("decode POST %s: %v", path, err)
+	}
+	return decoded
+}
+
+func putMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.AddCookie(cookie)
+	server.httpServer.Handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var decoded T
+	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode PUT %s: %v", path, err)
 	}
 	return decoded
 }
@@ -758,7 +770,7 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
 	stores := wireMunkiTestDeps(&deps, database)
-	deps.Munki.Repository = munki.NewService(hostStore, stores.assignments)
+	deps.Munki.Repository = munki.NewService(hostStore, stores.softwareTitles)
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{

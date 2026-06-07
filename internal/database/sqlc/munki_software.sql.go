@@ -22,7 +22,7 @@ func (q *Queries) CountMunkiSoftwareTitles(ctx context.Context) (int32, error) {
 	return column_1, err
 }
 
-const createMunkiAssignment = `-- name: CreateMunkiAssignment :one
+const createMunkiSoftwareInclude = `-- name: CreateMunkiSoftwareInclude :one
 INSERT INTO munki_software_targets (
     software_id,
     direction,
@@ -48,7 +48,7 @@ VALUES (
 RETURNING software_id, direction, position, label_id, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
 `
 
-type CreateMunkiAssignmentParams struct {
+type CreateMunkiSoftwareIncludeParams struct {
 	SoftwareID       int64                 `json:"software_id"`
 	Priority         int32                 `json:"priority"`
 	LabelID          int64                 `json:"label_id"`
@@ -59,8 +59,8 @@ type CreateMunkiAssignmentParams struct {
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
 }
 
-func (q *Queries) CreateMunkiAssignment(ctx context.Context, arg CreateMunkiAssignmentParams) (MunkiSoftwareTarget, error) {
-	row := q.db.QueryRow(ctx, createMunkiAssignment,
+func (q *Queries) CreateMunkiSoftwareInclude(ctx context.Context, arg CreateMunkiSoftwareIncludeParams) (MunkiSoftwareTarget, error) {
+	row := q.db.QueryRow(ctx, createMunkiSoftwareInclude,
 		arg.SoftwareID,
 		arg.Priority,
 		arg.LabelID,
@@ -145,46 +145,46 @@ func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiS
 	return i, err
 }
 
-const deleteMunkiAssignmentExcludeLabels = `-- name: DeleteMunkiAssignmentExcludeLabels :exec
+const deleteMunkiSoftwareExcludeLabels = `-- name: DeleteMunkiSoftwareExcludeLabels :exec
 DELETE FROM munki_software_targets
 WHERE software_id = $1
   AND direction = 'exclude'
 `
 
-type DeleteMunkiAssignmentExcludeLabelsParams struct {
+type DeleteMunkiSoftwareExcludeLabelsParams struct {
 	SoftwareID int64 `json:"software_id"`
 }
 
-func (q *Queries) DeleteMunkiAssignmentExcludeLabels(ctx context.Context, arg DeleteMunkiAssignmentExcludeLabelsParams) error {
-	_, err := q.db.Exec(ctx, deleteMunkiAssignmentExcludeLabels, arg.SoftwareID)
+func (q *Queries) DeleteMunkiSoftwareExcludeLabels(ctx context.Context, arg DeleteMunkiSoftwareExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiSoftwareExcludeLabels, arg.SoftwareID)
 	return err
 }
 
-const deleteMunkiAssignmentsBySoftware = `-- name: DeleteMunkiAssignmentsBySoftware :exec
+const deleteMunkiSoftwareTargetsBySoftware = `-- name: DeleteMunkiSoftwareTargetsBySoftware :exec
 DELETE FROM munki_software_targets
 WHERE software_id = $1
 `
 
-type DeleteMunkiAssignmentsBySoftwareParams struct {
+type DeleteMunkiSoftwareTargetsBySoftwareParams struct {
 	SoftwareID int64 `json:"software_id"`
 }
 
-func (q *Queries) DeleteMunkiAssignmentsBySoftware(ctx context.Context, arg DeleteMunkiAssignmentsBySoftwareParams) error {
-	_, err := q.db.Exec(ctx, deleteMunkiAssignmentsBySoftware, arg.SoftwareID)
+func (q *Queries) DeleteMunkiSoftwareTargetsBySoftware(ctx context.Context, arg DeleteMunkiSoftwareTargetsBySoftwareParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiSoftwareTargetsBySoftware, arg.SoftwareID)
 	return err
 }
 
-const deleteMunkiAssignmentsBySoftwareIDs = `-- name: DeleteMunkiAssignmentsBySoftwareIDs :exec
+const deleteMunkiSoftwareTargetsBySoftwareIDs = `-- name: DeleteMunkiSoftwareTargetsBySoftwareIDs :exec
 DELETE FROM munki_software_targets
 WHERE software_id = ANY($1::bigint[])
 `
 
-type DeleteMunkiAssignmentsBySoftwareIDsParams struct {
+type DeleteMunkiSoftwareTargetsBySoftwareIDsParams struct {
 	Ids []int64 `json:"ids"`
 }
 
-func (q *Queries) DeleteMunkiAssignmentsBySoftwareIDs(ctx context.Context, arg DeleteMunkiAssignmentsBySoftwareIDsParams) error {
-	_, err := q.db.Exec(ctx, deleteMunkiAssignmentsBySoftwareIDs, arg.Ids)
+func (q *Queries) DeleteMunkiSoftwareTargetsBySoftwareIDs(ctx context.Context, arg DeleteMunkiSoftwareTargetsBySoftwareIDsParams) error {
+	_, err := q.db.Exec(ctx, deleteMunkiSoftwareTargetsBySoftwareIDs, arg.Ids)
 	return err
 }
 
@@ -263,26 +263,26 @@ func (q *Queries) GetMunkiSoftwareTitleByID(ctx context.Context, arg GetMunkiSof
 	return i, err
 }
 
-const insertMunkiAssignmentExcludeLabels = `-- name: InsertMunkiAssignmentExcludeLabels :exec
+const insertMunkiSoftwareExcludeLabels = `-- name: InsertMunkiSoftwareExcludeLabels :exec
 INSERT INTO munki_software_targets (software_id, direction, position, label_id)
 SELECT $1, 'exclude', labels.position - 1, labels.label_id
 FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, position)
 `
 
-type InsertMunkiAssignmentExcludeLabelsParams struct {
+type InsertMunkiSoftwareExcludeLabelsParams struct {
 	SoftwareID int64   `json:"software_id"`
 	LabelIds   []int64 `json:"label_ids"`
 }
 
-func (q *Queries) InsertMunkiAssignmentExcludeLabels(ctx context.Context, arg InsertMunkiAssignmentExcludeLabelsParams) error {
-	_, err := q.db.Exec(ctx, insertMunkiAssignmentExcludeLabels, arg.SoftwareID, arg.LabelIds)
+func (q *Queries) InsertMunkiSoftwareExcludeLabels(ctx context.Context, arg InsertMunkiSoftwareExcludeLabelsParams) error {
+	_, err := q.db.Exec(ctx, insertMunkiSoftwareExcludeLabels, arg.SoftwareID, arg.LabelIds)
 	return err
 }
 
 const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
-    (a.position + 1)::bigint AS assignment_id,
-    a.software_id AS assignment_software_id,
+    (a.position + 1)::bigint AS target_id,
+    a.software_id AS target_software_id,
     a.action::munki_assignment_action AS action,
     a.optional_install::boolean AS optional_install,
     a.featured_item::boolean AS featured_item,
@@ -381,8 +381,8 @@ type ListEffectiveMunkiPackagesForHostParams struct {
 }
 
 type ListEffectiveMunkiPackagesForHostRow struct {
-	AssignmentID                 int64                 `json:"assignment_id"`
-	AssignmentSoftwareID         int64                 `json:"assignment_software_id"`
+	TargetID                     int64                 `json:"target_id"`
+	TargetSoftwareID             int64                 `json:"target_software_id"`
 	Action                       MunkiAssignmentAction `json:"action"`
 	OptionalInstall              bool                  `json:"optional_install"`
 	FeaturedItem                 bool                  `json:"featured_item"`
@@ -462,8 +462,8 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 	for rows.Next() {
 		var i ListEffectiveMunkiPackagesForHostRow
 		if err := rows.Scan(
-			&i.AssignmentID,
-			&i.AssignmentSoftwareID,
+			&i.TargetID,
+			&i.TargetSoftwareID,
 			&i.Action,
 			&i.OptionalInstall,
 			&i.FeaturedItem,
@@ -542,7 +542,7 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 	return items, nil
 }
 
-const listMunkiAssignmentExcludeLabels = `-- name: ListMunkiAssignmentExcludeLabels :many
+const listMunkiSoftwareExcludeLabels = `-- name: ListMunkiSoftwareExcludeLabels :many
 SELECT software_id, label_id
 FROM munki_software_targets
 WHERE software_id = ANY($1::bigint[])
@@ -550,24 +550,24 @@ WHERE software_id = ANY($1::bigint[])
 ORDER BY software_id, position
 `
 
-type ListMunkiAssignmentExcludeLabelsParams struct {
+type ListMunkiSoftwareExcludeLabelsParams struct {
 	SoftwareIds []int64 `json:"software_ids"`
 }
 
-type ListMunkiAssignmentExcludeLabelsRow struct {
+type ListMunkiSoftwareExcludeLabelsRow struct {
 	SoftwareID int64 `json:"software_id"`
 	LabelID    int64 `json:"label_id"`
 }
 
-func (q *Queries) ListMunkiAssignmentExcludeLabels(ctx context.Context, arg ListMunkiAssignmentExcludeLabelsParams) ([]ListMunkiAssignmentExcludeLabelsRow, error) {
-	rows, err := q.db.Query(ctx, listMunkiAssignmentExcludeLabels, arg.SoftwareIds)
+func (q *Queries) ListMunkiSoftwareExcludeLabels(ctx context.Context, arg ListMunkiSoftwareExcludeLabelsParams) ([]ListMunkiSoftwareExcludeLabelsRow, error) {
+	rows, err := q.db.Query(ctx, listMunkiSoftwareExcludeLabels, arg.SoftwareIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListMunkiAssignmentExcludeLabelsRow{}
+	items := []ListMunkiSoftwareExcludeLabelsRow{}
 	for rows.Next() {
-		var i ListMunkiAssignmentExcludeLabelsRow
+		var i ListMunkiSoftwareExcludeLabelsRow
 		if err := rows.Scan(&i.SoftwareID, &i.LabelID); err != nil {
 			return nil, err
 		}

@@ -51,15 +51,6 @@ export type AgentSecretMutation = {
     value: string;
 };
 
-export type AssignmentIncludeMutation = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    featured_item?: boolean;
-    label_id: number;
-    optional_install?: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
-    pinned_package_id?: number;
-};
-
 export type BulkIdsBody = {
     /**
      * A URL to the JSON Schema for this object.
@@ -717,23 +708,6 @@ export type MunkiArtifactUploadMutation = {
     size_bytes: number;
 };
 
-export type MunkiAssignment = {
-    action: 'install' | 'remove' | 'update_if_present' | 'none';
-    created_at: string;
-    featured_item: boolean;
-    id: number;
-    label_id: number;
-    optional_install: boolean;
-    package_selection: 'latest_eligible' | 'specific_package';
-    pinned_package_id?: number;
-    pinned_package_name?: string;
-    pinned_package_version?: string;
-    priority: number;
-    software_id: number;
-    software_name: string;
-    updated_at: string;
-};
-
 export type MunkiPackage = {
     /**
      * A URL to the JSON Schema for this object.
@@ -864,11 +838,12 @@ export type MunkiPackageMutation = {
     version_script?: string;
 };
 
-export type MunkiSoftwareTitle = {
+export type MunkiSoftware = {
     category: string;
     created_at: string;
     description: string;
     developer: string;
+    display_name: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
@@ -879,7 +854,7 @@ export type MunkiSoftwareTitle = {
     updated_at: string;
 };
 
-export type MunkiSoftwareTitleDetail = {
+export type MunkiSoftwareDetail = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -888,20 +863,27 @@ export type MunkiSoftwareTitleDetail = {
     created_at: string;
     description: string;
     developer: string;
-    exclude_label_ids: Array<number> | null;
+    display_name: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
     icon_name: string;
     icon_url?: string;
     id: number;
-    includes: Array<MunkiAssignment> | null;
     name: string;
     packages: Array<MunkiPackage> | null;
+    targets: MunkiSoftwareTargets;
     updated_at: string;
 };
 
-export type MunkiSoftwareTitleMutation = {
+export type MunkiSoftwareInclude = {
+    featured: boolean;
+    label_id: number;
+    package: SoftwarePackageSelector;
+    state: 'managed_install' | 'managed_uninstall' | 'managed_update' | 'optional_install';
+};
+
+export type MunkiSoftwareMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
@@ -909,12 +891,16 @@ export type MunkiSoftwareTitleMutation = {
     category?: string;
     description?: string;
     developer?: string;
-    exclude_label_ids?: Array<number> | null;
     icon_artifact_id?: number;
     icon_hash?: string;
     icon_name?: string;
-    includes?: Array<AssignmentIncludeMutation> | null;
     name: string;
+    targets: MunkiSoftwareTargets;
+};
+
+export type MunkiSoftwareTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<MunkiSoftwareInclude>;
 };
 
 export type MunkiState = {
@@ -1126,13 +1112,13 @@ export type PageMunkiPackage = {
     items: Array<MunkiPackage> | null;
 };
 
-export type PageMunkiSoftwareTitle = {
+export type PageMunkiSoftware = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
     count: number;
-    items: Array<MunkiSoftwareTitle> | null;
+    items: Array<MunkiSoftware> | null;
 };
 
 export type PageReport = {
@@ -1391,6 +1377,11 @@ export type SigningIdentityReference = {
     name: string;
     rule_count: number;
     target_type: 'binary' | 'certificate' | 'teamid' | 'signingid' | 'cdhash' | 'bundle';
+};
+
+export type SoftwarePackageSelector = {
+    package_id?: number;
+    strategy: 'latest' | 'specific';
 };
 
 export type SoftwareReference = {
@@ -1837,34 +1828,33 @@ export type MunkiPackageMutationWritable = {
     version_script?: string;
 };
 
-export type MunkiSoftwareTitleDetailWritable = {
+export type MunkiSoftwareDetailWritable = {
     category: string;
     created_at: string;
     description: string;
     developer: string;
-    exclude_label_ids: Array<number> | null;
+    display_name: string;
     icon_artifact_id?: number;
     icon_artifact_location?: string;
     icon_hash: string;
     icon_name: string;
     icon_url?: string;
     id: number;
-    includes: Array<MunkiAssignment> | null;
     name: string;
     packages: Array<MunkiPackageWritable> | null;
+    targets: MunkiSoftwareTargets;
     updated_at: string;
 };
 
-export type MunkiSoftwareTitleMutationWritable = {
+export type MunkiSoftwareMutationWritable = {
     category?: string;
     description?: string;
     developer?: string;
-    exclude_label_ids?: Array<number> | null;
     icon_artifact_id?: number;
     icon_hash?: string;
     icon_name?: string;
-    includes?: Array<AssignmentIncludeMutation> | null;
     name: string;
+    targets: MunkiSoftwareTargets;
 };
 
 export type OsqueryCheckWritable = {
@@ -1959,9 +1949,9 @@ export type PageMunkiPackageWritable = {
     items: Array<MunkiPackageWritable> | null;
 };
 
-export type PageMunkiSoftwareTitleWritable = {
+export type PageMunkiSoftwareWritable = {
     count: number;
-    items: Array<MunkiSoftwareTitle> | null;
+    items: Array<MunkiSoftware> | null;
 };
 
 export type PageReportWritable = {
@@ -3829,7 +3819,7 @@ export type UpdateMunkiPackageResponses = {
 
 export type UpdateMunkiPackageResponse = UpdateMunkiPackageResponses[keyof UpdateMunkiPackageResponses];
 
-export type ListMunkiSoftwareTitlesData = {
+export type ListMunkiSoftwareData = {
     body?: never;
     path?: never;
     query?: {
@@ -3838,10 +3828,10 @@ export type ListMunkiSoftwareTitlesData = {
         page_size?: number;
         sort?: string;
     };
-    url: '/api/munki/software-titles';
+    url: '/api/munki/software';
 };
 
-export type ListMunkiSoftwareTitlesErrors = {
+export type ListMunkiSoftwareErrors = {
     /**
      * Unauthorized
      */
@@ -3860,25 +3850,25 @@ export type ListMunkiSoftwareTitlesErrors = {
     500: ErrorModel;
 };
 
-export type ListMunkiSoftwareTitlesError = ListMunkiSoftwareTitlesErrors[keyof ListMunkiSoftwareTitlesErrors];
+export type ListMunkiSoftwareError = ListMunkiSoftwareErrors[keyof ListMunkiSoftwareErrors];
 
-export type ListMunkiSoftwareTitlesResponses = {
+export type ListMunkiSoftwareResponses = {
     /**
      * OK
      */
-    200: PageMunkiSoftwareTitle;
+    200: PageMunkiSoftware;
 };
 
-export type ListMunkiSoftwareTitlesResponse = ListMunkiSoftwareTitlesResponses[keyof ListMunkiSoftwareTitlesResponses];
+export type ListMunkiSoftwareResponse = ListMunkiSoftwareResponses[keyof ListMunkiSoftwareResponses];
 
-export type CreateMunkiSoftwareTitleData = {
-    body: MunkiSoftwareTitleMutationWritable;
+export type CreateMunkiSoftwareData = {
+    body: MunkiSoftwareMutationWritable;
     path?: never;
     query?: never;
-    url: '/api/munki/software-titles';
+    url: '/api/munki/software';
 };
 
-export type CreateMunkiSoftwareTitleErrors = {
+export type CreateMunkiSoftwareErrors = {
     /**
      * Bad Request
      */
@@ -3909,25 +3899,25 @@ export type CreateMunkiSoftwareTitleErrors = {
     500: ErrorModel;
 };
 
-export type CreateMunkiSoftwareTitleError = CreateMunkiSoftwareTitleErrors[keyof CreateMunkiSoftwareTitleErrors];
+export type CreateMunkiSoftwareError = CreateMunkiSoftwareErrors[keyof CreateMunkiSoftwareErrors];
 
-export type CreateMunkiSoftwareTitleResponses = {
+export type CreateMunkiSoftwareResponses = {
     /**
      * Created
      */
-    201: MunkiSoftwareTitleDetail;
+    201: MunkiSoftwareDetail;
 };
 
-export type CreateMunkiSoftwareTitleResponse = CreateMunkiSoftwareTitleResponses[keyof CreateMunkiSoftwareTitleResponses];
+export type CreateMunkiSoftwareResponse = CreateMunkiSoftwareResponses[keyof CreateMunkiSoftwareResponses];
 
-export type BulkDeleteMunkiSoftwareTitlesData = {
+export type BulkDeleteMunkiSoftwareData = {
     body: BulkIdsBodyWritable;
     path?: never;
     query?: never;
-    url: '/api/munki/software-titles/bulk-delete';
+    url: '/api/munki/software/bulk-delete';
 };
 
-export type BulkDeleteMunkiSoftwareTitlesErrors = {
+export type BulkDeleteMunkiSoftwareErrors = {
     /**
      * Bad Request
      */
@@ -3950,27 +3940,27 @@ export type BulkDeleteMunkiSoftwareTitlesErrors = {
     500: ErrorModel;
 };
 
-export type BulkDeleteMunkiSoftwareTitlesError = BulkDeleteMunkiSoftwareTitlesErrors[keyof BulkDeleteMunkiSoftwareTitlesErrors];
+export type BulkDeleteMunkiSoftwareError = BulkDeleteMunkiSoftwareErrors[keyof BulkDeleteMunkiSoftwareErrors];
 
-export type BulkDeleteMunkiSoftwareTitlesResponses = {
+export type BulkDeleteMunkiSoftwareResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type BulkDeleteMunkiSoftwareTitlesResponse = BulkDeleteMunkiSoftwareTitlesResponses[keyof BulkDeleteMunkiSoftwareTitlesResponses];
+export type BulkDeleteMunkiSoftwareResponse = BulkDeleteMunkiSoftwareResponses[keyof BulkDeleteMunkiSoftwareResponses];
 
-export type DeleteMunkiSoftwareTitleData = {
+export type DeleteMunkiSoftwareData = {
     body?: never;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/software-titles/{id}';
+    url: '/api/munki/software/{id}';
 };
 
-export type DeleteMunkiSoftwareTitleErrors = {
+export type DeleteMunkiSoftwareErrors = {
     /**
      * Unauthorized
      */
@@ -3993,27 +3983,27 @@ export type DeleteMunkiSoftwareTitleErrors = {
     500: ErrorModel;
 };
 
-export type DeleteMunkiSoftwareTitleError = DeleteMunkiSoftwareTitleErrors[keyof DeleteMunkiSoftwareTitleErrors];
+export type DeleteMunkiSoftwareError = DeleteMunkiSoftwareErrors[keyof DeleteMunkiSoftwareErrors];
 
-export type DeleteMunkiSoftwareTitleResponses = {
+export type DeleteMunkiSoftwareResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteMunkiSoftwareTitleResponse = DeleteMunkiSoftwareTitleResponses[keyof DeleteMunkiSoftwareTitleResponses];
+export type DeleteMunkiSoftwareResponse = DeleteMunkiSoftwareResponses[keyof DeleteMunkiSoftwareResponses];
 
-export type GetMunkiSoftwareTitleData = {
+export type GetMunkiSoftwareData = {
     body?: never;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/software-titles/{id}';
+    url: '/api/munki/software/{id}';
 };
 
-export type GetMunkiSoftwareTitleErrors = {
+export type GetMunkiSoftwareErrors = {
     /**
      * Unauthorized
      */
@@ -4036,27 +4026,27 @@ export type GetMunkiSoftwareTitleErrors = {
     500: ErrorModel;
 };
 
-export type GetMunkiSoftwareTitleError = GetMunkiSoftwareTitleErrors[keyof GetMunkiSoftwareTitleErrors];
+export type GetMunkiSoftwareError = GetMunkiSoftwareErrors[keyof GetMunkiSoftwareErrors];
 
-export type GetMunkiSoftwareTitleResponses = {
+export type GetMunkiSoftwareResponses = {
     /**
      * OK
      */
-    200: MunkiSoftwareTitleDetail;
+    200: MunkiSoftwareDetail;
 };
 
-export type GetMunkiSoftwareTitleResponse = GetMunkiSoftwareTitleResponses[keyof GetMunkiSoftwareTitleResponses];
+export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiSoftwareResponses];
 
-export type UpdateMunkiSoftwareTitleData = {
-    body: MunkiSoftwareTitleMutationWritable;
+export type UpdateMunkiSoftwareData = {
+    body: MunkiSoftwareMutationWritable;
     path: {
         id: number;
     };
     query?: never;
-    url: '/api/munki/software-titles/{id}';
+    url: '/api/munki/software/{id}';
 };
 
-export type UpdateMunkiSoftwareTitleErrors = {
+export type UpdateMunkiSoftwareErrors = {
     /**
      * Bad Request
      */
@@ -4087,16 +4077,16 @@ export type UpdateMunkiSoftwareTitleErrors = {
     500: ErrorModel;
 };
 
-export type UpdateMunkiSoftwareTitleError = UpdateMunkiSoftwareTitleErrors[keyof UpdateMunkiSoftwareTitleErrors];
+export type UpdateMunkiSoftwareError = UpdateMunkiSoftwareErrors[keyof UpdateMunkiSoftwareErrors];
 
-export type UpdateMunkiSoftwareTitleResponses = {
+export type UpdateMunkiSoftwareResponses = {
     /**
      * OK
      */
-    200: MunkiSoftwareTitleDetail;
+    200: MunkiSoftwareDetail;
 };
 
-export type UpdateMunkiSoftwareTitleResponse = UpdateMunkiSoftwareTitleResponses[keyof UpdateMunkiSoftwareTitleResponses];
+export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

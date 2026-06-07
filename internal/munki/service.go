@@ -11,8 +11,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 )
 
@@ -24,7 +24,7 @@ type hostResolver interface {
 }
 
 type packageResolver interface {
-	EffectivePackagesForHost(context.Context, int64) ([]assignments.EffectivePackage, error)
+	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
 }
 
 type artifactResolver interface {
@@ -213,40 +213,38 @@ func (s *Service) clientCanFetchPackageArtifact(
 func (s *Service) effectivePackages(
 	ctx context.Context,
 	hostID int64,
-) ([]assignments.EffectivePackage, error) {
+) ([]munkisoftware.EffectivePackage, error) {
 	if s.packages == nil {
 		return nil, nil
 	}
 	return s.packages.EffectivePackagesForHost(ctx, hostID)
 }
 
-func addManifestPackage(manifest *renderedManifest, pkg assignments.EffectivePackage) {
+func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectivePackage) {
 	name := manifestItemName(pkg)
 	if name == "" {
 		return
 	}
-	switch pkg.Action {
-	case assignments.AssignmentActionInstall:
+	switch pkg.State {
+	case munkisoftware.SoftwareStateManagedInstall:
 		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-	case assignments.AssignmentActionRemove:
+	case munkisoftware.SoftwareStateManagedUninstall:
 		manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-	case assignments.AssignmentActionUpdateIfPresent:
+	case munkisoftware.SoftwareStateManagedUpdate:
 		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-	case assignments.AssignmentActionNone:
-	}
-	if pkg.OptionalInstall {
+	case munkisoftware.SoftwareStateOptionalInstall:
 		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
 	}
-	if pkg.FeaturedItem {
+	if pkg.Featured {
 		manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
 	}
 }
 
-func manifestItemName(pkg assignments.EffectivePackage) string {
+func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	return packages.MunkiName(pkg.Package.ID)
 }
 
-func (s *Service) catalogItems(effective []assignments.EffectivePackage) ([]map[string]any, error) {
+func (s *Service) catalogItems(effective []munkisoftware.EffectivePackage) ([]map[string]any, error) {
 	items := make([]map[string]any, 0, len(effective))
 	seen := make(map[int64]bool, len(effective))
 	for _, pkg := range effective {

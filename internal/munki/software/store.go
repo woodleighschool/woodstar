@@ -13,7 +13,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
@@ -23,6 +22,7 @@ type artifactStore interface {
 
 type packageStore interface {
 	GetByID(context.Context, int64) (*packages.Package, error)
+	AttachRelations(context.Context, []packages.Package) ([]packages.Package, error)
 }
 
 type Store struct {
@@ -36,7 +36,7 @@ func NewStore(db *database.DB, artifacts artifactStore, packages packageStore) *
 	return &Store{db: db, q: db.Queries(), artifacts: artifacts, packages: packages}
 }
 
-func (s *Store) Create(ctx context.Context, params SoftwareTitleMutation) (*SoftwareTitle, error) {
+func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*SoftwareTitle, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
@@ -59,7 +59,7 @@ func (s *Store) Create(ctx context.Context, params SoftwareTitleMutation) (*Soft
 			return err
 		}
 		titleID = row.ID
-		return s.replaceTargets(ctx, qtx, titleID, params.Includes, params.ExcludeLabelIDs)
+		return s.replaceTargets(ctx, qtx, titleID, params.Targets)
 	})
 	if err != nil {
 		return nil, mapMutationError(err)
@@ -67,7 +67,7 @@ func (s *Store) Create(ctx context.Context, params SoftwareTitleMutation) (*Soft
 	return s.GetByID(ctx, titleID)
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params SoftwareTitleMutation) (*SoftwareTitle, error) {
+func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (*SoftwareTitle, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
@@ -92,7 +92,7 @@ func (s *Store) Update(ctx context.Context, id int64, params SoftwareTitleMutati
 		if err != nil {
 			return err
 		}
-		return s.replaceTargets(ctx, qtx, row.ID, params.Includes, params.ExcludeLabelIDs)
+		return s.replaceTargets(ctx, qtx, row.ID, params.Targets)
 	})
 	if err != nil {
 		return nil, mapMutationError(err)
@@ -121,9 +121,9 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	}
 	return s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		if err := qtx.DeleteMunkiAssignmentsBySoftware(
+		if err := qtx.DeleteMunkiSoftwareTargetsBySoftware(
 			ctx,
-			sqlc.DeleteMunkiAssignmentsBySoftwareParams{SoftwareID: id},
+			sqlc.DeleteMunkiSoftwareTargetsBySoftwareParams{SoftwareID: id},
 		); err != nil {
 			return err
 		}
@@ -143,9 +143,9 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	var deleted int
 	err := s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		if err := qtx.DeleteMunkiAssignmentsBySoftwareIDs(
+		if err := qtx.DeleteMunkiSoftwareTargetsBySoftwareIDs(
 			ctx,
-			sqlc.DeleteMunkiAssignmentsBySoftwareIDsParams{Ids: ids},
+			sqlc.DeleteMunkiSoftwareTargetsBySoftwareIDsParams{Ids: ids},
 		); err != nil {
 			return err
 		}
@@ -202,152 +202,7 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]SoftwareT
 	return titles, count, nil
 }
 
-func (s *Store) replaceTargets(
-	ctx context.Context,
-	qtx *sqlc.Queries,
-	softwareID int64,
-	includes []assignments.AssignmentIncludeMutation,
-	excludeLabelIDs []int64,
-) error {
-	mutations, err := s.normalizeTargets(ctx, softwareID, includes, excludeLabelIDs)
-	if err != nil {
-		return err
-	}
-	if err := validateExcludedLabels(ctx, qtx, excludeLabelIDs); err != nil {
-		return err
-	}
-	if err := qtx.DeleteMunkiAssignmentExcludeLabels(
-		ctx,
-		sqlc.DeleteMunkiAssignmentExcludeLabelsParams{SoftwareID: softwareID},
-	); err != nil {
-		return err
-	}
-	if err := qtx.DeleteMunkiAssignmentsBySoftware(
-		ctx,
-		sqlc.DeleteMunkiAssignmentsBySoftwareParams{SoftwareID: softwareID},
-	); err != nil {
-		return err
-	}
-	for _, mutation := range mutations {
-		if _, err := qtx.CreateMunkiAssignment(ctx, createAssignmentParams(mutation)); err != nil {
-			return err
-		}
-	}
-	if len(excludeLabelIDs) == 0 {
-		return nil
-	}
-	return qtx.InsertMunkiAssignmentExcludeLabels(
-		ctx,
-		sqlc.InsertMunkiAssignmentExcludeLabelsParams{SoftwareID: softwareID, LabelIds: excludeLabelIDs},
-	)
-}
-
-func (s *Store) normalizeTargets(
-	ctx context.Context,
-	softwareID int64,
-	includes []assignments.AssignmentIncludeMutation,
-	excludeLabelIDs []int64,
-) ([]assignments.AssignmentMutation, error) {
-	if err := validateExcludeLabelIDs(excludeLabelIDs); err != nil {
-		return nil, err
-	}
-	excludedLabels := labelIDSet(excludeLabelIDs)
-	seenIncludeLabels := make(map[int64]struct{}, len(includes))
-	mutations := make([]assignments.AssignmentMutation, len(includes))
-	for index, include := range includes {
-		mutation := cleanAssignmentMutation(include.Mutation(softwareID, int32(index+1)))
-		if err := mutation.Validate(); err != nil {
-			return nil, err
-		}
-		if _, ok := seenIncludeLabels[mutation.LabelID]; ok {
-			return nil, fmt.Errorf("%w: duplicate include label_id", dbutil.ErrInvalidInput)
-		}
-		if _, ok := excludedLabels[mutation.LabelID]; ok {
-			return nil, fmt.Errorf("%w: label_id is both included and excluded", dbutil.ErrInvalidInput)
-		}
-		if err := s.validatePinnedPackage(ctx, softwareID, mutation); err != nil {
-			return nil, err
-		}
-		seenIncludeLabels[mutation.LabelID] = struct{}{}
-		mutations[index] = mutation
-	}
-	return mutations, nil
-}
-
-func (s *Store) validatePinnedPackage(
-	ctx context.Context,
-	softwareID int64,
-	mutation assignments.AssignmentMutation,
-) error {
-	if mutation.PackageSelection != assignments.PackageSelectionSpecific {
-		return nil
-	}
-	pkg, err := s.packages.GetByID(ctx, *mutation.PinnedPackageID)
-	if err != nil {
-		return err
-	}
-	if pkg.SoftwareID != softwareID {
-		return fmt.Errorf("%w: pinned_package_id must belong to software title", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
-func validateExcludeLabelIDs(labelIDs []int64) error {
-	seen := make(map[int64]struct{}, len(labelIDs))
-	for _, labelID := range labelIDs {
-		if labelID <= 0 {
-			return fmt.Errorf("%w: exclude_label_ids contains an invalid label_id", dbutil.ErrInvalidInput)
-		}
-		if _, ok := seen[labelID]; ok {
-			return fmt.Errorf("%w: duplicate exclude_label_ids entry", dbutil.ErrInvalidInput)
-		}
-		seen[labelID] = struct{}{}
-	}
-	return nil
-}
-
-func validateExcludedLabels(ctx context.Context, qtx *sqlc.Queries, labelIDs []int64) error {
-	if len(labelIDs) == 0 {
-		return nil
-	}
-	builtinExcludeIDs, err := qtx.ListBuiltinLabelIDs(ctx, sqlc.ListBuiltinLabelIDsParams{LabelIds: labelIDs})
-	if err != nil {
-		return err
-	}
-	if len(builtinExcludeIDs) > 0 {
-		return fmt.Errorf("%w: builtin labels cannot be excluded from Munki software titles", dbutil.ErrInvalidInput)
-	}
-	return nil
-}
-
-func cleanAssignmentMutation(params assignments.AssignmentMutation) assignments.AssignmentMutation {
-	params.Action = assignments.AssignmentAction(strings.TrimSpace(string(params.Action)))
-	params.PackageSelection = assignments.PackageSelection(strings.TrimSpace(string(params.PackageSelection)))
-	return params
-}
-
-func createAssignmentParams(params assignments.AssignmentMutation) sqlc.CreateMunkiAssignmentParams {
-	return sqlc.CreateMunkiAssignmentParams{
-		SoftwareID:       params.SoftwareID,
-		Priority:         params.Priority,
-		LabelID:          params.LabelID,
-		Action:           sqlc.MunkiAssignmentAction(params.Action),
-		OptionalInstall:  params.OptionalInstall,
-		FeaturedItem:     params.FeaturedItem,
-		PackageSelection: sqlc.MunkiPackageSelection(params.PackageSelection),
-		PinnedPackageID:  params.PinnedPackageID,
-	}
-}
-
-func labelIDSet(labelIDs []int64) map[int64]struct{} {
-	out := make(map[int64]struct{}, len(labelIDs))
-	for _, labelID := range labelIDs {
-		out[labelID] = struct{}{}
-	}
-	return out
-}
-
-func (s *Store) normalizeIcon(ctx context.Context, params SoftwareTitleMutation) (SoftwareTitleMutation, error) {
+func (s *Store) normalizeIcon(ctx context.Context, params SoftwareMutation) (SoftwareMutation, error) {
 	if params.IconArtifactID == nil {
 		return params, nil
 	}
@@ -366,13 +221,14 @@ func (s *Store) normalizeIcon(ctx context.Context, params SoftwareTitleMutation)
 	return params, nil
 }
 
-func cleanMutation(params SoftwareTitleMutation) SoftwareTitleMutation {
+func cleanMutation(params SoftwareMutation) SoftwareMutation {
 	params.Name = strings.TrimSpace(params.Name)
 	params.Description = strings.TrimSpace(params.Description)
 	params.Category = strings.TrimSpace(params.Category)
 	params.Developer = strings.TrimSpace(params.Developer)
 	params.IconName = strings.TrimSpace(params.IconName)
 	params.IconHash = strings.TrimSpace(params.IconHash)
+	params.Targets = normalizeSoftwareTargets(params.Targets)
 	return params
 }
 
@@ -380,6 +236,7 @@ func softwareTitleFromSQLC(row sqlc.MunkiSoftwareTitle) SoftwareTitle {
 	return SoftwareTitle{
 		ID:             row.ID,
 		Name:           row.Name,
+		DisplayName:    row.Name,
 		Description:    row.Description,
 		Category:       row.Category,
 		Developer:      row.Developer,

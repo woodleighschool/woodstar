@@ -69,11 +69,11 @@ class WoodstarMunkiPackageUploader(Processor):
         },
         "software_id": {
             "required": False,
-            "description": "Existing Woodstar software title ID. Defaults to woodstar_software_id.",
+            "description": "Existing Woodstar Munki software ID. Defaults to woodstar_software_id.",
         },
         "eligible": {
             "required": False,
-            "description": "Whether this package is eligible for latest_eligible assignments.",
+            "description": "Whether this package is eligible when targets request the latest package.",
             "default": True,
         },
     }

@@ -30,7 +30,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -190,7 +189,6 @@ func newServer(
 	munkiArtifactStore := artifacts.NewStore(db)
 	munkiPackageStore := packages.NewStore(db, munkiArtifactStore)
 	munkiSoftwareTitleStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
-	munkiAssignmentStore := assignments.NewStore(db, munkiPackageStore)
 	munkiHostStateStore := hoststate.NewStore(db)
 
 	// Santa stores.
@@ -232,7 +230,7 @@ func newServer(
 		ctx,
 		cfg,
 		hostStore,
-		munkiAssignmentStore,
+		munkiSoftwareTitleStore,
 		munkiArtifactStore,
 		logger,
 	)
@@ -297,7 +295,6 @@ func newServer(
 		Munki: adminapi.MunkiDependencies{
 			Repository:      munkiRepo,
 			Artifacts:       munkiArtifactStore,
-			Assignments:     munkiAssignmentStore,
 			HostState:       munkiHostStateStore,
 			Packages:        munkiPackageStore,
 			SoftwareTitles:  munkiSoftwareTitleStore,
@@ -363,7 +360,7 @@ func newMunki(
 	ctx context.Context,
 	cfg config.Config,
 	hosts *hosts.Store,
-	assignmentStore *assignments.Store,
+	softwareStore *munkisoftware.Store,
 	artifactStore *artifacts.Store,
 	logger *slog.Logger,
 ) (*munki.Service, munkistorage.ArtifactStorage) {
@@ -393,7 +390,7 @@ func newMunki(
 		munki.WithArtifactPresigner(storage),
 	}
 
-	return munki.NewService(hosts, assignmentStore, options...), storage
+	return munki.NewService(hosts, softwareStore, options...), storage
 }
 
 func santaCleanup(

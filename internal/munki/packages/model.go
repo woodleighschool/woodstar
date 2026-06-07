@@ -216,7 +216,7 @@ type PackageImportMutation struct {
 	Eligible              *bool           `json:"eligible,omitempty"`
 }
 
-// Package is one Woodstar-authored Munki package version available for assignment.
+// Package is one Woodstar-authored Munki package version available for targeting.
 type Package struct {
 	ID                           int64                                 `json:"id"`
 	SoftwareID                   int64                                 `json:"software_id"`

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
-import { MunkiSoftwareTitlesPage } from "@/pages/munki/software-title/list";
+import { MunkiSoftwarePage } from "@/pages/munki/software/list";
 
 const searchSchema = z.object({
   q: z.string().optional(),
@@ -11,7 +11,7 @@ const searchSchema = z.object({
   sort: z.string().optional(),
 });
 
-export const Route = createFileRoute("/_authenticated/munki/software-titles/")({
+export const Route = createFileRoute("/_authenticated/munki/software/")({
   validateSearch: (search) => searchSchema.parse(search),
-  component: MunkiSoftwareTitlesPage,
+  component: MunkiSoftwarePage,
 });

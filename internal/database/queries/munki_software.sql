@@ -48,11 +48,11 @@ SET
 WHERE id = @id
 RETURNING *;
 
--- name: DeleteMunkiAssignmentsBySoftware :exec
+-- name: DeleteMunkiSoftwareTargetsBySoftware :exec
 DELETE FROM munki_software_targets
 WHERE software_id = @software_id;
 
--- name: DeleteMunkiAssignmentsBySoftwareIDs :exec
+-- name: DeleteMunkiSoftwareTargetsBySoftwareIDs :exec
 DELETE FROM munki_software_targets
 WHERE software_id = ANY(@ids::bigint[]);
 
@@ -66,7 +66,7 @@ DELETE FROM munki_software_titles
 WHERE id = ANY(@ids::bigint[])
 RETURNING id;
 
--- name: CreateMunkiAssignment :one
+-- name: CreateMunkiSoftwareInclude :one
 INSERT INTO munki_software_targets (
     software_id,
     direction,
@@ -91,17 +91,17 @@ VALUES (
 )
 RETURNING *;
 
--- name: DeleteMunkiAssignmentExcludeLabels :exec
+-- name: DeleteMunkiSoftwareExcludeLabels :exec
 DELETE FROM munki_software_targets
 WHERE software_id = @software_id
   AND direction = 'exclude';
 
--- name: InsertMunkiAssignmentExcludeLabels :exec
+-- name: InsertMunkiSoftwareExcludeLabels :exec
 INSERT INTO munki_software_targets (software_id, direction, position, label_id)
 SELECT @software_id, 'exclude', labels.position - 1, labels.label_id
 FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, position);
 
--- name: ListMunkiAssignmentExcludeLabels :many
+-- name: ListMunkiSoftwareExcludeLabels :many
 SELECT software_id, label_id
 FROM munki_software_targets
 WHERE software_id = ANY(@software_ids::bigint[])
@@ -110,8 +110,8 @@ ORDER BY software_id, position;
 
 -- name: ListEffectiveMunkiPackagesForHost :many
 SELECT
-    (a.position + 1)::bigint AS assignment_id,
-    a.software_id AS assignment_software_id,
+    (a.position + 1)::bigint AS target_id,
+    a.software_id AS target_software_id,
     a.action::munki_assignment_action AS action,
     a.optional_install::boolean AS optional_install,
     a.featured_item::boolean AS featured_item,

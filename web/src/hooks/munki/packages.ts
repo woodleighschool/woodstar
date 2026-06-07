@@ -49,7 +49,7 @@ export function useCreateMunkiPackage() {
     mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages", { body })),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
     },
   });
 }
@@ -62,7 +62,7 @@ export function useUpdateMunkiPackage() {
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
     },
   });
 }
@@ -73,7 +73,7 @@ export function useImportMunkiPackage() {
     mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages/import", { body })),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareTitle(pkg.software_id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
     },
   });
 }

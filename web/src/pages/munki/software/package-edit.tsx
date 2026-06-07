@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
-import { PackageEditorTabs, PackageFormActions } from "@/components/munki/software-title/package-editor-fields";
+import { PackageEditorTabs, PackageFormActions } from "@/components/munki/software/package-editor-fields";
 import { MutationError } from "@/components/mutation-error";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import { usePackageEditorForm } from "@/hooks/munki/package-editor-form";
@@ -15,7 +15,7 @@ import {
   useUpdateMunkiPackage,
   type MunkiPackage,
 } from "@/hooks/munki/packages";
-import { useMunkiSoftwareTitle } from "@/hooks/munki/software-titles";
+import { useMunkiSoftwareDetail } from "@/hooks/munki/software";
 import {
   emptyPackageForm,
   packageFormFromPackage,
@@ -29,7 +29,7 @@ import { usePackageIDParam, useSoftwareIDParam } from "./route-params";
 export function MunkiPackageNewPage() {
   const navigate = useNavigate();
   const softwareID = useSoftwareIDParam();
-  const software = useMunkiSoftwareTitle(softwareID);
+  const software = useMunkiSoftwareDetail(softwareID);
   const create = useCreateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
   const iconUpload = useUploadMunkiArtifact("icon");
@@ -63,7 +63,7 @@ export function MunkiPackageNewPage() {
         iconArtifactID: iconArtifact?.id,
       }),
     );
-    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
+    void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
   });
   return (
     <PageShell asChild>
@@ -119,7 +119,7 @@ export function MunkiPackageNewPage() {
 export function MunkiPackageEditPage() {
   const softwareID = useSoftwareIDParam();
   const packageID = usePackageIDParam();
-  const software = useMunkiSoftwareTitle(softwareID);
+  const software = useMunkiSoftwareDetail(softwareID);
   const pkg = useMunkiPackage(packageID);
 
   if (softwareID === null || packageID === null) {
@@ -205,7 +205,7 @@ function MunkiPackageEditForm({
       iconArtifactID: iconArtifact?.id ?? (iconCleared ? undefined : pkg.icon_artifact_id),
     });
     await update.mutateAsync({ id: packageID, body });
-    void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(softwareID) } });
+    void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
   });
   const packageIconURL = iconCleared || !pkg.icon_artifact_id ? undefined : pkg.icon_url;
   const packageIconClearable = !!iconFile || (!iconCleared && !!pkg.icon_artifact_id);

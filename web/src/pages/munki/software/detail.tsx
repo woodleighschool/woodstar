@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Loader2, PackageCheck, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
 import { LabelPicker } from "@/components/labels/label-picker";
@@ -22,52 +22,49 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import { type MunkiPackage } from "@/hooks/munki/packages";
 import {
-  useMunkiSoftwareTitle,
-  useMunkiSoftwareTitles,
-  useUpdateMunkiSoftwareTitle,
-  type MunkiSoftwareTitleDetail,
-  type MunkiSoftwareTitleMutation,
-} from "@/hooks/munki/software-titles";
-import type { MunkiAssignment } from "@/lib/api";
+  useMunkiSoftware,
+  useMunkiSoftwareDetail,
+  useUpdateMunkiSoftware,
+  type MunkiSoftwareDetail,
+  type MunkiSoftwareMutation,
+} from "@/hooks/munki/software";
+import type { SoftwareInclude } from "@/lib/api";
 import { fieldErrors, uniqueOptions } from "@/lib/form-validation";
 import { selectedLabelTargetIDs } from "@/lib/label-target-rows";
 import {
-  emptyMunkiAssignmentForm,
-  munkiAssignmentDetailsFormSchema,
-  munkiAssignmentFormSchema,
-  munkiAssignmentIncludeMutation,
-  type MunkiAssignmentFormState,
-} from "@/lib/munki-assignment-form";
-import { softwareTitleFormFromTitle, softwareTitleSchema } from "@/lib/munki-software-title-form";
+  emptyMunkiSoftwareTargetForm,
+  munkiSoftwareInclude,
+  munkiSoftwareTargetDetailsFormSchema,
+  munkiSoftwareTargetFormSchema,
+  type MunkiSoftwareTargetFormState,
+} from "@/lib/munki-software-target-form";
+import { munkiSoftwareFormFromSoftware, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { MunkiAssignmentFormFields } from "@/components/munki/software-title/assignment-form";
+import { MunkiSoftwareTargetFormFields } from "@/components/munki/software/target-form";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  munkiAssignmentActionLabel,
   munkiInstallerTypeLabel,
-  munkiPackageSelectionLabel,
+  munkiPackageStrategyLabel,
   munkiRestartActionLabel,
-} from "@/lib/munki-software-title";
+  munkiSoftwareStateLabel,
+} from "@/lib/munki-software";
 
-interface MunkiAssignmentDraft extends Omit<MunkiAssignment, "id" | "label_id"> {
+interface MunkiSoftwareTargetRow {
   id: number;
   label_id: number | null;
-  draft: true;
+  priority: number;
+  package: SoftwareInclude["package"];
+  state: SoftwareInclude["state"];
+  featured: boolean;
 }
 
-interface MunkiAssignmentExisting extends Omit<MunkiAssignment, "label_id"> {
-  label_id: number | null;
-}
-
-type MunkiAssignmentRow = MunkiAssignmentExisting | MunkiAssignmentDraft;
-
-export function MunkiSoftwareTitleDetailPage() {
+export function MunkiSoftwareDetailPage() {
   const params = useParams({ strict: false });
   const softwareId = Number(params.softwareId);
   const softwareID = Number.isFinite(softwareId) && softwareId > 0 ? softwareId : null;
-  const query = useMunkiSoftwareTitle(softwareID);
+  const query = useMunkiSoftwareDetail(softwareID);
 
   if (softwareID === null) {
     return (
@@ -94,7 +91,7 @@ export function MunkiSoftwareTitleDetailPage() {
   }
 
   return (
-    <MunkiSoftwareTitleDetailForm
+    <MunkiSoftwareDetailForm
       key={`${query.data.id}:${query.data.updated_at}`}
       software={query.data}
       refetchSoftware={() => query.refetch()}
@@ -102,41 +99,41 @@ export function MunkiSoftwareTitleDetailPage() {
   );
 }
 
-function MunkiSoftwareTitleDetailForm({
+function MunkiSoftwareDetailForm({
   software,
   refetchSoftware,
 }: {
-  software: MunkiSoftwareTitleDetail;
+  software: MunkiSoftwareDetail;
   refetchSoftware: () => Promise<unknown>;
 }) {
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
-  const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
-  const updateSoftware = useUpdateMunkiSoftwareTitle();
+  const titles = useMunkiSoftware({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiArtifact("icon");
-  const [targetRows, setTargetRows] = useState<MunkiAssignmentRow[]>(() => software.includes ?? []);
+  const [targetRows, setTargetRows] = useState<MunkiSoftwareTargetRow[]>(() => targetRowsFromIncludes(software.targets.include));
   const [nextDraftID, setNextDraftID] = useState(-1);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
-  const [assignmentSheetOpen, setAssignmentSheetOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<MunkiAssignmentRow | null>(null);
-  const [assignmentForm, setAssignmentForm] = useState(() => emptyMunkiAssignmentForm());
-  const [showAssignmentErrors, setShowAssignmentErrors] = useState(false);
+  const [targetSheetOpen, setTargetSheetOpen] = useState(false);
+  const [editingTarget, setEditingTarget] = useState<MunkiSoftwareTargetRow | null>(null);
+  const [targetForm, setTargetForm] = useState(() => emptyMunkiSoftwareTargetForm());
+  const [showTargetErrors, setShowTargetErrors] = useState(false);
   const [targetErrors, setTargetErrors] = useState<Partial<Record<number, string>>>({});
-  const [excludeForm, setExcludeForm] = useState<number[]>(() => software.exclude_label_ids ?? []);
+  const [excludeForm, setExcludeForm] = useState<number[]>(() => excludeLabelIDsFromTargets(software));
   const packages = software.packages ?? [];
-  const includes = useMemo(() => software.includes ?? [], [software.includes]);
-  const excludeLabelIDs = useMemo(() => software.exclude_label_ids ?? [], [software.exclude_label_ids]);
+  const includes = useMemo(() => software.targets.include, [software.targets.include]);
+  const excludeLabelIDs = useMemo(() => excludeLabelIDsFromTargets(software), [software]);
   const includeLabelIDs = useMemo(() => selectedLabelTargetIDs(targetRows), [targetRows]);
   const softwareOptionsForm = useForm({
-    defaultValues: softwareTitleFormFromTitle(software),
+    defaultValues: munkiSoftwareFormFromSoftware(software),
     validators: {
-      onSubmit: softwareTitleSchema,
+      onSubmit: munkiSoftwareSchema,
     },
   });
-  const assignmentParsed = useMemo(() => munkiAssignmentDetailsFormSchema.safeParse(assignmentForm), [assignmentForm]);
-  const assignmentErrors = useMemo(() => fieldErrors(assignmentParsed), [assignmentParsed]);
-  const assignmentMutationError = updateSoftware.error?.message;
-  const targetDirty = !sameAssignmentRows(targetRows, includes);
+  const targetParsed = useMemo(() => munkiSoftwareTargetDetailsFormSchema.safeParse(targetForm), [targetForm]);
+  const targetFormErrors = useMemo(() => fieldErrors(targetParsed), [targetParsed]);
+  const targetMutationError = updateSoftware.error?.message;
+  const targetDirty = !sameTargetRows(targetRows, includes);
   const excludeDirty = !sameNumberSet(excludeForm, excludeLabelIDs);
   const pagePending = updateSoftware.isPending || iconUpload.isUploading;
   const pageMutationError = updateSoftware.error?.message ?? iconUpload.error?.message;
@@ -150,75 +147,64 @@ function MunkiSoftwareTitleDetailForm({
   );
   const title = software.name || "Software";
 
-  useEffect(() => {
-    setTargetRows(includes);
-    setTargetErrors({});
-  }, [includes]);
-
-  useEffect(() => {
-    setExcludeForm(excludeLabelIDs);
-  }, [excludeLabelIDs]);
-
-  function moveAssignments(next: MunkiAssignmentRow[]) {
+  function moveTargets(next: MunkiSoftwareTargetRow[]) {
     updateSoftware.reset();
-    setTargetRows(numberAssignmentRows(next));
+    setTargetRows(numberTargetRows(next));
   }
 
-  function openNewAssignment() {
+  function openNewTarget() {
     updateSoftware.reset();
-    setTargetRows((current) =>
-      numberAssignmentRows([...current, newDraftAssignment(software, current.length + 1, nextDraftID)]),
-    );
+    setTargetRows((current) => numberTargetRows([...current, newDraftTarget(current.length + 1, nextDraftID)]));
     setNextDraftID((current) => current - 1);
   }
 
-  function openEditAssignment(assignment: MunkiAssignmentRow) {
+  function openEditTarget(target: MunkiSoftwareTargetRow) {
     updateSoftware.reset();
-    setEditingAssignment(assignment);
-    setAssignmentForm(munkiAssignmentFormFromRow(assignment));
-    setShowAssignmentErrors(false);
-    setAssignmentSheetOpen(true);
+    setEditingTarget(target);
+    setTargetForm(munkiSoftwareTargetFormFromRow(target));
+    setShowTargetErrors(false);
+    setTargetSheetOpen(true);
   }
 
-  function saveAssignment() {
-    if (!editingAssignment) return;
-    const next = munkiAssignmentDetailsFormSchema.safeParse(assignmentForm);
+  function saveTarget() {
+    if (!editingTarget) return;
+    const next = munkiSoftwareTargetDetailsFormSchema.safeParse(targetForm);
     if (!next.success) {
-      setShowAssignmentErrors(true);
+      setShowTargetErrors(true);
       return;
     }
 
     setTargetRows((current) =>
       current.map((row) =>
-        row.id === editingAssignment.id
+        row.id === editingTarget.id
           ? {
               ...row,
-              package_selection: next.data.package_selection,
-              pinned_package_id:
-                next.data.package_selection === "specific_package" ? Number(next.data.pinned_package_id) : undefined,
-              action: next.data.action,
-              optional_install: next.data.optional_install,
-              featured_item: next.data.featured_item,
+              package: {
+                strategy: next.data.strategy,
+                package_id: next.data.strategy === "specific" ? Number(next.data.package_id) : undefined,
+              },
+              state: next.data.state,
+              featured: next.data.featured,
             }
           : row,
       ),
     );
-    setAssignmentSheetOpen(false);
+    setTargetSheetOpen(false);
   }
 
-  function updateAssignmentLabel(id: number, labelID: number | null) {
+  function updateTargetLabel(id: number, labelID: number | null) {
     updateSoftware.reset();
     setTargetErrors((current) => omitTargetError(current, id));
     setTargetRows((current) => current.map((row) => updateRowLabel(row, id, labelID)));
   }
 
-  function deleteAssignmentRow(assignment: MunkiAssignmentRow) {
+  function deleteTargetRow(target: MunkiSoftwareTargetRow) {
     updateSoftware.reset();
-    setTargetRows((current) => numberAssignmentRows(current.filter((row) => row.id !== assignment.id)));
-    setTargetErrors((current) => omitTargetError(current, assignment.id));
-    if (editingAssignment?.id === assignment.id) {
-      setAssignmentSheetOpen(false);
-      setEditingAssignment(null);
+    setTargetRows((current) => numberTargetRows(current.filter((row) => row.id !== target.id)));
+    setTargetErrors((current) => omitTargetError(current, target.id));
+    if (editingTarget?.id === target.id) {
+      setTargetSheetOpen(false);
+      setEditingTarget(null);
     }
   }
 
@@ -228,27 +214,29 @@ function MunkiSoftwareTitleDetailForm({
     if (!pageDirty) return;
 
     await softwareOptionsForm.handleSubmit();
-    const softwareParsed = softwareTitleSchema.safeParse(softwareOptionsForm.state.values);
+    const softwareParsed = munkiSoftwareSchema.safeParse(softwareOptionsForm.state.values);
     if (!softwareParsed.success) return;
 
     const nextTargets = targetIncludeMutations(targetRows);
     if (!nextTargets.success) {
       setTargetErrors(nextTargets.labelErrors);
       if (nextTargets.editRow) {
-        setEditingAssignment(nextTargets.editRow);
-        setAssignmentForm(munkiAssignmentFormFromRow(nextTargets.editRow));
-        setShowAssignmentErrors(true);
-        setAssignmentSheetOpen(true);
+        setEditingTarget(nextTargets.editRow);
+        setTargetForm(munkiSoftwareTargetFormFromRow(nextTargets.editRow));
+        setShowTargetErrors(true);
+        setTargetSheetOpen(true);
       }
       return;
     }
 
     const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-    const body: MunkiSoftwareTitleMutation = {
+    const body: MunkiSoftwareMutation = {
       ...softwareParsed.data,
       icon_artifact_id: iconArtifact?.id ?? (iconCleared ? undefined : software.icon_artifact_id),
-      includes: nextTargets.includes,
-      exclude_label_ids: excludeForm,
+      targets: {
+        include: nextTargets.includes,
+        exclude: excludeForm.map((label_id) => ({ label_id })),
+      },
     };
     await updateSoftware.mutateAsync({ id: software.id, body });
     setIconFile(null);
@@ -256,13 +244,13 @@ function MunkiSoftwareTitleDetailForm({
     await refetchSoftware();
   }
 
-  function resetAssignmentPage() {
+  function resetTargetPage() {
     updateSoftware.reset();
     iconUpload.reset();
-    softwareOptionsForm.reset(softwareTitleFormFromTitle(software));
+    softwareOptionsForm.reset(munkiSoftwareFormFromSoftware(software));
     setIconFile(null);
     setIconCleared(false);
-    setTargetRows(includes);
+    setTargetRows(targetRowsFromIncludes(includes));
     setTargetErrors({});
     setExcludeForm(excludeLabelIDs);
   }
@@ -310,26 +298,25 @@ function MunkiSoftwareTitleDetailForm({
     },
   ];
 
-  const targetDetailColumns: ColumnDef<MunkiAssignmentRow>[] = [
+  const targetDetailColumns: ColumnDef<MunkiSoftwareTargetRow>[] = [
     {
       id: "selection",
-      accessorKey: "package_selection",
       header: "Package",
       enableSorting: false,
-      cell: ({ row }) => assignmentPackageLabel(row.original),
+      cell: ({ row }) => targetPackageLabel(row.original, packages),
     },
     {
-      id: "action",
-      accessorKey: "action",
+      id: "state",
+      accessorKey: "state",
       header: "Managed",
       enableSorting: false,
-      cell: ({ row }) => assignmentActionLabel(row.original),
+      cell: ({ row }) => munkiSoftwareStateLabel(row.original.state),
     },
     {
       id: "msc",
       header: "Availability",
       enableSorting: false,
-      cell: ({ row }) => assignmentMSCSections(row.original).join(", ") || "None",
+      cell: ({ row }) => targetAvailabilitySections(row.original).join(", ") || "None",
     },
   ];
 
@@ -482,20 +469,20 @@ function MunkiSoftwareTitleDetailForm({
                     <div className="flex items-center justify-between gap-3">
                       <h2 className="text-base font-semibold">Targets</h2>
                       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                        <Button type="button" size="sm" disabled={pagePending} onClick={openNewAssignment}>
+                        <Button type="button" size="sm" disabled={pagePending} onClick={openNewTarget}>
                           <Plus data-icon="inline-start" />
                           Add Target
                         </Button>
                       </div>
                     </div>
-                    <MutationError title="Failed to Save Target" message={assignmentMutationError} />
+                    <MutationError title="Failed to Save Target" message={targetMutationError} />
                     <LabelTargetRowsTable
                       rows={targetRows}
                       excludeLabelIDs={excludeForm}
                       labelErrors={targetErrors}
                       columnsAfterLabel={targetDetailColumns}
-                      onChange={moveAssignments}
-                      onLabelChange={updateAssignmentLabel}
+                      onChange={moveTargets}
+                      onLabelChange={updateTargetLabel}
                       renderActions={(row) => (
                         <div className="flex justify-end gap-1">
                           <Tooltip>
@@ -505,7 +492,7 @@ function MunkiSoftwareTitleDetailForm({
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label="Edit target"
-                                onClick={() => openEditAssignment(row)}
+                                onClick={() => openEditTarget(row)}
                               >
                                 <Pencil />
                               </Button>
@@ -519,7 +506,7 @@ function MunkiSoftwareTitleDetailForm({
                                 variant="ghost"
                                 size="icon-sm"
                                 aria-label="Delete target"
-                                onClick={() => deleteAssignmentRow(row)}
+                                onClick={() => deleteTargetRow(row)}
                               >
                                 <Trash2 />
                               </Button>
@@ -558,7 +545,7 @@ function MunkiSoftwareTitleDetailForm({
                     <h2 className="text-base font-semibold">Packages</h2>
                     <Button asChild size="sm" variant="outline">
                       <Link
-                        to="/munki/software-titles/$softwareId/packages/new"
+                        to="/munki/software/$softwareId/packages/new"
                         params={{ softwareId: String(software.id) }}
                       >
                         <Plus data-icon="inline-start" />
@@ -577,7 +564,7 @@ function MunkiSoftwareTitleDetailForm({
                     isLoading={false}
                     clientSort
                     rowHref={(row) => ({
-                      to: "/munki/software-titles/$softwareId/packages/$packageId/edit",
+                      to: "/munki/software/$softwareId/packages/$packageId/edit",
                       params: { softwareId: String(row.software_id), packageId: String(row.id) },
                     })}
                     empty={<CompactMunkiEmptyState title="No Packages" />}
@@ -606,7 +593,7 @@ function MunkiSoftwareTitleDetailForm({
                   variant="outline"
                   size="sm"
                   disabled={!pageDirty || pagePending}
-                  onClick={resetAssignmentPage}
+                  onClick={resetTargetPage}
                 >
                   Cancel
                 </Button>
@@ -615,36 +602,36 @@ function MunkiSoftwareTitleDetailForm({
           }}
         </softwareOptionsForm.Subscribe>
       </form>
-      <Sheet open={assignmentSheetOpen} onOpenChange={setAssignmentSheetOpen}>
+      <Sheet open={targetSheetOpen} onOpenChange={setTargetSheetOpen}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
           <form
             className="flex min-h-0 flex-1 flex-col"
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
-              void saveAssignment();
+              void saveTarget();
             }}
           >
             <SheetHeader>
               <SheetTitle>Edit Target</SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 pb-4">
-              <MutationError title="Failed to Save Include" message={assignmentMutationError} />
-              <MunkiAssignmentFormFields
-                form={assignmentForm}
+              <MutationError title="Failed to Save Include" message={targetMutationError} />
+              <MunkiSoftwareTargetFormFields
+                form={targetForm}
                 packages={packages}
-                showErrors={showAssignmentErrors}
-                errors={assignmentErrors}
+                showErrors={showTargetErrors}
+                errors={targetFormErrors}
                 loadingPackages={false}
                 className="max-w-none"
-                onChange={setAssignmentForm}
+                onChange={setTargetForm}
               />
             </div>
             <SheetFooter className="border-t">
               <Button type="submit" size="sm">
                 Save
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setAssignmentSheetOpen(false)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setTargetSheetOpen(false)}>
                 Cancel
               </Button>
             </SheetFooter>
@@ -655,47 +642,47 @@ function MunkiSoftwareTitleDetailForm({
   );
 }
 
-function newDraftAssignment(software: MunkiSoftwareTitleDetail, priority: number, id: number): MunkiAssignmentDraft {
-  const now = new Date().toISOString();
+function excludeLabelIDsFromTargets(software: MunkiSoftwareDetail) {
+  return software.targets.exclude.map((target) => target.label_id);
+}
+
+function targetRowsFromIncludes(includes: SoftwareInclude[]): MunkiSoftwareTargetRow[] {
+  return includes.map((include, index) => ({ ...include, id: index + 1, priority: index + 1 }));
+}
+
+function newDraftTarget(priority: number, id: number): MunkiSoftwareTargetRow {
   return {
     id,
-    draft: true,
-    software_id: software.id,
-    software_name: software.name,
     priority,
     label_id: null,
-    action: "install",
-    optional_install: false,
-    featured_item: false,
-    package_selection: "latest_eligible",
-    created_at: now,
-    updated_at: now,
+    package: { strategy: "latest" },
+    state: "managed_install",
+    featured: false,
   };
 }
 
-function numberAssignmentRows(rows: MunkiAssignmentRow[]) {
+function numberTargetRows(rows: MunkiSoftwareTargetRow[]) {
   return rows.map((row, index) => ({ ...row, priority: index + 1 }));
 }
 
-function munkiAssignmentFormFromRow(row: MunkiAssignmentRow): MunkiAssignmentFormState {
+function munkiSoftwareTargetFormFromRow(row: MunkiSoftwareTargetRow): MunkiSoftwareTargetFormState {
   return {
     priority: row.priority,
     label_id: row.label_id,
-    package_selection: row.package_selection,
-    pinned_package_id: row.pinned_package_id ? String(row.pinned_package_id) : "",
-    action: row.action,
-    optional_install: row.optional_install,
-    featured_item: row.featured_item,
+    strategy: row.package.strategy,
+    package_id: row.package.package_id ? String(row.package.package_id) : "",
+    state: row.state,
+    featured: row.featured,
   };
 }
 
-function targetIncludeMutations(rows: MunkiAssignmentRow[]) {
-  const includes: ReturnType<typeof munkiAssignmentIncludeMutation>[] = [];
+function targetIncludeMutations(rows: MunkiSoftwareTargetRow[]) {
+  const includes: SoftwareInclude[] = [];
   const labelErrors: Partial<Record<number, string>> = {};
-  let editRow: MunkiAssignmentRow | null = null;
+  let editRow: MunkiSoftwareTargetRow | null = null;
   for (const [index, row] of rows.entries()) {
-    const form = { ...munkiAssignmentFormFromRow(row), priority: index + 1 };
-    const parsed = munkiAssignmentFormSchema.safeParse(form);
+    const form = { ...munkiSoftwareTargetFormFromRow(row), priority: index + 1 };
+    const parsed = munkiSoftwareTargetFormSchema.safeParse(form);
     if (!parsed.success) {
       const rowErrors = fieldErrors(parsed);
       if (rowErrors.label_id) {
@@ -705,7 +692,7 @@ function targetIncludeMutations(rows: MunkiAssignmentRow[]) {
       }
       continue;
     }
-    includes.push(munkiAssignmentIncludeMutation(parsed.data));
+    includes.push(munkiSoftwareInclude(parsed.data));
   }
   if (Object.keys(labelErrors).length > 0 || editRow) {
     return { success: false as const, labelErrors, editRow };
@@ -719,47 +706,40 @@ function omitTargetError(errors: Partial<Record<number, string>>, id: number) {
   return next;
 }
 
-function updateRowLabel(row: MunkiAssignmentRow, id: number, labelID: number | null): MunkiAssignmentRow {
+function updateRowLabel(row: MunkiSoftwareTargetRow, id: number, labelID: number | null): MunkiSoftwareTargetRow {
   if (row.id !== id) return row;
-  if ("draft" in row) return { ...row, draft: true, label_id: labelID };
   return { ...row, label_id: labelID };
 }
 
-function sameAssignmentRows(a: MunkiAssignmentRow[], b: MunkiAssignment[]) {
+function sameTargetRows(a: MunkiSoftwareTargetRow[], b: SoftwareInclude[]) {
   if (a.length !== b.length) return false;
-  return a.every((row, index) => sameAssignmentRow(row, b[index], index + 1));
+  return a.every((row, index) => sameTargetRow(row, b[index], index + 1));
 }
 
-function sameAssignmentRow(a: MunkiAssignmentRow, b: MunkiAssignment | undefined, priority: number) {
+function sameTargetRow(a: MunkiSoftwareTargetRow, b: SoftwareInclude | undefined, priority: number) {
   if (!b) return false;
   return (
     a.label_id === b.label_id &&
-    priority === b.priority &&
-    a.action === b.action &&
-    a.optional_install === b.optional_install &&
-    a.featured_item === b.featured_item &&
-    a.package_selection === b.package_selection &&
-    (a.pinned_package_id ?? null) === (b.pinned_package_id ?? null)
+    a.priority === priority &&
+    a.state === b.state &&
+    a.featured === b.featured &&
+    a.package.strategy === b.package.strategy &&
+    (a.package.package_id ?? null) === (b.package.package_id ?? null)
   );
 }
 
-function assignmentPackageLabel(assignment: MunkiAssignmentRow) {
-  if (assignment.package_selection === "specific_package") {
-    return assignment.pinned_package_version
-      ? `${assignment.pinned_package_name ?? "Pinned"} ${assignment.pinned_package_version}`
-      : munkiPackageSelectionLabel(assignment.package_selection);
+function targetPackageLabel(target: MunkiSoftwareTargetRow, packages: MunkiPackage[]) {
+  if (target.package.strategy === "specific") {
+    const pkg = packages.find((item) => item.id === target.package.package_id);
+    return pkg ? `${pkg.software_name} ${pkg.version}` : munkiPackageStrategyLabel(target.package.strategy);
   }
-  return munkiPackageSelectionLabel(assignment.package_selection);
+  return munkiPackageStrategyLabel(target.package.strategy);
 }
 
-function assignmentActionLabel(assignment: MunkiAssignmentRow) {
-  return munkiAssignmentActionLabel(assignment.action);
-}
-
-function assignmentMSCSections(assignment: MunkiAssignmentRow) {
+function targetAvailabilitySections(target: MunkiSoftwareTargetRow) {
   const sections: string[] = [];
-  if (assignment.optional_install) sections.push("Optional Installs");
-  if (assignment.featured_item) sections.push("Featured Items");
+  if (target.state === "optional_install") sections.push("Optional Installs");
+  if (target.featured) sections.push("Featured Items");
   return sections;
 }
 

@@ -16,9 +16,9 @@ defaults write com.github.autopkg WOODSTAR_URL -string "http://localhost:8080"
 ## Recipe Flow
 
 Run the normal Munki import first. `WoodstarMunkiAppUploader` creates or updates
-the Woodstar software title using the pkginfo `display_name` as the title name
-when it is present. `WoodstarMunkiPackageUploader` then imports the pkginfo into
-that title using `woodstar_software_id`.
+the Woodstar Munki software using the pkginfo `display_name` as the name when it
+is present. `WoodstarMunkiPackageUploader` then imports the pkginfo into that
+software using `woodstar_software_id`.
 
 `requires` and `update_for` must contain Woodstar package IDs, matching what
 Woodstar will render as Munki item names. `nopkg` items are imported without a
@@ -31,12 +31,31 @@ Process:
 
   - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiAppUploader
     Arguments:
-      assignments:
-        includes:
+      targets:
+        include:
           - label_name: All Hosts
-            action: install
-            package_selection: latest_eligible
-        exclude_label_ids: []
+            package:
+              strategy: latest
+            state: managed_install
+            featured: false
+        exclude: []
 
   - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiPackageUploader
+```
+
+`targets.include` is ordered from highest to lowest priority for hosts that
+match multiple labels. Each include entry accepts `label_id` or `label_name`, a
+package selector, a state, and a featured flag:
+
+```yaml
+targets:
+  include:
+    - label_name: Optional Apps
+      package:
+        strategy: specific
+        package_id: 123
+      state: managed_update
+      featured: false
+  exclude:
+    - label_name: Excluded Devices
 ```

@@ -8,8 +8,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
@@ -29,12 +29,12 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 				StorageKey: "apps/Blocked.pkg",
 			},
 		},
-		packages: []assignments.EffectivePackage{
+		packages: []munkisoftware.EffectivePackage{
 			{
-				AssignmentID:     1,
-				SoftwareID:       1,
-				Action:           assignments.AssignmentActionInstall,
-				PackageSelection: assignments.PackageSelectionLatestEligible,
+				TargetID:   1,
+				SoftwareID: 1,
+				State:      munkisoftware.SoftwareStateManagedInstall,
+				Selector:   munkisoftware.SoftwarePackageSelector{Strategy: munkisoftware.SoftwarePackageLatest},
 				Package: packages.Package{
 					ID:                        10,
 					SoftwareName:              "GoogleChrome",
@@ -73,7 +73,7 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 
 type serviceArtifactStore struct {
 	artifacts map[string]artifacts.Artifact
-	packages  []assignments.EffectivePackage
+	packages  []munkisoftware.EffectivePackage
 }
 
 func (s serviceArtifactStore) GetByLocation(
@@ -91,7 +91,7 @@ func (s serviceArtifactStore) GetByLocation(
 func (s serviceArtifactStore) EffectivePackagesForHost(
 	_ context.Context,
 	hostID int64,
-) ([]assignments.EffectivePackage, error) {
+) ([]munkisoftware.EffectivePackage, error) {
 	if hostID != 1 {
 		return nil, nil
 	}
@@ -108,7 +108,7 @@ func (p serviceArtifactPresigner) PresignGet(_ context.Context, _ artifacts.Arti
 
 var _ interface {
 	GetByLocation(context.Context, artifacts.ArtifactKind, string) (*artifacts.Artifact, error)
-	EffectivePackagesForHost(context.Context, int64) ([]assignments.EffectivePackage, error)
+	EffectivePackagesForHost(context.Context, int64) ([]munkisoftware.EffectivePackage, error)
 } = serviceArtifactStore{}
 
 var _ interface {

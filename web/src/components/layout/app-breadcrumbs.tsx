@@ -10,13 +10,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMunkiSoftwareTitle } from "@/hooks/munki/software-titles";
+import { useMunkiSoftwareDetail } from "@/hooks/munki/software";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
 import { useLabel } from "@/hooks/use-labels";
 import { useReport } from "@/hooks/use-reports";
 import { useSantaConfiguration, useSantaRule } from "@/hooks/use-santa";
-import { useSoftwareTitle } from "@/hooks/use-software";
+import { useObservedSoftware } from "@/hooks/use-software";
 import { useUser } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 
@@ -131,38 +131,38 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
       ];
 
     // Munki
-    case "/_authenticated/munki/software-titles/new":
+    case "/_authenticated/munki/software/new":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software-titles" },
-        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: "munki", label: "Munki", to: "/munki/software" },
+        { key: "munki-software", label: "Software", to: "/munki/software" },
         { key: "munki-software-new", label: "New" },
       ];
-    case "/_authenticated/munki/software-titles/$softwareId":
+    case "/_authenticated/munki/software/$softwareId":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software-titles" },
-        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: "munki", label: "Munki", to: "/munki/software" },
+        { key: "munki-software", label: "Software", to: "/munki/software" },
         { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
       ];
-    case "/_authenticated/munki/software-titles/$softwareId_/packages/new":
+    case "/_authenticated/munki/software/$softwareId_/packages/new":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software-titles" },
-        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: "munki", label: "Munki", to: "/munki/software" },
+        { key: "munki-software", label: "Software", to: "/munki/software" },
         {
           key: `munki-software-${params.softwareId}`,
           label: <MunkiSoftwareCrumb id={params.softwareId} />,
-          to: "/munki/software-titles/$softwareId",
+          to: "/munki/software/$softwareId",
           params: { softwareId: params.softwareId },
         },
         { key: `munki-software-${params.softwareId}-package-new`, label: "New Package" },
       ];
-    case "/_authenticated/munki/software-titles/$softwareId_/packages/$packageId/edit":
+    case "/_authenticated/munki/software/$softwareId_/packages/$packageId/edit":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software-titles" },
-        { key: "munki-software", label: "Software", to: "/munki/software-titles" },
+        { key: "munki", label: "Munki", to: "/munki/software" },
+        { key: "munki-software", label: "Software", to: "/munki/software" },
         {
           key: `munki-software-${params.softwareId}`,
           label: <MunkiSoftwareCrumb id={params.softwareId} />,
-          to: "/munki/software-titles/$softwareId",
+          to: "/munki/software/$softwareId",
           params: { softwareId: params.softwareId },
         },
         { key: `munki-package-${params.packageId}`, label: "Edit Package" },
@@ -216,8 +216,8 @@ const sidebarRouteIDs = new Set([
   "/_authenticated/enrollments/santa",
   "/_authenticated/hosts/",
   "/_authenticated/labels/",
-  "/_authenticated/munki/software-titles",
-  "/_authenticated/munki/software-titles/",
+  "/_authenticated/munki/software",
+  "/_authenticated/munki/software/",
   "/_authenticated/osquery/reports/",
   "/_authenticated/santa/configurations",
   "/_authenticated/santa/configurations/",
@@ -241,13 +241,13 @@ function HostCrumb({ id }: { id: string }) {
 }
 
 function SoftwareCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useSoftwareTitle(Number(id));
+  const { data, isLoading } = useObservedSoftware(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.display_name || data.name || id}</span>;
 }
 
 function MunkiSoftwareCrumb({ id }: { id: string }) {
-  const { data, isLoading } = useMunkiSoftwareTitle(Number(id));
+  const { data, isLoading } = useMunkiSoftwareDetail(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
 }

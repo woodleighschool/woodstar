@@ -52,7 +52,7 @@ import {
   MUNKI_INSTALL_ITEM_TYPE_OPTIONS,
   MUNKI_RESTART_ACTION_OPTIONS,
   MUNKI_UNINSTALL_METHOD_OPTIONS,
-} from "@/lib/munki-software-title";
+} from "@/lib/munki-software";
 
 const xmlExtensions: Extension[] = [xml()];
 
@@ -299,7 +299,7 @@ export function PackageEditorTabs({
                   <FieldLegend>Behavior</FieldLegend>
                   <CheckboxControl
                     id="munki-package-eligible"
-                    label="Available for assignment"
+                    label="Available for targeting"
                     checked={values.eligible}
                     onChange={(eligible) => setField("eligible", eligible)}
                   />
@@ -385,7 +385,7 @@ export function PackageFormActions({ pending, softwareID }: { pending: boolean; 
         Save
       </Button>
       <Button asChild type="button" variant="outline" size="sm">
-        <Link to="/munki/software-titles/$softwareId" params={{ softwareId: String(softwareID ?? "") }}>
+        <Link to="/munki/software/$softwareId" params={{ softwareId: String(softwareID ?? "") }}>
           Cancel
         </Link>
       </Button>

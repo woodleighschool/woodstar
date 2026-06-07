@@ -52,14 +52,13 @@ func isPackageOrSubpackage(path, prefix string) bool {
 func prefixIfAmbiguous(prefix, name string) string {
 	switch name {
 	case "Artifact", "ArtifactMutation",
-		"Assignment", "AssignmentMutation",
 		"Check", "CheckMutation",
 		"Configuration", "Event",
 		"HostState",
 		"Package", "PackageImportMutation", "PackageMutation",
 		"Report", "ReportMutation",
 		"Rule",
-		"SoftwareTitle", "SoftwareTitleMutation",
+		"SoftwareInclude", "SoftwareMutation", "SoftwareTargets", "SoftwareTitle", "SoftwareTitleMutation",
 		"State", "Status":
 		return prefix + name
 	default:

@@ -15,20 +15,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
 import {
-  useCreateMunkiSoftwareTitle,
-  useMunkiSoftwareTitles,
-  type MunkiSoftwareTitleMutation,
-} from "@/hooks/munki/software-titles";
+  useCreateMunkiSoftware,
+  useMunkiSoftware,
+  type MunkiSoftwareMutation,
+} from "@/hooks/munki/software";
 import { uniqueOptions } from "@/lib/form-validation";
-import { emptySoftwareTitleForm, softwareTitleSchema } from "@/lib/munki-software-title-form";
+import { emptyMunkiSoftwareForm, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 
-export function MunkiSoftwareTitleNewPage() {
+export function MunkiSoftwareNewPage() {
   const navigate = useNavigate();
-  const create = useCreateMunkiSoftwareTitle();
+  const create = useCreateMunkiSoftware();
   const iconUpload = useUploadMunkiArtifact("icon");
   // Category/developer suggestions are loose helper text; MAX_PAGE_SIZE is enough for this non-managed vocabulary.
-  const titles = useMunkiSoftwareTitles({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
+  const titles = useMunkiSoftware({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const categoryOptions = useMemo(
     () => uniqueOptions((titles.data?.items ?? []).map((item) => item.category)),
     [titles.data?.items],
@@ -39,21 +39,20 @@ export function MunkiSoftwareTitleNewPage() {
   );
   const [iconFile, setIconFile] = useState<File | null>(null);
   const form = useForm({
-    defaultValues: emptySoftwareTitleForm(),
+    defaultValues: emptyMunkiSoftwareForm(),
     validators: {
-      onSubmit: softwareTitleSchema,
+      onSubmit: munkiSoftwareSchema,
     },
     onSubmit: async ({ value }) => {
-      const data = softwareTitleSchema.parse(value);
+      const data = munkiSoftwareSchema.parse(value);
       const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
-      const body: MunkiSoftwareTitleMutation = {
+      const body: MunkiSoftwareMutation = {
         ...data,
         icon_artifact_id: iconArtifact?.id,
-        includes: [],
-        exclude_label_ids: [],
+        targets: { include: [], exclude: [] },
       };
       const title = await create.mutateAsync(body);
-      void navigate({ to: "/munki/software-titles/$softwareId", params: { softwareId: String(title.id) } });
+      void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(title.id) } });
     },
   });
 
@@ -199,7 +198,7 @@ export function MunkiSoftwareTitleNewPage() {
             Save
           </Button>
           <Button asChild type="button" variant="outline" size="sm">
-            <Link to="/munki/software-titles">Cancel</Link>
+            <Link to="/munki/software">Cancel</Link>
           </Button>
         </div>
       </form>

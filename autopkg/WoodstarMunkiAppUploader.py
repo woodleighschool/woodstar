@@ -13,7 +13,7 @@ __all__ = ["WoodstarMunkiAppUploader"]
 
 
 class WoodstarMunkiAppUploader(Processor):
-    description = "Upserts a Woodstar Munki software title, icon, and targets."
+    description = "Upserts Woodstar Munki software, icon, and targets."
 
     input_variables = {
         "WOODSTAR_URL": {
@@ -26,25 +26,25 @@ class WoodstarMunkiAppUploader(Processor):
         },
         "name": {
             "required": False,
-            "description": "Woodstar software title name. Defaults to pkginfo display_name, pkginfo name, or NAME.",
+            "description": "Woodstar Munki software name. Defaults to pkginfo display_name, pkginfo name, or NAME.",
         },
         "description": {"required": False, "description": "Software description."},
         "category": {"required": False, "description": "Software category."},
         "developer": {"required": False, "description": "Software developer."},
         "icon_path": {
             "required": False,
-            "description": "Icon file to upload and attach to the software title.",
+            "description": "Icon file to upload and attach to the Munki software.",
         },
-        "assignments": {
+        "targets": {
             "required": False,
-            "description": "Optional full target object with includes and exclude labels.",
+            "description": "Optional full targets object with include and exclude label entries.",
         },
     }
     output_variables = {
-        "woodstar_software": {"description": "Software title response."},
-        "woodstar_software_id": {"description": "Woodstar software title ID."},
+        "woodstar_software": {"description": "Munki software response."},
+        "woodstar_software_id": {"description": "Woodstar Munki software ID."},
         "woodstar_icon_artifact": {"description": "Uploaded icon artifact response."},
-        "woodstar_assignments": {"description": "Software title includes and exclude labels."},
+        "woodstar_targets": {"description": "Munki software targets."},
         "woodstarmunkiappuploader_summary_result": {
             "description": "Summary of Woodstar app changes.",
         },
@@ -64,25 +64,22 @@ class WoodstarMunkiAppUploader(Processor):
             self.env["woodstar_icon_artifact"] = icon_artifact
 
         software = self.upsert_software(client, pkginfo, name, icon_artifact)
-        assignments = {
-            "includes": software.get("includes") or [],
-            "exclude_label_ids": software.get("exclude_label_ids") or [],
-        }
+        targets = software.get("targets") or empty_targets()
 
         self.env["woodstar_software"] = software
         self.env["woodstar_software_id"] = software["id"]
-        self.env["woodstar_assignments"] = assignments
+        self.env["woodstar_targets"] = targets
         self.env["woodstarmunkiappuploader_summary_result"] = {
             "summary_text": "Woodstar Munki app processed",
-            "report_fields": ["id", "name", "includes", "exclude_labels"],
+            "report_fields": ["id", "name", "include_targets", "exclude_targets"],
             "data": {
                 "id": str(software["id"]),
                 "name": software["name"],
-                "includes": str(len(assignments["includes"])),
-                "exclude_labels": str(len(assignments.get("exclude_label_ids") or [])),
+                "include_targets": str(len(targets.get("include") or [])),
+                "exclude_targets": str(len(targets.get("exclude") or [])),
             },
         }
-        self.output(f"Processed Woodstar software title {software['id']}: {software['name']}")
+        self.output(f"Processed Woodstar Munki software {software['id']}: {software['name']}")
 
     def upsert_software(self, client, pkginfo, name, icon_artifact):
         body = {
@@ -93,16 +90,16 @@ class WoodstarMunkiAppUploader(Processor):
         }
         if icon_artifact:
             body["icon_artifact_id"] = icon_artifact["id"]
-        existing = find_exact(client, "/api/munki/software-titles", "name", name)
+        existing = find_exact(client, "/api/munki/software", "name", name)
         existing_detail = None
         if existing:
-            existing_detail = client.get(f"/api/munki/software-titles/{existing['id']}")
-        body.update(self.target_body(client, existing_detail))
+            existing_detail = client.get(f"/api/munki/software/{existing['id']}")
+        body["targets"] = self.target_body(client, existing_detail)
         if existing:
-            self.output(f"Updating Woodstar software title: {name}")
-            return client.patch(f"/api/munki/software-titles/{existing['id']}", body)
-        self.output(f"Creating Woodstar software title: {name}")
-        return client.post("/api/munki/software-titles", body)
+            self.output(f"Updating Woodstar Munki software: {name}")
+            return client.put(f"/api/munki/software/{existing['id']}", body)
+        self.output(f"Creating Woodstar Munki software: {name}")
+        return client.post("/api/munki/software", body)
 
     def software_name(self, pkginfo):
         return (
@@ -113,72 +110,73 @@ class WoodstarMunkiAppUploader(Processor):
         )
 
     def target_body(self, client, existing):
-        assignment_config = self.env.get("assignments")
-        if not assignment_config:
-            return {
-                "includes": self.existing_includes(existing),
-                "exclude_label_ids": (existing or {}).get("exclude_label_ids") or [],
-            }
-        if not isinstance(assignment_config, dict):
-            raise ProcessorError("assignments must be a dictionary")
-        include_inputs = assignment_config.get("includes") or []
+        target_config = self.env.get("targets")
+        if not target_config:
+            return (existing or {}).get("targets") or empty_targets()
+        if not isinstance(target_config, dict):
+            raise ProcessorError("targets must be a dictionary")
+        include_inputs = target_config.get("include") or []
         if not isinstance(include_inputs, list):
-            raise ProcessorError("assignments.includes must be a list")
+            raise ProcessorError("targets.include must be a list")
+        exclude_inputs = target_config.get("exclude") or []
+        if not isinstance(exclude_inputs, list):
+            raise ProcessorError("targets.exclude must be a list")
 
-        includes = [self.include_body(client, assignment) for assignment in include_inputs]
-        exclude_label_ids = self.exclude_label_ids(client, assignment_config)
-        return {"includes": includes, "exclude_label_ids": exclude_label_ids}
+        include = [self.include_body(client, target) for target in include_inputs]
+        exclude = self.exclude_body(client, exclude_inputs)
+        return {"include": include, "exclude": exclude}
 
-    def include_body(self, client, assignment):
-        if not isinstance(assignment, dict):
-            raise ProcessorError("assignments.includes entries must be dictionaries")
-        if "priority" in assignment:
-            raise ProcessorError("assignments.includes priority is not supported; order the includes list instead")
-        label_id = int(self.label_id(client, assignment))
+    def include_body(self, client, target):
+        if not isinstance(target, dict):
+            raise ProcessorError("targets.include entries must be dictionaries")
+        if "priority" in target:
+            raise ProcessorError("targets.include priority is not supported; order the include list instead")
+        label_id = int(self.label_id(client, target, "targets.include entry"))
         body = {
             "label_id": label_id,
-            "action": assignment.get("action", "install"),
-            "optional_install": truthy(assignment.get("optional_install", False)),
-            "featured_item": truthy(assignment.get("featured_item", False)),
-            "package_selection": assignment.get("package_selection", "latest_eligible"),
+            "package": self.package_selector(target),
+            "state": target.get("state", "managed_install"),
+            "featured": truthy(target.get("featured", False)),
         }
-        if assignment.get("pinned_package_id"):
-            body["pinned_package_id"] = int(assignment["pinned_package_id"])
         return body
 
-    def exclude_label_ids(self, client, assignment_config):
-        values = []
-        for label_id in assignment_config.get("exclude_label_ids") or []:
-            values.append(int(label_id))
-        for label_name in assignment_config.get("exclude_label_names") or []:
-            values.append(int(self.label_id_by_name(client, label_name)))
-        if len(values) != len(set(values)):
-            raise ProcessorError("assignments exclude labels contain duplicates")
+    def package_selector(self, target):
+        package = target.get("package") or {"strategy": "latest"}
+        if not isinstance(package, dict):
+            raise ProcessorError("targets.include package must be a dictionary")
+        strategy = package.get("strategy", "latest")
+        if strategy not in {"latest", "specific"}:
+            raise ProcessorError("targets.include package.strategy must be latest or specific")
+        if strategy == "latest":
+            if package.get("package_id"):
+                raise ProcessorError("targets.include latest package must not set package_id")
+            return {"strategy": "latest"}
+        package_id = package.get("package_id")
+        if not package_id:
+            raise ProcessorError("targets.include specific package requires package_id")
+        return {"strategy": "specific", "package_id": int(package_id)}
+
+    def exclude_body(self, client, inputs):
+        values = [self.label_ref(client, target, "targets.exclude entry") for target in inputs]
+        label_ids = [target["label_id"] for target in values]
+        if len(label_ids) != len(set(label_ids)):
+            raise ProcessorError("targets.exclude contains duplicate labels")
         return values
 
-    @staticmethod
-    def existing_includes(existing):
-        includes = []
-        for item in (existing or {}).get("includes") or []:
-            body = {
-                "label_id": item["label_id"],
-                "action": item["action"],
-                "optional_install": truthy(item.get("optional_install", False)),
-                "featured_item": truthy(item.get("featured_item", False)),
-                "package_selection": item.get("package_selection", "latest_eligible"),
-            }
-            if item.get("pinned_package_id"):
-                body["pinned_package_id"] = int(item["pinned_package_id"])
-            includes.append(body)
-        return includes
+    def label_ref(self, client, target, context):
+        if isinstance(target, (int, str)):
+            return {"label_id": int(target)}
+        if not isinstance(target, dict):
+            raise ProcessorError(f"{context} must be a dictionary")
+        return {"label_id": int(self.label_id(client, target, context))}
 
-    def label_id(self, client, assignment):
-        label_id = assignment.get("label_id")
+    def label_id(self, client, target, context):
+        label_id = target.get("label_id")
         if label_id:
             return label_id
-        label_name = assignment.get("label_name")
+        label_name = target.get("label_name")
         if not label_name:
-            raise ProcessorError("assignments.includes entry requires label_id or label_name")
+            raise ProcessorError(f"{context} requires label_id or label_name")
         return self.label_id_by_name(client, label_name)
 
     def label_id_by_name(self, client, label_name):
@@ -186,6 +184,10 @@ class WoodstarMunkiAppUploader(Processor):
         if not label:
             raise ProcessorError(f"Woodstar label not found: {label_name}")
         return label["id"]
+
+
+def empty_targets():
+    return {"include": [], "exclude": []}
 
 
 if __name__ == "__main__":
