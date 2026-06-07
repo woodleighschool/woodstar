@@ -1,8 +1,6 @@
-// Package handlers registers Huma operations for the admin API.
-package handlers
+package apitypes
 
 import (
-	"context"
 	"errors"
 	"strings"
 
@@ -11,8 +9,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-// resourceMutationError translates store errors into resource-shaped HTTP errors.
-func resourceMutationError(resource string, err error) error {
+// ResourceMutationError translates store errors into resource-shaped HTTP errors.
+func ResourceMutationError(resource string, err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrNotFound):
 		return huma.Error404NotFound(resource + " not found")
@@ -27,8 +25,8 @@ func resourceMutationError(resource string, err error) error {
 	}
 }
 
-// bulkIDsBody is the shared request body for bulk-delete operations.
-type bulkIDsBody struct {
+// BulkIDsBody is the shared request body for bulk-delete operations.
+type BulkIDsBody struct {
 	IDs []int64 `json:"ids"`
 }
 
@@ -44,20 +42,11 @@ type ListQueryInput struct {
 	Sort      string `query:"sort,omitempty"                                  example:"name.asc"`
 }
 
-func (input ListQueryInput) params() dbutil.ListParams {
+func (input ListQueryInput) Params() dbutil.ListParams {
 	return dbutil.ListParams{
 		Q:         input.Q,
 		PageIndex: input.PageIndex,
 		PageSize:  input.PageSize,
 		Sort:      input.Sort,
 	}
-}
-
-// currentUserID returns the authenticated admin's user ID, or nil if anonymous.
-func currentUserID(ctx context.Context) *int64 {
-	user, ok := userFromContext(ctx)
-	if !ok {
-		return nil
-	}
-	return &user.ID
 }

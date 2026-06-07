@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
@@ -15,13 +16,13 @@ import (
 const softwareTag = "Software"
 
 type softwareListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 	Source []string `query:"source,omitempty"`
 }
 
 func (i softwareListInput) params() inventory.SoftwareTitleListParams {
 	return inventory.SoftwareTitleListParams{
-		ListParams:      i.ListQueryInput.params(),
+		ListParams:      i.ListQueryInput.Params(),
 		SoftwareSources: i.Source,
 	}
 }
@@ -31,7 +32,7 @@ type softwareGetInput struct {
 }
 
 type softwareListOutput struct {
-	Body Page[inventory.SoftwareTitle]
+	Body apitypes.Page[inventory.SoftwareTitle]
 }
 
 type softwareGetOutput struct {
@@ -53,9 +54,9 @@ func RegisterSoftware(api huma.API, softwareStore *inventory.Store, santaReferen
 	}, func(ctx context.Context, input *softwareListInput) (*softwareListOutput, error) {
 		titles, count, err := softwareStore.ListTitles(ctx, input.params())
 		if err != nil {
-			return nil, resourceMutationError("software", err)
+			return nil, apitypes.ResourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: Page[inventory.SoftwareTitle]{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: apitypes.Page[inventory.SoftwareTitle]{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

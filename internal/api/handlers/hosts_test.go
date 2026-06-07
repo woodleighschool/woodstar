@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -146,7 +147,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 		}
-		var body Page[hosts.Host]
+		var body apitypes.Page[hosts.Host]
 		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 			t.Fatalf("decode hosts body: %v", err)
 		}
@@ -165,7 +166,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var intersected Page[hosts.Host]
+	var intersected apitypes.Page[hosts.Host]
 	if err := json.Unmarshal(rec.Body.Bytes(), &intersected); err != nil {
 		t.Fatalf("decode intersected hosts body: %v", err)
 	}
@@ -182,7 +183,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var empty Page[hosts.Host]
+	var empty apitypes.Page[hosts.Host]
 	if err := json.Unmarshal(rec.Body.Bytes(), &empty); err != nil {
 		t.Fatalf("decode empty hosts body: %v", err)
 	}

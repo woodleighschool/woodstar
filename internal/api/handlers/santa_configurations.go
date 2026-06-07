@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
@@ -16,7 +17,7 @@ const (
 )
 
 type santaConfigurationListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 }
 
 type santaConfigurationGetInput struct {
@@ -37,7 +38,7 @@ type santaConfigurationDeleteInput struct {
 }
 
 type santaConfigurationBulkDeleteInput struct {
-	Body bulkIDsBody
+	Body apitypes.BulkIDsBody
 }
 
 type santaConfigurationReorderInput struct {
@@ -49,7 +50,7 @@ type santaConfigurationReorderBody struct {
 }
 
 type santaConfigurationListOutput struct {
-	Body Page[configurations.Configuration]
+	Body apitypes.Page[configurations.Configuration]
 }
 
 type santaConfigurationOutput struct {
@@ -58,7 +59,7 @@ type santaConfigurationOutput struct {
 
 func (input santaConfigurationListInput) params() configurations.ConfigurationListParams {
 	return configurations.ConfigurationListParams{
-		ListParams: input.ListQueryInput.params(),
+		ListParams: input.ListQueryInput.Params(),
 	}
 }
 
@@ -86,7 +87,7 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store) 
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &santaConfigurationListOutput{
-			Body: Page[configurations.Configuration]{Items: rows, Count: count},
+			Body: apitypes.Page[configurations.Configuration]{Items: rows, Count: count},
 		}, nil
 	})
 }
@@ -204,5 +205,5 @@ func registerReorderSantaConfigurations(api huma.API, store *configurations.Stor
 }
 
 func santaConfigurationMutationError(err error) error {
-	return resourceMutationError(santaConfigurationResource, err)
+	return apitypes.ResourceMutationError(santaConfigurationResource, err)
 }

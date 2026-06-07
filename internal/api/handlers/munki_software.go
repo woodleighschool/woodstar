@@ -7,6 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -36,11 +38,11 @@ type munkiSoftwareDeleteInput struct {
 }
 
 type munkiSoftwareBulkDeleteInput struct {
-	Body bulkIDsBody
+	Body apitypes.BulkIDsBody
 }
 
 type munkiSoftwareListOutput struct {
-	Body Page[munkiSoftware]
+	Body apitypes.Page[munkiSoftware]
 }
 
 type munkiSoftwareDetailOutput struct {
@@ -83,10 +85,10 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 	}, func(ctx context.Context, input *munkiListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, resourceMutationError(munkiSoftwareLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return &munkiSoftwareListOutput{
-			Body: Page[munkiSoftware]{Items: munkiSoftwareFromDomain(rows), Count: count},
+			Body: apitypes.Page[munkiSoftware]{Items: munkiSoftwareFromDomain(rows), Count: count},
 		}, nil
 	})
 }
@@ -113,7 +115,7 @@ func registerCreateMunkiSoftware(
 	}, func(ctx context.Context, input *munkiSoftwareCreateInput) (*munkiSoftwareDetailOutput, error) {
 		title, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, resourceMutationError(munkiSoftwareLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore)
 	})
@@ -157,7 +159,7 @@ func registerPutMunkiSoftware(
 	}, func(ctx context.Context, input *munkiSoftwarePutInput) (*munkiSoftwareDetailOutput, error) {
 		title, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
-			return nil, resourceMutationError(munkiSoftwareLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return loadMunkiSoftwareDetail(ctx, title.ID, store, packageStore)
 	})
@@ -172,11 +174,11 @@ func registerDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 		Summary:     "Delete Munki software",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareDeleteInput) (*struct{}, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if err := store.Delete(ctx, input.ID); err != nil {
-			return nil, resourceMutationError(munkiSoftwareLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -191,11 +193,11 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 		Summary:     "Delete Munki software",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *munkiSoftwareBulkDeleteInput) (*struct{}, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if _, err := store.DeleteMany(ctx, input.Body.IDs); err != nil {
-			return nil, resourceMutationError(munkiSoftwareLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return &struct{}{}, nil
 	})
@@ -222,18 +224,18 @@ func loadMunkiSoftwareDetail(
 ) (*munkiSoftwareDetailOutput, error) {
 	title, err := store.GetByID(ctx, id)
 	if err != nil {
-		return nil, resourceMutationError(munkiSoftwareLabel, err)
+		return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 	}
 	packageRows, _, err := packageStore.List(ctx, packages.PackageListParams{
 		ListParams: dbutil.ListParams{PageSize: 1000},
 		SoftwareID: id,
 	})
 	if err != nil {
-		return nil, resourceMutationError(munkiPackageLabel, err)
+		return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 	}
 	targets, err := store.TargetsForSoftwareTitle(ctx, id)
 	if err != nil {
-		return nil, resourceMutationError(munkiSoftwareLabel, err)
+		return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 	}
 	return &munkiSoftwareDetailOutput{
 		Body: munkiSoftwareDetailFromDomain(*title, packageRows, targets),

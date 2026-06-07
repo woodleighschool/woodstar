@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -43,12 +44,12 @@ func (c santaHostDetailContributor) ContributeHostDetail(
 }
 
 type hostSantaRulesOutput struct {
-	Body Page[santarules.RuleStatus]
+	Body apitypes.Page[santarules.RuleStatus]
 }
 
 type hostSantaRulesInput struct {
 	ID int64 `path:"id"`
-	ListQueryInput
+	apitypes.ListQueryInput
 }
 
 // RegisterHostSantaRules registers the Santa rules host subresource.
@@ -70,13 +71,13 @@ func RegisterHostSantaRules(api huma.API, hostStore *hosts.Store, santaRuleStore
 			return nil, err
 		}
 		rows, count, err := santaRuleStore.ListRuleStatusesForHost(ctx, input.ID, santarules.RuleStatusListParams{
-			ListParams: input.ListQueryInput.params(),
+			ListParams: input.ListQueryInput.Params(),
 		})
 		if err != nil {
-			return nil, resourceMutationError("Santa rule", err)
+			return nil, apitypes.ResourceMutationError("Santa rule", err)
 		}
 		return &hostSantaRulesOutput{
-			Body: Page[santarules.RuleStatus]{Items: rows, Count: count},
+			Body: apitypes.Page[santarules.RuleStatus]{Items: rows, Count: count},
 		}, nil
 	})
 }

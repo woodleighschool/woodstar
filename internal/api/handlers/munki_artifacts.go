@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
@@ -94,7 +95,7 @@ func registerCreateMunkiArtifact(api huma.API, store *artifacts.Store, artifactS
 		}
 		artifact, err := store.Create(ctx, mutation)
 		if err != nil {
-			return nil, resourceMutationError(munkiArtifactLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
 		}
 		return &munkiArtifactOutput{Body: *artifact}, nil
 	})
@@ -127,7 +128,7 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 			SHA256:      input.Body.SHA256,
 		})
 		if err != nil {
-			return nil, resourceMutationError(munkiArtifactLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
 		}
 		upload, err := uploads.PresignPut(ctx, target.StorageKey, target.ContentType, target.SHA256)
 		if err != nil {
@@ -162,7 +163,7 @@ func registerGetMunkiArtifactContent(api huma.API, store *artifacts.Store, artif
 		}
 		artifact, err := store.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, resourceMutationError(munkiArtifactLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
 		}
 		location, err := artifactStorage.PresignGet(ctx, *artifact)
 		if err != nil {
@@ -182,7 +183,7 @@ func verifyMunkiArtifactObject(
 	}
 	object, err := artifactStorage.Stat(ctx, mutation.StorageKey)
 	if errors.Is(err, storage.ErrObjectNotFound) {
-		return resourceMutationError(
+		return apitypes.ResourceMutationError(
 			munkiArtifactLabel,
 			fmt.Errorf("%w: uploaded object does not exist", dbutil.ErrInvalidInput),
 		)
@@ -191,13 +192,13 @@ func verifyMunkiArtifactObject(
 		return munkiArtifactStorageError(err)
 	}
 	if object.SizeBytes != mutation.SizeBytes {
-		return resourceMutationError(
+		return apitypes.ResourceMutationError(
 			munkiArtifactLabel,
 			fmt.Errorf("%w: uploaded object size does not match artifact metadata", dbutil.ErrInvalidInput),
 		)
 	}
 	if object.SHA256 != "" && object.SHA256 != mutation.SHA256 {
-		return resourceMutationError(
+		return apitypes.ResourceMutationError(
 			munkiArtifactLabel,
 			fmt.Errorf("%w: uploaded object checksum does not match artifact metadata", dbutil.ErrInvalidInput),
 		)

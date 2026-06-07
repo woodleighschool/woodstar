@@ -6,6 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
@@ -39,7 +40,7 @@ func registerGetAccount(api huma.API, authService *auth.Service) {
 		Summary:     "Get the signed-in user's account, including any API key",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := requireUser(ctx)
+		user, err := adminctx.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +65,7 @@ func registerPutAccount(api huma.API, userService *directory.UserService) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *accountPutInput) (*accountOutput, error) {
-		user, err := requireUser(ctx)
+		user, err := adminctx.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +87,7 @@ func registerRotateAPIKey(api huma.API, authService *auth.Service) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := requireUser(ctx)
+		user, err := adminctx.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +108,7 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 		Summary:     "Clear the API key on the signed-in user's account",
 		Errors:      []int{http.StatusUnauthorized},
 	}, func(ctx context.Context, _ *struct{}) (*accountOutput, error) {
-		user, err := requireUser(ctx)
+		user, err := adminctx.RequireUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -117,16 +118,4 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 		}
 		return &accountOutput{Body: *cleared}, nil
 	})
-}
-
-// requireUser returns the authenticated user from ctx regardless of role.
-// Unlike requireAdmin this accepts both admin and viewer; the operations
-// it gates (rotating one's own key, viewing one's own account) are open to
-// every signed-in user.
-func requireUser(ctx context.Context) (*directory.User, error) {
-	user, ok := userFromContext(ctx)
-	if !ok {
-		return nil, huma.Error401Unauthorized("not authenticated")
-	}
-	return user, nil
 }

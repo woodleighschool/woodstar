@@ -40,49 +40,10 @@ type loginInput struct {
 	}
 }
 
-type contextKey int
-
-const userContextKey contextKey = 0
-
 const (
 	authTag  = "Auth"
 	setupTag = "Setup"
 )
-
-// RequireAuth attaches the signed-in user to protected admin Huma operations.
-// Accepts an "Authorization: Bearer <api-key>" header first and falls back to
-// the scs session cookie when no Bearer token is present.
-func RequireAuth(api huma.API, authService *auth.Service) func(huma.Context, func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		user, err := authService.Authenticate(ctx.Context(), ctx.Header("Authorization"))
-		if err != nil {
-			if errors.Is(err, auth.ErrNotAuthenticated) {
-				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "not authenticated")
-				return
-			}
-			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "request failed")
-			return
-		}
-
-		next(huma.WithContext(ctx, withUser(ctx.Context(), user)))
-	}
-}
-
-// RequireAdmin rejects authenticated users that are not administrators.
-func RequireAdmin(api huma.API) func(huma.Context, func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		if _, err := requireAdmin(ctx.Context()); err != nil {
-			var statusErr huma.StatusError
-			if errors.As(err, &statusErr) {
-				_ = huma.WriteErr(api, ctx, statusErr.GetStatus(), err.Error())
-				return
-			}
-			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "request failed")
-			return
-		}
-		next(ctx)
-	}
-}
 
 func RegisterPublicAuth(api huma.API, authService *auth.Service) {
 	registerSetup(api, authService)
@@ -170,28 +131,6 @@ func registerLogin(api huma.API, authService *auth.Service) {
 		}
 		return &struct{}{}, nil
 	})
-}
-
-// requireAdmin returns the authenticated admin user from ctx.
-// It returns a Huma 401 if no user is attached and 403 if the user is not an admin.
-func requireAdmin(ctx context.Context) (*directory.User, error) {
-	user, ok := userFromContext(ctx)
-	if !ok {
-		return nil, huma.Error401Unauthorized("not authenticated")
-	}
-	if user.Role == nil || *user.Role != directory.RoleAdmin {
-		return nil, huma.Error403Forbidden("admin role required")
-	}
-	return user, nil
-}
-
-func withUser(ctx context.Context, user *directory.User) context.Context {
-	return context.WithValue(ctx, userContextKey, user)
-}
-
-func userFromContext(ctx context.Context) (*directory.User, bool) {
-	user, ok := ctx.Value(userContextKey).(*directory.User)
-	return user, ok && user != nil
 }
 
 func authError(err error) error {

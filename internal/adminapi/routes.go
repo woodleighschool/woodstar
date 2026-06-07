@@ -16,9 +16,9 @@ func Mount(r chi.Router, deps Dependencies) {
 
 func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	protected := huma.NewGroup(humaAPI)
-	protected.UseMiddleware(handlers.RequireAuth(humaAPI, deps.Auth.AuthService))
+	protected.UseMiddleware(RequireAuth(humaAPI, deps.Auth.AuthService))
 	admin := huma.NewGroup(protected)
-	admin.UseMiddleware(handlers.RequireAdmin(humaAPI))
+	admin.UseMiddleware(RequireAdmin(humaAPI))
 
 	handlers.RegisterPublicAuth(humaAPI, deps.Auth.AuthService)
 	handlers.RegisterSSO(r, deps.Auth.AuthService)

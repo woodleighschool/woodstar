@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -12,7 +13,7 @@ import (
 const munkiTag = "Munki"
 
 type munkiListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 }
 
 // MunkiStores groups the Munki admin resource stores used by route registration.
@@ -30,5 +31,5 @@ func RegisterMunki(api huma.API, stores MunkiStores, artifactStorage munkiArtifa
 }
 
 func (input munkiListInput) params() dbutil.ListParams {
-	return input.ListQueryInput.params()
+	return input.ListQueryInput.Params()
 }

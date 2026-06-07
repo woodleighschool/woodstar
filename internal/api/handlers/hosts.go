@@ -8,6 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/inventory"
@@ -30,7 +32,7 @@ type HostDetail struct {
 }
 
 type hostListOutput struct {
-	Body Page[hosts.Host]
+	Body apitypes.Page[hosts.Host]
 }
 
 type hostDetailOutput struct {
@@ -38,7 +40,7 @@ type hostDetailOutput struct {
 }
 
 type hostSoftwareOutput struct {
-	Body Page[inventory.HostSoftwareRow]
+	Body apitypes.Page[inventory.HostSoftwareRow]
 }
 
 type hostGetInput struct {
@@ -46,7 +48,7 @@ type hostGetInput struct {
 }
 
 type hostListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 	Status          string  `query:"status,omitempty"`
 	LabelID         int64   `query:"label_id,omitempty"`
 	SoftwareTitleID int64   `query:"software_title_id,omitempty"`
@@ -58,7 +60,7 @@ type hostListInput struct {
 
 func (i hostListInput) params() hosts.ListParams {
 	return hosts.ListParams{
-		ListParams:      i.ListQueryInput.params(),
+		ListParams:      i.ListQueryInput.Params(),
 		Status:          i.Status,
 		LabelID:         i.LabelID,
 		SoftwareTitleID: i.SoftwareTitleID,
@@ -89,19 +91,19 @@ func (i hostListInput) checkStatusFilter() (checks.CheckStatus, bool, error) {
 
 type hostSoftwareInput struct {
 	ID int64 `path:"id"`
-	ListQueryInput
+	apitypes.ListQueryInput
 	Source []string `          query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, inventory.HostSoftwareListParams) {
 	return i.ID, inventory.HostSoftwareListParams{
-		ListParams:      i.ListQueryInput.params(),
+		ListParams:      i.ListQueryInput.Params(),
 		SoftwareSources: i.Source,
 	}
 }
 
 type hostBulkDeleteInput struct {
-	Body bulkIDsBody
+	Body apitypes.BulkIDsBody
 }
 
 type hostUserAffinityPutBody struct {
@@ -155,19 +157,19 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.
 			}
 			checkHostIDs, err := checkStore.HostIDsByStatus(ctx, input.CheckID, status)
 			if err != nil {
-				return nil, resourceMutationError(checkResource, err)
+				return nil, apitypes.ResourceMutationError(checkResource, err)
 			}
 			params.IDs = intersectHostIDs(params.IDs, checkHostIDs)
 			if len(params.IDs) == 0 {
-				return &hostListOutput{Body: Page[hosts.Host]{Items: []hosts.Host{}, Count: 0}}, nil
+				return &hostListOutput{Body: apitypes.Page[hosts.Host]{Items: []hosts.Host{}, Count: 0}}, nil
 			}
 		}
 
 		rows, count, err := hostStore.List(ctx, params)
 		if err != nil {
-			return nil, resourceMutationError("host", err)
+			return nil, apitypes.ResourceMutationError("host", err)
 		}
-		return &hostListOutput{Body: Page[hosts.Host]{Items: rows, Count: count}}, nil
+		return &hostListOutput{Body: apitypes.Page[hosts.Host]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -257,7 +259,7 @@ func registerPutHostUserAffinity(
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
@@ -294,7 +296,7 @@ func registerDeleteHostUserAffinity(
 		Summary:     "Clear the host user affinity",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
@@ -322,11 +324,11 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 		Summary:     "Delete an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
-			return nil, resourceMutationError("host", err)
+			return nil, apitypes.ResourceMutationError("host", err)
 		}
 		return &struct{}{}, nil
 	})
@@ -341,7 +343,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 		Summary:     "Delete enrolled hosts",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
 		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
@@ -368,8 +370,8 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *i
 		}
 		rows, count, err := softwareStore.ListForHost(ctx, id, params)
 		if err != nil {
-			return nil, resourceMutationError("software", err)
+			return nil, apitypes.ResourceMutationError("software", err)
 		}
-		return &hostSoftwareOutput{Body: Page[inventory.HostSoftwareRow]{Items: rows, Count: count}}, nil
+		return &hostSoftwareOutput{Body: apitypes.Page[inventory.HostSoftwareRow]{Items: rows, Count: count}}, nil
 	})
 }

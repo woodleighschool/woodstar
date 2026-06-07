@@ -1,4 +1,4 @@
-package handlers
+package apitypes
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ func TestResourceMutationErrorMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			mapped := resourceMutationError("resource", tt.err)
+			mapped := ResourceMutationError("resource", tt.err)
 			var status huma.StatusError
 			if !errors.As(mapped, &status) {
 				t.Fatalf("not a huma.StatusError: %v", mapped)

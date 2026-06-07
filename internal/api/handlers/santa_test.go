@@ -16,6 +16,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
@@ -350,7 +352,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("user filter status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var executionList Page[santaevents.ExecutionEvent]
+	var executionList apitypes.Page[santaevents.ExecutionEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &executionList); err != nil {
 		t.Fatalf("decode execution list: %v", err)
 	}
@@ -367,7 +369,7 @@ func TestSantaEventsListFiltersAndPaginates(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("file access status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
-	var fileAccessList Page[santaevents.FileAccessEvent]
+	var fileAccessList apitypes.Page[santaevents.FileAccessEvent]
 	if err := json.Unmarshal(rec.Body.Bytes(), &fileAccessList); err != nil {
 		t.Fatalf("decode file access list: %v", err)
 	}
@@ -561,12 +563,13 @@ func santaTestAPIWith(
 	t.Helper()
 
 	userService := directory.NewUserService(directory.NewStore(db))
-	if _, err := userService.Create(context.Background(), directory.UserCreate{
+	admin, err := userService.Create(context.Background(), directory.UserCreate{
 		Email:    email,
 		Name:     "Santa Test Admin",
 		Password: "correct-password",
 		Role:     directory.RoleAdmin,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("create admin user: %v", err)
 	}
 
@@ -576,12 +579,25 @@ func santaTestAPIWith(
 	router.Use(sessionManager.LoadAndSave)
 	api := humachi.New(router, testHumaConfig())
 	protected := huma.NewGroup(api)
-	protected.UseMiddleware(RequireAuth(api, authService))
+	protected.UseMiddleware(santaTestWithUser(admin))
 	if requireAdminGroup {
-		protected.UseMiddleware(RequireAdmin(api))
+		protected.UseMiddleware(santaTestRequireAdmin)
 	}
 
 	return router, protected, loginSantaTestUser(t, authService, sessionManager, email)
+}
+
+func santaTestWithUser(user *directory.User) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		next(huma.WithContext(ctx, adminctx.WithUser(ctx.Context(), user)))
+	}
+}
+
+func santaTestRequireAdmin(ctx huma.Context, next func(huma.Context)) {
+	if _, err := adminctx.RequireAdmin(ctx.Context()); err != nil {
+		panic(err)
+	}
+	next(ctx)
 }
 
 func loginSantaTestUser(

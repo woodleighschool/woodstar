@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 )
@@ -20,7 +21,7 @@ const (
 )
 
 type santaEventListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 	HostID    int64                        `query:"host_id,omitempty"`
 	Decisions []santaevents.DecisionFilter `query:"decisions,omitempty"`
 	Since     time.Time                    `query:"since,omitempty"`
@@ -28,7 +29,7 @@ type santaEventListInput struct {
 }
 
 type santaEventListOutput struct {
-	Body Page[santaevents.ExecutionEvent]
+	Body apitypes.Page[santaevents.ExecutionEvent]
 }
 
 type santaEventGetInput struct {
@@ -40,14 +41,14 @@ type santaEventGetOutput struct {
 }
 
 type santaFileAccessEventListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 	HostID    int64                            `query:"host_id,omitempty"`
 	Decisions []santaevents.FileAccessDecision `query:"decisions,omitempty"`
 	Since     time.Time                        `query:"since,omitempty"`
 }
 
 type santaFileAccessEventListOutput struct {
-	Body Page[santaevents.FileAccessEvent]
+	Body apitypes.Page[santaevents.FileAccessEvent]
 }
 
 type santaFileAccessEventGetInput struct {
@@ -65,7 +66,7 @@ func (input santaEventListInput) params() santaevents.ExecutionEventListParams {
 	}
 	return santaevents.ExecutionEventListParams{
 		EventListParams: santaevents.EventListParams{
-			ListParams: input.ListQueryInput.params(),
+			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
 			Since:      since,
 		},
@@ -81,7 +82,7 @@ func (input santaFileAccessEventListInput) params() santaevents.FileAccessEventL
 	}
 	return santaevents.FileAccessEventListParams{
 		EventListParams: santaevents.EventListParams{
-			ListParams: input.ListQueryInput.params(),
+			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
 			Since:      since,
 		},
@@ -107,9 +108,9 @@ func registerListSantaEvents(api huma.API, store *santaevents.Store) {
 	}, func(ctx context.Context, input *santaEventListInput) (*santaEventListOutput, error) {
 		events, count, err := store.ListEvents(ctx, input.params())
 		if err != nil {
-			return nil, resourceMutationError("Santa event", err)
+			return nil, apitypes.ResourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: Page[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
+		return &santaEventListOutput{Body: apitypes.Page[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
 	})
 }
 
@@ -127,7 +128,7 @@ func registerGetSantaEvent(api huma.API, store *santaevents.Store) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
 		if err != nil {
-			return nil, resourceMutationError(santaEventResource, err)
+			return nil, apitypes.ResourceMutationError(santaEventResource, err)
 		}
 		return &santaEventGetOutput{Body: event}, nil
 	})
@@ -144,10 +145,10 @@ func registerListSantaFileAccessEvents(api huma.API, store *santaevents.Store) {
 	}, func(ctx context.Context, input *santaFileAccessEventListInput) (*santaFileAccessEventListOutput, error) {
 		events, count, err := store.ListFileAccessEvents(ctx, input.params())
 		if err != nil {
-			return nil, resourceMutationError("Santa file access event", err)
+			return nil, apitypes.ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: Page[santaevents.FileAccessEvent]{Items: events, Count: count},
+			Body: apitypes.Page[santaevents.FileAccessEvent]{Items: events, Count: count},
 		}, nil
 	})
 }
@@ -166,7 +167,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *santaevents.Store) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}
 		if err != nil {
-			return nil, resourceMutationError("Santa file access event", err)
+			return nil, apitypes.ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventGetOutput{Body: event}, nil
 	})

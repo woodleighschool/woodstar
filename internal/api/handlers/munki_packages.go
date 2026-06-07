@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
@@ -18,7 +19,7 @@ const (
 )
 
 type munkiPackageListInput struct {
-	ListQueryInput
+	apitypes.ListQueryInput
 	SoftwareID int64 `query:"software_id,omitempty"`
 }
 
@@ -40,7 +41,7 @@ type munkiPackageImportInput struct {
 }
 
 type munkiPackageListOutput struct {
-	Body Page[munkiPackage]
+	Body apitypes.Page[munkiPackage]
 }
 
 type munkiPackageOutput struct {
@@ -54,7 +55,7 @@ type munkiPackage struct {
 
 func (input munkiPackageListInput) params() packages.PackageListParams {
 	return packages.PackageListParams{
-		ListParams: input.ListQueryInput.params(),
+		ListParams: input.ListQueryInput.Params(),
 		SoftwareID: input.SoftwareID,
 	}
 }
@@ -78,10 +79,10 @@ func registerListMunkiPackages(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageListInput) (*munkiPackageListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: Page[munkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
+			Body: apitypes.Page[munkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
 		}, nil
 	})
 }
@@ -104,7 +105,7 @@ func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Create(ctx, input.Body)
 		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
 	})
@@ -128,7 +129,7 @@ func registerImportMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageImportInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Import(ctx, input.Body)
 		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
 	})
@@ -145,7 +146,7 @@ func registerGetMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
 		pkg, err := store.GetByID(ctx, input.ID)
 		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
 	})
@@ -168,7 +169,7 @@ func registerPatchMunkiPackage(api huma.API, store *packages.Store) {
 	}, func(ctx context.Context, input *munkiPackagePatchInput) (*munkiPackageOutput, error) {
 		pkg, err := store.Update(ctx, input.ID, input.Body)
 		if err != nil {
-			return nil, resourceMutationError(munkiPackageLabel, err)
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
 	})
