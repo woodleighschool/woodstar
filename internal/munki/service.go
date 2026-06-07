@@ -11,7 +11,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
@@ -174,14 +173,14 @@ func (s *Service) ArtifactRedirect(
 		}
 	}
 	if s.presigner == nil {
-		return "", storage.ErrUnavailable
+		return "", artifacts.ErrUnavailable
 	}
 	storageURL, err := s.presigner.PresignGet(ctx, *artifact)
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(storageURL) == "" {
-		return "", storage.ErrUnavailable
+		return "", artifacts.ErrUnavailable
 	}
 	return storageURL, nil
 }

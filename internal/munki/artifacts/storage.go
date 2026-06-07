@@ -1,10 +1,8 @@
-package storage
+package artifacts
 
 import (
 	"context"
 	"errors"
-
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 )
 
 var (
@@ -23,9 +21,9 @@ type Config struct {
 
 // ArtifactStorage signs temporary URLs and reads uploaded object metadata.
 type ArtifactStorage interface {
-	PresignGet(context.Context, artifacts.Artifact) (string, error)
-	PresignPut(context.Context, string, string, string) (artifacts.ArtifactUploadURL, error)
-	Stat(context.Context, string) (artifacts.ArtifactObject, error)
+	PresignGet(context.Context, Artifact) (string, error)
+	PresignPut(context.Context, string, string, string) (ArtifactUploadURL, error)
+	Stat(context.Context, string) (ArtifactObject, error)
 }
 
 // NewArtifactStorage returns the configured Munki artifact storage surface.
@@ -42,7 +40,7 @@ func NewArtifactStorage(ctx context.Context, cfg Config) (ArtifactStorage, error
 
 type disabledStorage struct{}
 
-func (disabledStorage) PresignGet(context.Context, artifacts.Artifact) (string, error) {
+func (disabledStorage) PresignGet(context.Context, Artifact) (string, error) {
 	return "", ErrUnavailable
 }
 
@@ -51,12 +49,12 @@ func (disabledStorage) PresignPut(
 	string,
 	string,
 	string,
-) (artifacts.ArtifactUploadURL, error) {
-	return artifacts.ArtifactUploadURL{}, ErrUnavailable
+) (ArtifactUploadURL, error) {
+	return ArtifactUploadURL{}, ErrUnavailable
 }
 
-func (disabledStorage) Stat(context.Context, string) (artifacts.ArtifactObject, error) {
-	return artifacts.ArtifactObject{}, ErrUnavailable
+func (disabledStorage) Stat(context.Context, string) (ArtifactObject, error) {
+	return ArtifactObject{}, ErrUnavailable
 }
 
 var (

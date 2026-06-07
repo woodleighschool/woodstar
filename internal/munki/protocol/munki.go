@@ -14,7 +14,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/httpauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 )
 
 const plistContentType = "application/x-plist"
@@ -112,7 +111,7 @@ func (h handler) artifact(w http.ResponseWriter, r *http.Request, kind artifacts
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	if errors.Is(err, storage.ErrUnavailable) {
+	if errors.Is(err, artifacts.ErrUnavailable) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		return
 	}

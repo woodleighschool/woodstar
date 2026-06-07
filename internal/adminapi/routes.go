@@ -10,6 +10,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/labels"
+	munkiartifacts "github.com/woodleighschool/woodstar/internal/munki/artifacts"
+	munkipackages "github.com/woodleighschool/woodstar/internal/munki/packages"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
@@ -56,9 +59,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	rules.RegisterAdminRoutes(admin, deps.Santa.Rules)
 	events.RegisterAdminRoutes(admin, deps.Santa.Events)
 	rules.RegisterHostAdminRoutes(protected, deps.Santa.Rules, deps.Inventory.Hosts)
-	handlers.RegisterMunki(admin, handlers.MunkiStores{
-		Artifacts:      deps.Munki.Artifacts,
-		Packages:       deps.Munki.Packages,
-		SoftwareTitles: deps.Munki.SoftwareTitles,
-	}, deps.Munki.ArtifactStorage)
+	munkisoftware.RegisterAdminRoutes(admin, deps.Munki.SoftwareTitles, deps.Munki.Packages)
+	munkiartifacts.RegisterAdminRoutes(admin, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
+	munkipackages.RegisterAdminRoutes(admin, deps.Munki.Packages)
 }

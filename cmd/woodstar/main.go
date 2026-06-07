@@ -30,7 +30,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
-	"github.com/woodleighschool/woodstar/internal/munki/artifacts/storage"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
@@ -363,10 +362,10 @@ func newMunki(
 	softwareStore *munkisoftware.Store,
 	artifactStore *artifacts.Store,
 	logger *slog.Logger,
-) (*munki.Service, storage.ArtifactStorage) {
-	artifactStorage, err := storage.NewArtifactStorage(ctx, storage.Config{
+) (*munki.Service, artifacts.ArtifactStorage) {
+	artifactStorage, err := artifacts.NewArtifactStorage(ctx, artifacts.Config{
 		Enabled: cfg.MunkiS3Enabled(),
-		S3: storage.S3Config{
+		S3: artifacts.S3Config{
 			Bucket:         cfg.MunkiS3Bucket,
 			Region:         cfg.MunkiS3Region,
 			Endpoint:       cfg.MunkiS3Endpoint,

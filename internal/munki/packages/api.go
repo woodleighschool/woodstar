@@ -1,4 +1,4 @@
-package handlers
+package packages
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/munki/packages"
 )
 
 const (
+	munkiTag               = "Munki"
 	munkiPackagePath       = "/api/munki/packages"
 	munkiPackageImportPath = "/api/munki/packages/import"
 	munkiPackageIDPath     = "/api/munki/packages/{id}"
@@ -28,39 +28,41 @@ type munkiPackageGetInput struct {
 }
 
 type munkiPackageCreateInput struct {
-	Body packages.PackageMutation
+	Body PackageMutation
 }
 
 type munkiPackagePatchInput struct {
 	ID   int64 `path:"id"`
-	Body packages.PackageMutation
+	Body PackageMutation
 }
 
 type munkiPackageImportInput struct {
-	Body packages.PackageImportMutation
+	Body PackageImportMutation
 }
 
 type munkiPackageListOutput struct {
-	Body apitypes.Page[munkiPackage]
+	Body apitypes.Page[MunkiPackage]
 }
 
 type munkiPackageOutput struct {
-	Body munkiPackage
+	Body MunkiPackage
 }
 
-type munkiPackage struct {
-	packages.Package
+// MunkiPackage is the shared admin API representation of one Munki package version.
+type MunkiPackage struct {
+	Package
 	IconURL string `json:"icon_url,omitempty"`
 }
 
-func (input munkiPackageListInput) params() packages.PackageListParams {
-	return packages.PackageListParams{
+func (input munkiPackageListInput) params() PackageListParams {
+	return PackageListParams{
 		ListParams: input.ListQueryInput.Params(),
 		SoftwareID: input.SoftwareID,
 	}
 }
 
-func registerMunkiPackages(api huma.API, store *packages.Store) {
+// RegisterAdminRoutes registers Munki package admin endpoints.
+func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
 	registerImportMunkiPackage(api, store)
@@ -68,7 +70,7 @@ func registerMunkiPackages(api huma.API, store *packages.Store) {
 	registerPatchMunkiPackage(api, store)
 }
 
-func registerListMunkiPackages(api huma.API, store *packages.Store) {
+func registerListMunkiPackages(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-packages",
 		Method:      http.MethodGet,
@@ -82,12 +84,12 @@ func registerListMunkiPackages(api huma.API, store *packages.Store) {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[munkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
+			Body: apitypes.Page[MunkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
 		}, nil
 	})
 }
 
-func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
+func registerCreateMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
@@ -111,7 +113,7 @@ func registerCreateMunkiPackage(api huma.API, store *packages.Store) {
 	})
 }
 
-func registerImportMunkiPackage(api huma.API, store *packages.Store) {
+func registerImportMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "import-munki-package",
 		Method:        http.MethodPost,
@@ -135,7 +137,7 @@ func registerImportMunkiPackage(api huma.API, store *packages.Store) {
 	})
 }
 
-func registerGetMunkiPackage(api huma.API, store *packages.Store) {
+func registerGetMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-package",
 		Method:      http.MethodGet,
@@ -152,7 +154,7 @@ func registerGetMunkiPackage(api huma.API, store *packages.Store) {
 	})
 }
 
-func registerPatchMunkiPackage(api huma.API, store *packages.Store) {
+func registerPatchMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-package",
 		Method:      http.MethodPatch,
@@ -175,23 +177,23 @@ func registerPatchMunkiPackage(api huma.API, store *packages.Store) {
 	})
 }
 
-func munkiPackageFromDomain(pkg packages.Package) munkiPackage {
-	return munkiPackage{
+func munkiPackageFromDomain(pkg Package) MunkiPackage {
+	return MunkiPackage{
 		Package: pkg,
 		IconURL: munkiPackageIconURL(pkg),
 	}
 }
 
-func munkiPackagesFromDomain(rows []packages.Package) []munkiPackage {
-	items := make([]munkiPackage, len(rows))
+func munkiPackagesFromDomain(rows []Package) []MunkiPackage {
+	items := make([]MunkiPackage, len(rows))
 	for i, row := range rows {
 		items[i] = munkiPackageFromDomain(row)
 	}
 	return items
 }
 
-func munkiPackageIconURL(pkg packages.Package) string {
-	artifactID := packages.EffectiveIconArtifactID(pkg)
+func munkiPackageIconURL(pkg Package) string {
+	artifactID := EffectiveIconArtifactID(pkg)
 	if artifactID == nil {
 		return ""
 	}

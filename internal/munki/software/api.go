@@ -1,4 +1,4 @@
-package handlers
+package software
 
 import (
 	"context"
@@ -11,26 +11,31 @@ import (
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 const (
+	munkiTag            = "Munki"
+	munkiPackageLabel   = "Munki package"
 	munkiSoftwarePath   = "/api/munki/software"
 	munkiSoftwareIDPath = "/api/munki/software/{id}"
 	munkiSoftwareLabel  = "Munki software"
 )
+
+type munkiSoftwareListInput struct {
+	apitypes.ListQueryInput
+}
 
 type munkiSoftwareGetInput struct {
 	ID int64 `path:"id"`
 }
 
 type munkiSoftwareCreateInput struct {
-	Body munkisoftware.SoftwareMutation
+	Body SoftwareMutation
 }
 
 type munkiSoftwarePutInput struct {
 	ID   int64 `path:"id"`
-	Body munkisoftware.SoftwareMutation
+	Body SoftwareMutation
 }
 
 type munkiSoftwareDeleteInput struct {
@@ -50,20 +55,25 @@ type munkiSoftwareDetailOutput struct {
 }
 
 type munkiSoftwareDetail struct {
-	munkisoftware.SoftwareTitle
-	IconURL  string                        `json:"icon_url,omitempty"`
-	Packages []munkiPackage                `json:"packages"`
-	Targets  munkisoftware.SoftwareTargets `json:"targets"`
+	SoftwareTitle
+	IconURL  string                  `json:"icon_url,omitempty"`
+	Packages []packages.MunkiPackage `json:"packages"`
+	Targets  SoftwareTargets         `json:"targets"`
 }
 
 type munkiSoftware struct {
-	munkisoftware.SoftwareTitle
+	SoftwareTitle
 	IconURL string `json:"icon_url,omitempty"`
 }
 
-func registerMunkiSoftware(
+func (input munkiSoftwareListInput) params() dbutil.ListParams {
+	return input.ListQueryInput.Params()
+}
+
+// RegisterAdminRoutes registers Munki software admin endpoints.
+func RegisterAdminRoutes(
 	api huma.API,
-	store *munkisoftware.Store,
+	store *Store,
 	packageStore *packages.Store,
 ) {
 	registerListMunkiSoftware(api, store)
@@ -74,7 +84,7 @@ func registerMunkiSoftware(
 	registerBulkDeleteMunkiSoftware(api, store)
 }
 
-func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
+func registerListMunkiSoftware(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-software",
 		Method:      http.MethodGet,
@@ -82,7 +92,7 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 		Tags:        []string{munkiTag},
 		Summary:     "List Munki software",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
-	}, func(ctx context.Context, input *munkiListInput) (*munkiSoftwareListOutput, error) {
+	}, func(ctx context.Context, input *munkiSoftwareListInput) (*munkiSoftwareListOutput, error) {
 		rows, count, err := store.List(ctx, input.params())
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
@@ -95,7 +105,7 @@ func registerListMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 
 func registerCreateMunkiSoftware(
 	api huma.API,
-	store *munkisoftware.Store,
+	store *Store,
 	packageStore *packages.Store,
 ) {
 	huma.Register(api, huma.Operation{
@@ -123,7 +133,7 @@ func registerCreateMunkiSoftware(
 
 func registerGetMunkiSoftware(
 	api huma.API,
-	store *munkisoftware.Store,
+	store *Store,
 	packageStore *packages.Store,
 ) {
 	huma.Register(api, huma.Operation{
@@ -140,7 +150,7 @@ func registerGetMunkiSoftware(
 
 func registerPutMunkiSoftware(
 	api huma.API,
-	store *munkisoftware.Store,
+	store *Store,
 	packageStore *packages.Store,
 ) {
 	huma.Register(api, huma.Operation{
@@ -165,7 +175,7 @@ func registerPutMunkiSoftware(
 	})
 }
 
-func registerDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
+func registerDeleteMunkiSoftware(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-software",
 		Method:      http.MethodDelete,
@@ -184,7 +194,7 @@ func registerDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 	})
 }
 
-func registerBulkDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
+func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-software",
 		Method:      http.MethodPost,
@@ -204,9 +214,9 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *munkisoftware.Store) {
 }
 
 func munkiSoftwareDetailFromDomain(
-	title munkisoftware.SoftwareTitle,
+	title SoftwareTitle,
 	packageRows []packages.Package,
-	targets munkisoftware.SoftwareTargets,
+	targets SoftwareTargets,
 ) munkiSoftwareDetail {
 	return munkiSoftwareDetail{
 		SoftwareTitle: title,
@@ -219,7 +229,7 @@ func munkiSoftwareDetailFromDomain(
 func loadMunkiSoftwareDetail(
 	ctx context.Context,
 	id int64,
-	store *munkisoftware.Store,
+	store *Store,
 	packageStore *packages.Store,
 ) (*munkiSoftwareDetailOutput, error) {
 	title, err := store.GetByID(ctx, id)
@@ -242,14 +252,14 @@ func loadMunkiSoftwareDetail(
 	}, nil
 }
 
-func munkiSoftwareItemFromDomain(title munkisoftware.SoftwareTitle) munkiSoftware {
+func munkiSoftwareItemFromDomain(title SoftwareTitle) munkiSoftware {
 	return munkiSoftware{
 		SoftwareTitle: title,
 		IconURL:       munkiSoftwareIconURL(title),
 	}
 }
 
-func munkiSoftwareFromDomain(rows []munkisoftware.SoftwareTitle) []munkiSoftware {
+func munkiSoftwareFromDomain(rows []SoftwareTitle) []munkiSoftware {
 	items := make([]munkiSoftware, len(rows))
 	for i, row := range rows {
 		items[i] = munkiSoftwareItemFromDomain(row)
@@ -257,9 +267,32 @@ func munkiSoftwareFromDomain(rows []munkisoftware.SoftwareTitle) []munkiSoftware
 	return items
 }
 
-func munkiSoftwareIconURL(title munkisoftware.SoftwareTitle) string {
+func munkiSoftwareIconURL(title SoftwareTitle) string {
 	if title.IconArtifactID == nil {
 		return ""
 	}
 	return fmt.Sprintf("/api/munki/artifacts/%d/content", *title.IconArtifactID)
+}
+
+func munkiPackageFromDomain(pkg packages.Package) packages.MunkiPackage {
+	return packages.MunkiPackage{
+		Package: pkg,
+		IconURL: munkiPackageIconURL(pkg),
+	}
+}
+
+func munkiPackagesFromDomain(rows []packages.Package) []packages.MunkiPackage {
+	items := make([]packages.MunkiPackage, len(rows))
+	for i, row := range rows {
+		items[i] = munkiPackageFromDomain(row)
+	}
+	return items
+}
+
+func munkiPackageIconURL(pkg packages.Package) string {
+	artifactID := packages.EffectiveIconArtifactID(pkg)
+	if artifactID == nil {
+		return ""
+	}
+	return fmt.Sprintf("/api/munki/artifacts/%d/content", *artifactID)
 }
