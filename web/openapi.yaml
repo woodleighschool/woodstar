@@ -269,6 +269,21 @@ components:
         - host_name
         - response
       type: object
+    CheckTargets:
+      additionalProperties: false
+      properties:
+        exclude:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+        include:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+      required:
+        - include
+        - exclude
+      type: object
     ConfigurationMatch:
       additionalProperties: false
       properties:
@@ -1570,6 +1585,15 @@ components:
       required:
         - name
       type: object
+    LabelRef:
+      additionalProperties: false
+      properties:
+        label_id:
+          format: int64
+          type: integer
+      required:
+        - label_id
+      type: object
     LiveQueryCompletedEvent:
       additionalProperties: false
       properties:
@@ -2563,11 +2587,7 @@ components:
         query:
           type: string
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/CheckTargets"
         updated_at:
           format: date-time
           type: string
@@ -2599,11 +2619,7 @@ components:
         query:
           type: string
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/CheckTargets"
       required:
         - name
         - query
@@ -2640,11 +2656,7 @@ components:
           format: int32
           type: integer
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/ReportTargets"
         updated_at:
           format: date-time
           type: string
@@ -2680,11 +2692,7 @@ components:
           format: int32
           type: integer
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/ReportTargets"
       required:
         - name
         - query
@@ -3260,6 +3268,21 @@ components:
         - host_id
         - host_name
         - columns
+      type: object
+    ReportTargets:
+      additionalProperties: false
+      properties:
+        exclude:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+        include:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+      required:
+        - include
+        - exclude
       type: object
     RuleInclude:
       additionalProperties: false

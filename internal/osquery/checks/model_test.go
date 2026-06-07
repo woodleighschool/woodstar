@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestCheckMutationValidate(t *testing.T) {
@@ -26,6 +27,40 @@ func TestCheckMutationValidate(t *testing.T) {
 		{
 			name:    "missing query",
 			in:      CheckMutation{Name: "No query"},
+			wantErr: true,
+		},
+		{
+			name: "duplicate include label",
+			in: CheckMutation{
+				Name:  "Duplicate include",
+				Query: "select 1;",
+				Targets: CheckTargets{
+					Include: []targeting.LabelRef{{LabelID: 1}, {LabelID: 1}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "duplicate exclude label",
+			in: CheckMutation{
+				Name:  "Duplicate exclude",
+				Query: "select 1;",
+				Targets: CheckTargets{
+					Exclude: []targeting.LabelRef{{LabelID: 2}, {LabelID: 2}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "include exclude overlap",
+			in: CheckMutation{
+				Name:  "Overlap",
+				Query: "select 1;",
+				Targets: CheckTargets{
+					Include: []targeting.LabelRef{{LabelID: 3}},
+					Exclude: []targeting.LabelRef{{LabelID: 3}},
+				},
+			},
 			wantErr: true,
 		},
 	}

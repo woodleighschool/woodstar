@@ -36,6 +36,7 @@ import {
   type ReportTableRow,
 } from "@/lib/query-results";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
+import { emptyLabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const FREQUENCY_OPTIONS: { value: number; label: string }[] = [
@@ -56,7 +57,7 @@ const emptyReport: ReportMutation = {
   description: "",
   query: "select * from os_version;",
   schedule_interval: 0,
-  targets: [],
+  targets: emptyLabelTargetSet(),
 };
 
 const reportQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
@@ -95,7 +96,7 @@ export function ReportMutationPage({ mode }: { mode: "create" | "edit" }) {
           query: detail.data.query,
           min_osquery_version: detail.data.min_osquery_version,
           schedule_interval: detail.data.schedule_interval,
-          targets: detail.data.targets ?? [],
+          targets: normalizeLabelTargetSet(detail.data.targets),
         }
       : emptyReport;
 
@@ -306,7 +307,10 @@ function ReportForm({
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelScopeEditor value={field.state.value ?? []} onChange={field.handleChange} />
+                    <LabelScopeEditor
+                      value={normalizeLabelTargetSet(field.state.value)}
+                      onChange={field.handleChange}
+                    />
                   )}
                 />
               ),
@@ -392,6 +396,7 @@ function trimReport(form: ReportMutation): ReportMutation {
     description: form.description?.trim() ?? "",
     query: form.query.trim(),
     min_osquery_version: nonEmptyText(form.min_osquery_version),
+    targets: normalizeLabelTargetSet(form.targets),
   };
 }
 

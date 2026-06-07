@@ -29,6 +29,7 @@ import {
   MEDIA_ACTION_VALUES,
   type SantaMediaAction,
 } from "@/lib/santa-configurations";
+import { flatTargetsFromTargetSet, targetSetFromFlatTargets } from "@/lib/targeting";
 
 interface ConfigurationFormState {
   name: string;
@@ -471,7 +472,12 @@ function ConfigurationForm({
               content: (
                 <form.Field
                   name="targets"
-                  children={(field) => <LabelScopeEditor value={field.state.value} onChange={field.handleChange} />}
+                  children={(field) => (
+                    <LabelScopeEditor
+                      value={targetSetFromFlatTargets(field.state.value)}
+                      onChange={(next) => field.handleChange(flatTargetsFromTargetSet(next))}
+                    />
+                  )}
                 />
               ),
             },

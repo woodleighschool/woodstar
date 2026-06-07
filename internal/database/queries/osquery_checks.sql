@@ -195,12 +195,12 @@ ORDER BY
     c.id;
 
 -- name: ListCheckTargets :many
-SELECT check_id, label_id, direction::text AS effect
+SELECT check_id, label_id, direction::text AS direction
 FROM osquery_check_targets
 WHERE check_id = ANY(@check_ids::bigint[])
 ORDER BY
     check_id,
-    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    direction,
     position;
 
 -- name: DeleteCheckTargets :exec
@@ -209,9 +209,8 @@ WHERE check_id = @check_id;
 
 -- name: InsertCheckTargets :exec
 INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
-SELECT @check_id, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
+SELECT @check_id, labels.label_id, @direction::target_direction, labels.ord - 1
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord);
 
 -- name: ListCheckCounts :many
 SELECT

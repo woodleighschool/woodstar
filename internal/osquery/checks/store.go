@@ -116,7 +116,7 @@ func (s *Store) Create(ctx context.Context, params CheckMutation) (*Check, error
 		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
 			return err
 		}
-		check.Targets = params.Targets
+		check.Targets = normalizeCheckTargets(params.Targets)
 		created = check
 		return nil
 	})
@@ -148,7 +148,7 @@ func (s *Store) Update(ctx context.Context, id int64, params CheckMutation) (*Ch
 		if err := replaceCheckTargets(ctx, tx, check.ID, params.Targets); err != nil {
 			return err
 		}
-		check.Targets = params.Targets
+		check.Targets = normalizeCheckTargets(params.Targets)
 		updated = check
 		return nil
 	})

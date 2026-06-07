@@ -25,7 +25,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/ingest"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
-	"github.com/woodleighschool/woodstar/internal/scope"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
@@ -99,10 +99,9 @@ func TestOsqueryHTTPConfigCarriesScheduledQueryVersion(t *testing.T) {
 		Query:             "select 42;",
 		MinOsqueryVersion: &minVersion,
 		ScheduleInterval:  60,
-		Targets: []scope.TargetLabel{{
-			LabelID: allHostsID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets: reports.ReportTargets{
+			Include: []targeting.LabelRef{{LabelID: allHostsID}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)
@@ -150,10 +149,9 @@ func TestOsqueryHTTPLogStoresScheduledReportSnapshot(t *testing.T) {
 		Name:             "Installed apps " + suffix,
 		Query:            "select name, version from apps;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{{
-			LabelID: allHostsID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets: reports.ReportTargets{
+			Include: []targeting.LabelRef{{LabelID: allHostsID}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("create scheduled report: %v", err)

@@ -4,7 +4,7 @@ import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-ut
 import { LabelChips } from "@/components/labels/label-chips";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import type { TargetLabel } from "@/lib/api";
-import { targetSummary } from "@/lib/targeting";
+import { targetLabelIDs, targetSummary, type LabelTargetSet } from "@/lib/targeting";
 
 export function TargetLabelsCell({
   labelIDs,
@@ -13,11 +13,11 @@ export function TargetLabelsCell({
   empty,
 }: {
   labelIDs?: number[];
-  targets?: TargetLabel[] | null;
+  targets?: LabelTargetSet | TargetLabel[] | null;
   labelsByID: ReadonlyMap<number, LabelChip>;
   empty?: ReactNode;
 }) {
-  const ids = targets ? targets.map((target) => target.label_id) : (labelIDs ?? []);
+  const ids = targets ? targetLabelIDs(targets) : (labelIDs ?? []);
   const countText = targets ? targetSummary(targets) : `${ids.length} label${ids.length === 1 ? "" : "s"}`;
 
   if (ids.length === 0) {

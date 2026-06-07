@@ -108,6 +108,11 @@ export type CheckHostStatus = {
     updated_at?: string;
 };
 
+export type CheckTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
+};
+
 export type ConfigurationMatch = {
     allowed_path_regex?: string;
     batch_size: number;
@@ -588,6 +593,10 @@ export type LabelMutation = {
     query?: string;
 };
 
+export type LabelRef = {
+    label_id: number;
+};
+
 export type LiveQueryCompletedEvent = {
     status: 'completed';
 };
@@ -929,7 +938,7 @@ export type OsqueryCheck = {
     name: string;
     passing_host_count: number;
     query: string;
-    targets: Array<TargetLabel> | null;
+    targets: CheckTargets;
     updated_at: string;
 };
 
@@ -941,7 +950,7 @@ export type OsqueryCheckMutation = {
     description?: string;
     name: string;
     query: string;
-    targets: Array<TargetLabel> | null;
+    targets: CheckTargets;
 };
 
 export type OsqueryReport = {
@@ -957,7 +966,7 @@ export type OsqueryReport = {
     name: string;
     query: string;
     schedule_interval: number;
-    targets: Array<TargetLabel> | null;
+    targets: ReportTargets;
     updated_at: string;
 };
 
@@ -971,7 +980,7 @@ export type OsqueryReportMutation = {
     name: string;
     query: string;
     schedule_interval?: number;
-    targets: Array<TargetLabel> | null;
+    targets: ReportTargets;
 };
 
 export type PackageAlert = {
@@ -1202,6 +1211,11 @@ export type ReportResult = {
     last_fetched?: string;
     report_id: number;
     report_name: string;
+};
+
+export type ReportTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
 };
 
 export type RuleInclude = {
@@ -1867,7 +1881,7 @@ export type OsqueryCheckWritable = {
     name: string;
     passing_host_count: number;
     query: string;
-    targets: Array<TargetLabel> | null;
+    targets: CheckTargets;
     updated_at: string;
 };
 
@@ -1875,7 +1889,7 @@ export type OsqueryCheckMutationWritable = {
     description?: string;
     name: string;
     query: string;
-    targets: Array<TargetLabel> | null;
+    targets: CheckTargets;
 };
 
 export type OsqueryReportWritable = {
@@ -1887,7 +1901,7 @@ export type OsqueryReportWritable = {
     name: string;
     query: string;
     schedule_interval: number;
-    targets: Array<TargetLabel> | null;
+    targets: ReportTargets;
     updated_at: string;
 };
 
@@ -1897,7 +1911,7 @@ export type OsqueryReportMutationWritable = {
     name: string;
     query: string;
     schedule_interval?: number;
-    targets: Array<TargetLabel> | null;
+    targets: ReportTargets;
 };
 
 export type PageCheckWritable = {

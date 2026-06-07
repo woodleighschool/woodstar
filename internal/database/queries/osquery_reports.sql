@@ -107,12 +107,12 @@ WHERE r.schedule_interval > 0
 ORDER BY r.id;
 
 -- name: ListReportTargets :many
-SELECT report_id, label_id, direction::text AS effect
+SELECT report_id, label_id, direction::text AS direction
 FROM osquery_report_targets
 WHERE report_id = ANY(@report_ids::bigint[])
 ORDER BY
     report_id,
-    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    direction,
     position;
 
 -- name: DeleteReportTargets :exec
@@ -121,9 +121,8 @@ WHERE report_id = @report_id;
 
 -- name: InsertReportTargets :exec
 INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
-SELECT @report_id, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
+SELECT @report_id, labels.label_id, @direction::target_direction, labels.ord - 1
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord);
 
 -- name: DeleteReportResults :exec
 DELETE FROM report_results

@@ -186,19 +186,18 @@ func (q *Queries) GetReportByID(ctx context.Context, arg GetReportByIDParams) (R
 
 const insertReportTargets = `-- name: InsertReportTargets :exec
 INSERT INTO osquery_report_targets (report_id, label_id, direction, position)
-SELECT $1, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
+SELECT $1, labels.label_id, $2::target_direction, labels.ord - 1
+FROM unnest($3::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
 `
 
 type InsertReportTargetsParams struct {
-	ReportID int64    `json:"report_id"`
-	LabelIds []int64  `json:"label_ids"`
-	Effects  []string `json:"effects"`
+	ReportID  int64           `json:"report_id"`
+	Direction TargetDirection `json:"direction"`
+	LabelIds  []int64         `json:"label_ids"`
 }
 
 func (q *Queries) InsertReportTargets(ctx context.Context, arg InsertReportTargetsParams) error {
-	_, err := q.db.Exec(ctx, insertReportTargets, arg.ReportID, arg.LabelIds, arg.Effects)
+	_, err := q.db.Exec(ctx, insertReportTargets, arg.ReportID, arg.Direction, arg.LabelIds)
 	return err
 }
 
@@ -372,12 +371,12 @@ func (q *Queries) ListReportResults(ctx context.Context, arg ListReportResultsPa
 }
 
 const listReportTargets = `-- name: ListReportTargets :many
-SELECT report_id, label_id, direction::text AS effect
+SELECT report_id, label_id, direction::text AS direction
 FROM osquery_report_targets
 WHERE report_id = ANY($1::bigint[])
 ORDER BY
     report_id,
-    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    direction,
     position
 `
 
@@ -386,9 +385,9 @@ type ListReportTargetsParams struct {
 }
 
 type ListReportTargetsRow struct {
-	ReportID int64  `json:"report_id"`
-	LabelID  int64  `json:"label_id"`
-	Effect   string `json:"effect"`
+	ReportID  int64  `json:"report_id"`
+	LabelID   int64  `json:"label_id"`
+	Direction string `json:"direction"`
 }
 
 func (q *Queries) ListReportTargets(ctx context.Context, arg ListReportTargetsParams) ([]ListReportTargetsRow, error) {
@@ -400,7 +399,7 @@ func (q *Queries) ListReportTargets(ctx context.Context, arg ListReportTargetsPa
 	items := []ListReportTargetsRow{}
 	for rows.Next() {
 		var i ListReportTargetsRow
-		if err := rows.Scan(&i.ReportID, &i.LabelID, &i.Effect); err != nil {
+		if err := rows.Scan(&i.ReportID, &i.LabelID, &i.Direction); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

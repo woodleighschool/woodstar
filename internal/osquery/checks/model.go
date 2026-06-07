@@ -8,30 +8,29 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 // Check is a query-backed pass/fail rule.
 type Check struct {
-	ID               int64               `json:"id"`
-	Name             string              `json:"name"`
-	Description      string              `json:"description"`
-	Query            string              `json:"query"`
-	Targets          []scope.TargetLabel `json:"targets"`
-	PassingHostCount int32               `json:"passing_host_count"`
-	FailingHostCount int32               `json:"failing_host_count"`
-	CreatedByUserID  *int64              `json:"created_by_user_id,omitempty"`
-	CreatedAt        time.Time           `json:"created_at"`
-	UpdatedAt        time.Time           `json:"updated_at"`
+	ID               int64        `json:"id"`
+	Name             string       `json:"name"`
+	Description      string       `json:"description"`
+	Query            string       `json:"query"`
+	Targets          CheckTargets `json:"targets"`
+	PassingHostCount int32        `json:"passing_host_count"`
+	FailingHostCount int32        `json:"failing_host_count"`
+	CreatedByUserID  *int64       `json:"created_by_user_id,omitempty"`
+	CreatedAt        time.Time    `json:"created_at"`
+	UpdatedAt        time.Time    `json:"updated_at"`
 }
 
 // CheckMutation is the editable check state used by create and update.
 type CheckMutation struct {
-	Name            string              `json:"name"`
-	Description     string              `json:"description,omitempty"`
-	Query           string              `json:"query"`
-	Targets         []scope.TargetLabel `json:"targets"`
-	CreatedByUserID *int64              `json:"-"`
+	Name            string       `json:"name"`
+	Description     string       `json:"description,omitempty"`
+	Query           string       `json:"query"`
+	Targets         CheckTargets `json:"targets"`
+	CreatedByUserID *int64       `json:"-"`
 }
 
 func (p CheckMutation) Validate() error {
@@ -40,6 +39,9 @@ func (p CheckMutation) Validate() error {
 	}
 	if p.Query == "" {
 		return fmt.Errorf("%w: query is required", dbutil.ErrInvalidInput)
+	}
+	if err := p.Targets.validate(); err != nil {
+		return err
 	}
 	return nil
 }

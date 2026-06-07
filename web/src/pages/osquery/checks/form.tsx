@@ -19,13 +19,14 @@ import { useCheck, useCreateCheck, useUpdateCheck, type CheckMutation } from "@/
 import { useSchemaSidebar } from "@/hooks/use-schema-sidebar";
 import { firstErrorMessage, requiredString } from "@/lib/form-validation";
 import { invalidSQLSyntaxMessage, validSQLSyntax } from "@/lib/sql-validation";
+import { emptyLabelTargetSet, normalizeLabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
 const emptyCheck: CheckMutation = {
   name: "",
   description: "",
   query: "select 1;",
-  targets: [],
+  targets: emptyLabelTargetSet(),
 };
 
 const checkQuerySchema = requiredString("Query").refine(validSQLSyntax, { message: invalidSQLSyntaxMessage });
@@ -62,7 +63,7 @@ export function CheckMutationPage({ mode }: { mode: "create" | "edit" }) {
           name: detail.data.name,
           description: detail.data.description,
           query: detail.data.query,
-          targets: detail.data.targets ?? [],
+          targets: normalizeLabelTargetSet(detail.data.targets),
         }
       : emptyCheck;
 
@@ -251,7 +252,10 @@ function CheckForm({
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelScopeEditor value={field.state.value ?? []} onChange={field.handleChange} />
+                    <LabelScopeEditor
+                      value={normalizeLabelTargetSet(field.state.value)}
+                      onChange={field.handleChange}
+                    />
                   )}
                 />
               ),
@@ -295,5 +299,6 @@ function trimCheck(form: CheckMutation): CheckMutation {
     name: form.name.trim(),
     description: form.description?.trim() ?? "",
     query: form.query.trim(),
+    targets: normalizeLabelTargetSet(form.targets),
   };
 }

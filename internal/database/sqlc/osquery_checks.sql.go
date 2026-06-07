@@ -155,19 +155,18 @@ func (q *Queries) GetCheckByID(ctx context.Context, arg GetCheckByIDParams) (Che
 
 const insertCheckTargets = `-- name: InsertCheckTargets :exec
 INSERT INTO osquery_check_targets (check_id, label_id, direction, position)
-SELECT $1, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
+SELECT $1, labels.label_id, $2::target_direction, labels.ord - 1
+FROM unnest($3::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
 `
 
 type InsertCheckTargetsParams struct {
-	CheckID  int64    `json:"check_id"`
-	LabelIds []int64  `json:"label_ids"`
-	Effects  []string `json:"effects"`
+	CheckID   int64           `json:"check_id"`
+	Direction TargetDirection `json:"direction"`
+	LabelIds  []int64         `json:"label_ids"`
 }
 
 func (q *Queries) InsertCheckTargets(ctx context.Context, arg InsertCheckTargetsParams) error {
-	_, err := q.db.Exec(ctx, insertCheckTargets, arg.CheckID, arg.LabelIds, arg.Effects)
+	_, err := q.db.Exec(ctx, insertCheckTargets, arg.CheckID, arg.Direction, arg.LabelIds)
 	return err
 }
 
@@ -363,12 +362,12 @@ func (q *Queries) ListCheckHostStatuses(ctx context.Context, arg ListCheckHostSt
 }
 
 const listCheckTargets = `-- name: ListCheckTargets :many
-SELECT check_id, label_id, direction::text AS effect
+SELECT check_id, label_id, direction::text AS direction
 FROM osquery_check_targets
 WHERE check_id = ANY($1::bigint[])
 ORDER BY
     check_id,
-    CASE direction WHEN 'exclude' THEN 0 ELSE 1 END,
+    direction,
     position
 `
 
@@ -377,9 +376,9 @@ type ListCheckTargetsParams struct {
 }
 
 type ListCheckTargetsRow struct {
-	CheckID int64  `json:"check_id"`
-	LabelID int64  `json:"label_id"`
-	Effect  string `json:"effect"`
+	CheckID   int64  `json:"check_id"`
+	LabelID   int64  `json:"label_id"`
+	Direction string `json:"direction"`
 }
 
 func (q *Queries) ListCheckTargets(ctx context.Context, arg ListCheckTargetsParams) ([]ListCheckTargetsRow, error) {
@@ -391,7 +390,7 @@ func (q *Queries) ListCheckTargets(ctx context.Context, arg ListCheckTargetsPara
 	items := []ListCheckTargetsRow{}
 	for rows.Next() {
 		var i ListCheckTargetsRow
-		if err := rows.Scan(&i.CheckID, &i.LabelID, &i.Effect); err != nil {
+		if err := rows.Scan(&i.CheckID, &i.LabelID, &i.Direction); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

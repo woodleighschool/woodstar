@@ -4,15 +4,16 @@ import { useRef } from "react";
 import { LabelPicker } from "@/components/labels/label-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
-import type { TargetLabel } from "@/lib/api";
+import type { LabelRef } from "@/lib/api";
+import { normalizeLabelTargetSet, type LabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
-export type LabelScopeRow = TargetLabel;
-export type LabelScopeEffect = LabelScopeRow["effect"];
+export type LabelScopeRow = LabelRef;
+export type LabelScopeDirection = keyof LabelTargetSet;
 
 interface LabelScopeEditorProps {
-  value: LabelScopeRow[];
-  onChange: (next: LabelScopeRow[]) => void;
+  value: LabelTargetSet;
+  onChange: (next: LabelTargetSet) => void;
   includeBuiltins?: boolean;
   targetTitle?: string;
   exclusionTitle?: string;
@@ -35,41 +36,37 @@ export function LabelScopeEditor({
   exclusionPlaceholder = "Select Label",
   className,
 }: LabelScopeEditorProps) {
-  const includes = value.filter((row) => row.effect === "include");
-  const excludes = value.filter((row) => row.effect === "exclude");
+  const targetSet = normalizeLabelTargetSet(value);
 
-  function add(effect: LabelScopeEffect) {
-    onChange([...value, { effect, label_id: 0 }]);
+  function add(direction: LabelScopeDirection) {
+    onChange({
+      ...targetSet,
+      [direction]: [...targetSet[direction], { label_id: 0 }],
+    });
   }
 
-  function update(effect: LabelScopeEffect, index: number, labelID: number) {
-    let seen = -1;
-    onChange(
-      value.map((row) => {
-        if (row.effect !== effect) return row;
-        seen += 1;
-        return seen === index ? { ...row, label_id: labelID } : row;
-      }),
-    );
+  function update(direction: LabelScopeDirection, index: number, labelID: number) {
+    onChange({
+      ...targetSet,
+      [direction]: targetSet[direction].map((row, rowIndex) =>
+        rowIndex === index ? { ...row, label_id: labelID } : row,
+      ),
+    });
   }
 
-  function remove(effect: LabelScopeEffect, index: number) {
-    let seen = -1;
-    onChange(
-      value.filter((row) => {
-        if (row.effect !== effect) return true;
-        seen += 1;
-        return seen !== index;
-      }),
-    );
+  function remove(direction: LabelScopeDirection, index: number) {
+    onChange({
+      ...targetSet,
+      [direction]: targetSet[direction].filter((_, rowIndex) => rowIndex !== index),
+    });
   }
 
   return (
     <div className={cn("grid gap-6 lg:grid-cols-2", className)}>
       <LabelScopeColumn
         title={targetTitle}
-        effect="include"
-        rows={includes}
+        direction="include"
+        rows={targetSet.include}
         includeBuiltins={includeBuiltins}
         buttonLabel={targetButtonLabel}
         placeholder={targetPlaceholder}
@@ -79,8 +76,8 @@ export function LabelScopeEditor({
       />
       <LabelScopeColumn
         title={exclusionTitle}
-        effect="exclude"
-        rows={excludes}
+        direction="exclude"
+        rows={targetSet.exclude}
         includeBuiltins={includeBuiltins}
         buttonLabel={exclusionButtonLabel}
         placeholder={exclusionPlaceholder}
@@ -94,19 +91,19 @@ export function LabelScopeEditor({
 
 interface LabelScopeColumnProps {
   title: string;
-  effect: LabelScopeEffect;
+  direction: LabelScopeDirection;
   rows: LabelScopeRow[];
   includeBuiltins: boolean;
   buttonLabel: string;
   placeholder: string;
-  onAdd: (effect: LabelScopeEffect) => void;
-  onUpdate: (effect: LabelScopeEffect, index: number, labelID: number) => void;
-  onRemove: (effect: LabelScopeEffect, index: number) => void;
+  onAdd: (direction: LabelScopeDirection) => void;
+  onUpdate: (direction: LabelScopeDirection, index: number, labelID: number) => void;
+  onRemove: (direction: LabelScopeDirection, index: number) => void;
 }
 
 function LabelScopeColumn({
   title,
-  effect,
+  direction,
   rows,
   includeBuiltins,
   buttonLabel,
@@ -121,7 +118,7 @@ function LabelScopeColumn({
   function rowKey(row: LabelScopeRow) {
     const existing = keys.current.get(row);
     if (existing) return existing;
-    const key = `${effect}-${nextKey.current}`;
+    const key = `${direction}-${nextKey.current}`;
     nextKey.current += 1;
     keys.current.set(row, key);
     return key;
@@ -131,7 +128,7 @@ function LabelScopeColumn({
     <Field className="gap-3">
       <div className="flex items-center justify-between gap-3">
         <FieldLabel>{title}</FieldLabel>
-        <Button type="button" variant="outline" size="sm" onClick={() => onAdd(effect)}>
+        <Button type="button" variant="outline" size="sm" onClick={() => onAdd(direction)}>
           <Plus data-icon="inline-start" />
           {buttonLabel}
         </Button>
@@ -144,14 +141,14 @@ function LabelScopeColumn({
             <div key={rowKey(row)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <LabelPicker
                 value={row.label_id > 0 ? [row.label_id] : []}
-                onChange={(next) => onUpdate(effect, index, next[0] ?? 0)}
+                onChange={(next) => onUpdate(direction, index, next[0] ?? 0)}
                 selectionMode="single"
                 includeBuiltins={includeBuiltins}
                 placeholder={placeholder}
                 required
                 invalid={row.label_id <= 0}
               />
-              <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(effect, index)}>
+              <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(direction, index)}>
                 <Trash2 />
               </Button>
             </div>

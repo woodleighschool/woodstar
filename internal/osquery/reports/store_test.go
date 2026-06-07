@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/scope"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestListIncludesTargets(t *testing.T) {
@@ -20,14 +20,10 @@ func TestListIncludesTargets(t *testing.T) {
 	labelC := createManualLabel(t, ctx, labelStore, "Report C")
 
 	if _, err := store.Create(ctx, ReportMutation{
-		Name:             "Scoped report",
+		Name:             "Targeted report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{
-			{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
-			{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
-			{LabelID: labelC.ID, Effect: scope.TargetLabelExclude},
-		},
+		Targets:          reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}),
 	}); err != nil {
 		t.Fatalf("create report: %v", err)
 	}
@@ -39,16 +35,46 @@ func TestListIncludesTargets(t *testing.T) {
 	if count != 1 || len(got) != 1 {
 		t.Fatalf("List returned count=%d len=%d, want one report", count, len(got))
 	}
-	assertTargets(t, got[0].Targets, []scope.TargetLabel{
-		{LabelID: labelC.ID, Effect: scope.TargetLabelExclude},
-		{LabelID: labelB.ID, Effect: scope.TargetLabelInclude},
-		{LabelID: labelA.ID, Effect: scope.TargetLabelInclude},
+	assertTargets(t, got[0].Targets, reportTargets([]int64{labelB.ID, labelA.ID}, []int64{labelC.ID}))
+}
+
+func TestUpdateReplacesTargets(t *testing.T) {
+	store, labelStore, _, ctx := newIntegrationReportStore(t)
+	first := createManualLabel(t, ctx, labelStore, "Report first")
+	second := createManualLabel(t, ctx, labelStore, "Report second")
+	third := createManualLabel(t, ctx, labelStore, "Report third")
+
+	report, err := store.Create(ctx, ReportMutation{
+		Name:             "Replacement report",
+		Query:            "select 1;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{first.ID, second.ID}, []int64{third.ID}),
 	})
+	if err != nil {
+		t.Fatalf("create report: %v", err)
+	}
+
+	updated, err := store.Update(ctx, report.ID, ReportMutation{
+		Name:             "Replacement report",
+		Query:            "select 2;",
+		ScheduleInterval: 60,
+		Targets:          reportTargets([]int64{third.ID}, []int64{first.ID}),
+	})
+	if err != nil {
+		t.Fatalf("update report: %v", err)
+	}
+	assertTargets(t, updated.Targets, reportTargets([]int64{third.ID}, []int64{first.ID}))
+
+	got, err := store.GetByID(ctx, report.ID)
+	if err != nil {
+		t.Fatalf("get updated report: %v", err)
+	}
+	assertTargets(t, got.Targets, reportTargets([]int64{third.ID}, []int64{first.ID}))
 }
 
 func TestScheduledForHostUsesTargetRows(t *testing.T) {
 	store, labelStore, hostStore, ctx := newIntegrationReportStore(t)
-	host := enrollTestHostDetail(t, ctx, hostStore, "report-scope-host", "5.22.1")
+	host := enrollTestHostDetail(t, ctx, hostStore, "report-target-host", "5.22.1")
 	matching := createManualLabel(t, ctx, labelStore, "Report match")
 	other := createManualLabel(t, ctx, labelStore, "Report other")
 	excluded := createManualLabel(t, ctx, labelStore, "Report excluded")
@@ -63,7 +89,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Name:             "Matching scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          []scope.TargetLabel{{LabelID: matching.ID, Effect: scope.TargetLabelInclude}},
+		Targets:          reportTargets([]int64{matching.ID}, nil),
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
@@ -71,9 +97,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Name:             "Nonmatching scheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{
-			{LabelID: other.ID, Effect: scope.TargetLabelInclude},
-		},
+		Targets:          reportTargets([]int64{other.ID}, nil),
 	}); err != nil {
 		t.Fatalf("create nonmatching report: %v", err)
 	}
@@ -81,10 +105,7 @@ func TestScheduledForHostUsesTargetRows(t *testing.T) {
 		Name:             "Excluded scheduled report",
 		Query:            "select 3;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{
-			{LabelID: matching.ID, Effect: scope.TargetLabelInclude},
-			{LabelID: excluded.ID, Effect: scope.TargetLabelExclude},
-		},
+		Targets:          reportTargets([]int64{matching.ID}, []int64{excluded.ID}),
 	}); err != nil {
 		t.Fatalf("create excluded report: %v", err)
 	}
@@ -110,7 +131,7 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 		Name:             "Exclude-only scheduled report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          []scope.TargetLabel{{LabelID: excluded.ID, Effect: scope.TargetLabelExclude}},
+		Targets:          reportTargets(nil, []int64{excluded.ID}),
 	}); err != nil {
 		t.Fatalf("create exclude-only report: %v", err)
 	}
@@ -124,16 +145,14 @@ func TestScheduledForHostRequiresIncludeTarget(t *testing.T) {
 	}
 }
 
-func TestCreateReportWithMissingTargetLabelReturnsNotFound(t *testing.T) {
+func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 	store, _, _, ctx := newIntegrationReportStore(t)
 
 	_, err := store.Create(ctx, ReportMutation{
 		Name:             "Missing label target",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{
-			{LabelID: 0, Effect: scope.TargetLabelInclude},
-		},
+		Targets:          reportTargets([]int64{0}, nil),
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)
@@ -148,10 +167,7 @@ func TestCreateReportRejectsIncludeExcludeTargetOverlap(t *testing.T) {
 		Name:             "Overlapping report",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{
-			{LabelID: label.ID, Effect: scope.TargetLabelInclude},
-			{LabelID: label.ID, Effect: scope.TargetLabelExclude},
-		},
+		Targets:          reportTargets([]int64{label.ID}, []int64{label.ID}),
 	})
 	if !errors.Is(err, dbutil.ErrInvalidInput) {
 		t.Fatalf("Create error = %v, want ErrInvalidInput", err)
@@ -168,7 +184,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Query:             "select 1;",
 		MinOsqueryVersion: new("5.0.0"),
 		ScheduleInterval:  60,
-		Targets:           []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
+		Targets:           reportTargets([]int64{allHostsID}, nil),
 	}); err != nil {
 		t.Fatalf("create matching report: %v", err)
 	}
@@ -176,7 +192,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Name:             "Unscheduled report",
 		Query:            "select 2;",
 		ScheduleInterval: 0,
-		Targets:          []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
+		Targets:          reportTargets([]int64{allHostsID}, nil),
 	}); err != nil {
 		t.Fatalf("create unscheduled report: %v", err)
 	}
@@ -185,7 +201,7 @@ func TestScheduledForHostUsesScheduleState(t *testing.T) {
 		Query:             "select 4;",
 		MinOsqueryVersion: new("6.0.0"),
 		ScheduleInterval:  60,
-		Targets:           []scope.TargetLabel{{LabelID: allHostsID, Effect: scope.TargetLabelInclude}},
+		Targets:           reportTargets([]int64{allHostsID}, nil),
 	}); err != nil {
 		t.Fatalf("create version-gated report: %v", err)
 	}
@@ -212,10 +228,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		Name:             "Report with rows",
 		Query:            "select name from apps;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{{
-			LabelID: allHostsID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets:          reportTargets([]int64{allHostsID}, nil),
 	})
 	if err != nil {
 		t.Fatalf("create report with rows: %v", err)
@@ -224,10 +237,7 @@ func TestHostReportsIncludeLatestHostState(t *testing.T) {
 		Name:             "Report empty",
 		Query:            "select name from missing_apps;",
 		ScheduleInterval: 60,
-		Targets: []scope.TargetLabel{{
-			LabelID: allHostsID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets:          reportTargets([]int64{allHostsID}, nil),
 	})
 	if err != nil {
 		t.Fatalf("create empty report: %v", err)
@@ -395,13 +405,33 @@ func allHostsLabelID(t *testing.T, ctx context.Context, store *labels.Store) int
 	return 0
 }
 
-func assertTargets(t *testing.T, got []scope.TargetLabel, want []scope.TargetLabel) {
+func reportTargets(includeIDs, excludeIDs []int64) ReportTargets {
+	return ReportTargets{
+		Include: labelRefs(includeIDs...),
+		Exclude: labelRefs(excludeIDs...),
+	}
+}
+
+func labelRefs(labelIDs ...int64) []targeting.LabelRef {
+	refs := make([]targeting.LabelRef, len(labelIDs))
+	for i, labelID := range labelIDs {
+		refs[i] = targeting.LabelRef{LabelID: labelID}
+	}
+	return refs
+}
+
+func assertTargets(t *testing.T, got ReportTargets, want ReportTargets) {
 	t.Helper()
-	if len(got) != len(want) {
+	if len(got.Include) != len(want.Include) || len(got.Exclude) != len(want.Exclude) {
 		t.Fatalf("targets = %#v, want %#v", got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
+	for i := range want.Include {
+		if got.Include[i] != want.Include[i] {
+			t.Fatalf("targets = %#v, want %#v", got, want)
+		}
+	}
+	for i := range want.Exclude {
+		if got.Exclude[i] != want.Exclude[i] {
 			t.Fatalf("targets = %#v, want %#v", got, want)
 		}
 	}

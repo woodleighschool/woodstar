@@ -112,7 +112,7 @@ func (s *Store) Create(ctx context.Context, params ReportMutation) (*Report, err
 		if err := replaceReportTargets(ctx, tx, report.ID, params.Targets); err != nil {
 			return err
 		}
-		report.Targets = params.Targets
+		report.Targets = normalizeReportTargets(params.Targets)
 		created = report
 		return nil
 	})
@@ -146,7 +146,7 @@ func (s *Store) Update(ctx context.Context, id int64, params ReportMutation) (*R
 		if err := replaceReportTargets(ctx, tx, report.ID, params.Targets); err != nil {
 			return err
 		}
-		report.Targets = params.Targets
+		report.Targets = normalizeReportTargets(params.Targets)
 		updated = report
 		return nil
 	})

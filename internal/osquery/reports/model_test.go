@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestReportMutationValidate(t *testing.T) {
@@ -31,6 +32,40 @@ func TestReportMutationValidate(t *testing.T) {
 		{
 			name:    "negative schedule interval",
 			in:      ReportMutation{Name: "Bad schedule", Query: "select 1;", ScheduleInterval: -1},
+			wantErr: true,
+		},
+		{
+			name: "duplicate include label",
+			in: ReportMutation{
+				Name:  "Duplicate include",
+				Query: "select 1;",
+				Targets: ReportTargets{
+					Include: []targeting.LabelRef{{LabelID: 1}, {LabelID: 1}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "duplicate exclude label",
+			in: ReportMutation{
+				Name:  "Duplicate exclude",
+				Query: "select 1;",
+				Targets: ReportTargets{
+					Exclude: []targeting.LabelRef{{LabelID: 2}, {LabelID: 2}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "include exclude overlap",
+			in: ReportMutation{
+				Name:  "Overlap",
+				Query: "select 1;",
+				Targets: ReportTargets{
+					Include: []targeting.LabelRef{{LabelID: 3}},
+					Exclude: []targeting.LabelRef{{LabelID: 3}},
+				},
+			},
 			wantErr: true,
 		},
 	}
