@@ -1,9 +1,9 @@
-package api
+package adminapi
 
 import (
 	"github.com/go-chi/chi/v5"
 
-	"github.com/woodleighschool/woodstar/internal/api/middleware"
+	"github.com/woodleighschool/woodstar/internal/adminapi/middleware"
 	munkiprotocol "github.com/woodleighschool/woodstar/internal/munki/protocol"
 	orbitprotocol "github.com/woodleighschool/woodstar/internal/orbit/protocol"
 	osqueryprotocol "github.com/woodleighschool/woodstar/internal/osquery/protocol"

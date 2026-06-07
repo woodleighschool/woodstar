@@ -21,6 +21,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
@@ -28,7 +29,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/scope"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
@@ -104,7 +104,7 @@ func TestSantaRuleTargetsEndpointReturnsCandidates(t *testing.T) {
 func TestSoftwareSantaReferenceEndpoint(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	router, protected, cookie := santaTestAPIWith(t, db, "software-santa-admin@example.test", false)
-	RegisterSoftware(protected, software.NewStore(db), references.NewStore(db))
+	RegisterSoftware(protected, inventory.NewStore(db), references.NewStore(db))
 
 	var titleID int64
 	if err := db.Pool().QueryRow(ctx, `

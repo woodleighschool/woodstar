@@ -1,4 +1,4 @@
-package api
+package adminapi
 
 import (
 	"context"
@@ -12,13 +12,14 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
@@ -29,8 +30,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/web"
+	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
 // Dependencies is the set of runtime services and resource stores the HTTP
@@ -53,7 +53,7 @@ type RuntimeDependencies struct {
 	DB             *database.DB
 	Version        string
 	Logger         *slog.Logger
-	WebHandler     *web.Handler
+	WebHandler     *webui.Handler
 	SessionManager *scs.SessionManager
 }
 
@@ -69,7 +69,7 @@ type DirectoryDependencies struct {
 type InventoryDependencies struct {
 	Hosts          *hosts.Store
 	UserAffinities *hosts.UserAffinityStore
-	Software       *software.Store
+	Software       *inventory.Store
 	Labels         *labels.Store
 }
 
@@ -94,7 +94,7 @@ type MunkiDependencies struct {
 	Assignments     *assignments.Store
 	HostState       *hoststate.Store
 	Packages        *packages.Store
-	SoftwareTitles  *softwaretitles.Store
+	SoftwareTitles  *munkisoftware.Store
 	ArtifactStorage MunkiArtifactStorage
 }
 

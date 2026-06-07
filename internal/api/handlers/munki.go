@@ -7,7 +7,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 const munkiTag = "Munki"
@@ -21,7 +21,7 @@ type MunkiStores struct {
 	Artifacts      *artifacts.Store
 	Assignments    *assignments.Store
 	Packages       *packages.Store
-	SoftwareTitles *softwaretitles.Store
+	SoftwareTitles *munkisoftware.Store
 }
 
 // RegisterMunki registers admin endpoints for Munki-managed software.

@@ -1,4 +1,4 @@
-package api
+package adminapi
 
 import (
 	"bytes"
@@ -30,10 +30,10 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
-	"github.com/woodleighschool/woodstar/internal/web"
+	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
 func TestProtectedAPIRoutesRequireSession(t *testing.T) {
@@ -268,7 +268,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	server := NewServer(deps)
 	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
-	title := postMunkiJSON[softwaretitles.SoftwareTitle](
+	title := postMunkiJSON[munkisoftware.SoftwareTitle](
 		t,
 		server,
 		cookie,
@@ -533,13 +533,13 @@ type munkiTestStores struct {
 	assignments    *assignments.Store
 	hoststate      *hoststate.Store
 	packages       *packages.Store
-	softwareTitles *softwaretitles.Store
+	softwareTitles *munkisoftware.Store
 }
 
 func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 	artifactStore := artifacts.NewStore(db)
 	packageStore := packages.NewStore(db, artifactStore)
-	softwareTitleStore := softwaretitles.NewStore(db, artifactStore, packageStore)
+	softwareTitleStore := munkisoftware.NewStore(db, artifactStore, packageStore)
 	assignmentStore := assignments.NewStore(db, packageStore)
 	stores := munkiTestStores{
 		artifacts:      artifactStore,
@@ -883,7 +883,7 @@ func TestAccountReadReturnsRetrievableAPIKeyOnlyToSelf(t *testing.T) {
 
 func TestBrowserRoutesCompressesSPA(t *testing.T) {
 	deps := testDependencies(testConfig())
-	deps.Runtime.WebHandler = web.NewHandler(web.HandlerOptions{
+	deps.Runtime.WebHandler = webui.NewHandler(webui.HandlerOptions{
 		FS: fstest.MapFS{
 			"index.html": {
 				Data: []byte(

@@ -1,4 +1,4 @@
-package api
+package adminapi
 
 import (
 	"log/slog"
@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/woodleighschool/woodstar/internal/api/middleware"
+	"github.com/woodleighschool/woodstar/internal/adminapi/middleware"
 )
 
 func routes(deps Dependencies) http.Handler {

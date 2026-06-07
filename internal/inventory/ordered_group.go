@@ -1,4 +1,4 @@
-package software
+package inventory
 
 type orderedGroup[K comparable, V any] struct {
 	byKey map[K]*V

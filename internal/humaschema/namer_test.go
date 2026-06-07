@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa"
@@ -46,7 +46,7 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 		},
 		{
 			name: "munki software title mutation",
-			typ:  reflect.TypeFor[softwaretitles.SoftwareTitleMutation](),
+			typ:  reflect.TypeFor[munkisoftware.SoftwareTitleMutation](),
 			want: "MunkiSoftwareTitleMutation",
 		},
 		{

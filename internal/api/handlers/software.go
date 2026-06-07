@@ -8,8 +8,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 const softwareTag = "Software"
@@ -19,8 +19,8 @@ type softwareListInput struct {
 	Source []string `query:"source,omitempty"`
 }
 
-func (i softwareListInput) params() software.SoftwareTitleListParams {
-	return software.SoftwareTitleListParams{
+func (i softwareListInput) params() inventory.SoftwareTitleListParams {
+	return inventory.SoftwareTitleListParams{
 		ListParams:      i.ListQueryInput.params(),
 		SoftwareSources: i.Source,
 	}
@@ -31,18 +31,18 @@ type softwareGetInput struct {
 }
 
 type softwareListOutput struct {
-	Body Page[software.SoftwareTitle]
+	Body Page[inventory.SoftwareTitle]
 }
 
 type softwareGetOutput struct {
-	Body software.SoftwareTitle
+	Body inventory.SoftwareTitle
 }
 
 type softwareSantaGetOutput struct {
 	Body references.SoftwareReference
 }
 
-func RegisterSoftware(api huma.API, softwareStore *software.Store, santaReferences *references.Store) {
+func RegisterSoftware(api huma.API, softwareStore *inventory.Store, santaReferences *references.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,
@@ -55,7 +55,7 @@ func RegisterSoftware(api huma.API, softwareStore *software.Store, santaReferenc
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: Page[software.SoftwareTitle]{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: Page[inventory.SoftwareTitle]{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

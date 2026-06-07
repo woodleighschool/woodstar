@@ -17,6 +17,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -25,7 +26,6 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/scope"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 func TestOsqueryHTTPEnrollDistributedReadAndWrite(t *testing.T) {
@@ -210,7 +210,7 @@ type osqueryContractStores struct {
 	checks       *checks.Store
 	live         *livequery.Manager
 	munki        *hoststate.Store
-	software     *software.Store
+	software     *inventory.Store
 }
 
 func newOsqueryContractStores(database *database.DB) osqueryContractStores {
@@ -222,7 +222,7 @@ func newOsqueryContractStores(database *database.DB) osqueryContractStores {
 		checks:       checks.NewStore(database),
 		live:         livequery.NewManager(),
 		munki:        hoststate.NewStore(database),
-		software:     software.NewStore(database),
+		software:     inventory.NewStore(database),
 	}
 }
 
@@ -512,13 +512,13 @@ func assertProjectedCertificates(t *testing.T, ctx context.Context, hostStore *h
 func assertProjectedSoftware(
 	t *testing.T,
 	ctx context.Context,
-	softwareStore *software.Store,
+	softwareStore *inventory.Store,
 	hostID int64,
 	softwareName string,
 	bundleID string,
 ) {
 	t.Helper()
-	rows, _, err := softwareStore.ListForHost(ctx, hostID, software.HostSoftwareListParams{})
+	rows, _, err := softwareStore.ListForHost(ctx, hostID, inventory.HostSoftwareListParams{})
 	if err != nil {
 		t.Fatalf("list host software: %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 )
 
 const (
@@ -26,12 +26,12 @@ type munkiSoftwareTitleGetInput struct {
 }
 
 type munkiSoftwareTitleCreateInput struct {
-	Body softwaretitles.SoftwareTitleMutation
+	Body munkisoftware.SoftwareTitleMutation
 }
 
 type munkiSoftwareTitlePatchInput struct {
 	ID   int64 `path:"id"`
-	Body softwaretitles.SoftwareTitleMutation
+	Body munkisoftware.SoftwareTitleMutation
 }
 
 type munkiSoftwareTitleDeleteInput struct {
@@ -51,7 +51,7 @@ type munkiSoftwareTitleDetailOutput struct {
 }
 
 type munkiSoftwareTitleDetail struct {
-	softwaretitles.SoftwareTitle
+	munkisoftware.SoftwareTitle
 	IconURL         string                   `json:"icon_url,omitempty"`
 	Packages        []munkiPackage           `json:"packages"`
 	Includes        []assignments.Assignment `json:"includes"`
@@ -59,13 +59,13 @@ type munkiSoftwareTitleDetail struct {
 }
 
 type munkiSoftwareTitle struct {
-	softwaretitles.SoftwareTitle
+	munkisoftware.SoftwareTitle
 	IconURL string `json:"icon_url,omitempty"`
 }
 
 func registerMunkiSoftwareTitles(
 	api huma.API,
-	store *softwaretitles.Store,
+	store *munkisoftware.Store,
 	packageStore *packages.Store,
 	assignmentStore *assignments.Store,
 ) {
@@ -77,7 +77,7 @@ func registerMunkiSoftwareTitles(
 	registerBulkDeleteMunkiSoftwareTitles(api, store)
 }
 
-func registerListMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) {
+func registerListMunkiSoftwareTitles(api huma.API, store *munkisoftware.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-munki-software-titles",
 		Method:      http.MethodGet,
@@ -98,7 +98,7 @@ func registerListMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) 
 
 func registerCreateMunkiSoftwareTitle(
 	api huma.API,
-	store *softwaretitles.Store,
+	store *munkisoftware.Store,
 	packageStore *packages.Store,
 	assignmentStore *assignments.Store,
 ) {
@@ -127,7 +127,7 @@ func registerCreateMunkiSoftwareTitle(
 
 func registerGetMunkiSoftwareTitle(
 	api huma.API,
-	store *softwaretitles.Store,
+	store *munkisoftware.Store,
 	packageStore *packages.Store,
 	assignmentStore *assignments.Store,
 ) {
@@ -145,7 +145,7 @@ func registerGetMunkiSoftwareTitle(
 
 func registerPatchMunkiSoftwareTitle(
 	api huma.API,
-	store *softwaretitles.Store,
+	store *munkisoftware.Store,
 	packageStore *packages.Store,
 	assignmentStore *assignments.Store,
 ) {
@@ -171,7 +171,7 @@ func registerPatchMunkiSoftwareTitle(
 	})
 }
 
-func registerDeleteMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store) {
+func registerDeleteMunkiSoftwareTitle(api huma.API, store *munkisoftware.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-munki-software-title",
 		Method:      http.MethodDelete,
@@ -190,7 +190,7 @@ func registerDeleteMunkiSoftwareTitle(api huma.API, store *softwaretitles.Store)
 	})
 }
 
-func registerBulkDeleteMunkiSoftwareTitles(api huma.API, store *softwaretitles.Store) {
+func registerBulkDeleteMunkiSoftwareTitles(api huma.API, store *munkisoftware.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-munki-software-titles",
 		Method:      http.MethodPost,
@@ -210,7 +210,7 @@ func registerBulkDeleteMunkiSoftwareTitles(api huma.API, store *softwaretitles.S
 }
 
 func munkiSoftwareTitleDetailFromDomain(
-	title softwaretitles.SoftwareTitle,
+	title munkisoftware.SoftwareTitle,
 	packageRows []packages.Package,
 	includeRows []assignments.Assignment,
 	excludeLabelIDs []int64,
@@ -227,7 +227,7 @@ func munkiSoftwareTitleDetailFromDomain(
 func loadMunkiSoftwareTitleDetail(
 	ctx context.Context,
 	id int64,
-	store *softwaretitles.Store,
+	store *munkisoftware.Store,
 	packageStore *packages.Store,
 	assignmentStore *assignments.Store,
 ) (*munkiSoftwareTitleDetailOutput, error) {
@@ -255,14 +255,14 @@ func loadMunkiSoftwareTitleDetail(
 	}, nil
 }
 
-func munkiSoftwareTitleFromDomain(title softwaretitles.SoftwareTitle) munkiSoftwareTitle {
+func munkiSoftwareTitleFromDomain(title munkisoftware.SoftwareTitle) munkiSoftwareTitle {
 	return munkiSoftwareTitle{
 		SoftwareTitle: title,
 		IconURL:       munkiSoftwareIconURL(title),
 	}
 }
 
-func munkiSoftwareTitlesFromDomain(rows []softwaretitles.SoftwareTitle) []munkiSoftwareTitle {
+func munkiSoftwareTitlesFromDomain(rows []munkisoftware.SoftwareTitle) []munkiSoftwareTitle {
 	items := make([]munkiSoftwareTitle, len(rows))
 	for i, row := range rows {
 		items[i] = munkiSoftwareTitleFromDomain(row)
@@ -270,7 +270,7 @@ func munkiSoftwareTitlesFromDomain(rows []softwaretitles.SoftwareTitle) []munkiS
 	return items
 }
 
-func munkiSoftwareIconURL(title softwaretitles.SoftwareTitle) string {
+func munkiSoftwareIconURL(title munkisoftware.SoftwareTitle) string {
 	if title.IconArtifactID == nil {
 		return ""
 	}

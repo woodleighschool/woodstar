@@ -1,4 +1,4 @@
-package softwaretitles
+package software
 
 import (
 	"context"
@@ -113,11 +113,6 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*SoftwareTitle, error) {
 	}
 	title := softwareTitleFromSQLC(row)
 	return &title, nil
-}
-
-func (s *Store) Exists(ctx context.Context, id int64) error {
-	_, err := s.GetByID(ctx, id)
-	return err
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {

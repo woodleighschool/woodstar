@@ -10,9 +10,9 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/santa"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 const (
@@ -37,7 +37,7 @@ type hostDetailOutput struct {
 }
 
 type hostSoftwareOutput struct {
-	Body Page[software.HostSoftwareRow]
+	Body Page[inventory.HostSoftwareRow]
 }
 
 type hostGetInput struct {
@@ -74,8 +74,8 @@ type hostSoftwareInput struct {
 	Source []string `          query:"source,omitempty"`
 }
 
-func (i hostSoftwareInput) params() (int64, software.HostSoftwareListParams) {
-	return i.ID, software.HostSoftwareListParams{
+func (i hostSoftwareInput) params() (int64, inventory.HostSoftwareListParams) {
+	return i.ID, inventory.HostSoftwareListParams{
 		ListParams:      i.ListQueryInput.params(),
 		SoftwareSources: i.Source,
 	}
@@ -103,7 +103,7 @@ func RegisterHosts(
 	api huma.API,
 	hostStore *hosts.Store,
 	userAffinities *hosts.UserAffinityStore,
-	softwareStore *software.Store,
+	softwareStore *inventory.Store,
 	contributors ...HostDetailContributor,
 ) {
 	registerListHosts(api, hostStore)
@@ -291,7 +291,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *software.Store) {
+func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *inventory.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
@@ -310,6 +310,6 @@ func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *s
 		if err != nil {
 			return nil, resourceMutationError("software", err)
 		}
-		return &hostSoftwareOutput{Body: Page[software.HostSoftwareRow]{Items: rows, Count: count}}, nil
+		return &hostSoftwareOutput{Body: Page[inventory.HostSoftwareRow]{Items: rows, Count: count}}, nil
 	})
 }

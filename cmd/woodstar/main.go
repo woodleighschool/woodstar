@@ -16,8 +16,8 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi"
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	admin "github.com/woodleighschool/woodstar/internal/api"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/buildinfo"
 	"github.com/woodleighschool/woodstar/internal/config"
@@ -25,6 +25,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/directory/entra"
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	"github.com/woodleighschool/woodstar/internal/logging"
 	"github.com/woodleighschool/woodstar/internal/munki"
@@ -32,7 +33,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/assignments"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
-	"github.com/woodleighschool/woodstar/internal/munki/softwaretitles"
+	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
 	"github.com/woodleighschool/woodstar/internal/orbit"
 	"github.com/woodleighschool/woodstar/internal/osquery"
@@ -46,8 +47,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/software"
-	"github.com/woodleighschool/woodstar/internal/web"
+	"github.com/woodleighschool/woodstar/internal/webui"
 	webdist "github.com/woodleighschool/woodstar/web"
 )
 
@@ -101,7 +101,7 @@ func serve(parent context.Context, cfg config.Config) error {
 	}
 
 	logger := logging.NewLogger(os.Stderr, logging.ParseLevel(cfg.LogLevel))
-	admin.InstallHumaErrorHandler(logger)
+	adminapi.InstallHumaErrorHandler(logger)
 
 	db, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -134,7 +134,7 @@ func serve(parent context.Context, cfg config.Config) error {
 
 func runHTTPServer(
 	ctx context.Context,
-	server *admin.Server,
+	server *adminapi.Server,
 	listener net.Listener,
 ) error {
 	errc := make(chan error, 1)
@@ -172,13 +172,13 @@ func newServer(
 	db *database.DB,
 	sessions *scs.SessionManager,
 	logger *slog.Logger,
-) (*admin.Server, []starter) {
+) (*adminapi.Server, []starter) {
 	// Core stores.
 	directoryStore := directory.NewStore(db)
 	hostStore := hosts.NewStore(db)
 	userAffinities := hosts.NewUserAffinityStore(db)
 	secretStore := agentauth.NewStore(db)
-	softwareStore := software.NewStore(db)
+	softwareStore := inventory.NewStore(db)
 	labelStore := labels.NewStore(db)
 
 	// Osquery stores.
@@ -189,7 +189,7 @@ func newServer(
 	// Munki stores.
 	munkiArtifactStore := artifacts.NewStore(db)
 	munkiPackageStore := packages.NewStore(db, munkiArtifactStore)
-	munkiSoftwareTitleStore := softwaretitles.NewStore(db, munkiArtifactStore, munkiPackageStore)
+	munkiSoftwareTitleStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
 	munkiAssignmentStore := assignments.NewStore(db, munkiPackageStore)
 	munkiHostStateStore := hoststate.NewStore(db)
 
@@ -248,14 +248,14 @@ func newServer(
 
 	santaState := santa.NewHostStateService(santaHostStore, configurationStore)
 
-	server := admin.NewServer(admin.Dependencies{
-		Runtime: admin.RuntimeDependencies{
+	server := adminapi.NewServer(adminapi.Dependencies{
+		Runtime: adminapi.RuntimeDependencies{
 			Config:         cfg,
 			DB:             db,
 			Version:        buildinfo.Version,
 			Logger:         logger,
 			SessionManager: sessions,
-			WebHandler: web.NewHandler(web.HandlerOptions{
+			WebHandler: webui.NewHandler(webui.HandlerOptions{
 				FS:        webdist.DistDirFS,
 				Version:   buildinfo.Version,
 				PublicURL: cfg.PublicURL,
@@ -263,38 +263,38 @@ func newServer(
 			}),
 		},
 
-		Auth: admin.AuthDependencies{
+		Auth: adminapi.AuthDependencies{
 			AuthService: authn,
 			UserService: users,
 		},
 
-		Directory: admin.DirectoryDependencies{
+		Directory: adminapi.DirectoryDependencies{
 			Store: directoryStore,
 		},
 
-		Inventory: admin.InventoryDependencies{
+		Inventory: adminapi.InventoryDependencies{
 			Hosts:          hostStore,
 			UserAffinities: userAffinities,
 			Software:       softwareStore,
 			Labels:         labelStore,
 		},
 
-		AgentAuth: admin.AgentAuthDependencies{
+		AgentAuth: adminapi.AgentAuthDependencies{
 			Store: secretStore,
 		},
 
-		Orbit: admin.OrbitDependencies{
+		Orbit: adminapi.OrbitDependencies{
 			Agent: orbitAgent,
 		},
 
-		Osquery: admin.OsqueryDependencies{
+		Osquery: adminapi.OsqueryDependencies{
 			Agent:       osqueryAgent,
 			LiveQueries: liveQueries,
 			Reports:     reportStore,
 			Checks:      checkStore,
 		},
 
-		Munki: admin.MunkiDependencies{
+		Munki: adminapi.MunkiDependencies{
 			Repository:      munkiRepo,
 			Artifacts:       munkiArtifactStore,
 			Assignments:     munkiAssignmentStore,
@@ -304,7 +304,7 @@ func newServer(
 			ArtifactStorage: munkiArtifacts,
 		},
 
-		Santa: admin.SantaDependencies{
+		Santa: adminapi.SantaDependencies{
 			Sync:           santaSync,
 			HostState:      santaState,
 			Configurations: configurationStore,

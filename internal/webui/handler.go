@@ -1,5 +1,5 @@
-// Package web serves the embedded Woodstar frontend.
-package web
+// Package webui serves the embedded Woodstar frontend.
+package webui
 
 import (
 	"bytes"

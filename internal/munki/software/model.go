@@ -1,4 +1,4 @@
-package softwaretitles
+package software
 
 import (
 	"time"

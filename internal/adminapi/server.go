@@ -1,5 +1,5 @@
-// Package api wires the HTTP server.
-package api
+// Package adminapi wires the HTTP server.
+package adminapi
 
 import (
 	"context"

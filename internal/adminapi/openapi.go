@@ -1,4 +1,4 @@
-package api
+package adminapi
 
 import (
 	"github.com/danielgtaylor/huma/v2"

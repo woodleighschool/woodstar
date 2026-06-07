@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
 	"github.com/woodleighschool/woodstar/internal/osquery/catalog"
-	"github.com/woodleighschool/woodstar/internal/software"
 )
 
 type hostStore interface {
@@ -23,7 +23,7 @@ type hostStore interface {
 }
 
 type softwareStore interface {
-	ReplaceHostSoftware(context.Context, int64, []software.HostSoftwareEntry) error
+	ReplaceHostSoftware(context.Context, int64, []inventory.HostSoftwareEntry) error
 }
 
 type munkiStore interface {
@@ -427,8 +427,8 @@ func softwareEnrichmentByPath(codesignRows []map[string]string, executableRows [
 	return enrichment
 }
 
-func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []software.HostSoftwareEntry {
-	entries := make([]software.HostSoftwareEntry, 0, len(rows))
+func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) []inventory.HostSoftwareEntry {
+	entries := make([]inventory.HostSoftwareEntry, 0, len(rows))
 	for _, row := range rows {
 		name := row["name"]
 		if name == "" {
@@ -436,7 +436,7 @@ func parseSoftwareRows(rows []map[string]string, enrichment softwareEnrichment) 
 		}
 		installedPath := row["installed_path"]
 		pathEnrichment := enrichment[installedPath]
-		entries = append(entries, software.HostSoftwareEntry{
+		entries = append(entries, inventory.HostSoftwareEntry{
 			Name:             name,
 			Version:          row["version"],
 			Source:           row["source"],

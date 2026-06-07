@@ -1,4 +1,4 @@
-package software
+package inventory
 
 import (
 	"time"
