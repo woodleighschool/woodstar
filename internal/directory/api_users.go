@@ -1,4 +1,4 @@
-package handlers
+package directory
 
 import (
 	"context"
@@ -7,10 +7,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 const (
@@ -20,15 +18,15 @@ const (
 )
 
 type userListOutput struct {
-	Body apitypes.Page[directory.User]
+	Body apitypes.Page[User]
 }
 
 type departmentListOutput struct {
-	Body apitypes.Page[directory.Department]
+	Body apitypes.Page[Department]
 }
 
 type userOutput struct {
-	Body directory.User
+	Body User
 }
 
 type userListInput struct {
@@ -45,7 +43,7 @@ type departmentListInput struct {
 }
 
 type userCreateInput struct {
-	Body directory.UserCreate
+	Body UserCreate
 }
 
 type userGetInput struct {
@@ -54,14 +52,14 @@ type userGetInput struct {
 
 type userPutInput struct {
 	ID   int64 `path:"id"`
-	Body directory.UserMutation
+	Body UserMutation
 }
 
 type userDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-func RegisterUsers(api huma.API, userService *directory.UserService) {
+func RegisterUserAdminRoutes(api huma.API, userService *UserService) {
 	registerListUsers(api, userService)
 	registerListUserDepartments(api, userService)
 	registerCreateUser(api, userService)
@@ -70,8 +68,8 @@ func RegisterUsers(api huma.API, userService *directory.UserService) {
 	registerDeleteUser(api, userService)
 }
 
-func (i userListInput) params() directory.UserListParams {
-	return directory.UserListParams{
+func (i userListInput) params() UserListParams {
+	return UserListParams{
 		ListParams: i.ListQueryInput.Params(),
 		Values:     dbutil.SplitListValues(i.Values),
 		Role:       i.Role,
@@ -80,14 +78,14 @@ func (i userListInput) params() directory.UserListParams {
 	}
 }
 
-func (i departmentListInput) params() directory.UserListParams {
-	return directory.UserListParams{
+func (i departmentListInput) params() UserListParams {
+	return UserListParams{
 		ListParams: i.ListQueryInput.Params(),
 		Values:     dbutil.SplitListValues(i.Values),
 	}
 }
 
-func registerListUsers(api huma.API, userService *directory.UserService) {
+func registerListUsers(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,
@@ -96,18 +94,15 @@ func registerListUsers(api huma.API, userService *directory.UserService) {
 		Summary:     "List Woodstar users",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *userListInput) (*userListOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		list, count, err := userService.List(ctx, input.params())
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(userResource, err)
 		}
-		return &userListOutput{Body: apitypes.Page[directory.User]{Items: list, Count: count}}, nil
+		return &userListOutput{Body: apitypes.Page[User]{Items: list, Count: count}}, nil
 	})
 }
 
-func registerListUserDepartments(api huma.API, userService *directory.UserService) {
+func registerListUserDepartments(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-user-departments",
 		Method:      http.MethodGet,
@@ -116,18 +111,15 @@ func registerListUserDepartments(api huma.API, userService *directory.UserServic
 		Summary:     "List directory user departments",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *departmentListInput) (*departmentListOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		list, count, err := userService.ListDepartments(ctx, input.params())
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("department", err)
 		}
-		return &departmentListOutput{Body: apitypes.Page[directory.Department]{Items: list, Count: count}}, nil
+		return &departmentListOutput{Body: apitypes.Page[Department]{Items: list, Count: count}}, nil
 	})
 }
 
-func registerCreateUser(api huma.API, userService *directory.UserService) {
+func registerCreateUser(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-user",
 		Method:        http.MethodPost,
@@ -142,9 +134,6 @@ func registerCreateUser(api huma.API, userService *directory.UserService) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userCreateInput) (*userOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		user, err := userService.Create(ctx, input.Body)
 		if err != nil {
 			return nil, userMutationError(err)
@@ -153,7 +142,7 @@ func registerCreateUser(api huma.API, userService *directory.UserService) {
 	})
 }
 
-func registerGetUser(api huma.API, userService *directory.UserService) {
+func registerGetUser(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-user",
 		Method:      http.MethodGet,
@@ -162,9 +151,6 @@ func registerGetUser(api huma.API, userService *directory.UserService) {
 		Summary:     "Get a Woodstar user",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *userGetInput) (*userOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		user, err := userService.Get(ctx, input.ID)
 		if err != nil {
 			return nil, userMutationError(err)
@@ -173,7 +159,7 @@ func registerGetUser(api huma.API, userService *directory.UserService) {
 	})
 }
 
-func registerPutUser(api huma.API, userService *directory.UserService) {
+func registerPutUser(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-user",
 		Method:      http.MethodPut,
@@ -188,9 +174,6 @@ func registerPutUser(api huma.API, userService *directory.UserService) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userPutInput) (*userOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		user, err := userService.Update(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, userMutationError(err)
@@ -199,7 +182,7 @@ func registerPutUser(api huma.API, userService *directory.UserService) {
 	})
 }
 
-func registerDeleteUser(api huma.API, userService *directory.UserService) {
+func registerDeleteUser(api huma.API, userService *UserService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-user",
 		Method:      http.MethodDelete,
@@ -213,9 +196,6 @@ func registerDeleteUser(api huma.API, userService *directory.UserService) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *userDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
-			return nil, err
-		}
 		if err := userService.Delete(ctx, input.ID); err != nil {
 			return nil, userMutationError(err)
 		}
@@ -223,14 +203,12 @@ func registerDeleteUser(api huma.API, userService *directory.UserService) {
 	})
 }
 
-// userMutationError extends resourceMutationError with user-owned mutation
-// errors that don't apply to other resources.
 func userMutationError(err error) error {
 	switch {
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict("email already in use")
-	case errors.Is(err, directory.ErrWeakPassword):
-		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
+	case errors.Is(err, ErrWeakPassword):
+		return huma.Error400BadRequest(ErrWeakPassword.Error())
 	default:
 		return apitypes.ResourceMutationError(userResource, err)
 	}

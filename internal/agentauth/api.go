@@ -1,4 +1,4 @@
-package handlers
+package agentauth
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
@@ -17,27 +16,27 @@ const (
 )
 
 type agentSecretListOutput struct {
-	Body []agentauth.AgentSecret
+	Body []AgentSecret
 }
 
 type agentSecretCreateInput struct {
-	Body agentauth.AgentSecretCreate
+	Body AgentSecretCreate
 }
 
 type agentSecretCreateOutput struct {
-	Body agentauth.AgentSecret
+	Body AgentSecret
 }
 
 type agentSecretUpdateInput struct {
 	ID   int64 `path:"id"`
-	Body agentauth.AgentSecretMutation
+	Body AgentSecretMutation
 }
 
 type agentSecretDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
+func RegisterAdminRoutes(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-agent-secrets",
 		Method:      http.MethodGet,
@@ -62,11 +61,11 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *agentSecretCreateInput) (*agentSecretCreateOutput, error) {
-		if _, err := agentauth.ParseAgent(string(input.Body.Agent)); err != nil {
+		if _, err := ParseAgent(string(input.Body.Agent)); err != nil {
 			return nil, huma.Error400BadRequest("invalid agent")
 		}
 		secret, err := store.Create(ctx, input.Body)
-		if errors.Is(err, agentauth.ErrInvalidSecret) {
+		if errors.Is(err, ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
 		if err != nil {
@@ -89,7 +88,7 @@ func RegisterAgentSecrets(api huma.API, store *agentauth.Store) {
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
 		secret, err := store.Update(ctx, input.ID, input.Body)
-		if errors.Is(err, agentauth.ErrInvalidSecret) {
+		if errors.Is(err, ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
 		if errors.Is(err, dbutil.ErrNotFound) {

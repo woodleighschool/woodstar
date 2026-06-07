@@ -1,4 +1,4 @@
-package handlers
+package labels
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 const (
@@ -17,17 +16,17 @@ const (
 )
 
 type labelListOutput struct {
-	Body apitypes.Page[labels.Label]
+	Body apitypes.Page[Label]
 }
 
 type labelOutput struct {
-	Body labels.Label
+	Body Label
 }
 
 type labelListInput struct {
 	apitypes.ListQueryInput
-	LabelType      labels.LabelType           `query:"label_type,omitempty"`
-	MembershipType labels.LabelMembershipType `query:"label_membership_type,omitempty"`
+	LabelType      LabelType           `query:"label_type,omitempty"`
+	MembershipType LabelMembershipType `query:"label_membership_type,omitempty"`
 }
 
 type labelGetInput struct {
@@ -35,27 +34,27 @@ type labelGetInput struct {
 }
 
 type labelCreateInput struct {
-	Body labels.LabelMutation
+	Body LabelMutation
 }
 
 type labelPutInput struct {
 	ID   int64 `path:"id"`
-	Body labels.LabelMutation
+	Body LabelMutation
 }
 
 type labelDeleteInput struct {
 	ID int64 `path:"id"`
 }
 
-func (i labelListInput) params() labels.ListParams {
-	return labels.ListParams{
+func (i labelListInput) params() ListParams {
+	return ListParams{
 		ListParams:          i.ListQueryInput.Params(),
 		LabelType:           i.LabelType,
 		LabelMembershipType: i.MembershipType,
 	}
 }
 
-func RegisterLabels(api huma.API, labelStore *labels.Store) {
+func RegisterAdminRoutes(api huma.API, labelStore *Store) {
 	registerListLabels(api, labelStore)
 	registerCreateLabel(api, labelStore)
 	registerGetLabel(api, labelStore)
@@ -63,7 +62,7 @@ func RegisterLabels(api huma.API, labelStore *labels.Store) {
 	registerDeleteLabel(api, labelStore)
 }
 
-func registerListLabels(api huma.API, labelStore *labels.Store) {
+func registerListLabels(api huma.API, labelStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-labels",
 		Method:      http.MethodGet,
@@ -76,11 +75,11 @@ func registerListLabels(api huma.API, labelStore *labels.Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(labelResource, err)
 		}
-		return &labelListOutput{Body: apitypes.Page[labels.Label]{Items: rows, Count: count}}, nil
+		return &labelListOutput{Body: apitypes.Page[Label]{Items: rows, Count: count}}, nil
 	})
 }
 
-func registerCreateLabel(api huma.API, labelStore *labels.Store) {
+func registerCreateLabel(api huma.API, labelStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-label",
 		Method:        http.MethodPost,
@@ -98,7 +97,7 @@ func registerCreateLabel(api huma.API, labelStore *labels.Store) {
 	})
 }
 
-func registerGetLabel(api huma.API, labelStore *labels.Store) {
+func registerGetLabel(api huma.API, labelStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-label",
 		Method:      http.MethodGet,
@@ -115,7 +114,7 @@ func registerGetLabel(api huma.API, labelStore *labels.Store) {
 	})
 }
 
-func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
+func registerUpdateLabel(api huma.API, labelStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-label",
 		Method:      http.MethodPut,
@@ -132,7 +131,7 @@ func registerUpdateLabel(api huma.API, labelStore *labels.Store) {
 	})
 }
 
-func registerDeleteLabel(api huma.API, labelStore *labels.Store) {
+func registerDeleteLabel(api huma.API, labelStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-label",
 		Method:      http.MethodDelete,

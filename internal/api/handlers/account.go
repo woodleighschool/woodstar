@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
+	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/auth"
+	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
@@ -71,7 +74,7 @@ func registerPutAccount(api huma.API, userService *directory.UserService) {
 		}
 		account, err := userService.UpdateAccount(ctx, user.ID, input.Body)
 		if err != nil {
-			return nil, userMutationError(err)
+			return nil, accountMutationError(err)
 		}
 		return &accountOutput{Body: *account}, nil
 	})
@@ -118,4 +121,15 @@ func registerRevokeAPIKey(api huma.API, authService *auth.Service) {
 		}
 		return &accountOutput{Body: *cleared}, nil
 	})
+}
+
+func accountMutationError(err error) error {
+	switch {
+	case errors.Is(err, dbutil.ErrAlreadyExists):
+		return huma.Error409Conflict("email already in use")
+	case errors.Is(err, directory.ErrWeakPassword):
+		return huma.Error400BadRequest(directory.ErrWeakPassword.Error())
+	default:
+		return apitypes.ResourceMutationError("user", err)
+	}
 }

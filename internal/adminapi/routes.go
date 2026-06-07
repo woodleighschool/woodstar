@@ -5,7 +5,10 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/api/handlers"
+	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/labels"
 )
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -23,8 +26,8 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	handlers.RegisterPublicAuth(humaAPI, deps.Auth.AuthService)
 	handlers.RegisterSSO(r, deps.Auth.AuthService)
 	handlers.RegisterAccount(protected, deps.Auth.AuthService, deps.Auth.UserService)
-	handlers.RegisterUsers(protected, deps.Auth.UserService)
-	handlers.RegisterGroups(protected, deps.Directory.Store)
+	directory.RegisterUserAdminRoutes(admin, deps.Auth.UserService)
+	directory.RegisterGroupAdminRoutes(admin, deps.Directory.Store)
 	handlers.RegisterHosts(
 		protected,
 		deps.Inventory.Hosts,
@@ -35,8 +38,8 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 		handlers.SantaHostDetailContributor(deps.Santa.HostState),
 	)
 	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)
-	handlers.RegisterLabels(protected, deps.Inventory.Labels)
-	handlers.RegisterAgentSecrets(admin, deps.AgentAuth.Store)
+	labels.RegisterAdminRoutes(protected, deps.Inventory.Labels)
+	agentauth.RegisterAdminRoutes(admin, deps.AgentAuth.Store)
 	handlers.RegisterReports(protected, deps.Osquery.Reports)
 	handlers.RegisterHostReports(protected, deps.Osquery.Reports, deps.Inventory.Hosts)
 	handlers.RegisterChecks(protected, deps.Osquery.Checks)

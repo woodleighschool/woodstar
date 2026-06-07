@@ -1,4 +1,4 @@
-package handlers
+package directory
 
 import (
 	"errors"
@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/directory"
 )
 
 func TestUserMutationErrorMapping(t *testing.T) {
@@ -18,7 +17,7 @@ func TestUserMutationErrorMapping(t *testing.T) {
 	}{
 		{name: "not found", err: dbutil.ErrNotFound, wantStatus: 404},
 		{name: "already exists", err: dbutil.ErrAlreadyExists, wantStatus: 409},
-		{name: "weak password", err: directory.ErrWeakPassword, wantStatus: 400},
+		{name: "weak password", err: ErrWeakPassword, wantStatus: 400},
 	}
 
 	for _, tt := range tests {
