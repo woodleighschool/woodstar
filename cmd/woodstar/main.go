@@ -201,7 +201,7 @@ func newServer(
 	users := directory.NewUserService(directoryStore)
 	authn := newAuth(ctx, cfg, users, sessions, logger)
 
-	orbitAgent := orbit.NewService(hostStore, secretStore, userAffinities)
+	orbitAgent := orbit.NewEnrollmentService(hostStore, secretStore, userAffinities)
 
 	inventoryProjector := ingest.NewProjector(
 		hostStore,
@@ -214,7 +214,7 @@ func newServer(
 		logger.With("component", "labels"),
 	)
 
-	osqueryAgent := osquery.NewService(osquery.Dependencies{
+	osqueryAgent := osquery.NewAgentService(osquery.Dependencies{
 		HostStore:          hostStore,
 		InventoryProjector: inventoryProjector,
 		LabelEvaluator:     labelEvaluator,
@@ -234,7 +234,7 @@ func newServer(
 		logger,
 	)
 
-	santaSync := santa.NewService(santa.Dependencies{
+	santaSync := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santaHostStore,
 		Configurations: configurationStore,
 		UserAffinities: userAffinities,
@@ -362,7 +362,7 @@ func newMunki(
 	softwareStore *munkisoftware.Store,
 	artifactStore *artifacts.Store,
 	logger *slog.Logger,
-) (*munki.Service, artifacts.ArtifactStorage) {
+) (*munki.RepositoryService, artifacts.ArtifactStorage) {
 	artifactStorage, err := artifacts.NewArtifactStorage(ctx, artifacts.Config{
 		Enabled: cfg.MunkiS3Enabled(),
 		S3: artifacts.S3Config{
@@ -384,12 +384,12 @@ func newMunki(
 		)
 	}
 
-	options := []munki.ServiceOption{
+	options := []munki.RepositoryServiceOption{
 		munki.WithArtifactStore(artifactStore),
 		munki.WithArtifactPresigner(artifactStorage),
 	}
 
-	return munki.NewService(hosts, softwareStore, options...), artifactStorage
+	return munki.NewRepositoryService(hosts, softwareStore, options...), artifactStorage
 }
 
 func santaCleanup(

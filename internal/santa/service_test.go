@@ -27,7 +27,7 @@ func TestSyncServiceFreezesDownloadsAndPromotesCleanSnapshot(t *testing.T) {
 	store := santa.NewStore(db)
 	ruleStore := santarules.NewStore(db)
 	configurationStore := configurations.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurationStore,
 		UserAffinities: hosts.NewUserAffinityStore(db),

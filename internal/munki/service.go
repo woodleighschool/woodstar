@@ -41,34 +41,38 @@ type ClientHost struct {
 	DisplayName string
 }
 
-// Service renders the Munki client-facing repository surface.
-type Service struct {
+// RepositoryService renders the Munki client-facing repository surface.
+type RepositoryService struct {
 	hosts     hostResolver
 	packages  packageResolver
 	artifacts artifactResolver
 	presigner artifactPresigner
 }
 
-// ServiceOption changes optional Munki repository behavior.
-type ServiceOption func(*Service)
+// RepositoryServiceOption changes optional Munki repository behavior.
+type RepositoryServiceOption func(*RepositoryService)
 
 // WithArtifactStore lets the service resolve stable artifact locations.
-func WithArtifactStore(artifacts artifactResolver) ServiceOption {
-	return func(s *Service) {
+func WithArtifactStore(artifacts artifactResolver) RepositoryServiceOption {
+	return func(s *RepositoryService) {
 		s.artifacts = artifacts
 	}
 }
 
 // WithArtifactPresigner lets the service redirect stable artifact URLs to object storage.
-func WithArtifactPresigner(presigner artifactPresigner) ServiceOption {
-	return func(s *Service) {
+func WithArtifactPresigner(presigner artifactPresigner) RepositoryServiceOption {
+	return func(s *RepositoryService) {
 		s.presigner = presigner
 	}
 }
 
-// NewService returns the default Munki repository renderer.
-func NewService(hosts hostResolver, packages packageResolver, options ...ServiceOption) *Service {
-	s := &Service{hosts: hosts, packages: packages}
+// NewRepositoryService returns the default Munki repository renderer.
+func NewRepositoryService(
+	hosts hostResolver,
+	packages packageResolver,
+	options ...RepositoryServiceOption,
+) *RepositoryService {
+	s := &RepositoryService{hosts: hosts, packages: packages}
 	if artifacts, ok := packages.(artifactResolver); ok {
 		s.artifacts = artifacts
 	}
@@ -79,7 +83,7 @@ func NewService(hosts hostResolver, packages packageResolver, options ...Service
 }
 
 // ResolveClient resolves the Munki request identity to an existing host.
-func (s *Service) ResolveClient(ctx context.Context, serial string) (ClientHost, error) {
+func (s *RepositoryService) ResolveClient(ctx context.Context, serial string) (ClientHost, error) {
 	if s.hosts == nil {
 		return ClientHost{}, ErrNotFound
 	}
@@ -98,7 +102,7 @@ func (s *Service) ResolveClient(ctx context.Context, serial string) (ClientHost,
 }
 
 // Manifest returns a Munki manifest plist for name.
-func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) ([]byte, error) {
+func (s *RepositoryService) Manifest(ctx context.Context, client ClientHost, name string) ([]byte, error) {
 	if !validResourcePath(name) {
 		return nil, ErrNotFound
 	}
@@ -127,7 +131,7 @@ func (s *Service) Manifest(ctx context.Context, client ClientHost, name string) 
 }
 
 // Catalog returns a Munki catalog plist for name.
-func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) ([]byte, error) {
+func (s *RepositoryService) Catalog(ctx context.Context, client ClientHost, name string) ([]byte, error) {
 	if name != "production" || !validResourceName(name) {
 		return nil, ErrNotFound
 	}
@@ -143,7 +147,7 @@ func (s *Service) Catalog(ctx context.Context, client ClientHost, name string) (
 }
 
 // ArtifactRedirect returns a storage-backed URL for a stable Woodstar artifact URL.
-func (s *Service) ArtifactRedirect(
+func (s *RepositoryService) ArtifactRedirect(
 	ctx context.Context,
 	client ClientHost,
 	kind artifacts.ArtifactKind,
@@ -185,7 +189,7 @@ func (s *Service) ArtifactRedirect(
 	return storageURL, nil
 }
 
-func (s *Service) clientCanFetchPackageArtifact(
+func (s *RepositoryService) clientCanFetchPackageArtifact(
 	ctx context.Context,
 	hostID int64,
 	artifact artifacts.Artifact,
@@ -209,7 +213,7 @@ func (s *Service) clientCanFetchPackageArtifact(
 	return false, nil
 }
 
-func (s *Service) effectivePackages(
+func (s *RepositoryService) effectivePackages(
 	ctx context.Context,
 	hostID int64,
 ) ([]munkisoftware.EffectivePackage, error) {
@@ -243,7 +247,7 @@ func manifestItemName(pkg munkisoftware.EffectivePackage) string {
 	return packages.MunkiName(pkg.Package.ID)
 }
 
-func (s *Service) catalogItems(effective []munkisoftware.EffectivePackage) ([]map[string]any, error) {
+func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePackage) ([]map[string]any, error) {
 	items := make([]map[string]any, 0, len(effective))
 	seen := make(map[int64]bool, len(effective))
 	for _, pkg := range effective {

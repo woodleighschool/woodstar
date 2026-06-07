@@ -250,7 +250,7 @@ func newOsqueryContractRouter(stores osqueryContractStores) http.Handler {
 	labelEvaluator := ingest.NewLabelEvaluator(stores.labels, logger.With("component", "labels"))
 	RegisterOsqueryRoutes(
 		router,
-		osquery.NewService(osquery.Dependencies{
+		osquery.NewAgentService(osquery.Dependencies{
 			HostStore:          stores.hosts,
 			InventoryProjector: projector,
 			LabelEvaluator:     labelEvaluator,

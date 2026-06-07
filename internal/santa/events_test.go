@@ -23,7 +23,7 @@ func TestEventUploadIngestsExecutionEventsAndUpdatesExecutableMetadata(t *testin
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,
@@ -217,7 +217,7 @@ func TestEventUploadRequestsAndCollectsBundleBinaries(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,
@@ -311,7 +311,7 @@ func TestEventUploadRejectsEventsWithoutOccurrenceTime(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,
@@ -340,7 +340,7 @@ func TestEventUploadIngestsFileAccessEvents(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,
@@ -460,7 +460,7 @@ func TestEventListCursorFiltersAndRetention(t *testing.T) {
 	hostStore := hosts.NewStore(db)
 	store := santa.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      store,
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,
@@ -577,7 +577,7 @@ func TestEventUploadDeduplicatesSigningChainsAcrossConcurrentUploads(t *testing.
 	db, ctx := dbtest.Open(t)
 	hostStore := hosts.NewStore(db)
 	eventStore := santaevents.NewStore(db)
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      santa.NewStore(db),
 		Configurations: configurations.NewStore(db),
 		Events:         eventStore,

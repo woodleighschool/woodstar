@@ -83,7 +83,7 @@ func TestMunkiHTTPFetchesManifestAndCatalog(t *testing.T) {
 
 func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 	artifactID := int64(42)
-	service := munki.NewService(
+	service := munki.NewRepositoryService(
 		nil,
 		staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -127,7 +127,7 @@ func TestMunkiCatalogUsesStableArtifactLocation(t *testing.T) {
 }
 
 func TestMunkiCatalogOmitsPackageURLsWithoutArtifact(t *testing.T) {
-	service := munki.NewService(
+	service := munki.NewRepositoryService(
 		nil,
 		staticPackageResolver{packages: []munkisoftware.EffectivePackage{
 			{
@@ -522,7 +522,7 @@ func (errorVerifier) Verify(context.Context, agentauth.Agent, string) (bool, err
 }
 
 type staticRepository struct {
-	service          *munki.Service
+	service          *munki.RepositoryService
 	want             string
 	serial           string
 	artifactURL      string
@@ -537,7 +537,7 @@ func newStaticRepository(serial string) *staticRepository {
 
 func newStaticRepositoryWithPackages(serial string, packages []munkisoftware.EffectivePackage) *staticRepository {
 	return &staticRepository{
-		service: munki.NewService(nil, staticPackageResolver{packages: packages}),
+		service: munki.NewRepositoryService(nil, staticPackageResolver{packages: packages}),
 		want:    serial,
 	}
 }

@@ -115,7 +115,7 @@ func newOrbitContractRouter(stores orbitContractStores) http.Handler {
 	router := chi.NewRouter()
 	RegisterOrbitRoutes(
 		router,
-		orbit.NewService(stores.hosts, stores.agentSecrets, stores.userAffinities),
+		orbit.NewEnrollmentService(stores.hosts, stores.agentSecrets, stores.userAffinities),
 		slog.New(slog.DiscardHandler),
 	)
 	return router

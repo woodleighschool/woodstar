@@ -108,7 +108,7 @@ type labelDispatchPass struct {
 
 // dispatchWriteResults runs a single pass over req.Queries, routing each
 // result to its kind handler, then finalizes detail and label state.
-func (s *Service) dispatchWriteResults(
+func (s *AgentService) dispatchWriteResults(
 	ctx context.Context,
 	host *hosts.Host,
 	req DistributedWriteRequest,

@@ -835,7 +835,7 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
 	stores := wireMunkiTestDeps(&deps, database)
-	deps.Munki.Repository = munki.NewService(hostStore, stores.softwareTitles)
+	deps.Munki.Repository = munki.NewRepositoryService(hostStore, stores.softwareTitles)
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{

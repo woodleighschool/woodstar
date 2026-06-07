@@ -77,18 +77,18 @@ type AgentAuthDependencies struct {
 }
 
 type OrbitDependencies struct {
-	Agent *orbit.Service
+	Agent *orbit.EnrollmentService
 }
 
 type OsqueryDependencies struct {
-	Agent       *osquery.Service
+	Agent       *osquery.AgentService
 	LiveQueries *livequery.Manager
 	Reports     *reports.Store
 	Checks      *checks.Store
 }
 
 type MunkiDependencies struct {
-	Repository      *munki.Service
+	Repository      *munki.RepositoryService
 	Artifacts       *artifacts.Store
 	HostState       *hoststate.Store
 	Packages        *packages.Store
@@ -103,7 +103,7 @@ type MunkiArtifactStorage interface {
 }
 
 type SantaDependencies struct {
-	Sync           *santa.Service
+	Sync           *santa.SyncService
 	HostState      *santa.HostStateService
 	Configurations *configurations.Store
 	Rules          *rules.Store

@@ -635,7 +635,7 @@ func newSantaContractStores(db *database.DB) santaContractStores {
 }
 
 func newSantaIntegratedContractRouter(stores santaContractStores) chi.Router {
-	service := santa.NewService(santa.Dependencies{
+	service := santa.NewSyncService(santa.Dependencies{
 		HostStore:      stores.hostState,
 		Configurations: stores.configurations,
 		Events:         stores.events,

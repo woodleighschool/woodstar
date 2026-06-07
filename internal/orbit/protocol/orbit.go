@@ -19,7 +19,7 @@ const (
 )
 
 // RegisterOrbitRoutes mounts Orbit endpoints on r.
-func RegisterOrbitRoutes(r chi.Router, svc *orbit.Service, logger *slog.Logger) {
+func RegisterOrbitRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slog.Logger) {
 	r.Group(func(r chi.Router) {
 		r.Use(orbitCapabilities)
 		r.Post("/api/fleet/orbit/enroll", orbitEnrollHandler(svc, logger))
@@ -30,7 +30,7 @@ func RegisterOrbitRoutes(r chi.Router, svc *orbit.Service, logger *slog.Logger) 
 	})
 }
 
-func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFunc {
+func orbitEnrollHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[orbit.EnrollRequest](r)
 		if err != nil {
@@ -74,7 +74,7 @@ func orbitEnrollHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 	}
 }
 
-func orbitConfigHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFunc {
+func orbitConfigHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return orbitNodeKeyHandler(svc, logger,
 		func(req orbit.ConfigRequest) string { return req.OrbitNodeKey },
 		func(w http.ResponseWriter, r *http.Request, req orbit.ConfigRequest) {
@@ -92,7 +92,7 @@ func orbitConfigHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFun
 		})
 }
 
-func orbitDeviceMappingHandler(svc *orbit.Service, logger *slog.Logger) http.HandlerFunc {
+func orbitDeviceMappingHandler(svc *orbit.EnrollmentService, logger *slog.Logger) http.HandlerFunc {
 	return orbitNodeKeyHandler(svc, logger,
 		func(req orbit.DeviceMappingRequest) string { return req.OrbitNodeKey },
 		func(w http.ResponseWriter, r *http.Request, req orbit.DeviceMappingRequest) {
@@ -120,7 +120,7 @@ func orbitCapabilities(next http.Handler) http.Handler {
 	})
 }
 
-func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.Service, logger *slog.Logger) {
+func registerOrbitCompatibilityRoutes(r chi.Router, svc *orbit.EnrollmentService, logger *slog.Logger) {
 	r.Post(
 		"/api/fleet/orbit/scripts/request",
 		requireOrbitNodeKey(svc, logger, func(w http.ResponseWriter, _ *http.Request, _ orbitNodeKeyRequest) {
@@ -161,7 +161,7 @@ type orbitNodeKeyRequest struct {
 }
 
 func requireOrbitNodeKey(
-	svc *orbit.Service,
+	svc *orbit.EnrollmentService,
 	logger *slog.Logger,
 	next func(http.ResponseWriter, *http.Request, orbitNodeKeyRequest),
 ) http.HandlerFunc {
@@ -172,7 +172,7 @@ func requireOrbitNodeKey(
 }
 
 func orbitNodeKeyHandler[T any](
-	svc *orbit.Service,
+	svc *orbit.EnrollmentService,
 	_ *slog.Logger,
 	nodeKey func(T) string,
 	handle func(http.ResponseWriter, *http.Request, T),

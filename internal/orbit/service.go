@@ -8,25 +8,25 @@ import (
 	"github.com/woodleighschool/woodstar/internal/hosts"
 )
 
-// Service performs Orbit-protocol operations against the host store.
-type Service struct {
+// EnrollmentService performs Orbit enrollment and config operations.
+type EnrollmentService struct {
 	hostStore         *hosts.Store
 	secretStore       *agentauth.Store
 	userAffinityStore *hosts.UserAffinityStore
 }
 
-func NewService(
+func NewEnrollmentService(
 	hostStore *hosts.Store,
 	secretStore *agentauth.Store,
 	userAffinityStore *hosts.UserAffinityStore,
-) *Service {
-	return &Service{hostStore: hostStore, secretStore: secretStore, userAffinityStore: userAffinityStore}
+) *EnrollmentService {
+	return &EnrollmentService{hostStore: hostStore, secretStore: secretStore, userAffinityStore: userAffinityStore}
 }
 
 // Enroll validates the request, upserts the host, and returns a fresh node key.
 // Re-enrollment of the same hardware UUID overwrites the existing key, so prior
 // keys stop authenticating immediately.
-func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
+func (s *EnrollmentService) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, string, error) {
 	if req.HardwareUUID == "" {
 		return nil, "", ErrMissingHardwareUUID
 	}
@@ -53,7 +53,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (*hosts.Host, s
 }
 
 // Config returns the current Orbit config.
-func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, error) {
+func (s *EnrollmentService) Config(ctx context.Context, nodeKey string) (ConfigResponse, error) {
 	if _, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey); err != nil {
 		return ConfigResponse{}, err
 	}
@@ -61,13 +61,13 @@ func (s *Service) Config(ctx context.Context, nodeKey string) (ConfigResponse, e
 }
 
 // ValidateNodeKey reports whether nodeKey belongs to an active Orbit host.
-func (s *Service) ValidateNodeKey(ctx context.Context, nodeKey string) error {
+func (s *EnrollmentService) ValidateNodeKey(ctx context.Context, nodeKey string) error {
 	_, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	return err
 }
 
 // SetUserAffinity records a profile-provided email for the host.
-func (s *Service) SetUserAffinity(ctx context.Context, nodeKey, email string) error {
+func (s *EnrollmentService) SetUserAffinity(ctx context.Context, nodeKey, email string) error {
 	host, err := s.hostStore.GetByOrbitNodeKey(ctx, nodeKey)
 	if err != nil {
 		return err

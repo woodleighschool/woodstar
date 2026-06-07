@@ -20,7 +20,7 @@ import (
 var osqueryEmptyJSONPaths = []string{"/carve/begin", "/carve/block"}
 
 // RegisterOsqueryRoutes mounts osquery TLS-plugin endpoints on r.
-func RegisterOsqueryRoutes(r chi.Router, svc *osquery.Service, logger *slog.Logger) {
+func RegisterOsqueryRoutes(r chi.Router, svc *osquery.AgentService, logger *slog.Logger) {
 	for _, prefix := range []string{"/api/osquery", "/api/v1/osquery"} {
 		r.Post(prefix+"/enroll", osqueryEnrollHandler(svc, logger))
 		r.Post(prefix+"/config", osqueryConfigHandler(svc, logger))
@@ -33,7 +33,7 @@ func RegisterOsqueryRoutes(r chi.Router, svc *osquery.Service, logger *slog.Logg
 	}
 }
 
-func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
+func osqueryEnrollHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.EnrollRequest](r)
 		if err != nil {
@@ -68,7 +68,7 @@ func osqueryEnrollHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 	}
 }
 
-func osqueryConfigHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
+func osqueryConfigHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.ConfigRequest](r)
 		if err != nil {
@@ -80,7 +80,7 @@ func osqueryConfigHandler(svc *osquery.Service, logger *slog.Logger) http.Handle
 	}
 }
 
-func osqueryDistributedReadHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
+func osqueryDistributedReadHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.DistributedReadRequest](r)
 		if err != nil {
@@ -92,7 +92,7 @@ func osqueryDistributedReadHandler(svc *osquery.Service, logger *slog.Logger) ht
 	}
 }
 
-func osqueryDistributedWriteHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
+func osqueryDistributedWriteHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.DistributedWriteRequest](r)
 		if err != nil {
@@ -104,7 +104,7 @@ func osqueryDistributedWriteHandler(svc *osquery.Service, logger *slog.Logger) h
 	}
 }
 
-func osqueryLogHandler(svc *osquery.Service, logger *slog.Logger) http.HandlerFunc {
+func osqueryLogHandler(svc *osquery.AgentService, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		req, err := httpjson.Decode[osquery.LogRequest](r)
 		if err != nil {

@@ -19,8 +19,8 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 )
 
-// Service performs osquery TLS-plugin operations.
-type Service struct {
+// AgentService performs osquery TLS-plugin operations.
+type AgentService struct {
 	hostStore          hostStore
 	inventoryProjector inventoryProjector
 	labelEvaluator     labelEvaluator
@@ -74,8 +74,8 @@ type liveQueries interface {
 	RecordResult(int64, int64, string, livequery.Status, json.RawMessage, string)
 }
 
-func NewService(deps Dependencies) *Service {
-	return &Service{
+func NewAgentService(deps Dependencies) *AgentService {
+	return &AgentService{
 		hostStore:          deps.HostStore,
 		inventoryProjector: deps.InventoryProjector,
 		labelEvaluator:     deps.LabelEvaluator,
@@ -88,7 +88,7 @@ func NewService(deps Dependencies) *Service {
 }
 
 // Enroll validates the enroll secret, stores host details, and returns a node key.
-func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
+func (s *AgentService) Enroll(ctx context.Context, req EnrollRequest) (string, error) {
 	nodeKey, err := orbit.IssueNodeKey(ctx, s.secretStore, req.EnrollSecret)
 	if err != nil {
 		return "", err
@@ -118,7 +118,7 @@ func (s *Service) Enroll(ctx context.Context, req EnrollRequest) (string, error)
 }
 
 // Config returns the current osquery config including the host's report schedule.
-func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
+func (s *AgentService) Config(ctx context.Context, nodeKey string, publicIP string) (ConfigResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
 	if err != nil {
 		return ConfigResponse{}, err
@@ -144,7 +144,7 @@ func (s *Service) Config(ctx context.Context, nodeKey string, publicIP string) (
 }
 
 // DistributedRead returns due detail, label, check, and live queries for a host.
-func (s *Service) DistributedRead(
+func (s *AgentService) DistributedRead(
 	ctx context.Context,
 	nodeKey string,
 	publicIP string,
@@ -198,7 +198,11 @@ func (s *Service) DistributedRead(
 	}, nil
 }
 
-func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
+func (s *AgentService) queueLabelQueries(
+	ctx context.Context,
+	host *hosts.Host,
+	queryMap map[string]string,
+) (int, error) {
 	labelRows, err := s.labelEvaluator.ApplicableLabels(ctx, host)
 	if err != nil {
 		return 0, err
@@ -214,7 +218,11 @@ func (s *Service) queueLabelQueries(ctx context.Context, host *hosts.Host, query
 	return count, nil
 }
 
-func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, queryMap map[string]string) (int, error) {
+func (s *AgentService) queueCheckQueries(
+	ctx context.Context,
+	host *hosts.Host,
+	queryMap map[string]string,
+) (int, error) {
 	checks, err := s.checkStore.ApplicableForHost(ctx, host)
 	if err != nil {
 		return 0, err
@@ -227,7 +235,7 @@ func (s *Service) queueCheckQueries(ctx context.Context, host *hosts.Host, query
 
 // queueLiveQueries injects ephemeral live queries pending for host. The
 // in-memory manager owns lifecycle; results route back through dispatch.
-func (s *Service) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
+func (s *AgentService) queueLiveQueries(host *hosts.Host, queryMap map[string]string) int {
 	work := s.liveQueries.PendingForHost(host.ID)
 	for _, item := range work {
 		queryMap[queryNameID(kindLive, item.QueryID)] = item.SQL
@@ -236,7 +244,7 @@ func (s *Service) queueLiveQueries(host *hosts.Host, queryMap map[string]string)
 }
 
 // DistributedWrite ingests results for every kind of distributed query.
-func (s *Service) DistributedWrite(
+func (s *AgentService) DistributedWrite(
 	ctx context.Context,
 	req DistributedWriteRequest,
 	publicIP string,
@@ -258,7 +266,7 @@ func (s *Service) DistributedWrite(
 }
 
 // Log accepts osquery scheduled-query logs and persists snapshot results.
-func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req LogRequest) (LogResponse, error) {
+func (s *AgentService) Log(ctx context.Context, nodeKey string, publicIP string, req LogRequest) (LogResponse, error) {
 	host, ok, err := s.hostByNodeKey(ctx, nodeKey)
 	if err != nil {
 		return LogResponse{}, err
@@ -277,7 +285,7 @@ func (s *Service) Log(ctx context.Context, nodeKey string, publicIP string, req 
 	return LogResponse{NodeInvalid: false}, nil
 }
 
-func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publicIP string) error {
+func (s *AgentService) recordHostPublicIP(ctx context.Context, host *hosts.Host, publicIP string) error {
 	if publicIP == "" {
 		return nil
 	}
@@ -286,7 +294,7 @@ func (s *Service) recordHostPublicIP(ctx context.Context, host *hosts.Host, publ
 	})
 }
 
-func (s *Service) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
+func (s *AgentService) hostByNodeKey(ctx context.Context, nodeKey string) (*hosts.Host, bool, error) {
 	host, err := s.hostStore.GetByOsqueryNodeKey(ctx, nodeKey)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, false, nil

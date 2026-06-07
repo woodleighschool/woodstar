@@ -12,8 +12,8 @@ import (
 
 const ruleDownloadPageSize = 500
 
-// Service coordinates Santa sync protocol stages.
-type Service struct {
+// SyncService coordinates Santa sync protocol stages.
+type SyncService struct {
 	hosts          hostStore
 	configurations configurationResolver
 	userAffinities userAffinityStore
@@ -70,8 +70,8 @@ type syncStore interface {
 	PromotePending(context.Context, int64, string, int32, int32) error
 }
 
-func NewService(deps Dependencies) *Service {
-	return &Service{
+func NewSyncService(deps Dependencies) *SyncService {
+	return &SyncService{
 		hosts:          deps.HostStore,
 		configurations: deps.Configurations,
 		userAffinities: deps.UserAffinities,
@@ -81,7 +81,7 @@ func NewService(deps Dependencies) *Service {
 	}
 }
 
-func (s *Service) Preflight(
+func (s *SyncService) Preflight(
 	ctx context.Context,
 	machineID string,
 	req PreflightRequest,
@@ -132,7 +132,7 @@ func (s *Service) Preflight(
 	return resp, nil
 }
 
-func (s *Service) EventUpload(
+func (s *SyncService) EventUpload(
 	ctx context.Context,
 	machineID string,
 	req EventUploadRequest,
@@ -148,7 +148,7 @@ func (s *Service) EventUpload(
 	return EventUploadResponse{BundleBinaryRequests: bundleRequests}, nil
 }
 
-func (s *Service) RuleDownload(
+func (s *SyncService) RuleDownload(
 	ctx context.Context,
 	machineID string,
 	req RuleDownloadRequest,
@@ -160,7 +160,7 @@ func (s *Service) RuleDownload(
 	return s.sync.LoadPendingPayloadPage(ctx, hostID, req.Cursor, ruleDownloadPageSize)
 }
 
-func (s *Service) Postflight(
+func (s *SyncService) Postflight(
 	ctx context.Context,
 	machineID string,
 	req PostflightRequest,
