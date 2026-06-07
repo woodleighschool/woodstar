@@ -8,9 +8,9 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 
-	"github.com/woodleighschool/woodstar/internal/agentauth"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/httpauth"
 )
 
 const sessionUserKey = "user_id"
@@ -73,7 +73,7 @@ func (s *Service) CurrentUser(ctx context.Context) (*directory.User, error) {
 // already loaded into ctx by scs middleware. Returns ErrNotAuthenticated for
 // both missing and bad credentials.
 func (s *Service) Authenticate(ctx context.Context, authHeader string) (*directory.User, error) {
-	if token, ok := agentauth.BearerToken(authHeader); ok {
+	if token, ok := httpauth.BearerToken(authHeader); ok {
 		return s.userByAPIKey(ctx, token)
 	}
 	return s.CurrentUser(ctx)

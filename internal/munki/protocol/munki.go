@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
+	"github.com/woodleighschool/woodstar/internal/httpauth"
 	"github.com/woodleighschool/woodstar/internal/munki"
 	"github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	munkistorage "github.com/woodleighschool/woodstar/internal/munki/storage"
@@ -167,7 +168,7 @@ func (h handler) writePlist(
 }
 
 func (h handler) authorized(r *http.Request) (bool, error) {
-	token, ok := agentauth.BearerToken(r.Header.Get("Authorization"))
+	token, ok := httpauth.BearerToken(r.Header.Get("Authorization"))
 	if !ok || h.secretVerifier == nil {
 		return false, nil
 	}
