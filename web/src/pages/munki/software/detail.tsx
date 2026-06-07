@@ -31,6 +31,7 @@ import {
 import type { SoftwareInclude } from "@/lib/api";
 import { fieldErrors, uniqueOptions } from "@/lib/form-validation";
 import { selectedLabelTargetIDs } from "@/lib/label-target-rows";
+import { munkiSoftwareFormFromSoftware, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import {
   emptyMunkiSoftwareTargetForm,
   munkiSoftwareInclude,
@@ -38,7 +39,6 @@ import {
   munkiSoftwareTargetFormSchema,
   type MunkiSoftwareTargetFormState,
 } from "@/lib/munki-software-target-form";
-import { munkiSoftwareFormFromSoftware, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
@@ -110,7 +110,9 @@ function MunkiSoftwareDetailForm({
   const titles = useMunkiSoftware({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const updateSoftware = useUpdateMunkiSoftware();
   const iconUpload = useUploadMunkiArtifact("icon");
-  const [targetRows, setTargetRows] = useState<MunkiSoftwareTargetRow[]>(() => targetRowsFromIncludes(software.targets.include));
+  const [targetRows, setTargetRows] = useState<MunkiSoftwareTargetRow[]>(() =>
+    targetRowsFromIncludes(software.targets.include),
+  );
   const [nextDraftID, setNextDraftID] = useState(-1);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
@@ -544,10 +546,7 @@ function MunkiSoftwareDetailForm({
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-base font-semibold">Packages</h2>
                     <Button asChild size="sm" variant="outline">
-                      <Link
-                        to="/munki/software/$softwareId/packages/new"
-                        params={{ softwareId: String(software.id) }}
-                      >
+                      <Link to="/munki/software/$softwareId/packages/new" params={{ softwareId: String(software.id) }}>
                         <Plus data-icon="inline-start" />
                         Add Package
                       </Link>

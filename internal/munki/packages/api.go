@@ -14,7 +14,7 @@ const (
 	munkiTag               = "Munki"
 	munkiPackagePath       = "/api/munki/packages"
 	munkiPackageImportPath = "/api/munki/packages/import"
-	munkiPackageIDPath     = "/api/munki/packages/{id}"
+	munkiPackageIDPath     = "/api/munki/packages/{package_id}"
 	munkiPackageLabel      = "Munki package"
 )
 
@@ -24,16 +24,20 @@ type munkiPackageListInput struct {
 }
 
 type munkiPackageGetInput struct {
-	ID int64 `path:"id"`
+	PackageID int64 `path:"package_id"`
 }
 
 type munkiPackageCreateInput struct {
 	Body PackageMutation
 }
 
-type munkiPackagePatchInput struct {
-	ID   int64 `path:"id"`
-	Body PackageMutation
+type munkiPackagePutInput struct {
+	PackageID int64 `path:"package_id"`
+	Body      PackageMutation
+}
+
+type munkiPackageDeleteInput struct {
+	PackageID int64 `path:"package_id"`
 }
 
 type munkiPackageImportInput struct {
@@ -67,7 +71,8 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerCreateMunkiPackage(api, store)
 	registerImportMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
-	registerPatchMunkiPackage(api, store)
+	registerPutMunkiPackage(api, store)
+	registerDeleteMunkiPackage(api, store)
 }
 
 func registerListMunkiPackages(api huma.API, store *Store) {
@@ -146,7 +151,7 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 		Summary:     "Get a Munki package",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiPackageGetInput) (*munkiPackageOutput, error) {
-		pkg, err := store.GetByID(ctx, input.ID)
+		pkg, err := store.GetByID(ctx, input.PackageID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
@@ -154,10 +159,10 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 	})
 }
 
-func registerPatchMunkiPackage(api huma.API, store *Store) {
+func registerPutMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-munki-package",
-		Method:      http.MethodPatch,
+		Method:      http.MethodPut,
 		Path:        munkiPackageIDPath,
 		Tags:        []string{munkiTag},
 		Summary:     "Update a Munki package",
@@ -168,12 +173,28 @@ func registerPatchMunkiPackage(api huma.API, store *Store) {
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *munkiPackagePatchInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Update(ctx, input.ID, input.Body)
+	}, func(ctx context.Context, input *munkiPackagePutInput) (*munkiPackageOutput, error) {
+		pkg, err := store.Update(ctx, input.PackageID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+	})
+}
+
+func registerDeleteMunkiPackage(api huma.API, store *Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-munki-package",
+		Method:      http.MethodDelete,
+		Path:        munkiPackageIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Delete a Munki package",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *munkiPackageDeleteInput) (*struct{}, error) {
+		if err := store.Delete(ctx, input.PackageID); err != nil {
+			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
+		}
+		return &struct{}{}, nil
 	})
 }
 

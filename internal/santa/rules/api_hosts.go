@@ -19,7 +19,7 @@ type hostSantaRulesOutput struct {
 }
 
 type hostSantaRulesInput struct {
-	ID int64 `path:"id"`
+	HostID int64 `path:"host_id"`
 	apitypes.ListQueryInput
 }
 
@@ -27,7 +27,7 @@ func RegisterHostAdminRoutes(api huma.API, ruleStore *Store, hostStore *hosts.St
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-santa-rules",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/santa/rules",
+		Path:        "/api/hosts/{host_id}/santa/rules",
 		Tags:        []string{hostsTag},
 		Summary:     "List Santa rules for a host",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound},
@@ -35,12 +35,12 @@ func RegisterHostAdminRoutes(api huma.API, ruleStore *Store, hostStore *hosts.St
 		if hostStore == nil || ruleStore == nil {
 			return nil, huma.Error404NotFound("host not found")
 		}
-		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := hostStore.GetByID(ctx, input.HostID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
 		}
-		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.ID, RuleStatusListParams{
+		rows, count, err := ruleStore.ListRuleStatusesForHost(ctx, input.HostID, RuleStatusListParams{
 			ListParams: input.ListQueryInput.Params(),
 		})
 		if err != nil {

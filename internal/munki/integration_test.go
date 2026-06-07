@@ -599,6 +599,41 @@ func TestCreatePackageRejectsInvalidRelationTarget(t *testing.T) {
 	}
 }
 
+func TestDeletePackageReportsConflictWhileReferenced(t *testing.T) {
+	db, ctx := dbtest.Open(t)
+	stores := newMunkiStores(db)
+
+	title, err := stores.softwareTitles.Create(ctx, munkisoftware.SoftwareMutation{Name: "DeletePackageApp"})
+	if err != nil {
+		t.Fatalf("create software title: %v", err)
+	}
+	targetPackage := createMunkiPackage(t, ctx, stores, title.ID, title.Name, "1.0")
+	dependentPackage, err := stores.packages.Create(ctx, packages.PackageMutation{
+		SoftwareID:    title.ID,
+		Version:       "2.0",
+		InstallerType: packages.InstallerTypeNoPkg,
+		OnDemand:      true,
+		Requires:      []packages.PackageReference{{PackageID: targetPackage.ID}},
+		Eligible:      true,
+	})
+	if err != nil {
+		t.Fatalf("create dependent package: %v", err)
+	}
+
+	if err := stores.packages.Delete(ctx, targetPackage.ID); !errors.Is(err, dbutil.ErrConflict) {
+		t.Fatalf("delete referenced package error = %v, want ErrConflict", err)
+	}
+	if err := stores.packages.Delete(ctx, dependentPackage.ID); err != nil {
+		t.Fatalf("delete dependent package: %v", err)
+	}
+	if _, err := stores.packages.GetByID(ctx, dependentPackage.ID); !errors.Is(err, dbutil.ErrNotFound) {
+		t.Fatalf("dependent package after delete error = %v, want ErrNotFound", err)
+	}
+	if err := stores.packages.Delete(ctx, targetPackage.ID); err != nil {
+		t.Fatalf("delete unreferenced package: %v", err)
+	}
+}
+
 func TestCreatePackageRejectsInvalidSoftwareID(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)

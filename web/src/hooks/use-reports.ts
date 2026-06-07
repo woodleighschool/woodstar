@@ -35,7 +35,12 @@ export function useReport(id: number | null) {
   return useQuery<Report, ApiError>({
     queryKey: queryKeys.report(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/reports/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/osquery/reports/{report_id}", {
+          params: { path: { report_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -44,7 +49,12 @@ export function useReportResults(id: number | null) {
   return useQuery<ReportResults, ApiError>({
     queryKey: queryKeys.reportResults(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/reports/{id}/results", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/osquery/reports/{report_id}/results", {
+          params: { path: { report_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -63,7 +73,12 @@ export function useUpdateReport(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Report, ApiError, ReportMutation>({
     mutationFn: (body) =>
-      unwrap(apiClient.PUT("/api/osquery/reports/{id}", { params: { path: { id: id ?? 0 } }, body })),
+      unwrap(
+        apiClient.PUT("/api/osquery/reports/{report_id}", {
+          params: { path: { report_id: id ?? 0 } },
+          body,
+        }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.reports() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.report(id) });
@@ -75,7 +90,8 @@ export function useUpdateReport(id: number | null) {
 export function useDeleteReport() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/reports/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/osquery/reports/{report_id}", { params: { path: { report_id: id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },

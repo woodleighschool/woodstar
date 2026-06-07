@@ -26,7 +26,7 @@ func (i softwareListInput) params() SoftwareTitleListParams {
 }
 
 type softwareGetInput struct {
-	ID int64 `path:"id"`
+	SoftwareID int64 `path:"software_id"`
 }
 
 type softwareListOutput struct {
@@ -57,12 +57,12 @@ func RegisterAdminRoutes(api huma.API, softwareStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-software",
 		Method:      http.MethodGet,
-		Path:        "/api/software/{id}",
+		Path:        "/api/software/{software_id}",
 		Tags:        []string{softwareTag},
 		Summary:     "Get a software title",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *softwareGetInput) (*softwareGetOutput, error) {
-		title, err := softwareStore.GetTitle(ctx, input.ID)
+		title, err := softwareStore.GetTitle(ctx, input.SoftwareID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("software title not found")
 		}

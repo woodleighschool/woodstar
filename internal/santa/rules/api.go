@@ -12,7 +12,7 @@ import (
 const (
 	santaTag          = "Santa"
 	santaRuleResource = "Santa rule"
-	santaRuleIDPath   = "/api/santa/rules/{id}"
+	santaRuleIDPath   = "/api/santa/rules/{rule_id}"
 )
 
 type santaRuleListInput struct {
@@ -27,7 +27,7 @@ type santaRuleTargetListInput struct {
 }
 
 type santaRuleGetInput struct {
-	ID int64 `path:"id"`
+	RuleID int64 `path:"rule_id"`
 }
 
 type santaRuleCreateInput struct {
@@ -35,12 +35,12 @@ type santaRuleCreateInput struct {
 }
 
 type santaRuleUpdateInput struct {
-	ID   int64 `path:"id"`
-	Body RuleMutation
+	RuleID int64 `path:"rule_id"`
+	Body   RuleMutation
 }
 
 type santaRuleDeleteInput struct {
-	ID int64 `path:"id"`
+	RuleID int64 `path:"rule_id"`
 }
 
 type santaRuleBulkDeleteInput struct {
@@ -147,7 +147,7 @@ func registerGetSantaRule(api huma.API, store *Store) {
 		Summary:     "Get a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleGetInput) (*santaRuleOutput, error) {
-		rule, err := store.GetRuleByID(ctx, input.ID)
+		rule, err := store.GetRuleByID(ctx, input.RuleID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
@@ -170,7 +170,7 @@ func registerUpdateSantaRule(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaRuleUpdateInput) (*santaRuleOutput, error) {
-		rule, err := store.UpdateRule(ctx, input.ID, input.Body)
+		rule, err := store.UpdateRule(ctx, input.RuleID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
@@ -187,7 +187,7 @@ func registerDeleteSantaRule(api huma.API, store *Store) {
 		Summary:     "Delete a Santa rule",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaRuleDeleteInput) (*struct{}, error) {
-		if err := store.DeleteRule(ctx, input.ID); err != nil {
+		if err := store.DeleteRule(ctx, input.RuleID); err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
 		return &struct{}{}, nil

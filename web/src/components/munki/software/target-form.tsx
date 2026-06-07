@@ -12,7 +12,6 @@ import {
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-import type { MunkiSoftwareTargetFormState } from "@/lib/munki-software-target-form";
 import {
   MUNKI_PACKAGE_STRATEGY_OPTIONS,
   MUNKI_SOFTWARE_STATE_OPTIONS,
@@ -21,6 +20,7 @@ import {
   type MunkiPackageStrategy,
   type MunkiSoftwareState,
 } from "@/lib/munki-software";
+import type { MunkiSoftwareTargetFormState } from "@/lib/munki-software-target-form";
 
 export interface MunkiSoftwareTargetPackageOption {
   id: number;

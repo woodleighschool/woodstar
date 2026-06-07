@@ -16,6 +16,10 @@ func ResourceMutationError(resource string, err error) error {
 		return huma.Error404NotFound(resource + " not found")
 	case errors.Is(err, dbutil.ErrAlreadyExists):
 		return huma.Error409Conflict(resource + " already exists")
+	case errors.Is(err, dbutil.ErrConflict):
+		return huma.Error409Conflict(
+			strings.TrimPrefix(err.Error(), dbutil.ErrConflict.Error()+": "),
+		)
 	case errors.Is(err, dbutil.ErrInvalidInput):
 		return huma.Error400BadRequest(
 			strings.TrimPrefix(err.Error(), dbutil.ErrInvalidInput.Error()+": "),

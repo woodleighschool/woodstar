@@ -21,6 +21,23 @@ func (q *Queries) CountMunkiArtifacts(ctx context.Context) (int32, error) {
 	return column_1, err
 }
 
+const deleteMunkiArtifact = `-- name: DeleteMunkiArtifact :execrows
+DELETE FROM munki_artifacts
+WHERE id = $1
+`
+
+type DeleteMunkiArtifactParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteMunkiArtifact(ctx context.Context, arg DeleteMunkiArtifactParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMunkiArtifact, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getMunkiArtifactByID = `-- name: GetMunkiArtifactByID :one
 SELECT id, kind, display_name, location, content_type, size_bytes, sha256, storage_key, created_at, updated_at
 FROM munki_artifacts

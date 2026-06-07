@@ -188,6 +188,27 @@ func (s *Store) GetByID(ctx context.Context, id int64) (*Package, error) {
 	return &packages[0], nil
 }
 
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	rows, err := s.q.DeleteMunkiPackage(ctx, sqlc.DeleteMunkiPackageParams{ID: id})
+	if err != nil {
+		return mapDeleteError(err)
+	}
+	if rows == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
+func mapDeleteError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbutil.ErrNotFound
+	}
+	if database.SQLState(err) == pgerrcode.ForeignKeyViolation {
+		return fmt.Errorf("%w: Munki package is still referenced", dbutil.ErrConflict)
+	}
+	return mapMutationError(err)
+}
+
 func (s *Store) List(ctx context.Context, params PackageListParams) ([]Package, int, error) {
 	params.ListParams = dbutil.CleanListParams(params.ListParams)
 	where, args := packageListWhere(params)

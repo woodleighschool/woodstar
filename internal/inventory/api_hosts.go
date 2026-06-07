@@ -15,13 +15,13 @@ import (
 const hostsTag = "Hosts"
 
 type hostSoftwareInput struct {
-	ID int64 `path:"id"`
+	HostID int64 `path:"host_id"`
 	apitypes.ListQueryInput
 	Source []string `query:"source,omitempty"`
 }
 
 func (i hostSoftwareInput) params() (int64, HostSoftwareListParams) {
-	return i.ID, HostSoftwareListParams{
+	return i.HostID, HostSoftwareListParams{
 		ListParams:      i.ListQueryInput.Params(),
 		SoftwareSources: i.Source,
 	}
@@ -36,7 +36,7 @@ func RegisterHostAdminRoutes(api huma.API, softwareStore *Store, hostStore *host
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-software",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/software",
+		Path:        "/api/hosts/{host_id}/software",
 		Tags:        []string{hostsTag},
 		Summary:     "List software installed on a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},

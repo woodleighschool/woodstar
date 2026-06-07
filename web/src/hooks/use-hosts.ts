@@ -148,8 +148,8 @@ export function useHostSoftware(id: number | null, params: HostSoftwareListParam
     queryKey: queryKeys.hostSoftware(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/software", {
-          params: { path: { id: id ?? 0 }, query: queryParams },
+        apiClient.GET("/api/hosts/{host_id}/software", {
+          params: { path: { host_id: id ?? 0 }, query: queryParams },
           signal,
         }),
       ),
@@ -162,7 +162,12 @@ export function useHostReports(id: number | null) {
   return useQuery<HostReportsResult, ApiError>({
     queryKey: queryKeys.hostReports(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/hosts/{id}/osquery/reports", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/hosts/{host_id}/osquery/reports", {
+          params: { path: { host_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -171,7 +176,12 @@ export function useHostChecks(id: number | null) {
   return useQuery<HostChecksResult, ApiError>({
     queryKey: queryKeys.hostChecks(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/hosts/{id}/osquery/checks", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/hosts/{host_id}/osquery/checks", {
+          params: { path: { host_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -187,8 +197,8 @@ export function useHostSantaRules(id: number | null, params: HostSantaRulesParam
     queryKey: queryKeys.hostSantaRules(id, queryParams),
     queryFn: ({ signal }) =>
       unwrap(
-        apiClient.GET("/api/hosts/{id}/santa/rules", {
-          params: { path: { id: id ?? 0 }, query: queryParams },
+        apiClient.GET("/api/hosts/{host_id}/santa/rules", {
+          params: { path: { host_id: id ?? 0 }, query: queryParams },
           signal,
         }),
       ),

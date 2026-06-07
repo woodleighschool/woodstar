@@ -14,11 +14,7 @@ import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  useBulkDeleteMunkiSoftware,
-  useMunkiSoftware,
-  type MunkiSoftware,
-} from "@/hooks/munki/software";
+import { useBulkDeleteMunkiSoftware, useMunkiSoftware, type MunkiSoftware } from "@/hooks/munki/software";
 import { useDebouncedSearchParam } from "@/hooks/use-debounced-search-param";
 import { tableQueryParams, useTablePaginationParams } from "@/hooks/use-table-pagination-params";
 import { formatRelative } from "@/lib/utils";

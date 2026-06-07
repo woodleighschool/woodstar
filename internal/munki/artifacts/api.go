@@ -15,7 +15,8 @@ import (
 const (
 	munkiTag                 = "Munki"
 	munkiArtifactPath        = "/api/munki/artifacts"
-	munkiArtifactContentPath = "/api/munki/artifacts/{id}/content"
+	munkiArtifactIDPath      = "/api/munki/artifacts/{artifact_id}"
+	munkiArtifactContentPath = "/api/munki/artifacts/{artifact_id}/content"
 	munkiArtifactUploadPath  = "/api/munki/artifact-uploads"
 	munkiArtifactLabel       = "Munki artifact"
 )
@@ -30,12 +31,28 @@ type munkiArtifactCreateInput struct {
 	Body ArtifactMutation
 }
 
+type munkiArtifactListInput struct {
+	apitypes.ListQueryInput
+}
+
+type munkiArtifactGetInput struct {
+	ArtifactID int64 `path:"artifact_id"`
+}
+
 type munkiArtifactUploadInput struct {
 	Body munkiArtifactUploadMutation
 }
 
 type munkiArtifactContentInput struct {
-	ID int64 `path:"id"`
+	ArtifactID int64 `path:"artifact_id"`
+}
+
+type munkiArtifactDeleteInput struct {
+	ArtifactID int64 `path:"artifact_id"`
+}
+
+type munkiArtifactListOutput struct {
+	Body apitypes.Page[Artifact]
 }
 
 type munkiArtifactOutput struct {
@@ -68,9 +85,31 @@ type munkiArtifactUpload struct {
 
 // RegisterAdminRoutes registers Munki artifact admin endpoints.
 func RegisterAdminRoutes(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
+	registerListMunkiArtifacts(api, store)
 	registerCreateMunkiArtifact(api, store, artifactStorage)
 	registerCreateMunkiArtifactUpload(api, artifactStorage)
+	registerGetMunkiArtifact(api, store)
 	registerGetMunkiArtifactContent(api, store, artifactStorage)
+	registerDeleteMunkiArtifact(api, store)
+}
+
+func registerListMunkiArtifacts(api huma.API, store *Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-munki-artifacts",
+		Method:      http.MethodGet,
+		Path:        munkiArtifactPath,
+		Tags:        []string{munkiTag},
+		Summary:     "List Munki artifacts",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden},
+	}, func(ctx context.Context, input *munkiArtifactListInput) (*munkiArtifactListOutput, error) {
+		rows, count, err := store.List(ctx, input.ListQueryInput.Params())
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
+		}
+		return &munkiArtifactListOutput{
+			Body: apitypes.Page[Artifact]{Items: rows, Count: count},
+		}, nil
+	})
 }
 
 func registerCreateMunkiArtifact(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
@@ -144,6 +183,23 @@ func registerCreateMunkiArtifactUpload(api huma.API, uploads munkiArtifactStorag
 	})
 }
 
+func registerGetMunkiArtifact(api huma.API, store *Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-munki-artifact",
+		Method:      http.MethodGet,
+		Path:        munkiArtifactIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Get a Munki artifact",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
+	}, func(ctx context.Context, input *munkiArtifactGetInput) (*munkiArtifactOutput, error) {
+		artifact, err := store.GetByID(ctx, input.ArtifactID)
+		if err != nil {
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
+		}
+		return &munkiArtifactOutput{Body: *artifact}, nil
+	})
+}
+
 func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage munkiArtifactStorage) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-munki-artifact-content",
@@ -161,7 +217,7 @@ func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage
 		if artifactStorage == nil {
 			return nil, munkiArtifactStorageUnavailable()
 		}
-		artifact, err := store.GetByID(ctx, input.ID)
+		artifact, err := store.GetByID(ctx, input.ArtifactID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
 		}
@@ -170,6 +226,22 @@ func registerGetMunkiArtifactContent(api huma.API, store *Store, artifactStorage
 			return nil, munkiArtifactStorageError(err)
 		}
 		return &munkiArtifactContentOutput{Status: http.StatusFound, Location: location}, nil
+	})
+}
+
+func registerDeleteMunkiArtifact(api huma.API, store *Store) {
+	huma.Register(api, huma.Operation{
+		OperationID: "delete-munki-artifact",
+		Method:      http.MethodDelete,
+		Path:        munkiArtifactIDPath,
+		Tags:        []string{munkiTag},
+		Summary:     "Delete a Munki artifact",
+		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusConflict},
+	}, func(ctx context.Context, input *munkiArtifactDeleteInput) (*struct{}, error) {
+		if err := store.Delete(ctx, input.ArtifactID); err != nil {
+			return nil, apitypes.ResourceMutationError(munkiArtifactLabel, err)
+		}
+		return &struct{}{}, nil
 	})
 }
 

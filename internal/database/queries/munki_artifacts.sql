@@ -46,3 +46,7 @@ SELECT *
 FROM munki_artifacts
 WHERE kind = @kind::munki_artifact_kind
   AND location = @location;
+
+-- name: DeleteMunkiArtifact :execrows
+DELETE FROM munki_artifacts
+WHERE id = @id;

@@ -2751,6 +2751,29 @@ components:
       required:
         - package_id
       type: object
+    PageArtifact:
+      additionalProperties: false
+      properties:
+        $schema:
+          description: A URL to the JSON Schema for this object.
+          examples:
+            - https://example.com/api/schemas/PageArtifact.json
+          format: uri
+          readOnly: true
+          type: string
+        count:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: "#/components/schemas/MunkiArtifact"
+          type:
+            - array
+            - "null"
+      required:
+        - items
+        - count
+      type: object
     PageCheck:
       additionalProperties: false
       properties:
@@ -4187,12 +4210,12 @@ paths:
       summary: Create agent secret
       tags:
         - Agent secrets
-  /api/agent-secrets/{id}:
+  /api/agent-secrets/{agent_secret_id}:
     delete:
       operationId: delete-agent-secret
       parameters:
         - in: path
-          name: id
+          name: agent_secret_id
           required: true
           schema:
             format: int64
@@ -4239,11 +4262,11 @@ paths:
       summary: Delete agent secret
       tags:
         - Agent secrets
-    patch:
+    put:
       operationId: update-agent-secret
       parameters:
         - in: path
-          name: id
+          name: agent_secret_id
           required: true
           schema:
             format: int64
@@ -4659,6 +4682,312 @@ paths:
       summary: Delete enrolled hosts
       tags:
         - Hosts
+  /api/hosts/{host_id}/osquery/checks:
+    get:
+      operationId: list-host-osquery-checks
+      parameters:
+        - in: path
+          name: host_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/CheckHostStatus"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List checks for a host
+      tags:
+        - Checks
+        - Hosts
+  /api/hosts/{host_id}/osquery/reports:
+    get:
+      operationId: list-host-osquery-reports
+      parameters:
+        - in: path
+          name: host_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/HostReport"
+                type:
+                  - array
+                  - "null"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List reports for a host
+      tags:
+        - Reports
+        - Hosts
+  /api/hosts/{host_id}/osquery/reports/{report_id}:
+    get:
+      operationId: list-host-osquery-report-results
+      parameters:
+        - in: path
+          name: host_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - in: path
+          name: report_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HostReportResultsBody"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List report rows for one host
+      tags:
+        - Reports
+        - Hosts
+  /api/hosts/{host_id}/santa/rules:
+    get:
+      operationId: list-host-santa-rules
+      parameters:
+        - in: path
+          name: host_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageRuleStatus"
+          description: OK
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List Santa rules for a host
+      tags:
+        - Hosts
+  /api/hosts/{host_id}/software:
+    get:
+      operationId: list-host-software
+      parameters:
+        - in: path
+          name: host_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+        - explode: false
+          in: query
+          name: source
+          schema:
+            items:
+              type: string
+            type:
+              - array
+              - "null"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageHostSoftwareRow"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List software installed on a host
+      tags:
+        - Hosts
   /api/hosts/{id}:
     delete:
       operationId: delete-host
@@ -4746,312 +5075,6 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Get an enrolled host
-      tags:
-        - Hosts
-  /api/hosts/{id}/osquery/checks:
-    get:
-      operationId: list-host-osquery-checks
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/CheckHostStatus"
-                type:
-                  - array
-                  - "null"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List checks for a host
-      tags:
-        - Checks
-        - Hosts
-  /api/hosts/{id}/osquery/reports:
-    get:
-      operationId: list-host-osquery-reports
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/HostReport"
-                type:
-                  - array
-                  - "null"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List reports for a host
-      tags:
-        - Reports
-        - Hosts
-  /api/hosts/{id}/osquery/reports/{report_id}:
-    get:
-      operationId: list-host-osquery-report-results
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-        - in: path
-          name: report_id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HostReportResultsBody"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List report rows for one host
-      tags:
-        - Reports
-        - Hosts
-  /api/hosts/{id}/santa/rules:
-    get:
-      operationId: list-host-santa-rules
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: q
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page_index
-          schema:
-            format: int64
-            minimum: 0
-            type: integer
-        - explode: false
-          in: query
-          name: page_size
-          schema:
-            format: int64
-            maximum: 1000
-            minimum: 1
-            type: integer
-        - explode: false
-          in: query
-          name: sort
-          schema:
-            examples:
-              - name.asc
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PageRuleStatus"
-          description: OK
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List Santa rules for a host
-      tags:
-        - Hosts
-  /api/hosts/{id}/software:
-    get:
-      operationId: list-host-software
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-        - explode: false
-          in: query
-          name: q
-          schema:
-            type: string
-        - explode: false
-          in: query
-          name: page_index
-          schema:
-            format: int64
-            minimum: 0
-            type: integer
-        - explode: false
-          in: query
-          name: page_size
-          schema:
-            format: int64
-            maximum: 1000
-            minimum: 1
-            type: integer
-        - explode: false
-          in: query
-          name: sort
-          schema:
-            examples:
-              - name.asc
-            type: string
-        - explode: false
-          in: query
-          name: source
-          schema:
-            items:
-              type: string
-            type:
-              - array
-              - "null"
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PageHostSoftwareRow"
-          description: OK
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: List software installed on a host
       tags:
         - Hosts
   /api/hosts/{id}/user-affinity:
@@ -5723,6 +5746,70 @@ paths:
       tags:
         - Munki
   /api/munki/artifacts:
+    get:
+      operationId: list-munki-artifacts
+      parameters:
+        - explode: false
+          in: query
+          name: q
+          schema:
+            type: string
+        - explode: false
+          in: query
+          name: page_index
+          schema:
+            format: int64
+            minimum: 0
+            type: integer
+        - explode: false
+          in: query
+          name: page_size
+          schema:
+            format: int64
+            maximum: 1000
+            minimum: 1
+            type: integer
+        - explode: false
+          in: query
+          name: sort
+          schema:
+            examples:
+              - name.asc
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageArtifact"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: List Munki artifacts
+      tags:
+        - Munki
     post:
       operationId: create-munki-artifact
       requestBody:
@@ -5783,12 +5870,113 @@ paths:
       summary: Create a Munki artifact
       tags:
         - Munki
-  /api/munki/artifacts/{id}/content:
+  /api/munki/artifacts/{artifact_id}:
+    delete:
+      operationId: delete-munki-artifact
+      parameters:
+        - in: path
+          name: artifact_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Delete a Munki artifact
+      tags:
+        - Munki
+    get:
+      operationId: get-munki-artifact
+      parameters:
+        - in: path
+          name: artifact_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiArtifact"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Get a Munki artifact
+      tags:
+        - Munki
+  /api/munki/artifacts/{artifact_id}/content:
     get:
       operationId: get-munki-artifact-content
       parameters:
         - in: path
-          name: id
+          name: artifact_id
           required: true
           schema:
             format: int64
@@ -6031,12 +6219,63 @@ paths:
       summary: Import a Munki pkginfo package
       tags:
         - Munki
-  /api/munki/packages/{id}:
+  /api/munki/packages/{package_id}:
+    delete:
+      operationId: delete-munki-package
+      parameters:
+        - in: path
+          name: package_id
+          required: true
+          schema:
+            format: int64
+            type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Delete a Munki package
+      tags:
+        - Munki
     get:
       operationId: get-munki-package
       parameters:
         - in: path
-          name: id
+          name: package_id
           required: true
           schema:
             format: int64
@@ -6081,11 +6320,11 @@ paths:
       summary: Get a Munki package
       tags:
         - Munki
-    patch:
+    put:
       operationId: update-munki-package
       parameters:
         - in: path
-          name: id
+          name: package_id
           required: true
           schema:
             format: int64
@@ -6318,12 +6557,12 @@ paths:
       summary: Delete Munki software
       tags:
         - Munki
-  /api/munki/software/{id}:
+  /api/munki/software/{software_id}:
     delete:
       operationId: delete-munki-software
       parameters:
         - in: path
-          name: id
+          name: software_id
           required: true
           schema:
             format: int64
@@ -6368,7 +6607,7 @@ paths:
       operationId: get-munki-software
       parameters:
         - in: path
-          name: id
+          name: software_id
           required: true
           schema:
             format: int64
@@ -6417,7 +6656,7 @@ paths:
       operationId: update-munki-software
       parameters:
         - in: path
-          name: id
+          name: software_id
           required: true
           schema:
             format: int64
@@ -6638,12 +6877,12 @@ paths:
       summary: Delete checks
       tags:
         - Checks
-  /api/osquery/checks/{id}:
+  /api/osquery/checks/{check_id}:
     delete:
       operationId: delete-osquery-check
       parameters:
         - in: path
-          name: id
+          name: check_id
           required: true
           schema:
             format: int64
@@ -6682,7 +6921,7 @@ paths:
       operationId: get-osquery-check
       parameters:
         - in: path
-          name: id
+          name: check_id
           required: true
           schema:
             format: int64
@@ -6725,7 +6964,7 @@ paths:
       operationId: update-osquery-check
       parameters:
         - in: path
-          name: id
+          name: check_id
           required: true
           schema:
             format: int64
@@ -6782,12 +7021,12 @@ paths:
       summary: Replace a check
       tags:
         - Checks
-  /api/osquery/checks/{id}/hosts:
+  /api/osquery/checks/{check_id}/hosts:
     get:
       operationId: list-osquery-check-hosts
       parameters:
         - in: path
-          name: id
+          name: check_id
           required: true
           schema:
             format: int64
@@ -6988,12 +7227,12 @@ paths:
       summary: Delete reports
       tags:
         - Reports
-  /api/osquery/reports/{id}:
+  /api/osquery/reports/{report_id}:
     delete:
       operationId: delete-osquery-report
       parameters:
         - in: path
-          name: id
+          name: report_id
           required: true
           schema:
             format: int64
@@ -7032,7 +7271,7 @@ paths:
       operationId: get-osquery-report
       parameters:
         - in: path
-          name: id
+          name: report_id
           required: true
           schema:
             format: int64
@@ -7075,7 +7314,7 @@ paths:
       operationId: update-osquery-report
       parameters:
         - in: path
-          name: id
+          name: report_id
           required: true
           schema:
             format: int64
@@ -7132,12 +7371,12 @@ paths:
       summary: Replace a report
       tags:
         - Reports
-  /api/osquery/reports/{id}/results:
+  /api/osquery/reports/{report_id}/results:
     get:
       operationId: list-osquery-report-results
       parameters:
         - in: path
-          name: id
+          name: report_id
           required: true
           schema:
             format: int64
@@ -7395,12 +7634,12 @@ paths:
       summary: Reorder Santa configurations
       tags:
         - Santa
-  /api/santa/configurations/{id}:
+  /api/santa/configurations/{configuration_id}:
     delete:
       operationId: delete-santa-configuration
       parameters:
         - in: path
-          name: id
+          name: configuration_id
           required: true
           schema:
             format: int64
@@ -7445,7 +7684,7 @@ paths:
       operationId: get-santa-configuration
       parameters:
         - in: path
-          name: id
+          name: configuration_id
           required: true
           schema:
             format: int64
@@ -7494,7 +7733,7 @@ paths:
       operationId: update-santa-configuration
       parameters:
         - in: path
-          name: id
+          name: configuration_id
           required: true
           schema:
             format: int64
@@ -7673,12 +7912,12 @@ paths:
       summary: List Santa execution events
       tags:
         - Santa
-  /api/santa/events/{id}:
+  /api/santa/events/{event_id}:
     get:
       operationId: get-santa-event
       parameters:
         - in: path
-          name: id
+          name: event_id
           required: true
           schema:
             format: int64
@@ -7826,12 +8065,12 @@ paths:
       summary: List Santa file access events
       tags:
         - Santa
-  /api/santa/file-access-events/{id}:
+  /api/santa/file-access-events/{event_id}:
     get:
       operationId: get-santa-file-access-event
       parameters:
         - in: path
-          name: id
+          name: event_id
           required: true
           schema:
             format: int64
@@ -8143,12 +8382,12 @@ paths:
       summary: Delete Santa rules
       tags:
         - Santa
-  /api/santa/rules/{id}:
+  /api/santa/rules/{rule_id}:
     delete:
       operationId: delete-santa-rule
       parameters:
         - in: path
-          name: id
+          name: rule_id
           required: true
           schema:
             format: int64
@@ -8193,7 +8432,7 @@ paths:
       operationId: get-santa-rule
       parameters:
         - in: path
-          name: id
+          name: rule_id
           required: true
           schema:
             format: int64
@@ -8242,7 +8481,7 @@ paths:
       operationId: update-santa-rule
       parameters:
         - in: path
-          name: id
+          name: rule_id
           required: true
           schema:
             format: int64
@@ -8416,12 +8655,12 @@ paths:
       summary: List software titles
       tags:
         - Software
-  /api/software/{id}:
+  /api/software/{software_id}:
     get:
       operationId: get-software
       parameters:
         - in: path
-          name: id
+          name: software_id
           required: true
           schema:
             format: int64
@@ -8460,12 +8699,12 @@ paths:
       summary: Get a software title
       tags:
         - Software
-  /api/software/{id}/santa:
+  /api/software/{software_id}/santa:
     get:
       operationId: get-software-santa-reference
       parameters:
         - in: path
-          name: id
+          name: software_id
           required: true
           schema:
             format: int64

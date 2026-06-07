@@ -12,7 +12,7 @@ import (
 const (
 	santaTag                   = "Santa"
 	santaConfigurationResource = "Santa configuration"
-	santaConfigurationIDPath   = "/api/santa/configurations/{id}"
+	santaConfigurationIDPath   = "/api/santa/configurations/{configuration_id}"
 )
 
 type santaConfigurationListInput struct {
@@ -20,7 +20,7 @@ type santaConfigurationListInput struct {
 }
 
 type santaConfigurationGetInput struct {
-	ID int64 `path:"id"`
+	ConfigurationID int64 `path:"configuration_id"`
 }
 
 type santaConfigurationCreateInput struct {
@@ -28,12 +28,12 @@ type santaConfigurationCreateInput struct {
 }
 
 type santaConfigurationUpdateInput struct {
-	ID   int64 `path:"id"`
-	Body ConfigurationMutation
+	ConfigurationID int64 `path:"configuration_id"`
+	Body            ConfigurationMutation
 }
 
 type santaConfigurationDeleteInput struct {
-	ID int64 `path:"id"`
+	ConfigurationID int64 `path:"configuration_id"`
 }
 
 type santaConfigurationBulkDeleteInput struct {
@@ -124,7 +124,7 @@ func registerGetSantaConfiguration(api huma.API, store *Store) {
 		Summary:     "Get a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationGetInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.GetConfigurationByID(ctx, input.ID)
+		configuration, err := store.GetConfigurationByID(ctx, input.ConfigurationID)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -147,7 +147,7 @@ func registerUpdateSantaConfiguration(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *santaConfigurationUpdateInput) (*santaConfigurationOutput, error) {
-		configuration, err := store.UpdateConfiguration(ctx, input.ID, input.Body)
+		configuration, err := store.UpdateConfiguration(ctx, input.ConfigurationID, input.Body)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
@@ -164,7 +164,7 @@ func registerDeleteSantaConfiguration(api huma.API, store *Store) {
 		Summary:     "Delete a Santa configuration",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaConfigurationDeleteInput) (*struct{}, error) {
-		if err := store.DeleteConfiguration(ctx, input.ID); err != nil {
+		if err := store.DeleteConfiguration(ctx, input.ConfigurationID); err != nil {
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &struct{}{}, nil

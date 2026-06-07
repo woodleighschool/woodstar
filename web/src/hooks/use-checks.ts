@@ -35,7 +35,12 @@ export function useCheck(id: number | null) {
   return useQuery<Check, ApiError>({
     queryKey: queryKeys.check(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/checks/{id}", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/osquery/checks/{check_id}", {
+          params: { path: { check_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -44,7 +49,12 @@ export function useCheckHosts(id: number | null) {
   return useQuery<CheckHosts, ApiError>({
     queryKey: queryKeys.checkHosts(id),
     queryFn: ({ signal }) =>
-      unwrap(apiClient.GET("/api/osquery/checks/{id}/hosts", { params: { path: { id: id ?? 0 } }, signal })),
+      unwrap(
+        apiClient.GET("/api/osquery/checks/{check_id}/hosts", {
+          params: { path: { check_id: id ?? 0 } },
+          signal,
+        }),
+      ),
     enabled: id !== null,
   });
 }
@@ -63,7 +73,12 @@ export function useUpdateCheck(id: number | null) {
   const queryClient = useQueryClient();
   return useMutation<Check, ApiError, CheckMutation>({
     mutationFn: (body) =>
-      unwrap(apiClient.PUT("/api/osquery/checks/{id}", { params: { path: { id: id ?? 0 } }, body })),
+      unwrap(
+        apiClient.PUT("/api/osquery/checks/{check_id}", {
+          params: { path: { check_id: id ?? 0 } },
+          body,
+        }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.checks() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.check(id) });
@@ -75,7 +90,8 @@ export function useUpdateCheck(id: number | null) {
 export function useDeleteCheck() {
   const queryClient = useQueryClient();
   return useMutation<void, ApiError, number>({
-    mutationFn: (id) => unwrap(apiClient.DELETE("/api/osquery/checks/{id}", { params: { path: { id } } })),
+    mutationFn: (id) =>
+      unwrap(apiClient.DELETE("/api/osquery/checks/{check_id}", { params: { path: { check_id: id } } })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["checks"] });
     },

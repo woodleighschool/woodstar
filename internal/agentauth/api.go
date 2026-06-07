@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	agentSecretsTag = "Agent secrets"
-	agentSecretPath = "/api/agent-secrets"
+	agentSecretsTag   = "Agent secrets"
+	agentSecretPath   = "/api/agent-secrets"
+	agentSecretIDPath = agentSecretPath + "/{agent_secret_id}"
 )
 
 type agentSecretListOutput struct {
@@ -28,12 +29,12 @@ type agentSecretCreateOutput struct {
 }
 
 type agentSecretUpdateInput struct {
-	ID   int64 `path:"id"`
-	Body AgentSecretMutation
+	AgentSecretID int64 `path:"agent_secret_id"`
+	Body          AgentSecretMutation
 }
 
 type agentSecretDeleteInput struct {
-	ID int64 `path:"id"`
+	AgentSecretID int64 `path:"agent_secret_id"`
 }
 
 func RegisterAdminRoutes(api huma.API, store *Store) {
@@ -76,8 +77,8 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 
 	huma.Register(api, huma.Operation{
 		OperationID: "update-agent-secret",
-		Method:      http.MethodPatch,
-		Path:        agentSecretPath + "/{id}",
+		Method:      http.MethodPut,
+		Path:        agentSecretIDPath,
 		Tags:        []string{agentSecretsTag},
 		Summary:     "Update agent secret",
 		Errors: []int{
@@ -87,7 +88,7 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 			http.StatusNotFound,
 		},
 	}, func(ctx context.Context, input *agentSecretUpdateInput) (*agentSecretCreateOutput, error) {
-		secret, err := store.Update(ctx, input.ID, input.Body)
+		secret, err := store.Update(ctx, input.AgentSecretID, input.Body)
 		if errors.Is(err, ErrInvalidSecret) {
 			return nil, huma.Error400BadRequest("invalid agent secret")
 		}
@@ -103,12 +104,12 @@ func RegisterAdminRoutes(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-agent-secret",
 		Method:      http.MethodDelete,
-		Path:        agentSecretPath + "/{id}",
+		Path:        agentSecretIDPath,
 		Tags:        []string{agentSecretsTag},
 		Summary:     "Delete agent secret",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *agentSecretDeleteInput) (*struct{}, error) {
-		if err := store.Delete(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+		if err := store.Delete(ctx, input.AgentSecretID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("agent secret not found")
 		} else if err != nil {
 			return nil, err

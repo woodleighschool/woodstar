@@ -315,6 +315,23 @@ func (q *Queries) CreateMunkiPackageRelation(ctx context.Context, arg CreateMunk
 	return err
 }
 
+const deleteMunkiPackage = `-- name: DeleteMunkiPackage :execrows
+DELETE FROM munki_packages
+WHERE id = $1
+`
+
+type DeleteMunkiPackageParams struct {
+	ID int64 `json:"id"`
+}
+
+func (q *Queries) DeleteMunkiPackage(ctx context.Context, arg DeleteMunkiPackageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMunkiPackage, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMunkiPackageRelationsByKind = `-- name: DeleteMunkiPackageRelationsByKind :exec
 DELETE FROM munki_package_relations
 WHERE package_id = $1

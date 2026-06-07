@@ -120,7 +120,7 @@ func TestAgentSecretsAdminAPI(t *testing.T) {
 	updateRec := httptest.NewRecorder()
 	updateReq := httptest.NewRequestWithContext(
 		context.Background(),
-		http.MethodPatch,
+		http.MethodPut,
 		fmt.Sprintf("/api/agent-secrets/%d", created.ID),
 		strings.NewReader(fmt.Sprintf(`{"value":%q}`, updatedValue)),
 	)
@@ -370,7 +370,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	if pkg.SoftwareName != "Google Chrome" || pkg.Version != "148.0.0.1" {
 		t.Fatalf("pkg = %+v, want Google Chrome 148.0.0.1", pkg)
 	}
-	pkg = patchMunkiJSON[packages.Package](
+	pkg = putMunkiJSON[packages.Package](
 		t,
 		server,
 		cookie,
@@ -665,24 +665,6 @@ func putMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path
 	var decoded T
 	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
 		t.Fatalf("decode PUT %s: %v", path, err)
-	}
-	return decoded
-}
-
-func patchMunkiJSON[T any](t *testing.T, server *Server, cookie *http.Cookie, path string, body string) T {
-	t.Helper()
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodPatch, path, strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Sec-Fetch-Site", "same-origin")
-	req.AddCookie(cookie)
-	server.httpServer.Handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("PATCH %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
-	}
-	var decoded T
-	if err := json.NewDecoder(rec.Body).Decode(&decoded); err != nil {
-		t.Fatalf("decode PATCH %s: %v", path, err)
 	}
 	return decoded
 }

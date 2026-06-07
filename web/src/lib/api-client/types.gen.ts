@@ -1023,6 +1023,15 @@ export type PackageReference = {
     software_name?: string;
 };
 
+export type PageArtifact = {
+    /**
+     * A URL to the JSON Schema for this object.
+     */
+    readonly $schema?: string;
+    count: number;
+    items: Array<MunkiArtifact> | null;
+};
+
 export type PageCheck = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1900,6 +1909,11 @@ export type OsqueryReportMutationWritable = {
     targets: ReportTargets;
 };
 
+export type PageArtifactWritable = {
+    count: number;
+    items: Array<MunkiArtifactWritable> | null;
+};
+
 export type PageCheckWritable = {
     count: number;
     items: Array<OsqueryCheckWritable> | null;
@@ -2301,10 +2315,10 @@ export type CreateAgentSecretResponse = CreateAgentSecretResponses[keyof CreateA
 export type DeleteAgentSecretData = {
     body?: never;
     path: {
-        id: number;
+        agent_secret_id: number;
     };
     query?: never;
-    url: '/api/agent-secrets/{id}';
+    url: '/api/agent-secrets/{agent_secret_id}';
 };
 
 export type DeleteAgentSecretErrors = {
@@ -2348,10 +2362,10 @@ export type DeleteAgentSecretResponse = DeleteAgentSecretResponses[keyof DeleteA
 export type UpdateAgentSecretData = {
     body: AgentSecretMutationWritable;
     path: {
-        id: number;
+        agent_secret_id: number;
     };
     query?: never;
-    url: '/api/agent-secrets/{id}';
+    url: '/api/agent-secrets/{agent_secret_id}';
 };
 
 export type UpdateAgentSecretErrors = {
@@ -2655,6 +2669,217 @@ export type BulkDeleteHostsResponses = {
 
 export type BulkDeleteHostsResponse = BulkDeleteHostsResponses[keyof BulkDeleteHostsResponses];
 
+export type ListHostOsqueryChecksData = {
+    body?: never;
+    path: {
+        host_id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{host_id}/osquery/checks';
+};
+
+export type ListHostOsqueryChecksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostOsqueryChecksError = ListHostOsqueryChecksErrors[keyof ListHostOsqueryChecksErrors];
+
+export type ListHostOsqueryChecksResponses = {
+    /**
+     * OK
+     */
+    200: Array<CheckHostStatus> | null;
+};
+
+export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
+
+export type ListHostOsqueryReportsData = {
+    body?: never;
+    path: {
+        host_id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{host_id}/osquery/reports';
+};
+
+export type ListHostOsqueryReportsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostOsqueryReportsError = ListHostOsqueryReportsErrors[keyof ListHostOsqueryReportsErrors];
+
+export type ListHostOsqueryReportsResponses = {
+    /**
+     * OK
+     */
+    200: Array<HostReport> | null;
+};
+
+export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
+
+export type ListHostOsqueryReportResultsData = {
+    body?: never;
+    path: {
+        host_id: number;
+        report_id: number;
+    };
+    query?: never;
+    url: '/api/hosts/{host_id}/osquery/reports/{report_id}';
+};
+
+export type ListHostOsqueryReportResultsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostOsqueryReportResultsError = ListHostOsqueryReportResultsErrors[keyof ListHostOsqueryReportResultsErrors];
+
+export type ListHostOsqueryReportResultsResponses = {
+    /**
+     * OK
+     */
+    200: HostReportResultsBody;
+};
+
+export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
+
+export type ListHostSantaRulesData = {
+    body?: never;
+    path: {
+        host_id: number;
+    };
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/hosts/{host_id}/santa/rules';
+};
+
+export type ListHostSantaRulesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostSantaRulesError = ListHostSantaRulesErrors[keyof ListHostSantaRulesErrors];
+
+export type ListHostSantaRulesResponses = {
+    /**
+     * OK
+     */
+    200: PageRuleStatus;
+};
+
+export type ListHostSantaRulesResponse = ListHostSantaRulesResponses[keyof ListHostSantaRulesResponses];
+
+export type ListHostSoftwareData = {
+    body?: never;
+    path: {
+        host_id: number;
+    };
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+        source?: Array<string> | null;
+    };
+    url: '/api/hosts/{host_id}/software';
+};
+
+export type ListHostSoftwareErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListHostSoftwareError = ListHostSoftwareErrors[keyof ListHostSoftwareErrors];
+
+export type ListHostSoftwareResponses = {
+    /**
+     * OK
+     */
+    200: PageHostSoftwareRow;
+};
+
+export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];
+
 export type DeleteHostData = {
     body?: never;
     path: {
@@ -2736,217 +2961,6 @@ export type GetHostResponses = {
 };
 
 export type GetHostResponse = GetHostResponses[keyof GetHostResponses];
-
-export type ListHostOsqueryChecksData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/osquery/checks';
-};
-
-export type ListHostOsqueryChecksErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostOsqueryChecksError = ListHostOsqueryChecksErrors[keyof ListHostOsqueryChecksErrors];
-
-export type ListHostOsqueryChecksResponses = {
-    /**
-     * OK
-     */
-    200: Array<CheckHostStatus> | null;
-};
-
-export type ListHostOsqueryChecksResponse = ListHostOsqueryChecksResponses[keyof ListHostOsqueryChecksResponses];
-
-export type ListHostOsqueryReportsData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/osquery/reports';
-};
-
-export type ListHostOsqueryReportsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostOsqueryReportsError = ListHostOsqueryReportsErrors[keyof ListHostOsqueryReportsErrors];
-
-export type ListHostOsqueryReportsResponses = {
-    /**
-     * OK
-     */
-    200: Array<HostReport> | null;
-};
-
-export type ListHostOsqueryReportsResponse = ListHostOsqueryReportsResponses[keyof ListHostOsqueryReportsResponses];
-
-export type ListHostOsqueryReportResultsData = {
-    body?: never;
-    path: {
-        id: number;
-        report_id: number;
-    };
-    query?: never;
-    url: '/api/hosts/{id}/osquery/reports/{report_id}';
-};
-
-export type ListHostOsqueryReportResultsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostOsqueryReportResultsError = ListHostOsqueryReportResultsErrors[keyof ListHostOsqueryReportResultsErrors];
-
-export type ListHostOsqueryReportResultsResponses = {
-    /**
-     * OK
-     */
-    200: HostReportResultsBody;
-};
-
-export type ListHostOsqueryReportResultsResponse = ListHostOsqueryReportResultsResponses[keyof ListHostOsqueryReportResultsResponses];
-
-export type ListHostSantaRulesData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: {
-        q?: string;
-        page_index?: number;
-        page_size?: number;
-        sort?: string;
-    };
-    url: '/api/hosts/{id}/santa/rules';
-};
-
-export type ListHostSantaRulesErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostSantaRulesError = ListHostSantaRulesErrors[keyof ListHostSantaRulesErrors];
-
-export type ListHostSantaRulesResponses = {
-    /**
-     * OK
-     */
-    200: PageRuleStatus;
-};
-
-export type ListHostSantaRulesResponse = ListHostSantaRulesResponses[keyof ListHostSantaRulesResponses];
-
-export type ListHostSoftwareData = {
-    body?: never;
-    path: {
-        id: number;
-    };
-    query?: {
-        q?: string;
-        page_index?: number;
-        page_size?: number;
-        sort?: string;
-        source?: Array<string> | null;
-    };
-    url: '/api/hosts/{id}/software';
-};
-
-export type ListHostSoftwareErrors = {
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ListHostSoftwareError = ListHostSoftwareErrors[keyof ListHostSoftwareErrors];
-
-export type ListHostSoftwareResponses = {
-    /**
-     * OK
-     */
-    200: PageHostSoftwareRow;
-};
-
-export type ListHostSoftwareResponse = ListHostSoftwareResponses[keyof ListHostSoftwareResponses];
 
 export type DeleteHostUserAffinityData = {
     body?: never;
@@ -3489,6 +3503,48 @@ export type CreateMunkiArtifactUploadResponses = {
 
 export type CreateMunkiArtifactUploadResponse = CreateMunkiArtifactUploadResponses[keyof CreateMunkiArtifactUploadResponses];
 
+export type ListMunkiArtifactsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        page_index?: number;
+        page_size?: number;
+        sort?: string;
+    };
+    url: '/api/munki/artifacts';
+};
+
+export type ListMunkiArtifactsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type ListMunkiArtifactsError = ListMunkiArtifactsErrors[keyof ListMunkiArtifactsErrors];
+
+export type ListMunkiArtifactsResponses = {
+    /**
+     * OK
+     */
+    200: PageArtifact;
+};
+
+export type ListMunkiArtifactsResponse = ListMunkiArtifactsResponses[keyof ListMunkiArtifactsResponses];
+
 export type CreateMunkiArtifactData = {
     body: MunkiArtifactMutationWritable;
     path?: never;
@@ -3538,13 +3594,103 @@ export type CreateMunkiArtifactResponses = {
 
 export type CreateMunkiArtifactResponse = CreateMunkiArtifactResponses[keyof CreateMunkiArtifactResponses];
 
+export type DeleteMunkiArtifactData = {
+    body?: never;
+    path: {
+        artifact_id: number;
+    };
+    query?: never;
+    url: '/api/munki/artifacts/{artifact_id}';
+};
+
+export type DeleteMunkiArtifactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiArtifactError = DeleteMunkiArtifactErrors[keyof DeleteMunkiArtifactErrors];
+
+export type DeleteMunkiArtifactResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiArtifactResponse = DeleteMunkiArtifactResponses[keyof DeleteMunkiArtifactResponses];
+
+export type GetMunkiArtifactData = {
+    body?: never;
+    path: {
+        artifact_id: number;
+    };
+    query?: never;
+    url: '/api/munki/artifacts/{artifact_id}';
+};
+
+export type GetMunkiArtifactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type GetMunkiArtifactError = GetMunkiArtifactErrors[keyof GetMunkiArtifactErrors];
+
+export type GetMunkiArtifactResponses = {
+    /**
+     * OK
+     */
+    200: MunkiArtifact;
+};
+
+export type GetMunkiArtifactResponse = GetMunkiArtifactResponses[keyof GetMunkiArtifactResponses];
+
 export type GetMunkiArtifactContentData = {
     body?: never;
     path: {
-        id: number;
+        artifact_id: number;
     };
     query?: never;
-    url: '/api/munki/artifacts/{id}/content';
+    url: '/api/munki/artifacts/{artifact_id}/content';
 };
 
 export type GetMunkiArtifactContentErrors = {
@@ -3726,13 +3872,60 @@ export type ImportMunkiPackageResponses = {
 
 export type ImportMunkiPackageResponse = ImportMunkiPackageResponses[keyof ImportMunkiPackageResponses];
 
+export type DeleteMunkiPackageData = {
+    body?: never;
+    path: {
+        package_id: number;
+    };
+    query?: never;
+    url: '/api/munki/packages/{package_id}';
+};
+
+export type DeleteMunkiPackageErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type DeleteMunkiPackageError = DeleteMunkiPackageErrors[keyof DeleteMunkiPackageErrors];
+
+export type DeleteMunkiPackageResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteMunkiPackageResponse = DeleteMunkiPackageResponses[keyof DeleteMunkiPackageResponses];
+
 export type GetMunkiPackageData = {
     body?: never;
     path: {
-        id: number;
+        package_id: number;
     };
     query?: never;
-    url: '/api/munki/packages/{id}';
+    url: '/api/munki/packages/{package_id}';
 };
 
 export type GetMunkiPackageErrors = {
@@ -3772,10 +3965,10 @@ export type GetMunkiPackageResponse = GetMunkiPackageResponses[keyof GetMunkiPac
 export type UpdateMunkiPackageData = {
     body: MunkiPackageMutationWritable;
     path: {
-        id: number;
+        package_id: number;
     };
     query?: never;
-    url: '/api/munki/packages/{id}';
+    url: '/api/munki/packages/{package_id}';
 };
 
 export type UpdateMunkiPackageErrors = {
@@ -3955,10 +4148,10 @@ export type BulkDeleteMunkiSoftwareResponse = BulkDeleteMunkiSoftwareResponses[k
 export type DeleteMunkiSoftwareData = {
     body?: never;
     path: {
-        id: number;
+        software_id: number;
     };
     query?: never;
-    url: '/api/munki/software/{id}';
+    url: '/api/munki/software/{software_id}';
 };
 
 export type DeleteMunkiSoftwareErrors = {
@@ -3998,10 +4191,10 @@ export type DeleteMunkiSoftwareResponse = DeleteMunkiSoftwareResponses[keyof Del
 export type GetMunkiSoftwareData = {
     body?: never;
     path: {
-        id: number;
+        software_id: number;
     };
     query?: never;
-    url: '/api/munki/software/{id}';
+    url: '/api/munki/software/{software_id}';
 };
 
 export type GetMunkiSoftwareErrors = {
@@ -4041,10 +4234,10 @@ export type GetMunkiSoftwareResponse = GetMunkiSoftwareResponses[keyof GetMunkiS
 export type UpdateMunkiSoftwareData = {
     body: MunkiSoftwareMutationWritable;
     path: {
-        id: number;
+        software_id: number;
     };
     query?: never;
-    url: '/api/munki/software/{id}';
+    url: '/api/munki/software/{software_id}';
 };
 
 export type UpdateMunkiSoftwareErrors = {
@@ -4216,10 +4409,10 @@ export type BulkDeleteOsqueryChecksResponse = BulkDeleteOsqueryChecksResponses[k
 export type DeleteOsqueryCheckData = {
     body?: never;
     path: {
-        id: number;
+        check_id: number;
     };
     query?: never;
-    url: '/api/osquery/checks/{id}';
+    url: '/api/osquery/checks/{check_id}';
 };
 
 export type DeleteOsqueryCheckErrors = {
@@ -4255,10 +4448,10 @@ export type DeleteOsqueryCheckResponse = DeleteOsqueryCheckResponses[keyof Delet
 export type GetOsqueryCheckData = {
     body?: never;
     path: {
-        id: number;
+        check_id: number;
     };
     query?: never;
-    url: '/api/osquery/checks/{id}';
+    url: '/api/osquery/checks/{check_id}';
 };
 
 export type GetOsqueryCheckErrors = {
@@ -4294,10 +4487,10 @@ export type GetOsqueryCheckResponse = GetOsqueryCheckResponses[keyof GetOsqueryC
 export type UpdateOsqueryCheckData = {
     body: OsqueryCheckMutationWritable;
     path: {
-        id: number;
+        check_id: number;
     };
     query?: never;
-    url: '/api/osquery/checks/{id}';
+    url: '/api/osquery/checks/{check_id}';
 };
 
 export type UpdateOsqueryCheckErrors = {
@@ -4341,10 +4534,10 @@ export type UpdateOsqueryCheckResponse = UpdateOsqueryCheckResponses[keyof Updat
 export type ListOsqueryCheckHostsData = {
     body?: never;
     path: {
-        id: number;
+        check_id: number;
     };
     query?: never;
-    url: '/api/osquery/checks/{id}/hosts';
+    url: '/api/osquery/checks/{check_id}/hosts';
 };
 
 export type ListOsqueryCheckHostsErrors = {
@@ -4504,10 +4697,10 @@ export type BulkDeleteOsqueryReportsResponse = BulkDeleteOsqueryReportsResponses
 export type DeleteOsqueryReportData = {
     body?: never;
     path: {
-        id: number;
+        report_id: number;
     };
     query?: never;
-    url: '/api/osquery/reports/{id}';
+    url: '/api/osquery/reports/{report_id}';
 };
 
 export type DeleteOsqueryReportErrors = {
@@ -4543,10 +4736,10 @@ export type DeleteOsqueryReportResponse = DeleteOsqueryReportResponses[keyof Del
 export type GetOsqueryReportData = {
     body?: never;
     path: {
-        id: number;
+        report_id: number;
     };
     query?: never;
-    url: '/api/osquery/reports/{id}';
+    url: '/api/osquery/reports/{report_id}';
 };
 
 export type GetOsqueryReportErrors = {
@@ -4582,10 +4775,10 @@ export type GetOsqueryReportResponse = GetOsqueryReportResponses[keyof GetOsquer
 export type UpdateOsqueryReportData = {
     body: OsqueryReportMutationWritable;
     path: {
-        id: number;
+        report_id: number;
     };
     query?: never;
-    url: '/api/osquery/reports/{id}';
+    url: '/api/osquery/reports/{report_id}';
 };
 
 export type UpdateOsqueryReportErrors = {
@@ -4629,10 +4822,10 @@ export type UpdateOsqueryReportResponse = UpdateOsqueryReportResponses[keyof Upd
 export type ListOsqueryReportResultsData = {
     body?: never;
     path: {
-        id: number;
+        report_id: number;
     };
     query?: never;
-    url: '/api/osquery/reports/{id}/results';
+    url: '/api/osquery/reports/{report_id}/results';
 };
 
 export type ListOsqueryReportResultsErrors = {
@@ -4841,10 +5034,10 @@ export type ReorderSantaConfigurationsResponse = ReorderSantaConfigurationsRespo
 export type DeleteSantaConfigurationData = {
     body?: never;
     path: {
-        id: number;
+        configuration_id: number;
     };
     query?: never;
-    url: '/api/santa/configurations/{id}';
+    url: '/api/santa/configurations/{configuration_id}';
 };
 
 export type DeleteSantaConfigurationErrors = {
@@ -4884,10 +5077,10 @@ export type DeleteSantaConfigurationResponse = DeleteSantaConfigurationResponses
 export type GetSantaConfigurationData = {
     body?: never;
     path: {
-        id: number;
+        configuration_id: number;
     };
     query?: never;
-    url: '/api/santa/configurations/{id}';
+    url: '/api/santa/configurations/{configuration_id}';
 };
 
 export type GetSantaConfigurationErrors = {
@@ -4927,10 +5120,10 @@ export type GetSantaConfigurationResponse = GetSantaConfigurationResponses[keyof
 export type UpdateSantaConfigurationData = {
     body: ConfigurationMutationWritable;
     path: {
-        id: number;
+        configuration_id: number;
     };
     query?: never;
-    url: '/api/santa/configurations/{id}';
+    url: '/api/santa/configurations/{configuration_id}';
 };
 
 export type UpdateSantaConfigurationErrors = {
@@ -5028,10 +5221,10 @@ export type ListSantaEventsResponse = ListSantaEventsResponses[keyof ListSantaEv
 export type GetSantaEventData = {
     body?: never;
     path: {
-        id: number;
+        event_id: number;
     };
     query?: never;
-    url: '/api/santa/events/{id}';
+    url: '/api/santa/events/{event_id}';
 };
 
 export type GetSantaEventErrors = {
@@ -5124,10 +5317,10 @@ export type ListSantaFileAccessEventsResponse = ListSantaFileAccessEventsRespons
 export type GetSantaFileAccessEventData = {
     body?: never;
     path: {
-        id: number;
+        event_id: number;
     };
     query?: never;
-    url: '/api/santa/file-access-events/{id}';
+    url: '/api/santa/file-access-events/{event_id}';
 };
 
 export type GetSantaFileAccessEventErrors = {
@@ -5353,10 +5546,10 @@ export type BulkDeleteSantaRulesResponse = BulkDeleteSantaRulesResponses[keyof B
 export type DeleteSantaRuleData = {
     body?: never;
     path: {
-        id: number;
+        rule_id: number;
     };
     query?: never;
-    url: '/api/santa/rules/{id}';
+    url: '/api/santa/rules/{rule_id}';
 };
 
 export type DeleteSantaRuleErrors = {
@@ -5396,10 +5589,10 @@ export type DeleteSantaRuleResponse = DeleteSantaRuleResponses[keyof DeleteSanta
 export type GetSantaRuleData = {
     body?: never;
     path: {
-        id: number;
+        rule_id: number;
     };
     query?: never;
-    url: '/api/santa/rules/{id}';
+    url: '/api/santa/rules/{rule_id}';
 };
 
 export type GetSantaRuleErrors = {
@@ -5439,10 +5632,10 @@ export type GetSantaRuleResponse = GetSantaRuleResponses[keyof GetSantaRuleRespo
 export type UpdateSantaRuleData = {
     body: RuleMutationWritable;
     path: {
-        id: number;
+        rule_id: number;
     };
     query?: never;
-    url: '/api/santa/rules/{id}';
+    url: '/api/santa/rules/{rule_id}';
 };
 
 export type UpdateSantaRuleErrors = {
@@ -5566,10 +5759,10 @@ export type ListSoftwareResponse = ListSoftwareResponses[keyof ListSoftwareRespo
 export type GetSoftwareData = {
     body?: never;
     path: {
-        id: number;
+        software_id: number;
     };
     query?: never;
-    url: '/api/software/{id}';
+    url: '/api/software/{software_id}';
 };
 
 export type GetSoftwareErrors = {
@@ -5605,10 +5798,10 @@ export type GetSoftwareResponse = GetSoftwareResponses[keyof GetSoftwareResponse
 export type GetSoftwareSantaReferenceData = {
     body?: never;
     path: {
-        id: number;
+        software_id: number;
     };
     query?: never;
-    url: '/api/software/{id}/santa';
+    url: '/api/software/{software_id}/santa';
 };
 
 export type GetSoftwareSantaReferenceErrors = {

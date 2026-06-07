@@ -14,11 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
-import {
-  useCreateMunkiSoftware,
-  useMunkiSoftware,
-  type MunkiSoftwareMutation,
-} from "@/hooks/munki/software";
+import { useCreateMunkiSoftware, useMunkiSoftware, type MunkiSoftwareMutation } from "@/hooks/munki/software";
 import { uniqueOptions } from "@/lib/form-validation";
 import { emptyMunkiSoftwareForm, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";

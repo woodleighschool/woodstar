@@ -13,7 +13,7 @@ import (
 const (
 	reportsTag     = "Reports"
 	reportResource = "report"
-	reportIDPath   = "/api/osquery/reports/{id}"
+	reportIDPath   = "/api/osquery/reports/{report_id}"
 )
 
 type reportListInput struct {
@@ -21,7 +21,7 @@ type reportListInput struct {
 }
 
 type reportGetInput struct {
-	ID int64 `path:"id"`
+	ReportID int64 `path:"report_id"`
 }
 
 type reportCreateInput struct {
@@ -29,12 +29,12 @@ type reportCreateInput struct {
 }
 
 type reportPutInput struct {
-	ID   int64 `path:"id"`
-	Body ReportMutation
+	ReportID int64 `path:"report_id"`
+	Body     ReportMutation
 }
 
 type reportDeleteInput struct {
-	ID int64 `path:"id"`
+	ReportID int64 `path:"report_id"`
 }
 
 type reportBulkDeleteInput struct {
@@ -109,7 +109,7 @@ func registerGetReport(api huma.API, reportStore *Store) {
 		Summary:     "Get a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportOutput, error) {
-		report, err := reportStore.GetByID(ctx, input.ID)
+		report, err := reportStore.GetByID(ctx, input.ReportID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
@@ -127,7 +127,7 @@ func registerUpdateReport(api huma.API, reportStore *Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *reportPutInput) (*reportOutput, error) {
 		params := input.Body
-		report, err := reportStore.Update(ctx, input.ID, params)
+		report, err := reportStore.Update(ctx, input.ReportID, params)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
@@ -144,7 +144,7 @@ func registerDeleteReport(api huma.API, reportStore *Store) {
 		Summary:     "Delete a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportDeleteInput) (*struct{}, error) {
-		if err := reportStore.Delete(ctx, input.ID); err != nil {
+		if err := reportStore.Delete(ctx, input.ReportID); err != nil {
 			return nil, apitypes.ResourceMutationError(reportResource, err)
 		}
 		return &struct{}{}, nil
@@ -174,12 +174,12 @@ func registerReportResults(api huma.API, reportStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/osquery/reports/{id}/results",
+		Path:        "/api/osquery/reports/{report_id}/results",
 		Tags:        []string{reportsTag},
 		Summary:     "List latest snapshots for a report",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *reportGetInput) (*reportResultsOutput, error) {
-		rows, err := reportStore.Results(ctx, input.ID)
+		rows, err := reportStore.Results(ctx, input.ReportID)
 		if err != nil {
 			return nil, err
 		}

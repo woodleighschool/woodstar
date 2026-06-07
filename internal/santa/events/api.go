@@ -15,9 +15,9 @@ import (
 const (
 	santaTag                   = "Santa"
 	santaEventResource         = "Santa event"
-	santaEventIDPath           = "/api/santa/events/{id}"
+	santaEventIDPath           = "/api/santa/events/{event_id}"
 	santaFileAccessEventPath   = "/api/santa/file-access-events"
-	santaFileAccessEventIDPath = "/api/santa/file-access-events/{id}"
+	santaFileAccessEventIDPath = "/api/santa/file-access-events/{event_id}"
 )
 
 type santaEventListInput struct {
@@ -33,7 +33,7 @@ type santaEventListOutput struct {
 }
 
 type santaEventGetInput struct {
-	ID int64 `path:"id"`
+	EventID int64 `path:"event_id"`
 }
 
 type santaEventGetOutput struct {
@@ -52,7 +52,7 @@ type santaFileAccessEventListOutput struct {
 }
 
 type santaFileAccessEventGetInput struct {
-	ID int64 `path:"id"`
+	EventID int64 `path:"event_id"`
 }
 
 type santaFileAccessEventGetOutput struct {
@@ -123,7 +123,7 @@ func registerGetSantaEvent(api huma.API, store *Store) {
 		Summary:     "Get a Santa execution event",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaEventGetInput) (*santaEventGetOutput, error) {
-		event, err := store.GetExecutionEvent(ctx, input.ID)
+		event, err := store.GetExecutionEvent(ctx, input.EventID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa event not found")
 		}
@@ -162,7 +162,7 @@ func registerGetSantaFileAccessEvent(api huma.API, store *Store) {
 		Summary:     "Get a Santa file access event",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *santaFileAccessEventGetInput) (*santaFileAccessEventGetOutput, error) {
-		event, err := store.GetFileAccessEvent(ctx, input.ID)
+		event, err := store.GetFileAccessEvent(ctx, input.EventID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("Santa file access event not found")
 		}

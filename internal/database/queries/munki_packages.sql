@@ -340,6 +340,10 @@ LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = @id;
 
+-- name: DeleteMunkiPackage :execrows
+DELETE FROM munki_packages
+WHERE id = @id;
+
 -- name: DeleteMunkiPackageRelationsByKind :exec
 DELETE FROM munki_package_relations
 WHERE package_id = @package_id

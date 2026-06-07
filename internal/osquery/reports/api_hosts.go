@@ -29,14 +29,14 @@ type hostReportResultsBody struct {
 }
 
 type hostReportResultsInput struct {
-	ID       int64 `path:"id"`
+	HostID   int64 `path:"host_id"`
 	ReportID int64 `path:"report_id"`
 }
 
 const hostsTag = "Hosts"
 
 type hostGetInput struct {
-	ID int64 `path:"id"`
+	HostID int64 `path:"host_id"`
 }
 
 func RegisterHostAdminRoutes(api huma.API, reportStore *Store, hostStore *hosts.Store) {
@@ -48,12 +48,12 @@ func registerHostReports(api huma.API, reportStore *Store, hostStore *hosts.Stor
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-reports",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/osquery/reports",
+		Path:        "/api/hosts/{host_id}/osquery/reports",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List reports for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*hostReportsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
+		host, err := hostStore.GetByID(ctx, input.HostID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
@@ -72,25 +72,25 @@ func registerHostReportResults(api huma.API, reportStore *Store, hostStore *host
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-report-results",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/osquery/reports/{report_id}",
+		Path:        "/api/hosts/{host_id}/osquery/reports/{report_id}",
 		Tags:        []string{reportsTag, hostsTag},
 		Summary:     "List report rows for one host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostReportResultsInput) (*hostReportResultsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
+		host, err := hostStore.GetByID(ctx, input.HostID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
 		if err != nil {
 			return nil, err
 		}
-		rows, lastFetched, err := reportStore.HostResults(ctx, input.ID, input.ReportID)
+		rows, lastFetched, err := reportStore.HostResults(ctx, input.HostID, input.ReportID)
 		if err != nil {
 			return nil, err
 		}
 		return &hostReportResultsOutput{Body: hostReportResultsBody{
 			ReportID:    input.ReportID,
-			HostID:      input.ID,
+			HostID:      input.HostID,
 			HostName:    host.DisplayName,
 			LastFetched: lastFetched,
 			Items:       rows,

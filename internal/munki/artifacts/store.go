@@ -97,6 +97,17 @@ func (s *Store) GetByLocation(ctx context.Context, kind ArtifactKind, location s
 	return &artifact, nil
 }
 
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	rows, err := s.q.DeleteMunkiArtifact(ctx, sqlc.DeleteMunkiArtifactParams{ID: id})
+	if err != nil {
+		return mapMutationError(err)
+	}
+	if rows == 0 {
+		return dbutil.ErrNotFound
+	}
+	return nil
+}
+
 func cleanMutation(params ArtifactMutation) ArtifactMutation {
 	params.DisplayName = strings.TrimSpace(params.DisplayName)
 	params.Location = strings.TrimSpace(params.Location)

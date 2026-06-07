@@ -13,7 +13,7 @@ import (
 const (
 	checksTag     = "Checks"
 	checkResource = "check"
-	checkIDPath   = "/api/osquery/checks/{id}"
+	checkIDPath   = "/api/osquery/checks/{check_id}"
 )
 
 type checkListInput struct {
@@ -21,7 +21,7 @@ type checkListInput struct {
 }
 
 type checkGetInput struct {
-	ID int64 `path:"id"`
+	CheckID int64 `path:"check_id"`
 }
 
 type checkCreateInput struct {
@@ -29,12 +29,12 @@ type checkCreateInput struct {
 }
 
 type checkPutInput struct {
-	ID   int64 `path:"id"`
-	Body CheckMutation
+	CheckID int64 `path:"check_id"`
+	Body    CheckMutation
 }
 
 type checkDeleteInput struct {
-	ID int64 `path:"id"`
+	CheckID int64 `path:"check_id"`
 }
 
 type checkBulkDeleteInput struct {
@@ -109,7 +109,7 @@ func registerGetCheck(api huma.API, checkStore *Store) {
 		Summary:     "Get a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkOutput, error) {
-		check, err := checkStore.GetByID(ctx, input.ID)
+		check, err := checkStore.GetByID(ctx, input.CheckID)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}
@@ -127,7 +127,7 @@ func registerUpdateCheck(api huma.API, checkStore *Store) {
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict},
 	}, func(ctx context.Context, input *checkPutInput) (*checkOutput, error) {
 		params := input.Body
-		check, err := checkStore.Update(ctx, input.ID, params)
+		check, err := checkStore.Update(ctx, input.CheckID, params)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}
@@ -144,7 +144,7 @@ func registerDeleteCheck(api huma.API, checkStore *Store) {
 		Summary:     "Delete a check",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkDeleteInput) (*struct{}, error) {
-		if err := checkStore.Delete(ctx, input.ID); err != nil {
+		if err := checkStore.Delete(ctx, input.CheckID); err != nil {
 			return nil, apitypes.ResourceMutationError(checkResource, err)
 		}
 		return &struct{}{}, nil
@@ -174,12 +174,12 @@ func registerCheckHosts(api huma.API, checkStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-osquery-check-hosts",
 		Method:      http.MethodGet,
-		Path:        "/api/osquery/checks/{id}/hosts",
+		Path:        "/api/osquery/checks/{check_id}/hosts",
 		Tags:        []string{checksTag},
 		Summary:     "List check host status",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *checkGetInput) (*checkHostsOutput, error) {
-		rows, err := checkStore.HostStatuses(ctx, input.ID)
+		rows, err := checkStore.HostStatuses(ctx, input.CheckID)
 		if err != nil {
 			return nil, err
 		}

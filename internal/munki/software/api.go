@@ -17,7 +17,7 @@ const (
 	munkiTag            = "Munki"
 	munkiPackageLabel   = "Munki package"
 	munkiSoftwarePath   = "/api/munki/software"
-	munkiSoftwareIDPath = "/api/munki/software/{id}"
+	munkiSoftwareIDPath = "/api/munki/software/{software_id}"
 	munkiSoftwareLabel  = "Munki software"
 )
 
@@ -26,7 +26,7 @@ type munkiSoftwareListInput struct {
 }
 
 type munkiSoftwareGetInput struct {
-	ID int64 `path:"id"`
+	SoftwareID int64 `path:"software_id"`
 }
 
 type munkiSoftwareCreateInput struct {
@@ -34,12 +34,12 @@ type munkiSoftwareCreateInput struct {
 }
 
 type munkiSoftwarePutInput struct {
-	ID   int64 `path:"id"`
-	Body SoftwareMutation
+	SoftwareID int64 `path:"software_id"`
+	Body       SoftwareMutation
 }
 
 type munkiSoftwareDeleteInput struct {
-	ID int64 `path:"id"`
+	SoftwareID int64 `path:"software_id"`
 }
 
 type munkiSoftwareBulkDeleteInput struct {
@@ -144,7 +144,7 @@ func registerGetMunkiSoftware(
 		Summary:     "Get Munki software",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *munkiSoftwareGetInput) (*munkiSoftwareDetailOutput, error) {
-		return loadMunkiSoftwareDetail(ctx, input.ID, store, packageStore)
+		return loadMunkiSoftwareDetail(ctx, input.SoftwareID, store, packageStore)
 	})
 }
 
@@ -167,7 +167,7 @@ func registerPutMunkiSoftware(
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiSoftwarePutInput) (*munkiSoftwareDetailOutput, error) {
-		title, err := store.Update(ctx, input.ID, input.Body)
+		title, err := store.Update(ctx, input.SoftwareID, input.Body)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
@@ -187,7 +187,7 @@ func registerDeleteMunkiSoftware(api huma.API, store *Store) {
 		if _, err := adminctx.RequireAdmin(ctx); err != nil {
 			return nil, err
 		}
-		if err := store.Delete(ctx, input.ID); err != nil {
+		if err := store.Delete(ctx, input.SoftwareID); err != nil {
 			return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 		}
 		return &struct{}{}, nil

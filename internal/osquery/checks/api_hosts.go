@@ -14,19 +14,19 @@ import (
 const hostsTag = "Hosts"
 
 type hostGetInput struct {
-	ID int64 `path:"id"`
+	HostID int64 `path:"host_id"`
 }
 
 func RegisterHostAdminRoutes(api huma.API, checkStore *Store, hostStore *hosts.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-host-osquery-checks",
 		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/osquery/checks",
+		Path:        "/api/hosts/{host_id}/osquery/checks",
 		Tags:        []string{checksTag, hostsTag},
 		Summary:     "List checks for a host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*checkHostsOutput, error) {
-		host, err := hostStore.GetByID(ctx, input.ID)
+		host, err := hostStore.GetByID(ctx, input.HostID)
 		if errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		}
