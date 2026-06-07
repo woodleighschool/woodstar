@@ -1,4 +1,4 @@
-package handlers
+package rules
 
 import (
 	"context"
@@ -7,23 +7,23 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
 const (
+	santaTag          = "Santa"
 	santaRuleResource = "Santa rule"
 	santaRuleIDPath   = "/api/santa/rules/{id}"
 )
 
 type santaRuleListInput struct {
 	apitypes.ListQueryInput
-	RuleType santarules.RuleType `query:"rule_type,omitempty"`
+	RuleType RuleType `query:"rule_type,omitempty"`
 }
 
 type santaRuleTargetListInput struct {
-	Q          string              `query:"q,omitempty"`
-	TargetType santarules.RuleType `query:"target_type,omitempty"`
-	Limit      int                 `query:"limit,omitempty"       minimum:"1" maximum:"50"`
+	Q          string   `query:"q,omitempty"`
+	TargetType RuleType `query:"target_type,omitempty"`
+	Limit      int      `query:"limit,omitempty"       minimum:"1" maximum:"50"`
 }
 
 type santaRuleGetInput struct {
@@ -31,12 +31,12 @@ type santaRuleGetInput struct {
 }
 
 type santaRuleCreateInput struct {
-	Body santarules.RuleMutation
+	Body RuleMutation
 }
 
 type santaRuleUpdateInput struct {
 	ID   int64 `path:"id"`
-	Body santarules.RuleMutation
+	Body RuleMutation
 }
 
 type santaRuleDeleteInput struct {
@@ -48,33 +48,29 @@ type santaRuleBulkDeleteInput struct {
 }
 
 type santaRuleListOutput struct {
-	Body apitypes.Page[santarules.Rule]
+	Body apitypes.Page[Rule]
 }
 
 type santaRuleOutput struct {
-	Body santarules.Rule
+	Body Rule
 }
 
 type santaRuleTargetListOutput struct {
-	Body []santarules.RuleTarget
+	Body []RuleTarget
 }
 
-func (input santaRuleListInput) params() santarules.RuleListParams {
-	return santarules.RuleListParams{
+func (input santaRuleListInput) params() RuleListParams {
+	return RuleListParams{
 		ListParams: input.ListQueryInput.Params(),
 		RuleType:   input.RuleType,
 	}
 }
 
-func (input santaRuleTargetListInput) params() santarules.RuleTargetListParams {
-	return santarules.RuleTargetListParams{
-		Q:          input.Q,
-		TargetType: input.TargetType,
-		Limit:      input.Limit,
-	}
+func (input santaRuleTargetListInput) params() RuleTargetListParams {
+	return RuleTargetListParams(input)
 }
 
-func RegisterSantaRules(api huma.API, store *santarules.Store) {
+func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListSantaRules(api, store)
 	registerListSantaRuleTargets(api, store)
 	registerCreateSantaRule(api, store)
@@ -84,7 +80,7 @@ func RegisterSantaRules(api huma.API, store *santarules.Store) {
 	registerBulkDeleteSantaRules(api, store)
 }
 
-func registerListSantaRules(api huma.API, store *santarules.Store) {
+func registerListSantaRules(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-rules",
 		Method:      http.MethodGet,
@@ -97,11 +93,11 @@ func registerListSantaRules(api huma.API, store *santarules.Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(santaRuleResource, err)
 		}
-		return &santaRuleListOutput{Body: apitypes.Page[santarules.Rule]{Items: rules, Count: count}}, nil
+		return &santaRuleListOutput{Body: apitypes.Page[Rule]{Items: rules, Count: count}}, nil
 	})
 }
 
-func registerListSantaRuleTargets(api huma.API, store *santarules.Store) {
+func registerListSantaRuleTargets(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-rule-targets",
 		Method:      http.MethodGet,
@@ -118,7 +114,7 @@ func registerListSantaRuleTargets(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerCreateSantaRule(api huma.API, store *santarules.Store) {
+func registerCreateSantaRule(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-santa-rule",
 		Method:        http.MethodPost,
@@ -142,7 +138,7 @@ func registerCreateSantaRule(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerGetSantaRule(api huma.API, store *santarules.Store) {
+func registerGetSantaRule(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-rule",
 		Method:      http.MethodGet,
@@ -159,7 +155,7 @@ func registerGetSantaRule(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerUpdateSantaRule(api huma.API, store *santarules.Store) {
+func registerUpdateSantaRule(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-santa-rule",
 		Method:      http.MethodPut,
@@ -182,7 +178,7 @@ func registerUpdateSantaRule(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerDeleteSantaRule(api huma.API, store *santarules.Store) {
+func registerDeleteSantaRule(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-santa-rule",
 		Method:      http.MethodDelete,
@@ -198,7 +194,7 @@ func registerDeleteSantaRule(api huma.API, store *santarules.Store) {
 	})
 }
 
-func registerBulkDeleteSantaRules(api huma.API, store *santarules.Store) {
+func registerBulkDeleteSantaRules(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-santa-rules",
 		Method:      http.MethodPost,

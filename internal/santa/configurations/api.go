@@ -1,4 +1,4 @@
-package handlers
+package configurations
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
-	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 )
 
 const (
@@ -25,12 +24,12 @@ type santaConfigurationGetInput struct {
 }
 
 type santaConfigurationCreateInput struct {
-	Body configurations.ConfigurationMutation
+	Body ConfigurationMutation
 }
 
 type santaConfigurationUpdateInput struct {
 	ID   int64 `path:"id"`
-	Body configurations.ConfigurationMutation
+	Body ConfigurationMutation
 }
 
 type santaConfigurationDeleteInput struct {
@@ -50,20 +49,20 @@ type santaConfigurationReorderBody struct {
 }
 
 type santaConfigurationListOutput struct {
-	Body apitypes.Page[configurations.Configuration]
+	Body apitypes.Page[Configuration]
 }
 
 type santaConfigurationOutput struct {
-	Body configurations.Configuration
+	Body Configuration
 }
 
-func (input santaConfigurationListInput) params() configurations.ConfigurationListParams {
-	return configurations.ConfigurationListParams{
+func (input santaConfigurationListInput) params() ConfigurationListParams {
+	return ConfigurationListParams{
 		ListParams: input.ListQueryInput.Params(),
 	}
 }
 
-func RegisterSantaConfigurations(api huma.API, store *configurations.Store) {
+func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListSantaConfigurations(api, store)
 	registerCreateSantaConfiguration(api, store)
 	registerGetSantaConfiguration(api, store)
@@ -73,7 +72,7 @@ func RegisterSantaConfigurations(api huma.API, store *configurations.Store) {
 	registerReorderSantaConfigurations(api, store)
 }
 
-func registerListSantaConfigurations(api huma.API, store *configurations.Store) {
+func registerListSantaConfigurations(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-configurations",
 		Method:      http.MethodGet,
@@ -87,12 +86,12 @@ func registerListSantaConfigurations(api huma.API, store *configurations.Store) 
 			return nil, santaConfigurationMutationError(err)
 		}
 		return &santaConfigurationListOutput{
-			Body: apitypes.Page[configurations.Configuration]{Items: rows, Count: count},
+			Body: apitypes.Page[Configuration]{Items: rows, Count: count},
 		}, nil
 	})
 }
 
-func registerCreateSantaConfiguration(api huma.API, store *configurations.Store) {
+func registerCreateSantaConfiguration(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-santa-configuration",
 		Method:        http.MethodPost,
@@ -116,7 +115,7 @@ func registerCreateSantaConfiguration(api huma.API, store *configurations.Store)
 	})
 }
 
-func registerGetSantaConfiguration(api huma.API, store *configurations.Store) {
+func registerGetSantaConfiguration(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-configuration",
 		Method:      http.MethodGet,
@@ -133,7 +132,7 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store) {
 	})
 }
 
-func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store) {
+func registerUpdateSantaConfiguration(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-santa-configuration",
 		Method:      http.MethodPut,
@@ -156,7 +155,7 @@ func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store)
 	})
 }
 
-func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store) {
+func registerDeleteSantaConfiguration(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-santa-configuration",
 		Method:      http.MethodDelete,
@@ -172,7 +171,7 @@ func registerDeleteSantaConfiguration(api huma.API, store *configurations.Store)
 	})
 }
 
-func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.Store) {
+func registerBulkDeleteSantaConfigurations(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-santa-configurations",
 		Method:      http.MethodPost,
@@ -188,7 +187,7 @@ func registerBulkDeleteSantaConfigurations(api huma.API, store *configurations.S
 	})
 }
 
-func registerReorderSantaConfigurations(api huma.API, store *configurations.Store) {
+func registerReorderSantaConfigurations(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "reorder-santa-configurations",
 		Method:      http.MethodPut,

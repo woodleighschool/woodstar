@@ -1,4 +1,4 @@
-package handlers
+package events
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 )
 
 const (
+	santaTag                   = "Santa"
 	santaEventResource         = "Santa event"
 	santaEventIDPath           = "/api/santa/events/{id}"
 	santaFileAccessEventPath   = "/api/santa/file-access-events"
@@ -22,14 +22,14 @@ const (
 
 type santaEventListInput struct {
 	apitypes.ListQueryInput
-	HostID    int64                        `query:"host_id,omitempty"`
-	Decisions []santaevents.DecisionFilter `query:"decisions,omitempty"`
-	Since     time.Time                    `query:"since,omitempty"`
-	User      string                       `query:"user,omitempty"`
+	HostID    int64            `query:"host_id,omitempty"`
+	Decisions []DecisionFilter `query:"decisions,omitempty"`
+	Since     time.Time        `query:"since,omitempty"`
+	User      string           `query:"user,omitempty"`
 }
 
 type santaEventListOutput struct {
-	Body apitypes.Page[santaevents.ExecutionEvent]
+	Body apitypes.Page[ExecutionEvent]
 }
 
 type santaEventGetInput struct {
@@ -37,18 +37,18 @@ type santaEventGetInput struct {
 }
 
 type santaEventGetOutput struct {
-	Body *santaevents.ExecutionEvent
+	Body *ExecutionEvent
 }
 
 type santaFileAccessEventListInput struct {
 	apitypes.ListQueryInput
-	HostID    int64                            `query:"host_id,omitempty"`
-	Decisions []santaevents.FileAccessDecision `query:"decisions,omitempty"`
-	Since     time.Time                        `query:"since,omitempty"`
+	HostID    int64                `query:"host_id,omitempty"`
+	Decisions []FileAccessDecision `query:"decisions,omitempty"`
+	Since     time.Time            `query:"since,omitempty"`
 }
 
 type santaFileAccessEventListOutput struct {
-	Body apitypes.Page[santaevents.FileAccessEvent]
+	Body apitypes.Page[FileAccessEvent]
 }
 
 type santaFileAccessEventGetInput struct {
@@ -56,16 +56,16 @@ type santaFileAccessEventGetInput struct {
 }
 
 type santaFileAccessEventGetOutput struct {
-	Body *santaevents.FileAccessEvent
+	Body *FileAccessEvent
 }
 
-func (input santaEventListInput) params() santaevents.ExecutionEventListParams {
+func (input santaEventListInput) params() ExecutionEventListParams {
 	var since *time.Time
 	if !input.Since.IsZero() {
 		since = &input.Since
 	}
-	return santaevents.ExecutionEventListParams{
-		EventListParams: santaevents.EventListParams{
+	return ExecutionEventListParams{
+		EventListParams: EventListParams{
 			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
 			Since:      since,
@@ -75,13 +75,13 @@ func (input santaEventListInput) params() santaevents.ExecutionEventListParams {
 	}
 }
 
-func (input santaFileAccessEventListInput) params() santaevents.FileAccessEventListParams {
+func (input santaFileAccessEventListInput) params() FileAccessEventListParams {
 	var since *time.Time
 	if !input.Since.IsZero() {
 		since = &input.Since
 	}
-	return santaevents.FileAccessEventListParams{
-		EventListParams: santaevents.EventListParams{
+	return FileAccessEventListParams{
+		EventListParams: EventListParams{
 			ListParams: input.ListQueryInput.Params(),
 			HostID:     input.HostID,
 			Since:      since,
@@ -90,14 +90,14 @@ func (input santaFileAccessEventListInput) params() santaevents.FileAccessEventL
 	}
 }
 
-func RegisterSantaEvents(api huma.API, store *santaevents.Store) {
+func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListSantaEvents(api, store)
 	registerGetSantaEvent(api, store)
 	registerListSantaFileAccessEvents(api, store)
 	registerGetSantaFileAccessEvent(api, store)
 }
 
-func registerListSantaEvents(api huma.API, store *santaevents.Store) {
+func registerListSantaEvents(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-events",
 		Method:      http.MethodGet,
@@ -110,11 +110,11 @@ func registerListSantaEvents(api huma.API, store *santaevents.Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("Santa event", err)
 		}
-		return &santaEventListOutput{Body: apitypes.Page[santaevents.ExecutionEvent]{Items: events, Count: count}}, nil
+		return &santaEventListOutput{Body: apitypes.Page[ExecutionEvent]{Items: events, Count: count}}, nil
 	})
 }
 
-func registerGetSantaEvent(api huma.API, store *santaevents.Store) {
+func registerGetSantaEvent(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-event",
 		Method:      http.MethodGet,
@@ -134,7 +134,7 @@ func registerGetSantaEvent(api huma.API, store *santaevents.Store) {
 	})
 }
 
-func registerListSantaFileAccessEvents(api huma.API, store *santaevents.Store) {
+func registerListSantaFileAccessEvents(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-santa-file-access-events",
 		Method:      http.MethodGet,
@@ -148,12 +148,12 @@ func registerListSantaFileAccessEvents(api huma.API, store *santaevents.Store) {
 			return nil, apitypes.ResourceMutationError("Santa file access event", err)
 		}
 		return &santaFileAccessEventListOutput{
-			Body: apitypes.Page[santaevents.FileAccessEvent]{Items: events, Count: count},
+			Body: apitypes.Page[FileAccessEvent]{Items: events, Count: count},
 		}, nil
 	})
 }
 
-func registerGetSantaFileAccessEvent(api huma.API, store *santaevents.Store) {
+func registerGetSantaFileAccessEvent(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-santa-file-access-event",
 		Method:      http.MethodGet,

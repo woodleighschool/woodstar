@@ -13,6 +13,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
 // Mount attaches public and authenticated admin API routes to r.
@@ -49,10 +52,10 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	checks.RegisterAdminRoutes(protected, deps.Osquery.Checks)
 	checks.RegisterHostAdminRoutes(protected, deps.Osquery.Checks, deps.Inventory.Hosts)
 	livequery.RegisterAdminRoutes(protected, deps.Osquery.LiveQueries, deps.Inventory.Hosts)
-	handlers.RegisterSantaConfigurations(admin, deps.Santa.Configurations)
-	handlers.RegisterSantaRules(admin, deps.Santa.Rules)
-	handlers.RegisterSantaEvents(admin, deps.Santa.Events)
-	handlers.RegisterHostSantaRules(protected, deps.Inventory.Hosts, deps.Santa.Rules)
+	configurations.RegisterAdminRoutes(admin, deps.Santa.Configurations)
+	rules.RegisterAdminRoutes(admin, deps.Santa.Rules)
+	events.RegisterAdminRoutes(admin, deps.Santa.Events)
+	rules.RegisterHostAdminRoutes(protected, deps.Santa.Rules, deps.Inventory.Hosts)
 	handlers.RegisterMunki(admin, handlers.MunkiStores{
 		Artifacts:      deps.Munki.Artifacts,
 		Packages:       deps.Munki.Packages,

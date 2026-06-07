@@ -32,6 +32,9 @@ import (
 	"github.com/woodleighschool/woodstar/internal/munki/packages"
 	munkisoftware "github.com/woodleighschool/woodstar/internal/munki/software"
 	"github.com/woodleighschool/woodstar/internal/osquery/livequery"
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/webui"
 )
 
@@ -245,6 +248,87 @@ func TestAgentSecretsRequireAdmin(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
+}
+
+func TestSantaAdminRoutesRequireAdmin(t *testing.T) {
+	database, ctx := dbtest.Open(t)
+	userService := directory.NewUserService(directory.NewStore(database))
+	if _, err := userService.Create(ctx, directory.UserCreate{
+		Email:    "santa-viewer@example.test",
+		Name:     "Santa Viewer",
+		Password: testUserPassword,
+		Role:     directory.RoleViewer,
+	}); err != nil {
+		t.Fatalf("create viewer user: %v", err)
+	}
+	if _, err := userService.Create(ctx, directory.UserCreate{
+		Email:    "santa-admin@example.test",
+		Name:     "Santa Admin",
+		Password: testUserPassword,
+		Role:     directory.RoleAdmin,
+	}); err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+
+	deps := testDependencies(testConfig())
+	deps.Runtime.DB = database
+	deps.Auth.UserService = userService
+	deps.Auth.AuthService = auth.NewService(userService, deps.Runtime.SessionManager)
+	deps.Santa.Configurations = configurations.NewStore(database)
+	deps.Santa.Rules = rules.NewStore(database)
+	deps.Santa.Events = events.NewStore(database)
+	server := NewServer(deps)
+	viewerCookie := loginTestUserWithEmail(
+		t,
+		deps.Auth.AuthService,
+		deps.Runtime.SessionManager,
+		"santa-viewer@example.test",
+	)
+	adminCookie := loginTestUserWithEmail(
+		t,
+		deps.Auth.AuthService,
+		deps.Runtime.SessionManager,
+		"santa-admin@example.test",
+	)
+
+	for _, path := range []string{
+		"/api/santa/configurations",
+		"/api/santa/rules",
+		"/api/santa/events",
+	} {
+		rec := getAdminPath(t, server, nil, path)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous GET %s status = %d, want %d", path, rec.Code, http.StatusUnauthorized)
+		}
+
+		rec = getAdminPath(t, server, viewerCookie, path)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf(
+				"viewer GET %s status = %d, want %d; body = %q",
+				path,
+				rec.Code,
+				http.StatusForbidden,
+				rec.Body.String(),
+			)
+		}
+
+		rec = getAdminPath(t, server, adminCookie, path)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("admin GET %s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
+		}
+	}
+}
+
+func getAdminPath(t *testing.T, server *Server, cookie *http.Cookie, path string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	server.httpServer.Handler.ServeHTTP(rec, req)
+	return rec
 }
 
 func TestMunkiAdminAPI(t *testing.T) {
