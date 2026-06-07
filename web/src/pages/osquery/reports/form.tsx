@@ -11,7 +11,7 @@ import { SQLEditor } from "@/components/editor/sql-editor";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LiveRunButton } from "@/components/queries/query-ui";
-import { LabelScopeEditor } from "@/components/targeting/label-scope-editor";
+import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -301,13 +301,13 @@ function ReportForm({
               ),
             },
             {
-              value: "scope",
-              label: "Scope",
+              value: "targets",
+              label: "Targets",
               content: (
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelScopeEditor
+                    <LabelTargetSetEditor
                       value={normalizeLabelTargetSet(field.state.value)}
                       onChange={field.handleChange}
                     />

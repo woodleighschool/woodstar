@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { labelsFromIDs, type LabelChip } from "@/components/labels/label-chip-utils";
 import { LabelChips } from "@/components/labels/label-chips";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import type { TargetLabel } from "@/lib/api";
-import { targetLabelIDs, targetSummary, type LabelTargetSet } from "@/lib/targeting";
+import { targetLabelIDs, targetSummary, type FlatLabelTarget, type LabelTargetSet } from "@/lib/targeting";
 
 export function TargetLabelsCell({
   labelIDs,
@@ -13,7 +12,7 @@ export function TargetLabelsCell({
   empty,
 }: {
   labelIDs?: number[];
-  targets?: LabelTargetSet | TargetLabel[] | null;
+  targets?: LabelTargetSet | FlatLabelTarget[] | null;
   labelsByID: ReadonlyMap<number, LabelChip>;
   empty?: ReactNode;
 }) {

@@ -24,7 +24,7 @@ var DirectionValues = []Direction{
 
 // LabelRef identifies a label used by a target include or exclude set.
 type LabelRef struct {
-	LabelID int64 `json:"label_id"`
+	LabelID int64 `json:"label_id" minimum:"1"`
 }
 
 // Result describes the outcome of resolving include/exclude targets for a host.

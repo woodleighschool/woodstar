@@ -126,12 +126,11 @@ WHERE configuration_id = @configuration_id;
 
 -- name: InsertSantaConfigurationTargets :exec
 INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
-SELECT @configuration_id, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest(@effects::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord);
+SELECT @configuration_id, labels.label_id, @direction::target_direction, labels.ord - 1
+FROM unnest(@label_ids::bigint[]) WITH ORDINALITY AS labels(label_id, ord);
 
 -- name: ListSantaConfigurationTargets :many
-SELECT configuration_id, label_id, direction::text AS effect
+SELECT configuration_id, label_id, direction::text AS direction
 FROM santa_configuration_targets
 WHERE configuration_id = ANY(@configuration_ids::bigint[])
 ORDER BY configuration_id, direction, position;

@@ -152,7 +152,7 @@ func TestCreateReportWithMissingLabelReturnsNotFound(t *testing.T) {
 		Name:             "Missing label target",
 		Query:            "select 1;",
 		ScheduleInterval: 60,
-		Targets:          reportTargets([]int64{0}, nil),
+		Targets:          reportTargets([]int64{999_999}, nil),
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)

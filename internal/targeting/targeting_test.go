@@ -92,9 +92,19 @@ func TestValidateTargets(t *testing.T) {
 			wantErr:  "duplicate include label_id 1",
 		},
 		{
+			name:     "non-positive include rejected",
+			includes: includeTargets(0),
+			wantErr:  "include label_id must be positive",
+		},
+		{
 			name:     "duplicate exclude rejected",
 			excludes: labelRefs(2, 2),
 			wantErr:  "duplicate exclude label_id 2",
+		},
+		{
+			name:     "non-positive exclude rejected",
+			excludes: labelRefs(-1),
+			wantErr:  "exclude label_id must be positive",
 		},
 		{
 			name:     "same label in include and exclude rejected",
@@ -139,6 +149,11 @@ func TestValidateLabelSets(t *testing.T) {
 			name:     "duplicate label ref include rejected",
 			includes: labelRefs(1, 1),
 			wantErr:  "duplicate include label_id 1",
+		},
+		{
+			name:     "zero label ref rejected",
+			includes: labelRefs(0),
+			wantErr:  "include label_id must be positive",
 		},
 	}
 

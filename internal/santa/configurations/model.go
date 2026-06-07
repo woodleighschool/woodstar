@@ -7,7 +7,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 	"github.com/woodleighschool/woodstar/internal/humaschema"
-	"github.com/woodleighschool/woodstar/internal/scope"
 )
 
 type (
@@ -103,7 +102,7 @@ type ConfigurationMutation struct {
 	EncryptedRemovableMediaPolicy RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitzero"`
 	EventDetailURL                string               `json:"event_detail_url,omitempty"`
 	EventDetailText               string               `json:"event_detail_text,omitempty"`
-	Targets                       []scope.TargetLabel  `json:"targets"`
+	Targets                       ConfigurationTargets `json:"targets"`
 }
 
 type Configuration struct {
@@ -123,7 +122,7 @@ type Configuration struct {
 	EncryptedRemovableMediaPolicy RemovableMediaPolicy `json:"encrypted_removable_media_policy,omitzero"`
 	EventDetailURL                string               `json:"event_detail_url,omitempty"`
 	EventDetailText               string               `json:"event_detail_text,omitempty"`
-	Targets                       []scope.TargetLabel  `json:"targets"`
+	Targets                       ConfigurationTargets `json:"targets"`
 	CreatedAt                     time.Time            `json:"created_at"`
 	UpdatedAt                     time.Time            `json:"updated_at"`
 }

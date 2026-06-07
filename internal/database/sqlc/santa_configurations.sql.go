@@ -216,19 +216,18 @@ func (q *Queries) GetSantaConfigurationByID(ctx context.Context, arg GetSantaCon
 
 const insertSantaConfigurationTargets = `-- name: InsertSantaConfigurationTargets :exec
 INSERT INTO santa_configuration_targets (configuration_id, label_id, direction, position)
-SELECT $1, labels.label_id, effects.effect::target_direction, labels.ord - 1
-FROM unnest($2::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
-JOIN unnest($3::text[]) WITH ORDINALITY AS effects(effect, ord) USING (ord)
+SELECT $1, labels.label_id, $2::target_direction, labels.ord - 1
+FROM unnest($3::bigint[]) WITH ORDINALITY AS labels(label_id, ord)
 `
 
 type InsertSantaConfigurationTargetsParams struct {
-	ConfigurationID int64    `json:"configuration_id"`
-	LabelIds        []int64  `json:"label_ids"`
-	Effects         []string `json:"effects"`
+	ConfigurationID int64           `json:"configuration_id"`
+	Direction       TargetDirection `json:"direction"`
+	LabelIds        []int64         `json:"label_ids"`
 }
 
 func (q *Queries) InsertSantaConfigurationTargets(ctx context.Context, arg InsertSantaConfigurationTargetsParams) error {
-	_, err := q.db.Exec(ctx, insertSantaConfigurationTargets, arg.ConfigurationID, arg.LabelIds, arg.Effects)
+	_, err := q.db.Exec(ctx, insertSantaConfigurationTargets, arg.ConfigurationID, arg.Direction, arg.LabelIds)
 	return err
 }
 
@@ -259,7 +258,7 @@ func (q *Queries) ListSantaConfigurationIDsByPosition(ctx context.Context) ([]in
 }
 
 const listSantaConfigurationTargets = `-- name: ListSantaConfigurationTargets :many
-SELECT configuration_id, label_id, direction::text AS effect
+SELECT configuration_id, label_id, direction::text AS direction
 FROM santa_configuration_targets
 WHERE configuration_id = ANY($1::bigint[])
 ORDER BY configuration_id, direction, position
@@ -272,7 +271,7 @@ type ListSantaConfigurationTargetsParams struct {
 type ListSantaConfigurationTargetsRow struct {
 	ConfigurationID int64  `json:"configuration_id"`
 	LabelID         int64  `json:"label_id"`
-	Effect          string `json:"effect"`
+	Direction       string `json:"direction"`
 }
 
 func (q *Queries) ListSantaConfigurationTargets(ctx context.Context, arg ListSantaConfigurationTargetsParams) ([]ListSantaConfigurationTargetsRow, error) {
@@ -284,7 +283,7 @@ func (q *Queries) ListSantaConfigurationTargets(ctx context.Context, arg ListSan
 	items := []ListSantaConfigurationTargetsRow{}
 	for rows.Next() {
 		var i ListSantaConfigurationTargetsRow
-		if err := rows.Scan(&i.ConfigurationID, &i.LabelID, &i.Effect); err != nil {
+		if err := rows.Scan(&i.ConfigurationID, &i.LabelID, &i.Direction); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

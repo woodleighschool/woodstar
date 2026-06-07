@@ -156,7 +156,7 @@ func TestCreateCheckWithMissingLabelReturnsNotFound(t *testing.T) {
 	_, err := store.Create(ctx, CheckMutation{
 		Name:    "Missing label target",
 		Query:   "select 1;",
-		Targets: checkTargets([]int64{0}, nil),
+		Targets: checkTargets([]int64{999_999}, nil),
 	})
 	if !errors.Is(err, dbutil.ErrNotFound) {
 		t.Fatalf("Create error = %v, want ErrNotFound", err)

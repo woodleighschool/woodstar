@@ -9,7 +9,7 @@ import { SQLEditor } from "@/components/editor/sql-editor";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { LiveRunButton, SettingItem } from "@/components/queries/query-ui";
-import { LabelScopeEditor } from "@/components/targeting/label-scope-editor";
+import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -246,13 +246,13 @@ function CheckForm({
               ),
             },
             {
-              value: "scope",
-              label: "Scope",
+              value: "targets",
+              label: "Targets",
               content: (
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelScopeEditor
+                    <LabelTargetSetEditor
                       value={normalizeLabelTargetSet(field.state.value)}
                       onChange={field.handleChange}
                     />

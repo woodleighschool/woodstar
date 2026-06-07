@@ -34,7 +34,6 @@ export type HostUserAffinity = API.HostUserAffinity;
 export type Label = API.Label;
 export type LabelMutation = API.LabelMutation;
 export type LabelRef = API.LabelRef;
-export type TargetLabel = API.TargetLabel;
 export type LiveQueryCreate = API.LiveQueryCreateBody;
 export type LiveQueryResultEvent = API.LiveQueryResultEvent;
 export type LiveQueryTargetCount = API.LiveQueryTargetCountOutputBody;

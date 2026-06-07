@@ -1,19 +1,30 @@
 package santa
 
-import "context"
+import (
+	"context"
+
+	"github.com/woodleighschool/woodstar/internal/santa/configurations"
+)
 
 type observedHostStateStore interface {
 	LoadObservedHostState(context.Context, int64) (*HostState, error)
 }
 
+type configurationWithTargetsResolver interface {
+	ResolveConfigurationForHostWithTargets(context.Context, int64) (*configurations.ConfigurationMatch, error)
+}
+
 // HostStateService composes Santa host observation with the matching configuration.
 type HostStateService struct {
 	state          observedHostStateStore
-	configurations configurationResolver
+	configurations configurationWithTargetsResolver
 }
 
 // NewHostStateService returns a Santa host-state loader.
-func NewHostStateService(state observedHostStateStore, configurations configurationResolver) *HostStateService {
+func NewHostStateService(
+	state observedHostStateStore,
+	configurations configurationWithTargetsResolver,
+) *HostStateService {
 	return &HostStateService{state: state, configurations: configurations}
 }
 
@@ -23,7 +34,7 @@ func (s *HostStateService) LoadHostState(ctx context.Context, hostID int64) (*Ho
 	if err != nil || state == nil {
 		return state, err
 	}
-	configuration, err := s.configurations.ResolveConfigurationForHost(ctx, hostID)
+	configuration, err := s.configurations.ResolveConfigurationForHostWithTargets(ctx, hostID)
 	if err != nil {
 		return nil, err
 	}

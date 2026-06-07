@@ -8,10 +8,10 @@ import type { LabelRef } from "@/lib/api";
 import { normalizeLabelTargetSet, type LabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
 
-export type LabelScopeRow = LabelRef;
-export type LabelScopeDirection = keyof LabelTargetSet;
+export type LabelTargetSetRow = LabelRef;
+export type LabelTargetSetDirection = keyof LabelTargetSet;
 
-interface LabelScopeEditorProps {
+interface LabelTargetSetEditorProps {
   value: LabelTargetSet;
   onChange: (next: LabelTargetSet) => void;
   includeBuiltins?: boolean;
@@ -24,7 +24,7 @@ interface LabelScopeEditorProps {
   className?: string;
 }
 
-export function LabelScopeEditor({
+export function LabelTargetSetEditor({
   value,
   onChange,
   includeBuiltins = true,
@@ -35,17 +35,17 @@ export function LabelScopeEditor({
   targetPlaceholder = "Select Label",
   exclusionPlaceholder = "Select Label",
   className,
-}: LabelScopeEditorProps) {
+}: LabelTargetSetEditorProps) {
   const targetSet = normalizeLabelTargetSet(value);
 
-  function add(direction: LabelScopeDirection) {
+  function add(direction: LabelTargetSetDirection) {
     onChange({
       ...targetSet,
       [direction]: [...targetSet[direction], { label_id: 0 }],
     });
   }
 
-  function update(direction: LabelScopeDirection, index: number, labelID: number) {
+  function update(direction: LabelTargetSetDirection, index: number, labelID: number) {
     onChange({
       ...targetSet,
       [direction]: targetSet[direction].map((row, rowIndex) =>
@@ -54,7 +54,7 @@ export function LabelScopeEditor({
     });
   }
 
-  function remove(direction: LabelScopeDirection, index: number) {
+  function remove(direction: LabelTargetSetDirection, index: number) {
     onChange({
       ...targetSet,
       [direction]: targetSet[direction].filter((_, rowIndex) => rowIndex !== index),
@@ -63,7 +63,7 @@ export function LabelScopeEditor({
 
   return (
     <div className={cn("grid gap-6 lg:grid-cols-2", className)}>
-      <LabelScopeColumn
+      <LabelTargetSetColumn
         title={targetTitle}
         direction="include"
         rows={targetSet.include}
@@ -74,7 +74,7 @@ export function LabelScopeEditor({
         onUpdate={update}
         onRemove={remove}
       />
-      <LabelScopeColumn
+      <LabelTargetSetColumn
         title={exclusionTitle}
         direction="exclude"
         rows={targetSet.exclude}
@@ -89,19 +89,19 @@ export function LabelScopeEditor({
   );
 }
 
-interface LabelScopeColumnProps {
+interface LabelTargetSetColumnProps {
   title: string;
-  direction: LabelScopeDirection;
-  rows: LabelScopeRow[];
+  direction: LabelTargetSetDirection;
+  rows: LabelTargetSetRow[];
   includeBuiltins: boolean;
   buttonLabel: string;
   placeholder: string;
-  onAdd: (direction: LabelScopeDirection) => void;
-  onUpdate: (direction: LabelScopeDirection, index: number, labelID: number) => void;
-  onRemove: (direction: LabelScopeDirection, index: number) => void;
+  onAdd: (direction: LabelTargetSetDirection) => void;
+  onUpdate: (direction: LabelTargetSetDirection, index: number, labelID: number) => void;
+  onRemove: (direction: LabelTargetSetDirection, index: number) => void;
 }
 
-function LabelScopeColumn({
+function LabelTargetSetColumn({
   title,
   direction,
   rows,
@@ -111,11 +111,11 @@ function LabelScopeColumn({
   onAdd,
   onUpdate,
   onRemove,
-}: LabelScopeColumnProps) {
-  const keys = useRef(new WeakMap<LabelScopeRow, string>());
+}: LabelTargetSetColumnProps) {
+  const keys = useRef(new WeakMap<LabelTargetSetRow, string>());
   const nextKey = useRef(0);
 
-  function rowKey(row: LabelScopeRow) {
+  function rowKey(row: LabelTargetSetRow) {
     const existing = keys.current.get(row);
     if (existing) return existing;
     const key = `${direction}-${nextKey.current}`;

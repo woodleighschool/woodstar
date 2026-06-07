@@ -12,7 +12,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database"
 	"github.com/woodleighschool/woodstar/internal/database/sqlc"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/scope"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 type Store struct {
@@ -185,19 +185,35 @@ func (s *Store) ResolveConfigurationForHost(ctx context.Context, hostID int64) (
 	if err != nil {
 		return nil, err
 	}
+	configuration := *configurationFromSQLC(record.SantaConfiguration)
 	return &ConfigurationMatch{
-		Configuration:   *configurationFromSQLC(record.SantaConfiguration),
+		Configuration:   configuration,
 		MatchedViaLabel: &LabelMatch{ID: record.LabelID, Name: record.LabelName},
 	}, nil
+}
+
+func (s *Store) ResolveConfigurationForHostWithTargets(ctx context.Context, hostID int64) (*ConfigurationMatch, error) {
+	match, err := s.ResolveConfigurationForHost(ctx, hostID)
+	if err != nil || match == nil {
+		return match, err
+	}
+	configuration := match.Configuration
+	configurations := []Configuration{configuration}
+	if err := s.attachConfigurationTargets(ctx, configurations, []int64{configuration.ID}); err != nil {
+		return nil, err
+	}
+	match.Configuration = configurations[0]
+	return match, nil
 }
 
 func replaceConfigurationTargets(
 	ctx context.Context,
 	tx pgx.Tx,
 	configurationID int64,
-	targets []scope.TargetLabel,
+	targets ConfigurationTargets,
 ) error {
-	if err := validateTargets(targets); err != nil {
+	targets = normalizeConfigurationTargets(targets)
+	if err := targets.validate(); err != nil {
 		return err
 	}
 	q := sqlc.New(tx)
@@ -207,20 +223,25 @@ func replaceConfigurationTargets(
 	); err != nil {
 		return err
 	}
-	if len(targets) == 0 {
-		return nil
+	if len(targets.Include) > 0 {
+		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
+			ConfigurationID: configurationID,
+			LabelIds:        labelRefIDs(targets.Include),
+			Direction:       sqlc.TargetDirection(targeting.Include),
+		}); err != nil {
+			return err
+		}
 	}
-	labelIDs := make([]int64, len(targets))
-	effects := make([]string, len(targets))
-	for i, target := range targets {
-		labelIDs[i] = target.LabelID
-		effects[i] = string(target.Effect)
+	if len(targets.Exclude) > 0 {
+		if err := q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
+			ConfigurationID: configurationID,
+			LabelIds:        labelRefIDs(targets.Exclude),
+			Direction:       sqlc.TargetDirection(targeting.Exclude),
+		}); err != nil {
+			return err
+		}
 	}
-	return q.InsertSantaConfigurationTargets(ctx, sqlc.InsertSantaConfigurationTargetsParams{
-		ConfigurationID: configurationID,
-		LabelIds:        labelIDs,
-		Effects:         effects,
-	})
+	return nil
 }
 
 func (s *Store) attachConfigurationTargets(
@@ -234,6 +255,7 @@ func (s *Store) attachConfigurationTargets(
 	configurationIndexes := make(map[int64]int, len(configurations))
 	for i := range configurations {
 		configurationIndexes[configurations[i].ID] = i
+		configurations[i].Targets = emptyConfigurationTargets()
 	}
 
 	rows, err := s.q.ListSantaConfigurationTargets(
@@ -246,10 +268,17 @@ func (s *Store) attachConfigurationTargets(
 
 	for _, row := range rows {
 		if i, ok := configurationIndexes[row.ConfigurationID]; ok {
-			configurations[i].Targets = append(configurations[i].Targets, scope.TargetLabel{
-				LabelID: row.LabelID,
-				Effect:  scope.TargetLabelEffect(row.Effect),
-			})
+			targetSet := configurations[i].Targets
+			ref := targeting.LabelRef{LabelID: row.LabelID}
+			switch targeting.Direction(row.Direction) {
+			case targeting.Include:
+				targetSet.Include = append(targetSet.Include, ref)
+			case targeting.Exclude:
+				targetSet.Exclude = append(targetSet.Exclude, ref)
+			default:
+				return fmt.Errorf("%w: unsupported target direction %q", dbutil.ErrInvalidInput, row.Direction)
+			}
+			configurations[i].Targets = targetSet
 		}
 	}
 	return nil
@@ -272,24 +301,10 @@ func (p ConfigurationMutation) Validate() error {
 	if err := validateRemovableMediaPolicy(p.RemovableMediaPolicy, "removable_media_policy"); err != nil {
 		return err
 	}
-	if err := validateTargets(p.Targets); err != nil {
+	if err := p.Targets.validate(); err != nil {
 		return err
 	}
 	return validateRemovableMediaPolicy(p.EncryptedRemovableMediaPolicy, "encrypted_removable_media_policy")
-}
-
-func validateTargets(targets []scope.TargetLabel) error {
-	seen := make(map[int64]struct{}, len(targets))
-	for _, target := range targets {
-		if !scope.ValidTargetLabelEffect(target.Effect) {
-			return fmt.Errorf("%w: unsupported target effect %q", dbutil.ErrInvalidInput, target.Effect)
-		}
-		if _, ok := seen[target.LabelID]; ok {
-			return fmt.Errorf("%w: duplicate target row", dbutil.ErrInvalidInput)
-		}
-		seen[target.LabelID] = struct{}{}
-	}
-	return nil
 }
 
 func validateRemovableMediaPolicy(policy RemovableMediaPolicy, name string) error {
@@ -437,6 +452,7 @@ func configurationFromSQLC(row sqlc.SantaConfiguration) *Configuration {
 		),
 		EventDetailURL:  row.EventDetailURL,
 		EventDetailText: row.EventDetailText,
+		Targets:         emptyConfigurationTargets(),
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 	}

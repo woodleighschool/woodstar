@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { LabelScopeEditor } from "@/components/targeting/label-scope-editor";
+import { LabelTargetSetEditor } from "@/components/targeting/label-target-set-editor";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,7 +29,7 @@ import {
   MEDIA_ACTION_VALUES,
   type SantaMediaAction,
 } from "@/lib/santa-configurations";
-import { flatTargetsFromTargetSet, targetSetFromFlatTargets } from "@/lib/targeting";
+import { emptyLabelTargetSet } from "@/lib/targeting";
 
 interface ConfigurationFormState {
   name: string;
@@ -56,12 +56,14 @@ const configurationFormSchema = z
     name: requiredString("Name"),
     description: z.string().trim(),
     client_mode: z.enum(CLIENT_MODE_VALUES),
-    targets: z.array(
-      z.object({
-        label_id: z.number().int("Label selection is invalid."),
-        effect: z.enum(["include", "exclude"]),
-      }),
-    ),
+    targets: z.object({
+      include: z.array(
+        z.object({ label_id: z.number().int("Label selection is invalid.").positive("Select a label.") }),
+      ),
+      exclude: z.array(
+        z.object({ label_id: z.number().int("Label selection is invalid.").positive("Select a label.") }),
+      ),
+    }),
     enable_bundles: z.boolean(),
     enable_transitive_rules: z.boolean(),
     enable_all_event_upload: z.boolean(),
@@ -102,7 +104,7 @@ const emptyConfigurationForm: ConfigurationFormState = {
   name: "",
   description: "",
   client_mode: "monitor",
-  targets: [],
+  targets: emptyLabelTargetSet(),
   enable_bundles: false,
   enable_transitive_rules: false,
   enable_all_event_upload: false,
@@ -467,16 +469,13 @@ function ConfigurationForm({
               ),
             },
             {
-              value: "scope",
-              label: "Scope",
+              value: "targets",
+              label: "Targets",
               content: (
                 <form.Field
                   name="targets"
                   children={(field) => (
-                    <LabelScopeEditor
-                      value={targetSetFromFlatTargets(field.state.value)}
-                      onChange={(next) => field.handleChange(flatTargetsFromTargetSet(next))}
-                    />
+                    <LabelTargetSetEditor value={field.state.value} onChange={(next) => field.handleChange(next)} />
                   )}
                 />
               ),
@@ -592,7 +591,7 @@ function formFromConfiguration(configuration: SantaConfiguration): Configuration
     name: configuration.name,
     description: configuration.description,
     client_mode: configuration.client_mode,
-    targets: configuration.targets ?? [],
+    targets: configuration.targets,
     enable_bundles: configuration.enable_bundles,
     enable_transitive_rules: configuration.enable_transitive_rules,
     enable_all_event_upload: configuration.enable_all_event_upload,

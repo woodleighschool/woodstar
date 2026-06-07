@@ -29,7 +29,7 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
 	"github.com/woodleighschool/woodstar/internal/santa/syncstate"
-	"github.com/woodleighschool/woodstar/internal/scope"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
@@ -67,10 +67,9 @@ func TestSantaHTTPPreflightRuleDownloadPostflightAndEventUpload(t *testing.T) {
 		EnableBundles:           true,
 		FullSyncIntervalSeconds: 600,
 		BatchSize:               50,
-		Targets: []scope.TargetLabel{{
-			LabelID: label.ID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets: configurations.ConfigurationTargets{
+			Include: []targeting.LabelRef{{LabelID: label.ID}},
+		},
 	}); err != nil {
 		t.Fatalf("create configuration: %v", err)
 	}

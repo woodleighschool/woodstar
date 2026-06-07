@@ -333,11 +333,7 @@ components:
         removable_media_policy:
           $ref: "#/components/schemas/RemovableMediaPolicy"
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/ConfigurationTargets"
         updated_at:
           format: date-time
           type: string
@@ -404,11 +400,7 @@ components:
         removable_media_policy:
           $ref: "#/components/schemas/RemovableMediaPolicy"
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/ConfigurationTargets"
       required:
         - name
         - client_mode
@@ -418,6 +410,21 @@ components:
         - full_sync_interval_seconds
         - batch_size
         - targets
+      type: object
+    ConfigurationTargets:
+      additionalProperties: false
+      properties:
+        exclude:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+        include:
+          items:
+            $ref: "#/components/schemas/LabelRef"
+          type: array
+      required:
+        - include
+        - exclude
       type: object
     Criteria:
       additionalProperties: false
@@ -1590,6 +1597,7 @@ components:
       properties:
         label_id:
           format: int64
+          minimum: 1
           type: integer
       required:
         - label_id
@@ -3586,11 +3594,7 @@ components:
         removable_media_policy:
           $ref: "#/components/schemas/RemovableMediaPolicy"
         targets:
-          items:
-            $ref: "#/components/schemas/TargetLabel"
-          type:
-            - array
-            - "null"
+          $ref: "#/components/schemas/ConfigurationTargets"
         updated_at:
           format: date-time
           type: string
@@ -3934,21 +3938,6 @@ components:
         - id
         - version
         - hosts_count
-      type: object
-    TargetLabel:
-      additionalProperties: false
-      properties:
-        effect:
-          enum:
-            - include
-            - exclude
-          type: string
-        label_id:
-          format: int64
-          type: integer
-      required:
-        - label_id
-        - effect
       type: object
     User:
       additionalProperties: false
@@ -7581,7 +7570,7 @@ paths:
       summary: Get a Santa configuration
       tags:
         - Santa
-    patch:
+    put:
       operationId: update-santa-configuration
       parameters:
         - in: path

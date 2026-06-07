@@ -132,7 +132,7 @@ export type ConfigurationMatch = {
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
-    targets: Array<TargetLabel> | null;
+    targets: ConfigurationTargets;
     updated_at: string;
 };
 
@@ -155,7 +155,12 @@ export type ConfigurationMutation = {
     full_sync_interval_seconds: number;
     name: string;
     removable_media_policy?: RemovableMediaPolicy;
-    targets: Array<TargetLabel> | null;
+    targets: ConfigurationTargets;
+};
+
+export type ConfigurationTargets = {
+    exclude: Array<LabelRef>;
+    include: Array<LabelRef>;
 };
 
 export type Criteria = {
@@ -1318,7 +1323,7 @@ export type SantaConfiguration = {
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
-    targets: Array<TargetLabel> | null;
+    targets: ConfigurationTargets;
     updated_at: string;
 };
 
@@ -1432,11 +1437,6 @@ export type SoftwareVersion = {
     version: string;
 };
 
-export type TargetLabel = {
-    effect: 'include' | 'exclude';
-    label_id: number;
-};
-
 export type User = {
     /**
      * A URL to the JSON Schema for this object.
@@ -1526,7 +1526,7 @@ export type ConfigurationMutationWritable = {
     full_sync_interval_seconds: number;
     name: string;
     removable_media_policy?: RemovableMediaPolicy;
-    targets: Array<TargetLabel> | null;
+    targets: ConfigurationTargets;
 };
 
 export type ErrorModelWritable = {
@@ -2023,7 +2023,7 @@ export type SantaConfigurationWritable = {
     name: string;
     position: number;
     removable_media_policy?: RemovableMediaPolicy;
-    targets: Array<TargetLabel> | null;
+    targets: ConfigurationTargets;
     updated_at: string;
 };
 

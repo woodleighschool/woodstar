@@ -36,6 +36,9 @@ func ValidateUniqueLabels[T any](direction Direction, rows []T, labelID func(T) 
 	seen := make(map[int64]struct{}, len(rows))
 	for _, row := range rows {
 		id := labelID(row)
+		if id <= 0 {
+			return fmt.Errorf("targeting: %s label_id must be positive", direction)
+		}
 		if _, ok := seen[id]; ok {
 			return fmt.Errorf("targeting: duplicate %s label_id %d", direction, id)
 		}

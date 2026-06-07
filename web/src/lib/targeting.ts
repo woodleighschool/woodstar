@@ -1,11 +1,12 @@
-import type { LabelRef, TargetLabel } from "@/lib/api";
+import type { LabelRef } from "@/lib/api";
 
 export type LabelTargetSet = {
   include: LabelRef[];
   exclude: LabelRef[];
 };
 
-export type TargetSummaryInput = LabelTargetSet | TargetLabel[] | null | undefined;
+export type FlatLabelTarget = LabelRef & { effect: "include" | "exclude" };
+export type TargetSummaryInput = LabelTargetSet | FlatLabelTarget[] | null | undefined;
 
 export function emptyLabelTargetSet(): LabelTargetSet {
   return { include: [], exclude: [] };
@@ -18,7 +19,7 @@ export function normalizeLabelTargetSet(targets: LabelTargetSet | null | undefin
   };
 }
 
-export function targetSetFromFlatTargets(targets: TargetLabel[] | null | undefined): LabelTargetSet {
+export function targetSetFromFlatTargets(targets: FlatLabelTarget[] | null | undefined): LabelTargetSet {
   const rows = targets ?? [];
   return {
     include: rows.filter((target) => target.effect === "include").map(labelRefFromTarget),
@@ -26,7 +27,7 @@ export function targetSetFromFlatTargets(targets: TargetLabel[] | null | undefin
   };
 }
 
-export function flatTargetsFromTargetSet(targets: LabelTargetSet | null | undefined): TargetLabel[] {
+export function flatTargetsFromTargetSet(targets: LabelTargetSet | null | undefined): FlatLabelTarget[] {
   const targetSet = normalizeLabelTargetSet(targets);
   return [
     ...targetSet.include.map((target) => ({ ...target, effect: "include" as const })),
@@ -54,6 +55,6 @@ function targetSetFromInput(targets: TargetSummaryInput): LabelTargetSet {
   return normalizeLabelTargetSet(targets);
 }
 
-function labelRefFromTarget(target: TargetLabel): LabelRef {
+function labelRefFromTarget(target: FlatLabelTarget): LabelRef {
   return { label_id: target.label_id };
 }

@@ -46,6 +46,17 @@ func TestReportMutationValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "non-positive include label",
+			in: ReportMutation{
+				Name:  "Zero include",
+				Query: "select 1;",
+				Targets: ReportTargets{
+					Include: []targeting.LabelRef{{LabelID: 0}},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "duplicate exclude label",
 			in: ReportMutation{
 				Name:  "Duplicate exclude",

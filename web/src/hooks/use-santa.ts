@@ -186,7 +186,7 @@ export function useUpdateSantaConfiguration() {
   const queryClient = useQueryClient();
   return useMutation<SantaConfiguration, ApiError, { id: number; body: SantaConfigurationMutation }>({
     mutationFn: ({ id, body }) =>
-      unwrap(apiClient.PATCH("/api/santa/configurations/{id}", { params: { path: { id } }, body })),
+      unwrap(apiClient.PUT("/api/santa/configurations/{id}", { params: { path: { id } }, body })),
     onSuccess: (configuration) => {
       void queryClient.invalidateQueries({ queryKey: ["santa", "configurations"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.santaConfiguration(configuration.id) });

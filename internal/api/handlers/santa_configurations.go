@@ -27,7 +27,7 @@ type santaConfigurationCreateInput struct {
 	Body configurations.ConfigurationMutation
 }
 
-type santaConfigurationPatchInput struct {
+type santaConfigurationUpdateInput struct {
 	ID   int64 `path:"id"`
 	Body configurations.ConfigurationMutation
 }
@@ -66,7 +66,7 @@ func RegisterSantaConfigurations(api huma.API, store *configurations.Store) {
 	registerListSantaConfigurations(api, store)
 	registerCreateSantaConfiguration(api, store)
 	registerGetSantaConfiguration(api, store)
-	registerPatchSantaConfiguration(api, store)
+	registerUpdateSantaConfiguration(api, store)
 	registerDeleteSantaConfiguration(api, store)
 	registerBulkDeleteSantaConfigurations(api, store)
 	registerReorderSantaConfigurations(api, store)
@@ -132,10 +132,10 @@ func registerGetSantaConfiguration(api huma.API, store *configurations.Store) {
 	})
 }
 
-func registerPatchSantaConfiguration(api huma.API, store *configurations.Store) {
+func registerUpdateSantaConfiguration(api huma.API, store *configurations.Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "update-santa-configuration",
-		Method:      http.MethodPatch,
+		Method:      http.MethodPut,
 		Path:        santaConfigurationIDPath,
 		Tags:        []string{santaTag},
 		Summary:     "Update a Santa configuration",
@@ -146,7 +146,7 @@ func registerPatchSantaConfiguration(api huma.API, store *configurations.Store) 
 			http.StatusNotFound,
 			http.StatusConflict,
 		},
-	}, func(ctx context.Context, input *santaConfigurationPatchInput) (*santaConfigurationOutput, error) {
+	}, func(ctx context.Context, input *santaConfigurationUpdateInput) (*santaConfigurationOutput, error) {
 		configuration, err := store.UpdateConfiguration(ctx, input.ID, input.Body)
 		if err != nil {
 			return nil, santaConfigurationMutationError(err)

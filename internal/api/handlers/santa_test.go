@@ -28,7 +28,7 @@ import (
 	santaevents "github.com/woodleighschool/woodstar/internal/santa/events"
 	"github.com/woodleighschool/woodstar/internal/santa/references"
 	santarules "github.com/woodleighschool/woodstar/internal/santa/rules"
-	"github.com/woodleighschool/woodstar/internal/scope"
+	"github.com/woodleighschool/woodstar/internal/targeting"
 )
 
 func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
@@ -60,6 +60,27 @@ func TestSantaConfigurationOverlappingTargetsAreAllowed(t *testing.T) {
 	rec := santaAdminRequest(t, router, cookie, http.MethodPost, "/api/santa/configurations", overlapBody)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("overlap status = %d, want %d; body = %q", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	var created configurations.Configuration
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode configuration: %v", err)
+	}
+	if len(created.Targets.Include) != 1 || created.Targets.Include[0].LabelID != label.ID ||
+		len(created.Targets.Exclude) != 0 {
+		t.Fatalf("targets = %+v, want canonical include target", created.Targets)
+	}
+
+	updateBody := santaConfigurationBody("Second Updated", label.ID)
+	rec = santaAdminRequest(
+		t,
+		router,
+		cookie,
+		http.MethodPut,
+		fmt.Sprintf("/api/santa/configurations/%d", created.ID),
+		updateBody,
+	)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
 	}
 }
 
@@ -328,10 +349,9 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		ClientMode:              configurations.ClientModeMonitor,
 		FullSyncIntervalSeconds: 600,
 		BatchSize:               50,
-		Targets: []scope.TargetLabel{{
-			LabelID: label.ID,
-			Effect:  scope.TargetLabelInclude,
-		}},
+		Targets: configurations.ConfigurationTargets{
+			Include: []targeting.LabelRef{{LabelID: label.ID}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("create configuration: %v", err)
@@ -355,6 +375,7 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 				MatchedViaLabel *struct {
 					ID int64 `json:"id"`
 				} `json:"matched_via_label"`
+				Targets configurations.ConfigurationTargets `json:"targets"`
 			} `json:"configuration"`
 		} `json:"santa"`
 	}
@@ -374,6 +395,11 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 		t.Fatalf("configuration = %+v, want id=%d via label=%d",
 			body.Santa.Configuration, configuration.ID, label.ID)
 	}
+	if len(body.Santa.Configuration.Targets.Include) != 1 ||
+		body.Santa.Configuration.Targets.Include[0].LabelID != label.ID ||
+		len(body.Santa.Configuration.Targets.Exclude) != 0 {
+		t.Fatalf("configuration targets = %+v, want canonical target set", body.Santa.Configuration.Targets)
+	}
 }
 
 func santaAdminTestAPI(t *testing.T, db *database.DB, email string) (*chi.Mux, huma.API, *http.Cookie) {
@@ -390,7 +416,7 @@ func santaConfigurationBody(name string, labelID int64) string {
 		"enable_all_event_upload": false,
 		"full_sync_interval_seconds": 600,
 		"batch_size": 50,
-		"targets": [{"label_id": %d, "effect": "include"}]
+		"targets": {"include": [{"label_id": %d}], "exclude": []}
 	}`, name, labelID)
 }
 
