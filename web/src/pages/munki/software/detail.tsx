@@ -463,8 +463,8 @@ function MunkiSoftwareDetailForm({
               ),
             },
             {
-              value: "scope",
-              label: "Scope",
+              value: "targets",
+              label: "Targets",
               content: (
                 <div className="flex flex-col gap-6">
                   <section className="flex flex-col gap-3">

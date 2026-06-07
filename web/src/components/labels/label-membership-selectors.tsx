@@ -12,7 +12,7 @@ import type { LabelDerivedAttribute } from "@/lib/labels";
 
 export function HostSelector({ value, onChange }: { value: number[]; onChange: (value: number[]) => void }) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
-  const showSelected = controls.scope === "selected";
+  const showSelected = controls.filter === "selected";
   const hosts = useHosts({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
@@ -57,13 +57,13 @@ export function HostSelector({ value, onChange }: { value: number[]; onChange: (
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
       searchPlaceholder="Search Hosts"
-      scope={controls.scope}
+      filter={controls.filter}
       selectedCount={value.length}
       isLoading={hosts.isLoading}
       error={hosts.error?.message}
       selectedRowIds={value.map(String)}
       onSearchChange={controls.setSearch}
-      onScopeChange={controls.setScopeFilter}
+      onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={(ids) => onChange(ids.map(Number).filter((id) => Number.isInteger(id) && id > 0))}
       getRowId={(host) => String(host.id)}
       emptyTitle={showSelected ? "No Selected Hosts" : "No Hosts Found"}
@@ -96,7 +96,7 @@ export function DerivedSelector({
 
 function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "value", desc: false }]);
-  const showSelected = controls.scope === "selected";
+  const showSelected = controls.filter === "selected";
   const departments = useUserDepartments({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
@@ -128,13 +128,13 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
       searchPlaceholder="Search Departments"
-      scope={controls.scope}
+      filter={controls.filter}
       selectedCount={value.length}
       isLoading={departments.isLoading}
       error={departments.error?.message}
       selectedRowIds={value}
       onSearchChange={controls.setSearch}
-      onScopeChange={controls.setScopeFilter}
+      onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(department) => department.value}
       emptyTitle={showSelected ? "No Selected Departments" : "No Departments Found"}
@@ -148,7 +148,7 @@ function DepartmentSelector({ value, onChange }: { value: string[]; onChange: (v
 
 function GroupSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "display_name", desc: false }]);
-  const showSelected = controls.scope === "selected";
+  const showSelected = controls.filter === "selected";
   const groups = useGroups({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
@@ -185,13 +185,13 @@ function GroupSelector({ value, onChange }: { value: string[]; onChange: (value:
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
       searchPlaceholder="Search Groups"
-      scope={controls.scope}
+      filter={controls.filter}
       selectedCount={value.length}
       isLoading={groups.isLoading}
       error={groups.error?.message}
       selectedRowIds={value}
       onSearchChange={controls.setSearch}
-      onScopeChange={controls.setScopeFilter}
+      onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(group) => group.external_id}
       emptyTitle={showSelected ? "No Selected Groups" : "No Groups Found"}
@@ -205,7 +205,7 @@ function GroupSelector({ value, onChange }: { value: string[]; onChange: (value:
 
 function UserSelector({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const controls = useSelectorControls([{ id: "name", desc: false }]);
-  const showSelected = controls.scope === "selected";
+  const showSelected = controls.filter === "selected";
   const users = useUsers({
     q: controls.q,
     page_index: controls.pagination.pageIndex,
@@ -242,13 +242,13 @@ function UserSelector({ value, onChange }: { value: string[]; onChange: (value: 
       onSortingChange={controls.setSorting}
       searchValue={controls.q}
       searchPlaceholder="Search Users"
-      scope={controls.scope}
+      filter={controls.filter}
       selectedCount={value.length}
       isLoading={users.isLoading}
       error={users.error?.message}
       selectedRowIds={value}
       onSearchChange={controls.setSearch}
-      onScopeChange={controls.setScopeFilter}
+      onFilterChange={controls.setSelectionFilter}
       onSelectedRowIdsChange={onChange}
       getRowId={(user) => String(user.id)}
       emptyTitle={showSelected ? "No Selected Users" : "No Users Found"}
@@ -260,11 +260,11 @@ function UserSelector({ value, onChange }: { value: string[]; onChange: (value: 
   );
 }
 
-type SelectionScope = "all" | "selected";
+type SelectionFilter = "all" | "selected";
 
 function useSelectorControls(defaultSorting: SortingState) {
   const [q, setQ] = useState("");
-  const [scope, setScope] = useState<SelectionScope>("all");
+  const [filter, setFilter] = useState<SelectionFilter>("all");
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [sorting, setSorting] = useState<SortingState>(defaultSorting);
 
@@ -276,20 +276,20 @@ function useSelectorControls(defaultSorting: SortingState) {
     setQ(next);
     resetPage();
   };
-  const setScopeFilter = (next: SelectionScope) => {
-    setScope(next);
+  const setSelectionFilter = (next: SelectionFilter) => {
+    setFilter(next);
     resetPage();
   };
 
   return {
     q,
-    scope,
+    filter,
     pagination,
     sorting,
     setPagination,
     setSorting,
     setSearch,
-    setScopeFilter,
+    setSelectionFilter,
   };
 }
 
@@ -303,13 +303,13 @@ interface SelectorTableProps<TData> {
   onSortingChange: (sorting: SortingState | ((sorting: SortingState) => SortingState)) => void;
   searchValue: string;
   searchPlaceholder: string;
-  scope: SelectionScope;
+  filter: SelectionFilter;
   selectedCount: number;
   isLoading: boolean;
   error?: string;
   selectedRowIds: string[];
   onSearchChange: (value: string) => void;
-  onScopeChange: (value: SelectionScope) => void;
+  onFilterChange: (value: SelectionFilter) => void;
   onSelectedRowIdsChange: (ids: string[]) => void;
   getRowId: (row: TData) => string;
   emptyTitle: string;
@@ -327,13 +327,13 @@ function SelectorTable<TData>({
   onSortingChange,
   searchValue,
   searchPlaceholder,
-  scope,
+  filter,
   selectedCount,
   isLoading,
   error,
   selectedRowIds,
   onSearchChange,
-  onScopeChange,
+  onFilterChange,
   onSelectedRowIdsChange,
   getRowId,
   emptyTitle,
@@ -369,9 +369,9 @@ function SelectorTable<TData>({
           />
           <ToggleGroup
             type="single"
-            value={scope}
+            value={filter}
             onValueChange={(next) => {
-              if (next === "all" || next === "selected") onScopeChange(next);
+              if (next === "all" || next === "selected") onFilterChange(next);
             }}
             variant="outline"
             size="sm"

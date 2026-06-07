@@ -91,7 +91,7 @@ export function LabelsPage() {
     <PageShell>
       <PageHeader
         title="Labels"
-        description="Group hosts for targeting, reporting, and Santa scope."
+        description="Group hosts for targeting, reporting, and Santa rules."
         actions={
           <Button asChild size="sm">
             <Link to="/labels/new">
