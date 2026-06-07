@@ -350,7 +350,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 	server := NewServer(deps)
 	cookie := loginTestUser(t, deps.Auth.AuthService, deps.Runtime.SessionManager)
 
-	title := postMunkiJSON[munkisoftware.SoftwareTitle](
+	title := postMunkiJSON[munkisoftware.Software](
 		t,
 		server,
 		cookie,
@@ -610,26 +610,26 @@ func (unavailableMunkiStorage) Stat(context.Context, string) (artifacts.Artifact
 }
 
 type munkiTestStores struct {
-	artifacts      *artifacts.Store
-	hoststate      *hoststate.Store
-	packages       *packages.Store
-	softwareTitles *munkisoftware.Store
+	artifacts *artifacts.Store
+	hoststate *hoststate.Store
+	packages  *packages.Store
+	software  *munkisoftware.Store
 }
 
 func wireMunkiTestDeps(deps *Dependencies, db *database.DB) munkiTestStores {
 	artifactStore := artifacts.NewStore(db)
 	packageStore := packages.NewStore(db, artifactStore)
-	softwareTitleStore := munkisoftware.NewStore(db, artifactStore, packageStore)
+	softwareStore := munkisoftware.NewStore(db, artifactStore, packageStore)
 	stores := munkiTestStores{
-		artifacts:      artifactStore,
-		hoststate:      hoststate.NewStore(db),
-		packages:       packageStore,
-		softwareTitles: softwareTitleStore,
+		artifacts: artifactStore,
+		hoststate: hoststate.NewStore(db),
+		packages:  packageStore,
+		software:  softwareStore,
 	}
 	deps.Munki.Artifacts = stores.artifacts
 	deps.Munki.HostState = stores.hoststate
 	deps.Munki.Packages = stores.packages
-	deps.Munki.SoftwareTitles = stores.softwareTitles
+	deps.Munki.Software = stores.software
 	return stores
 }
 
@@ -835,7 +835,7 @@ func TestMunkiProtocolRoutesUseMunkiBearerAuth(t *testing.T) {
 	deps := testDependencies(testConfig())
 	deps.AgentAuth.Store = agentauth.NewStore(database)
 	stores := wireMunkiTestDeps(&deps, database)
-	deps.Munki.Repository = munki.NewRepositoryService(hostStore, stores.softwareTitles)
+	deps.Munki.Repository = munki.NewRepositoryService(hostStore, stores.software)
 	server := NewServer(deps)
 
 	secret, err := deps.AgentAuth.Store.Create(ctx, agentauth.AgentSecretCreate{

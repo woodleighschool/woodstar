@@ -55,14 +55,14 @@ type munkiSoftwareDetailOutput struct {
 }
 
 type munkiSoftwareDetail struct {
-	SoftwareTitle
+	Software
 	IconURL  string                  `json:"icon_url,omitempty"`
 	Packages []packages.MunkiPackage `json:"packages"`
 	Targets  SoftwareTargets         `json:"targets"`
 }
 
 type munkiSoftware struct {
-	SoftwareTitle
+	Software
 	IconURL string `json:"icon_url,omitempty"`
 }
 
@@ -214,15 +214,15 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 }
 
 func munkiSoftwareDetailFromDomain(
-	title SoftwareTitle,
+	title Software,
 	packageRows []packages.Package,
 	targets SoftwareTargets,
 ) munkiSoftwareDetail {
 	return munkiSoftwareDetail{
-		SoftwareTitle: title,
-		IconURL:       munkiSoftwareIconURL(title),
-		Packages:      munkiPackagesFromDomain(packageRows),
-		Targets:       targets,
+		Software: title,
+		IconURL:  munkiSoftwareIconURL(title),
+		Packages: munkiPackagesFromDomain(packageRows),
+		Targets:  targets,
 	}
 }
 
@@ -243,7 +243,7 @@ func loadMunkiSoftwareDetail(
 	if err != nil {
 		return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 	}
-	targets, err := store.TargetsForSoftwareTitle(ctx, id)
+	targets, err := store.TargetsForSoftware(ctx, id)
 	if err != nil {
 		return nil, apitypes.ResourceMutationError(munkiSoftwareLabel, err)
 	}
@@ -252,14 +252,14 @@ func loadMunkiSoftwareDetail(
 	}, nil
 }
 
-func munkiSoftwareItemFromDomain(title SoftwareTitle) munkiSoftware {
+func munkiSoftwareItemFromDomain(title Software) munkiSoftware {
 	return munkiSoftware{
-		SoftwareTitle: title,
-		IconURL:       munkiSoftwareIconURL(title),
+		Software: title,
+		IconURL:  munkiSoftwareIconURL(title),
 	}
 }
 
-func munkiSoftwareFromDomain(rows []SoftwareTitle) []munkiSoftware {
+func munkiSoftwareFromDomain(rows []Software) []munkiSoftware {
 	items := make([]munkiSoftware, len(rows))
 	for i, row := range rows {
 		items[i] = munkiSoftwareItemFromDomain(row)
@@ -267,7 +267,7 @@ func munkiSoftwareFromDomain(rows []SoftwareTitle) []munkiSoftware {
 	return items
 }
 
-func munkiSoftwareIconURL(title SoftwareTitle) string {
+func munkiSoftwareIconURL(title Software) string {
 	if title.IconArtifactID == nil {
 		return ""
 	}

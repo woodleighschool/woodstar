@@ -223,50 +223,6 @@ func (ns NullMunkiArtifactKind) Value() (driver.Value, error) {
 	return string(ns.MunkiArtifactKind), nil
 }
 
-type MunkiAssignmentAction string
-
-const (
-	MunkiAssignmentActionInstall         MunkiAssignmentAction = "install"
-	MunkiAssignmentActionRemove          MunkiAssignmentAction = "remove"
-	MunkiAssignmentActionUpdateIfPresent MunkiAssignmentAction = "update_if_present"
-	MunkiAssignmentActionNone            MunkiAssignmentAction = "none"
-)
-
-func (e *MunkiAssignmentAction) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = MunkiAssignmentAction(s)
-	case string:
-		*e = MunkiAssignmentAction(s)
-	default:
-		return fmt.Errorf("unsupported scan type for MunkiAssignmentAction: %T", src)
-	}
-	return nil
-}
-
-type NullMunkiAssignmentAction struct {
-	MunkiAssignmentAction MunkiAssignmentAction `json:"munki_assignment_action"`
-	Valid                 bool                  `json:"valid"` // Valid is true if MunkiAssignmentAction is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMunkiAssignmentAction) Scan(value interface{}) error {
-	if value == nil {
-		ns.MunkiAssignmentAction, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.MunkiAssignmentAction.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMunkiAssignmentAction) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.MunkiAssignmentAction), nil
-}
-
 type MunkiPackageRelationKind string
 
 const (
@@ -349,6 +305,50 @@ func (ns NullMunkiPackageSelection) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.MunkiPackageSelection), nil
+}
+
+type MunkiSoftwareAction string
+
+const (
+	MunkiSoftwareActionInstall         MunkiSoftwareAction = "install"
+	MunkiSoftwareActionRemove          MunkiSoftwareAction = "remove"
+	MunkiSoftwareActionUpdateIfPresent MunkiSoftwareAction = "update_if_present"
+	MunkiSoftwareActionNone            MunkiSoftwareAction = "none"
+)
+
+func (e *MunkiSoftwareAction) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = MunkiSoftwareAction(s)
+	case string:
+		*e = MunkiSoftwareAction(s)
+	default:
+		return fmt.Errorf("unsupported scan type for MunkiSoftwareAction: %T", src)
+	}
+	return nil
+}
+
+type NullMunkiSoftwareAction struct {
+	MunkiSoftwareAction MunkiSoftwareAction `json:"munki_software_action"`
+	Valid               bool                `json:"valid"` // Valid is true if MunkiSoftwareAction is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMunkiSoftwareAction) Scan(value interface{}) error {
+	if value == nil {
+		ns.MunkiSoftwareAction, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.MunkiSoftwareAction.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMunkiSoftwareAction) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.MunkiSoftwareAction), nil
 }
 
 type SantaClientMode string
@@ -1100,21 +1100,7 @@ type MunkiPackageRelation struct {
 	UpdatedAt       time.Time                `json:"updated_at"`
 }
 
-type MunkiSoftwareTarget struct {
-	SoftwareID       int64                  `json:"software_id"`
-	Direction        TargetDirection        `json:"direction"`
-	Position         int32                  `json:"position"`
-	LabelID          int64                  `json:"label_id"`
-	Action           *MunkiAssignmentAction `json:"action"`
-	OptionalInstall  *bool                  `json:"optional_install"`
-	FeaturedItem     *bool                  `json:"featured_item"`
-	PackageSelection *MunkiPackageSelection `json:"package_selection"`
-	PinnedPackageID  *int64                 `json:"pinned_package_id"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
-}
-
-type MunkiSoftwareTitle struct {
+type MunkiSoftware struct {
 	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
@@ -1125,6 +1111,20 @@ type MunkiSoftwareTitle struct {
 	IconArtifactID *int64    `json:"icon_artifact_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type MunkiSoftwareTarget struct {
+	SoftwareID       int64                  `json:"software_id"`
+	Direction        TargetDirection        `json:"direction"`
+	Position         int32                  `json:"position"`
+	LabelID          int64                  `json:"label_id"`
+	Action           *MunkiSoftwareAction   `json:"action"`
+	OptionalInstall  *bool                  `json:"optional_install"`
+	FeaturedItem     *bool                  `json:"featured_item"`
+	PackageSelection *MunkiPackageSelection `json:"package_selection"`
+	PinnedPackageID  *int64                 `json:"pinned_package_id"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
 }
 
 type OsqueryCheckTarget struct {

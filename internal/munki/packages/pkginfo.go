@@ -228,7 +228,7 @@ func referenceName(ref PackageReference) string {
 	return MunkiName(ref.PackageID)
 }
 
-// Import imports one Munki pkginfo item into a selected Woodstar software title.
+// Import imports one Munki pkginfo item into selected Woodstar-managed Munki software.
 func (s *Store) Import(ctx context.Context, params PackageImportMutation) (*Package, error) {
 	params = cleanImportMutation(params)
 	if err := params.Validate(); err != nil {

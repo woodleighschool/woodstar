@@ -5,7 +5,7 @@ CREATE TYPE munki_artifact_kind AS ENUM (
     'icon'
 );
 
-CREATE TYPE munki_assignment_action AS ENUM (
+CREATE TYPE munki_software_action AS ENUM (
     'install',
     'remove',
     'update_if_present',
@@ -36,7 +36,7 @@ CREATE TABLE munki_artifacts (
     UNIQUE (kind, location)
 );
 
-CREATE TABLE munki_software_titles (
+CREATE TABLE munki_software (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
@@ -51,7 +51,7 @@ CREATE TABLE munki_software_titles (
 
 CREATE TABLE munki_packages (
     id BIGSERIAL PRIMARY KEY,
-    software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
+    software_id BIGINT NOT NULL REFERENCES munki_software (id) ON DELETE CASCADE,
     version TEXT NOT NULL,
     installer_type TEXT NOT NULL DEFAULT 'pkg',
     uninstall_method TEXT NOT NULL DEFAULT 'none',
@@ -118,11 +118,11 @@ CREATE TABLE munki_package_relations (
 );
 
 CREATE TABLE munki_software_targets (
-    software_id BIGINT NOT NULL REFERENCES munki_software_titles (id) ON DELETE CASCADE,
+    software_id BIGINT NOT NULL REFERENCES munki_software (id) ON DELETE CASCADE,
     direction target_direction NOT NULL,
     position INTEGER NOT NULL CHECK (position >= 0),
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    action munki_assignment_action,
+    action munki_software_action,
     optional_install BOOLEAN,
     featured_item BOOLEAN,
     package_selection munki_package_selection,
@@ -171,8 +171,8 @@ CREATE TABLE munki_software_targets (
 
 CREATE INDEX munki_artifacts_kind_idx
     ON munki_artifacts (kind, lower(location), id);
-CREATE INDEX munki_software_titles_icon_artifact_idx
-    ON munki_software_titles (icon_artifact_id);
+CREATE INDEX munki_software_icon_artifact_idx
+    ON munki_software (icon_artifact_id);
 CREATE INDEX munki_packages_software_idx
     ON munki_packages (software_id);
 CREATE INDEX munki_packages_installer_artifact_idx

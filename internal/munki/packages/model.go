@@ -278,7 +278,7 @@ type Package struct {
 	UpdatedAt                    time.Time                             `json:"updated_at"`
 }
 
-// EffectiveIconArtifactID returns the package icon override, or the software title icon.
+// EffectiveIconArtifactID returns the package icon override, or the Munki software icon.
 func EffectiveIconArtifactID(p Package) *int64 {
 	if p.IconArtifactID != nil || p.IconName != "" || p.IconHash != "" {
 		return p.IconArtifactID

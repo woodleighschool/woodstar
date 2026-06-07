@@ -939,7 +939,7 @@ SELECT
 	p.created_at,
 	p.updated_at
 FROM munki_packages p
-JOIN munki_software_titles s ON s.id = p.software_id
+JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
@@ -1016,7 +1016,7 @@ func (s *Store) packageRelationsByPackage(
 			target.version AS target_version
 		FROM munki_package_relations r
 		JOIN munki_packages target ON target.id = r.target_package_id
-		JOIN munki_software_titles target_software ON target_software.id = target.software_id
+		JOIN munki_software target_software ON target_software.id = target.software_id
 		WHERE r.package_id = ANY($1::bigint[])
 		ORDER BY r.package_id, r.relation_kind, r.position, r.id
 	`, packageIDs)

@@ -10,16 +10,74 @@ import (
 	"time"
 )
 
-const countMunkiSoftwareTitles = `-- name: CountMunkiSoftwareTitles :one
+const countMunkiSoftware = `-- name: CountMunkiSoftware :one
 SELECT COUNT(*)::integer
-FROM munki_software_titles
+FROM munki_software
 `
 
-func (q *Queries) CountMunkiSoftwareTitles(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, countMunkiSoftwareTitles)
+func (q *Queries) CountMunkiSoftware(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countMunkiSoftware)
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const createMunkiSoftware = `-- name: CreateMunkiSoftware :one
+INSERT INTO munki_software (
+    name,
+    description,
+    category,
+    developer,
+    icon_name,
+    icon_hash,
+    icon_artifact_id
+)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7::bigint
+)
+RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+`
+
+type CreateMunkiSoftwareParams struct {
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Category       string `json:"category"`
+	Developer      string `json:"developer"`
+	IconName       string `json:"icon_name"`
+	IconHash       string `json:"icon_hash"`
+	IconArtifactID *int64 `json:"icon_artifact_id"`
+}
+
+func (q *Queries) CreateMunkiSoftware(ctx context.Context, arg CreateMunkiSoftwareParams) (MunkiSoftware, error) {
+	row := q.db.QueryRow(ctx, createMunkiSoftware,
+		arg.Name,
+		arg.Description,
+		arg.Category,
+		arg.Developer,
+		arg.IconName,
+		arg.IconHash,
+		arg.IconArtifactID,
+	)
+	var i MunkiSoftware
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Category,
+		&i.Developer,
+		&i.IconName,
+		&i.IconHash,
+		&i.IconArtifactID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createMunkiSoftwareInclude = `-- name: CreateMunkiSoftwareInclude :one
@@ -39,7 +97,7 @@ VALUES (
     'include',
     ($2)::integer - 1,
     $3,
-    $4::munki_assignment_action,
+    $4::munki_software_action,
     $5::boolean,
     $6::boolean,
     $7::munki_package_selection,
@@ -52,7 +110,7 @@ type CreateMunkiSoftwareIncludeParams struct {
 	SoftwareID       int64                 `json:"software_id"`
 	Priority         int32                 `json:"priority"`
 	LabelID          int64                 `json:"label_id"`
-	Action           MunkiAssignmentAction `json:"action"`
+	Action           MunkiSoftwareAction   `json:"action"`
 	OptionalInstall  bool                  `json:"optional_install"`
 	FeaturedItem     bool                  `json:"featured_item"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
@@ -87,62 +145,51 @@ func (q *Queries) CreateMunkiSoftwareInclude(ctx context.Context, arg CreateMunk
 	return i, err
 }
 
-const createMunkiSoftwareTitle = `-- name: CreateMunkiSoftwareTitle :one
-INSERT INTO munki_software_titles (
-    name,
-    description,
-    category,
-    developer,
-    icon_name,
-    icon_hash,
-    icon_artifact_id
-)
-VALUES (
-    $1,
-    $2,
-    $3,
-    $4,
-    $5,
-    $6,
-    $7::bigint
-)
-RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+const deleteMunkiSoftwareByID = `-- name: DeleteMunkiSoftwareByID :one
+DELETE FROM munki_software
+WHERE id = $1
+RETURNING id
 `
 
-type CreateMunkiSoftwareTitleParams struct {
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Category       string `json:"category"`
-	Developer      string `json:"developer"`
-	IconName       string `json:"icon_name"`
-	IconHash       string `json:"icon_hash"`
-	IconArtifactID *int64 `json:"icon_artifact_id"`
+type DeleteMunkiSoftwareByIDParams struct {
+	ID int64 `json:"id"`
 }
 
-func (q *Queries) CreateMunkiSoftwareTitle(ctx context.Context, arg CreateMunkiSoftwareTitleParams) (MunkiSoftwareTitle, error) {
-	row := q.db.QueryRow(ctx, createMunkiSoftwareTitle,
-		arg.Name,
-		arg.Description,
-		arg.Category,
-		arg.Developer,
-		arg.IconName,
-		arg.IconHash,
-		arg.IconArtifactID,
-	)
-	var i MunkiSoftwareTitle
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Description,
-		&i.Category,
-		&i.Developer,
-		&i.IconName,
-		&i.IconHash,
-		&i.IconArtifactID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+func (q *Queries) DeleteMunkiSoftwareByID(ctx context.Context, arg DeleteMunkiSoftwareByIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteMunkiSoftwareByID, arg.ID)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteMunkiSoftwareByIDs = `-- name: DeleteMunkiSoftwareByIDs :many
+DELETE FROM munki_software
+WHERE id = ANY($1::bigint[])
+RETURNING id
+`
+
+type DeleteMunkiSoftwareByIDsParams struct {
+	Ids []int64 `json:"ids"`
+}
+
+func (q *Queries) DeleteMunkiSoftwareByIDs(ctx context.Context, arg DeleteMunkiSoftwareByIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, deleteMunkiSoftwareByIDs, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteMunkiSoftwareExcludeLabels = `-- name: DeleteMunkiSoftwareExcludeLabels :exec
@@ -188,66 +235,19 @@ func (q *Queries) DeleteMunkiSoftwareTargetsBySoftwareIDs(ctx context.Context, a
 	return err
 }
 
-const deleteMunkiSoftwareTitle = `-- name: DeleteMunkiSoftwareTitle :one
-DELETE FROM munki_software_titles
-WHERE id = $1
-RETURNING id
-`
-
-type DeleteMunkiSoftwareTitleParams struct {
-	ID int64 `json:"id"`
-}
-
-func (q *Queries) DeleteMunkiSoftwareTitle(ctx context.Context, arg DeleteMunkiSoftwareTitleParams) (int64, error) {
-	row := q.db.QueryRow(ctx, deleteMunkiSoftwareTitle, arg.ID)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
-const deleteMunkiSoftwareTitles = `-- name: DeleteMunkiSoftwareTitles :many
-DELETE FROM munki_software_titles
-WHERE id = ANY($1::bigint[])
-RETURNING id
-`
-
-type DeleteMunkiSoftwareTitlesParams struct {
-	Ids []int64 `json:"ids"`
-}
-
-func (q *Queries) DeleteMunkiSoftwareTitles(ctx context.Context, arg DeleteMunkiSoftwareTitlesParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, deleteMunkiSoftwareTitles, arg.Ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getMunkiSoftwareTitleByID = `-- name: GetMunkiSoftwareTitleByID :one
+const getMunkiSoftwareByID = `-- name: GetMunkiSoftwareByID :one
 SELECT id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
-FROM munki_software_titles
+FROM munki_software
 WHERE id = $1
 `
 
-type GetMunkiSoftwareTitleByIDParams struct {
+type GetMunkiSoftwareByIDParams struct {
 	ID int64 `json:"id"`
 }
 
-func (q *Queries) GetMunkiSoftwareTitleByID(ctx context.Context, arg GetMunkiSoftwareTitleByIDParams) (MunkiSoftwareTitle, error) {
-	row := q.db.QueryRow(ctx, getMunkiSoftwareTitleByID, arg.ID)
-	var i MunkiSoftwareTitle
+func (q *Queries) GetMunkiSoftwareByID(ctx context.Context, arg GetMunkiSoftwareByIDParams) (MunkiSoftware, error) {
+	row := q.db.QueryRow(ctx, getMunkiSoftwareByID, arg.ID)
+	var i MunkiSoftware
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -283,7 +283,7 @@ const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesFo
 SELECT
     (a.position + 1)::bigint AS target_id,
     a.software_id AS target_software_id,
-    a.action::munki_assignment_action AS action,
+    a.action::munki_software_action AS action,
     a.optional_install::boolean AS optional_install,
     a.featured_item::boolean AS featured_item,
     a.package_selection::munki_package_selection AS package_selection,
@@ -352,7 +352,7 @@ SELECT
     software_icon.location AS software_icon_artifact_location
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = $1
-JOIN munki_software_titles s ON s.id = a.software_id
+JOIN munki_software s ON s.id = a.software_id
 JOIN munki_packages p ON p.software_id = a.software_id
     AND (
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)
@@ -383,7 +383,7 @@ type ListEffectiveMunkiPackagesForHostParams struct {
 type ListEffectiveMunkiPackagesForHostRow struct {
 	TargetID                     int64                 `json:"target_id"`
 	TargetSoftwareID             int64                 `json:"target_software_id"`
-	Action                       MunkiAssignmentAction `json:"action"`
+	Action                       MunkiSoftwareAction   `json:"action"`
 	OptionalInstall              bool                  `json:"optional_install"`
 	FeaturedItem                 bool                  `json:"featured_item"`
 	PackageSelection             MunkiPackageSelection `json:"package_selection"`
@@ -542,6 +542,49 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 	return items, nil
 }
 
+const listMunkiSoftware = `-- name: ListMunkiSoftware :many
+SELECT id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
+FROM munki_software
+ORDER BY lower(name), id
+LIMIT $2 OFFSET $1
+`
+
+type ListMunkiSoftwareParams struct {
+	OffsetRows int32 `json:"offset_rows"`
+	LimitRows  int32 `json:"limit_rows"`
+}
+
+func (q *Queries) ListMunkiSoftware(ctx context.Context, arg ListMunkiSoftwareParams) ([]MunkiSoftware, error) {
+	rows, err := q.db.Query(ctx, listMunkiSoftware, arg.OffsetRows, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MunkiSoftware{}
+	for rows.Next() {
+		var i MunkiSoftware
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Category,
+			&i.Developer,
+			&i.IconName,
+			&i.IconHash,
+			&i.IconArtifactID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMunkiSoftwareExcludeLabels = `-- name: ListMunkiSoftwareExcludeLabels :many
 SELECT software_id, label_id
 FROM munki_software_targets
@@ -579,51 +622,8 @@ func (q *Queries) ListMunkiSoftwareExcludeLabels(ctx context.Context, arg ListMu
 	return items, nil
 }
 
-const listMunkiSoftwareTitles = `-- name: ListMunkiSoftwareTitles :many
-SELECT id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
-FROM munki_software_titles
-ORDER BY lower(name), id
-LIMIT $2 OFFSET $1
-`
-
-type ListMunkiSoftwareTitlesParams struct {
-	OffsetRows int32 `json:"offset_rows"`
-	LimitRows  int32 `json:"limit_rows"`
-}
-
-func (q *Queries) ListMunkiSoftwareTitles(ctx context.Context, arg ListMunkiSoftwareTitlesParams) ([]MunkiSoftwareTitle, error) {
-	rows, err := q.db.Query(ctx, listMunkiSoftwareTitles, arg.OffsetRows, arg.LimitRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []MunkiSoftwareTitle{}
-	for rows.Next() {
-		var i MunkiSoftwareTitle
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Description,
-			&i.Category,
-			&i.Developer,
-			&i.IconName,
-			&i.IconHash,
-			&i.IconArtifactID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateMunkiSoftwareTitle = `-- name: UpdateMunkiSoftwareTitle :one
-UPDATE munki_software_titles
+const updateMunkiSoftware = `-- name: UpdateMunkiSoftware :one
+UPDATE munki_software
 SET
     name = $1,
     description = $2,
@@ -637,7 +637,7 @@ WHERE id = $8
 RETURNING id, name, description, category, developer, icon_name, icon_hash, icon_artifact_id, created_at, updated_at
 `
 
-type UpdateMunkiSoftwareTitleParams struct {
+type UpdateMunkiSoftwareParams struct {
 	Name           string `json:"name"`
 	Description    string `json:"description"`
 	Category       string `json:"category"`
@@ -648,8 +648,8 @@ type UpdateMunkiSoftwareTitleParams struct {
 	ID             int64  `json:"id"`
 }
 
-func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiSoftwareTitleParams) (MunkiSoftwareTitle, error) {
-	row := q.db.QueryRow(ctx, updateMunkiSoftwareTitle,
+func (q *Queries) UpdateMunkiSoftware(ctx context.Context, arg UpdateMunkiSoftwareParams) (MunkiSoftware, error) {
+	row := q.db.QueryRow(ctx, updateMunkiSoftware,
 		arg.Name,
 		arg.Description,
 		arg.Category,
@@ -659,7 +659,7 @@ func (q *Queries) UpdateMunkiSoftwareTitle(ctx context.Context, arg UpdateMunkiS
 		arg.IconArtifactID,
 		arg.ID,
 	)
-	var i MunkiSoftwareTitle
+	var i MunkiSoftware
 	err := row.Scan(
 		&i.ID,
 		&i.Name,

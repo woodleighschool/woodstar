@@ -92,7 +92,7 @@ type MunkiDependencies struct {
 	Artifacts       *artifacts.Store
 	HostState       *hoststate.Store
 	Packages        *packages.Store
-	SoftwareTitles  *munkisoftware.Store
+	Software        *munkisoftware.Store
 	ArtifactStorage MunkiArtifactStorage
 }
 

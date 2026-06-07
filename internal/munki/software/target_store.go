@@ -65,7 +65,7 @@ func (s *Store) validatePackageSelectors(
 			return err
 		}
 		if pkg.SoftwareID != softwareID {
-			return fmt.Errorf("%w: package.package_id must belong to software title", dbutil.ErrInvalidInput)
+			return fmt.Errorf("%w: package.package_id must belong to software", dbutil.ErrInvalidInput)
 		}
 	}
 	return nil
@@ -132,7 +132,7 @@ func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID 
 	}
 }
 
-func desiredStateFromStorage(action string, optionalInstall bool) SoftwareDesiredState {
+func softwareStateFromStorage(action string, optionalInstall bool) SoftwareState {
 	if optionalInstall {
 		return SoftwareStateOptionalInstall
 	}
@@ -146,8 +146,8 @@ func desiredStateFromStorage(action string, optionalInstall bool) SoftwareDesire
 	}
 }
 
-// TargetsForSoftwareTitle loads include/exclude target rows for one software title.
-func (s *Store) TargetsForSoftwareTitle(ctx context.Context, softwareID int64) (SoftwareTargets, error) {
+// TargetsForSoftware loads include/exclude target rows for one software.
+func (s *Store) TargetsForSoftware(ctx context.Context, softwareID int64) (SoftwareTargets, error) {
 	if softwareID <= 0 {
 		return SoftwareTargets{}, dbutil.ErrNotFound
 	}
@@ -197,7 +197,7 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 		effective = append(effective, EffectivePackage{
 			TargetID:   row.TargetID,
 			SoftwareID: row.TargetSoftwareID,
-			State:      desiredStateFromStorage(string(row.Action), row.OptionalInstall),
+			State:      softwareStateFromStorage(string(row.Action), row.OptionalInstall),
 			Package:    pkg,
 			Selector:   packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
 			Featured:   row.FeaturedItem,
@@ -240,7 +240,7 @@ func softwareIncludeFromRecord(row softwareIncludeRecord) SoftwareInclude {
 			row.PackageSelection,
 			row.PinnedPackageID,
 		),
-		State:    desiredStateFromStorage(row.Action, row.OptionalInstall),
+		State:    softwareStateFromStorage(row.Action, row.OptionalInstall),
 		Featured: row.FeaturedItem,
 	}
 }

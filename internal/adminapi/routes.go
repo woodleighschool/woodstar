@@ -55,7 +55,7 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	rules.RegisterAdminRoutes(admin, deps.Santa.Rules)
 	events.RegisterAdminRoutes(admin, deps.Santa.Events)
 	rules.RegisterHostAdminRoutes(protected, deps.Santa.Rules, deps.Inventory.Hosts)
-	munkisoftware.RegisterAdminRoutes(admin, deps.Munki.SoftwareTitles, deps.Munki.Packages)
+	munkisoftware.RegisterAdminRoutes(admin, deps.Munki.Software, deps.Munki.Packages)
 	munkiartifacts.RegisterAdminRoutes(admin, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
 	munkipackages.RegisterAdminRoutes(admin, deps.Munki.Packages)
 }

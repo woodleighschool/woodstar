@@ -14,8 +14,8 @@ type SoftwareMutation struct {
 	Targets        SoftwareTargets `json:"targets"                                  nullable:"false"`
 }
 
-// SoftwareTitle is Woodstar-managed metadata for a Munki software item.
-type SoftwareTitle struct {
+// Software is Woodstar-managed metadata for a Munki software item.
+type Software struct {
 	ID                   int64     `json:"id"`
 	Name                 string    `json:"name"`
 	DisplayName          string    `json:"display_name"`

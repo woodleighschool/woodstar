@@ -36,17 +36,17 @@ func NewStore(db *database.DB, artifacts artifactStore, packages packageStore) *
 	return &Store{db: db, q: db.Queries(), artifacts: artifacts, packages: packages}
 }
 
-func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*SoftwareTitle, error) {
+func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*Software, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
 	if err != nil {
 		return nil, err
 	}
-	var titleID int64
+	var softwareID int64
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		row, err := qtx.CreateMunkiSoftwareTitle(ctx, sqlc.CreateMunkiSoftwareTitleParams{
+		row, err := qtx.CreateMunkiSoftware(ctx, sqlc.CreateMunkiSoftwareParams{
 			Name:           params.Name,
 			Description:    params.Description,
 			Category:       params.Category,
@@ -58,16 +58,16 @@ func (s *Store) Create(ctx context.Context, params SoftwareMutation) (*SoftwareT
 		if err != nil {
 			return err
 		}
-		titleID = row.ID
-		return s.replaceTargets(ctx, qtx, titleID, params.Targets)
+		softwareID = row.ID
+		return s.replaceTargets(ctx, qtx, softwareID, params.Targets)
 	})
 	if err != nil {
 		return nil, mapMutationError(err)
 	}
-	return s.GetByID(ctx, titleID)
+	return s.GetByID(ctx, softwareID)
 }
 
-func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (*SoftwareTitle, error) {
+func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (*Software, error) {
 	var err error
 	params = cleanMutation(params)
 	params, err = s.normalizeIcon(ctx, params)
@@ -76,7 +76,7 @@ func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (
 	}
 	err = s.db.WithTx(ctx, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		row, err := qtx.UpdateMunkiSoftwareTitle(ctx, sqlc.UpdateMunkiSoftwareTitleParams{
+		row, err := qtx.UpdateMunkiSoftware(ctx, sqlc.UpdateMunkiSoftwareParams{
 			Name:           params.Name,
 			Description:    params.Description,
 			Category:       params.Category,
@@ -100,19 +100,19 @@ func (s *Store) Update(ctx context.Context, id int64, params SoftwareMutation) (
 	return s.GetByID(ctx, id)
 }
 
-func (s *Store) GetByID(ctx context.Context, id int64) (*SoftwareTitle, error) {
+func (s *Store) GetByID(ctx context.Context, id int64) (*Software, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
 	}
-	row, err := s.q.GetMunkiSoftwareTitleByID(ctx, sqlc.GetMunkiSoftwareTitleByIDParams{ID: id})
+	row, err := s.q.GetMunkiSoftwareByID(ctx, sqlc.GetMunkiSoftwareByIDParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	title := softwareTitleFromSQLC(row)
-	return &title, nil
+	software := softwareFromSQLC(row)
+	return &software, nil
 }
 
 func (s *Store) Delete(ctx context.Context, id int64) error {
@@ -127,7 +127,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 		); err != nil {
 			return err
 		}
-		_, err := qtx.DeleteMunkiSoftwareTitle(ctx, sqlc.DeleteMunkiSoftwareTitleParams{ID: id})
+		_, err := qtx.DeleteMunkiSoftwareByID(ctx, sqlc.DeleteMunkiSoftwareByIDParams{ID: id})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbutil.ErrNotFound
 		}
@@ -135,7 +135,7 @@ func (s *Store) Delete(ctx context.Context, id int64) error {
 	})
 }
 
-// DeleteMany removes multiple software titles. Missing IDs are ignored for bulk idempotency.
+// DeleteMany removes multiple software rows. Missing IDs are ignored for bulk idempotency.
 func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -149,7 +149,7 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 		); err != nil {
 			return err
 		}
-		deletedIDs, err := qtx.DeleteMunkiSoftwareTitles(ctx, sqlc.DeleteMunkiSoftwareTitlesParams{Ids: ids})
+		deletedIDs, err := qtx.DeleteMunkiSoftwareByIDs(ctx, sqlc.DeleteMunkiSoftwareByIDsParams{Ids: ids})
 		if err != nil {
 			return err
 		}
@@ -159,11 +159,11 @@ func (s *Store) DeleteMany(ctx context.Context, ids []int64) (int, error) {
 	return deleted, err
 }
 
-func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]SoftwareTitle, int, error) {
+func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]Software, int, error) {
 	params = dbutil.CleanListParams(params)
-	where, args := softwareTitleListWhere(params)
+	where, args := softwareListWhere(params)
 	listQuery := dbutil.ListQuery{
-		SelectSQL: softwareTitleSelectSQL,
+		SelectSQL: softwareSelectSQL,
 		WhereSQL:  where,
 		Args:      args,
 		OrderKeys: map[string]dbutil.OrderExpr{
@@ -191,15 +191,15 @@ func (s *Store) List(ctx context.Context, params dbutil.ListParams) ([]SoftwareT
 	if err != nil {
 		return nil, 0, err
 	}
-	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.MunkiSoftwareTitle])
+	records, err := pgx.CollectRows(rows, pgx.RowToStructByName[sqlc.MunkiSoftware])
 	if err != nil {
 		return nil, 0, err
 	}
-	titles := make([]SoftwareTitle, len(records))
+	software := make([]Software, len(records))
 	for i, row := range records {
-		titles[i] = softwareTitleFromSQLC(row)
+		software[i] = softwareFromSQLC(row)
 	}
-	return titles, count, nil
+	return software, count, nil
 }
 
 func (s *Store) normalizeIcon(ctx context.Context, params SoftwareMutation) (SoftwareMutation, error) {
@@ -232,8 +232,8 @@ func cleanMutation(params SoftwareMutation) SoftwareMutation {
 	return params
 }
 
-func softwareTitleFromSQLC(row sqlc.MunkiSoftwareTitle) SoftwareTitle {
-	return SoftwareTitle{
+func softwareFromSQLC(row sqlc.MunkiSoftware) Software {
+	return Software{
 		ID:             row.ID,
 		Name:           row.Name,
 		DisplayName:    row.Name,
@@ -248,7 +248,7 @@ func softwareTitleFromSQLC(row sqlc.MunkiSoftwareTitle) SoftwareTitle {
 	}
 }
 
-func softwareTitleListWhere(params dbutil.ListParams) (string, []any) {
+func softwareListWhere(params dbutil.ListParams) (string, []any) {
 	var where dbutil.WhereBuilder
 	if params.Q != "" {
 		search := where.Arg("%" + params.Q + "%")
@@ -279,7 +279,7 @@ func mapMutationError(err error) error {
 	return err
 }
 
-const softwareTitleSelectSQL = `
+const softwareSelectSQL = `
 SELECT
 	st.id,
 	st.name,
@@ -291,4 +291,4 @@ SELECT
 	st.icon_artifact_id,
 	st.created_at,
 	st.updated_at
-FROM munki_software_titles st`
+FROM munki_software st`

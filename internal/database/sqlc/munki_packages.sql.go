@@ -363,7 +363,7 @@ SELECT
     icon.location AS icon_artifact_location,
     software_icon.location AS software_icon_artifact_location
 FROM munki_packages p
-JOIN munki_software_titles s ON s.id = p.software_id
+JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
 LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id

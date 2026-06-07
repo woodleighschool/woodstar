@@ -23,7 +23,7 @@ type SoftwareTargets struct {
 type SoftwareInclude struct {
 	LabelID  int64                   `json:"label_id" minimum:"1"`
 	Package  SoftwarePackageSelector `json:"package"`
-	State    SoftwareDesiredState    `json:"state"`
+	State    SoftwareState           `json:"state"`
 	Featured bool                    `json:"featured"`
 }
 
@@ -47,17 +47,17 @@ var softwarePackageStrategyValues = []SoftwarePackageStrategy{
 	SoftwarePackageSpecific,
 }
 
-// SoftwareDesiredState describes the Munki manifest section for an include.
-type SoftwareDesiredState string
+// SoftwareState describes the Munki manifest section for an include.
+type SoftwareState string
 
 const (
-	SoftwareStateManagedInstall   SoftwareDesiredState = "managed_install"
-	SoftwareStateManagedUninstall SoftwareDesiredState = "managed_uninstall"
-	SoftwareStateManagedUpdate    SoftwareDesiredState = "managed_update"
-	SoftwareStateOptionalInstall  SoftwareDesiredState = "optional_install"
+	SoftwareStateManagedInstall   SoftwareState = "managed_install"
+	SoftwareStateManagedUninstall SoftwareState = "managed_uninstall"
+	SoftwareStateManagedUpdate    SoftwareState = "managed_update"
+	SoftwareStateOptionalInstall  SoftwareState = "optional_install"
 )
 
-var softwareDesiredStateValues = []SoftwareDesiredState{
+var softwareStateValues = []SoftwareState{
 	SoftwareStateManagedInstall,
 	SoftwareStateManagedUninstall,
 	SoftwareStateManagedUpdate,
@@ -68,7 +68,7 @@ var softwareDesiredStateValues = []SoftwareDesiredState{
 type EffectivePackage struct {
 	TargetID   int64
 	SoftwareID int64
-	State      SoftwareDesiredState
+	State      SoftwareState
 	Package    packages.Package
 	Selector   SoftwarePackageSelector
 	Featured   bool
@@ -79,9 +79,9 @@ func (SoftwarePackageStrategy) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(softwarePackageStrategyValues...)
 }
 
-// Schema returns the OpenAPI schema for SoftwareDesiredState.
-func (SoftwareDesiredState) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(softwareDesiredStateValues...)
+// Schema returns the OpenAPI schema for SoftwareState.
+func (SoftwareState) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(softwareStateValues...)
 }
 
 func normalizeSoftwareTargets(targets SoftwareTargets) SoftwareTargets {
@@ -95,7 +95,7 @@ func normalizeSoftwareTargets(targets SoftwareTargets) SoftwareTargets {
 		targets.Include[i].Package.Strategy = SoftwarePackageStrategy(
 			strings.TrimSpace(string(targets.Include[i].Package.Strategy)),
 		)
-		targets.Include[i].State = SoftwareDesiredState(strings.TrimSpace(string(targets.Include[i].State)))
+		targets.Include[i].State = SoftwareState(strings.TrimSpace(string(targets.Include[i].State)))
 	}
 	return targets
 }
@@ -123,7 +123,7 @@ func (include SoftwareInclude) validate() error {
 	if !validSoftwarePackageStrategy(include.Package.Strategy) {
 		return fmt.Errorf("%w: package.strategy is required", dbutil.ErrInvalidInput)
 	}
-	if !validSoftwareDesiredState(include.State) {
+	if !validSoftwareState(include.State) {
 		return fmt.Errorf("%w: state is required", dbutil.ErrInvalidInput)
 	}
 	if err := include.Package.validate(); err != nil {
@@ -156,8 +156,8 @@ func validSoftwarePackageStrategy(strategy SoftwarePackageStrategy) bool {
 	return slices.Contains(softwarePackageStrategyValues, strategy)
 }
 
-func validSoftwareDesiredState(state SoftwareDesiredState) bool {
-	return slices.Contains(softwareDesiredStateValues, state)
+func validSoftwareState(state SoftwareState) bool {
+	return slices.Contains(softwareStateValues, state)
 }
 
 func softwareIncludeLabelID(include SoftwareInclude) int64 {

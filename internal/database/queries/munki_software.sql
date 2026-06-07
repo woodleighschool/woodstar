@@ -1,5 +1,5 @@
--- name: CreateMunkiSoftwareTitle :one
-INSERT INTO munki_software_titles (
+-- name: CreateMunkiSoftware :one
+INSERT INTO munki_software (
     name,
     description,
     category,
@@ -19,23 +19,23 @@ VALUES (
 )
 RETURNING *;
 
--- name: ListMunkiSoftwareTitles :many
+-- name: ListMunkiSoftware :many
 SELECT *
-FROM munki_software_titles
+FROM munki_software
 ORDER BY lower(name), id
 LIMIT @limit_rows OFFSET @offset_rows;
 
--- name: CountMunkiSoftwareTitles :one
+-- name: CountMunkiSoftware :one
 SELECT COUNT(*)::integer
-FROM munki_software_titles;
+FROM munki_software;
 
--- name: GetMunkiSoftwareTitleByID :one
+-- name: GetMunkiSoftwareByID :one
 SELECT *
-FROM munki_software_titles
+FROM munki_software
 WHERE id = @id;
 
--- name: UpdateMunkiSoftwareTitle :one
-UPDATE munki_software_titles
+-- name: UpdateMunkiSoftware :one
+UPDATE munki_software
 SET
     name = @name,
     description = @description,
@@ -56,13 +56,13 @@ WHERE software_id = @software_id;
 DELETE FROM munki_software_targets
 WHERE software_id = ANY(@ids::bigint[]);
 
--- name: DeleteMunkiSoftwareTitle :one
-DELETE FROM munki_software_titles
+-- name: DeleteMunkiSoftwareByID :one
+DELETE FROM munki_software
 WHERE id = @id
 RETURNING id;
 
--- name: DeleteMunkiSoftwareTitles :many
-DELETE FROM munki_software_titles
+-- name: DeleteMunkiSoftwareByIDs :many
+DELETE FROM munki_software
 WHERE id = ANY(@ids::bigint[])
 RETURNING id;
 
@@ -83,7 +83,7 @@ VALUES (
     'include',
     (@priority)::integer - 1,
     @label_id,
-    @action::munki_assignment_action,
+    @action::munki_software_action,
     @optional_install::boolean,
     @featured_item::boolean,
     @package_selection::munki_package_selection,
@@ -112,7 +112,7 @@ ORDER BY software_id, position;
 SELECT
     (a.position + 1)::bigint AS target_id,
     a.software_id AS target_software_id,
-    a.action::munki_assignment_action AS action,
+    a.action::munki_software_action AS action,
     a.optional_install::boolean AS optional_install,
     a.featured_item::boolean AS featured_item,
     a.package_selection::munki_package_selection AS package_selection,
@@ -181,7 +181,7 @@ SELECT
     software_icon.location AS software_icon_artifact_location
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
-JOIN munki_software_titles s ON s.id = a.software_id
+JOIN munki_software s ON s.id = a.software_id
 JOIN munki_packages p ON p.software_id = a.software_id
     AND (
         (a.package_selection = 'latest_eligible' AND a.pinned_package_id IS NULL)

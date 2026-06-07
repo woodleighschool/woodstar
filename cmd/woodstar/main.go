@@ -187,7 +187,7 @@ func newServer(
 	// Munki stores.
 	munkiArtifactStore := artifacts.NewStore(db)
 	munkiPackageStore := packages.NewStore(db, munkiArtifactStore)
-	munkiSoftwareTitleStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
+	munkiSoftwareStore := munkisoftware.NewStore(db, munkiArtifactStore, munkiPackageStore)
 	munkiHostStateStore := hoststate.NewStore(db)
 
 	// Santa stores.
@@ -229,7 +229,7 @@ func newServer(
 		ctx,
 		cfg,
 		hostStore,
-		munkiSoftwareTitleStore,
+		munkiSoftwareStore,
 		munkiArtifactStore,
 		logger,
 	)
@@ -296,7 +296,7 @@ func newServer(
 			Artifacts:       munkiArtifactStore,
 			HostState:       munkiHostStateStore,
 			Packages:        munkiPackageStore,
-			SoftwareTitles:  munkiSoftwareTitleStore,
+			Software:        munkiSoftwareStore,
 			ArtifactStorage: munkiArtifacts,
 		},
 

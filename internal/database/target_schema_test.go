@@ -191,7 +191,7 @@ func createTargetSchemaMunkiSoftware(t testing.TB, ctx context.Context, db *data
 
 	var id int64
 	err := db.Pool().QueryRow(ctx, `
-		INSERT INTO munki_software_titles (name)
+		INSERT INTO munki_software (name)
 		VALUES ('Schema Munki Software')
 		RETURNING id
 	`).Scan(&id)
