@@ -1,4 +1,4 @@
-package handlers
+package hosts
 
 import (
 	"context"
@@ -8,14 +8,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
-	"github.com/woodleighschool/woodstar/internal/munki/hoststate"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
-	"github.com/woodleighschool/woodstar/internal/santa"
 )
 
 const (
@@ -23,24 +17,29 @@ const (
 	hostResource = "host"
 )
 
-// HostDetail is the host detail response with capability-enriched fields.
-// Capability packages contribute their slice through registered enrichers.
-type HostDetail struct {
-	hosts.HostDetail
-	Munki *hoststate.State `json:"munki,omitempty"`
-	Santa *santa.HostState `json:"santa,omitempty"`
+// CheckStatusFilter returns host IDs matching an external check status.
+type CheckStatusFilter interface {
+	HostIDsByStatus(context.Context, int64, string) ([]int64, error)
+}
+
+type DetailBuilder[T any] func(HostDetail) T
+
+// AdminRoutesOptions groups dependencies for host admin routes.
+type AdminRoutesOptions[T any] struct {
+	Store          *Store
+	UserAffinities *UserAffinityStore
+	RequireAdmin   func(context.Context) error
+	CheckFilter    CheckStatusFilter
+	DetailBuilder  DetailBuilder[T]
+	Contributors   []DetailContributor[T]
 }
 
 type hostListOutput struct {
-	Body apitypes.Page[hosts.Host]
+	Body apitypes.Page[Host]
 }
 
-type hostDetailOutput struct {
-	Body HostDetail
-}
-
-type hostSoftwareOutput struct {
-	Body apitypes.Page[inventory.HostSoftwareRow]
+type hostDetailOutput[T any] struct {
+	Body T
 }
 
 type hostGetInput struct {
@@ -58,8 +57,8 @@ type hostListInput struct {
 	CheckResponse   string  `query:"check_response,omitempty"                enum:"pass,fail"`
 }
 
-func (i hostListInput) params() hosts.ListParams {
-	return hosts.ListParams{
+func (i hostListInput) params() ListParams {
+	return ListParams{
 		ListParams:      i.ListQueryInput.Params(),
 		Status:          i.Status,
 		LabelID:         i.LabelID,
@@ -69,7 +68,7 @@ func (i hostListInput) params() hosts.ListParams {
 	}
 }
 
-func (i hostListInput) checkStatusFilter() (checks.CheckStatus, bool, error) {
+func (i hostListInput) checkStatusFilter() (string, bool, error) {
 	hasCheckID := i.CheckID != 0
 	hasResponse := i.CheckResponse != ""
 	if hasCheckID != hasResponse {
@@ -80,25 +79,10 @@ func (i hostListInput) checkStatusFilter() (checks.CheckStatus, bool, error) {
 	}
 
 	switch i.CheckResponse {
-	case string(checks.CheckStatusPass):
-		return checks.CheckStatusPass, true, nil
-	case string(checks.CheckStatusFail):
-		return checks.CheckStatusFail, true, nil
+	case "pass", "fail":
+		return i.CheckResponse, true, nil
 	default:
 		return "", false, huma.Error400BadRequest("unknown check_response")
-	}
-}
-
-type hostSoftwareInput struct {
-	ID int64 `path:"id"`
-	apitypes.ListQueryInput
-	Source []string `          query:"source,omitempty"`
-}
-
-func (i hostSoftwareInput) params() (int64, inventory.HostSoftwareListParams) {
-	return i.ID, inventory.HostSoftwareListParams{
-		ListParams:      i.ListQueryInput.Params(),
-		SoftwareSources: i.Source,
 	}
 }
 
@@ -115,29 +99,18 @@ type hostUserAffinityPutInput struct {
 	Body hostUserAffinityPutBody
 }
 
-// HostDetailContributor adds capability-specific sections to a host detail response.
-type HostDetailContributor = hosts.DetailContributor[HostDetail]
-
-// RegisterHosts registers admin host inventory endpoints.
+// RegisterAdminRoutes registers admin host inventory endpoints.
 // Reading hosts is open to admins and viewers. Deleting hosts is admin-only.
-func RegisterHosts(
-	api huma.API,
-	hostStore *hosts.Store,
-	userAffinities *hosts.UserAffinityStore,
-	softwareStore *inventory.Store,
-	checkStore *checks.Store,
-	contributors ...HostDetailContributor,
-) {
-	registerListHosts(api, hostStore, checkStore)
-	registerGetHost(api, hostStore, contributors)
-	registerPutHostUserAffinity(api, hostStore, userAffinities, contributors)
-	registerDeleteHostUserAffinity(api, hostStore, userAffinities, contributors)
-	registerDeleteHost(api, hostStore)
-	registerBulkDeleteHosts(api, hostStore)
-	registerHostSoftware(api, hostStore, softwareStore)
+func RegisterAdminRoutes[T any](api huma.API, opts AdminRoutesOptions[T]) {
+	registerListHosts(api, opts.Store, opts.CheckFilter)
+	registerGetHost(api, opts)
+	registerPutHostUserAffinity(api, opts)
+	registerDeleteHostUserAffinity(api, opts)
+	registerDeleteHost(api, opts.Store, opts.RequireAdmin)
+	registerBulkDeleteHosts(api, opts.Store, opts.RequireAdmin)
 }
 
-func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.Store) {
+func registerListHosts(api huma.API, hostStore *Store, checkFilter CheckStatusFilter) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-hosts",
 		Method:      http.MethodGet,
@@ -152,16 +125,16 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.
 			return nil, err
 		}
 		if hasCheckFilter {
-			if checkStore == nil {
+			if checkFilter == nil {
 				return nil, errors.New("check store is not configured")
 			}
-			checkHostIDs, err := checkStore.HostIDsByStatus(ctx, input.CheckID, status)
+			checkHostIDs, err := checkFilter.HostIDsByStatus(ctx, input.CheckID, status)
 			if err != nil {
 				return nil, apitypes.ResourceMutationError("check", err)
 			}
 			params.IDs = intersectHostIDs(params.IDs, checkHostIDs)
 			if len(params.IDs) == 0 {
-				return &hostListOutput{Body: apitypes.Page[hosts.Host]{Items: []hosts.Host{}, Count: 0}}, nil
+				return &hostListOutput{Body: apitypes.Page[Host]{Items: []Host{}, Count: 0}}, nil
 			}
 		}
 
@@ -169,7 +142,7 @@ func registerListHosts(api huma.API, hostStore *hosts.Store, checkStore *checks.
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("host", err)
 		}
-		return &hostListOutput{Body: apitypes.Page[hosts.Host]{Items: rows, Count: count}}, nil
+		return &hostListOutput{Body: apitypes.Page[Host]{Items: rows, Count: count}}, nil
 	})
 }
 
@@ -194,12 +167,16 @@ func intersectHostIDs(requestedIDs []int64, checkHostIDs []int64) []int64 {
 	return ids
 }
 
-func loadHostDetailBody(
+func loadHostDetailBody[T any](
 	ctx context.Context,
-	hostStore *hosts.Store,
+	hostStore *Store,
 	hostID int64,
-	contributors []HostDetailContributor,
-) (*HostDetail, error) {
+	build DetailBuilder[T],
+	contributors []DetailContributor[T],
+) (*T, error) {
+	if build == nil {
+		return nil, errors.New("host detail builder is not configured")
+	}
 	host, err := hostStore.GetByID(ctx, hostID)
 	if errors.Is(err, dbutil.ErrNotFound) {
 		return nil, huma.Error404NotFound("host not found")
@@ -211,7 +188,7 @@ func loadHostDetailBody(
 	if err != nil {
 		return nil, err
 	}
-	body := HostDetail{HostDetail: *detail}
+	body := build(*detail)
 	for _, contributor := range contributors {
 		if contributor == nil {
 			continue
@@ -223,7 +200,7 @@ func loadHostDetailBody(
 	return &body, nil
 }
 
-func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDetailContributor) {
+func registerGetHost[T any](api huma.API, opts AdminRoutesOptions[T]) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-host",
 		Method:      http.MethodGet,
@@ -231,21 +208,16 @@ func registerGetHost(api huma.API, hostStore *hosts.Store, contributors []HostDe
 		Tags:        []string{hostsTag},
 		Summary:     "Get an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput[T], error) {
+		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
 		if err != nil {
 			return nil, err
 		}
-		return &hostDetailOutput{Body: *body}, nil
+		return &hostDetailOutput[T]{Body: *body}, nil
 	})
 }
 
-func registerPutHostUserAffinity(
-	api huma.API,
-	hostStore *hosts.Store,
-	userAffinities *hosts.UserAffinityStore,
-	contributors []HostDetailContributor,
-) {
+func registerPutHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions[T]) {
 	huma.Register(api, huma.Operation{
 		OperationID: "put-host-user-affinity",
 		Method:      http.MethodPut,
@@ -258,11 +230,11 @@ func registerPutHostUserAffinity(
 			http.StatusForbidden,
 			http.StatusNotFound,
 		},
-	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
+	}, func(ctx context.Context, input *hostUserAffinityPutInput) (*hostDetailOutput[T], error) {
+		if err := requireAdmin(ctx, opts.RequireAdmin); err != nil {
 			return nil, err
 		}
-		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
@@ -271,23 +243,18 @@ func registerPutHostUserAffinity(
 		if email == "" {
 			return nil, huma.Error400BadRequest("email is required")
 		}
-		if err := userAffinities.Upsert(ctx, input.ID, email, hosts.UserAffinitySourceManual); err != nil {
+		if err := opts.UserAffinities.Upsert(ctx, input.ID, email, UserAffinitySourceManual); err != nil {
 			return nil, err
 		}
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
+		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
 		if err != nil {
 			return nil, err
 		}
-		return &hostDetailOutput{Body: *body}, nil
+		return &hostDetailOutput[T]{Body: *body}, nil
 	})
 }
 
-func registerDeleteHostUserAffinity(
-	api huma.API,
-	hostStore *hosts.Store,
-	userAffinities *hosts.UserAffinityStore,
-	contributors []HostDetailContributor,
-) {
+func registerDeleteHostUserAffinity[T any](api huma.API, opts AdminRoutesOptions[T]) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host-user-affinity",
 		Method:      http.MethodDelete,
@@ -295,27 +262,27 @@ func registerDeleteHostUserAffinity(
 		Tags:        []string{hostsTag},
 		Summary:     "Clear the host user affinity",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
+	}, func(ctx context.Context, input *hostGetInput) (*hostDetailOutput[T], error) {
+		if err := requireAdmin(ctx, opts.RequireAdmin); err != nil {
 			return nil, err
 		}
-		if _, err := hostStore.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
+		if _, err := opts.Store.GetByID(ctx, input.ID); errors.Is(err, dbutil.ErrNotFound) {
 			return nil, huma.Error404NotFound("host not found")
 		} else if err != nil {
 			return nil, err
 		}
-		if err := userAffinities.Delete(ctx, input.ID, hosts.UserAffinitySourceManual); err != nil {
+		if err := opts.UserAffinities.Delete(ctx, input.ID, UserAffinitySourceManual); err != nil {
 			return nil, err
 		}
-		body, err := loadHostDetailBody(ctx, hostStore, input.ID, contributors)
+		body, err := loadHostDetailBody(ctx, opts.Store, input.ID, opts.DetailBuilder, opts.Contributors)
 		if err != nil {
 			return nil, err
 		}
-		return &hostDetailOutput{Body: *body}, nil
+		return &hostDetailOutput[T]{Body: *body}, nil
 	})
 }
 
-func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
+func registerDeleteHost(api huma.API, hostStore *Store, requireAdminFunc func(context.Context) error) {
 	huma.Register(api, huma.Operation{
 		OperationID: "delete-host",
 		Method:      http.MethodDelete,
@@ -324,7 +291,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 		Summary:     "Delete an enrolled host",
 		Errors:      []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound},
 	}, func(ctx context.Context, input *hostGetInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
+		if err := requireAdmin(ctx, requireAdminFunc); err != nil {
 			return nil, err
 		}
 		if err := hostStore.Delete(ctx, input.ID); err != nil {
@@ -334,7 +301,7 @@ func registerDeleteHost(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
+func registerBulkDeleteHosts(api huma.API, hostStore *Store, requireAdminFunc func(context.Context) error) {
 	huma.Register(api, huma.Operation{
 		OperationID: "bulk-delete-hosts",
 		Method:      http.MethodPost,
@@ -343,7 +310,7 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 		Summary:     "Delete enrolled hosts",
 		Errors:      []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden},
 	}, func(ctx context.Context, input *hostBulkDeleteInput) (*struct{}, error) {
-		if _, err := adminctx.RequireAdmin(ctx); err != nil {
+		if err := requireAdmin(ctx, requireAdminFunc); err != nil {
 			return nil, err
 		}
 		if _, err := hostStore.DeleteMany(ctx, input.Body.IDs); err != nil {
@@ -353,25 +320,9 @@ func registerBulkDeleteHosts(api huma.API, hostStore *hosts.Store) {
 	})
 }
 
-func registerHostSoftware(api huma.API, hostStore *hosts.Store, softwareStore *inventory.Store) {
-	huma.Register(api, huma.Operation{
-		OperationID: "list-host-software",
-		Method:      http.MethodGet,
-		Path:        "/api/hosts/{id}/software",
-		Tags:        []string{hostsTag},
-		Summary:     "List software installed on a host",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *hostSoftwareInput) (*hostSoftwareOutput, error) {
-		id, params := input.params()
-		if _, err := hostStore.GetByID(ctx, id); errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("host not found")
-		} else if err != nil {
-			return nil, err
-		}
-		rows, count, err := softwareStore.ListForHost(ctx, id, params)
-		if err != nil {
-			return nil, apitypes.ResourceMutationError("software", err)
-		}
-		return &hostSoftwareOutput{Body: apitypes.Page[inventory.HostSoftwareRow]{Items: rows, Count: count}}, nil
-	})
+func requireAdmin(ctx context.Context, requireAdminFunc func(context.Context) error) error {
+	if requireAdminFunc == nil {
+		return errors.New("admin authorizer is not configured")
+	}
+	return requireAdminFunc(ctx)
 }

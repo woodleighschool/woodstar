@@ -1,4 +1,4 @@
-package handlers
+package inventory
 
 import (
 	"context"
@@ -9,8 +9,6 @@ import (
 
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/dbutil"
-	"github.com/woodleighschool/woodstar/internal/inventory"
-	"github.com/woodleighschool/woodstar/internal/santa/references"
 )
 
 const softwareTag = "Software"
@@ -20,8 +18,8 @@ type softwareListInput struct {
 	Source []string `query:"source,omitempty"`
 }
 
-func (i softwareListInput) params() inventory.SoftwareTitleListParams {
-	return inventory.SoftwareTitleListParams{
+func (i softwareListInput) params() SoftwareTitleListParams {
+	return SoftwareTitleListParams{
 		ListParams:      i.ListQueryInput.Params(),
 		SoftwareSources: i.Source,
 	}
@@ -32,18 +30,15 @@ type softwareGetInput struct {
 }
 
 type softwareListOutput struct {
-	Body apitypes.Page[inventory.SoftwareTitle]
+	Body apitypes.Page[SoftwareTitle]
 }
 
 type softwareGetOutput struct {
-	Body inventory.SoftwareTitle
+	Body SoftwareTitle
 }
 
-type softwareSantaGetOutput struct {
-	Body references.SoftwareReference
-}
-
-func RegisterSoftware(api huma.API, softwareStore *inventory.Store, santaReferences *references.Store) {
+// RegisterAdminRoutes registers observed software inventory admin endpoints.
+func RegisterAdminRoutes(api huma.API, softwareStore *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-software",
 		Method:      http.MethodGet,
@@ -56,7 +51,7 @@ func RegisterSoftware(api huma.API, softwareStore *inventory.Store, santaReferen
 		if err != nil {
 			return nil, apitypes.ResourceMutationError("software", err)
 		}
-		return &softwareListOutput{Body: apitypes.Page[inventory.SoftwareTitle]{Items: titles, Count: count}}, nil
+		return &softwareListOutput{Body: apitypes.Page[SoftwareTitle]{Items: titles, Count: count}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -75,23 +70,5 @@ func RegisterSoftware(api huma.API, softwareStore *inventory.Store, santaReferen
 			return nil, err
 		}
 		return &softwareGetOutput{Body: *title}, nil
-	})
-
-	huma.Register(api, huma.Operation{
-		OperationID: "get-software-santa-reference",
-		Method:      http.MethodGet,
-		Path:        "/api/software/{id}/santa",
-		Tags:        []string{softwareTag},
-		Summary:     "Get Santa reference data for a software title",
-		Errors:      []int{http.StatusUnauthorized, http.StatusNotFound},
-	}, func(ctx context.Context, input *softwareGetInput) (*softwareSantaGetOutput, error) {
-		ref, err := santaReferences.GetSoftwareReference(ctx, input.ID)
-		if errors.Is(err, dbutil.ErrNotFound) {
-			return nil, huma.Error404NotFound("software title not found")
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &softwareSantaGetOutput{Body: *ref}, nil
 	})
 }

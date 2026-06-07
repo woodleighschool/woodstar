@@ -6,9 +6,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/woodleighschool/woodstar/internal/agentauth"
-	"github.com/woodleighschool/woodstar/internal/api/handlers"
 	"github.com/woodleighschool/woodstar/internal/auth"
 	"github.com/woodleighschool/woodstar/internal/directory"
+	"github.com/woodleighschool/woodstar/internal/hosts"
+	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
 	munkiartifacts "github.com/woodleighschool/woodstar/internal/munki/artifacts"
 	munkipackages "github.com/woodleighschool/woodstar/internal/munki/packages"
@@ -18,6 +19,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/osquery/reports"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
 	"github.com/woodleighschool/woodstar/internal/santa/events"
+	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/santa/rules"
 )
 
@@ -38,16 +40,10 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	auth.RegisterAccountAdminRoutes(protected, deps.Auth.AuthService, deps.Auth.UserService)
 	directory.RegisterUserAdminRoutes(admin, deps.Auth.UserService)
 	directory.RegisterGroupAdminRoutes(admin, deps.Directory.Store)
-	handlers.RegisterHosts(
-		protected,
-		deps.Inventory.Hosts,
-		deps.Inventory.UserAffinities,
-		deps.Inventory.Software,
-		deps.Osquery.Checks,
-		handlers.MunkiHostDetailContributor(deps.Munki.HostState),
-		handlers.SantaHostDetailContributor(deps.Santa.HostState),
-	)
-	handlers.RegisterSoftware(protected, deps.Inventory.Software, deps.Santa.References)
+	hosts.RegisterAdminRoutes(protected, hostRoutesOptions(deps))
+	inventory.RegisterAdminRoutes(protected, deps.Inventory.Software)
+	inventory.RegisterHostAdminRoutes(protected, deps.Inventory.Software, deps.Inventory.Hosts)
+	references.RegisterSoftwareAdminRoutes(protected, deps.Santa.References)
 	labels.RegisterAdminRoutes(protected, deps.Inventory.Labels)
 	agentauth.RegisterAdminRoutes(admin, deps.AgentAuth.Store)
 	reports.RegisterAdminRoutes(protected, deps.Osquery.Reports)
@@ -62,4 +58,22 @@ func registerAdminRoutes(r chi.Router, humaAPI huma.API, deps Dependencies) {
 	munkisoftware.RegisterAdminRoutes(admin, deps.Munki.SoftwareTitles, deps.Munki.Packages)
 	munkiartifacts.RegisterAdminRoutes(admin, deps.Munki.Artifacts, deps.Munki.ArtifactStorage)
 	munkipackages.RegisterAdminRoutes(admin, deps.Munki.Packages)
+}
+
+func hostRoutesOptions(deps Dependencies) hosts.AdminRoutesOptions[HostDetail] {
+	var checkFilter hosts.CheckStatusFilter
+	if deps.Osquery.Checks != nil {
+		checkFilter = osqueryCheckFilter{store: deps.Osquery.Checks}
+	}
+	return hosts.AdminRoutesOptions[HostDetail]{
+		Store:          deps.Inventory.Hosts,
+		UserAffinities: deps.Inventory.UserAffinities,
+		RequireAdmin:   requireAdminUser,
+		CheckFilter:    checkFilter,
+		DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
+		Contributors: []hosts.DetailContributor[HostDetail]{
+			newMunkiHostDetailContributor(deps.Munki.HostState),
+			newSantaHostDetailContributor(deps.Santa.HostState),
+		},
+	}
 }

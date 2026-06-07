@@ -1,15 +1,22 @@
-package handlers
+package hosts_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
 
+	"github.com/woodleighschool/woodstar/internal/adminapi/adminctx"
 	"github.com/woodleighschool/woodstar/internal/adminapi/apitypes"
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
+	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
 	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 )
@@ -35,13 +42,17 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 		t.Fatalf("seed orbit mapping: %v", err)
 	}
 
-	router, cookie := santaAuthedRouter(t, db, "host-mapping-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, userAffinities, nil, checks.NewStore(db))
+	router := hostTestRouter(t, func(api huma.API) {
+		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
+			Store:          hostStore,
+			UserAffinities: userAffinities,
+			RequireAdmin:   func(context.Context) error { return nil },
+			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
+		})
 	})
-	rec := santaAdminRequest(
+	rec := hostAPIRequest(
 		t,
 		router,
-		cookie,
 		http.MethodPut,
 		fmt.Sprintf("/api/hosts/%d/user-affinity", host.ID),
 		`{"email":"manual@example.test"}`,
@@ -67,10 +78,9 @@ func TestHostUserAffinityManualOverride(t *testing.T) {
 		t.Fatalf("user affinity mappings after put = %+v, want manual mapping first", body.UserAffinity.Mappings)
 	}
 
-	rec = santaAdminRequest(
+	rec = hostAPIRequest(
 		t,
 		router,
-		cookie,
 		http.MethodDelete,
 		fmt.Sprintf("/api/hosts/%d/user-affinity", host.ID),
 		"",
@@ -130,8 +140,14 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		t.Fatalf("upsert unevaluated membership: %v", err)
 	}
 
-	router, cookie := santaAuthedRouter(t, db, "host-check-filter-admin@example.test", func(api huma.API) {
-		RegisterHosts(api, hostStore, hosts.NewUserAffinityStore(db), nil, checkStore)
+	router := hostTestRouter(t, func(api huma.API) {
+		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[hosts.HostDetail]{
+			Store:          hostStore,
+			UserAffinities: hosts.NewUserAffinityStore(db),
+			RequireAdmin:   func(context.Context) error { return nil },
+			CheckFilter:    checkStatusFilter{store: checkStore},
+			DetailBuilder:  func(detail hosts.HostDetail) hosts.HostDetail { return detail },
+		})
 	})
 
 	tests := []struct {
@@ -143,7 +159,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		path := fmt.Sprintf("/api/hosts?check_id=%d&check_response=%s", check.ID, tt.response)
-		rec := santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
+		rec := hostAPIRequest(t, router, http.MethodGet, path, "")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 		}
@@ -162,7 +178,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		failingHost.ID,
 		check.ID,
 	)
-	rec := santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
+	rec := hostAPIRequest(t, router, http.MethodGet, path, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -179,7 +195,7 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		failingHost.ID,
 		check.ID,
 	)
-	rec = santaAdminRequest(t, router, cookie, http.MethodGet, path, "")
+	rec = hostAPIRequest(t, router, http.MethodGet, path, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("%s status = %d, want %d; body = %q", path, rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -203,9 +219,44 @@ func TestHostListCheckResponseFilter(t *testing.T) {
 		},
 	}
 	for _, tt := range badPaths {
-		rec := santaAdminRequest(t, router, cookie, http.MethodGet, tt.path, "")
+		rec := hostAPIRequest(t, router, http.MethodGet, tt.path, "")
 		if rec.Code != tt.want {
 			t.Fatalf("%s status = %d, want %d; body = %q", tt.path, rec.Code, tt.want, rec.Body.String())
 		}
 	}
+}
+
+type checkStatusFilter struct {
+	store *checks.Store
+}
+
+func (f checkStatusFilter) HostIDsByStatus(ctx context.Context, checkID int64, status string) ([]int64, error) {
+	return f.store.HostIDsByStatus(ctx, checkID, checks.CheckStatus(status))
+}
+
+func hostTestRouter(t *testing.T, register func(huma.API)) *chi.Mux {
+	t.Helper()
+
+	router := chi.NewRouter()
+	api := humachi.New(router, huma.DefaultConfig("test", "test"))
+	protected := huma.NewGroup(api)
+	protected.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
+		adminRole := directory.RoleAdmin
+		user := &directory.User{ID: 1, Email: "host-admin@example.test", Role: &adminRole}
+		next(huma.WithContext(ctx, adminctx.WithUser(ctx.Context(), user)))
+	})
+	register(protected)
+	return router
+}
+
+func hostAPIRequest(t *testing.T, router *chi.Mux, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader(body))
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	router.ServeHTTP(rec, req)
+	return rec
 }

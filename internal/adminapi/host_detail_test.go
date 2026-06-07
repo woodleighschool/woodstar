@@ -1,4 +1,4 @@
-package handlers
+package adminapi
 
 import (
 	"bytes"
@@ -22,48 +22,11 @@ import (
 	"github.com/woodleighschool/woodstar/internal/database/dbtest"
 	"github.com/woodleighschool/woodstar/internal/directory"
 	"github.com/woodleighschool/woodstar/internal/hosts"
-	"github.com/woodleighschool/woodstar/internal/inventory"
 	"github.com/woodleighschool/woodstar/internal/labels"
-	"github.com/woodleighschool/woodstar/internal/osquery/checks"
 	"github.com/woodleighschool/woodstar/internal/santa"
 	"github.com/woodleighschool/woodstar/internal/santa/configurations"
-	"github.com/woodleighschool/woodstar/internal/santa/references"
 	"github.com/woodleighschool/woodstar/internal/targeting"
 )
-
-func TestSoftwareSantaReferenceEndpoint(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	router, protected, cookie := santaTestAPIWith(t, db, "software-santa-admin@example.test", false)
-	RegisterSoftware(protected, inventory.NewStore(db), references.NewStore(db))
-
-	var titleID int64
-	if err := db.Pool().QueryRow(ctx, `
-		INSERT INTO software_titles (name, display_name, source, bundle_identifier)
-		VALUES ('Reference Endpoint', 'Reference Endpoint', 'apps', 'com.example.reference-endpoint')
-		RETURNING id
-	`).Scan(&titleID); err != nil {
-		t.Fatalf("insert software title: %v", err)
-	}
-
-	rec := santaAdminRequest(
-		t,
-		router,
-		cookie,
-		http.MethodGet,
-		fmt.Sprintf("/api/software/%d/santa", titleID),
-		"",
-	)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body = %q", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	var body references.SoftwareReference
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode software reference: %v", err)
-	}
-	if body.ExecutionCount != 0 || body.BlockCount != 0 {
-		t.Fatalf("software reference = %+v, want empty counts", body)
-	}
-}
 
 func TestHostDetailRunsSantaEnricher(t *testing.T) {
 	db, ctx := dbtest.Open(t)
@@ -116,14 +79,15 @@ func TestHostDetailRunsSantaEnricher(t *testing.T) {
 
 	hostState := santa.NewHostStateService(santaStore, configurations.NewStore(db))
 	router, cookie := santaAuthedRouter(t, db, "enricher-admin@example.test", func(api huma.API) {
-		RegisterHosts(
-			api,
-			hostStore,
-			hosts.NewUserAffinityStore(db),
-			nil,
-			checks.NewStore(db),
-			SantaHostDetailContributor(hostState),
-		)
+		hosts.RegisterAdminRoutes(api, hosts.AdminRoutesOptions[HostDetail]{
+			Store:          hostStore,
+			UserAffinities: hosts.NewUserAffinityStore(db),
+			RequireAdmin:   requireAdminUser,
+			DetailBuilder:  func(detail hosts.HostDetail) HostDetail { return HostDetail{HostDetail: detail} },
+			Contributors: []hosts.DetailContributor[HostDetail]{
+				newSantaHostDetailContributor(hostState),
+			},
+		})
 	})
 	rec := santaAdminRequest(t, router, cookie, http.MethodGet, fmt.Sprintf("/api/hosts/%d", host.ID), "")
 	if rec.Code != http.StatusOK {
@@ -196,7 +160,7 @@ func santaTestAPIWith(
 	authService := auth.NewService(userService, sessionManager)
 	router := chi.NewRouter()
 	router.Use(sessionManager.LoadAndSave)
-	api := humachi.New(router, testHumaConfig())
+	api := humachi.New(router, humaConfig("test"))
 	protected := huma.NewGroup(api)
 	protected.UseMiddleware(santaTestWithUser(admin))
 	if requireAdminGroup {
