@@ -21,16 +21,16 @@ func (s *Service) RotateAPIKey(ctx context.Context, userID int64) (*directory.Ac
 	if err != nil {
 		return nil, err
 	}
-	account, err := s.users.SetAPIKey(ctx, userID, key)
+	account, err := s.users.SetAccountAPIKey(ctx, userID, key)
 	if err != nil {
 		return nil, fmt.Errorf("set api key: %w", err)
 	}
 	return account, nil
 }
 
-// RevokeAPIKey clears the API key on userID and returns the updated user.
+// RevokeAPIKey clears the API key on userID and returns the updated account.
 func (s *Service) RevokeAPIKey(ctx context.Context, userID int64) (*directory.Account, error) {
-	account, err := s.users.ClearAPIKey(ctx, userID)
+	account, err := s.users.ClearAccountAPIKey(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("clear api key: %w", err)
 	}

@@ -19,21 +19,6 @@ type Store struct {
 	q  *sqlc.Queries
 }
 
-// UserCreate contains fields needed to create a user.
-type UserCreate struct {
-	Email    string `json:"email"          format:"email"`
-	Name     string `json:"name,omitempty"`
-	Role     Role   `json:"role"`
-	Password string `json:"password"                      minLength:"12"`
-}
-
-// UserMutation replaces the writable fields of a user.
-type UserMutation struct {
-	Name     string  `json:"name"`
-	Role     *Role   `json:"role,omitempty"`
-	Password *string `json:"password,omitempty"`
-}
-
 func NewStore(db *database.DB) *Store {
 	return &Store{db: db, q: db.Queries()}
 }
@@ -42,16 +27,18 @@ func (s *Store) UserExists(ctx context.Context) (bool, error) {
 	return s.q.UserExists(ctx)
 }
 
-func (s *Store) CreateUser(ctx context.Context, params UserCreate) (*User, error) {
-	hash, err := HashPassword(params.Password)
-	if err != nil {
-		return nil, err
-	}
+type userCreateRecord struct {
+	Email        string
+	Name         string
+	PasswordHash string
+	Role         Role
+}
 
+func (s *Store) createUser(ctx context.Context, params userCreateRecord) (*User, error) {
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:        strings.ToLower(params.Email),
 		Name:         params.Name,
-		PasswordHash: &hash,
+		PasswordHash: &params.PasswordHash,
 		Role:         sqlc.UserRole(params.Role),
 	})
 	if err != nil {
@@ -154,25 +141,23 @@ func (s *Store) ListDepartments(ctx context.Context, params UserListParams) ([]D
 	return departments, count, err
 }
 
-func (s *Store) UpdateUser(ctx context.Context, id int64, params UserMutation) (*User, error) {
+type userUpdateRecord struct {
+	Name         string
+	Role         *Role
+	PasswordHash *string
+}
+
+func (s *Store) updateUser(ctx context.Context, id int64, params userUpdateRecord) (*User, error) {
 	var role *sqlc.UserRole
 	if params.Role != nil {
 		value := sqlc.UserRole(*params.Role)
 		role = &value
 	}
-	var passwordHash *string
-	if params.Password != nil {
-		hash, err := HashPassword(*params.Password)
-		if err != nil {
-			return nil, err
-		}
-		passwordHash = &hash
-	}
 
 	row, err := s.q.UpdateUser(ctx, sqlc.UpdateUserParams{
 		Name:         params.Name,
 		Role:         role,
-		PasswordHash: passwordHash,
+		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -184,20 +169,10 @@ func (s *Store) UpdateUser(ctx context.Context, id int64, params UserMutation) (
 	return new(userFromSQLC(row)), nil
 }
 
-// UpdateAccount writes the signed-in user's editable account fields and
-// returns the fresh account view in a single round trip.
-func (s *Store) UpdateAccount(ctx context.Context, id int64, params AccountMutation) (*Account, error) {
-	var passwordHash *string
-	if params.Password != nil {
-		hash, err := HashPassword(*params.Password)
-		if err != nil {
-			return nil, err
-		}
-		passwordHash = &hash
-	}
+func (s *Store) updateAccount(ctx context.Context, id int64, params accountUpdateRecord) (*Account, error) {
 	row, err := s.q.UpdateAccountByID(ctx, sqlc.UpdateAccountByIDParams{
 		Name:         params.Name,
-		PasswordHash: passwordHash,
+		PasswordHash: params.PasswordHash,
 		ID:           id,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -236,9 +211,7 @@ func (s *Store) GetUserByAPIKey(ctx context.Context, key string) (*User, error) 
 	return new(userFromSQLC(row)), nil
 }
 
-// SetAPIKey writes a freshly generated API key for id and resets the
-// created_at and last_used_at timestamps.
-func (s *Store) SetUserAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
+func (s *Store) setAccountAPIKey(ctx context.Context, id int64, key string) (*Account, error) {
 	row, err := s.q.SetUserAPIKey(ctx, sqlc.SetUserAPIKeyParams{ID: id, APIKey: &key})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound
@@ -249,7 +222,7 @@ func (s *Store) SetUserAPIKey(ctx context.Context, id int64, key string) (*Accou
 	return new(accountFromSQLC(row)), nil
 }
 
-func (s *Store) ClearUserAPIKey(ctx context.Context, id int64) (*Account, error) {
+func (s *Store) clearAccountAPIKey(ctx context.Context, id int64) (*Account, error) {
 	row, err := s.q.ClearUserAPIKey(ctx, sqlc.ClearUserAPIKeyParams{ID: id})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, dbutil.ErrNotFound

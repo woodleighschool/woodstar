@@ -105,6 +105,7 @@ WHERE id = $1`, userID).Scan(&source, &externalID, &role, &deletedAt); err != ni
 func TestListFiltersUsers(t *testing.T) {
 	database, ctx := dbtest.Open(t)
 	store := NewStore(database)
+	service := NewUserService(store)
 
 	if err := store.ApplyProviderSnapshot(ctx, SourceEntra, ProviderSnapshot{
 		GeneratedAt: time.Now().UTC(),
@@ -140,7 +141,7 @@ FROM directory_groups
 WHERE external_id = 'engineering'`).Scan(&engineeringGroupID); err != nil {
 		t.Fatalf("get engineering group id: %v", err)
 	}
-	local, err := store.CreateUser(ctx, UserCreate{
+	local, err := service.Create(ctx, UserCreate{
 		Email:    "local@example.edu",
 		Name:     "Local Admin",
 		Role:     RoleAdmin,

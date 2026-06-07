@@ -38,12 +38,33 @@ func (s *UserService) ListDepartments(ctx context.Context, params UserListParams
 }
 
 func (s *UserService) Create(ctx context.Context, params UserCreate) (*User, error) {
-	return s.store.CreateUser(ctx, params)
+	hash, err := HashPassword(params.Password)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.createUser(ctx, userCreateRecord{
+		Email:        params.Email,
+		Name:         params.Name,
+		PasswordHash: hash,
+		Role:         params.Role,
+	})
 }
 
 // Update writes the full target record.
 func (s *UserService) Update(ctx context.Context, targetID int64, params UserMutation) (*User, error) {
-	return s.store.UpdateUser(ctx, targetID, params)
+	passwordHash, hasPassword, err := hashOptionalPassword(params.Password)
+	if err != nil {
+		return nil, err
+	}
+	var passwordHashPtr *string
+	if hasPassword {
+		passwordHashPtr = &passwordHash
+	}
+	return s.store.updateUser(ctx, targetID, userUpdateRecord{
+		Name:         params.Name,
+		Role:         params.Role,
+		PasswordHash: passwordHashPtr,
+	})
 }
 
 // Delete hard-deletes local users and soft-deletes source-owned identities.
@@ -62,10 +83,23 @@ func (s *UserService) GetByAPIKey(ctx context.Context, key string) (*User, error
 	return s.store.GetUserByAPIKey(ctx, key)
 }
 
-func (s *UserService) SetAPIKey(ctx context.Context, userID int64, key string) (*Account, error) {
-	return s.store.SetUserAPIKey(ctx, userID, key)
+// SetAccountAPIKey writes a generated API key to the user's account record.
+func (s *UserService) SetAccountAPIKey(ctx context.Context, userID int64, key string) (*Account, error) {
+	return s.store.setAccountAPIKey(ctx, userID, key)
 }
 
-func (s *UserService) ClearAPIKey(ctx context.Context, userID int64) (*Account, error) {
-	return s.store.ClearUserAPIKey(ctx, userID)
+// ClearAccountAPIKey removes the user's account API key.
+func (s *UserService) ClearAccountAPIKey(ctx context.Context, userID int64) (*Account, error) {
+	return s.store.clearAccountAPIKey(ctx, userID)
+}
+
+func hashOptionalPassword(password *string) (string, bool, error) {
+	if password == nil {
+		return "", false, nil
+	}
+	hash, err := HashPassword(*password)
+	if err != nil {
+		return "", false, err
+	}
+	return hash, true, nil
 }

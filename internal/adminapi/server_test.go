@@ -825,7 +825,7 @@ func TestBearerMutationAllowsNonBrowserClient(t *testing.T) {
 		t.Fatalf("create test user: %v", err)
 	}
 	const apiKey = "fleet-style-retrievable-key"
-	if _, err := userService.SetAPIKey(ctx, user.ID, apiKey); err != nil {
+	if _, err := userService.SetAccountAPIKey(ctx, user.ID, apiKey); err != nil {
 		t.Fatalf("set api key: %v", err)
 	}
 
@@ -859,7 +859,7 @@ func TestAccountReadReturnsRetrievableAPIKeyOnlyToSelf(t *testing.T) {
 		t.Fatalf("create test user: %v", err)
 	}
 	const apiKey = "fleet-style-visible-key"
-	if _, err := userService.SetAPIKey(ctx, user.ID, apiKey); err != nil {
+	if _, err := userService.SetAccountAPIKey(ctx, user.ID, apiKey); err != nil {
 		t.Fatalf("set api key: %v", err)
 	}
 

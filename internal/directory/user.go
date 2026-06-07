@@ -57,6 +57,21 @@ type UserListParams struct {
 	GroupID int64
 }
 
+// UserCreate contains fields needed to create a user.
+type UserCreate struct {
+	Email    string `json:"email"          format:"email"`
+	Name     string `json:"name,omitempty"`
+	Role     Role   `json:"role"`
+	Password string `json:"password"                      minLength:"12"`
+}
+
+// UserMutation replaces the writable fields of a user.
+type UserMutation struct {
+	Name     string  `json:"name"`
+	Role     *Role   `json:"role,omitempty"`
+	Password *string `json:"password,omitempty"`
+}
+
 func (Role) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(RoleValues...)
 }
