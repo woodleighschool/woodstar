@@ -754,10 +754,6 @@ export type MunkiPackage = {
     software_category: string;
     software_description: string;
     software_developer: string;
-    software_icon_artifact_id?: number;
-    software_icon_artifact_location?: string;
-    software_icon_hash?: string;
-    software_icon_name?: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;
@@ -1759,10 +1755,6 @@ export type MunkiPackageWritable = {
     software_category: string;
     software_description: string;
     software_developer: string;
-    software_icon_artifact_id?: number;
-    software_icon_artifact_location?: string;
-    software_icon_hash?: string;
-    software_icon_name?: string;
     software_id: number;
     software_name: string;
     supported_architectures: Array<string> | null;

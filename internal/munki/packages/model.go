@@ -267,21 +267,13 @@ type Package struct {
 	UninstallerArtifactLocation  string                                `json:"uninstaller_artifact_location,omitempty"`
 	IconArtifactID               *int64                                `json:"icon_artifact_id,omitempty"`
 	IconArtifactLocation         string                                `json:"icon_artifact_location,omitempty"`
-	SoftwareIconName             string                                `json:"software_icon_name,omitempty"`
-	SoftwareIconHash             string                                `json:"software_icon_hash,omitempty"`
-	SoftwareIconArtifactID       *int64                                `json:"software_icon_artifact_id,omitempty"`
-	SoftwareIconArtifactLocation string                                `json:"software_icon_artifact_location,omitempty"`
+	SoftwareIconName             string                                `json:"-"`
+	SoftwareIconHash             string                                `json:"-"`
+	SoftwareIconArtifactID       *int64                                `json:"-"`
+	SoftwareIconArtifactLocation string                                `json:"-"`
 	Eligible                     bool                                  `json:"eligible"`
 	CreatedAt                    time.Time                             `json:"created_at"`
 	UpdatedAt                    time.Time                             `json:"updated_at"`
-}
-
-// EffectiveIconArtifactID returns the package icon override, or the Munki software icon.
-func EffectiveIconArtifactID(p Package) *int64 {
-	if p.IconArtifactID != nil || p.IconName != "" || p.IconHash != "" {
-		return p.IconArtifactID
-	}
-	return p.SoftwareIconArtifactID
 }
 
 type PackageListParams struct {

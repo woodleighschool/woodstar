@@ -9,21 +9,19 @@ const IMAGE_SIZE_CLASS = {
 
 interface MunkiIconProps {
   iconUrl?: string;
-  fallbackIconUrl?: string;
   size?: SoftwareIconSize;
   className?: string;
   loading?: "eager" | "lazy";
 }
 
-export function MunkiIcon({ iconUrl, fallbackIconUrl, size = "sm", className, loading = "lazy" }: MunkiIconProps) {
-  const url = iconUrl ?? fallbackIconUrl;
-  if (!url) {
+export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }: MunkiIconProps) {
+  if (!iconUrl) {
     return <SoftwareIcon source="pkg_packages" size={size} className={className} />;
   }
 
   return (
     <span className={cn("bg-muted/40 inline-flex shrink-0 overflow-hidden", IMAGE_SIZE_CLASS[size], className)}>
-      <img src={url} alt="" className="size-full object-contain" loading={loading} />
+      <img src={iconUrl} alt="" className="size-full object-contain" loading={loading} />
     </span>
   );
 }

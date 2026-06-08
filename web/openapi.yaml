@@ -1983,15 +1983,6 @@ components:
           type: string
         software_developer:
           type: string
-        software_icon_artifact_id:
-          format: int64
-          type: integer
-        software_icon_artifact_location:
-          type: string
-        software_icon_hash:
-          type: string
-        software_icon_name:
-          type: string
         software_id:
           format: int64
           type: integer

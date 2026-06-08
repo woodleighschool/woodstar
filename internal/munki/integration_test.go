@@ -329,8 +329,8 @@ func TestPackageInheritsSoftwareIcon(t *testing.T) {
 			pkg.IconHash,
 		)
 	}
-	if packages.EffectiveIconArtifactID(*pkg) == nil || *packages.EffectiveIconArtifactID(*pkg) != icon.ID {
-		t.Fatalf("effective icon id = %v, want %d", packages.EffectiveIconArtifactID(*pkg), icon.ID)
+	if pkg.SoftwareIconArtifactID == nil || *pkg.SoftwareIconArtifactID != icon.ID {
+		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIconArtifactID, icon.ID)
 	}
 }
 
@@ -358,12 +358,8 @@ func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if packages.EffectiveIconArtifactID(*pkg) == nil || *packages.EffectiveIconArtifactID(*pkg) != packageIcon.ID {
-		t.Fatalf(
-			"effective icon id = %v, want package override %d",
-			packages.EffectiveIconArtifactID(*pkg),
-			packageIcon.ID,
-		)
+	if pkg.IconArtifactID == nil || *pkg.IconArtifactID != packageIcon.ID {
+		t.Fatalf("package icon artifact id = %v, want %d", pkg.IconArtifactID, packageIcon.ID)
 	}
 	if pkg.IconName != "icons/SpecialApp.png" || pkg.IconHash != strings.Repeat("f", 64) {
 		t.Fatalf("package icon fields = %q %q, want package override", pkg.IconName, pkg.IconHash)
@@ -412,13 +408,8 @@ func TestUpdatePackageClearsIconOverrideToInheritSoftwareIcon(t *testing.T) {
 			updated.IconHash,
 		)
 	}
-	if packages.EffectiveIconArtifactID(*updated) == nil ||
-		*packages.EffectiveIconArtifactID(*updated) != softwareIcon.ID {
-		t.Fatalf(
-			"effective icon id = %v, want inherited software icon %d",
-			packages.EffectiveIconArtifactID(*updated),
-			softwareIcon.ID,
-		)
+	if updated.SoftwareIconArtifactID == nil || *updated.SoftwareIconArtifactID != softwareIcon.ID {
+		t.Fatalf("software icon artifact id = %v, want %d", updated.SoftwareIconArtifactID, softwareIcon.ID)
 	}
 }
 

@@ -15,7 +15,6 @@ import {
   useUpdateMunkiPackage,
   type MunkiPackage,
 } from "@/hooks/munki/packages";
-import { useMunkiSoftwareDetail } from "@/hooks/munki/software";
 import {
   emptyPackageForm,
   packageFormFromPackage,
@@ -29,7 +28,6 @@ import { usePackageIDParam, useSoftwareIDParam } from "./route-params";
 export function MunkiPackageNewPage() {
   const navigate = useNavigate();
   const softwareID = useSoftwareIDParam();
-  const software = useMunkiSoftwareDetail(softwareID);
   const create = useCreateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
   const iconUpload = useUploadMunkiArtifact("icon");
@@ -80,7 +78,6 @@ export function MunkiPackageNewPage() {
           leading={
             <EditableMunkiIcon
               title="package icon"
-              fallbackIconUrl={software.data?.icon_url}
               file={iconFile}
               clearable={!!iconFile}
               onFileChange={setIconFile}
@@ -90,13 +87,7 @@ export function MunkiPackageNewPage() {
         />
         <MutationError
           title="Failed to Create Package"
-          message={
-            preflightError ??
-            create.error?.message ??
-            packageUpload.error?.message ??
-            iconUpload.error?.message ??
-            software.error?.message
-          }
+          message={preflightError ?? create.error?.message ?? packageUpload.error?.message ?? iconUpload.error?.message}
         />
         <PackageEditorTabs
           form={form}
@@ -120,7 +111,6 @@ export function MunkiPackageNewPage() {
 export function MunkiPackageEditPage() {
   const softwareID = useSoftwareIDParam();
   const packageID = usePackageIDParam();
-  const software = useMunkiSoftwareDetail(softwareID);
   const pkg = useMunkiPackage(packageID);
 
   if (softwareID === null || packageID === null) {
@@ -153,8 +143,6 @@ export function MunkiPackageEditPage() {
       softwareID={softwareID}
       packageID={packageID}
       pkg={pkg.data}
-      softwareIconURL={software.data?.icon_url}
-      softwareError={software.error?.message}
     />
   );
 }
@@ -163,14 +151,10 @@ function MunkiPackageEditForm({
   softwareID,
   packageID,
   pkg,
-  softwareIconURL,
-  softwareError,
 }: {
   softwareID: number;
   packageID: number;
   pkg: MunkiPackage;
-  softwareIconURL?: string;
-  softwareError?: string;
 }) {
   const navigate = useNavigate();
   const update = useUpdateMunkiPackage();
@@ -208,7 +192,7 @@ function MunkiPackageEditForm({
     await update.mutateAsync({ id: packageID, body });
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
   });
-  const packageIconURL = iconCleared || !pkg.icon_artifact_id ? undefined : pkg.icon_url;
+  const packageIconURL = iconCleared ? undefined : pkg.icon_url;
   const packageIconClearable = !!iconFile || (!iconCleared && !!pkg.icon_artifact_id);
 
   return (
@@ -226,7 +210,6 @@ function MunkiPackageEditForm({
             <EditableMunkiIcon
               title="package icon"
               iconUrl={packageIconURL}
-              fallbackIconUrl={softwareIconURL}
               file={iconFile}
               clearable={packageIconClearable}
               onFileChange={(file) => {
@@ -242,13 +225,7 @@ function MunkiPackageEditForm({
         />
         <MutationError
           title="Failed to Update Package"
-          message={
-            preflightError ??
-            update.error?.message ??
-            packageUpload.error?.message ??
-            iconUpload.error?.message ??
-            softwareError
-          }
+          message={preflightError ?? update.error?.message ?? packageUpload.error?.message ?? iconUpload.error?.message}
         />
         <PackageEditorTabs
           form={form}

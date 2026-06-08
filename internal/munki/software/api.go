@@ -290,7 +290,14 @@ func munkiPackagesFromDomain(rows []packages.Package) []packages.MunkiPackage {
 }
 
 func munkiPackageIconURL(pkg packages.Package) string {
-	artifactID := packages.EffectiveIconArtifactID(pkg)
+	iconURL := munkiPackageArtifactContentURL(pkg.IconArtifactID)
+	if iconURL == "" {
+		iconURL = munkiPackageArtifactContentURL(pkg.SoftwareIconArtifactID)
+	}
+	return iconURL
+}
+
+func munkiPackageArtifactContentURL(artifactID *int64) string {
 	if artifactID == nil {
 		return ""
 	}
