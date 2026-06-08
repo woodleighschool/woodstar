@@ -27,13 +27,6 @@ type LabelRef struct {
 	LabelID int64 `json:"label_id" minimum:"1"`
 }
 
-// Result describes the outcome of resolving include/exclude targets for a host.
-type Result[T any] struct {
-	Matched  bool
-	Excluded bool
-	Include  T
-}
-
 // Schema returns the OpenAPI schema for Direction.
 func (Direction) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(DirectionValues...)
