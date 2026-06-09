@@ -672,7 +672,7 @@ function TargetActionsPicker({
         <ComboboxContent>
           <ComboboxEmpty>No Actions Found.</ComboboxEmpty>
           <ComboboxList>
-            {(option) => (
+            {(option: (typeof MUNKI_SOFTWARE_ACTION_OPTIONS)[number]) => (
               <ComboboxItem key={option.value} value={option}>
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
               </ComboboxItem>
