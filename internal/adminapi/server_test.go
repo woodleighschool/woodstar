@@ -361,8 +361,11 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t,
 		server,
 		cookie,
-		fmt.Sprintf("/api/munki/software/%d/packages", title.ID),
-		`{"version":"148.0.0.1","installer_type":"nopkg","on_demand":true,"eligible":true}`,
+		"/api/munki/packages",
+		fmt.Sprintf(
+			`{"software_id":%d,"version":"148.0.0.1","installer_type":"nopkg","on_demand":true,"eligible":true}`,
+			title.ID,
+		),
 	)
 	if pkg.SoftwareName != "Google Chrome" || pkg.Version != "148.0.0.1" {
 		t.Fatalf("pkg = %+v, want Google Chrome 148.0.0.1", pkg)

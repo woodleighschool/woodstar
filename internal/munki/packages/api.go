@@ -11,12 +11,10 @@ import (
 )
 
 const (
-	munkiTag               = "Munki"
-	munkiPackagePath       = "/api/munki/packages"
-	munkiPackageCreatePath = "/api/munki/software/{id}/packages"
-	munkiPackageImportPath = munkiPackageCreatePath + "/import"
-	munkiPackageIDPath     = "/api/munki/packages/{id}"
-	munkiPackageLabel      = "Munki package"
+	munkiTag           = "Munki"
+	munkiPackagePath   = "/api/munki/packages"
+	munkiPackageIDPath = "/api/munki/packages/{id}"
+	munkiPackageLabel  = "Munki package"
 )
 
 type munkiPackageListInput struct {
@@ -29,8 +27,7 @@ type munkiPackageGetInput struct {
 }
 
 type munkiPackageCreateInput struct {
-	SoftwareID int64 `path:"id"`
-	Body       PackageMutation
+	Body PackageCreateMutation
 }
 
 type munkiPackagePutInput struct {
@@ -40,11 +37,6 @@ type munkiPackagePutInput struct {
 
 type munkiPackageDeleteInput struct {
 	PackageID int64 `path:"id"`
-}
-
-type munkiPackageImportInput struct {
-	SoftwareID int64 `path:"id"`
-	Body       PackageImportMutation
 }
 
 type munkiPackageListOutput struct {
@@ -72,7 +64,6 @@ func (input munkiPackageListInput) params() PackageListParams {
 func RegisterAdminRoutes(api huma.API, store *Store) {
 	registerListMunkiPackages(api, store)
 	registerCreateMunkiPackage(api, store)
-	registerImportMunkiPackage(api, store)
 	registerGetMunkiPackage(api, store)
 	registerPutMunkiPackage(api, store)
 	registerDeleteMunkiPackage(api, store)
@@ -101,7 +92,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "create-munki-package",
 		Method:        http.MethodPost,
-		Path:          munkiPackageCreatePath,
+		Path:          munkiPackagePath,
 		Tags:          []string{munkiTag},
 		Summary:       "Create a Munki package",
 		DefaultStatus: http.StatusCreated,
@@ -113,31 +104,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 			http.StatusConflict,
 		},
 	}, func(ctx context.Context, input *munkiPackageCreateInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Create(ctx, input.SoftwareID, input.Body)
-		if err != nil {
-			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
-		}
-		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
-	})
-}
-
-func registerImportMunkiPackage(api huma.API, store *Store) {
-	huma.Register(api, huma.Operation{
-		OperationID:   "import-munki-package",
-		Method:        http.MethodPost,
-		Path:          munkiPackageImportPath,
-		Tags:          []string{munkiTag},
-		Summary:       "Import a Munki pkginfo package",
-		DefaultStatus: http.StatusCreated,
-		Errors: []int{
-			http.StatusBadRequest,
-			http.StatusUnauthorized,
-			http.StatusForbidden,
-			http.StatusNotFound,
-			http.StatusConflict,
-		},
-	}, func(ctx context.Context, input *munkiPackageImportInput) (*munkiPackageOutput, error) {
-		pkg, err := store.Import(ctx, input.SoftwareID, input.Body)
+		pkg, err := store.Create(ctx, input.Body.SoftwareID, input.Body.PackageMutation)
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}

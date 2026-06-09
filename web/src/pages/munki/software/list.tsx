@@ -54,9 +54,6 @@ export function MunkiSoftwarePage() {
           <MunkiIcon iconUrl={row.original.icon_url} />
           <div className="min-w-0">
             <div className="truncate font-medium">{row.original.name}</div>
-            {row.original.developer ? (
-              <div className="text-muted-foreground truncate text-xs">{row.original.developer}</div>
-            ) : null}
           </div>
         </div>
       ),

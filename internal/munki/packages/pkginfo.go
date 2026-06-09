@@ -1,18 +1,11 @@
 package packages
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 var timeType = reflect.TypeFor[time.Time]()
@@ -179,128 +172,6 @@ func (item munkiPkginfo) Map() map[string]any {
 	return munkiStructMap(reflect.ValueOf(item))
 }
 
-func (item munkiPkginfo) PackageMutation() (PackageMutation, error) {
-	mutation := PackageMutation{
-		Version:                  item.Version,
-		InstallerType:            item.InstallerType,
-		UninstallMethod:          item.UninstallMethod,
-		RestartAction:            item.RestartAction,
-		MinimumMunkiVersion:      item.MinimumMunkiVersion,
-		MinimumOSVersion:         item.MinimumOSVersion,
-		MaximumOSVersion:         item.MaximumOSVersion,
-		SupportedArchitectures:   item.SupportedArchitectures,
-		BlockingApplications:     item.BlockingApplications,
-		InstallableCondition:     item.InstallableCondition,
-		BlockingAppsManualQuit:   item.BlockingAppsManualQuit,
-		BlockingAppsQuitScript:   item.BlockingAppsQuitScript,
-		UnattendedInstall:        item.UnattendedInstall,
-		UnattendedUninstall:      item.UnattendedUninstall,
-		OnDemand:                 item.OnDemand,
-		Precache:                 item.Precache,
-		Autoremove:               item.Autoremove,
-		AppleItem:                item.AppleItem,
-		SuppressBundleRelocation: item.SuppressBundleRelocation,
-		ForceInstallAfterDate:    item.ForceInstallAfterDate,
-		InstalledSize:            item.InstalledSize,
-		PackagePath:              item.PackagePath,
-		InstallerChoicesXML:      item.InstallerChoicesXML,
-		InstallerEnvironment:     item.PackageInstallerEnvironment(),
-		Installs:                 item.PackageInstallItems(),
-		Receipts:                 item.PackageReceipts(),
-		ItemsToCopy:              item.PackageItemsToCopy(),
-		Notes:                    item.Notes,
-		InstallcheckScript:       item.InstallcheckScript,
-		UninstallcheckScript:     item.UninstallcheckScript,
-		PreinstallScript:         item.PreinstallScript,
-		PostinstallScript:        item.PostinstallScript,
-		PreuninstallScript:       item.PreuninstallScript,
-		PostuninstallScript:      item.PostuninstallScript,
-		UninstallScript:          item.UninstallScript,
-		VersionScript:            item.VersionScript,
-		PreinstallAlert:          item.PreinstallAlert.PackageAlert(),
-		PreuninstallAlert:        item.PreuninstallAlert.PackageAlert(),
-	}
-	if mutation.Version == "" {
-		return PackageMutation{}, fmt.Errorf("%w: pkginfo version is required", dbutil.ErrInvalidInput)
-	}
-	var err error
-	if mutation.Requires, err = packageReferences(item.Requires, "requires"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.UpdateFor, err = packageReferences(item.UpdateFor, "update_for"); err != nil {
-		return PackageMutation{}, err
-	}
-	return mutation, nil
-}
-
-func (item munkiPkginfo) PackageInstallerEnvironment() []PackageInstallerEnvironmentVariable {
-	if len(item.InstallerEnvironment) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(item.InstallerEnvironment))
-	for name := range item.InstallerEnvironment {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	out := make([]PackageInstallerEnvironmentVariable, 0, len(names))
-	for _, name := range names {
-		out = append(out, PackageInstallerEnvironmentVariable{Name: name, Value: item.InstallerEnvironment[name]})
-	}
-	return out
-}
-
-func (item munkiPkginfo) PackageInstallItems() []PackageInstallItem {
-	out := make([]PackageInstallItem, 0, len(item.Installs))
-	for _, value := range item.Installs {
-		itemType := value.Type
-		if itemType == "" {
-			itemType = PackageInstallItemFile
-		}
-		out = append(out, PackageInstallItem{
-			Type:                  itemType,
-			Path:                  value.Path,
-			BundleIdentifier:      value.BundleIdentifier,
-			BundleName:            value.BundleName,
-			BundleShortVersion:    value.BundleShortVersion,
-			BundleVersion:         value.BundleVersion,
-			VersionComparisonKey:  value.VersionComparisonKey,
-			MD5Checksum:           value.MD5Checksum,
-			MinimumOSVersion:      value.MinimumOSVersion,
-			InstallerItemLocation: value.InstallerItemLocation,
-		})
-	}
-	return out
-}
-
-func (item munkiPkginfo) PackageReceipts() []PackageReceipt {
-	out := make([]PackageReceipt, 0, len(item.Receipts))
-	for _, value := range item.Receipts {
-		out = append(out, PackageReceipt(value))
-	}
-	return out
-}
-
-func (item munkiPkginfo) PackageItemsToCopy() []PackageItemToCopy {
-	out := make([]PackageItemToCopy, 0, len(item.ItemsToCopy))
-	for _, value := range item.ItemsToCopy {
-		out = append(out, PackageItemToCopy(value))
-	}
-	return out
-}
-
-func (alert *munkiPkginfoAlert) PackageAlert() PackageAlert {
-	if alert == nil || alert.Empty() {
-		return PackageAlert{}
-	}
-	return PackageAlert{
-		Enabled:     true,
-		Title:       alert.Title,
-		Detail:      alert.Detail,
-		OKLabel:     alert.OKLabel,
-		CancelLabel: alert.CancelLabel,
-	}
-}
-
 func (alert munkiPkginfoAlert) Empty() bool {
 	return alert.Title == "" &&
 		alert.Detail == "" &&
@@ -426,61 +297,4 @@ func munkiAlert(alert PackageAlert) *munkiPkginfoAlert {
 		return nil
 	}
 	return &out
-}
-
-// Import imports one Munki pkginfo item into selected Woodstar-managed Munki software.
-func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImportMutation) (*PackageRecord, error) {
-	if softwareID <= 0 {
-		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	mutation, err := packageMutationFromPkginfo(params.Pkginfo)
-	if err != nil {
-		return nil, err
-	}
-	mutation.InstallerArtifactID = params.InstallerArtifactID
-	mutation.UninstallerArtifactID = params.UninstallerArtifactID
-	mutation.Eligible = true
-	if params.Eligible != nil {
-		mutation.Eligible = *params.Eligible
-	}
-	return s.Upsert(ctx, softwareID, mutation)
-}
-
-func packageMutationFromPkginfo(raw json.RawMessage) (PackageMutation, error) {
-	item, err := decodeMunkiPkginfo(raw)
-	if err != nil {
-		return PackageMutation{}, err
-	}
-	return item.PackageMutation()
-}
-
-func decodeMunkiPkginfo(raw json.RawMessage) (munkiPkginfo, error) {
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	var item *munkiPkginfo
-	if err := decoder.Decode(&item); err != nil {
-		return munkiPkginfo{}, fmt.Errorf("%w: pkginfo has invalid shape: %w", dbutil.ErrInvalidInput, err)
-	}
-	if item == nil {
-		return munkiPkginfo{}, fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
-	}
-	return *item, nil
-}
-
-func packageReferences(values []string, key string) ([]PackageReference, error) {
-	out := make([]PackageReference, 0, len(values))
-	for _, value := range values {
-		packageID, err := strconv.ParseInt(value, 10, 64)
-		if err != nil || packageID <= 0 {
-			return nil, fmt.Errorf(
-				"%w: pkginfo %s entries must be Woodstar package IDs",
-				dbutil.ErrInvalidInput,
-				key,
-			)
-		}
-		out = append(out, PackageReference{PackageID: packageID})
-	}
-	return out, nil
 }

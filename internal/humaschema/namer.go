@@ -55,7 +55,7 @@ func prefixIfAmbiguous(prefix, name string) string {
 		"Check", "CheckMutation",
 		"Configuration", "Event",
 		"HostState",
-		"Package", "PackageImportMutation", "PackageMutation",
+		"Package", "PackageCreateMutation", "PackageMutation",
 		"Report", "ReportMutation",
 		"Rule",
 		"SoftwareInclude", "SoftwareMutation", "SoftwareTargets", "SoftwareTitle", "SoftwareTitleMutation",

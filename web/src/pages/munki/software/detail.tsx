@@ -14,7 +14,6 @@ import { MunkiIcon } from "@/components/munki/munki-icon";
 import { MutationError } from "@/components/mutation-error";
 import { LabelTargetRowsTable } from "@/components/targeting/label-target-rows-table";
 import { TargetSection } from "@/components/targeting/target-section";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -63,7 +62,7 @@ import {
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { MUNKI_SOFTWARE_ACTION_OPTIONS, munkiInstallerTypeLabel, munkiRestartActionLabel } from "@/lib/munki-software";
+import { MUNKI_SOFTWARE_ACTION_OPTIONS, munkiInstallerTypeLabel } from "@/lib/munki-software";
 
 interface MunkiSoftwareTargetRow {
   id: number;
@@ -243,12 +242,6 @@ function MunkiSoftwareDetailForm({
       header: "Installer",
       enableSorting: false,
       cell: ({ row }) => munkiInstallerTypeLabel(row.original.installer_type),
-    },
-    {
-      id: "behavior",
-      header: "Behavior",
-      enableSorting: false,
-      cell: ({ row }) => <PackageBehavior pkg={row.original} />,
     },
     {
       id: "eligible",
@@ -493,9 +486,9 @@ function MunkiSoftwareDetailForm({
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-base font-semibold">Packages</h2>
                     <Button asChild size="sm" variant="outline">
-                      <Link to="/munki/software/$softwareId/packages/new" params={{ softwareId: String(software.id) }}>
+                      <Link to="/munki/packages/new" search={{ software_id: software.id }}>
                         <Plus data-icon="inline-start" />
-                        Add Package
+                        Create Package
                       </Link>
                     </Button>
                   </div>
@@ -510,8 +503,8 @@ function MunkiSoftwareDetailForm({
                     isLoading={false}
                     clientSort
                     rowHref={(row) => ({
-                      to: "/munki/software/$softwareId/packages/$packageId/edit",
-                      params: { softwareId: String(row.software_id), packageId: String(row.id) },
+                      to: "/munki/packages/$packageId/edit",
+                      params: { packageId: String(row.id) },
                     })}
                     empty={<CompactMunkiEmptyState title="No Packages" />}
                     emptyClassName="min-h-32 py-4"
@@ -706,25 +699,4 @@ function CompactMunkiEmptyState({ title }: { title: string }) {
 
 function PackageIconView({ pkg }: { pkg: MunkiPackage }) {
   return <MunkiIcon iconUrl={pkg.icon_url} size="md" />;
-}
-
-function PackageBehavior({ pkg }: { pkg: MunkiPackage }) {
-  const values = [
-    pkg.unattended_install ? "Unattended" : "",
-    pkg.uninstall_method !== "none" ? "Uninstallable" : "",
-    pkg.on_demand ? "On demand" : "",
-    pkg.restart_action && pkg.restart_action !== "None" ? munkiRestartActionLabel(pkg.restart_action) : "",
-  ].filter(Boolean);
-  if (values.length === 0) {
-    return <span className="text-muted-foreground">Standard</span>;
-  }
-  return (
-    <div className="flex flex-wrap gap-1">
-      {values.map((value) => (
-        <Badge key={value} variant="secondary" className="font-normal">
-          {value}
-        </Badge>
-      ))}
-    </div>
-  );
 }

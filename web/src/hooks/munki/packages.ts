@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type {
   ApiError,
   MunkiPackage,
-  MunkiPackageImportMutation,
+  MunkiPackageCreateMutation,
   MunkiPackageMutation,
   MunkiPackagePage,
 } from "@/lib/api";
@@ -12,7 +12,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 import { softwareQueryParams, type MunkiSoftwareListParams } from "./shared";
 
-export type { MunkiPackage, MunkiPackageImportMutation, MunkiPackageMutation };
+export type { MunkiPackage, MunkiPackageCreateMutation, MunkiPackageMutation };
 
 export function useMunkiPackages(params: MunkiSoftwareListParams = {}) {
   const query = softwareQueryParams(params);
@@ -45,9 +45,8 @@ export function useMunkiPackage(id: number | null) {
 
 export function useCreateMunkiPackage() {
   const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, { softwareID: number; body: MunkiPackageMutation }>({
-    mutationFn: ({ softwareID, body }) =>
-      unwrap(apiClient.POST("/api/munki/software/{id}/packages", { params: { path: { id: softwareID } }, body })),
+  return useMutation<MunkiPackage, ApiError, MunkiPackageCreateMutation>({
+    mutationFn: (body) => unwrap(apiClient.POST("/api/munki/packages", { body })),
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
@@ -62,20 +61,6 @@ export function useUpdateMunkiPackage() {
     onSuccess: (pkg) => {
       void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiPackage(pkg.id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
-    },
-  });
-}
-
-export function useImportMunkiPackage() {
-  const queryClient = useQueryClient();
-  return useMutation<MunkiPackage, ApiError, { softwareID: number; body: MunkiPackageImportMutation }>({
-    mutationFn: ({ softwareID, body }) =>
-      unwrap(
-        apiClient.POST("/api/munki/software/{id}/packages/import", { params: { path: { id: softwareID } }, body }),
-      ),
-    onSuccess: (pkg) => {
-      void queryClient.invalidateQueries({ queryKey: ["munki", "packages"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.munkiSoftwareDetail(pkg.software_id) });
     },
   });

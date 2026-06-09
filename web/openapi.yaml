@@ -2076,27 +2076,163 @@ components:
         - created_at
         - updated_at
       type: object
-    MunkiPackageImportMutation:
+    MunkiPackageCreateMutation:
       additionalProperties: false
       properties:
         $schema:
           description: A URL to the JSON Schema for this object.
           examples:
-            - https://example.com/api/schemas/MunkiPackageImportMutation.json
+            - https://example.com/api/schemas/MunkiPackageCreateMutation.json
           format: uri
           readOnly: true
           type: string
+        apple_item:
+          type: boolean
+        autoremove:
+          type: boolean
+        blocking_applications:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        blocking_applications_manual_quit_only:
+          type: boolean
+        blocking_applications_quit_script:
+          type: string
         eligible:
           type: boolean
+        force_install_after_date:
+          format: date-time
+          type: string
+        installable_condition:
+          type: string
+        installcheck_script:
+          type: string
+        installed_size:
+          format: int64
+          type: integer
         installer_artifact_id:
           format: int64
           type: integer
-        pkginfo: {}
+        installer_choices_xml:
+          type: string
+        installer_environment:
+          items:
+            $ref: "#/components/schemas/PackageInstallerEnvironmentVariable"
+          type:
+            - array
+            - "null"
+        installer_type:
+          enum:
+            - pkg
+            - nopkg
+            - copy_from_dmg
+          type: string
+        installs:
+          items:
+            $ref: "#/components/schemas/PackageInstallItem"
+          type:
+            - array
+            - "null"
+        items_to_copy:
+          items:
+            $ref: "#/components/schemas/PackageItemToCopy"
+          type:
+            - array
+            - "null"
+        maximum_os_version:
+          type: string
+        minimum_munki_version:
+          type: string
+        minimum_os_version:
+          type: string
+        notes:
+          type: string
+        on_demand:
+          type: boolean
+        package_path:
+          type: string
+        postinstall_script:
+          type: string
+        postuninstall_script:
+          type: string
+        precache:
+          type: boolean
+        preinstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preinstall_script:
+          type: string
+        preuninstall_alert:
+          $ref: "#/components/schemas/PackageAlert"
+        preuninstall_script:
+          type: string
+        receipts:
+          items:
+            $ref: "#/components/schemas/PackageReceipt"
+          type:
+            - array
+            - "null"
+        requires:
+          items:
+            $ref: "#/components/schemas/PackageReference"
+          type:
+            - array
+            - "null"
+        restart_action:
+          enum:
+            - None
+            - RequireLogout
+            - RecommendRestart
+            - RequireRestart
+            - RequireShutdown
+          type: string
+        software_id:
+          format: int64
+          minimum: 1
+          type: integer
+        supported_architectures:
+          items:
+            type: string
+          type:
+            - array
+            - "null"
+        suppress_bundle_relocation:
+          type: boolean
+        unattended_install:
+          type: boolean
+        unattended_uninstall:
+          type: boolean
+        uninstall_method:
+          enum:
+            - none
+            - removepackages
+            - remove_copied_items
+            - uninstall_script
+            - uninstall_package
+          type: string
+        uninstall_script:
+          type: string
+        uninstallcheck_script:
+          type: string
         uninstaller_artifact_id:
           format: int64
           type: integer
+        update_for:
+          items:
+            $ref: "#/components/schemas/PackageReference"
+          type:
+            - array
+            - "null"
+        version:
+          minLength: 1
+          type: string
+        version_script:
+          type: string
       required:
-        - pkginfo
+        - software_id
+        - version
+        - eligible
       type: object
     MunkiPackageMutation:
       additionalProperties: false
@@ -6076,6 +6212,66 @@ paths:
       summary: List Munki packages
       tags:
         - Munki
+    post:
+      operationId: create-munki-package
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MunkiPackageCreateMutation"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MunkiPackage"
+          description: Created
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Bad Request
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unauthorized
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Forbidden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Not Found
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Conflict
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Internal Server Error
+      summary: Create a Munki package
+      tags:
+        - Munki
   /api/munki/packages/{id}:
     delete:
       operationId: delete-munki-package
@@ -6574,142 +6770,6 @@ paths:
                 $ref: "#/components/schemas/ErrorModel"
           description: Internal Server Error
       summary: Update Munki software
-      tags:
-        - Munki
-  /api/munki/software/{id}/packages:
-    post:
-      operationId: create-munki-package
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MunkiPackageMutation"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiPackage"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Create a Munki package
-      tags:
-        - Munki
-  /api/munki/software/{id}/packages/import:
-    post:
-      operationId: import-munki-package
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            format: int64
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MunkiPackageImportMutation"
-        required: true
-      responses:
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MunkiPackage"
-          description: Created
-        "400":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Bad Request
-        "401":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unauthorized
-        "403":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Forbidden
-        "404":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Not Found
-        "409":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Conflict
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Unprocessable Entity
-        "500":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ErrorModel"
-          description: Internal Server Error
-      summary: Import a Munki pkginfo package
       tags:
         - Munki
   /api/osquery/checks:

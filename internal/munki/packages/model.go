@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -205,12 +204,10 @@ type PackageMutation struct {
 	Eligible                 bool                                  `json:"eligible"`
 }
 
-// PackageImportMutation imports one existing Munki pkginfo item as a Woodstar package row.
-type PackageImportMutation struct {
-	Pkginfo               json.RawMessage `json:"pkginfo"`
-	InstallerArtifactID   *int64          `json:"installer_artifact_id,omitempty"`
-	UninstallerArtifactID *int64          `json:"uninstaller_artifact_id,omitempty"`
-	Eligible              *bool           `json:"eligible,omitempty"`
+// PackageCreateMutation creates one package version under selected Munki software.
+type PackageCreateMutation struct {
+	SoftwareID int64 `json:"software_id" minimum:"1"`
+	PackageMutation
 }
 
 // Package is one Woodstar-authored Munki package version available for targeting.
@@ -316,12 +313,6 @@ func (m PackageMutation) Validate() error {
 	if err := validateReferences("update_for", m.UpdateFor); err != nil {
 		return err
 	}
-	if err := m.validateInstallerSemantics(); err != nil {
-		return err
-	}
-	if err := m.validateUninstallSemantics(); err != nil {
-		return err
-	}
 	for _, item := range m.Installs {
 		if !validInstallItemType(item.Type) {
 			return fmt.Errorf("%w: unsupported installs type %q", dbutil.ErrInvalidInput, item.Type)
@@ -346,80 +337,11 @@ func (m PackageMutation) Validate() error {
 	return nil
 }
 
-func (m PackageMutation) validateInstallerSemantics() error {
-	switch m.InstallerType {
-	case InstallerTypePkg:
-		if m.InstallerArtifactID == nil {
-			return fmt.Errorf("%w: pkg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
-		}
-	case InstallerTypeCopyFromDMG:
-		if m.InstallerArtifactID == nil {
-			return fmt.Errorf("%w: copy_from_dmg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
-		}
-		if len(m.ItemsToCopy) == 0 {
-			return fmt.Errorf("%w: copy_from_dmg installer_type requires items_to_copy", dbutil.ErrInvalidInput)
-		}
-	case InstallerTypeNoPkg:
-		if m.InstallerArtifactID != nil {
-			return fmt.Errorf("%w: nopkg installer_type cannot set installer_artifact_id", dbutil.ErrInvalidInput)
-		}
-		if m.PackagePath != "" {
-			return fmt.Errorf("%w: nopkg installer_type cannot set package_path", dbutil.ErrInvalidInput)
-		}
-		if m.InstallerChoicesXML != "" {
-			return fmt.Errorf("%w: nopkg installer_type cannot set installer_choices_xml", dbutil.ErrInvalidInput)
-		}
-		if len(m.InstallerEnvironment) > 0 {
-			return fmt.Errorf("%w: nopkg installer_type cannot set installer_environment", dbutil.ErrInvalidInput)
-		}
-		if strings.TrimSpace(m.InstallcheckScript) == "" && len(m.Installs) == 0 && len(m.Receipts) == 0 &&
-			!m.OnDemand {
-			return fmt.Errorf(
-				"%w: nopkg installer_type requires installcheck_script, installs, receipts, or on_demand",
-				dbutil.ErrInvalidInput,
-			)
-		}
+func (m PackageCreateMutation) Validate() error {
+	if m.SoftwareID <= 0 {
+		return fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	return nil
-}
-
-func (m PackageMutation) validateUninstallSemantics() error {
-	if m.UninstallMethod != UninstallMethodUninstallPackage && m.UninstallerArtifactID != nil {
-		return fmt.Errorf(
-			"%w: uninstaller_artifact_id requires uninstall_package uninstall_method",
-			dbutil.ErrInvalidInput,
-		)
-	}
-	switch m.UninstallMethod {
-	case "", UninstallMethodNone:
-	case UninstallMethodRemovePackages:
-		if len(m.Receipts) == 0 {
-			return fmt.Errorf("%w: removepackages uninstall_method requires receipts", dbutil.ErrInvalidInput)
-		}
-	case UninstallMethodRemoveCopiedItems:
-		if len(m.ItemsToCopy) == 0 {
-			return fmt.Errorf("%w: remove_copied_items uninstall_method requires items_to_copy", dbutil.ErrInvalidInput)
-		}
-	case UninstallMethodUninstallScript:
-		if strings.TrimSpace(m.UninstallScript) == "" {
-			return fmt.Errorf("%w: uninstall_script uninstall_method requires uninstall_script", dbutil.ErrInvalidInput)
-		}
-	case UninstallMethodUninstallPackage:
-		if m.UninstallerArtifactID == nil {
-			return fmt.Errorf(
-				"%w: uninstall_package uninstall_method requires uninstaller_artifact_id",
-				dbutil.ErrInvalidInput,
-			)
-		}
-	}
-	return nil
-}
-
-func (m PackageImportMutation) Validate() error {
-	if len(m.Pkginfo) == 0 || !json.Valid(m.Pkginfo) {
-		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
-	}
-	return nil
+	return m.PackageMutation.Validate()
 }
 
 func validInstallerType(installerType InstallerType) bool {

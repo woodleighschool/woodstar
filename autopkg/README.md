@@ -1,7 +1,7 @@
 # Woodstar AutoPkg Processors
 
-This contains processors that can be used in AutoPkg to upload a pkginfo to Woodstar
-and optionally set Munki software targets.
+This contains processors that can be used in AutoPkg to upload MunkiImporter
+output to Woodstar and optionally set Munki software targets.
 
 ## Setup
 
@@ -17,8 +17,9 @@ defaults write com.github.autopkg WOODSTAR_URL -string "http://localhost:8080"
 
 Run the normal Munki import first. `WoodstarMunkiAppUploader` creates or updates
 the Woodstar Munki software using the pkginfo `display_name` as the name when it
-is present. `WoodstarMunkiPackageUploader` then imports the pkginfo into that
-software using `woodstar_software_id`.
+is present. `WoodstarMunkiPackageUploader` then converts the generated pkginfo
+into Woodstar's normal package API shape and creates or updates the matching
+package version using `woodstar_software_id`.
 
 `requires` and `update_for` must contain Woodstar package IDs, matching what
 Woodstar will render as Munki item names. `nopkg` items are imported without a

@@ -63,12 +63,12 @@ export function EditableMunkiIcon({
       />
       <button
         type="button"
-        className="focus-visible:border-ring focus-visible:ring-ring/50 relative block rounded-lg outline-none transition-all focus-visible:ring-[3px]"
+        className="focus-visible:border-ring focus-visible:ring-ring/50 relative block rounded-lg outline-none focus-visible:ring-[3px]"
         aria-label={uploadLabel}
         onClick={() => inputRef.current?.click()}
       >
         <MunkiIcon iconUrl={previewURL || iconUrl} size={size} loading="eager" />
-        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/70 opacity-0 transition-opacity group-hover/munki-icon:opacity-100 group-focus-within/munki-icon:opacity-100">
+        <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/50 opacity-0 transition-opacity group-hover/munki-icon:opacity-100 group-focus-within/munki-icon:opacity-100">
           <Upload data-icon />
         </span>
       </button>

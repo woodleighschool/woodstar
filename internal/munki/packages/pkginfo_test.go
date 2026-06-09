@@ -1,11 +1,8 @@
 package packages
 
 import (
-	"errors"
 	"testing"
 	"time"
-
-	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
 const munkiReceiptPackageIDKey = "package" + "id"
@@ -80,83 +77,5 @@ func TestPkginfoProjectsMunkiTransportShape(t *testing.T) {
 	receipts := got["receipts"].([]map[string]any)
 	if receipts[0][munkiReceiptPackageIDKey] != "com.example.pkg" || receipts[0]["optional"] != true {
 		t.Fatalf("receipts = %#v, want Munki receipt package ID key", receipts)
-	}
-}
-
-func TestPackageMutationFromPkginfoParsesTypedBoundary(t *testing.T) {
-	mutation, err := packageMutationFromPkginfo([]byte(`{
-		"name": "ExampleApp",
-		"version": "1.2.3",
-		"installer_type": "nopkg",
-		"RestartAction": "RequireRestart",
-		"OnDemand": true,
-		"installable_condition": "machine_type == 'laptop'",
-		"blocking_applications_manual_quit_only": true,
-		"blocking_applications_quit_script": "#!/bin/sh\nexit 0\n",
-		"requires": ["20"],
-		"update_for": ["21"],
-		"installer_environment": {"TOKEN": "value"},
-		"installs": [{"path": "/Applications/Example.app", "CFBundleIdentifier": "com.example.app"}],
-		"receipts": [{"` + munkiReceiptPackageIDKey + `": "com.example.pkg", "optional": true}],
-		"items_to_copy": [{"source_item": "Example.app", "destination_path": "/Applications"}],
-		"preinstall_alert": {"alert_title": "Heads up", "ok_label": "Install"}
-	}`))
-	if err != nil {
-		t.Fatalf("packageMutationFromPkginfo: %v", err)
-	}
-	if mutation.Version != "1.2.3" || mutation.InstallerType != InstallerTypeNoPkg || !mutation.OnDemand {
-		t.Fatalf("mutation identity = %+v, want typed pkginfo fields", mutation)
-	}
-	if mutation.RestartAction != RestartActionRequireRestart {
-		t.Fatalf("restart action = %q, want RequireRestart", mutation.RestartAction)
-	}
-	if mutation.InstallableCondition != "machine_type == 'laptop'" || !mutation.BlockingAppsManualQuit ||
-		mutation.BlockingAppsQuitScript == "" {
-		t.Fatalf(
-			"Munki 7 fields = %+v/%t/%q, want typed package fields",
-			mutation.InstallableCondition,
-			mutation.BlockingAppsManualQuit,
-			mutation.BlockingAppsQuitScript,
-		)
-	}
-	if len(mutation.Requires) != 1 || mutation.Requires[0].PackageID != 20 {
-		t.Fatalf("requires = %+v, want Woodstar package reference", mutation.Requires)
-	}
-	if len(mutation.UpdateFor) != 1 || mutation.UpdateFor[0].PackageID != 21 {
-		t.Fatalf("update_for = %+v, want Woodstar package reference", mutation.UpdateFor)
-	}
-	if len(mutation.InstallerEnvironment) != 1 || mutation.InstallerEnvironment[0].Name != "TOKEN" {
-		t.Fatalf("installer environment = %+v, want typed environment", mutation.InstallerEnvironment)
-	}
-	if len(mutation.Installs) != 1 || mutation.Installs[0].Type != PackageInstallItemFile ||
-		mutation.Installs[0].BundleIdentifier != "com.example.app" {
-		t.Fatalf("installs = %+v, want default file type and bundle fields", mutation.Installs)
-	}
-	if len(mutation.Receipts) != 1 || mutation.Receipts[0].PackageID != "com.example.pkg" ||
-		!mutation.Receipts[0].Optional {
-		t.Fatalf("receipts = %+v, want Munki receipt package ID parsed", mutation.Receipts)
-	}
-	if !mutation.PreinstallAlert.Enabled || mutation.PreinstallAlert.Title != "Heads up" {
-		t.Fatalf("preinstall alert = %+v, want enabled alert", mutation.PreinstallAlert)
-	}
-}
-
-func TestPackageMutationFromPkginfoRejectsWrongShape(t *testing.T) {
-	tests := []struct {
-		name string
-		raw  []byte
-	}{
-		{name: "non object", raw: []byte(`[]`)},
-		{name: "wrong scalar type", raw: []byte(`{"version": 12}`)},
-		{name: "wrong nested type", raw: []byte(`{"version": "1.0", "installs": [{"path": 12}]}`)},
-		{name: "bad reference", raw: []byte(`{"version": "1.0", "requires": ["latest"]}`)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := packageMutationFromPkginfo(tt.raw)
-			if !errors.Is(err, dbutil.ErrInvalidInput) {
-				t.Fatalf("packageMutationFromPkginfo error = %v, want ErrInvalidInput", err)
-			}
-		})
 	}
 }

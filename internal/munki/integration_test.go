@@ -3,7 +3,6 @@ package munki_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -548,17 +547,15 @@ func TestDeleteArtifactReportsConflictWhileReferencedByPackage(t *testing.T) {
 	}
 	installerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact.pkg", "b")
 	uninstallerArtifact := createMunkiPackageArtifact(t, ctx, stores, "apps/DeleteArtifact-uninstall.pkg", "c")
-	pkg, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
+	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:               "1.0",
 		InstallerArtifactID:   &installerArtifact.ID,
+		UninstallMethod:       packages.UninstallMethodUninstallPackage,
 		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Pkginfo: []byte(`{
-			"name": "DeleteArtifactApp",
-			"version": "1.0",
-			"uninstall_method": "uninstall_package"
-		}`),
+		Eligible:              true,
 	})
 	if err != nil {
-		t.Fatalf("import package: %v", err)
+		t.Fatalf("create package: %v", err)
 	}
 
 	references := []struct {
@@ -659,83 +656,7 @@ func TestPackageStoresTypedScriptAndRelations(t *testing.T) {
 	}
 }
 
-func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	title, err := stores.software.Create(ctx, munkisoftware.SoftwareMutation{
-		Name:        "Imported App",
-		Description: "Managed by AutoPkg",
-		Category:    "Utilities",
-		Developer:   "Example",
-	})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	dependencyTitle, err := stores.software.Create(
-		ctx,
-		munkisoftware.SoftwareMutation{Name: "Python"},
-	)
-	if err != nil {
-		t.Fatalf("create dependency title: %v", err)
-	}
-	dependency := createMunkiPackage(t, ctx, stores, dependencyTitle.ID, "Python", "3.12")
-
-	pkg, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
-		Pkginfo: fmt.Appendf(nil, `{
-			"name": "ImportedApp",
-			"version": "1.2.3",
-			"display_name": "Imported App",
-			"description": "Managed by AutoPkg",
-			"category": "Utilities",
-			"developer": "Example",
-			"installer_type": "nopkg",
-			"unattended_install": true,
-			"supported_architectures": ["arm64", "x86_64"],
-			"requires": ["%d"],
-			"installs": [{"path": "/Applications/Imported App.app"}],
-			"installer_item_location": "pkgs/ImportedApp.pkg"
-		}`, dependency.ID),
-	})
-	if err != nil {
-		t.Fatalf("import package: %v", err)
-	}
-	if pkg.SoftwareName != "Imported App" ||
-		pkg.InstallerType != packages.InstallerTypeNoPkg {
-		t.Fatalf("pkg = %+v, want imported typed package", pkg)
-	}
-	if !pkg.UnattendedInstall || !sameStrings(pkg.SupportedArchitectures, []string{"arm64", "x86_64"}) {
-		t.Fatalf("pkg typed fields = %+v", pkg)
-	}
-	if len(pkg.Requires) != 1 || pkg.Requires[0].PackageID != dependency.ID {
-		t.Fatalf("requires = %+v, want dependency package id", pkg.Requires)
-	}
-	if len(pkg.Installs) != 1 || pkg.Installs[0].Path != "/Applications/Imported App.app" {
-		t.Fatalf("installs = %+v, want imported install item", pkg.Installs)
-	}
-
-	updated, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
-		Pkginfo: []byte(`{
-			"name": "ImportedApp",
-			"version": "1.2.3",
-			"display_name": "Imported App",
-			"developer": "Example Updated",
-			"installer_type": "nopkg",
-			"OnDemand": true
-		}`),
-	})
-	if err != nil {
-		t.Fatalf("import package update: %v", err)
-	}
-	if updated.ID != pkg.ID {
-		t.Fatalf("updated package id = %d, want upserted id %d", updated.ID, pkg.ID)
-	}
-	if updated.SoftwareDeveloper != "Example" {
-		t.Fatalf("updated software developer = %q, want title-owned metadata", updated.SoftwareDeveloper)
-	}
-}
-
-func TestImportPackageAcceptsUninstallerArtifact(t *testing.T) {
+func TestCreatePackageAcceptsUninstallerArtifact(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -764,17 +685,15 @@ func TestImportPackageAcceptsUninstallerArtifact(t *testing.T) {
 		t.Fatalf("create uninstaller artifact: %v", err)
 	}
 
-	pkg, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
+	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:               "1.0",
 		InstallerArtifactID:   &installerArtifact.ID,
+		UninstallMethod:       packages.UninstallMethodUninstallPackage,
 		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Pkginfo: []byte(`{
-			"name": "UninstallerApp",
-			"version": "1.0",
-			"uninstall_method": "uninstall_package"
-		}`),
+		Eligible:              true,
 	})
 	if err != nil {
-		t.Fatalf("import package: %v", err)
+		t.Fatalf("create package: %v", err)
 	}
 	if pkg.InstallerArtifactID == nil || *pkg.InstallerArtifactID != installerArtifact.ID {
 		t.Fatalf("installer artifact id = %v, want %d", pkg.InstallerArtifactID, installerArtifact.ID)
@@ -816,17 +735,15 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 		t.Fatalf("create uninstaller artifact: %v", err)
 	}
 
-	pkg, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
+	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
+		Version:               "1.0",
 		InstallerArtifactID:   &installerArtifact.ID,
+		UninstallMethod:       packages.UninstallMethodUninstallPackage,
 		UninstallerArtifactID: &uninstallerArtifact.ID,
-		Pkginfo: []byte(`{
-			"name": "SwitchableApp",
-			"version": "1.0",
-			"uninstall_method": "uninstall_package"
-		}`),
+		Eligible:              true,
 	})
 	if err != nil {
-		t.Fatalf("import package: %v", err)
+		t.Fatalf("create package: %v", err)
 	}
 
 	updated, err := stores.packages.Update(ctx, pkg.ID, packages.PackageMutation{
@@ -1217,18 +1134,6 @@ func labelRefs(ids []int64) []targeting.LabelRef {
 		refs[i] = targeting.LabelRef{LabelID: id}
 	}
 	return refs
-}
-
-func sameStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func sameSoftwareActions(a, b []munkisoftware.SoftwareAction) bool {

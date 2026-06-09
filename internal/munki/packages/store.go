@@ -121,49 +121,6 @@ func (s *Store) Update(ctx context.Context, id int64, params PackageMutation) (*
 	return s.GetByID(ctx, row.ID)
 }
 
-func (s *Store) Upsert(ctx context.Context, softwareID int64, params PackageMutation) (*PackageRecord, error) {
-	if softwareID <= 0 {
-		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
-	}
-	params, fields, err := s.prepareMutation(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := s.db.Pool().Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck
-
-	qtx := s.q.WithTx(tx)
-	row, err := qtx.UpsertMunkiPackage(ctx, upsertMunkiPackageParams(softwareID, params, fields))
-	if err != nil {
-		return nil, mapMutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindRequires,
-		params.Requires,
-	); err != nil {
-		return nil, mapMutationError(err)
-	}
-	if err := replacePackageRelations(
-		ctx,
-		qtx,
-		row.ID,
-		sqlc.MunkiPackageRelationKindUpdateFor,
-		params.UpdateFor,
-	); err != nil {
-		return nil, mapMutationError(err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, err
-	}
-	return s.GetByID(ctx, row.ID)
-}
-
 func (s *Store) GetByID(ctx context.Context, id int64) (*PackageRecord, error) {
 	if id <= 0 {
 		return nil, dbutil.ErrNotFound
@@ -657,14 +614,6 @@ func updateMunkiPackageParams(
 		Eligible:                           params.Eligible,
 		ID:                                 id,
 	}
-}
-
-func upsertMunkiPackageParams(
-	softwareID int64,
-	params PackageMutation,
-	fields packageJSONFields,
-) sqlc.UpsertMunkiPackageParams {
-	return sqlc.UpsertMunkiPackageParams(createMunkiPackageParams(softwareID, params, fields))
 }
 
 type packageRecord struct {

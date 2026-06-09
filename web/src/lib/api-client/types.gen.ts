@@ -770,15 +770,55 @@ export type MunkiPackage = {
     version_script: string;
 };
 
-export type MunkiPackageImportMutation = {
+export type MunkiPackageCreateMutation = {
     /**
      * A URL to the JSON Schema for this object.
      */
     readonly $schema?: string;
-    eligible?: boolean;
+    apple_item?: boolean;
+    autoremove?: boolean;
+    blocking_applications?: Array<string> | null;
+    blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_quit_script?: string;
+    eligible: boolean;
+    force_install_after_date?: string;
+    installable_condition?: string;
+    installcheck_script?: string;
+    installed_size?: number;
     installer_artifact_id?: number;
-    pkginfo: unknown;
+    installer_choices_xml?: string;
+    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
+    installs?: Array<PackageInstallItem> | null;
+    items_to_copy?: Array<PackageItemToCopy> | null;
+    maximum_os_version?: string;
+    minimum_munki_version?: string;
+    minimum_os_version?: string;
+    notes?: string;
+    on_demand?: boolean;
+    package_path?: string;
+    postinstall_script?: string;
+    postuninstall_script?: string;
+    precache?: boolean;
+    preinstall_alert?: PackageAlert;
+    preinstall_script?: string;
+    preuninstall_alert?: PackageAlert;
+    preuninstall_script?: string;
+    receipts?: Array<PackageReceipt> | null;
+    requires?: Array<PackageReference> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    software_id: number;
+    supported_architectures?: Array<string> | null;
+    suppress_bundle_relocation?: boolean;
+    unattended_install?: boolean;
+    unattended_uninstall?: boolean;
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
+    uninstall_script?: string;
+    uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
+    update_for?: Array<PackageReference> | null;
+    version: string;
+    version_script?: string;
 };
 
 export type MunkiPackageMutation = {
@@ -1768,11 +1808,51 @@ export type MunkiPackageWritable = {
     version_script: string;
 };
 
-export type MunkiPackageImportMutationWritable = {
-    eligible?: boolean;
+export type MunkiPackageCreateMutationWritable = {
+    apple_item?: boolean;
+    autoremove?: boolean;
+    blocking_applications?: Array<string> | null;
+    blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_quit_script?: string;
+    eligible: boolean;
+    force_install_after_date?: string;
+    installable_condition?: string;
+    installcheck_script?: string;
+    installed_size?: number;
     installer_artifact_id?: number;
-    pkginfo: unknown;
+    installer_choices_xml?: string;
+    installer_environment?: Array<PackageInstallerEnvironmentVariable> | null;
+    installer_type?: 'pkg' | 'nopkg' | 'copy_from_dmg';
+    installs?: Array<PackageInstallItem> | null;
+    items_to_copy?: Array<PackageItemToCopy> | null;
+    maximum_os_version?: string;
+    minimum_munki_version?: string;
+    minimum_os_version?: string;
+    notes?: string;
+    on_demand?: boolean;
+    package_path?: string;
+    postinstall_script?: string;
+    postuninstall_script?: string;
+    precache?: boolean;
+    preinstall_alert?: PackageAlert;
+    preinstall_script?: string;
+    preuninstall_alert?: PackageAlert;
+    preuninstall_script?: string;
+    receipts?: Array<PackageReceipt> | null;
+    requires?: Array<PackageReference> | null;
+    restart_action?: 'None' | 'RequireLogout' | 'RecommendRestart' | 'RequireRestart' | 'RequireShutdown';
+    software_id: number;
+    supported_architectures?: Array<string> | null;
+    suppress_bundle_relocation?: boolean;
+    unattended_install?: boolean;
+    unattended_uninstall?: boolean;
+    uninstall_method?: 'none' | 'removepackages' | 'remove_copied_items' | 'uninstall_script' | 'uninstall_package';
+    uninstall_script?: string;
+    uninstallcheck_script?: string;
     uninstaller_artifact_id?: number;
+    update_for?: Array<PackageReference> | null;
+    version: string;
+    version_script?: string;
 };
 
 export type MunkiPackageMutationWritable = {
@@ -3757,6 +3837,55 @@ export type ListMunkiPackagesResponses = {
 
 export type ListMunkiPackagesResponse = ListMunkiPackagesResponses[keyof ListMunkiPackagesResponses];
 
+export type CreateMunkiPackageData = {
+    body: MunkiPackageCreateMutationWritable;
+    path?: never;
+    query?: never;
+    url: '/api/munki/packages';
+};
+
+export type CreateMunkiPackageErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Unprocessable Entity
+     */
+    422: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type CreateMunkiPackageError = CreateMunkiPackageErrors[keyof CreateMunkiPackageErrors];
+
+export type CreateMunkiPackageResponses = {
+    /**
+     * Created
+     */
+    201: MunkiPackage;
+};
+
+export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
+
 export type DeleteMunkiPackageData = {
     body?: never;
     path: {
@@ -4166,108 +4295,6 @@ export type UpdateMunkiSoftwareResponses = {
 };
 
 export type UpdateMunkiSoftwareResponse = UpdateMunkiSoftwareResponses[keyof UpdateMunkiSoftwareResponses];
-
-export type CreateMunkiPackageData = {
-    body: MunkiPackageMutationWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/software/{id}/packages';
-};
-
-export type CreateMunkiPackageErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type CreateMunkiPackageError = CreateMunkiPackageErrors[keyof CreateMunkiPackageErrors];
-
-export type CreateMunkiPackageResponses = {
-    /**
-     * Created
-     */
-    201: MunkiPackage;
-};
-
-export type CreateMunkiPackageResponse = CreateMunkiPackageResponses[keyof CreateMunkiPackageResponses];
-
-export type ImportMunkiPackageData = {
-    body: MunkiPackageImportMutationWritable;
-    path: {
-        id: number;
-    };
-    query?: never;
-    url: '/api/munki/software/{id}/packages/import';
-};
-
-export type ImportMunkiPackageErrors = {
-    /**
-     * Bad Request
-     */
-    400: ErrorModel;
-    /**
-     * Unauthorized
-     */
-    401: ErrorModel;
-    /**
-     * Forbidden
-     */
-    403: ErrorModel;
-    /**
-     * Not Found
-     */
-    404: ErrorModel;
-    /**
-     * Conflict
-     */
-    409: ErrorModel;
-    /**
-     * Unprocessable Entity
-     */
-    422: ErrorModel;
-    /**
-     * Internal Server Error
-     */
-    500: ErrorModel;
-};
-
-export type ImportMunkiPackageError = ImportMunkiPackageErrors[keyof ImportMunkiPackageErrors];
-
-export type ImportMunkiPackageResponses = {
-    /**
-     * Created
-     */
-    201: MunkiPackage;
-};
-
-export type ImportMunkiPackageResponse = ImportMunkiPackageResponses[keyof ImportMunkiPackageResponses];
 
 export type ListOsqueryChecksData = {
     body?: never;

@@ -409,7 +409,7 @@ export function PackageEditorTabs({
   );
 }
 
-export function PackageFormActions({ pending, softwareID }: { pending: boolean; softwareID: number | null }) {
+export function PackageFormActions({ pending }: { pending: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <Button type="submit" size="sm" disabled={pending}>
@@ -417,9 +417,7 @@ export function PackageFormActions({ pending, softwareID }: { pending: boolean; 
         Save
       </Button>
       <Button asChild type="button" variant="outline" size="sm">
-        <Link to="/munki/software/$softwareId" params={{ softwareId: String(softwareID ?? "") }}>
-          Cancel
-        </Link>
+        <Link to="/munki/packages">Cancel</Link>
       </Button>
     </div>
   );

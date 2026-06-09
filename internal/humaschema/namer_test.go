@@ -49,6 +49,11 @@ func TestWoodstarSchemaNamerPrefixesAmbiguousCapabilityNames(t *testing.T) {
 			want: "MunkiPackageMutation",
 		},
 		{
+			name: "munki package create mutation",
+			typ:  reflect.TypeFor[packages.PackageCreateMutation](),
+			want: "MunkiPackageCreateMutation",
+		},
+		{
 			name: "munki software mutation",
 			typ:  reflect.TypeFor[munkisoftware.SoftwareMutation](),
 			want: "MunkiSoftwareMutation",

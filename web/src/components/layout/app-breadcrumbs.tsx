@@ -10,6 +10,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMunkiPackage } from "@/hooks/munki/packages";
 import { useMunkiSoftwareDetail } from "@/hooks/munki/software";
 import { useCheck } from "@/hooks/use-checks";
 import { useHost } from "@/hooks/use-hosts";
@@ -143,29 +144,17 @@ function crumbsForLeaf(routeId: string, params: Record<string, string>): Crumb[]
         { key: "munki-software", label: "Software", to: "/munki/software" },
         { key: `munki-software-${params.softwareId}`, label: <MunkiSoftwareCrumb id={params.softwareId} /> },
       ];
-    case "/_authenticated/munki/software/$softwareId_/packages/new":
+    case "/_authenticated/munki/packages/new":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software" },
-        { key: "munki-software", label: "Software", to: "/munki/software" },
-        {
-          key: `munki-software-${params.softwareId}`,
-          label: <MunkiSoftwareCrumb id={params.softwareId} />,
-          to: "/munki/software/$softwareId",
-          params: { softwareId: params.softwareId },
-        },
-        { key: `munki-software-${params.softwareId}-package-new`, label: "New Package" },
+        { key: "munki", label: "Munki", to: "/munki/packages" },
+        { key: "munki-packages", label: "Packages", to: "/munki/packages" },
+        { key: "munki-package-new", label: "New" },
       ];
-    case "/_authenticated/munki/software/$softwareId_/packages/$packageId/edit":
+    case "/_authenticated/munki/packages/$packageId/edit":
       return [
-        { key: "munki", label: "Munki", to: "/munki/software" },
-        { key: "munki-software", label: "Software", to: "/munki/software" },
-        {
-          key: `munki-software-${params.softwareId}`,
-          label: <MunkiSoftwareCrumb id={params.softwareId} />,
-          to: "/munki/software/$softwareId",
-          params: { softwareId: params.softwareId },
-        },
-        { key: `munki-package-${params.packageId}`, label: "Edit Package" },
+        { key: "munki", label: "Munki", to: "/munki/packages" },
+        { key: "munki-packages", label: "Packages", to: "/munki/packages" },
+        { key: `munki-package-${params.packageId}`, label: <MunkiPackageCrumb id={params.packageId} /> },
       ];
     // Santa
     case "/_authenticated/santa/configurations/new":
@@ -250,6 +239,12 @@ function MunkiSoftwareCrumb({ id }: { id: string }) {
   const { data, isLoading } = useMunkiSoftwareDetail(Number(id));
   if (isLoading || !data) return <CrumbSkeleton />;
   return <span>{data.name || id}</span>;
+}
+
+function MunkiPackageCrumb({ id }: { id: string }) {
+  const { data, isLoading } = useMunkiPackage(Number(id));
+  if (isLoading || !data) return <CrumbSkeleton />;
+  return <span>{`${data.software_name} ${data.version}`}</span>;
 }
 
 function CheckCrumb({ id }: { id: string }) {
