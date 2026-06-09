@@ -870,10 +870,9 @@ export type MunkiSoftwareDetail = {
 };
 
 export type MunkiSoftwareInclude = {
-    featured: boolean;
+    actions: Array<'managed_installs' | 'managed_uninstalls' | 'managed_updates' | 'optional_installs' | 'featured_items' | 'default_installs'>;
     label_id: number;
     package: SoftwarePackageSelector;
-    state: 'managed_install' | 'managed_uninstall' | 'managed_update' | 'optional_install';
 };
 
 export type MunkiSoftwareMutation = {

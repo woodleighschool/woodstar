@@ -7,7 +7,7 @@ export type MunkiInstallerType = NonNullable<MunkiPackageMutation["installer_typ
 export type MunkiRestartAction = NonNullable<MunkiPackageMutation["restart_action"]>;
 export type MunkiUninstallMethod = NonNullable<MunkiPackageMutation["uninstall_method"]>;
 export type MunkiInstallItemType = PackageInstallItem["type"];
-export type MunkiSoftwareState = SoftwareInclude["state"];
+export type MunkiSoftwareAction = SoftwareInclude["actions"][number];
 export type MunkiPackageStrategy = SoftwareInclude["package"]["strategy"];
 
 export const MUNKI_INSTALLER_TYPE_VALUES = [
@@ -76,33 +76,43 @@ export const MUNKI_INSTALL_ITEM_TYPES = {
 
 export const MUNKI_INSTALL_ITEM_TYPE_OPTIONS = enumOptions(MUNKI_INSTALL_ITEM_TYPES);
 
-export const MUNKI_SOFTWARE_STATE_VALUES = [
-  "managed_install",
-  "managed_uninstall",
-  "managed_update",
-  "optional_install",
-] as const satisfies readonly MunkiSoftwareState[];
+export const MUNKI_SOFTWARE_ACTION_VALUES = [
+  "managed_installs",
+  "managed_uninstalls",
+  "managed_updates",
+  "optional_installs",
+  "featured_items",
+  "default_installs",
+] as const satisfies readonly MunkiSoftwareAction[];
 
-export const MUNKI_SOFTWARE_STATES = {
-  managed_install: {
+export const MUNKI_SOFTWARE_ACTIONS = {
+  managed_installs: {
     name: "Managed Installs",
     description: "Forces installation by writing managed_installs.",
   },
-  managed_uninstall: {
+  managed_uninstalls: {
     name: "Managed Uninstalls",
     description: "Forces removal by writing managed_uninstalls.",
   },
-  managed_update: {
+  managed_updates: {
     name: "Managed Updates",
     description: "Updates installed items by writing managed_updates.",
   },
-  optional_install: {
+  optional_installs: {
     name: "Optional Installs",
     description: "Makes the item available in Managed Software Center.",
   },
-} satisfies EnumMetadataMap<MunkiSoftwareState>;
+  featured_items: {
+    name: "Featured Items",
+    description: "Highlights the item in Managed Software Center when it is also optional.",
+  },
+  default_installs: {
+    name: "Default Installs",
+    description: "Preselects the optional item for new self-service manifests.",
+  },
+} satisfies EnumMetadataMap<MunkiSoftwareAction>;
 
-export const MUNKI_SOFTWARE_STATE_OPTIONS = enumOptions(MUNKI_SOFTWARE_STATES);
+export const MUNKI_SOFTWARE_ACTION_OPTIONS = enumOptions(MUNKI_SOFTWARE_ACTIONS);
 
 export const MUNKI_PACKAGE_STRATEGY_VALUES = ["latest", "specific"] as const satisfies readonly MunkiPackageStrategy[];
 
@@ -127,9 +137,9 @@ export function munkiRestartActionLabel(value: string | null | undefined) {
   return enumLabel(MUNKI_RESTART_ACTIONS, value);
 }
 
-export function munkiSoftwareStateLabel(value: string | null | undefined) {
-  if (!value) return enumLabel(MUNKI_SOFTWARE_STATES, "managed_install");
-  return enumLabel(MUNKI_SOFTWARE_STATES, value);
+export function munkiSoftwareActionLabel(value: string | null | undefined) {
+  if (!value) return "";
+  return enumLabel(MUNKI_SOFTWARE_ACTIONS, value);
 }
 
 export function munkiPackageStrategyLabel(value: string | null | undefined) {
@@ -137,8 +147,8 @@ export function munkiPackageStrategyLabel(value: string | null | undefined) {
   return enumLabel(MUNKI_PACKAGE_STRATEGIES, value);
 }
 
-export function munkiSoftwareStateDescription(value: MunkiSoftwareState) {
-  return MUNKI_SOFTWARE_STATES[value].description;
+export function munkiSoftwareActionDescription(value: MunkiSoftwareAction) {
+  return MUNKI_SOFTWARE_ACTIONS[value].description;
 }
 
 export function munkiPackageStrategyDescription(value: MunkiPackageStrategy) {

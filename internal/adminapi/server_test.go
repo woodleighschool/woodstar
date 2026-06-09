@@ -393,7 +393,7 @@ func TestMunkiAdminAPI(t *testing.T) {
 		cookie,
 		fmt.Sprintf("/api/munki/software/%d", title.ID),
 		fmt.Sprintf(
-			`{"name":"Google Chrome","description":"","category":"","developer":"","targets":{"include":[{"label_id":%d,"package":{"strategy":"specific","package_id":%d},"state":"optional_install","featured":true}],"exclude":[{"label_id":%d}]}}`,
+			`{"name":"Google Chrome","description":"","category":"","developer":"","targets":{"include":[{"label_id":%d,"package":{"strategy":"specific","package_id":%d},"actions":["optional_installs","featured_items"]}],"exclude":[{"label_id":%d}]}}`,
 			allHostsID,
 			pkg.ID,
 			excludeLabel.ID,
@@ -403,8 +403,10 @@ func TestMunkiAdminAPI(t *testing.T) {
 		t.Fatalf("includes = %+v, want one target", updatedTitle.Targets.Include)
 	}
 	include := updatedTitle.Targets.Include[0]
-	if include.State != munkisoftware.SoftwareStateOptionalInstall || !include.Featured {
-		t.Fatalf("include = %+v, want optional_install and featured", include)
+	if len(include.Actions) != 2 ||
+		include.Actions[0] != munkisoftware.SoftwareActionOptionalInstalls ||
+		include.Actions[1] != munkisoftware.SoftwareActionFeaturedItems {
+		t.Fatalf("include = %+v, want optional_installs and featured_items", include)
 	}
 	if len(updatedTitle.Targets.Exclude) != 1 || updatedTitle.Targets.Exclude[0].LabelID != excludeLabel.ID {
 		t.Fatalf("exclude labels = %+v, want [%d]", updatedTitle.Targets.Exclude, excludeLabel.ID)

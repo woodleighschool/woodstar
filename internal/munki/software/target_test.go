@@ -7,7 +7,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-func TestSoftwareTargetsValidatePackageSelectorAndFeaturedRules(t *testing.T) {
+func TestSoftwareTargetsValidatePackageSelectorAndActionRules(t *testing.T) {
 	packageID := int64(123)
 	cases := []struct {
 		name    string
@@ -21,7 +21,7 @@ func TestSoftwareTargetsValidatePackageSelectorAndFeaturedRules(t *testing.T) {
 				Package: SoftwarePackageSelector{
 					Strategy: SoftwarePackageLatest,
 				},
-				State: SoftwareStateManagedInstall,
+				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
 			},
 		},
 		{
@@ -32,7 +32,17 @@ func TestSoftwareTargetsValidatePackageSelectorAndFeaturedRules(t *testing.T) {
 					Strategy:  SoftwarePackageSpecific,
 					PackageID: &packageID,
 				},
-				State: SoftwareStateOptionalInstall,
+				Actions: []SoftwareAction{SoftwareActionOptionalInstalls, SoftwareActionFeaturedItems},
+			},
+		},
+		{
+			name: "featured does not require optional install",
+			include: SoftwareInclude{
+				LabelID: 1,
+				Package: SoftwarePackageSelector{
+					Strategy: SoftwarePackageLatest,
+				},
+				Actions: []SoftwareAction{SoftwareActionFeaturedItems},
 			},
 		},
 		{
@@ -42,7 +52,7 @@ func TestSoftwareTargetsValidatePackageSelectorAndFeaturedRules(t *testing.T) {
 				Package: SoftwarePackageSelector{
 					Strategy: SoftwarePackageSpecific,
 				},
-				State: SoftwareStateManagedInstall,
+				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
 			},
 			wantErr: true,
 		},
@@ -54,19 +64,28 @@ func TestSoftwareTargetsValidatePackageSelectorAndFeaturedRules(t *testing.T) {
 					Strategy:  SoftwarePackageLatest,
 					PackageID: &packageID,
 				},
-				State: SoftwareStateManagedInstall,
+				Actions: []SoftwareAction{SoftwareActionManagedInstalls},
 			},
 			wantErr: true,
 		},
 		{
-			name: "featured requires optional install",
+			name: "actions required",
 			include: SoftwareInclude{
 				LabelID: 1,
 				Package: SoftwarePackageSelector{
 					Strategy: SoftwarePackageLatest,
 				},
-				State:    SoftwareStateManagedInstall,
-				Featured: true,
+			},
+			wantErr: true,
+		},
+		{
+			name: "unsupported action",
+			include: SoftwareInclude{
+				LabelID: 1,
+				Package: SoftwarePackageSelector{
+					Strategy: SoftwarePackageLatest,
+				},
+				Actions: []SoftwareAction{"managed_install"},
 			},
 			wantErr: true,
 		},

@@ -3,7 +3,6 @@ package software
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -19,12 +18,11 @@ type SoftwareTargets struct {
 	Exclude []targeting.LabelRef `json:"exclude" nullable:"false"`
 }
 
-// SoftwareInclude applies desired Munki package state to hosts with a matching label.
+// SoftwareInclude applies desired Munki manifest actions to hosts with a matching label.
 type SoftwareInclude struct {
-	LabelID  int64                   `json:"label_id" minimum:"1"`
-	Package  SoftwarePackageSelector `json:"package"`
-	State    SoftwareState           `json:"state"`
-	Featured bool                    `json:"featured"`
+	LabelID int64                   `json:"label_id" minimum:"1"`
+	Package SoftwarePackageSelector `json:"package"`
+	Actions []SoftwareAction        `json:"actions"              minItems:"1" nullable:"false"`
 }
 
 // SoftwarePackageSelector chooses the package candidate set for a software include.
@@ -47,33 +45,36 @@ var softwarePackageStrategyValues = []SoftwarePackageStrategy{
 	SoftwarePackageSpecific,
 }
 
-// SoftwareState describes the Munki manifest section for an include.
-type SoftwareState string
+// SoftwareAction describes one Munki manifest section for an include.
+type SoftwareAction string
 
 const (
-	SoftwareStateManagedInstall   SoftwareState = "managed_install"
-	SoftwareStateManagedUninstall SoftwareState = "managed_uninstall"
-	SoftwareStateManagedUpdate    SoftwareState = "managed_update"
-	SoftwareStateOptionalInstall  SoftwareState = "optional_install"
+	SoftwareActionManagedInstalls   SoftwareAction = "managed_installs"
+	SoftwareActionManagedUninstalls SoftwareAction = "managed_uninstalls"
+	SoftwareActionManagedUpdates    SoftwareAction = "managed_updates"
+	SoftwareActionOptionalInstalls  SoftwareAction = "optional_installs"
+	SoftwareActionFeaturedItems     SoftwareAction = "featured_items"
+	SoftwareActionDefaultInstalls   SoftwareAction = "default_installs"
 )
 
-var softwareStateValues = []SoftwareState{
-	SoftwareStateManagedInstall,
-	SoftwareStateManagedUninstall,
-	SoftwareStateManagedUpdate,
-	SoftwareStateOptionalInstall,
+var softwareActionValues = []SoftwareAction{
+	SoftwareActionManagedInstalls,
+	SoftwareActionManagedUninstalls,
+	SoftwareActionManagedUpdates,
+	SoftwareActionOptionalInstalls,
+	SoftwareActionFeaturedItems,
+	SoftwareActionDefaultInstalls,
 }
 
 // EffectivePackage is a host-resolved Munki package ready for manifest/catalog rendering.
 type EffectivePackage struct {
 	TargetID   int64
 	SoftwareID int64
-	State      SoftwareState
+	Actions    []SoftwareAction
 	Package    packages.Package
 	// SoftwareIcon is software-owned pkginfo context projected with the package.
 	SoftwareIcon packages.IconRef
 	Selector     SoftwarePackageSelector
-	Featured     bool
 }
 
 // Schema returns the OpenAPI schema for SoftwarePackageStrategy.
@@ -81,9 +82,9 @@ func (SoftwarePackageStrategy) Schema(_ huma.Registry) *huma.Schema {
 	return humaschema.StringEnum(softwarePackageStrategyValues...)
 }
 
-// Schema returns the OpenAPI schema for SoftwareState.
-func (SoftwareState) Schema(_ huma.Registry) *huma.Schema {
-	return humaschema.StringEnum(softwareStateValues...)
+// Schema returns the OpenAPI schema for SoftwareAction.
+func (SoftwareAction) Schema(_ huma.Registry) *huma.Schema {
+	return humaschema.StringEnum(softwareActionValues...)
 }
 
 func normalizeSoftwareTargets(targets SoftwareTargets) SoftwareTargets {
@@ -92,12 +93,6 @@ func normalizeSoftwareTargets(targets SoftwareTargets) SoftwareTargets {
 	}
 	if targets.Exclude == nil {
 		targets.Exclude = []targeting.LabelRef{}
-	}
-	for i := range targets.Include {
-		targets.Include[i].Package.Strategy = SoftwarePackageStrategy(
-			strings.TrimSpace(string(targets.Include[i].Package.Strategy)),
-		)
-		targets.Include[i].State = SoftwareState(strings.TrimSpace(string(targets.Include[i].State)))
 	}
 	return targets
 }
@@ -125,14 +120,16 @@ func (include SoftwareInclude) validate() error {
 	if !validSoftwarePackageStrategy(include.Package.Strategy) {
 		return fmt.Errorf("%w: package.strategy is required", dbutil.ErrInvalidInput)
 	}
-	if !validSoftwareState(include.State) {
-		return fmt.Errorf("%w: state is required", dbutil.ErrInvalidInput)
-	}
 	if err := include.Package.validate(); err != nil {
 		return err
 	}
-	if include.Featured && include.State != SoftwareStateOptionalInstall {
-		return fmt.Errorf("%w: featured requires optional_install state", dbutil.ErrInvalidInput)
+	if len(include.Actions) == 0 {
+		return fmt.Errorf("%w: actions is required", dbutil.ErrInvalidInput)
+	}
+	for _, action := range include.Actions {
+		if !validSoftwareAction(action) {
+			return fmt.Errorf("%w: unsupported action %q", dbutil.ErrInvalidInput, action)
+		}
 	}
 	return nil
 }
@@ -158,8 +155,8 @@ func validSoftwarePackageStrategy(strategy SoftwarePackageStrategy) bool {
 	return slices.Contains(softwarePackageStrategyValues, strategy)
 }
 
-func validSoftwareState(state SoftwareState) bool {
-	return slices.Contains(softwareStateValues, state)
+func validSoftwareAction(action SoftwareAction) bool {
+	return slices.Contains(softwareActionValues, action)
 }
 
 func softwareIncludeLabelID(include SoftwareInclude) int64 {

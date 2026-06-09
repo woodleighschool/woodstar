@@ -80,15 +80,13 @@ func (q *Queries) CreateMunkiSoftware(ctx context.Context, arg CreateMunkiSoftwa
 	return i, err
 }
 
-const createMunkiSoftwareInclude = `-- name: CreateMunkiSoftwareInclude :one
+const createMunkiSoftwareInclude = `-- name: CreateMunkiSoftwareInclude :exec
 INSERT INTO munki_software_targets (
     software_id,
     direction,
     position,
     label_id,
-    action,
-    optional_install,
-    featured_item,
+    actions,
     package_selection,
     pinned_package_id
 )
@@ -97,52 +95,31 @@ VALUES (
     'include',
     ($2)::integer - 1,
     $3,
-    $4::munki_software_action,
-    $5::boolean,
-    $6::boolean,
-    $7::munki_package_selection,
-    $8::bigint
+    ($4)::text[]::munki_manifest_action[],
+    $5::munki_package_selection,
+    $6::bigint
 )
-RETURNING software_id, direction, position, label_id, action, optional_install, featured_item, package_selection, pinned_package_id, created_at, updated_at
 `
 
 type CreateMunkiSoftwareIncludeParams struct {
 	SoftwareID       int64                 `json:"software_id"`
 	Priority         int32                 `json:"priority"`
 	LabelID          int64                 `json:"label_id"`
-	Action           MunkiSoftwareAction   `json:"action"`
-	OptionalInstall  bool                  `json:"optional_install"`
-	FeaturedItem     bool                  `json:"featured_item"`
+	Actions          []string              `json:"actions"`
 	PackageSelection MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID  *int64                `json:"pinned_package_id"`
 }
 
-func (q *Queries) CreateMunkiSoftwareInclude(ctx context.Context, arg CreateMunkiSoftwareIncludeParams) (MunkiSoftwareTarget, error) {
-	row := q.db.QueryRow(ctx, createMunkiSoftwareInclude,
+func (q *Queries) CreateMunkiSoftwareInclude(ctx context.Context, arg CreateMunkiSoftwareIncludeParams) error {
+	_, err := q.db.Exec(ctx, createMunkiSoftwareInclude,
 		arg.SoftwareID,
 		arg.Priority,
 		arg.LabelID,
-		arg.Action,
-		arg.OptionalInstall,
-		arg.FeaturedItem,
+		arg.Actions,
 		arg.PackageSelection,
 		arg.PinnedPackageID,
 	)
-	var i MunkiSoftwareTarget
-	err := row.Scan(
-		&i.SoftwareID,
-		&i.Direction,
-		&i.Position,
-		&i.LabelID,
-		&i.Action,
-		&i.OptionalInstall,
-		&i.FeaturedItem,
-		&i.PackageSelection,
-		&i.PinnedPackageID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	return err
 }
 
 const deleteMunkiSoftwareByID = `-- name: DeleteMunkiSoftwareByID :one
@@ -283,9 +260,7 @@ const listEffectiveMunkiPackagesForHost = `-- name: ListEffectiveMunkiPackagesFo
 SELECT
     (a.position + 1)::bigint AS target_id,
     a.software_id AS target_software_id,
-    a.action::munki_software_action AS action,
-    a.optional_install::boolean AS optional_install,
-    a.featured_item::boolean AS featured_item,
+    a.actions::text[] AS actions,
     a.package_selection::munki_package_selection AS package_selection,
     a.pinned_package_id,
     (a.position + 1)::integer AS priority,
@@ -381,9 +356,7 @@ type ListEffectiveMunkiPackagesForHostParams struct {
 type ListEffectiveMunkiPackagesForHostRow struct {
 	TargetID                           int64                 `json:"target_id"`
 	TargetSoftwareID                   int64                 `json:"target_software_id"`
-	Action                             MunkiSoftwareAction   `json:"action"`
-	OptionalInstall                    bool                  `json:"optional_install"`
-	FeaturedItem                       bool                  `json:"featured_item"`
+	Actions                            []string              `json:"actions"`
 	PackageSelection                   MunkiPackageSelection `json:"package_selection"`
 	PinnedPackageID                    *int64                `json:"pinned_package_id"`
 	Priority                           int32                 `json:"priority"`
@@ -461,9 +434,7 @@ func (q *Queries) ListEffectiveMunkiPackagesForHost(ctx context.Context, arg Lis
 		if err := rows.Scan(
 			&i.TargetID,
 			&i.TargetSoftwareID,
-			&i.Action,
-			&i.OptionalInstall,
-			&i.FeaturedItem,
+			&i.Actions,
 			&i.PackageSelection,
 			&i.PinnedPackageID,
 			&i.Priority,

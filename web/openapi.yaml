@@ -2361,26 +2361,28 @@ components:
     MunkiSoftwareInclude:
       additionalProperties: false
       properties:
-        featured:
-          type: boolean
+        actions:
+          items:
+            enum:
+              - managed_installs
+              - managed_uninstalls
+              - managed_updates
+              - optional_installs
+              - featured_items
+              - default_installs
+            type: string
+          minItems: 1
+          type: array
         label_id:
           format: int64
           minimum: 1
           type: integer
         package:
           $ref: "#/components/schemas/SoftwarePackageSelector"
-        state:
-          enum:
-            - managed_install
-            - managed_uninstall
-            - managed_update
-            - optional_install
-          type: string
       required:
         - label_id
         - package
-        - state
-        - featured
+        - actions
       type: object
     MunkiSoftwareMutation:
       additionalProperties: false

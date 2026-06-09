@@ -5,11 +5,13 @@ CREATE TYPE munki_artifact_kind AS ENUM (
     'icon'
 );
 
-CREATE TYPE munki_software_action AS ENUM (
-    'install',
-    'remove',
-    'update_if_present',
-    'none'
+CREATE TYPE munki_manifest_action AS ENUM (
+    'managed_installs',
+    'managed_uninstalls',
+    'managed_updates',
+    'optional_installs',
+    'featured_items',
+    'default_installs'
 );
 
 CREATE TYPE munki_package_selection AS ENUM (
@@ -122,9 +124,7 @@ CREATE TABLE munki_software_targets (
     direction target_direction NOT NULL,
     position INTEGER NOT NULL CHECK (position >= 0),
     label_id BIGINT NOT NULL REFERENCES labels (id) ON DELETE RESTRICT,
-    action munki_software_action,
-    optional_install BOOLEAN,
-    featured_item BOOLEAN,
+    actions munki_manifest_action[],
     package_selection munki_package_selection,
     pinned_package_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -134,16 +134,12 @@ CREATE TABLE munki_software_targets (
     CONSTRAINT munki_software_targets_direction_metadata_check CHECK (
         (
             direction = 'include'
-            AND action IS NOT NULL
-            AND optional_install IS NOT NULL
-            AND featured_item IS NOT NULL
+            AND COALESCE(array_length(actions, 1), 0) > 0
             AND package_selection IS NOT NULL
         )
         OR (
             direction = 'exclude'
-            AND action IS NULL
-            AND optional_install IS NULL
-            AND featured_item IS NULL
+            AND actions IS NULL
             AND package_selection IS NULL
             AND pinned_package_id IS NULL
         )
@@ -153,16 +149,6 @@ CREATE TABLE munki_software_targets (
         OR
         (package_selection = 'latest_eligible' AND pinned_package_id IS NULL)
         OR (package_selection = 'specific_package' AND pinned_package_id IS NOT NULL)
-    ),
-    CONSTRAINT munki_software_targets_featured_item_check CHECK (
-        direction <> 'include'
-        OR
-        featured_item IS FALSE OR optional_install IS TRUE
-    ),
-    CONSTRAINT munki_software_targets_remove_section_check CHECK (
-        direction <> 'include'
-        OR
-        action <> 'remove' OR (optional_install IS FALSE AND featured_item IS FALSE)
     ),
     CONSTRAINT munki_software_targets_pinned_package_software_fkey FOREIGN KEY (software_id, pinned_package_id)
         REFERENCES munki_packages (software_id, id)

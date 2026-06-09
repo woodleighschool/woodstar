@@ -35,7 +35,7 @@ func (s *Store) replaceTargets(
 		return err
 	}
 	for index, include := range targets.Include {
-		if _, err := qtx.CreateMunkiSoftwareInclude(
+		if err := qtx.CreateMunkiSoftwareInclude(
 			ctx,
 			createSoftwareIncludeParams(softwareID, int32(index+1), include),
 		); err != nil {
@@ -80,20 +80,9 @@ func createSoftwareIncludeParams(
 		SoftwareID:       softwareID,
 		Priority:         priority,
 		LabelID:          include.LabelID,
-		FeaturedItem:     include.Featured,
+		Actions:          storageActions(include.Actions),
 		PackageSelection: storagePackageSelection(include.Package),
 		PinnedPackageID:  include.Package.PackageID,
-	}
-	switch include.State {
-	case SoftwareStateManagedUninstall:
-		params.Action = "remove"
-	case SoftwareStateManagedUpdate:
-		params.Action = "update_if_present"
-	case SoftwareStateOptionalInstall:
-		params.Action = "none"
-		params.OptionalInstall = true
-	default:
-		params.Action = "install"
 	}
 	return params
 }
@@ -132,18 +121,20 @@ func packageSelectorFromStorage(selection sqlc.MunkiPackageSelection, packageID 
 	}
 }
 
-func softwareStateFromStorage(action string, optionalInstall bool) SoftwareState {
-	if optionalInstall {
-		return SoftwareStateOptionalInstall
+func storageActions(actions []SoftwareAction) []string {
+	out := make([]string, len(actions))
+	for i, action := range actions {
+		out[i] = string(action)
 	}
-	switch action {
-	case "remove":
-		return SoftwareStateManagedUninstall
-	case "update_if_present":
-		return SoftwareStateManagedUpdate
-	default:
-		return SoftwareStateManagedInstall
+	return out
+}
+
+func actionsFromStorage(actions []string) []SoftwareAction {
+	out := make([]SoftwareAction, len(actions))
+	for i, action := range actions {
+		out[i] = SoftwareAction(action)
 	}
+	return out
 }
 
 // TargetsForSoftware loads include/exclude target rows for one software.
@@ -197,11 +188,10 @@ func (s *Store) EffectivePackagesForHost(ctx context.Context, hostID int64) ([]E
 		effective = append(effective, EffectivePackage{
 			TargetID:     row.TargetID,
 			SoftwareID:   row.TargetSoftwareID,
-			State:        softwareStateFromStorage(string(row.Action), row.OptionalInstall),
+			Actions:      actionsFromStorage(row.Actions),
 			Package:      record.Package,
 			SoftwareIcon: record.SoftwareIcon,
 			Selector:     packageSelectorFromStorage(row.PackageSelection, row.PinnedPackageID),
-			Featured:     row.FeaturedItem,
 		})
 	}
 	resolved := ResolveEffectivePackages(effective)
@@ -241,16 +231,13 @@ func softwareIncludeFromRecord(row softwareIncludeRecord) SoftwareInclude {
 			row.PackageSelection,
 			row.PinnedPackageID,
 		),
-		State:    softwareStateFromStorage(row.Action, row.OptionalInstall),
-		Featured: row.FeaturedItem,
+		Actions: actionsFromStorage(row.Actions),
 	}
 }
 
 type softwareIncludeRecord struct {
 	LabelID          int64
-	Action           string
-	OptionalInstall  bool
-	FeaturedItem     bool
+	Actions          []string
 	PackageSelection sqlc.MunkiPackageSelection
 	PinnedPackageID  *int64
 }
@@ -258,9 +245,7 @@ type softwareIncludeRecord struct {
 const softwareIncludeSelectSQL = `
 SELECT
 	a.label_id,
-	a.action,
-	a.optional_install,
-	a.featured_item,
+	a.actions::text[] AS actions,
 	a.package_selection,
 	a.pinned_package_id
 FROM munki_software_targets a`

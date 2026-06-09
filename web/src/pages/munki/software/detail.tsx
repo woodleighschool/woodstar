@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { Link, useParams } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info, Loader2, PackageCheck, Pencil, Plus, Trash2 } from "lucide-react";
+import { Info, Loader2, PackageCheck, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DataTable, DataTableColumnHeader, DataTableEmptyState } from "@/components/data-table";
@@ -16,9 +16,18 @@ import { LabelTargetRowsTable } from "@/components/targeting/label-target-rows-t
 import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldContent, FieldError, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -54,22 +63,20 @@ import {
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { MUNKI_SOFTWARE_STATE_OPTIONS, munkiInstallerTypeLabel, munkiRestartActionLabel } from "@/lib/munki-software";
+import { MUNKI_SOFTWARE_ACTION_OPTIONS, munkiInstallerTypeLabel, munkiRestartActionLabel } from "@/lib/munki-software";
 
 interface MunkiSoftwareTargetRow {
   id: number;
   label_id: number | null;
   priority: number;
   package: SoftwareInclude["package"];
-  state: SoftwareInclude["state"];
-  featured: boolean;
+  actions: SoftwareInclude["actions"];
 }
 
 interface MunkiSoftwareTargetRowErrors {
   label_id?: string;
   package?: string;
-  state?: string;
-  featured?: string;
+  actions?: string;
 }
 
 export function MunkiSoftwareDetailPage() {
@@ -128,14 +135,12 @@ function MunkiSoftwareDetailForm({
   const [nextDraftID, setNextDraftID] = useState(-1);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
-  const [settingsTargetID, setSettingsTargetID] = useState<number | null>(null);
   const [targetErrors, setTargetErrors] = useState<Partial<Record<number, MunkiSoftwareTargetRowErrors>>>({});
   const [excludeForm, setExcludeForm] = useState<number[]>(() => excludeLabelIDsFromTargets(software));
   const packages = software.packages ?? [];
   const includes = useMemo(() => software.targets.include, [software.targets.include]);
   const excludeLabelIDs = useMemo(() => excludeLabelIDsFromTargets(software), [software]);
   const includeLabelIDs = useMemo(() => selectedLabelTargetIDs(targetRows), [targetRows]);
-  const settingsTarget = targetRows.find((target) => target.id === settingsTargetID);
   const softwareOptionsForm = useForm({
     defaultValues: munkiSoftwareFormFromSoftware(software),
     validators: {
@@ -180,9 +185,6 @@ function MunkiSoftwareDetailForm({
     updateSoftware.reset();
     setTargetRows((current) => numberTargetRows(current.filter((row) => row.id !== target.id)));
     setTargetErrors((current) => omitTargetError(current, target.id));
-    if (settingsTargetID === target.id) {
-      setSettingsTargetID(null);
-    }
   }
 
   async function savePage() {
@@ -280,21 +282,15 @@ function MunkiSoftwareDetailForm({
       meta: { cellClassName: "min-w-44 align-top" },
     },
     {
-      id: "state",
-      accessorKey: "state",
-      header: "Managed",
+      id: "actions",
+      accessorKey: "actions",
+      header: "Actions",
       enableSorting: false,
       cell: ({ row }) => (
-        <TargetManagedSelect
+        <TargetActionsPicker
           target={row.original}
-          error={targetErrors[row.original.id]?.state}
-          onChange={(state) =>
-            updateTargetRow(row.original.id, (target) => ({
-              ...target,
-              state,
-              featured: state === "optional_install" ? target.featured : false,
-            }))
-          }
+          error={targetErrors[row.original.id]?.actions}
+          onChange={(actions) => updateTargetRow(row.original.id, (target) => ({ ...target, actions }))}
         />
       ),
       meta: { cellClassName: "min-w-52 align-top" },
@@ -464,14 +460,6 @@ function MunkiSoftwareDetailForm({
                       onLabelChange={updateTargetLabel}
                       renderActions={(row) => (
                         <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setSettingsTargetID(row.id)}
-                          >
-                            <Pencil />
-                          </Button>
                           <Button type="button" variant="ghost" size="icon-sm" onClick={() => deleteTargetRow(row)}>
                             <Trash2 />
                           </Button>
@@ -545,16 +533,6 @@ function MunkiSoftwareDetailForm({
           </Button>
         </div>
       </form>
-      <TargetSettingsDialog
-        target={settingsTarget}
-        error={settingsTarget ? targetErrors[settingsTarget.id]?.featured : undefined}
-        onOpenChange={(open) => {
-          if (!open) setSettingsTargetID(null);
-        }}
-        onFeaturedChange={(featured) =>
-          settingsTarget ? updateTargetRow(settingsTarget.id, (target) => ({ ...target, featured })) : undefined
-        }
-      />
     </PageShell>
   );
 }
@@ -573,8 +551,7 @@ function newDraftTarget(priority: number, id: number): MunkiSoftwareTargetRow {
     priority,
     label_id: null,
     package: { strategy: "latest" },
-    state: "managed_install",
-    featured: false,
+    actions: ["managed_installs"],
   };
 }
 
@@ -655,85 +632,72 @@ function TargetPackageSelect({
   );
 }
 
-function TargetManagedSelect({
+function TargetActionsPicker({
   target,
   error,
   onChange,
 }: {
   target: MunkiSoftwareTargetRow;
   error?: string;
-  onChange: (state: SoftwareInclude["state"]) => void;
+  onChange: (actions: SoftwareInclude["actions"]) => void;
 }) {
+  const warning = targetActionWarning(target.actions);
+  const selected = MUNKI_SOFTWARE_ACTION_OPTIONS.filter((option) => target.actions.includes(option.value));
+  const visibleSelected = selected.slice(0, 2);
+  const hiddenCount = selected.length - visibleSelected.length;
+
   return (
     <Field data-invalid={error ? true : undefined} className="gap-1">
-      <Select value={target.state} onValueChange={(state) => onChange(state as SoftwareInclude["state"])}>
-        <SelectTrigger className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {MUNKI_SOFTWARE_STATE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
+      <Combobox
+        items={MUNKI_SOFTWARE_ACTION_OPTIONS}
+        multiple
+        value={selected}
+        itemToStringLabel={(option) => option.label}
+        itemToStringValue={(option) => option.value}
+        onValueChange={(next) => onChange(next.map((option) => option.value))}
+      >
+        <ComboboxChips className="h-9 min-h-9 flex-nowrap overflow-hidden">
+          <ComboboxValue>
+            {visibleSelected.map((option) => (
+              <ComboboxChip key={option.value} className="min-w-0 max-w-[8.5rem]">
+                <span className="min-w-0 truncate">{option.label}</span>
+              </ComboboxChip>
             ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+            {hiddenCount > 0 ? (
+              <span className="flex h-[calc(--spacing(5.5))] shrink-0 items-center rounded-sm bg-muted px-1.5 text-xs font-medium text-foreground">
+                +{hiddenCount}
+              </span>
+            ) : null}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            placeholder={selected.length === 0 ? "Pick actions" : ""}
+            required={selected.length === 0}
+            aria-invalid={error ? true : undefined}
+            className="min-w-0"
+          />
+        </ComboboxChips>
+        <ComboboxContent>
+          <ComboboxEmpty>No Actions Found.</ComboboxEmpty>
+          <ComboboxList>
+            {(option) => (
+              <ComboboxItem key={option.value} value={option}>
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
       {error ? <FieldError>{error}</FieldError> : null}
+      {warning ? <p className="text-warning text-xs">{warning}</p> : null}
     </Field>
   );
 }
 
-function TargetSettingsDialog({
-  target,
-  error,
-  onOpenChange,
-  onFeaturedChange,
-}: {
-  target?: MunkiSoftwareTargetRow;
-  error?: string;
-  onOpenChange: (open: boolean) => void;
-  onFeaturedChange: (featured: boolean) => void;
-}) {
-  const optional = target?.state === "optional_install";
-
-  return (
-    <Dialog open={target !== undefined} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Include Settings</DialogTitle>
-        </DialogHeader>
-        {target ? (
-          <FieldGroup>
-            <FieldSet>
-              <Field
-                orientation="horizontal"
-                data-invalid={error ? true : undefined}
-                className={!optional ? "opacity-60" : undefined}
-              >
-                <Checkbox
-                  id="munki-target-featured"
-                  checked={target.featured}
-                  disabled={!optional}
-                  onCheckedChange={(checked) => onFeaturedChange(checked === true)}
-                />
-                <FieldContent>
-                  <FieldLabel htmlFor="munki-target-featured">Featured</FieldLabel>
-                </FieldContent>
-              </Field>
-              {error ? <FieldError>{error}</FieldError> : null}
-            </FieldSet>
-          </FieldGroup>
-        ) : null}
-        <DialogFooter>
-          <Button type="button" size="sm" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+function targetActionWarning(actions: SoftwareInclude["actions"]) {
+  if (actions.includes("featured_items") && !actions.includes("optional_installs")) {
+    return "Munki ignores featured items unless the item is also optional.";
+  }
+  return "";
 }
 
 function CompactMunkiEmptyState({ title }: { title: string }) {

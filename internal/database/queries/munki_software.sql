@@ -66,15 +66,13 @@ DELETE FROM munki_software
 WHERE id = ANY(@ids::bigint[])
 RETURNING id;
 
--- name: CreateMunkiSoftwareInclude :one
+-- name: CreateMunkiSoftwareInclude :exec
 INSERT INTO munki_software_targets (
     software_id,
     direction,
     position,
     label_id,
-    action,
-    optional_install,
-    featured_item,
+    actions,
     package_selection,
     pinned_package_id
 )
@@ -83,13 +81,10 @@ VALUES (
     'include',
     (@priority)::integer - 1,
     @label_id,
-    @action::munki_software_action,
-    @optional_install::boolean,
-    @featured_item::boolean,
+    (@actions)::text[]::munki_manifest_action[],
     @package_selection::munki_package_selection,
     sqlc.narg(pinned_package_id)::bigint
-)
-RETURNING *;
+);
 
 -- name: DeleteMunkiSoftwareExcludeLabels :exec
 DELETE FROM munki_software_targets
@@ -112,9 +107,7 @@ ORDER BY software_id, position;
 SELECT
     (a.position + 1)::bigint AS target_id,
     a.software_id AS target_software_id,
-    a.action::munki_software_action AS action,
-    a.optional_install::boolean AS optional_install,
-    a.featured_item::boolean AS featured_item,
+    a.actions::text[] AS actions,
     a.package_selection::munki_package_selection AS package_selection,
     a.pinned_package_id,
     (a.position + 1)::integer AS priority,

@@ -391,18 +391,7 @@ func munkiInstallerEnvironment(values []PackageInstallerEnvironmentVariable) map
 func munkiInstallItems(values []PackageInstallItem) []munkiPkginfoInstallItem {
 	out := make([]munkiPkginfoInstallItem, 0, len(values))
 	for _, value := range values {
-		out = append(out, munkiPkginfoInstallItem{
-			Type:                  value.Type,
-			Path:                  value.Path,
-			BundleIdentifier:      value.BundleIdentifier,
-			BundleName:            value.BundleName,
-			BundleShortVersion:    value.BundleShortVersion,
-			BundleVersion:         value.BundleVersion,
-			VersionComparisonKey:  value.VersionComparisonKey,
-			MD5Checksum:           value.MD5Checksum,
-			MinimumOSVersion:      value.MinimumOSVersion,
-			InstallerItemLocation: value.InstallerItemLocation,
-		})
+		out = append(out, munkiPkginfoInstallItem(value))
 	}
 	return out
 }
@@ -410,11 +399,7 @@ func munkiInstallItems(values []PackageInstallItem) []munkiPkginfoInstallItem {
 func munkiReceipts(values []PackageReceipt) []munkiPkginfoReceipt {
 	out := make([]munkiPkginfoReceipt, 0, len(values))
 	for _, value := range values {
-		out = append(out, munkiPkginfoReceipt{
-			PackageID: value.PackageID,
-			Version:   value.Version,
-			Optional:  value.Optional,
-		})
+		out = append(out, munkiPkginfoReceipt(value))
 	}
 	return out
 }
@@ -422,14 +407,7 @@ func munkiReceipts(values []PackageReceipt) []munkiPkginfoReceipt {
 func munkiItemsToCopy(values []PackageItemToCopy) []munkiPkginfoItemToCopy {
 	out := make([]munkiPkginfoItemToCopy, 0, len(values))
 	for _, value := range values {
-		out = append(out, munkiPkginfoItemToCopy{
-			SourceItem:      value.SourceItem,
-			DestinationPath: value.DestinationPath,
-			DestinationItem: value.DestinationItem,
-			User:            value.User,
-			Group:           value.Group,
-			Mode:            value.Mode,
-		})
+		out = append(out, munkiPkginfoItemToCopy(value))
 	}
 	return out
 }

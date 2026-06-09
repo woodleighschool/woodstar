@@ -33,7 +33,7 @@ func TestServiceArtifactRedirectRequiresEffectivePackage(t *testing.T) {
 			{
 				TargetID:   1,
 				SoftwareID: 1,
-				State:      munkisoftware.SoftwareStateManagedInstall,
+				Actions:    []munkisoftware.SoftwareAction{munkisoftware.SoftwareActionManagedInstalls},
 				Selector:   munkisoftware.SoftwarePackageSelector{Strategy: munkisoftware.SoftwarePackageLatest},
 				Package: packages.Package{
 					ID:                        10,

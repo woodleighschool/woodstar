@@ -36,8 +36,8 @@ Process:
           - label_name: All Hosts
             package:
               strategy: latest
-            state: managed_install
-            featured: false
+            actions:
+              - managed_installs
         exclude: []
 
   - Processor: com.github.woodleighschool.woodstar.processors/WoodstarMunkiPackageUploader
@@ -45,7 +45,7 @@ Process:
 
 `targets.include` is ordered from highest to lowest priority for hosts that
 match multiple labels. Each include entry accepts `label_id` or `label_name`, a
-package selector, a state, and a featured flag:
+package selector, and an action list:
 
 ```yaml
 targets:
@@ -54,8 +54,10 @@ targets:
       package:
         strategy: specific
         package_id: 123
-      state: managed_update
-      featured: false
+      actions:
+        - managed_updates
+        - optional_installs
+        - featured_items
   exclude:
     - label_name: Excluded Devices
 ```

@@ -228,18 +228,21 @@ func addManifestPackage(manifest *renderedManifest, pkg munkisoftware.EffectiveP
 	if name == "" {
 		return
 	}
-	switch pkg.State {
-	case munkisoftware.SoftwareStateManagedInstall:
-		manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
-	case munkisoftware.SoftwareStateManagedUninstall:
-		manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
-	case munkisoftware.SoftwareStateManagedUpdate:
-		manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
-	case munkisoftware.SoftwareStateOptionalInstall:
-		manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
-	}
-	if pkg.Featured {
-		manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
+	for _, action := range pkg.Actions {
+		switch action {
+		case munkisoftware.SoftwareActionManagedInstalls:
+			manifest.ManagedInstalls = appendUnique(manifest.ManagedInstalls, name)
+		case munkisoftware.SoftwareActionManagedUninstalls:
+			manifest.ManagedUninstalls = appendUnique(manifest.ManagedUninstalls, name)
+		case munkisoftware.SoftwareActionManagedUpdates:
+			manifest.ManagedUpdates = appendUnique(manifest.ManagedUpdates, name)
+		case munkisoftware.SoftwareActionOptionalInstalls:
+			manifest.OptionalInstalls = appendUnique(manifest.OptionalInstalls, name)
+		case munkisoftware.SoftwareActionDefaultInstalls:
+			manifest.DefaultInstalls = appendUnique(manifest.DefaultInstalls, name)
+		case munkisoftware.SoftwareActionFeaturedItems:
+			manifest.FeaturedItems = appendUnique(manifest.FeaturedItems, name)
+		}
 	}
 }
 

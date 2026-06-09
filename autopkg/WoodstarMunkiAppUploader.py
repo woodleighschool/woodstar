@@ -7,9 +7,18 @@ from autopkglib import Processor, ProcessorError
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from WoodstarLib.Client import client_from_env, find_exact, truthy  # noqa: E402
+from WoodstarLib.Client import client_from_env, find_exact  # noqa: E402
 
 __all__ = ["WoodstarMunkiAppUploader"]
+
+SUPPORTED_TARGET_ACTIONS = {
+    "managed_installs",
+    "managed_uninstalls",
+    "managed_updates",
+    "optional_installs",
+    "featured_items",
+    "default_installs",
+}
 
 
 class WoodstarMunkiAppUploader(Processor):
@@ -135,10 +144,19 @@ class WoodstarMunkiAppUploader(Processor):
         body = {
             "label_id": label_id,
             "package": self.package_selector(target),
-            "state": target.get("state", "managed_install"),
-            "featured": truthy(target.get("featured", False)),
+            "actions": self.actions(target),
         }
         return body
+
+    @staticmethod
+    def actions(target):
+        actions = target.get("actions", ["managed_installs"])
+        if not isinstance(actions, list) or not actions:
+            raise ProcessorError("targets.include actions must be a non-empty list")
+        for action in actions:
+            if action not in SUPPORTED_TARGET_ACTIONS:
+                raise ProcessorError(f"targets.include action {action!r} is not supported")
+        return actions
 
     def package_selector(self, target):
         package = target.get("package") or {"strategy": "latest"}

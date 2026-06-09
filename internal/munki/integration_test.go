@@ -90,7 +90,7 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 		Developer: title.Developer,
 		Targets: munkisoftware.SoftwareTargets{
 			Include: []munkisoftware.SoftwareInclude{
-				includeTarget(allHostsID, munkisoftware.SoftwareStateManagedInstall),
+				includeTarget(allHostsID, munkisoftware.SoftwareActionManagedInstalls),
 			},
 			Exclude: labelRefs([]int64{label.ID}),
 		},
@@ -126,7 +126,10 @@ func TestMunkiSoftwareCreateListAndResolveForHost(t *testing.T) {
 		t.Fatalf("resolve included host: %v", err)
 	}
 	if len(included) != 1 || included[0].Package.SoftwareName != "GoogleChrome" ||
-		included[0].State != munkisoftware.SoftwareStateManagedInstall {
+		!sameSoftwareActions(
+			included[0].Actions,
+			[]munkisoftware.SoftwareAction{munkisoftware.SoftwareActionManagedInstalls},
+		) {
 		t.Fatalf("included effective packages = %+v, want GoogleChrome install", included)
 	}
 	excluded, err := stores.software.EffectivePackagesForHost(ctx, excludedHost.ID)
@@ -204,7 +207,7 @@ func TestArtifactsCreateListAndBindPackage(t *testing.T) {
 		t.Fatalf("pkg installer artifact id = %v, want %d", pkg.InstallerArtifactID, artifact.ID)
 	}
 	replaceSoftwareTargets(t, ctx, stores, title, []munkisoftware.SoftwareInclude{
-		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareStateManagedInstall),
+		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareActionManagedInstalls),
 	}, nil)
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
@@ -236,7 +239,7 @@ func TestEffectivePackagesForHostKeepsLatestCandidates(t *testing.T) {
 	createMunkiPackage(t, ctx, stores, title.ID, "LatestApp", "1.0")
 	createMunkiPackage(t, ctx, stores, title.ID, "LatestApp", "2.0")
 	replaceSoftwareTargets(t, ctx, stores, title, []munkisoftware.SoftwareInclude{
-		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareStateManagedInstall),
+		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareActionManagedInstalls),
 	}, nil)
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
@@ -362,8 +365,8 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	createMunkiPackage(t, ctx, stores, title.ID, "SchoolApp", "1.0")
 
 	replaceSoftwareTargets(t, ctx, stores, title, []munkisoftware.SoftwareInclude{
-		includeTarget(sac.ID, munkisoftware.SoftwareStateManagedUninstall),
-		includeTarget(allStudents.ID, munkisoftware.SoftwareStateManagedInstall),
+		includeTarget(sac.ID, munkisoftware.SoftwareActionManagedUninstalls),
+		includeTarget(allStudents.ID, munkisoftware.SoftwareActionManagedInstalls),
 	}, nil)
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
@@ -373,7 +376,10 @@ func TestEffectivePackagesForHostUsesPriorityForSchoolTargets(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if effective[0].State != munkisoftware.SoftwareStateManagedUninstall ||
+	if !sameSoftwareActions(
+		effective[0].Actions,
+		[]munkisoftware.SoftwareAction{munkisoftware.SoftwareActionManagedUninstalls},
+	) ||
 		effective[0].Package.SoftwareName != "SchoolApp" {
 		t.Fatalf("effective pkg = %+v, want SAC removal of SchoolApp", effective[0])
 	}
@@ -416,8 +422,8 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	removePackage := createMunkiPackage(t, ctx, stores, title.ID, "RowOrderApp", "2.0")
 
 	replaceSoftwareTargets(t, ctx, stores, title, []munkisoftware.SoftwareInclude{
-		includeSpecificTarget(installLabel.ID, munkisoftware.SoftwareStateManagedInstall, installPackage.ID),
-		includeSpecificTarget(removeLabel.ID, munkisoftware.SoftwareStateManagedUninstall, removePackage.ID),
+		includeSpecificTarget(installLabel.ID, munkisoftware.SoftwareActionManagedInstalls, installPackage.ID),
+		includeSpecificTarget(removeLabel.ID, munkisoftware.SoftwareActionManagedUninstalls, removePackage.ID),
 	}, nil)
 
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
@@ -427,7 +433,11 @@ func TestEffectivePackagesForHostUsesRowOrderNotActionRank(t *testing.T) {
 	if len(effective) != 1 {
 		t.Fatalf("effective packages = %+v, want one resolved item", effective)
 	}
-	if effective[0].State != munkisoftware.SoftwareStateManagedInstall || effective[0].Package.Version != "1.0" {
+	if !sameSoftwareActions(
+		effective[0].Actions,
+		[]munkisoftware.SoftwareAction{munkisoftware.SoftwareActionManagedInstalls},
+	) ||
+		effective[0].Package.Version != "1.0" {
 		t.Fatalf("effective pkg = %+v, want first row install of RowOrderApp 1.0", effective[0])
 	}
 }
@@ -841,7 +851,7 @@ func TestUpdatePackageReplacesEditableStateAndClearsUnusedArtifacts(t *testing.T
 		t.Fatalf("updated package modes = %s/%s, want nopkg/none", updated.InstallerType, updated.UninstallMethod)
 	}
 	if updated.Version != "2.0" || updated.MinimumMunkiVersion != "" || len(updated.Requires) != 0 {
-		t.Fatalf("updated package = %+v, want replacement state", updated)
+		t.Fatalf("updated package = %+v, want replacement package fields", updated)
 	}
 }
 
@@ -864,7 +874,7 @@ func TestCreateTargetTargetsAllHostsLabel(t *testing.T) {
 	}
 	createMunkiPackage(t, ctx, stores, title.ID, "AllDevicesApp", "1.0")
 	replaceSoftwareTargets(t, ctx, stores, title, []munkisoftware.SoftwareInclude{
-		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareStateManagedInstall),
+		includeTarget(allHostsLabelID(t, ctx, labelStore), munkisoftware.SoftwareActionManagedInstalls),
 	}, nil)
 	effective, err := stores.software.EffectivePackagesForHost(ctx, host.ID)
 	if err != nil {
@@ -894,7 +904,7 @@ func TestSoftwareTargetsRejectPinnedPackageFromAnotherSoftware(t *testing.T) {
 		[]munkisoftware.SoftwareInclude{
 			includeSpecificTarget(
 				allHostsLabelID(t, ctx, labelStore),
-				munkisoftware.SoftwareStateManagedInstall,
+				munkisoftware.SoftwareActionManagedInstalls,
 				pkg.ID,
 			),
 		},
@@ -943,7 +953,7 @@ func TestSoftwareTargetsRejectBuiltinAndIncludeOverlap(t *testing.T) {
 		Name: title.Name,
 		Targets: munkisoftware.SoftwareTargets{
 			Include: []munkisoftware.SoftwareInclude{
-				includeTarget(includeLabel.ID, munkisoftware.SoftwareStateManagedInstall),
+				includeTarget(includeLabel.ID, munkisoftware.SoftwareActionManagedInstalls),
 			},
 			Exclude: labelRefs([]int64{includeLabel.ID}),
 		},
@@ -972,7 +982,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	}
 	firstPkg := createMunkiPackage(t, ctx, stores, first.ID, "DeletePinnedApp", "1.0")
 	replaceSoftwareTargets(t, ctx, stores, first, []munkisoftware.SoftwareInclude{
-		includeSpecificTarget(labelID, munkisoftware.SoftwareStateManagedInstall, firstPkg.ID),
+		includeSpecificTarget(labelID, munkisoftware.SoftwareActionManagedInstalls, firstPkg.ID),
 	}, nil)
 
 	if err := stores.software.Delete(ctx, first.ID); err != nil {
@@ -992,7 +1002,7 @@ func TestDeleteMunkiSoftwareCleansPackagesTargetsAndIgnoresMissingBulkIDs(t *tes
 	}
 	secondPkg := createMunkiPackage(t, ctx, stores, second.ID, "BulkPinnedApp", "1.0")
 	replaceSoftwareTargets(t, ctx, stores, second, []munkisoftware.SoftwareInclude{
-		includeSpecificTarget(labelID, munkisoftware.SoftwareStateManagedInstall, secondPkg.ID),
+		includeSpecificTarget(labelID, munkisoftware.SoftwareActionManagedInstalls, secondPkg.ID),
 	}, nil)
 	third, err := stores.software.Create(ctx, munkisoftware.SoftwareMutation{Name: "BulkPlainApp"})
 	if err != nil {
@@ -1026,7 +1036,7 @@ func TestTargetMissingLabelFallsThroughToNotFound(t *testing.T) {
 	_, err = stores.software.Update(ctx, title.ID, softwareTargetMutation(
 		title,
 		[]munkisoftware.SoftwareInclude{
-			includeTarget(999_999, munkisoftware.SoftwareStateManagedInstall),
+			includeTarget(999_999, munkisoftware.SoftwareActionManagedInstalls),
 		},
 		nil,
 	))
@@ -1175,20 +1185,20 @@ func softwareTargetMutation(
 
 func includeTarget(
 	labelID int64,
-	state munkisoftware.SoftwareState,
+	actions ...munkisoftware.SoftwareAction,
 ) munkisoftware.SoftwareInclude {
 	return munkisoftware.SoftwareInclude{
 		LabelID: labelID,
 		Package: munkisoftware.SoftwarePackageSelector{
 			Strategy: munkisoftware.SoftwarePackageLatest,
 		},
-		State: state,
+		Actions: actions,
 	}
 }
 
 func includeSpecificTarget(
 	labelID int64,
-	state munkisoftware.SoftwareState,
+	action munkisoftware.SoftwareAction,
 	pinnedPackageID int64,
 ) munkisoftware.SoftwareInclude {
 	return munkisoftware.SoftwareInclude{
@@ -1197,7 +1207,7 @@ func includeSpecificTarget(
 			Strategy:  munkisoftware.SoftwarePackageSpecific,
 			PackageID: &pinnedPackageID,
 		},
-		State: state,
+		Actions: []munkisoftware.SoftwareAction{action},
 	}
 }
 
@@ -1210,6 +1220,18 @@ func labelRefs(ids []int64) []targeting.LabelRef {
 }
 
 func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sameSoftwareActions(a, b []munkisoftware.SoftwareAction) bool {
 	if len(a) != len(b) {
 		return false
 	}

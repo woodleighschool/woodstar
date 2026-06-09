@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { SoftwareInclude } from "@/lib/api";
 
-import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_STATE_VALUES } from "@/lib/munki-software";
+import { MUNKI_PACKAGE_STRATEGY_VALUES, MUNKI_SOFTWARE_ACTION_VALUES } from "@/lib/munki-software";
 
 export const LATEST_PACKAGE_VALUE = "latest";
 
@@ -21,8 +21,7 @@ export const munkiSoftwareTargetSchema = z
       .nullable()
       .refine((value) => value !== null, "Pick a label."),
     package: packageSelectorSchema,
-    state: z.enum(MUNKI_SOFTWARE_STATE_VALUES),
-    featured: z.boolean(),
+    actions: z.array(z.enum(MUNKI_SOFTWARE_ACTION_VALUES)).min(1, "Pick at least one action."),
   })
   .superRefine(validateTarget);
 
@@ -30,16 +29,14 @@ export interface MunkiSoftwareTargetMutation {
   priority: number;
   label_id: number | null;
   package: SoftwareInclude["package"];
-  state: SoftwareInclude["state"];
-  featured: boolean;
+  actions: SoftwareInclude["actions"];
 }
 
 export function munkiSoftwareInclude(target: MunkiSoftwareTargetMutation): SoftwareInclude {
   return {
     label_id: target.label_id ?? 0,
     package: target.package,
-    state: target.state,
-    featured: target.featured,
+    actions: target.actions,
   };
 }
 
@@ -67,12 +64,5 @@ function validateTarget(value: MunkiSoftwareTargetMutation, ctx: z.RefinementCtx
   }
   if (value.package.strategy === "specific" && !value.package.package_id) {
     ctx.addIssue({ code: "custom", message: "Package is required.", path: ["package"] });
-  }
-  if (value.featured && value.state !== "optional_install") {
-    ctx.addIssue({
-      code: "custom",
-      message: "Featured Items require Optional Installs.",
-      path: ["featured"],
-    });
   }
 }
