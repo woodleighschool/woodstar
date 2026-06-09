@@ -717,15 +717,14 @@ export type MunkiPackage = {
     apple_item: boolean;
     autoremove: boolean;
     blocking_applications: Array<string> | null;
+    blocking_applications_manual_quit_only: boolean;
+    blocking_applications_quit_script: string;
     created_at: string;
     eligible: boolean;
     force_install_after_date?: string;
-    icon_artifact_id?: number;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_url?: string;
     id: number;
+    installable_condition: string;
     installcheck_script: string;
     installed_size: number;
     installer_artifact_id?: number;
@@ -777,7 +776,6 @@ export type MunkiPackageImportMutation = {
      */
     readonly $schema?: string;
     eligible?: boolean;
-    icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
     uninstaller_artifact_id?: number;
@@ -791,11 +789,11 @@ export type MunkiPackageMutation = {
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
+    blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_quit_script?: string;
     eligible: boolean;
     force_install_after_date?: string;
-    icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
+    installable_condition?: string;
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;
@@ -1718,15 +1716,14 @@ export type MunkiPackageWritable = {
     apple_item: boolean;
     autoremove: boolean;
     blocking_applications: Array<string> | null;
+    blocking_applications_manual_quit_only: boolean;
+    blocking_applications_quit_script: string;
     created_at: string;
     eligible: boolean;
     force_install_after_date?: string;
-    icon_artifact_id?: number;
-    icon_artifact_location?: string;
-    icon_hash: string;
-    icon_name: string;
     icon_url?: string;
     id: number;
+    installable_condition: string;
     installcheck_script: string;
     installed_size: number;
     installer_artifact_id?: number;
@@ -1774,7 +1771,6 @@ export type MunkiPackageWritable = {
 
 export type MunkiPackageImportMutationWritable = {
     eligible?: boolean;
-    icon_artifact_id?: number;
     installer_artifact_id?: number;
     pkginfo: unknown;
     uninstaller_artifact_id?: number;
@@ -1784,11 +1780,11 @@ export type MunkiPackageMutationWritable = {
     apple_item?: boolean;
     autoremove?: boolean;
     blocking_applications?: Array<string> | null;
+    blocking_applications_manual_quit_only?: boolean;
+    blocking_applications_quit_script?: string;
     eligible: boolean;
     force_install_after_date?: string;
-    icon_artifact_id?: number;
-    icon_hash?: string;
-    icon_name?: string;
+    installable_condition?: string;
     installcheck_script?: string;
     installed_size?: number;
     installer_artifact_id?: number;

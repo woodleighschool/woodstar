@@ -232,7 +232,6 @@ function MunkiSoftwareDetailForm({
           <PackageIconView pkg={row.original} />
           <div className="min-w-0">
             <div className="truncate font-medium">{row.original.version}</div>
-            <div className="text-muted-foreground truncate text-xs">{row.original.software_name}</div>
           </div>
         </div>
       ),

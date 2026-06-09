@@ -1,6 +1,5 @@
 #!/usr/local/autopkg/python
 
-import json
 import os.path
 import plistlib
 import sys
@@ -22,23 +21,6 @@ SUPPORTED_UNINSTALL_METHODS = {
     "uninstall_script",
     "uninstall_package",
 }
-PACKAGE_METADATA_KEYS = {
-    "name",
-    "display_name",
-    "description",
-    "category",
-    "developer",
-    "icon_name",
-    "icon_hash",
-    "installer_item_location",
-    "installer_item_hash",
-    "installer_item_size",
-    "uninstaller_item_location",
-    "uninstaller_item_hash",
-    "uninstaller_item_size",
-}
-
-
 class WoodstarMunkiPackageUploader(Processor):
     description = "Uploads a Munki package artifact and imports pkginfo into Woodstar."
 
@@ -52,20 +34,28 @@ class WoodstarMunkiPackageUploader(Processor):
             "description": "Woodstar admin API key.",
         },
         "MUNKI_REPO": {
-            "required": False,
-            "description": "Munki repo path used to resolve pkg_repo_path/pkginfo_repo_path.",
+            "required": True,
+            "description": "Munki repo path containing MunkiImporter output.",
         },
-        "pkg_path": {
+        "MUNKI_REPO_SUBDIR": {
             "required": False,
-            "description": "Package path. Defaults to MunkiImporter pkg_repo_path. Not used for nopkg items.",
+            "description": "MunkiImporter repo subdirectory containing the generated pkginfo.",
+        },
+        "version": {
+            "required": False,
+            "description": "Package version used by MunkiImporter when naming the generated pkginfo.",
+        },
+        "pkg_repo_path": {
+            "required": False,
+            "description": "MunkiImporter package artifact path. Required for package-bearing pkginfo.",
         },
         "uninstaller_pkg_path": {
             "required": False,
             "description": "Optional uninstaller package path for uninstall_package pkginfo.",
         },
         "pkginfo": {
-            "required": False,
-            "description": "Munki pkginfo dictionary. Defaults to munki_info.",
+            "required": True,
+            "description": "Recipe pkginfo used to locate the MunkiImporter repo pkginfo by name.",
         },
         "software_id": {
             "required": False,
@@ -110,7 +100,6 @@ class WoodstarMunkiPackageUploader(Processor):
 
         body = {
             "pkginfo": pkginfo,
-            "software_id": software_id,
             "eligible": truthy(self.env.get("eligible", True)),
         }
         if installer_artifact:
@@ -118,7 +107,7 @@ class WoodstarMunkiPackageUploader(Processor):
         if uninstaller_artifact:
             body["uninstaller_artifact_id"] = uninstaller_artifact["id"]
 
-        package = client.post("/api/munki/packages/import", body)
+        package = client.post(f"/api/munki/software/{software_id}/packages/import", body)
         if installer_artifact:
             self.env["woodstar_package_artifact"] = installer_artifact
         if uninstaller_artifact:
@@ -150,22 +139,41 @@ class WoodstarMunkiPackageUploader(Processor):
         except (TypeError, ValueError) as err:
             raise ProcessorError("software_id or woodstar_software_id must be an integer") from err
 
+    def load_pkginfo(self, path):
+        with open(path, "rb") as handle:
+            return plistlib.load(handle)
+
+    def repo_pkginfo_path(self):
+        input_pkginfo = self.env.get("pkginfo")
+        if not isinstance(input_pkginfo, dict) or not input_pkginfo.get("name"):
+            raise ProcessorError("pkginfo.name is required to locate MunkiImporter output")
+        expected_name = input_pkginfo["name"]
+        expected_version = self.env.get("version") or ""
+        if not expected_version:
+            raise ProcessorError("version is required to locate MunkiImporter output")
+
+        subdir = self.env.get("MUNKI_REPO_SUBDIR") or ""
+        filename = f"{expected_name}-{expected_version}.plist"
+        path = self.repo_path(os.path.join("pkgsinfo", subdir, filename))
+        if not path:
+            raise ProcessorError("MUNKI_REPO is required to locate MunkiImporter output")
+        if not os.path.isfile(path):
+            raise ProcessorError(f"MunkiImporter pkginfo not found: {path}")
+        return path
+
     def pkginfo(self):
-        pkginfo = self.env.get("munki_info") or self.env.get("pkginfo")
-        if isinstance(pkginfo, dict):
-            return self.with_version(pkginfo)
-        pkginfo_path = self.repo_path(self.env.get("pkginfo_repo_path"))
-        if pkginfo_path:
-            with open(pkginfo_path, "rb") as handle:
-                return self.with_version(plistlib.load(handle))
-        raise ProcessorError("pkginfo, munki_info, or pkginfo_repo_path is required")
+        pkginfo_path = self.repo_pkginfo_path()
+        self.output(f"Using MunkiImporter pkginfo: {pkginfo_path}")
+        try:
+            return self.load_pkginfo(pkginfo_path)
+        except (OSError, plistlib.InvalidFileException, ValueError) as err:
+            raise ProcessorError(f"failed to read MunkiImporter pkginfo {pkginfo_path}: {err}") from err
 
     def package_path(self):
-        for key in ("pathname", "pkg_path", "pkg_repo_path"):
-            value = self.repo_path(self.env.get(key))
-            if value and os.path.exists(value):
-                return value
-        raise ProcessorError("pkg_path, pkg_repo_path, or pathname is required")
+        value = self.repo_path(self.env.get("pkg_repo_path"))
+        if value and os.path.exists(value):
+            return value
+        raise ProcessorError("pkg_repo_path is required for package-bearing MunkiImporter pkginfo")
 
     def uninstaller_package_path(self):
         for key in ("uninstaller_pkg_path", "uninstaller_pkg_repo_path"):
@@ -179,7 +187,7 @@ class WoodstarMunkiPackageUploader(Processor):
         if self.needs_installer_artifact(pkginfo):
             installer_path = self.package_path()
         elif self.package_path_is_set():
-            raise ProcessorError("nopkg installer_type cannot upload pkg_path, pkg_repo_path, or pathname")
+            raise ProcessorError("nopkg installer_type cannot upload pkg_repo_path")
 
         uninstaller_path = None
         if self.needs_uninstaller_artifact(pkginfo):
@@ -187,7 +195,7 @@ class WoodstarMunkiPackageUploader(Processor):
         return installer_path, uninstaller_path
 
     def package_path_is_set(self):
-        return any(self.env.get(key) for key in ("pathname", "pkg_path", "pkg_repo_path"))
+        return bool(self.env.get("pkg_repo_path"))
 
     def repo_path(self, value):
         if not value:
@@ -200,22 +208,12 @@ class WoodstarMunkiPackageUploader(Processor):
             return os.path.join(munki_repo, value)
         return value
 
-    def with_version(self, pkginfo):
-        pkginfo = json.loads(json.dumps(pkginfo, default=str))
-        if not pkginfo.get("version") and self.env.get("version"):
-            pkginfo["version"] = self.env["version"]
-        for key in PACKAGE_METADATA_KEYS:
-            pkginfo.pop(key, None)
-        return pkginfo
-
     def validate_pkginfo(self, pkginfo):
         if not str(pkginfo.get("version") or "").strip():
             raise ProcessorError("pkginfo version is required")
         installer_type = self.installer_type(pkginfo)
         if installer_type not in SUPPORTED_INSTALLER_TYPES:
             raise ProcessorError(f"installer_type {installer_type!r} is not supported by Woodstar")
-        if installer_type == "pkg" and self.non_empty_list(pkginfo, "items_to_copy"):
-            raise ProcessorError("pkg installer_type cannot set items_to_copy")
         if installer_type == "copy_from_dmg" and not self.non_empty_list(pkginfo, "items_to_copy"):
             raise ProcessorError("copy_from_dmg installer_type requires items_to_copy")
         if installer_type == "nopkg" and not self.has_nopkg_evidence(pkginfo):

@@ -255,7 +255,7 @@ func (s *RepositoryService) catalogItems(effective []munkisoftware.EffectivePack
 			continue
 		}
 		seen[pkg.Package.ID] = true
-		item := packages.Pkginfo(pkg.Package)
+		item := packages.Pkginfo(pkg.Package, pkg.SoftwareIcon)
 		delete(item, "PackageCompleteURL")
 		delete(item, "PackageURL")
 		delete(item, "installer_item_location")

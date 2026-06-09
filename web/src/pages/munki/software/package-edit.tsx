@@ -3,7 +3,6 @@ import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
-import { EditableMunkiIcon } from "@/components/munki/editable-munki-icon";
 import { PackageEditorTabs, PackageFormActions } from "@/components/munki/software/package-editor-fields";
 import { MutationError } from "@/components/mutation-error";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
@@ -30,11 +29,9 @@ export function MunkiPackageNewPage() {
   const softwareID = useSoftwareIDParam();
   const create = useCreateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
-  const iconUpload = useUploadMunkiArtifact("icon");
   const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
-  const [iconFile, setIconFile] = useState<File | null>(null);
   const [preflightError, setPreflightError] = useState<string | undefined>();
   const form = usePackageEditorForm(emptyPackageForm(), async (value) => {
     if (softwareID === null) return;
@@ -53,13 +50,11 @@ export function MunkiPackageNewPage() {
       value.uninstall_method === "uninstall_package" && uninstallerFile
         ? await packageUpload.upload(uninstallerFile)
         : null;
-    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
     await create.mutateAsync({
       softwareID,
       body: packageMutationFromForm(value, {
         installerArtifactID: installerArtifact?.id,
         uninstallerArtifactID: uninstallerArtifact?.id,
-        iconArtifactID: iconArtifact?.id,
       }),
     });
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
@@ -73,21 +68,10 @@ export function MunkiPackageNewPage() {
           void form.handleSubmit();
         }}
       >
-        <PageHeader
-          title="New Package"
-          leading={
-            <EditableMunkiIcon
-              title="package icon"
-              file={iconFile}
-              clearable={!!iconFile}
-              onFileChange={setIconFile}
-              onClear={() => setIconFile(null)}
-            />
-          }
-        />
+        <PageHeader title="New Package" />
         <MutationError
           title="Failed to Create Package"
-          message={preflightError ?? create.error?.message ?? packageUpload.error?.message ?? iconUpload.error?.message}
+          message={preflightError ?? create.error?.message ?? packageUpload.error?.message}
         />
         <PackageEditorTabs
           form={form}
@@ -99,10 +83,7 @@ export function MunkiPackageNewPage() {
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
         />
-        <PackageFormActions
-          pending={create.isPending || packageUpload.isUploading || iconUpload.isUploading}
-          softwareID={softwareID}
-        />
+        <PackageFormActions pending={create.isPending || packageUpload.isUploading} softwareID={softwareID} />
       </form>
     </PageShell>
   );
@@ -159,12 +140,9 @@ function MunkiPackageEditForm({
   const navigate = useNavigate();
   const update = useUpdateMunkiPackage();
   const packageUpload = useUploadMunkiArtifact("package");
-  const iconUpload = useUploadMunkiArtifact("icon");
   const packages = useMunkiPackages({ page_size: MAX_PAGE_SIZE, sort: "name.asc" });
   const [installerFile, setInstallerFile] = useState<File | null>(null);
   const [uninstallerFile, setUninstallerFile] = useState<File | null>(null);
-  const [iconFile, setIconFile] = useState<File | null>(null);
-  const [iconCleared, setIconCleared] = useState(false);
   const [preflightError, setPreflightError] = useState<string | undefined>();
   const initial = useMemo(() => packageFormFromPackage(pkg), [pkg]);
   const form = usePackageEditorForm(initial, async (value) => {
@@ -183,17 +161,13 @@ function MunkiPackageEditForm({
       value.uninstall_method === "uninstall_package" && uninstallerFile
         ? await packageUpload.upload(uninstallerFile)
         : null;
-    const iconArtifact = iconFile ? await iconUpload.upload(iconFile) : null;
     const body = packageMutationFromForm(value, {
       installerArtifactID: installerArtifact?.id ?? pkg.installer_artifact_id,
       uninstallerArtifactID: uninstallerArtifact?.id ?? pkg.uninstaller_artifact_id,
-      iconArtifactID: iconArtifact?.id ?? (iconCleared ? undefined : pkg.icon_artifact_id),
     });
     await update.mutateAsync({ id: packageID, body });
     void navigate({ to: "/munki/software/$softwareId", params: { softwareId: String(softwareID) } });
   });
-  const packageIconURL = iconCleared ? undefined : pkg.icon_url;
-  const packageIconClearable = !!iconFile || (!iconCleared && !!pkg.icon_artifact_id);
 
   return (
     <PageShell asChild>
@@ -204,28 +178,10 @@ function MunkiPackageEditForm({
           void form.handleSubmit();
         }}
       >
-        <PageHeader
-          title="Edit Package"
-          leading={
-            <EditableMunkiIcon
-              title="package icon"
-              iconUrl={packageIconURL}
-              file={iconFile}
-              clearable={packageIconClearable}
-              onFileChange={(file) => {
-                setIconFile(file);
-                setIconCleared(false);
-              }}
-              onClear={() => {
-                setIconFile(null);
-                setIconCleared(!!pkg.icon_artifact_id);
-              }}
-            />
-          }
-        />
+        <PageHeader title="Edit Package" />
         <MutationError
           title="Failed to Update Package"
-          message={preflightError ?? update.error?.message ?? packageUpload.error?.message ?? iconUpload.error?.message}
+          message={preflightError ?? update.error?.message ?? packageUpload.error?.message}
         />
         <PackageEditorTabs
           form={form}
@@ -237,10 +193,7 @@ function MunkiPackageEditForm({
           onInstallerFileChange={setInstallerFile}
           onUninstallerFileChange={setUninstallerFile}
         />
-        <PackageFormActions
-          pending={update.isPending || packageUpload.isUploading || iconUpload.isUploading}
-          softwareID={softwareID}
-        />
+        <PackageFormActions pending={update.isPending || packageUpload.isUploading} softwareID={softwareID} />
       </form>
     </PageShell>
   );

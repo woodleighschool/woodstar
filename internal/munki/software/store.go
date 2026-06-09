@@ -21,7 +21,7 @@ type artifactStore interface {
 }
 
 type packageStore interface {
-	GetByID(context.Context, int64) (*packages.Package, error)
+	GetByID(context.Context, int64) (*packages.PackageRecord, error)
 	AttachRelations(context.Context, []packages.Package) ([]packages.Package, error)
 }
 

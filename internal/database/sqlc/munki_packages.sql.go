@@ -22,6 +22,9 @@ INSERT INTO munki_packages (
     maximum_os_version,
     supported_architectures,
     blocking_applications,
+    installable_condition,
+    blocking_applications_manual_quit_only,
+    blocking_applications_quit_script,
     unattended_install,
     unattended_uninstall,
     on_demand,
@@ -56,11 +59,8 @@ INSERT INTO munki_packages (
     preuninstall_alert_detail,
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
-    icon_name,
-    icon_hash,
     installer_artifact_id,
     uninstaller_artifact_id,
-    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -81,17 +81,17 @@ VALUES (
     $15,
     $16,
     $17,
-    $18::timestamptz,
+    $18,
     $19,
     $20,
-    $21,
-    $22::jsonb,
-    $23::jsonb,
-    $24::jsonb,
+    $21::timestamptz,
+    $22,
+    $23,
+    $24,
     $25::jsonb,
-    $26,
-    $27,
-    $28,
+    $26::jsonb,
+    $27::jsonb,
+    $28::jsonb,
     $29,
     $30,
     $31,
@@ -110,65 +110,65 @@ VALUES (
     $44,
     $45,
     $46,
-    $47::bigint,
+    $47,
     $48::bigint,
     $49::bigint,
     $50
 )
-RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_artifact_id, uninstaller_artifact_id, eligible, created_at, updated_at
 `
 
 type CreateMunkiPackageParams struct {
-	SoftwareID                   int64      `json:"software_id"`
-	Version                      string     `json:"version"`
-	InstallerType                string     `json:"installer_type"`
-	UninstallMethod              string     `json:"uninstall_method"`
-	RestartAction                string     `json:"restart_action"`
-	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
-	MinimumOSVersion             string     `json:"minimum_os_version"`
-	MaximumOSVersion             string     `json:"maximum_os_version"`
-	SupportedArchitectures       []string   `json:"supported_architectures"`
-	BlockingApplications         []string   `json:"blocking_applications"`
-	UnattendedInstall            bool       `json:"unattended_install"`
-	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	OnDemand                     bool       `json:"on_demand"`
-	Precache                     bool       `json:"precache"`
-	Autoremove                   bool       `json:"autoremove"`
-	AppleItem                    bool       `json:"apple_item"`
-	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
-	InstalledSize                int64      `json:"installed_size"`
-	PackagePath                  string     `json:"package_path"`
-	InstallerChoicesXml          string     `json:"installer_choices_xml"`
-	InstallerEnvironment         []byte     `json:"installer_environment"`
-	Installs                     []byte     `json:"installs"`
-	Receipts                     []byte     `json:"receipts"`
-	ItemsToCopy                  []byte     `json:"items_to_copy"`
-	Notes                        string     `json:"notes"`
-	InstallcheckScript           string     `json:"installcheck_script"`
-	UninstallcheckScript         string     `json:"uninstallcheck_script"`
-	PreinstallScript             string     `json:"preinstall_script"`
-	PostinstallScript            string     `json:"postinstall_script"`
-	PreuninstallScript           string     `json:"preuninstall_script"`
-	PostuninstallScript          string     `json:"postuninstall_script"`
-	UninstallScript              string     `json:"uninstall_script"`
-	VersionScript                string     `json:"version_script"`
-	PreinstallAlertEnabled       bool       `json:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string     `json:"preinstall_alert_title"`
-	PreinstallAlertDetail        string     `json:"preinstall_alert_detail"`
-	PreinstallAlertOkLabel       string     `json:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string     `json:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool       `json:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string     `json:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string     `json:"preuninstall_alert_detail"`
-	PreuninstallAlertOkLabel     string     `json:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string     `json:"preuninstall_alert_cancel_label"`
-	IconName                     string     `json:"icon_name"`
-	IconHash                     string     `json:"icon_hash"`
-	InstallerArtifactID          *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID        *int64     `json:"uninstaller_artifact_id"`
-	IconArtifactID               *int64     `json:"icon_artifact_id"`
-	Eligible                     bool       `json:"eligible"`
+	SoftwareID                         int64      `json:"software_id"`
+	Version                            string     `json:"version"`
+	InstallerType                      string     `json:"installer_type"`
+	UninstallMethod                    string     `json:"uninstall_method"`
+	RestartAction                      string     `json:"restart_action"`
+	MinimumMunkiVersion                string     `json:"minimum_munki_version"`
+	MinimumOSVersion                   string     `json:"minimum_os_version"`
+	MaximumOSVersion                   string     `json:"maximum_os_version"`
+	SupportedArchitectures             []string   `json:"supported_architectures"`
+	BlockingApplications               []string   `json:"blocking_applications"`
+	InstallableCondition               string     `json:"installable_condition"`
+	BlockingApplicationsManualQuitOnly bool       `json:"blocking_applications_manual_quit_only"`
+	BlockingApplicationsQuitScript     string     `json:"blocking_applications_quit_script"`
+	UnattendedInstall                  bool       `json:"unattended_install"`
+	UnattendedUninstall                bool       `json:"unattended_uninstall"`
+	OnDemand                           bool       `json:"on_demand"`
+	Precache                           bool       `json:"precache"`
+	Autoremove                         bool       `json:"autoremove"`
+	AppleItem                          bool       `json:"apple_item"`
+	SuppressBundleRelocation           bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
+	InstalledSize                      int64      `json:"installed_size"`
+	PackagePath                        string     `json:"package_path"`
+	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerEnvironment               []byte     `json:"installer_environment"`
+	Installs                           []byte     `json:"installs"`
+	Receipts                           []byte     `json:"receipts"`
+	ItemsToCopy                        []byte     `json:"items_to_copy"`
+	Notes                              string     `json:"notes"`
+	InstallcheckScript                 string     `json:"installcheck_script"`
+	UninstallcheckScript               string     `json:"uninstallcheck_script"`
+	PreinstallScript                   string     `json:"preinstall_script"`
+	PostinstallScript                  string     `json:"postinstall_script"`
+	PreuninstallScript                 string     `json:"preuninstall_script"`
+	PostuninstallScript                string     `json:"postuninstall_script"`
+	UninstallScript                    string     `json:"uninstall_script"`
+	VersionScript                      string     `json:"version_script"`
+	PreinstallAlertEnabled             bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle               string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail              string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel             string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel         string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled           bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle             string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
+	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
+	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	Eligible                           bool       `json:"eligible"`
 }
 
 func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackageParams) (MunkiPackage, error) {
@@ -183,6 +183,9 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.MaximumOSVersion,
 		arg.SupportedArchitectures,
 		arg.BlockingApplications,
+		arg.InstallableCondition,
+		arg.BlockingApplicationsManualQuitOnly,
+		arg.BlockingApplicationsQuitScript,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
 		arg.OnDemand,
@@ -217,11 +220,8 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		arg.PreuninstallAlertDetail,
 		arg.PreuninstallAlertOkLabel,
 		arg.PreuninstallAlertCancelLabel,
-		arg.IconName,
-		arg.IconHash,
 		arg.InstallerArtifactID,
 		arg.UninstallerArtifactID,
-		arg.IconArtifactID,
 		arg.Eligible,
 	)
 	var i MunkiPackage
@@ -237,6 +237,9 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.MaximumOSVersion,
 		&i.SupportedArchitectures,
 		&i.BlockingApplications,
+		&i.InstallableCondition,
+		&i.BlockingApplicationsManualQuitOnly,
+		&i.BlockingApplicationsQuitScript,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
 		&i.OnDemand,
@@ -271,11 +274,8 @@ func (q *Queries) CreateMunkiPackage(ctx context.Context, arg CreateMunkiPackage
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.IconName,
-		&i.IconHash,
 		&i.InstallerArtifactID,
 		&i.UninstallerArtifactID,
-		&i.IconArtifactID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -350,7 +350,7 @@ func (q *Queries) DeleteMunkiPackageRelationsByKind(ctx context.Context, arg Del
 
 const getMunkiPackageByID = `-- name: GetMunkiPackageByID :one
 SELECT
-    p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.icon_name, p.icon_hash, p.installer_artifact_id, p.uninstaller_artifact_id, p.icon_artifact_id, p.eligible, p.created_at, p.updated_at,
+    p.id, p.software_id, p.version, p.installer_type, p.uninstall_method, p.restart_action, p.minimum_munki_version, p.minimum_os_version, p.maximum_os_version, p.supported_architectures, p.blocking_applications, p.installable_condition, p.blocking_applications_manual_quit_only, p.blocking_applications_quit_script, p.unattended_install, p.unattended_uninstall, p.on_demand, p.precache, p.autoremove, p.apple_item, p.suppress_bundle_relocation, p.force_install_after_date, p.installed_size, p.package_path, p.installer_choices_xml, p.installer_environment, p.installs, p.receipts, p.items_to_copy, p.notes, p.installcheck_script, p.uninstallcheck_script, p.preinstall_script, p.postinstall_script, p.preuninstall_script, p.postuninstall_script, p.uninstall_script, p.version_script, p.preinstall_alert_enabled, p.preinstall_alert_title, p.preinstall_alert_detail, p.preinstall_alert_ok_label, p.preinstall_alert_cancel_label, p.preuninstall_alert_enabled, p.preuninstall_alert_title, p.preuninstall_alert_detail, p.preuninstall_alert_ok_label, p.preuninstall_alert_cancel_label, p.installer_artifact_id, p.uninstaller_artifact_id, p.eligible, p.created_at, p.updated_at,
     s.name AS software_name,
     s.description AS software_description,
     s.category AS software_category,
@@ -360,13 +360,11 @@ SELECT
     s.icon_artifact_id AS software_icon_artifact_id,
     art.location AS installer_artifact_location,
     uninstaller.location AS uninstaller_artifact_location,
-    icon.location AS icon_artifact_location,
     software_icon.location AS software_icon_artifact_location
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
-LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = $1
 `
@@ -376,70 +374,69 @@ type GetMunkiPackageByIDParams struct {
 }
 
 type GetMunkiPackageByIDRow struct {
-	ID                           int64      `json:"id"`
-	SoftwareID                   int64      `json:"software_id"`
-	Version                      string     `json:"version"`
-	InstallerType                string     `json:"installer_type"`
-	UninstallMethod              string     `json:"uninstall_method"`
-	RestartAction                string     `json:"restart_action"`
-	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
-	MinimumOSVersion             string     `json:"minimum_os_version"`
-	MaximumOSVersion             string     `json:"maximum_os_version"`
-	SupportedArchitectures       []string   `json:"supported_architectures"`
-	BlockingApplications         []string   `json:"blocking_applications"`
-	UnattendedInstall            bool       `json:"unattended_install"`
-	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	OnDemand                     bool       `json:"on_demand"`
-	Precache                     bool       `json:"precache"`
-	Autoremove                   bool       `json:"autoremove"`
-	AppleItem                    bool       `json:"apple_item"`
-	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
-	InstalledSize                int64      `json:"installed_size"`
-	PackagePath                  string     `json:"package_path"`
-	InstallerChoicesXml          string     `json:"installer_choices_xml"`
-	InstallerEnvironment         []byte     `json:"installer_environment"`
-	Installs                     []byte     `json:"installs"`
-	Receipts                     []byte     `json:"receipts"`
-	ItemsToCopy                  []byte     `json:"items_to_copy"`
-	Notes                        string     `json:"notes"`
-	InstallcheckScript           string     `json:"installcheck_script"`
-	UninstallcheckScript         string     `json:"uninstallcheck_script"`
-	PreinstallScript             string     `json:"preinstall_script"`
-	PostinstallScript            string     `json:"postinstall_script"`
-	PreuninstallScript           string     `json:"preuninstall_script"`
-	PostuninstallScript          string     `json:"postuninstall_script"`
-	UninstallScript              string     `json:"uninstall_script"`
-	VersionScript                string     `json:"version_script"`
-	PreinstallAlertEnabled       bool       `json:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string     `json:"preinstall_alert_title"`
-	PreinstallAlertDetail        string     `json:"preinstall_alert_detail"`
-	PreinstallAlertOkLabel       string     `json:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string     `json:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool       `json:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string     `json:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string     `json:"preuninstall_alert_detail"`
-	PreuninstallAlertOkLabel     string     `json:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string     `json:"preuninstall_alert_cancel_label"`
-	IconName                     string     `json:"icon_name"`
-	IconHash                     string     `json:"icon_hash"`
-	InstallerArtifactID          *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID        *int64     `json:"uninstaller_artifact_id"`
-	IconArtifactID               *int64     `json:"icon_artifact_id"`
-	Eligible                     bool       `json:"eligible"`
-	CreatedAt                    time.Time  `json:"created_at"`
-	UpdatedAt                    time.Time  `json:"updated_at"`
-	SoftwareName                 string     `json:"software_name"`
-	SoftwareDescription          string     `json:"software_description"`
-	SoftwareCategory             string     `json:"software_category"`
-	SoftwareDeveloper            string     `json:"software_developer"`
-	SoftwareIconName             string     `json:"software_icon_name"`
-	SoftwareIconHash             string     `json:"software_icon_hash"`
-	SoftwareIconArtifactID       *int64     `json:"software_icon_artifact_id"`
-	InstallerArtifactLocation    *string    `json:"installer_artifact_location"`
-	UninstallerArtifactLocation  *string    `json:"uninstaller_artifact_location"`
-	IconArtifactLocation         *string    `json:"icon_artifact_location"`
-	SoftwareIconArtifactLocation *string    `json:"software_icon_artifact_location"`
+	ID                                 int64      `json:"id"`
+	SoftwareID                         int64      `json:"software_id"`
+	Version                            string     `json:"version"`
+	InstallerType                      string     `json:"installer_type"`
+	UninstallMethod                    string     `json:"uninstall_method"`
+	RestartAction                      string     `json:"restart_action"`
+	MinimumMunkiVersion                string     `json:"minimum_munki_version"`
+	MinimumOSVersion                   string     `json:"minimum_os_version"`
+	MaximumOSVersion                   string     `json:"maximum_os_version"`
+	SupportedArchitectures             []string   `json:"supported_architectures"`
+	BlockingApplications               []string   `json:"blocking_applications"`
+	InstallableCondition               string     `json:"installable_condition"`
+	BlockingApplicationsManualQuitOnly bool       `json:"blocking_applications_manual_quit_only"`
+	BlockingApplicationsQuitScript     string     `json:"blocking_applications_quit_script"`
+	UnattendedInstall                  bool       `json:"unattended_install"`
+	UnattendedUninstall                bool       `json:"unattended_uninstall"`
+	OnDemand                           bool       `json:"on_demand"`
+	Precache                           bool       `json:"precache"`
+	Autoremove                         bool       `json:"autoremove"`
+	AppleItem                          bool       `json:"apple_item"`
+	SuppressBundleRelocation           bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
+	InstalledSize                      int64      `json:"installed_size"`
+	PackagePath                        string     `json:"package_path"`
+	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerEnvironment               []byte     `json:"installer_environment"`
+	Installs                           []byte     `json:"installs"`
+	Receipts                           []byte     `json:"receipts"`
+	ItemsToCopy                        []byte     `json:"items_to_copy"`
+	Notes                              string     `json:"notes"`
+	InstallcheckScript                 string     `json:"installcheck_script"`
+	UninstallcheckScript               string     `json:"uninstallcheck_script"`
+	PreinstallScript                   string     `json:"preinstall_script"`
+	PostinstallScript                  string     `json:"postinstall_script"`
+	PreuninstallScript                 string     `json:"preuninstall_script"`
+	PostuninstallScript                string     `json:"postuninstall_script"`
+	UninstallScript                    string     `json:"uninstall_script"`
+	VersionScript                      string     `json:"version_script"`
+	PreinstallAlertEnabled             bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle               string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail              string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel             string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel         string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled           bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle             string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
+	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
+	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	Eligible                           bool       `json:"eligible"`
+	CreatedAt                          time.Time  `json:"created_at"`
+	UpdatedAt                          time.Time  `json:"updated_at"`
+	SoftwareName                       string     `json:"software_name"`
+	SoftwareDescription                string     `json:"software_description"`
+	SoftwareCategory                   string     `json:"software_category"`
+	SoftwareDeveloper                  string     `json:"software_developer"`
+	SoftwareIconName                   string     `json:"software_icon_name"`
+	SoftwareIconHash                   string     `json:"software_icon_hash"`
+	SoftwareIconArtifactID             *int64     `json:"software_icon_artifact_id"`
+	InstallerArtifactLocation          *string    `json:"installer_artifact_location"`
+	UninstallerArtifactLocation        *string    `json:"uninstaller_artifact_location"`
+	SoftwareIconArtifactLocation       *string    `json:"software_icon_artifact_location"`
 }
 
 func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageByIDParams) (GetMunkiPackageByIDRow, error) {
@@ -457,6 +454,9 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.MaximumOSVersion,
 		&i.SupportedArchitectures,
 		&i.BlockingApplications,
+		&i.InstallableCondition,
+		&i.BlockingApplicationsManualQuitOnly,
+		&i.BlockingApplicationsQuitScript,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
 		&i.OnDemand,
@@ -491,11 +491,8 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.IconName,
-		&i.IconHash,
 		&i.InstallerArtifactID,
 		&i.UninstallerArtifactID,
-		&i.IconArtifactID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -508,7 +505,6 @@ func (q *Queries) GetMunkiPackageByID(ctx context.Context, arg GetMunkiPackageBy
 		&i.SoftwareIconArtifactID,
 		&i.InstallerArtifactLocation,
 		&i.UninstallerArtifactLocation,
-		&i.IconArtifactLocation,
 		&i.SoftwareIconArtifactLocation,
 	)
 	return i, err
@@ -526,102 +522,102 @@ SET
     maximum_os_version = $7,
     supported_architectures = $8::text[],
     blocking_applications = $9::text[],
-    unattended_install = $10,
-    unattended_uninstall = $11,
-    on_demand = $12,
-    precache = $13,
-    autoremove = $14,
-    apple_item = $15,
-    suppress_bundle_relocation = $16,
-    force_install_after_date = $17::timestamptz,
-    installed_size = $18,
-    package_path = $19,
-    installer_choices_xml = $20,
-    installer_environment = $21::jsonb,
-    installs = $22::jsonb,
-    receipts = $23::jsonb,
-    items_to_copy = $24::jsonb,
-    notes = $25,
-    installcheck_script = $26,
-    uninstallcheck_script = $27,
-    preinstall_script = $28,
-    postinstall_script = $29,
-    preuninstall_script = $30,
-    postuninstall_script = $31,
-    uninstall_script = $32,
-    version_script = $33,
-    preinstall_alert_enabled = $34,
-    preinstall_alert_title = $35,
-    preinstall_alert_detail = $36,
-    preinstall_alert_ok_label = $37,
-    preinstall_alert_cancel_label = $38,
-    preuninstall_alert_enabled = $39,
-    preuninstall_alert_title = $40,
-    preuninstall_alert_detail = $41,
-    preuninstall_alert_ok_label = $42,
-    preuninstall_alert_cancel_label = $43,
-    icon_name = $44,
-    icon_hash = $45,
-    installer_artifact_id = $46::bigint,
-    uninstaller_artifact_id = $47::bigint,
-    icon_artifact_id = $48::bigint,
+    installable_condition = $10,
+    blocking_applications_manual_quit_only = $11,
+    blocking_applications_quit_script = $12,
+    unattended_install = $13,
+    unattended_uninstall = $14,
+    on_demand = $15,
+    precache = $16,
+    autoremove = $17,
+    apple_item = $18,
+    suppress_bundle_relocation = $19,
+    force_install_after_date = $20::timestamptz,
+    installed_size = $21,
+    package_path = $22,
+    installer_choices_xml = $23,
+    installer_environment = $24::jsonb,
+    installs = $25::jsonb,
+    receipts = $26::jsonb,
+    items_to_copy = $27::jsonb,
+    notes = $28,
+    installcheck_script = $29,
+    uninstallcheck_script = $30,
+    preinstall_script = $31,
+    postinstall_script = $32,
+    preuninstall_script = $33,
+    postuninstall_script = $34,
+    uninstall_script = $35,
+    version_script = $36,
+    preinstall_alert_enabled = $37,
+    preinstall_alert_title = $38,
+    preinstall_alert_detail = $39,
+    preinstall_alert_ok_label = $40,
+    preinstall_alert_cancel_label = $41,
+    preuninstall_alert_enabled = $42,
+    preuninstall_alert_title = $43,
+    preuninstall_alert_detail = $44,
+    preuninstall_alert_ok_label = $45,
+    preuninstall_alert_cancel_label = $46,
+    installer_artifact_id = $47::bigint,
+    uninstaller_artifact_id = $48::bigint,
     eligible = $49,
     updated_at = now()
 WHERE id = $50
-RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_artifact_id, uninstaller_artifact_id, eligible, created_at, updated_at
 `
 
 type UpdateMunkiPackageParams struct {
-	Version                      string     `json:"version"`
-	InstallerType                string     `json:"installer_type"`
-	UninstallMethod              string     `json:"uninstall_method"`
-	RestartAction                string     `json:"restart_action"`
-	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
-	MinimumOSVersion             string     `json:"minimum_os_version"`
-	MaximumOSVersion             string     `json:"maximum_os_version"`
-	SupportedArchitectures       []string   `json:"supported_architectures"`
-	BlockingApplications         []string   `json:"blocking_applications"`
-	UnattendedInstall            bool       `json:"unattended_install"`
-	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	OnDemand                     bool       `json:"on_demand"`
-	Precache                     bool       `json:"precache"`
-	Autoremove                   bool       `json:"autoremove"`
-	AppleItem                    bool       `json:"apple_item"`
-	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
-	InstalledSize                int64      `json:"installed_size"`
-	PackagePath                  string     `json:"package_path"`
-	InstallerChoicesXml          string     `json:"installer_choices_xml"`
-	InstallerEnvironment         []byte     `json:"installer_environment"`
-	Installs                     []byte     `json:"installs"`
-	Receipts                     []byte     `json:"receipts"`
-	ItemsToCopy                  []byte     `json:"items_to_copy"`
-	Notes                        string     `json:"notes"`
-	InstallcheckScript           string     `json:"installcheck_script"`
-	UninstallcheckScript         string     `json:"uninstallcheck_script"`
-	PreinstallScript             string     `json:"preinstall_script"`
-	PostinstallScript            string     `json:"postinstall_script"`
-	PreuninstallScript           string     `json:"preuninstall_script"`
-	PostuninstallScript          string     `json:"postuninstall_script"`
-	UninstallScript              string     `json:"uninstall_script"`
-	VersionScript                string     `json:"version_script"`
-	PreinstallAlertEnabled       bool       `json:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string     `json:"preinstall_alert_title"`
-	PreinstallAlertDetail        string     `json:"preinstall_alert_detail"`
-	PreinstallAlertOkLabel       string     `json:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string     `json:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool       `json:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string     `json:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string     `json:"preuninstall_alert_detail"`
-	PreuninstallAlertOkLabel     string     `json:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string     `json:"preuninstall_alert_cancel_label"`
-	IconName                     string     `json:"icon_name"`
-	IconHash                     string     `json:"icon_hash"`
-	InstallerArtifactID          *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID        *int64     `json:"uninstaller_artifact_id"`
-	IconArtifactID               *int64     `json:"icon_artifact_id"`
-	Eligible                     bool       `json:"eligible"`
-	ID                           int64      `json:"id"`
+	Version                            string     `json:"version"`
+	InstallerType                      string     `json:"installer_type"`
+	UninstallMethod                    string     `json:"uninstall_method"`
+	RestartAction                      string     `json:"restart_action"`
+	MinimumMunkiVersion                string     `json:"minimum_munki_version"`
+	MinimumOSVersion                   string     `json:"minimum_os_version"`
+	MaximumOSVersion                   string     `json:"maximum_os_version"`
+	SupportedArchitectures             []string   `json:"supported_architectures"`
+	BlockingApplications               []string   `json:"blocking_applications"`
+	InstallableCondition               string     `json:"installable_condition"`
+	BlockingApplicationsManualQuitOnly bool       `json:"blocking_applications_manual_quit_only"`
+	BlockingApplicationsQuitScript     string     `json:"blocking_applications_quit_script"`
+	UnattendedInstall                  bool       `json:"unattended_install"`
+	UnattendedUninstall                bool       `json:"unattended_uninstall"`
+	OnDemand                           bool       `json:"on_demand"`
+	Precache                           bool       `json:"precache"`
+	Autoremove                         bool       `json:"autoremove"`
+	AppleItem                          bool       `json:"apple_item"`
+	SuppressBundleRelocation           bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
+	InstalledSize                      int64      `json:"installed_size"`
+	PackagePath                        string     `json:"package_path"`
+	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerEnvironment               []byte     `json:"installer_environment"`
+	Installs                           []byte     `json:"installs"`
+	Receipts                           []byte     `json:"receipts"`
+	ItemsToCopy                        []byte     `json:"items_to_copy"`
+	Notes                              string     `json:"notes"`
+	InstallcheckScript                 string     `json:"installcheck_script"`
+	UninstallcheckScript               string     `json:"uninstallcheck_script"`
+	PreinstallScript                   string     `json:"preinstall_script"`
+	PostinstallScript                  string     `json:"postinstall_script"`
+	PreuninstallScript                 string     `json:"preuninstall_script"`
+	PostuninstallScript                string     `json:"postuninstall_script"`
+	UninstallScript                    string     `json:"uninstall_script"`
+	VersionScript                      string     `json:"version_script"`
+	PreinstallAlertEnabled             bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle               string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail              string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel             string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel         string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled           bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle             string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
+	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
+	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	Eligible                           bool       `json:"eligible"`
+	ID                                 int64      `json:"id"`
 }
 
 func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackageParams) (MunkiPackage, error) {
@@ -635,6 +631,9 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		arg.MaximumOSVersion,
 		arg.SupportedArchitectures,
 		arg.BlockingApplications,
+		arg.InstallableCondition,
+		arg.BlockingApplicationsManualQuitOnly,
+		arg.BlockingApplicationsQuitScript,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
 		arg.OnDemand,
@@ -669,11 +668,8 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		arg.PreuninstallAlertDetail,
 		arg.PreuninstallAlertOkLabel,
 		arg.PreuninstallAlertCancelLabel,
-		arg.IconName,
-		arg.IconHash,
 		arg.InstallerArtifactID,
 		arg.UninstallerArtifactID,
-		arg.IconArtifactID,
 		arg.Eligible,
 		arg.ID,
 	)
@@ -690,6 +686,9 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		&i.MaximumOSVersion,
 		&i.SupportedArchitectures,
 		&i.BlockingApplications,
+		&i.InstallableCondition,
+		&i.BlockingApplicationsManualQuitOnly,
+		&i.BlockingApplicationsQuitScript,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
 		&i.OnDemand,
@@ -724,11 +723,8 @@ func (q *Queries) UpdateMunkiPackage(ctx context.Context, arg UpdateMunkiPackage
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.IconName,
-		&i.IconHash,
 		&i.InstallerArtifactID,
 		&i.UninstallerArtifactID,
-		&i.IconArtifactID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -748,6 +744,9 @@ INSERT INTO munki_packages (
     maximum_os_version,
     supported_architectures,
     blocking_applications,
+    installable_condition,
+    blocking_applications_manual_quit_only,
+    blocking_applications_quit_script,
     unattended_install,
     unattended_uninstall,
     on_demand,
@@ -782,11 +781,8 @@ INSERT INTO munki_packages (
     preuninstall_alert_detail,
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
-    icon_name,
-    icon_hash,
     installer_artifact_id,
     uninstaller_artifact_id,
-    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -807,17 +803,17 @@ VALUES (
     $15,
     $16,
     $17,
-    $18::timestamptz,
+    $18,
     $19,
     $20,
-    $21,
-    $22::jsonb,
-    $23::jsonb,
-    $24::jsonb,
+    $21::timestamptz,
+    $22,
+    $23,
+    $24,
     $25::jsonb,
-    $26,
-    $27,
-    $28,
+    $26::jsonb,
+    $27::jsonb,
+    $28::jsonb,
     $29,
     $30,
     $31,
@@ -836,7 +832,7 @@ VALUES (
     $44,
     $45,
     $46,
-    $47::bigint,
+    $47,
     $48::bigint,
     $49::bigint,
     $50
@@ -850,6 +846,9 @@ ON CONFLICT (software_id, version) DO UPDATE SET
     maximum_os_version = EXCLUDED.maximum_os_version,
     supported_architectures = EXCLUDED.supported_architectures,
     blocking_applications = EXCLUDED.blocking_applications,
+    installable_condition = EXCLUDED.installable_condition,
+    blocking_applications_manual_quit_only = EXCLUDED.blocking_applications_manual_quit_only,
+    blocking_applications_quit_script = EXCLUDED.blocking_applications_quit_script,
     unattended_install = EXCLUDED.unattended_install,
     unattended_uninstall = EXCLUDED.unattended_uninstall,
     on_demand = EXCLUDED.on_demand,
@@ -884,67 +883,64 @@ ON CONFLICT (software_id, version) DO UPDATE SET
     preuninstall_alert_detail = EXCLUDED.preuninstall_alert_detail,
     preuninstall_alert_ok_label = EXCLUDED.preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = EXCLUDED.preuninstall_alert_cancel_label,
-    icon_name = EXCLUDED.icon_name,
-    icon_hash = EXCLUDED.icon_hash,
     installer_artifact_id = EXCLUDED.installer_artifact_id,
     uninstaller_artifact_id = EXCLUDED.uninstaller_artifact_id,
-    icon_artifact_id = EXCLUDED.icon_artifact_id,
     eligible = EXCLUDED.eligible,
     updated_at = now()
-RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, icon_name, icon_hash, installer_artifact_id, uninstaller_artifact_id, icon_artifact_id, eligible, created_at, updated_at
+RETURNING id, software_id, version, installer_type, uninstall_method, restart_action, minimum_munki_version, minimum_os_version, maximum_os_version, supported_architectures, blocking_applications, installable_condition, blocking_applications_manual_quit_only, blocking_applications_quit_script, unattended_install, unattended_uninstall, on_demand, precache, autoremove, apple_item, suppress_bundle_relocation, force_install_after_date, installed_size, package_path, installer_choices_xml, installer_environment, installs, receipts, items_to_copy, notes, installcheck_script, uninstallcheck_script, preinstall_script, postinstall_script, preuninstall_script, postuninstall_script, uninstall_script, version_script, preinstall_alert_enabled, preinstall_alert_title, preinstall_alert_detail, preinstall_alert_ok_label, preinstall_alert_cancel_label, preuninstall_alert_enabled, preuninstall_alert_title, preuninstall_alert_detail, preuninstall_alert_ok_label, preuninstall_alert_cancel_label, installer_artifact_id, uninstaller_artifact_id, eligible, created_at, updated_at
 `
 
 type UpsertMunkiPackageParams struct {
-	SoftwareID                   int64      `json:"software_id"`
-	Version                      string     `json:"version"`
-	InstallerType                string     `json:"installer_type"`
-	UninstallMethod              string     `json:"uninstall_method"`
-	RestartAction                string     `json:"restart_action"`
-	MinimumMunkiVersion          string     `json:"minimum_munki_version"`
-	MinimumOSVersion             string     `json:"minimum_os_version"`
-	MaximumOSVersion             string     `json:"maximum_os_version"`
-	SupportedArchitectures       []string   `json:"supported_architectures"`
-	BlockingApplications         []string   `json:"blocking_applications"`
-	UnattendedInstall            bool       `json:"unattended_install"`
-	UnattendedUninstall          bool       `json:"unattended_uninstall"`
-	OnDemand                     bool       `json:"on_demand"`
-	Precache                     bool       `json:"precache"`
-	Autoremove                   bool       `json:"autoremove"`
-	AppleItem                    bool       `json:"apple_item"`
-	SuppressBundleRelocation     bool       `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time `json:"force_install_after_date"`
-	InstalledSize                int64      `json:"installed_size"`
-	PackagePath                  string     `json:"package_path"`
-	InstallerChoicesXml          string     `json:"installer_choices_xml"`
-	InstallerEnvironment         []byte     `json:"installer_environment"`
-	Installs                     []byte     `json:"installs"`
-	Receipts                     []byte     `json:"receipts"`
-	ItemsToCopy                  []byte     `json:"items_to_copy"`
-	Notes                        string     `json:"notes"`
-	InstallcheckScript           string     `json:"installcheck_script"`
-	UninstallcheckScript         string     `json:"uninstallcheck_script"`
-	PreinstallScript             string     `json:"preinstall_script"`
-	PostinstallScript            string     `json:"postinstall_script"`
-	PreuninstallScript           string     `json:"preuninstall_script"`
-	PostuninstallScript          string     `json:"postuninstall_script"`
-	UninstallScript              string     `json:"uninstall_script"`
-	VersionScript                string     `json:"version_script"`
-	PreinstallAlertEnabled       bool       `json:"preinstall_alert_enabled"`
-	PreinstallAlertTitle         string     `json:"preinstall_alert_title"`
-	PreinstallAlertDetail        string     `json:"preinstall_alert_detail"`
-	PreinstallAlertOkLabel       string     `json:"preinstall_alert_ok_label"`
-	PreinstallAlertCancelLabel   string     `json:"preinstall_alert_cancel_label"`
-	PreuninstallAlertEnabled     bool       `json:"preuninstall_alert_enabled"`
-	PreuninstallAlertTitle       string     `json:"preuninstall_alert_title"`
-	PreuninstallAlertDetail      string     `json:"preuninstall_alert_detail"`
-	PreuninstallAlertOkLabel     string     `json:"preuninstall_alert_ok_label"`
-	PreuninstallAlertCancelLabel string     `json:"preuninstall_alert_cancel_label"`
-	IconName                     string     `json:"icon_name"`
-	IconHash                     string     `json:"icon_hash"`
-	InstallerArtifactID          *int64     `json:"installer_artifact_id"`
-	UninstallerArtifactID        *int64     `json:"uninstaller_artifact_id"`
-	IconArtifactID               *int64     `json:"icon_artifact_id"`
-	Eligible                     bool       `json:"eligible"`
+	SoftwareID                         int64      `json:"software_id"`
+	Version                            string     `json:"version"`
+	InstallerType                      string     `json:"installer_type"`
+	UninstallMethod                    string     `json:"uninstall_method"`
+	RestartAction                      string     `json:"restart_action"`
+	MinimumMunkiVersion                string     `json:"minimum_munki_version"`
+	MinimumOSVersion                   string     `json:"minimum_os_version"`
+	MaximumOSVersion                   string     `json:"maximum_os_version"`
+	SupportedArchitectures             []string   `json:"supported_architectures"`
+	BlockingApplications               []string   `json:"blocking_applications"`
+	InstallableCondition               string     `json:"installable_condition"`
+	BlockingApplicationsManualQuitOnly bool       `json:"blocking_applications_manual_quit_only"`
+	BlockingApplicationsQuitScript     string     `json:"blocking_applications_quit_script"`
+	UnattendedInstall                  bool       `json:"unattended_install"`
+	UnattendedUninstall                bool       `json:"unattended_uninstall"`
+	OnDemand                           bool       `json:"on_demand"`
+	Precache                           bool       `json:"precache"`
+	Autoremove                         bool       `json:"autoremove"`
+	AppleItem                          bool       `json:"apple_item"`
+	SuppressBundleRelocation           bool       `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate              *time.Time `json:"force_install_after_date"`
+	InstalledSize                      int64      `json:"installed_size"`
+	PackagePath                        string     `json:"package_path"`
+	InstallerChoicesXml                string     `json:"installer_choices_xml"`
+	InstallerEnvironment               []byte     `json:"installer_environment"`
+	Installs                           []byte     `json:"installs"`
+	Receipts                           []byte     `json:"receipts"`
+	ItemsToCopy                        []byte     `json:"items_to_copy"`
+	Notes                              string     `json:"notes"`
+	InstallcheckScript                 string     `json:"installcheck_script"`
+	UninstallcheckScript               string     `json:"uninstallcheck_script"`
+	PreinstallScript                   string     `json:"preinstall_script"`
+	PostinstallScript                  string     `json:"postinstall_script"`
+	PreuninstallScript                 string     `json:"preuninstall_script"`
+	PostuninstallScript                string     `json:"postuninstall_script"`
+	UninstallScript                    string     `json:"uninstall_script"`
+	VersionScript                      string     `json:"version_script"`
+	PreinstallAlertEnabled             bool       `json:"preinstall_alert_enabled"`
+	PreinstallAlertTitle               string     `json:"preinstall_alert_title"`
+	PreinstallAlertDetail              string     `json:"preinstall_alert_detail"`
+	PreinstallAlertOkLabel             string     `json:"preinstall_alert_ok_label"`
+	PreinstallAlertCancelLabel         string     `json:"preinstall_alert_cancel_label"`
+	PreuninstallAlertEnabled           bool       `json:"preuninstall_alert_enabled"`
+	PreuninstallAlertTitle             string     `json:"preuninstall_alert_title"`
+	PreuninstallAlertDetail            string     `json:"preuninstall_alert_detail"`
+	PreuninstallAlertOkLabel           string     `json:"preuninstall_alert_ok_label"`
+	PreuninstallAlertCancelLabel       string     `json:"preuninstall_alert_cancel_label"`
+	InstallerArtifactID                *int64     `json:"installer_artifact_id"`
+	UninstallerArtifactID              *int64     `json:"uninstaller_artifact_id"`
+	Eligible                           bool       `json:"eligible"`
 }
 
 func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackageParams) (MunkiPackage, error) {
@@ -959,6 +955,9 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		arg.MaximumOSVersion,
 		arg.SupportedArchitectures,
 		arg.BlockingApplications,
+		arg.InstallableCondition,
+		arg.BlockingApplicationsManualQuitOnly,
+		arg.BlockingApplicationsQuitScript,
 		arg.UnattendedInstall,
 		arg.UnattendedUninstall,
 		arg.OnDemand,
@@ -993,11 +992,8 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		arg.PreuninstallAlertDetail,
 		arg.PreuninstallAlertOkLabel,
 		arg.PreuninstallAlertCancelLabel,
-		arg.IconName,
-		arg.IconHash,
 		arg.InstallerArtifactID,
 		arg.UninstallerArtifactID,
-		arg.IconArtifactID,
 		arg.Eligible,
 	)
 	var i MunkiPackage
@@ -1013,6 +1009,9 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		&i.MaximumOSVersion,
 		&i.SupportedArchitectures,
 		&i.BlockingApplications,
+		&i.InstallableCondition,
+		&i.BlockingApplicationsManualQuitOnly,
+		&i.BlockingApplicationsQuitScript,
 		&i.UnattendedInstall,
 		&i.UnattendedUninstall,
 		&i.OnDemand,
@@ -1047,11 +1046,8 @@ func (q *Queries) UpsertMunkiPackage(ctx context.Context, arg UpsertMunkiPackage
 		&i.PreuninstallAlertDetail,
 		&i.PreuninstallAlertOkLabel,
 		&i.PreuninstallAlertCancelLabel,
-		&i.IconName,
-		&i.IconHash,
 		&i.InstallerArtifactID,
 		&i.UninstallerArtifactID,
-		&i.IconArtifactID,
 		&i.Eligible,
 		&i.CreatedAt,
 		&i.UpdatedAt,

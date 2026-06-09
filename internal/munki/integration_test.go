@@ -296,7 +296,7 @@ func TestCreatePackageRejectsIconArtifactAsInstaller(t *testing.T) {
 	}
 }
 
-func TestPackageInheritsSoftwareIcon(t *testing.T) {
+func TestPackageProjectsSoftwareIcon(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
@@ -321,95 +321,8 @@ func TestPackageInheritsSoftwareIcon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create package: %v", err)
 	}
-	if pkg.IconArtifactID != nil || pkg.IconName != "" || pkg.IconHash != "" {
-		t.Fatalf(
-			"package icon override = id %v name %q hash %q, want empty override",
-			pkg.IconArtifactID,
-			pkg.IconName,
-			pkg.IconHash,
-		)
-	}
-	if pkg.SoftwareIconArtifactID == nil || *pkg.SoftwareIconArtifactID != icon.ID {
-		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIconArtifactID, icon.ID)
-	}
-}
-
-func TestPackageIconOverridesSoftwareIcon(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	softwareIcon := createMunkiIconArtifact(t, ctx, stores, "icons/DefaultApp.png", "e")
-	packageIcon := createMunkiIconArtifact(t, ctx, stores, "icons/SpecialApp.png", "f")
-	title, err := stores.software.Create(ctx, munkisoftware.SoftwareMutation{
-		Name:           "OverrideIconApp",
-		IconArtifactID: &softwareIcon.ID,
-	})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:        "1.0",
-		InstallerType:  packages.InstallerTypeNoPkg,
-		OnDemand:       true,
-		IconArtifactID: &packageIcon.ID,
-		Eligible:       true,
-	})
-	if err != nil {
-		t.Fatalf("create package: %v", err)
-	}
-	if pkg.IconArtifactID == nil || *pkg.IconArtifactID != packageIcon.ID {
-		t.Fatalf("package icon artifact id = %v, want %d", pkg.IconArtifactID, packageIcon.ID)
-	}
-	if pkg.IconName != "icons/SpecialApp.png" || pkg.IconHash != strings.Repeat("f", 64) {
-		t.Fatalf("package icon fields = %q %q, want package override", pkg.IconName, pkg.IconHash)
-	}
-}
-
-func TestUpdatePackageClearsIconOverrideToInheritSoftwareIcon(t *testing.T) {
-	db, ctx := dbtest.Open(t)
-	stores := newMunkiStores(db)
-
-	softwareIcon := createMunkiIconArtifact(t, ctx, stores, "icons/DefaultApp.png", "7")
-	packageIcon := createMunkiIconArtifact(t, ctx, stores, "icons/SpecialApp.png", "8")
-	title, err := stores.software.Create(ctx, munkisoftware.SoftwareMutation{
-		Name:           "ClearOverrideApp",
-		IconArtifactID: &softwareIcon.ID,
-	})
-	if err != nil {
-		t.Fatalf("create software: %v", err)
-	}
-	pkg, err := stores.packages.Create(ctx, title.ID, packages.PackageMutation{
-		Version:        "1.0",
-		InstallerType:  packages.InstallerTypeNoPkg,
-		OnDemand:       true,
-		IconArtifactID: &packageIcon.ID,
-		Eligible:       true,
-	})
-	if err != nil {
-		t.Fatalf("create package: %v", err)
-	}
-
-	updated, err := stores.packages.Update(ctx, pkg.ID, packages.PackageMutation{
-		Version:       pkg.Version,
-		InstallerType: pkg.InstallerType,
-		Eligible:      pkg.Eligible,
-		OnDemand:      pkg.OnDemand,
-		Precache:      pkg.Precache,
-	})
-	if err != nil {
-		t.Fatalf("update package: %v", err)
-	}
-	if updated.IconArtifactID != nil || updated.IconName != "" || updated.IconHash != "" {
-		t.Fatalf(
-			"package icon override = id %v name %q hash %q, want empty override",
-			updated.IconArtifactID,
-			updated.IconName,
-			updated.IconHash,
-		)
-	}
-	if updated.SoftwareIconArtifactID == nil || *updated.SoftwareIconArtifactID != softwareIcon.ID {
-		t.Fatalf("software icon artifact id = %v, want %d", updated.SoftwareIconArtifactID, softwareIcon.ID)
+	if pkg.SoftwareIcon.ArtifactID == nil || *pkg.SoftwareIcon.ArtifactID != icon.ID {
+		t.Fatalf("software icon artifact id = %v, want %d", pkg.SoftwareIcon.ArtifactID, icon.ID)
 	}
 }
 
@@ -740,16 +653,6 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	db, ctx := dbtest.Open(t)
 	stores := newMunkiStores(db)
 
-	iconArtifact, err := stores.artifacts.Create(ctx, artifacts.ArtifactMutation{
-		Kind:       artifacts.ArtifactKindIcon,
-		Location:   "cccccccccccc/ImportedApp.png",
-		SizeBytes:  256,
-		SHA256:     strings.Repeat("c", 64),
-		StorageKey: "icons/cccccccccccc/ImportedApp.png",
-	})
-	if err != nil {
-		t.Fatalf("create icon artifact: %v", err)
-	}
 	title, err := stores.software.Create(ctx, munkisoftware.SoftwareMutation{
 		Name:        "Imported App",
 		Description: "Managed by AutoPkg",
@@ -769,7 +672,6 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	dependency := createMunkiPackage(t, ctx, stores, dependencyTitle.ID, "Python", "3.12")
 
 	pkg, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
-		IconArtifactID: &iconArtifact.ID,
 		Pkginfo: fmt.Appendf(nil, `{
 			"name": "ImportedApp",
 			"version": "1.2.3",
@@ -781,8 +683,6 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 			"unattended_install": true,
 			"supported_architectures": ["arm64", "x86_64"],
 			"requires": ["%d"],
-			"icon_name": "ImportedApp.png",
-			"icon_hash": "stale",
 			"installs": [{"path": "/Applications/Imported App.app"}],
 			"installer_item_location": "pkgs/ImportedApp.pkg"
 		}`, dependency.ID),
@@ -802,9 +702,6 @@ func TestImportPackageUpsertsTypedPkginfo(t *testing.T) {
 	}
 	if len(pkg.Installs) != 1 || pkg.Installs[0].Path != "/Applications/Imported App.app" {
 		t.Fatalf("installs = %+v, want imported install item", pkg.Installs)
-	}
-	if pkg.IconName != "cccccccccccc/ImportedApp.png" || pkg.IconHash != strings.Repeat("c", 64) {
-		t.Fatalf("pkg icon fields = name %q hash %q, want artifact-backed icon", pkg.IconName, pkg.IconHash)
 	}
 
 	updated, err := stores.packages.Import(ctx, title.ID, packages.PackageImportMutation{
@@ -1342,7 +1239,7 @@ func createMunkiPackage(
 	if err != nil {
 		t.Fatalf("create pkg %s %s: %v", name, version, err)
 	}
-	return *pkg
+	return pkg.Package
 }
 
 func createMunkiPackageArtifact(

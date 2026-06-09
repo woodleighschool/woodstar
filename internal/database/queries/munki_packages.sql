@@ -10,6 +10,9 @@ INSERT INTO munki_packages (
     maximum_os_version,
     supported_architectures,
     blocking_applications,
+    installable_condition,
+    blocking_applications_manual_quit_only,
+    blocking_applications_quit_script,
     unattended_install,
     unattended_uninstall,
     on_demand,
@@ -44,11 +47,8 @@ INSERT INTO munki_packages (
     preuninstall_alert_detail,
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
-    icon_name,
-    icon_hash,
     installer_artifact_id,
     uninstaller_artifact_id,
-    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -62,6 +62,9 @@ VALUES (
     @maximum_os_version,
     @supported_architectures::text[],
     @blocking_applications::text[],
+    @installable_condition,
+    @blocking_applications_manual_quit_only,
+    @blocking_applications_quit_script,
     @unattended_install,
     @unattended_uninstall,
     @on_demand,
@@ -96,11 +99,8 @@ VALUES (
     @preuninstall_alert_detail,
     @preuninstall_alert_ok_label,
     @preuninstall_alert_cancel_label,
-    @icon_name,
-    @icon_hash,
     sqlc.narg(installer_artifact_id)::bigint,
     sqlc.narg(uninstaller_artifact_id)::bigint,
-    sqlc.narg(icon_artifact_id)::bigint,
     @eligible
 )
 RETURNING *;
@@ -117,6 +117,9 @@ INSERT INTO munki_packages (
     maximum_os_version,
     supported_architectures,
     blocking_applications,
+    installable_condition,
+    blocking_applications_manual_quit_only,
+    blocking_applications_quit_script,
     unattended_install,
     unattended_uninstall,
     on_demand,
@@ -151,11 +154,8 @@ INSERT INTO munki_packages (
     preuninstall_alert_detail,
     preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label,
-    icon_name,
-    icon_hash,
     installer_artifact_id,
     uninstaller_artifact_id,
-    icon_artifact_id,
     eligible
 )
 VALUES (
@@ -169,6 +169,9 @@ VALUES (
     @maximum_os_version,
     @supported_architectures::text[],
     @blocking_applications::text[],
+    @installable_condition,
+    @blocking_applications_manual_quit_only,
+    @blocking_applications_quit_script,
     @unattended_install,
     @unattended_uninstall,
     @on_demand,
@@ -203,11 +206,8 @@ VALUES (
     @preuninstall_alert_detail,
     @preuninstall_alert_ok_label,
     @preuninstall_alert_cancel_label,
-    @icon_name,
-    @icon_hash,
     sqlc.narg(installer_artifact_id)::bigint,
     sqlc.narg(uninstaller_artifact_id)::bigint,
-    sqlc.narg(icon_artifact_id)::bigint,
     @eligible
 )
 ON CONFLICT (software_id, version) DO UPDATE SET
@@ -219,6 +219,9 @@ ON CONFLICT (software_id, version) DO UPDATE SET
     maximum_os_version = EXCLUDED.maximum_os_version,
     supported_architectures = EXCLUDED.supported_architectures,
     blocking_applications = EXCLUDED.blocking_applications,
+    installable_condition = EXCLUDED.installable_condition,
+    blocking_applications_manual_quit_only = EXCLUDED.blocking_applications_manual_quit_only,
+    blocking_applications_quit_script = EXCLUDED.blocking_applications_quit_script,
     unattended_install = EXCLUDED.unattended_install,
     unattended_uninstall = EXCLUDED.unattended_uninstall,
     on_demand = EXCLUDED.on_demand,
@@ -253,11 +256,8 @@ ON CONFLICT (software_id, version) DO UPDATE SET
     preuninstall_alert_detail = EXCLUDED.preuninstall_alert_detail,
     preuninstall_alert_ok_label = EXCLUDED.preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = EXCLUDED.preuninstall_alert_cancel_label,
-    icon_name = EXCLUDED.icon_name,
-    icon_hash = EXCLUDED.icon_hash,
     installer_artifact_id = EXCLUDED.installer_artifact_id,
     uninstaller_artifact_id = EXCLUDED.uninstaller_artifact_id,
-    icon_artifact_id = EXCLUDED.icon_artifact_id,
     eligible = EXCLUDED.eligible,
     updated_at = now()
 RETURNING *;
@@ -274,6 +274,9 @@ SET
     maximum_os_version = @maximum_os_version,
     supported_architectures = @supported_architectures::text[],
     blocking_applications = @blocking_applications::text[],
+    installable_condition = @installable_condition,
+    blocking_applications_manual_quit_only = @blocking_applications_manual_quit_only,
+    blocking_applications_quit_script = @blocking_applications_quit_script,
     unattended_install = @unattended_install,
     unattended_uninstall = @unattended_uninstall,
     on_demand = @on_demand,
@@ -308,11 +311,8 @@ SET
     preuninstall_alert_detail = @preuninstall_alert_detail,
     preuninstall_alert_ok_label = @preuninstall_alert_ok_label,
     preuninstall_alert_cancel_label = @preuninstall_alert_cancel_label,
-    icon_name = @icon_name,
-    icon_hash = @icon_hash,
     installer_artifact_id = sqlc.narg(installer_artifact_id)::bigint,
     uninstaller_artifact_id = sqlc.narg(uninstaller_artifact_id)::bigint,
-    icon_artifact_id = sqlc.narg(icon_artifact_id)::bigint,
     eligible = @eligible,
     updated_at = now()
 WHERE id = @id
@@ -330,13 +330,11 @@ SELECT
     s.icon_artifact_id AS software_icon_artifact_id,
     art.location AS installer_artifact_location,
     uninstaller.location AS uninstaller_artifact_location,
-    icon.location AS icon_artifact_location,
     software_icon.location AS software_icon_artifact_location
 FROM munki_packages p
 JOIN munki_software s ON s.id = p.software_id
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
-LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE p.id = @id;
 

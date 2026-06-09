@@ -61,6 +61,9 @@ CREATE TABLE munki_packages (
     maximum_os_version TEXT NOT NULL DEFAULT '',
     supported_architectures TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
     blocking_applications TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+    installable_condition TEXT NOT NULL DEFAULT '',
+    blocking_applications_manual_quit_only BOOLEAN NOT NULL DEFAULT FALSE,
+    blocking_applications_quit_script TEXT NOT NULL DEFAULT '',
     unattended_install BOOLEAN NOT NULL DEFAULT FALSE,
     unattended_uninstall BOOLEAN NOT NULL DEFAULT FALSE,
     on_demand BOOLEAN NOT NULL DEFAULT FALSE,
@@ -95,11 +98,8 @@ CREATE TABLE munki_packages (
     preuninstall_alert_detail TEXT NOT NULL DEFAULT '',
     preuninstall_alert_ok_label TEXT NOT NULL DEFAULT '',
     preuninstall_alert_cancel_label TEXT NOT NULL DEFAULT '',
-    icon_name TEXT NOT NULL DEFAULT '',
-    icon_hash TEXT NOT NULL DEFAULT '',
     installer_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE RESTRICT,
     uninstaller_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE RESTRICT,
-    icon_artifact_id BIGINT REFERENCES munki_artifacts (id) ON DELETE SET NULL,
     eligible BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -179,8 +179,6 @@ CREATE INDEX munki_packages_installer_artifact_idx
     ON munki_packages (installer_artifact_id);
 CREATE INDEX munki_packages_uninstaller_artifact_idx
     ON munki_packages (uninstaller_artifact_id);
-CREATE INDEX munki_packages_icon_artifact_idx
-    ON munki_packages (icon_artifact_id);
 CREATE INDEX munki_package_relations_package_idx
     ON munki_package_relations (package_id, relation_kind, position, id);
 CREATE INDEX munki_package_relations_target_package_idx

@@ -160,7 +160,7 @@ type PackageAlert struct {
 
 // PackageMutation is the editable shape for a Munki package version.
 type PackageMutation struct {
-	Version                  string                                `json:"version"                              minLength:"1"`
+	Version                  string                                `json:"version"                                          minLength:"1"`
 	InstallerType            InstallerType                         `json:"installer_type,omitempty"`
 	UnattendedInstall        bool                                  `json:"unattended_install,omitempty"`
 	UnattendedUninstall      bool                                  `json:"unattended_uninstall,omitempty"`
@@ -171,6 +171,9 @@ type PackageMutation struct {
 	MaximumOSVersion         string                                `json:"maximum_os_version,omitempty"`
 	SupportedArchitectures   []string                              `json:"supported_architectures,omitempty"`
 	BlockingApplications     []string                              `json:"blocking_applications,omitempty"`
+	InstallableCondition     string                                `json:"installable_condition,omitempty"`
+	BlockingAppsManualQuit   bool                                  `json:"blocking_applications_manual_quit_only,omitempty"`
+	BlockingAppsQuitScript   string                                `json:"blocking_applications_quit_script,omitempty"`
 	Requires                 []PackageReference                    `json:"requires,omitempty"`
 	UpdateFor                []PackageReference                    `json:"update_for,omitempty"`
 	OnDemand                 bool                                  `json:"on_demand,omitempty"`
@@ -197,11 +200,8 @@ type PackageMutation struct {
 	VersionScript            string                                `json:"version_script,omitempty"`
 	PreinstallAlert          PackageAlert                          `json:"preinstall_alert,omitzero"`
 	PreuninstallAlert        PackageAlert                          `json:"preuninstall_alert,omitzero"`
-	IconName                 string                                `json:"icon_name,omitempty"`
-	IconHash                 string                                `json:"icon_hash,omitempty"`
 	InstallerArtifactID      *int64                                `json:"installer_artifact_id,omitempty"`
 	UninstallerArtifactID    *int64                                `json:"uninstaller_artifact_id,omitempty"`
-	IconArtifactID           *int64                                `json:"icon_artifact_id,omitempty"`
 	Eligible                 bool                                  `json:"eligible"`
 }
 
@@ -210,70 +210,78 @@ type PackageImportMutation struct {
 	Pkginfo               json.RawMessage `json:"pkginfo"`
 	InstallerArtifactID   *int64          `json:"installer_artifact_id,omitempty"`
 	UninstallerArtifactID *int64          `json:"uninstaller_artifact_id,omitempty"`
-	IconArtifactID        *int64          `json:"icon_artifact_id,omitempty"`
 	Eligible              *bool           `json:"eligible,omitempty"`
 }
 
 // Package is one Woodstar-authored Munki package version available for targeting.
 type Package struct {
-	ID                           int64                                 `json:"id"`
-	SoftwareID                   int64                                 `json:"software_id"`
-	SoftwareName                 string                                `json:"software_name"`
-	SoftwareDescription          string                                `json:"software_description"`
-	SoftwareCategory             string                                `json:"software_category"`
-	SoftwareDeveloper            string                                `json:"software_developer"`
-	Version                      string                                `json:"version"`
-	InstallerType                InstallerType                         `json:"installer_type"`
-	UnattendedInstall            bool                                  `json:"unattended_install"`
-	UnattendedUninstall          bool                                  `json:"unattended_uninstall"`
-	UninstallMethod              UninstallMethod                       `json:"uninstall_method"`
-	RestartAction                RestartAction                         `json:"restart_action,omitempty"`
-	MinimumMunkiVersion          string                                `json:"minimum_munki_version"`
-	MinimumOSVersion             string                                `json:"minimum_os_version"`
-	MaximumOSVersion             string                                `json:"maximum_os_version"`
-	SupportedArchitectures       []string                              `json:"supported_architectures"`
-	BlockingApplications         []string                              `json:"blocking_applications"`
-	Requires                     []PackageReference                    `json:"requires"`
-	UpdateFor                    []PackageReference                    `json:"update_for"`
-	OnDemand                     bool                                  `json:"on_demand"`
-	Precache                     bool                                  `json:"precache"`
-	Autoremove                   bool                                  `json:"autoremove"`
-	AppleItem                    bool                                  `json:"apple_item"`
-	SuppressBundleRelocation     bool                                  `json:"suppress_bundle_relocation"`
-	ForceInstallAfterDate        *time.Time                            `json:"force_install_after_date,omitempty"`
-	InstalledSize                int64                                 `json:"installed_size"`
-	PackagePath                  string                                `json:"package_path"`
-	InstallerChoicesXML          string                                `json:"installer_choices_xml"`
-	InstallerEnvironment         []PackageInstallerEnvironmentVariable `json:"installer_environment"`
-	Installs                     []PackageInstallItem                  `json:"installs"`
-	Receipts                     []PackageReceipt                      `json:"receipts"`
-	ItemsToCopy                  []PackageItemToCopy                   `json:"items_to_copy"`
-	Notes                        string                                `json:"notes"`
-	InstallcheckScript           string                                `json:"installcheck_script"`
-	UninstallcheckScript         string                                `json:"uninstallcheck_script"`
-	PreinstallScript             string                                `json:"preinstall_script"`
-	PostinstallScript            string                                `json:"postinstall_script"`
-	PreuninstallScript           string                                `json:"preuninstall_script"`
-	PostuninstallScript          string                                `json:"postuninstall_script"`
-	UninstallScript              string                                `json:"uninstall_script"`
-	VersionScript                string                                `json:"version_script"`
-	PreinstallAlert              PackageAlert                          `json:"preinstall_alert"`
-	PreuninstallAlert            PackageAlert                          `json:"preuninstall_alert"`
-	IconName                     string                                `json:"icon_name"`
-	IconHash                     string                                `json:"icon_hash"`
-	InstallerArtifactID          *int64                                `json:"installer_artifact_id,omitempty"`
-	InstallerArtifactLocation    string                                `json:"installer_artifact_location,omitempty"`
-	UninstallerArtifactID        *int64                                `json:"uninstaller_artifact_id,omitempty"`
-	UninstallerArtifactLocation  string                                `json:"uninstaller_artifact_location,omitempty"`
-	IconArtifactID               *int64                                `json:"icon_artifact_id,omitempty"`
-	IconArtifactLocation         string                                `json:"icon_artifact_location,omitempty"`
-	SoftwareIconName             string                                `json:"-"`
-	SoftwareIconHash             string                                `json:"-"`
-	SoftwareIconArtifactID       *int64                                `json:"-"`
-	SoftwareIconArtifactLocation string                                `json:"-"`
-	Eligible                     bool                                  `json:"eligible"`
-	CreatedAt                    time.Time                             `json:"created_at"`
-	UpdatedAt                    time.Time                             `json:"updated_at"`
+	ID                          int64                                 `json:"id"`
+	SoftwareID                  int64                                 `json:"software_id"`
+	SoftwareName                string                                `json:"software_name"`
+	SoftwareDescription         string                                `json:"software_description"`
+	SoftwareCategory            string                                `json:"software_category"`
+	SoftwareDeveloper           string                                `json:"software_developer"`
+	Version                     string                                `json:"version"`
+	InstallerType               InstallerType                         `json:"installer_type"`
+	UnattendedInstall           bool                                  `json:"unattended_install"`
+	UnattendedUninstall         bool                                  `json:"unattended_uninstall"`
+	UninstallMethod             UninstallMethod                       `json:"uninstall_method"`
+	RestartAction               RestartAction                         `json:"restart_action,omitempty"`
+	MinimumMunkiVersion         string                                `json:"minimum_munki_version"`
+	MinimumOSVersion            string                                `json:"minimum_os_version"`
+	MaximumOSVersion            string                                `json:"maximum_os_version"`
+	SupportedArchitectures      []string                              `json:"supported_architectures"`
+	BlockingApplications        []string                              `json:"blocking_applications"`
+	InstallableCondition        string                                `json:"installable_condition"`
+	BlockingAppsManualQuit      bool                                  `json:"blocking_applications_manual_quit_only"`
+	BlockingAppsQuitScript      string                                `json:"blocking_applications_quit_script"`
+	Requires                    []PackageReference                    `json:"requires"`
+	UpdateFor                   []PackageReference                    `json:"update_for"`
+	OnDemand                    bool                                  `json:"on_demand"`
+	Precache                    bool                                  `json:"precache"`
+	Autoremove                  bool                                  `json:"autoremove"`
+	AppleItem                   bool                                  `json:"apple_item"`
+	SuppressBundleRelocation    bool                                  `json:"suppress_bundle_relocation"`
+	ForceInstallAfterDate       *time.Time                            `json:"force_install_after_date,omitempty"`
+	InstalledSize               int64                                 `json:"installed_size"`
+	PackagePath                 string                                `json:"package_path"`
+	InstallerChoicesXML         string                                `json:"installer_choices_xml"`
+	InstallerEnvironment        []PackageInstallerEnvironmentVariable `json:"installer_environment"`
+	Installs                    []PackageInstallItem                  `json:"installs"`
+	Receipts                    []PackageReceipt                      `json:"receipts"`
+	ItemsToCopy                 []PackageItemToCopy                   `json:"items_to_copy"`
+	Notes                       string                                `json:"notes"`
+	InstallcheckScript          string                                `json:"installcheck_script"`
+	UninstallcheckScript        string                                `json:"uninstallcheck_script"`
+	PreinstallScript            string                                `json:"preinstall_script"`
+	PostinstallScript           string                                `json:"postinstall_script"`
+	PreuninstallScript          string                                `json:"preuninstall_script"`
+	PostuninstallScript         string                                `json:"postuninstall_script"`
+	UninstallScript             string                                `json:"uninstall_script"`
+	VersionScript               string                                `json:"version_script"`
+	PreinstallAlert             PackageAlert                          `json:"preinstall_alert"`
+	PreuninstallAlert           PackageAlert                          `json:"preuninstall_alert"`
+	InstallerArtifactID         *int64                                `json:"installer_artifact_id,omitempty"`
+	InstallerArtifactLocation   string                                `json:"installer_artifact_location,omitempty"`
+	UninstallerArtifactID       *int64                                `json:"uninstaller_artifact_id,omitempty"`
+	UninstallerArtifactLocation string                                `json:"uninstaller_artifact_location,omitempty"`
+	Eligible                    bool                                  `json:"eligible"`
+	CreatedAt                   time.Time                             `json:"created_at"`
+	UpdatedAt                   time.Time                             `json:"updated_at"`
+}
+
+// IconRef is parent software icon metadata projected alongside package rows.
+type IconRef struct {
+	Name             string
+	Hash             string
+	ArtifactID       *int64
+	ArtifactLocation string
+}
+
+// PackageRecord is a package row joined with parent software icon context.
+type PackageRecord struct {
+	Package
+	SoftwareIcon IconRef
 }
 
 type PackageListParams struct {
@@ -344,9 +352,6 @@ func (m PackageMutation) validateInstallerSemantics() error {
 		if m.InstallerArtifactID == nil {
 			return fmt.Errorf("%w: pkg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
 		}
-		if len(m.ItemsToCopy) > 0 {
-			return fmt.Errorf("%w: pkg installer_type cannot set items_to_copy", dbutil.ErrInvalidInput)
-		}
 	case InstallerTypeCopyFromDMG:
 		if m.InstallerArtifactID == nil {
 			return fmt.Errorf("%w: copy_from_dmg installer_type requires installer_artifact_id", dbutil.ErrInvalidInput)
@@ -412,13 +417,6 @@ func (m PackageMutation) validateUninstallSemantics() error {
 
 func (m PackageImportMutation) Validate() error {
 	if len(m.Pkginfo) == 0 || !json.Valid(m.Pkginfo) {
-		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
-	}
-	var item map[string]any
-	if err := json.Unmarshal(m.Pkginfo, &item); err != nil {
-		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
-	}
-	if item == nil {
 		return fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
 	}
 	return nil

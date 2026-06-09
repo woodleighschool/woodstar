@@ -59,6 +59,9 @@ export interface PackageFormState {
   maximum_os_version: string;
   supported_architectures: Architecture[];
   blocking_applications: StringRow[];
+  installable_condition: string;
+  blocking_applications_manual_quit_only: boolean;
+  blocking_applications_quit_script: string;
   requires: PackageReferenceRow[];
   update_for: PackageReferenceRow[];
   eligible: boolean;
@@ -130,9 +133,6 @@ export function packageSubmitPreflightError(
   if (form.uninstall_method === "remove_copied_items" && cleanItemsToCopy(form.items_to_copy).length === 0) {
     return "Remove copied items uninstall requires at least one item to copy.";
   }
-  if (form.uninstall_method === "remove_copied_items" && form.installer_type !== "copy_from_dmg") {
-    return "Remove copied items uninstall requires Copy from DMG installer type.";
-  }
   if (form.uninstall_method === "uninstall_script" && optionalText(form.uninstall_script) === undefined) {
     return "Uninstall script method requires an uninstall script.";
   }
@@ -147,7 +147,6 @@ export function packageMutationFromForm(
   artifacts: {
     installerArtifactID?: number;
     uninstallerArtifactID?: number;
-    iconArtifactID?: number;
   },
 ): MunkiPackageMutation {
   const installerType = form.installer_type;
@@ -167,6 +166,9 @@ export function packageMutationFromForm(
     maximum_os_version: optionalText(form.maximum_os_version),
     supported_architectures: form.supported_architectures,
     blocking_applications: cleanStringRows(form.blocking_applications),
+    installable_condition: optionalText(form.installable_condition),
+    blocking_applications_manual_quit_only: form.blocking_applications_manual_quit_only,
+    blocking_applications_quit_script: optionalText(form.blocking_applications_quit_script),
     requires: cleanPackageReferences(form.requires),
     update_for: cleanPackageReferences(form.update_for),
     eligible: form.eligible,
@@ -198,7 +200,6 @@ export function packageMutationFromForm(
     preuninstall_alert: cleanAlert(form.preuninstall_alert),
     installer_artifact_id: usesInstallerArtifact ? artifacts.installerArtifactID : undefined,
     uninstaller_artifact_id: usesUninstallerArtifact ? artifacts.uninstallerArtifactID : undefined,
-    icon_artifact_id: artifacts.iconArtifactID,
   };
 }
 
@@ -213,6 +214,9 @@ export function emptyPackageForm(): PackageFormState {
     maximum_os_version: "",
     supported_architectures: [],
     blocking_applications: [],
+    installable_condition: "",
+    blocking_applications_manual_quit_only: false,
+    blocking_applications_quit_script: "",
     requires: [],
     update_for: [],
     eligible: true,
@@ -256,6 +260,9 @@ export function packageFormFromPackage(pkg: MunkiPackage): PackageFormState {
     maximum_os_version: pkg.maximum_os_version,
     supported_architectures: (pkg.supported_architectures ?? []).filter(isArchitecture),
     blocking_applications: stringRows(pkg.blocking_applications ?? []),
+    installable_condition: pkg.installable_condition,
+    blocking_applications_manual_quit_only: pkg.blocking_applications_manual_quit_only,
+    blocking_applications_quit_script: pkg.blocking_applications_quit_script,
     requires: packageReferenceRows(pkg.requires ?? []),
     update_for: packageReferenceRows(pkg.update_for ?? []),
     eligible: pkg.eligible,

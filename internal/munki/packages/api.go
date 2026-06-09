@@ -92,7 +92,7 @@ func registerListMunkiPackages(api huma.API, store *Store) {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
 		return &munkiPackageListOutput{
-			Body: apitypes.Page[MunkiPackage]{Items: munkiPackagesFromDomain(rows), Count: count},
+			Body: apitypes.Page[MunkiPackage]{Items: MunkiPackagesFromRecords(rows), Count: count},
 		}, nil
 	})
 }
@@ -117,7 +117,7 @@ func registerCreateMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
 	})
 }
 
@@ -141,7 +141,7 @@ func registerImportMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
 	})
 }
 
@@ -158,7 +158,7 @@ func registerGetMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
 	})
 }
 
@@ -181,7 +181,7 @@ func registerPutMunkiPackage(api huma.API, store *Store) {
 		if err != nil {
 			return nil, apitypes.ResourceMutationError(munkiPackageLabel, err)
 		}
-		return &munkiPackageOutput{Body: munkiPackageFromDomain(*pkg)}, nil
+		return &munkiPackageOutput{Body: MunkiPackageFromRecord(*pkg)}, nil
 	})
 }
 
@@ -201,27 +201,25 @@ func registerDeleteMunkiPackage(api huma.API, store *Store) {
 	})
 }
 
-func munkiPackageFromDomain(pkg Package) MunkiPackage {
+// MunkiPackageFromRecord maps a joined package read model to the admin API shape.
+func MunkiPackageFromRecord(record PackageRecord) MunkiPackage {
 	return MunkiPackage{
-		Package: pkg,
-		IconURL: munkiPackageIconURL(pkg),
+		Package: record.Package,
+		IconURL: munkiPackageIconURL(record.SoftwareIcon),
 	}
 }
 
-func munkiPackagesFromDomain(rows []Package) []MunkiPackage {
+// MunkiPackagesFromRecords maps joined package read models to the admin API shape.
+func MunkiPackagesFromRecords(rows []PackageRecord) []MunkiPackage {
 	items := make([]MunkiPackage, len(rows))
 	for i, row := range rows {
-		items[i] = munkiPackageFromDomain(row)
+		items[i] = MunkiPackageFromRecord(row)
 	}
 	return items
 }
 
-func munkiPackageIconURL(pkg Package) string {
-	iconURL := munkiArtifactContentURL(pkg.IconArtifactID)
-	if iconURL == "" {
-		iconURL = munkiArtifactContentURL(pkg.SoftwareIconArtifactID)
-	}
-	return iconURL
+func munkiPackageIconURL(softwareIcon IconRef) string {
+	return munkiArtifactContentURL(softwareIcon.ArtifactID)
 }
 
 func munkiArtifactContentURL(artifactID *int64) string {

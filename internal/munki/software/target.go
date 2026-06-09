@@ -70,8 +70,10 @@ type EffectivePackage struct {
 	SoftwareID int64
 	State      SoftwareState
 	Package    packages.Package
-	Selector   SoftwarePackageSelector
-	Featured   bool
+	// SoftwareIcon is software-owned pkginfo context projected with the package.
+	SoftwareIcon packages.IconRef
+	Selector     SoftwarePackageSelector
+	Featured     bool
 }
 
 // Schema returns the OpenAPI schema for SoftwarePackageStrategy.

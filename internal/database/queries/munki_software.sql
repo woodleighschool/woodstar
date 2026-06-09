@@ -136,6 +136,9 @@ SELECT
     COALESCE(p.maximum_os_version, '') AS maximum_os_version,
     COALESCE(p.supported_architectures, ARRAY[]::text[]) AS supported_architectures,
     COALESCE(p.blocking_applications, ARRAY[]::text[]) AS blocking_applications,
+    COALESCE(p.installable_condition, '') AS installable_condition,
+    COALESCE(p.blocking_applications_manual_quit_only, false) AS blocking_applications_manual_quit_only,
+    COALESCE(p.blocking_applications_quit_script, '') AS blocking_applications_quit_script,
     COALESCE(p.unattended_install, false) AS unattended_install,
     COALESCE(p.unattended_uninstall, false) AS unattended_uninstall,
     COALESCE(p.on_demand, false) AS on_demand,
@@ -170,14 +173,10 @@ SELECT
     COALESCE(p.preuninstall_alert_detail, '') AS preuninstall_alert_detail,
     COALESCE(p.preuninstall_alert_ok_label, '') AS preuninstall_alert_ok_label,
     COALESCE(p.preuninstall_alert_cancel_label, '') AS preuninstall_alert_cancel_label,
-    COALESCE(p.icon_name, '') AS icon_name,
-    COALESCE(p.icon_hash, '') AS icon_hash,
     p.installer_artifact_id,
     art.location AS installer_artifact_location,
     p.uninstaller_artifact_id,
     uninstaller.location AS uninstaller_artifact_location,
-    p.icon_artifact_id,
-    icon.location AS icon_artifact_location,
     software_icon.location AS software_icon_artifact_location
 FROM munki_software_targets a
 JOIN label_membership lm ON lm.label_id = a.label_id AND lm.host_id = @host_id
@@ -189,7 +188,6 @@ JOIN munki_packages p ON p.software_id = a.software_id
     )
 LEFT JOIN munki_artifacts art ON art.id = p.installer_artifact_id
 LEFT JOIN munki_artifacts uninstaller ON uninstaller.id = p.uninstaller_artifact_id
-LEFT JOIN munki_artifacts icon ON icon.id = p.icon_artifact_id
 LEFT JOIN munki_artifacts software_icon ON software_icon.id = s.icon_artifact_id
 WHERE a.direction = 'include'
   AND p.eligible

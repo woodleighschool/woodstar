@@ -1873,6 +1873,10 @@ components:
           type:
             - array
             - "null"
+        blocking_applications_manual_quit_only:
+          type: boolean
+        blocking_applications_quit_script:
+          type: string
         created_at:
           format: date-time
           type: string
@@ -1881,20 +1885,13 @@ components:
         force_install_after_date:
           format: date-time
           type: string
-        icon_artifact_id:
-          format: int64
-          type: integer
-        icon_artifact_location:
-          type: string
-        icon_hash:
-          type: string
-        icon_name:
-          type: string
         icon_url:
           type: string
         id:
           format: int64
           type: integer
+        installable_condition:
+          type: string
         installcheck_script:
           type: string
         installed_size:
@@ -2047,6 +2044,9 @@ components:
         - maximum_os_version
         - supported_architectures
         - blocking_applications
+        - installable_condition
+        - blocking_applications_manual_quit_only
+        - blocking_applications_quit_script
         - requires
         - update_for
         - on_demand
@@ -2072,8 +2072,6 @@ components:
         - version_script
         - preinstall_alert
         - preuninstall_alert
-        - icon_name
-        - icon_hash
         - eligible
         - created_at
         - updated_at
@@ -2090,9 +2088,6 @@ components:
           type: string
         eligible:
           type: boolean
-        icon_artifact_id:
-          format: int64
-          type: integer
         installer_artifact_id:
           format: int64
           type: integer
@@ -2123,17 +2118,16 @@ components:
           type:
             - array
             - "null"
+        blocking_applications_manual_quit_only:
+          type: boolean
+        blocking_applications_quit_script:
+          type: string
         eligible:
           type: boolean
         force_install_after_date:
           format: date-time
           type: string
-        icon_artifact_id:
-          format: int64
-          type: integer
-        icon_hash:
-          type: string
-        icon_name:
+        installable_condition:
           type: string
         installcheck_script:
           type: string

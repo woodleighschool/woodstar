@@ -215,13 +215,13 @@ func registerBulkDeleteMunkiSoftware(api huma.API, store *Store) {
 
 func munkiSoftwareDetailFromDomain(
 	title Software,
-	packageRows []packages.Package,
+	packageRows []packages.PackageRecord,
 	targets SoftwareTargets,
 ) munkiSoftwareDetail {
 	return munkiSoftwareDetail{
 		Software: title,
 		IconURL:  munkiSoftwareIconURL(title),
-		Packages: munkiPackagesFromDomain(packageRows),
+		Packages: packages.MunkiPackagesFromRecords(packageRows),
 		Targets:  targets,
 	}
 }
@@ -272,34 +272,4 @@ func munkiSoftwareIconURL(title Software) string {
 		return ""
 	}
 	return fmt.Sprintf("/api/munki/artifacts/%d/content", *title.IconArtifactID)
-}
-
-func munkiPackageFromDomain(pkg packages.Package) packages.MunkiPackage {
-	return packages.MunkiPackage{
-		Package: pkg,
-		IconURL: munkiPackageIconURL(pkg),
-	}
-}
-
-func munkiPackagesFromDomain(rows []packages.Package) []packages.MunkiPackage {
-	items := make([]packages.MunkiPackage, len(rows))
-	for i, row := range rows {
-		items[i] = munkiPackageFromDomain(row)
-	}
-	return items
-}
-
-func munkiPackageIconURL(pkg packages.Package) string {
-	iconURL := munkiPackageArtifactContentURL(pkg.IconArtifactID)
-	if iconURL == "" {
-		iconURL = munkiPackageArtifactContentURL(pkg.SoftwareIconArtifactID)
-	}
-	return iconURL
-}
-
-func munkiPackageArtifactContentURL(artifactID *int64) string {
-	if artifactID == nil {
-		return ""
-	}
-	return fmt.Sprintf("/api/munki/artifacts/%d/content", *artifactID)
 }

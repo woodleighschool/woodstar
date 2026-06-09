@@ -245,6 +245,17 @@ export function PackageEditorTabs({
                     values={values.supported_architectures}
                     onChange={(supported_architectures) => setField("supported_architectures", supported_architectures)}
                   />
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-installable-condition">Installable Condition</FieldLabel>
+                    <Textarea
+                      id="munki-package-installable-condition"
+                      value={values.installable_condition}
+                      onChange={(event) => setField("installable_condition", event.target.value)}
+                    />
+                    <FieldDescription>
+                      Munki predicate that must pass before this package version is considered.
+                    </FieldDescription>
+                  </Field>
                 </FieldSet>
                 <StringArrayEditor
                   legend="Blocking Applications"
@@ -252,6 +263,27 @@ export function PackageEditorTabs({
                   rows={values.blocking_applications}
                   onChange={(blocking_applications) => setField("blocking_applications", blocking_applications)}
                 />
+                <FieldSet>
+                  <FieldLegend>Blocking Application Handling</FieldLegend>
+                  <CheckboxControl
+                    id="munki-package-blocking-applications-manual-quit-only"
+                    label="Require manual quit"
+                    description="Munki will show blocking apps but will not try to quit them automatically."
+                    checked={values.blocking_applications_manual_quit_only}
+                    onChange={(blocking_applications_manual_quit_only) =>
+                      setField("blocking_applications_manual_quit_only", blocking_applications_manual_quit_only)
+                    }
+                  />
+                  <Field>
+                    <FieldLabel htmlFor="munki-package-blocking-applications-quit-script">Quit Script</FieldLabel>
+                    <Textarea
+                      id="munki-package-blocking-applications-quit-script"
+                      value={values.blocking_applications_quit_script}
+                      onChange={(event) => setField("blocking_applications_quit_script", event.target.value)}
+                    />
+                    <FieldDescription>Embedded script Munki uses instead of default app termination.</FieldDescription>
+                  </Field>
+                </FieldSet>
                 <PackageReferenceEditor
                   legend="Requires"
                   rows={values.requires}

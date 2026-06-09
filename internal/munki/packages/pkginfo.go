@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +15,7 @@ import (
 	"github.com/woodleighschool/woodstar/internal/dbutil"
 )
 
-const pkginfoReceiptPackageIDKey = "package" + "id"
+var timeType = reflect.TypeFor[time.Time]()
 
 // MunkiName returns the stable internal pkginfo name Woodstar gives Munki.
 func MunkiName(packageID int64) string {
@@ -22,218 +25,436 @@ func MunkiName(packageID int64) string {
 	return strconv.FormatInt(packageID, 10)
 }
 
-func Pkginfo(pkg Package) map[string]any {
-	item := make(map[string]any)
-	item["name"] = MunkiName(pkg.ID)
-	item["version"] = pkg.Version
+func Pkginfo(pkg Package, softwareIcon IconRef) map[string]any {
+	return munkiPkginfoFromPackage(pkg, softwareIcon).Map()
+}
 
-	addPkginfoString(item, "display_name", pkg.SoftwareName)
-	addPkginfoString(item, "description", pkg.SoftwareDescription)
-	addPkginfoString(item, "category", pkg.SoftwareCategory)
-	addPkginfoString(item, "developer", pkg.SoftwareDeveloper)
+type munkiPkginfo struct {
+	Name                     string                    `json:"name"`
+	Version                  string                    `json:"version"`
+	DisplayName              string                    `json:"display_name,omitempty"`
+	Description              string                    `json:"description,omitempty"`
+	Category                 string                    `json:"category,omitempty"`
+	Developer                string                    `json:"developer,omitempty"`
+	InstallerType            InstallerType             `json:"installer_type,omitempty"`
+	UninstallMethod          UninstallMethod           `json:"uninstall_method,omitempty"`
+	RestartAction            RestartAction             `json:"RestartAction,omitempty"`
+	MinimumMunkiVersion      string                    `json:"minimum_munki_version,omitempty"`
+	MinimumOSVersion         string                    `json:"minimum_os_version,omitempty"`
+	MaximumOSVersion         string                    `json:"maximum_os_version,omitempty"`
+	SupportedArchitectures   []string                  `json:"supported_architectures,omitempty"`
+	BlockingApplications     []string                  `json:"blocking_applications"`
+	InstallableCondition     string                    `json:"installable_condition,omitempty"`
+	BlockingAppsManualQuit   bool                      `json:"blocking_applications_manual_quit_only,omitempty"`
+	BlockingAppsQuitScript   string                    `json:"blocking_applications_quit_script,omitempty"`
+	Requires                 []string                  `json:"requires,omitempty"`
+	UpdateFor                []string                  `json:"update_for,omitempty"`
+	UnattendedInstall        bool                      `json:"unattended_install,omitempty"`
+	UnattendedUninstall      bool                      `json:"unattended_uninstall,omitempty"`
+	Uninstallable            bool                      `json:"uninstallable,omitempty"`
+	OnDemand                 bool                      `json:"OnDemand,omitempty"`
+	Precache                 bool                      `json:"precache,omitempty"`
+	Autoremove               bool                      `json:"autoremove,omitempty"`
+	AppleItem                bool                      `json:"apple_item,omitempty"`
+	SuppressBundleRelocation bool                      `json:"suppress_bundle_relocation,omitempty"`
+	ForceInstallAfterDate    *time.Time                `json:"force_install_after_date,omitempty"`
+	InstalledSize            int64                     `json:"installed_size,omitempty"`
+	PackagePath              string                    `json:"package_path,omitempty"`
+	InstallerChoicesXML      string                    `json:"installer_choices_xml,omitempty"`
+	InstallerEnvironment     map[string]string         `json:"installer_environment,omitempty"`
+	Installs                 []munkiPkginfoInstallItem `json:"installs,omitempty"`
+	Receipts                 []munkiPkginfoReceipt     `json:"receipts,omitempty"`
+	ItemsToCopy              []munkiPkginfoItemToCopy  `json:"items_to_copy,omitempty"`
+	Notes                    string                    `json:"notes,omitempty"`
+	InstallcheckScript       string                    `json:"installcheck_script,omitempty"`
+	UninstallcheckScript     string                    `json:"uninstallcheck_script,omitempty"`
+	PreinstallScript         string                    `json:"preinstall_script,omitempty"`
+	PostinstallScript        string                    `json:"postinstall_script,omitempty"`
+	PreuninstallScript       string                    `json:"preuninstall_script,omitempty"`
+	PostuninstallScript      string                    `json:"postuninstall_script,omitempty"`
+	UninstallScript          string                    `json:"uninstall_script,omitempty"`
+	VersionScript            string                    `json:"version_script,omitempty"`
+	PreinstallAlert          *munkiPkginfoAlert        `json:"preinstall_alert,omitempty"`
+	PreuninstallAlert        *munkiPkginfoAlert        `json:"preuninstall_alert,omitempty"`
+	IconName                 string                    `json:"icon_name,omitempty"`
+	IconHash                 string                    `json:"icon_hash,omitempty"`
+}
+
+type munkiPkginfoInstallItem struct {
+	Type                  PackageInstallItemType `json:"type,omitempty"`
+	Path                  string                 `json:"path"`
+	BundleIdentifier      string                 `json:"CFBundleIdentifier,omitempty"`
+	BundleName            string                 `json:"CFBundleName,omitempty"`
+	BundleShortVersion    string                 `json:"CFBundleShortVersionString,omitempty"`
+	BundleVersion         string                 `json:"CFBundleVersion,omitempty"`
+	VersionComparisonKey  string                 `json:"version_comparison_key,omitempty"`
+	MD5Checksum           string                 `json:"md5checksum,omitempty"`
+	MinimumOSVersion      string                 `json:"minimum_os_version,omitempty"`
+	InstallerItemLocation string                 `json:"installer_item_location,omitempty"`
+}
+
+type munkiPkginfoReceipt struct {
+	PackageID string `json:"packageid"` //nolint:misspell
+	Version   string `json:"version,omitempty"`
+	Optional  bool   `json:"optional,omitempty"`
+}
+
+type munkiPkginfoItemToCopy struct {
+	SourceItem      string `json:"source_item"`
+	DestinationPath string `json:"destination_path"`
+	DestinationItem string `json:"destination_item,omitempty"`
+	User            string `json:"user,omitempty"`
+	Group           string `json:"group,omitempty"`
+	Mode            string `json:"mode,omitempty"`
+}
+
+type munkiPkginfoAlert struct {
+	Title       string `json:"alert_title,omitempty"`
+	Detail      string `json:"alert_detail,omitempty"`
+	OKLabel     string `json:"ok_label,omitempty"`
+	CancelLabel string `json:"cancel_label,omitempty"`
+}
+
+func munkiPkginfoFromPackage(pkg Package, softwareIcon IconRef) munkiPkginfo {
+	item := munkiPkginfo{
+		Name:                     MunkiName(pkg.ID),
+		Version:                  pkg.Version,
+		DisplayName:              pkg.SoftwareName,
+		Description:              pkg.SoftwareDescription,
+		Category:                 pkg.SoftwareCategory,
+		Developer:                pkg.SoftwareDeveloper,
+		MinimumMunkiVersion:      pkg.MinimumMunkiVersion,
+		MinimumOSVersion:         pkg.MinimumOSVersion,
+		MaximumOSVersion:         pkg.MaximumOSVersion,
+		SupportedArchitectures:   pkg.SupportedArchitectures,
+		BlockingApplications:     pkg.BlockingApplications,
+		InstallableCondition:     pkg.InstallableCondition,
+		BlockingAppsManualQuit:   pkg.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:   pkg.BlockingAppsQuitScript,
+		Requires:                 munkiReferenceNames(pkg.Requires),
+		UpdateFor:                munkiReferenceNames(pkg.UpdateFor),
+		UnattendedInstall:        pkg.UnattendedInstall,
+		UnattendedUninstall:      pkg.UnattendedUninstall,
+		OnDemand:                 pkg.OnDemand,
+		Precache:                 pkg.Precache,
+		Autoremove:               pkg.Autoremove,
+		AppleItem:                pkg.AppleItem,
+		SuppressBundleRelocation: pkg.SuppressBundleRelocation,
+		ForceInstallAfterDate:    pkg.ForceInstallAfterDate,
+		InstalledSize:            pkg.InstalledSize,
+		PackagePath:              pkg.PackagePath,
+		InstallerChoicesXML:      pkg.InstallerChoicesXML,
+		InstallerEnvironment:     munkiInstallerEnvironment(pkg.InstallerEnvironment),
+		Installs:                 munkiInstallItems(pkg.Installs),
+		Receipts:                 munkiReceipts(pkg.Receipts),
+		ItemsToCopy:              munkiItemsToCopy(pkg.ItemsToCopy),
+		Notes:                    pkg.Notes,
+		InstallcheckScript:       pkg.InstallcheckScript,
+		UninstallcheckScript:     pkg.UninstallcheckScript,
+		PreinstallScript:         pkg.PreinstallScript,
+		PostinstallScript:        pkg.PostinstallScript,
+		PreuninstallScript:       pkg.PreuninstallScript,
+		PostuninstallScript:      pkg.PostuninstallScript,
+		UninstallScript:          pkg.UninstallScript,
+		VersionScript:            pkg.VersionScript,
+		PreinstallAlert:          munkiAlert(pkg.PreinstallAlert),
+		PreuninstallAlert:        munkiAlert(pkg.PreuninstallAlert),
+		IconName:                 softwareIcon.Name,
+		IconHash:                 softwareIcon.Hash,
+	}
 	if pkg.InstallerType != "" && pkg.InstallerType != InstallerTypePkg {
-		item["installer_type"] = pkg.InstallerType
+		item.InstallerType = pkg.InstallerType
 	}
-	addPkginfoUninstallMethod(item, pkg)
+	if pkg.UninstallMethod != "" && pkg.UninstallMethod != UninstallMethodNone {
+		item.UninstallMethod = pkg.UninstallMethod
+		item.Uninstallable = true
+	}
 	if pkg.RestartAction != "" && pkg.RestartAction != RestartActionNone {
-		item["RestartAction"] = pkg.RestartAction
+		item.RestartAction = pkg.RestartAction
 	}
-	addPkginfoString(item, "minimum_munki_version", pkg.MinimumMunkiVersion)
-	addPkginfoString(item, "minimum_os_version", pkg.MinimumOSVersion)
-	addPkginfoString(item, "maximum_os_version", pkg.MaximumOSVersion)
-	addPkginfoStrings(item, "supported_architectures", pkg.SupportedArchitectures)
-	item["blocking_applications"] = cleanStringList(pkg.BlockingApplications)
-	addPkginfoStrings(item, "requires", referenceNames(pkg.Requires))
-	addPkginfoStrings(item, "update_for", referenceNames(pkg.UpdateFor))
-	addPkginfoBool(item, "unattended_install", pkg.UnattendedInstall)
-	addPkginfoBool(item, "unattended_uninstall", pkg.UnattendedUninstall)
-	addPkginfoBool(item, "uninstallable", pkg.UninstallMethod != "" && pkg.UninstallMethod != UninstallMethodNone)
-	addPkginfoBool(item, "OnDemand", pkg.OnDemand)
-	addPkginfoBool(item, "precache", pkg.Precache)
-	addPkginfoBool(item, "autoremove", pkg.Autoremove)
-	addPkginfoBool(item, "apple_item", pkg.AppleItem)
-	addPkginfoBool(item, "suppress_bundle_relocation", pkg.SuppressBundleRelocation)
-	if pkg.ForceInstallAfterDate != nil {
-		item["force_install_after_date"] = *pkg.ForceInstallAfterDate
-	}
-	if pkg.InstalledSize > 0 {
-		item["installed_size"] = pkg.InstalledSize
-	}
-	addPkginfoString(item, "package_path", pkg.PackagePath)
-	addPkginfoString(item, "installer_choices_xml", pkg.InstallerChoicesXML)
-	addPkginfoInstallerEnvironment(item, pkg.InstallerEnvironment)
-	addPkginfoInstallItems(item, pkg.Installs)
-	addPkginfoReceipts(item, pkg.Receipts)
-	addPkginfoItemsToCopy(item, pkg.ItemsToCopy)
-	addPkginfoString(item, "notes", pkg.Notes)
-	addPkginfoString(item, "installcheck_script", pkg.InstallcheckScript)
-	addPkginfoString(item, "uninstallcheck_script", pkg.UninstallcheckScript)
-	addPkginfoString(item, "preinstall_script", pkg.PreinstallScript)
-	addPkginfoString(item, "postinstall_script", pkg.PostinstallScript)
-	addPkginfoString(item, "preuninstall_script", pkg.PreuninstallScript)
-	addPkginfoString(item, "postuninstall_script", pkg.PostuninstallScript)
-	addPkginfoString(item, "uninstall_script", pkg.UninstallScript)
-	addPkginfoString(item, "version_script", pkg.VersionScript)
-	addPkginfoAlert(item, "preinstall_alert", pkg.PreinstallAlert)
-	addPkginfoAlert(item, "preuninstall_alert", pkg.PreuninstallAlert)
-	iconName, iconHash := packageIconFields(pkg)
-	addPkginfoString(item, "icon_name", iconName)
-	addPkginfoString(item, "icon_hash", iconHash)
-
 	return item
 }
 
-func packageIconFields(pkg Package) (string, string) {
-	if pkg.IconArtifactID != nil || pkg.IconName != "" || pkg.IconHash != "" {
-		return pkg.IconName, pkg.IconHash
-	}
-	return pkg.SoftwareIconName, pkg.SoftwareIconHash
+func (item munkiPkginfo) Map() map[string]any {
+	return munkiStructMap(reflect.ValueOf(item))
 }
 
-func addPkginfoUninstallMethod(item map[string]any, pkg Package) {
-	switch pkg.UninstallMethod {
-	case "", UninstallMethodNone:
+func (item munkiPkginfo) PackageMutation() (PackageMutation, error) {
+	mutation := PackageMutation{
+		Version:                  item.Version,
+		InstallerType:            item.InstallerType,
+		UninstallMethod:          item.UninstallMethod,
+		RestartAction:            item.RestartAction,
+		MinimumMunkiVersion:      item.MinimumMunkiVersion,
+		MinimumOSVersion:         item.MinimumOSVersion,
+		MaximumOSVersion:         item.MaximumOSVersion,
+		SupportedArchitectures:   item.SupportedArchitectures,
+		BlockingApplications:     item.BlockingApplications,
+		InstallableCondition:     item.InstallableCondition,
+		BlockingAppsManualQuit:   item.BlockingAppsManualQuit,
+		BlockingAppsQuitScript:   item.BlockingAppsQuitScript,
+		UnattendedInstall:        item.UnattendedInstall,
+		UnattendedUninstall:      item.UnattendedUninstall,
+		OnDemand:                 item.OnDemand,
+		Precache:                 item.Precache,
+		Autoremove:               item.Autoremove,
+		AppleItem:                item.AppleItem,
+		SuppressBundleRelocation: item.SuppressBundleRelocation,
+		ForceInstallAfterDate:    item.ForceInstallAfterDate,
+		InstalledSize:            item.InstalledSize,
+		PackagePath:              item.PackagePath,
+		InstallerChoicesXML:      item.InstallerChoicesXML,
+		InstallerEnvironment:     item.PackageInstallerEnvironment(),
+		Installs:                 item.PackageInstallItems(),
+		Receipts:                 item.PackageReceipts(),
+		ItemsToCopy:              item.PackageItemsToCopy(),
+		Notes:                    item.Notes,
+		InstallcheckScript:       item.InstallcheckScript,
+		UninstallcheckScript:     item.UninstallcheckScript,
+		PreinstallScript:         item.PreinstallScript,
+		PostinstallScript:        item.PostinstallScript,
+		PreuninstallScript:       item.PreuninstallScript,
+		PostuninstallScript:      item.PostuninstallScript,
+		UninstallScript:          item.UninstallScript,
+		VersionScript:            item.VersionScript,
+		PreinstallAlert:          item.PreinstallAlert.PackageAlert(),
+		PreuninstallAlert:        item.PreuninstallAlert.PackageAlert(),
+	}
+	if mutation.Version == "" {
+		return PackageMutation{}, fmt.Errorf("%w: pkginfo version is required", dbutil.ErrInvalidInput)
+	}
+	var err error
+	if mutation.Requires, err = packageReferences(item.Requires, "requires"); err != nil {
+		return PackageMutation{}, err
+	}
+	if mutation.UpdateFor, err = packageReferences(item.UpdateFor, "update_for"); err != nil {
+		return PackageMutation{}, err
+	}
+	return mutation, nil
+}
+
+func (item munkiPkginfo) PackageInstallerEnvironment() []PackageInstallerEnvironmentVariable {
+	if len(item.InstallerEnvironment) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(item.InstallerEnvironment))
+	for name := range item.InstallerEnvironment {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]PackageInstallerEnvironmentVariable, 0, len(names))
+	for _, name := range names {
+		out = append(out, PackageInstallerEnvironmentVariable{Name: name, Value: item.InstallerEnvironment[name]})
+	}
+	return out
+}
+
+func (item munkiPkginfo) PackageInstallItems() []PackageInstallItem {
+	out := make([]PackageInstallItem, 0, len(item.Installs))
+	for _, value := range item.Installs {
+		itemType := value.Type
+		if itemType == "" {
+			itemType = PackageInstallItemFile
+		}
+		out = append(out, PackageInstallItem{
+			Type:                  itemType,
+			Path:                  value.Path,
+			BundleIdentifier:      value.BundleIdentifier,
+			BundleName:            value.BundleName,
+			BundleShortVersion:    value.BundleShortVersion,
+			BundleVersion:         value.BundleVersion,
+			VersionComparisonKey:  value.VersionComparisonKey,
+			MD5Checksum:           value.MD5Checksum,
+			MinimumOSVersion:      value.MinimumOSVersion,
+			InstallerItemLocation: value.InstallerItemLocation,
+		})
+	}
+	return out
+}
+
+func (item munkiPkginfo) PackageReceipts() []PackageReceipt {
+	out := make([]PackageReceipt, 0, len(item.Receipts))
+	for _, value := range item.Receipts {
+		out = append(out, PackageReceipt(value))
+	}
+	return out
+}
+
+func (item munkiPkginfo) PackageItemsToCopy() []PackageItemToCopy {
+	out := make([]PackageItemToCopy, 0, len(item.ItemsToCopy))
+	for _, value := range item.ItemsToCopy {
+		out = append(out, PackageItemToCopy(value))
+	}
+	return out
+}
+
+func (alert *munkiPkginfoAlert) PackageAlert() PackageAlert {
+	if alert == nil || alert.Empty() {
+		return PackageAlert{}
+	}
+	return PackageAlert{
+		Enabled:     true,
+		Title:       alert.Title,
+		Detail:      alert.Detail,
+		OKLabel:     alert.OKLabel,
+		CancelLabel: alert.CancelLabel,
+	}
+}
+
+func (alert munkiPkginfoAlert) Empty() bool {
+	return alert.Title == "" &&
+		alert.Detail == "" &&
+		alert.OKLabel == "" &&
+		alert.CancelLabel == ""
+}
+
+func munkiStructMap(value reflect.Value) map[string]any {
+	value = reflect.Indirect(value)
+	valueType := value.Type()
+	out := make(map[string]any, value.NumField())
+	for i := range value.NumField() {
+		field := valueType.Field(i)
+		jsonName, omitEmpty := jsonField(field)
+		if jsonName == "" {
+			continue
+		}
+		fieldValue := value.Field(i)
+		if omitEmpty && fieldValue.IsZero() {
+			continue
+		}
+		out[jsonName] = munkiValue(fieldValue)
+	}
+	return out
+}
+
+func jsonField(field reflect.StructField) (string, bool) {
+	name, options, _ := strings.Cut(field.Tag.Get("json"), ",")
+	if name == "" || name == "-" {
+		return "", false
+	}
+	if slices.Contains(strings.Split(options, ","), "omitempty") {
+		return name, true
+	}
+	return name, false
+}
+
+func munkiValue(value reflect.Value) any {
+	value = reflect.Indirect(value)
+	if !value.IsValid() {
+		return nil
+	}
+	if value.Type() == timeType {
+		return value.Interface()
+	}
+	switch value.Kind() {
+	case reflect.Struct:
+		return munkiStructMap(value)
+	case reflect.Slice, reflect.Array:
+		return munkiSlice(value)
 	default:
-		addPkginfoString(item, "uninstall_method", string(pkg.UninstallMethod))
+		return value.Interface()
 	}
 }
 
-func addPkginfoString(item map[string]any, key string, value string) {
-	value = strings.TrimSpace(value)
-	if value != "" {
-		item[key] = value
+func munkiSlice(value reflect.Value) any {
+	if value.Len() == 0 || value.Type().Elem().Kind() != reflect.Struct {
+		return value.Interface()
 	}
+	out := make([]map[string]any, 0, value.Len())
+	for i := range value.Len() {
+		out = append(out, munkiStructMap(value.Index(i)))
+	}
+	return out
 }
 
-func addPkginfoStrings(item map[string]any, key string, values []string) {
-	values = cleanStringList(values)
-	if len(values) > 0 {
-		item[key] = values
-	}
-}
-
-func addPkginfoBool(item map[string]any, key string, value bool) {
-	if value {
-		item[key] = true
-	}
-}
-
-func addPkginfoInstallerEnvironment(item map[string]any, values []PackageInstallerEnvironmentVariable) {
-	environment := make(map[string]string, len(values))
-	for _, value := range values {
-		name := strings.TrimSpace(value.Name)
-		if name != "" {
-			environment[name] = value.Value
-		}
-	}
-	if len(environment) > 0 {
-		item["installer_environment"] = environment
-	}
-}
-
-func addPkginfoInstallItems(item map[string]any, values []PackageInstallItem) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		path := strings.TrimSpace(value.Path)
-		if path == "" {
-			continue
-		}
-		record := map[string]any{
-			"type": string(value.Type),
-			"path": path,
-		}
-		addPkginfoString(record, "CFBundleIdentifier", value.BundleIdentifier)
-		addPkginfoString(record, "CFBundleName", value.BundleName)
-		addPkginfoString(record, "CFBundleShortVersionString", value.BundleShortVersion)
-		addPkginfoString(record, "CFBundleVersion", value.BundleVersion)
-		addPkginfoString(record, "version_comparison_key", value.VersionComparisonKey)
-		addPkginfoString(record, "md5checksum", value.MD5Checksum)
-		addPkginfoString(record, "minimum_os_version", value.MinimumOSVersion)
-		addPkginfoString(record, "installer_item_location", value.InstallerItemLocation)
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["installs"] = out
-	}
-}
-
-func addPkginfoReceipts(item map[string]any, values []PackageReceipt) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		packageID := strings.TrimSpace(value.PackageID)
-		if packageID == "" {
-			continue
-		}
-		record := map[string]any{pkginfoReceiptPackageIDKey: packageID}
-		addPkginfoString(record, "version", value.Version)
-		if value.Optional {
-			record["optional"] = true
-		}
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["receipts"] = out
-	}
-}
-
-func addPkginfoItemsToCopy(item map[string]any, values []PackageItemToCopy) {
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		sourceItem := strings.TrimSpace(value.SourceItem)
-		destinationPath := strings.TrimSpace(value.DestinationPath)
-		if sourceItem == "" || destinationPath == "" {
-			continue
-		}
-		record := map[string]any{
-			"source_item":      sourceItem,
-			"destination_path": destinationPath,
-		}
-		addPkginfoString(record, "destination_item", value.DestinationItem)
-		addPkginfoString(record, "user", value.User)
-		addPkginfoString(record, "group", value.Group)
-		addPkginfoString(record, "mode", value.Mode)
-		out = append(out, record)
-	}
-	if len(out) > 0 {
-		item["items_to_copy"] = out
-	}
-}
-
-func addPkginfoAlert(item map[string]any, key string, alert PackageAlert) {
-	if !alert.Enabled {
-		return
-	}
-	record := map[string]any{}
-	addPkginfoString(record, "alert_title", alert.Title)
-	addPkginfoString(record, "alert_detail", alert.Detail)
-	addPkginfoString(record, "ok_label", alert.OKLabel)
-	addPkginfoString(record, "cancel_label", alert.CancelLabel)
-	if len(record) > 0 {
-		item[key] = record
-	}
-}
-
-func referenceNames(references []PackageReference) []string {
+func munkiReferenceNames(references []PackageReference) []string {
 	out := make([]string, 0, len(references))
 	for _, ref := range references {
-		name := referenceName(ref)
-		if name != "" {
+		if name := MunkiName(ref.PackageID); name != "" {
 			out = append(out, name)
 		}
 	}
-	return cleanStringList(out)
+	return out
 }
 
-func referenceName(ref PackageReference) string {
-	return MunkiName(ref.PackageID)
+func munkiInstallerEnvironment(values []PackageInstallerEnvironmentVariable) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	environment := make(map[string]string, len(values))
+	for _, value := range values {
+		environment[value.Name] = value.Value
+	}
+	return environment
+}
+
+func munkiInstallItems(values []PackageInstallItem) []munkiPkginfoInstallItem {
+	out := make([]munkiPkginfoInstallItem, 0, len(values))
+	for _, value := range values {
+		out = append(out, munkiPkginfoInstallItem{
+			Type:                  value.Type,
+			Path:                  value.Path,
+			BundleIdentifier:      value.BundleIdentifier,
+			BundleName:            value.BundleName,
+			BundleShortVersion:    value.BundleShortVersion,
+			BundleVersion:         value.BundleVersion,
+			VersionComparisonKey:  value.VersionComparisonKey,
+			MD5Checksum:           value.MD5Checksum,
+			MinimumOSVersion:      value.MinimumOSVersion,
+			InstallerItemLocation: value.InstallerItemLocation,
+		})
+	}
+	return out
+}
+
+func munkiReceipts(values []PackageReceipt) []munkiPkginfoReceipt {
+	out := make([]munkiPkginfoReceipt, 0, len(values))
+	for _, value := range values {
+		out = append(out, munkiPkginfoReceipt{
+			PackageID: value.PackageID,
+			Version:   value.Version,
+			Optional:  value.Optional,
+		})
+	}
+	return out
+}
+
+func munkiItemsToCopy(values []PackageItemToCopy) []munkiPkginfoItemToCopy {
+	out := make([]munkiPkginfoItemToCopy, 0, len(values))
+	for _, value := range values {
+		out = append(out, munkiPkginfoItemToCopy{
+			SourceItem:      value.SourceItem,
+			DestinationPath: value.DestinationPath,
+			DestinationItem: value.DestinationItem,
+			User:            value.User,
+			Group:           value.Group,
+			Mode:            value.Mode,
+		})
+	}
+	return out
+}
+
+func munkiAlert(alert PackageAlert) *munkiPkginfoAlert {
+	if !alert.Enabled {
+		return nil
+	}
+	out := munkiPkginfoAlert{
+		Title:       alert.Title,
+		Detail:      alert.Detail,
+		OKLabel:     alert.OKLabel,
+		CancelLabel: alert.CancelLabel,
+	}
+	if out.Empty() {
+		return nil
+	}
+	return &out
 }
 
 // Import imports one Munki pkginfo item into selected Woodstar-managed Munki software.
-func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImportMutation) (*Package, error) {
+func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImportMutation) (*PackageRecord, error) {
 	if softwareID <= 0 {
 		return nil, fmt.Errorf("%w: software_id is required", dbutil.ErrInvalidInput)
 	}
-	params = cleanImportMutation(params)
 	if err := params.Validate(); err != nil {
 		return nil, err
 	}
@@ -243,7 +464,6 @@ func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImpo
 	}
 	mutation.InstallerArtifactID = params.InstallerArtifactID
 	mutation.UninstallerArtifactID = params.UninstallerArtifactID
-	mutation.IconArtifactID = params.IconArtifactID
 	mutation.Eligible = true
 	if params.Eligible != nil {
 		mutation.Eligible = *params.Eligible
@@ -252,184 +472,26 @@ func (s *Store) Import(ctx context.Context, softwareID int64, params PackageImpo
 }
 
 func packageMutationFromPkginfo(raw json.RawMessage) (PackageMutation, error) {
-	item, err := decodePkginfoObject(raw)
+	item, err := decodeMunkiPkginfo(raw)
 	if err != nil {
 		return PackageMutation{}, err
 	}
-	return packageMutationFromPkginfoFields(item)
+	return item.PackageMutation()
 }
 
-func packageMutationFromPkginfoFields(item map[string]any) (PackageMutation, error) {
-	mutation := PackageMutation{
-		Version:                  pkginfoString(item, "version"),
-		InstallerType:            InstallerType(pkginfoString(item, "installer_type")),
-		UninstallMethod:          pkginfoUninstallMethod(item),
-		RestartAction:            RestartAction(pkginfoString(item, "RestartAction")),
-		MinimumMunkiVersion:      pkginfoString(item, "minimum_munki_version"),
-		MinimumOSVersion:         pkginfoString(item, "minimum_os_version"),
-		MaximumOSVersion:         pkginfoString(item, "maximum_os_version"),
-		IconName:                 pkginfoString(item, "icon_name"),
-		IconHash:                 pkginfoString(item, "icon_hash"),
-		UnattendedInstall:        pkginfoBool(item, "unattended_install"),
-		UnattendedUninstall:      pkginfoBool(item, "unattended_uninstall"),
-		OnDemand:                 pkginfoBool(item, "OnDemand"),
-		Precache:                 pkginfoBool(item, "precache"),
-		Autoremove:               pkginfoBool(item, "autoremove"),
-		AppleItem:                pkginfoBool(item, "apple_item"),
-		SuppressBundleRelocation: pkginfoBool(item, "suppress_bundle_relocation"),
-		InstalledSize:            pkginfoInt64(item, "installed_size"),
-		PackagePath:              pkginfoString(item, "package_path"),
-		InstallerChoicesXML:      pkginfoString(item, "installer_choices_xml"),
-		Notes:                    pkginfoString(item, "notes"),
-		InstallcheckScript:       pkginfoString(item, "installcheck_script"),
-		UninstallcheckScript:     pkginfoString(item, "uninstallcheck_script"),
-		PreinstallScript:         pkginfoString(item, "preinstall_script"),
-		PostinstallScript:        pkginfoString(item, "postinstall_script"),
-		PreuninstallScript:       pkginfoString(item, "preuninstall_script"),
-		PostuninstallScript:      pkginfoString(item, "postuninstall_script"),
-		UninstallScript:          pkginfoString(item, "uninstall_script"),
-		VersionScript:            pkginfoString(item, "version_script"),
-	}
-	if mutation.Version == "" {
-		return PackageMutation{}, fmt.Errorf("%w: pkginfo version is required", dbutil.ErrInvalidInput)
-	}
-	var err error
-	if mutation.SupportedArchitectures, err = pkginfoStringList(item, "supported_architectures"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.BlockingApplications, err = pkginfoStringList(item, "blocking_applications"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.Requires, err = pkginfoReferences(item, "requires"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.UpdateFor, err = pkginfoReferences(item, "update_for"); err != nil {
-		return PackageMutation{}, err
-	}
-	forceInstallAfterDate, ok, err := pkginfoTime(item, "force_install_after_date")
-	if err != nil {
-		return PackageMutation{}, err
-	}
-	if ok {
-		mutation.ForceInstallAfterDate = &forceInstallAfterDate
-	}
-	if mutation.InstallerEnvironment, err = pkginfoInstallerEnvironment(item, "installer_environment"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.Installs, err = pkginfoInstallItems(item, "installs"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.Receipts, err = pkginfoReceipts(item, "receipts"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.ItemsToCopy, err = pkginfoItemsToCopy(item, "items_to_copy"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.PreinstallAlert, err = pkginfoAlert(item, "preinstall_alert"); err != nil {
-		return PackageMutation{}, err
-	}
-	if mutation.PreuninstallAlert, err = pkginfoAlert(item, "preuninstall_alert"); err != nil {
-		return PackageMutation{}, err
-	}
-	return mutation, nil
-}
-
-func decodePkginfoObject(raw json.RawMessage) (map[string]any, error) {
+func decodeMunkiPkginfo(raw json.RawMessage) (munkiPkginfo, error) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var item map[string]any
+	var item *munkiPkginfo
 	if err := decoder.Decode(&item); err != nil {
-		return nil, fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
+		return munkiPkginfo{}, fmt.Errorf("%w: pkginfo has invalid shape: %w", dbutil.ErrInvalidInput, err)
 	}
 	if item == nil {
-		return nil, fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
+		return munkiPkginfo{}, fmt.Errorf("%w: pkginfo must be a JSON object", dbutil.ErrInvalidInput)
 	}
-	return item, nil
+	return *item, nil
 }
 
-func cleanImportMutation(params PackageImportMutation) PackageImportMutation {
-	params.Pkginfo = bytes.TrimSpace(params.Pkginfo)
-	return params
-}
-
-func pkginfoString(item map[string]any, key string) string {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return ""
-	}
-	text, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(text)
-}
-
-func pkginfoBool(item map[string]any, key string) bool {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return false
-	}
-	boolean, ok := value.(bool)
-	return ok && boolean
-}
-
-func pkginfoInt64(item map[string]any, key string) int64 {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return 0
-	}
-	switch value := value.(type) {
-	case json.Number:
-		number, err := value.Int64()
-		if err == nil {
-			return number
-		}
-	case float64:
-		return int64(value)
-	}
-	return 0
-}
-
-func pkginfoUninstallMethod(item map[string]any) UninstallMethod {
-	method := pkginfoString(item, "uninstall_method")
-	switch UninstallMethod(method) {
-	case "", UninstallMethodNone:
-		return UninstallMethodNone
-	case UninstallMethodRemovePackages,
-		UninstallMethodRemoveCopiedItems,
-		UninstallMethodUninstallScript,
-		UninstallMethodUninstallPackage:
-		return UninstallMethod(method)
-	default:
-		return UninstallMethod(method)
-	}
-}
-
-func pkginfoStringList(item map[string]any, key string) ([]string, error) {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return nil, nil
-	}
-	values, ok := value.([]any)
-	if !ok {
-		return nil, fmt.Errorf("%w: pkginfo %s must be an array of strings", dbutil.ErrInvalidInput, key)
-	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		text, ok := value.(string)
-		if !ok {
-			return nil, fmt.Errorf("%w: pkginfo %s must be an array of strings", dbutil.ErrInvalidInput, key)
-		}
-		out = append(out, strings.TrimSpace(text))
-	}
-	return cleanStringList(out), nil
-}
-
-func pkginfoReferences(item map[string]any, key string) ([]PackageReference, error) {
-	values, err := pkginfoStringList(item, key)
-	if err != nil {
-		return nil, err
-	}
+func packageReferences(values []string, key string) ([]PackageReference, error) {
 	out := make([]PackageReference, 0, len(values))
 	for _, value := range values {
 		packageID, err := strconv.ParseInt(value, 10, 64)
@@ -443,164 +505,4 @@ func pkginfoReferences(item map[string]any, key string) ([]PackageReference, err
 		out = append(out, PackageReference{PackageID: packageID})
 	}
 	return out, nil
-}
-
-func pkginfoTime(item map[string]any, key string) (time.Time, bool, error) {
-	value := pkginfoString(item, key)
-	if value == "" {
-		return time.Time{}, false, nil
-	}
-	parsed, err := time.Parse(time.RFC3339, value)
-	if err != nil {
-		return time.Time{}, false, fmt.Errorf(
-			"%w: pkginfo %s must be an RFC3339 timestamp",
-			dbutil.ErrInvalidInput,
-			key,
-		)
-	}
-	return parsed, true, nil
-}
-
-func pkginfoInstallerEnvironment(
-	item map[string]any,
-	key string,
-) ([]PackageInstallerEnvironmentVariable, error) {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return nil, nil
-	}
-	object, ok := value.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%w: pkginfo %s must be an object", dbutil.ErrInvalidInput, key)
-	}
-	out := make([]PackageInstallerEnvironmentVariable, 0, len(object))
-	for name, value := range object {
-		text, ok := value.(string)
-		if !ok {
-			return nil, fmt.Errorf("%w: pkginfo %s values must be strings", dbutil.ErrInvalidInput, key)
-		}
-		out = append(out, PackageInstallerEnvironmentVariable{Name: name, Value: text})
-	}
-	return out, nil
-}
-
-func pkginfoInstallItems(item map[string]any, key string) ([]PackageInstallItem, error) {
-	values, err := pkginfoObjectList(item, key)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]PackageInstallItem, 0, len(values))
-	for _, value := range values {
-		itemType := PackageInstallItemType(pkginfoMapString(value, "type"))
-		if itemType == "" {
-			itemType = PackageInstallItemFile
-		}
-		out = append(out, PackageInstallItem{
-			Type:                  itemType,
-			Path:                  pkginfoMapString(value, "path"),
-			BundleIdentifier:      pkginfoMapString(value, "CFBundleIdentifier"),
-			BundleName:            pkginfoMapString(value, "CFBundleName"),
-			BundleShortVersion:    pkginfoMapString(value, "CFBundleShortVersionString"),
-			BundleVersion:         pkginfoMapString(value, "CFBundleVersion"),
-			VersionComparisonKey:  pkginfoMapString(value, "version_comparison_key"),
-			MD5Checksum:           pkginfoMapString(value, "md5checksum"),
-			MinimumOSVersion:      pkginfoMapString(value, "minimum_os_version"),
-			InstallerItemLocation: pkginfoMapString(value, "installer_item_location"),
-		})
-	}
-	return out, nil
-}
-
-func pkginfoReceipts(item map[string]any, key string) ([]PackageReceipt, error) {
-	values, err := pkginfoObjectList(item, key)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]PackageReceipt, 0, len(values))
-	for _, value := range values {
-		out = append(out, PackageReceipt{
-			PackageID: pkginfoMapString(value, pkginfoReceiptPackageIDKey),
-			Version:   pkginfoMapString(value, "version"),
-			Optional:  pkginfoMapBool(value, "optional"),
-		})
-	}
-	return out, nil
-}
-
-func pkginfoItemsToCopy(item map[string]any, key string) ([]PackageItemToCopy, error) {
-	values, err := pkginfoObjectList(item, key)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]PackageItemToCopy, 0, len(values))
-	for _, value := range values {
-		out = append(out, PackageItemToCopy{
-			SourceItem:      pkginfoMapString(value, "source_item"),
-			DestinationPath: pkginfoMapString(value, "destination_path"),
-			DestinationItem: pkginfoMapString(value, "destination_item"),
-			User:            pkginfoMapString(value, "user"),
-			Group:           pkginfoMapString(value, "group"),
-			Mode:            pkginfoMapString(value, "mode"),
-		})
-	}
-	return out, nil
-}
-
-func pkginfoAlert(item map[string]any, key string) (PackageAlert, error) {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return PackageAlert{}, nil
-	}
-	object, ok := value.(map[string]any)
-	if !ok {
-		return PackageAlert{}, fmt.Errorf("%w: pkginfo %s must be an object", dbutil.ErrInvalidInput, key)
-	}
-	return PackageAlert{
-		Enabled:     true,
-		Title:       pkginfoMapString(object, "alert_title"),
-		Detail:      pkginfoMapString(object, "alert_detail"),
-		OKLabel:     pkginfoMapString(object, "ok_label"),
-		CancelLabel: pkginfoMapString(object, "cancel_label"),
-	}, nil
-}
-
-func pkginfoObjectList(item map[string]any, key string) ([]map[string]any, error) {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return nil, nil
-	}
-	values, ok := value.([]any)
-	if !ok {
-		return nil, fmt.Errorf("%w: pkginfo %s must be an array of objects", dbutil.ErrInvalidInput, key)
-	}
-	out := make([]map[string]any, 0, len(values))
-	for _, value := range values {
-		object, ok := value.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("%w: pkginfo %s must be an array of objects", dbutil.ErrInvalidInput, key)
-		}
-		out = append(out, object)
-	}
-	return out, nil
-}
-
-func pkginfoMapString(item map[string]any, key string) string {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return ""
-	}
-	text, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(text)
-}
-
-func pkginfoMapBool(item map[string]any, key string) bool {
-	value, ok := item[key]
-	if !ok || value == nil {
-		return false
-	}
-	boolean, ok := value.(bool)
-	return ok && boolean
 }
