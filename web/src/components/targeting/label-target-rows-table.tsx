@@ -45,7 +45,7 @@ export function LabelTargetRowsTable<T extends LabelTargetRow>({
         accessorKey: "label_id",
         header: () => (
           <span className="inline-flex items-center gap-1">
-            Labels
+            Label
             <span aria-hidden="true" className="text-destructive">
               *
             </span>

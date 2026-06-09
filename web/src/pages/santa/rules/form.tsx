@@ -7,6 +7,7 @@ import { LabelPicker } from "@/components/labels/label-picker";
 import { MutableResourceTabs } from "@/components/layout/mutable-resource-tabs";
 import { PageHeader, PageShell } from "@/components/layout/page-layout";
 import { CELDialog, IncludeTargetsTable, RuleReferencePicker } from "@/components/santa/rules/rule-form-fields";
+import { TargetSection } from "@/components/targeting/target-section";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -249,9 +250,9 @@ function RuleForm({
                       label: "Targets",
                       content: (
                         <FieldGroup>
-                          <Field>
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <FieldLabel>Targets</FieldLabel>
+                          <TargetSection
+                            title="Include"
+                            action={
                               <Button
                                 type="button"
                                 variant="outline"
@@ -267,12 +268,13 @@ function RuleForm({
                                 }
                               >
                                 <Plus data-icon="inline-start" />
-                                Add Target
+                                Add Include
                               </Button>
-                            </div>
+                            }
+                          >
                             {values.targets.include.length === 0 ? (
                               <div className="text-muted-foreground rounded-md border border-dashed px-4 py-6 text-sm">
-                                None
+                                No Includes
                               </div>
                             ) : (
                               <IncludeTargetsTable
@@ -294,23 +296,21 @@ function RuleForm({
                                 }}
                               />
                             )}
-                          </Field>
+                          </TargetSection>
                           <Separator />
-                          <form.Field
-                            name="targets"
-                            children={(field) => (
-                              <Field>
-                                <FieldLabel>Exclusions</FieldLabel>
-                                <LabelPicker
-                                  value={labelIDsFromRefs(field.state.value.exclude)}
-                                  unavailableLabelIDs={includeLabelIDs}
-                                  onChange={(labelIDs) =>
-                                    field.handleChange({ ...field.state.value, exclude: labelRefsFromIDs(labelIDs) })
-                                  }
-                                />
-                              </Field>
-                            )}
-                          />
+                          <TargetSection title="Exclude">
+                            <LabelPicker
+                              value={labelIDsFromRefs(values.targets.exclude)}
+                              unavailableLabelIDs={includeLabelIDs}
+                              onChange={(labelIDs) =>
+                                form.setFieldValue("targets", {
+                                  ...values.targets,
+                                  exclude: labelRefsFromIDs(labelIDs),
+                                })
+                              }
+                              placeholder="Add Exclude"
+                            />
+                          </TargetSection>
                         </FieldGroup>
                       ),
                     },

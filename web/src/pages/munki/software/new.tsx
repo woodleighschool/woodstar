@@ -116,7 +116,6 @@ export function MunkiSoftwareNewPage() {
                                 <button
                                   type="button"
                                   className="text-muted-foreground hover:text-foreground inline-flex"
-                                  aria-label="Description help"
                                 >
                                   <Info className="size-3.5" />
                                 </button>

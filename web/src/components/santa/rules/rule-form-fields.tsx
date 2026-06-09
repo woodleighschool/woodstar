@@ -264,7 +264,7 @@ export function IncludeTargetsTable({
       rows={includeRows}
       excludeLabelIDs={excludedLabelIDs}
       labelErrors={includeLabelErrors(showErrors, includeErrors)}
-      columnsBeforeLabel={policyColumns}
+      columnsAfterLabel={policyColumns}
       onChange={onChange}
       onLabelChange={(id, labelID) => onUpdate(id, { label_id: labelID })}
       renderActions={(row) => (
@@ -272,7 +272,7 @@ export function IncludeTargetsTable({
           <Trash2 />
         </Button>
       )}
-      empty={<span className="text-muted-foreground text-sm">No Include Targets.</span>}
+      empty={<span className="text-muted-foreground text-sm">No Includes</span>}
       emptyClassName="min-h-24 items-center py-6"
     />
   );

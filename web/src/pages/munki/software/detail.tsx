@@ -13,10 +13,22 @@ import { FreeTextCombobox } from "@/components/munki/free-text-combobox";
 import { MunkiIcon } from "@/components/munki/munki-icon";
 import { MutationError } from "@/components/mutation-error";
 import { LabelTargetRowsTable } from "@/components/targeting/label-target-rows-table";
+import { TargetSection } from "@/components/targeting/target-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Field, FieldContent, FieldError, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUploadMunkiArtifact } from "@/hooks/munki/artifacts";
@@ -33,23 +45,16 @@ import { fieldErrors, uniqueOptions } from "@/lib/form-validation";
 import { selectedLabelTargetIDs } from "@/lib/label-target-rows";
 import { munkiSoftwareFormFromSoftware, munkiSoftwareSchema } from "@/lib/munki-software-form";
 import {
-  emptyMunkiSoftwareTargetForm,
+  LATEST_PACKAGE_VALUE,
   munkiSoftwareInclude,
-  munkiSoftwareTargetDetailsFormSchema,
-  munkiSoftwareTargetFormSchema,
-  type MunkiSoftwareTargetFormState,
-} from "@/lib/munki-software-target-form";
+  munkiSoftwareTargetSchema,
+  targetPackageFromValue,
+  targetPackageValue,
+} from "@/lib/munki-software-targets";
 import { MAX_PAGE_SIZE } from "@/lib/pagination";
 import { formatRelative } from "@/lib/utils";
 
-import { MunkiSoftwareTargetFormFields } from "@/components/munki/software/target-form";
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import {
-  munkiInstallerTypeLabel,
-  munkiPackageStrategyLabel,
-  munkiRestartActionLabel,
-  munkiSoftwareStateLabel,
-} from "@/lib/munki-software";
+import { MUNKI_SOFTWARE_STATE_OPTIONS, munkiInstallerTypeLabel, munkiRestartActionLabel } from "@/lib/munki-software";
 
 interface MunkiSoftwareTargetRow {
   id: number;
@@ -58,6 +63,13 @@ interface MunkiSoftwareTargetRow {
   package: SoftwareInclude["package"];
   state: SoftwareInclude["state"];
   featured: boolean;
+}
+
+interface MunkiSoftwareTargetRowErrors {
+  label_id?: string;
+  package?: string;
+  state?: string;
+  featured?: string;
 }
 
 export function MunkiSoftwareDetailPage() {
@@ -116,27 +128,21 @@ function MunkiSoftwareDetailForm({
   const [nextDraftID, setNextDraftID] = useState(-1);
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconCleared, setIconCleared] = useState(false);
-  const [targetSheetOpen, setTargetSheetOpen] = useState(false);
-  const [editingTarget, setEditingTarget] = useState<MunkiSoftwareTargetRow | null>(null);
-  const [targetForm, setTargetForm] = useState(() => emptyMunkiSoftwareTargetForm());
-  const [showTargetErrors, setShowTargetErrors] = useState(false);
-  const [targetErrors, setTargetErrors] = useState<Partial<Record<number, string>>>({});
+  const [settingsTargetID, setSettingsTargetID] = useState<number | null>(null);
+  const [targetErrors, setTargetErrors] = useState<Partial<Record<number, MunkiSoftwareTargetRowErrors>>>({});
   const [excludeForm, setExcludeForm] = useState<number[]>(() => excludeLabelIDsFromTargets(software));
   const packages = software.packages ?? [];
   const includes = useMemo(() => software.targets.include, [software.targets.include]);
   const excludeLabelIDs = useMemo(() => excludeLabelIDsFromTargets(software), [software]);
   const includeLabelIDs = useMemo(() => selectedLabelTargetIDs(targetRows), [targetRows]);
+  const settingsTarget = targetRows.find((target) => target.id === settingsTargetID);
   const softwareOptionsForm = useForm({
     defaultValues: munkiSoftwareFormFromSoftware(software),
     validators: {
       onSubmit: munkiSoftwareSchema,
     },
   });
-  const targetParsed = useMemo(() => munkiSoftwareTargetDetailsFormSchema.safeParse(targetForm), [targetForm]);
-  const targetFormErrors = useMemo(() => fieldErrors(targetParsed), [targetParsed]);
   const targetMutationError = updateSoftware.error?.message;
-  const targetDirty = !sameTargetRows(targetRows, includes);
-  const excludeDirty = !sameNumberSet(excludeForm, excludeLabelIDs);
   const pagePending = updateSoftware.isPending || iconUpload.isUploading;
   const pageMutationError = updateSoftware.error?.message ?? iconUpload.error?.message;
   const categoryOptions = useMemo(
@@ -160,74 +166,33 @@ function MunkiSoftwareDetailForm({
     setNextDraftID((current) => current - 1);
   }
 
-  function openEditTarget(target: MunkiSoftwareTargetRow) {
+  function updateTargetRow(id: number, update: (target: MunkiSoftwareTargetRow) => MunkiSoftwareTargetRow) {
     updateSoftware.reset();
-    setEditingTarget(target);
-    setTargetForm(munkiSoftwareTargetFormFromRow(target));
-    setShowTargetErrors(false);
-    setTargetSheetOpen(true);
-  }
-
-  function saveTarget() {
-    if (!editingTarget) return;
-    const next = munkiSoftwareTargetDetailsFormSchema.safeParse(targetForm);
-    if (!next.success) {
-      setShowTargetErrors(true);
-      return;
-    }
-
-    setTargetRows((current) =>
-      current.map((row) =>
-        row.id === editingTarget.id
-          ? {
-              ...row,
-              package: {
-                strategy: next.data.strategy,
-                package_id: next.data.strategy === "specific" ? Number(next.data.package_id) : undefined,
-              },
-              state: next.data.state,
-              featured: next.data.featured,
-            }
-          : row,
-      ),
-    );
-    setTargetSheetOpen(false);
+    setTargetErrors((current) => omitTargetError(current, id));
+    setTargetRows((current) => current.map((row) => (row.id === id ? update(row) : row)));
   }
 
   function updateTargetLabel(id: number, labelID: number | null) {
-    updateSoftware.reset();
-    setTargetErrors((current) => omitTargetError(current, id));
-    setTargetRows((current) => current.map((row) => updateRowLabel(row, id, labelID)));
+    updateTargetRow(id, (row) => updateRowLabel(row, id, labelID));
   }
 
   function deleteTargetRow(target: MunkiSoftwareTargetRow) {
     updateSoftware.reset();
     setTargetRows((current) => numberTargetRows(current.filter((row) => row.id !== target.id)));
     setTargetErrors((current) => omitTargetError(current, target.id));
-    if (editingTarget?.id === target.id) {
-      setTargetSheetOpen(false);
-      setEditingTarget(null);
+    if (settingsTargetID === target.id) {
+      setSettingsTargetID(null);
     }
   }
 
   async function savePage() {
-    const softwareDirty = iconFile !== null || iconCleared || softwareOptionsForm.state.isDirty;
-    const pageDirty = softwareDirty || targetDirty || excludeDirty;
-    if (!pageDirty) return;
-
     await softwareOptionsForm.handleSubmit();
     const softwareParsed = munkiSoftwareSchema.safeParse(softwareOptionsForm.state.values);
     if (!softwareParsed.success) return;
 
     const nextTargets = targetIncludeMutations(targetRows);
     if (!nextTargets.success) {
-      setTargetErrors(nextTargets.labelErrors);
-      if (nextTargets.editRow) {
-        setEditingTarget(nextTargets.editRow);
-        setTargetForm(munkiSoftwareTargetFormFromRow(nextTargets.editRow));
-        setShowTargetErrors(true);
-        setTargetSheetOpen(true);
-      }
+      setTargetErrors(nextTargets.errors);
       return;
     }
 
@@ -305,20 +270,35 @@ function MunkiSoftwareDetailForm({
       id: "selection",
       header: "Package",
       enableSorting: false,
-      cell: ({ row }) => targetPackageLabel(row.original, packages),
+      cell: ({ row }) => (
+        <TargetPackageSelect
+          target={row.original}
+          packages={packages}
+          error={targetErrors[row.original.id]?.package}
+          onChange={(selector) => updateTargetRow(row.original.id, (target) => ({ ...target, package: selector }))}
+        />
+      ),
+      meta: { cellClassName: "min-w-44 align-top" },
     },
     {
       id: "state",
       accessorKey: "state",
       header: "Managed",
       enableSorting: false,
-      cell: ({ row }) => munkiSoftwareStateLabel(row.original.state),
-    },
-    {
-      id: "msc",
-      header: "Availability",
-      enableSorting: false,
-      cell: ({ row }) => targetAvailabilitySections(row.original).join(", ") || "None",
+      cell: ({ row }) => (
+        <TargetManagedSelect
+          target={row.original}
+          error={targetErrors[row.original.id]?.state}
+          onChange={(state) =>
+            updateTargetRow(row.original.id, (target) => ({
+              ...target,
+              state,
+              featured: state === "optional_install" ? target.featured : false,
+            }))
+          }
+        />
+      ),
+      meta: { cellClassName: "min-w-52 align-top" },
     },
   ];
 
@@ -394,7 +374,6 @@ function MunkiSoftwareDetailForm({
                                 <button
                                   type="button"
                                   className="text-muted-foreground hover:text-foreground inline-flex"
-                                  aria-label="Description help"
                                 >
                                   <Info className="size-3.5" />
                                 </button>
@@ -467,74 +446,55 @@ function MunkiSoftwareDetailForm({
               label: "Targets",
               content: (
                 <div className="flex flex-col gap-6">
-                  <section className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold">Targets</h2>
-                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                        <Button type="button" size="sm" disabled={pagePending} onClick={openNewTarget}>
-                          <Plus data-icon="inline-start" />
-                          Add Target
-                        </Button>
-                      </div>
-                    </div>
+                  <TargetSection
+                    title="Include"
+                    action={
+                      <Button type="button" size="sm" disabled={pagePending} onClick={openNewTarget}>
+                        <Plus data-icon="inline-start" />
+                        Add Include
+                      </Button>
+                    }
+                  >
                     <MutationError title="Failed to Save Target" message={targetMutationError} />
                     <LabelTargetRowsTable
                       rows={targetRows}
                       excludeLabelIDs={excludeForm}
-                      labelErrors={targetErrors}
+                      labelErrors={targetLabelErrors(targetErrors)}
                       columnsAfterLabel={targetDetailColumns}
                       onChange={moveTargets}
                       onLabelChange={updateTargetLabel}
                       renderActions={(row) => (
                         <div className="flex justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Edit target"
-                                onClick={() => openEditTarget(row)}
-                              >
-                                <Pencil />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Target</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Delete target"
-                                onClick={() => deleteTargetRow(row)}
-                              >
-                                <Trash2 />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Target</TooltipContent>
-                          </Tooltip>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setSettingsTargetID(row.id)}
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={() => deleteTargetRow(row)}>
+                            <Trash2 />
+                          </Button>
                         </div>
                       )}
-                      empty={<CompactMunkiEmptyState title="No Targets" />}
+                      empty={<CompactMunkiEmptyState title="No Includes" />}
                       emptyClassName="min-h-32 py-4"
                     />
-                  </section>
-                  <section className="flex max-w-3xl flex-col gap-3">
-                    <h2 className="text-base font-semibold">Exclusions</h2>
+                  </TargetSection>
+                  <TargetSection title="Exclude" contentClassName="max-w-3xl">
                     <LabelPicker
                       value={excludeForm}
                       includeBuiltins={false}
                       unavailableLabelIDs={includeLabelIDs}
-                      placeholder="Add Exclusion"
+                      placeholder="Add Exclude"
                       emptyMessage="No Labels Found."
                       onChange={(next) => {
                         updateSoftware.reset();
                         setExcludeForm(next);
                       }}
                     />
-                  </section>
+                  </TargetSection>
                 </div>
               ),
             },
@@ -576,67 +536,26 @@ function MunkiSoftwareDetailForm({
         />
 
         <MutationError title="Failed to Save Software" message={pageMutationError} />
-        <softwareOptionsForm.Subscribe selector={(state) => state.isDirty}>
-          {(softwareFormDirty) => {
-            const softwareDirty = iconFile !== null || iconCleared || softwareFormDirty;
-            const pageDirty = softwareDirty || excludeDirty || targetDirty;
-
-            return (
-              <div className="flex items-center gap-2 border-t pt-4">
-                <Button type="submit" size="sm" disabled={!pageDirty || pagePending}>
-                  {pagePending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-                  Save
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!pageDirty || pagePending}
-                  onClick={resetTargetPage}
-                >
-                  Cancel
-                </Button>
-              </div>
-            );
-          }}
-        </softwareOptionsForm.Subscribe>
+        <div className="flex items-center gap-2 border-t pt-4">
+          <Button type="submit" size="sm" disabled={pagePending}>
+            {pagePending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+            Save
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={resetTargetPage}>
+            Cancel
+          </Button>
+        </div>
       </form>
-      <Sheet open={targetSheetOpen} onOpenChange={setTargetSheetOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-          <form
-            className="flex min-h-0 flex-1 flex-col"
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void saveTarget();
-            }}
-          >
-            <SheetHeader>
-              <SheetTitle>Edit Target</SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              <MutationError title="Failed to Save Include" message={targetMutationError} />
-              <MunkiSoftwareTargetFormFields
-                form={targetForm}
-                packages={packages}
-                showErrors={showTargetErrors}
-                errors={targetFormErrors}
-                loadingPackages={false}
-                className="max-w-none"
-                onChange={setTargetForm}
-              />
-            </div>
-            <SheetFooter className="border-t">
-              <Button type="submit" size="sm">
-                Save
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => setTargetSheetOpen(false)}>
-                Cancel
-              </Button>
-            </SheetFooter>
-          </form>
-        </SheetContent>
-      </Sheet>
+      <TargetSettingsDialog
+        target={settingsTarget}
+        error={settingsTarget ? targetErrors[settingsTarget.id]?.featured : undefined}
+        onOpenChange={(open) => {
+          if (!open) setSettingsTargetID(null);
+        }}
+        onFeaturedChange={(featured) =>
+          settingsTarget ? updateTargetRow(settingsTarget.id, (target) => ({ ...target, featured })) : undefined
+        }
+      />
     </PageShell>
   );
 }
@@ -664,42 +583,24 @@ function numberTargetRows(rows: MunkiSoftwareTargetRow[]) {
   return rows.map((row, index) => ({ ...row, priority: index + 1 }));
 }
 
-function munkiSoftwareTargetFormFromRow(row: MunkiSoftwareTargetRow): MunkiSoftwareTargetFormState {
-  return {
-    priority: row.priority,
-    label_id: row.label_id,
-    strategy: row.package.strategy,
-    package_id: row.package.package_id ? String(row.package.package_id) : "",
-    state: row.state,
-    featured: row.featured,
-  };
-}
-
 function targetIncludeMutations(rows: MunkiSoftwareTargetRow[]) {
   const includes: SoftwareInclude[] = [];
-  const labelErrors: Partial<Record<number, string>> = {};
-  let editRow: MunkiSoftwareTargetRow | null = null;
+  const errors: Partial<Record<number, MunkiSoftwareTargetRowErrors>> = {};
   for (const [index, row] of rows.entries()) {
-    const form = { ...munkiSoftwareTargetFormFromRow(row), priority: index + 1 };
-    const parsed = munkiSoftwareTargetFormSchema.safeParse(form);
+    const parsed = munkiSoftwareTargetSchema.safeParse({ ...row, priority: index + 1 });
     if (!parsed.success) {
-      const rowErrors = fieldErrors(parsed);
-      if (rowErrors.label_id) {
-        labelErrors[row.id] = rowErrors.label_id;
-      } else {
-        editRow ??= row;
-      }
+      errors[row.id] = fieldErrors(parsed);
       continue;
     }
     includes.push(munkiSoftwareInclude(parsed.data));
   }
-  if (Object.keys(labelErrors).length > 0 || editRow) {
-    return { success: false as const, labelErrors, editRow };
+  if (Object.keys(errors).length > 0) {
+    return { success: false as const, errors };
   }
   return { success: true as const, includes };
 }
 
-function omitTargetError(errors: Partial<Record<number, string>>, id: number) {
+function omitTargetError<T>(errors: Partial<Record<number, T>>, id: number) {
   const next = { ...errors };
   delete next[id];
   return next;
@@ -710,43 +611,130 @@ function updateRowLabel(row: MunkiSoftwareTargetRow, id: number, labelID: number
   return { ...row, label_id: labelID };
 }
 
-function sameTargetRows(a: MunkiSoftwareTargetRow[], b: SoftwareInclude[]) {
-  if (a.length !== b.length) return false;
-  return a.every((row, index) => sameTargetRow(row, b[index], index + 1));
+function targetLabelErrors(errors: Partial<Record<number, MunkiSoftwareTargetRowErrors>>) {
+  const out: Partial<Record<number, string>> = {};
+  for (const [id, error] of Object.entries(errors)) {
+    if (error?.label_id) out[Number(id)] = error.label_id;
+  }
+  return out;
 }
 
-function sameTargetRow(a: MunkiSoftwareTargetRow, b: SoftwareInclude | undefined, priority: number) {
-  if (!b) return false;
+function TargetPackageSelect({
+  target,
+  packages,
+  error,
+  onChange,
+}: {
+  target: MunkiSoftwareTargetRow;
+  packages: MunkiPackage[];
+  error?: string;
+  onChange: (selector: SoftwareInclude["package"]) => void;
+}) {
   return (
-    a.label_id === b.label_id &&
-    a.priority === priority &&
-    a.state === b.state &&
-    a.featured === b.featured &&
-    a.package.strategy === b.package.strategy &&
-    (a.package.package_id ?? null) === (b.package.package_id ?? null)
+    <Field data-invalid={error ? true : undefined} className="gap-1">
+      <Select
+        value={targetPackageValue(target.package)}
+        onValueChange={(value) => onChange(targetPackageFromValue(value))}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value={LATEST_PACKAGE_VALUE}>Latest</SelectItem>
+            {packages.length > 0 ? <SelectSeparator /> : null}
+            {packages.map((pkg) => (
+              <SelectItem key={pkg.id} value={String(pkg.id)}>
+                {pkg.version}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
   );
 }
 
-function targetPackageLabel(target: MunkiSoftwareTargetRow, packages: MunkiPackage[]) {
-  if (target.package.strategy === "specific") {
-    const pkg = packages.find((item) => item.id === target.package.package_id);
-    return pkg ? `${pkg.software_name} ${pkg.version}` : munkiPackageStrategyLabel(target.package.strategy);
-  }
-  return munkiPackageStrategyLabel(target.package.strategy);
+function TargetManagedSelect({
+  target,
+  error,
+  onChange,
+}: {
+  target: MunkiSoftwareTargetRow;
+  error?: string;
+  onChange: (state: SoftwareInclude["state"]) => void;
+}) {
+  return (
+    <Field data-invalid={error ? true : undefined} className="gap-1">
+      <Select value={target.state} onValueChange={(state) => onChange(state as SoftwareInclude["state"])}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {MUNKI_SOFTWARE_STATE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+      {error ? <FieldError>{error}</FieldError> : null}
+    </Field>
+  );
 }
 
-function targetAvailabilitySections(target: MunkiSoftwareTargetRow) {
-  const sections: string[] = [];
-  if (target.state === "optional_install") sections.push("Optional Installs");
-  if (target.featured) sections.push("Featured Items");
-  return sections;
-}
+function TargetSettingsDialog({
+  target,
+  error,
+  onOpenChange,
+  onFeaturedChange,
+}: {
+  target?: MunkiSoftwareTargetRow;
+  error?: string;
+  onOpenChange: (open: boolean) => void;
+  onFeaturedChange: (featured: boolean) => void;
+}) {
+  const optional = target?.state === "optional_install";
 
-function sameNumberSet(a: readonly number[], b: readonly number[]) {
-  if (a.length !== b.length) return false;
-  const values = new Set(a);
-  if (values.size !== b.length) return false;
-  return b.every((value) => values.has(value));
+  return (
+    <Dialog open={target !== undefined} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Include Settings</DialogTitle>
+        </DialogHeader>
+        {target ? (
+          <FieldGroup>
+            <FieldSet>
+              <Field
+                orientation="horizontal"
+                data-invalid={error ? true : undefined}
+                className={!optional ? "opacity-60" : undefined}
+              >
+                <Checkbox
+                  id="munki-target-featured"
+                  checked={target.featured}
+                  disabled={!optional}
+                  onCheckedChange={(checked) => onFeaturedChange(checked === true)}
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="munki-target-featured">Featured</FieldLabel>
+                </FieldContent>
+              </Field>
+              {error ? <FieldError>{error}</FieldError> : null}
+            </FieldSet>
+          </FieldGroup>
+        ) : null}
+        <DialogFooter>
+          <Button type="button" size="sm" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function CompactMunkiEmptyState({ title }: { title: string }) {

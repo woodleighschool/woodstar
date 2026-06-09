@@ -1022,7 +1022,7 @@ function AlertEditor({
 
 function IconButton({ label, children, onClick }: { label: string; children: ReactNode; onClick: () => void }) {
   return (
-    <Button type="button" variant="ghost" size="icon-sm" aria-label={label} title={label} onClick={onClick}>
+    <Button type="button" variant="ghost" size="icon-sm" title={label} onClick={onClick}>
       {children}
     </Button>
   );

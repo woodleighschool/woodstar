@@ -2,8 +2,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRef } from "react";
 
 import { LabelPicker } from "@/components/labels/label-picker";
+import { TargetSection } from "@/components/targeting/target-section";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
 import type { LabelRef } from "@/lib/api";
 import { normalizeLabelTargetSet, type LabelTargetSet } from "@/lib/targeting";
 import { cn } from "@/lib/utils";
@@ -28,10 +28,10 @@ export function LabelTargetSetEditor({
   value,
   onChange,
   includeBuiltins = true,
-  targetTitle = "Targets",
-  exclusionTitle = "Exclusions",
-  targetButtonLabel = "Add Target",
-  exclusionButtonLabel = "Add Exclusion",
+  targetTitle = "Include",
+  exclusionTitle = "Exclude",
+  targetButtonLabel = "Add Include",
+  exclusionButtonLabel = "Add Exclude",
   targetPlaceholder = "Select Label",
   exclusionPlaceholder = "Select Label",
   className,
@@ -62,7 +62,7 @@ export function LabelTargetSetEditor({
   }
 
   return (
-    <div className={cn("grid gap-6 lg:grid-cols-2", className)}>
+    <div className={cn("flex flex-col gap-6", className)}>
       <LabelTargetSetColumn
         title={targetTitle}
         direction="include"
@@ -125,20 +125,23 @@ function LabelTargetSetColumn({
   }
 
   return (
-    <Field className="gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <FieldLabel>{title}</FieldLabel>
+    <TargetSection
+      title={title}
+      action={
         <Button type="button" variant="outline" size="sm" onClick={() => onAdd(direction)}>
           <Plus data-icon="inline-start" />
           {buttonLabel}
         </Button>
-      </div>
+      }
+    >
       {rows.length === 0 ? (
-        <div className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-sm">None</div>
+        <div className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-sm">
+          {emptyStateMessage(direction)}
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
           {rows.map((row, index) => (
-            <div key={rowKey(row)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div key={rowKey(row)} className="flex min-w-0 items-center gap-2">
               <LabelPicker
                 value={row.label_id > 0 ? [row.label_id] : []}
                 onChange={(next) => onUpdate(direction, index, next[0] ?? 0)}
@@ -148,13 +151,26 @@ function LabelTargetSetColumn({
                 required
                 invalid={row.label_id <= 0}
               />
-              <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(direction, index)}>
+              <Button
+                type="button"
+                className="shrink-0"
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemove(direction, index)}
+              >
                 <Trash2 />
               </Button>
             </div>
           ))}
         </div>
       )}
-    </Field>
+    </TargetSection>
   );
+}
+
+function emptyStateMessage(direction: LabelTargetSetDirection) {
+  if (direction === "include") {
+    return "No Includes";
+  }
+  return "No Excludes";
 }

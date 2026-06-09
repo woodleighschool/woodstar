@@ -6,6 +6,7 @@ const IMAGE_SIZE_CLASS = {
   md: "size-9 rounded-md",
   lg: "size-20 rounded-lg",
 } as const;
+const IMAGE_BOX_CLASS = "inline-flex shrink-0 items-center justify-center border";
 
 interface MunkiIconProps {
   iconUrl?: string;
@@ -20,8 +21,8 @@ export function MunkiIcon({ iconUrl, size = "sm", className, loading = "lazy" }:
   }
 
   return (
-    <span className={cn("bg-muted/40 inline-flex shrink-0 overflow-hidden", IMAGE_SIZE_CLASS[size], className)}>
-      <img src={iconUrl} alt="" className="size-full object-contain" loading={loading} />
+    <span className={cn("overflow-hidden bg-transparent", IMAGE_BOX_CLASS, IMAGE_SIZE_CLASS[size], className)}>
+      <img src={iconUrl} alt="" className="size-full object-contain block" loading={loading} />
     </span>
   );
 }
